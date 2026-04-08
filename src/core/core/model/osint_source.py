@@ -304,6 +304,7 @@ class OSINTSource(BaseModel):
         db.session.add(osint_source)
         db.session.commit()
         osint_source.schedule_osint_source()
+        osint_source._publish_schedule_cache_invalidation()
         return osint_source
 
     @classmethod
@@ -325,6 +326,7 @@ class OSINTSource(BaseModel):
             return {"error": "Invalid state"}, 400
 
         db.session.commit()
+        osint_source._publish_schedule_cache_invalidation()
         return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
 
     @classmethod
@@ -347,6 +349,7 @@ class OSINTSource(BaseModel):
             osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
         db.session.commit()
         osint_source.schedule_osint_source()
+        osint_source._publish_schedule_cache_invalidation()
         return osint_source
 
     def _parse_icon(self, icon: bytes | str) -> bytes:
@@ -427,6 +430,7 @@ class OSINTSource(BaseModel):
                     db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
             db.session.delete(source)
             db.session.commit()
+            source._publish_schedule_cache_invalidation()
             return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
@@ -478,6 +482,16 @@ class OSINTSource(BaseModel):
 
         logger.info(f"Unscheduling {self.name}. Notifying cron scheduler...")
         return queue_manager.queue_manager.unregister_cron_job(self.cron_job_id)
+
+    def _publish_schedule_cache_invalidation(self) -> None:
+        try:
+            from core.managers import queue_manager
+
+            published = queue_manager.queue_manager.publish_schedule_cache_invalidation()
+            if published:
+                logger.debug("Published %s schedule cache invalidation signals", published)
+        except Exception as exc:
+            logger.warning(f"Failed to publish schedule cache invalidation signal: {exc}")
 
     def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
         export_dict = {

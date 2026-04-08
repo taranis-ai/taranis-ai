@@ -79,3 +79,23 @@ def test_osint_source_partial_update_reparses_parameters(session):
 
     assert updated_source is not None
     assert ParameterValue.find_value_by_parameter(updated_source.parameters, "FEED_URL") == "https://changed.example/feed.xml"
+
+
+@pytest.mark.usefixtures("app")
+def test_osint_source_update_publishes_schedule_cache_invalidation(session, monkeypatch):
+    source = OSINTSource(
+        name="Source",
+        description="A test",
+        type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        parameters={"FEED_URL": "https://example.com/feed.xml"},
+    )
+    session.add(source)
+    session.commit()
+
+    published: list[str] = []
+    monkeypatch.setattr(OSINTSource, "_publish_schedule_cache_invalidation", lambda self: published.append(self.id))
+
+    updated_source = OSINTSource.update(source.id, {"parameters": {"REFRESH_INTERVAL": "0 */6 * * *"}})
+
+    assert updated_source is not None
+    assert published == [source.id]
