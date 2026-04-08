@@ -1,7 +1,35 @@
 from datetime import datetime
 from typing import Any
 
+from pydantic import Field, model_validator
+
 from models.base import TaranisBaseModel
+
+
+class CronTaskSpec(TaranisBaseModel):
+    queue_name: str
+    func_path: str
+    cron: str | None = None
+    interval: int | None = None
+    args: list[Any] = Field(default_factory=list)
+    kwargs: dict[str, Any] = Field(default_factory=dict)
+    job_options: dict[str, Any] = Field(default_factory=dict)
+    meta: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_scheduler_payload(cls, value: Any):
+        if not isinstance(value, dict):
+            return value
+
+        normalized = dict(value)
+        normalized["queue_name"] = normalized.get("queue_name") or normalized.get("queue")
+        normalized["func_path"] = normalized.get("func_path") or normalized.get("func") or normalized.get("task")
+        normalized["args"] = list(normalized.get("args") or [])
+        normalized["kwargs"] = dict(normalized.get("kwargs") or {})
+        normalized["job_options"] = dict(normalized.get("job_options") or {})
+        normalized["meta"] = dict(normalized.get("meta") or {})
+        return normalized
 
 
 class Task(TaranisBaseModel):

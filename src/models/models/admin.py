@@ -4,6 +4,7 @@ from typing import Any, Literal
 from pydantic import AnyUrl, Field, PastDatetime, SecretStr, field_serializer, field_validator, model_validator
 
 from models.base import TaranisBaseModel
+from models.task import CronTaskSpec
 from models.types import (
     BOT_TYPES,
     COLLECTOR_TYPES,
@@ -159,16 +160,8 @@ class TaskHistoryResponse(TaranisBaseModel):
     totals: TaskHistoryTotals = Field(default_factory=TaskHistoryTotals)
 
 
-class CronSpec(TaranisBaseModel):
+class CronSpec(CronTaskSpec):
     job_id: str
-    func_path: str
-    queue_name: str
-    cron: str | None = None
-    interval: int | None = None
-    args: list[Any] = Field(default_factory=list)
-    kwargs: dict[str, Any] = Field(default_factory=dict)
-    job_options: dict[str, Any] = Field(default_factory=dict)
-    meta: dict[str, Any] = Field(default_factory=dict)
 
 
 class TaskResult(TaranisBaseModel):
