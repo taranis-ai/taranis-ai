@@ -73,10 +73,10 @@
 
     <div class="mb-5 w-3/4">
       <label class="floating-label w-full">
-        <span class="label">Last login</span>
+        <span class="label">Last login (UTC)</span>
         <input id="last_login_display"
                type="text"
-               placeholder="Last login"
+               placeholder="Last login (UTC)"
                class="input w-full bg-base-200 text-base-content/60 cursor-not-allowed"
                value="{{ user.last_login | format_datetime if user.last_login else '' }}"
                disabled />

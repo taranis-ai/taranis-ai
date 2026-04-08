@@ -1,11 +1,12 @@
 import logging
 
 import schemathesis
-import werkzeug
 from dotenv import load_dotenv
+from flask_jwt_extended import create_access_token
 from hypothesis import HealthCheck, settings
 
 from core.__init__ import create_app
+from core.model.user import User
 
 
 load_dotenv(dotenv_path="tests/.env", override=True)
@@ -18,11 +19,20 @@ schema = schemathesis.from_wsgi("/api/static/openapi3_1.yaml", app, skip_depreca
 @schema.auth()
 class UserAuth:
     def get(self, case, context):
-        client = werkzeug.Client(context.app)
-        response = client.post("/api/auth/login", json={"username": "admin", "password": app.config["PRE_SEED_PASSWORD_ADMIN"]})
-        if not response or not response.json:
-            raise AssertionError(response.text)
-        return response.json["access_token"]
+        with context.app.app_context():
+            user = User.find_by_name("admin")
+            if not user:
+                raise AssertionError("Admin user not found")
+            return create_access_token(
+                identity=user,
+                additional_claims={
+                    "user_claims": {
+                        "id": user.id,
+                        "name": user.name,
+                        "roles": user.get_roles(),
+                    }
+                },
+            )
 
     def set(self, case, data, context):
         case.headers = case.headers or {}

@@ -82,7 +82,7 @@ class User(BaseModel):
         )
 
     def mark_last_login(self) -> None:
-        self.last_login = self.as_utc_aware(datetime.now())
+        self.last_login = self.utcnow()
         db.session.commit()
 
     @classmethod
