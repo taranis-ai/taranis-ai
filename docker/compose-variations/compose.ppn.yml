@@ -127,7 +127,6 @@ services:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
-    command: ["python", "-m", "worker", "--queues", "collectors"]
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
@@ -158,7 +157,6 @@ services:
       restart_policy:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
-    command: ["python", "-m", "worker", "--queues", "presenters", "publishers", "bots", "connectors"]
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"

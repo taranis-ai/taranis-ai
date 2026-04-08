@@ -33,7 +33,7 @@ def show_cron_status():
         if not leader_raw:
             print("\nNo active cron scheduler leader found.")
             print("Start scheduler with:")
-            print("  uv run python -m worker.cron_scheduler")
+            print("  uv run --no-sync --frozen taranis-cron")
             print(f"\nDefinitions in Redis: {defs_count}")
             print(f"Next-run entries in Redis: {next_count}")
             return

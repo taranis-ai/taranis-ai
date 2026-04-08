@@ -47,6 +47,6 @@ ARG git_info
 ENV GIT_INFO=${git_info:-'{}'}
 RUN echo BUILD_DATE=$(date --iso-8601=minutes) > .env
 
-ENTRYPOINT [ "python", "-m", "worker" ]
+ENTRYPOINT [ "taranis-worker" ]
 
 CMD []

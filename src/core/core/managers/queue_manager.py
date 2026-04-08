@@ -10,7 +10,7 @@ Architecture:
    - Stores cron definitions in Redis (`rq:cron:def`)
 
 2. Cron Scheduler (separate worker process):
-   - Runs as `python -m worker.cron_scheduler`
+   - Runs as `taranis-cron`
    - Polls Redis for cron definitions (`rq:cron:def`)
    - Tracks next run timestamps in `rq:cron:next`
    - Uses leader lock `rq:cron:leader` for single active scheduler

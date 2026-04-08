@@ -181,7 +181,7 @@ When using `./dev/start_tmux.sh`, the cron scheduler is automatically started in
 cd src/worker
 uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
 uv pip install -e ../models
-uv run --no-sync --frozen python -m worker.cron_scheduler
+uv run --no-sync --frozen taranis-cron
 ```
 
 **Updating schedules:**

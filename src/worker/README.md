@@ -15,6 +15,12 @@ uv pip install -Ue .[dev]
 Start the RQ worker:
 
 ```bash
+uv run --no-sync --frozen taranis-worker
+```
+
+Module execution remains supported for compatibility:
+
+```bash
 python -m worker
 ```
 
