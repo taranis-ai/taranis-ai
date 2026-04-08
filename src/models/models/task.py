@@ -25,11 +25,21 @@ class CronTaskSpec(TaranisBaseModel):
         normalized = dict(value)
         normalized["queue_name"] = normalized.get("queue_name") or normalized.get("queue")
         normalized["func_path"] = normalized.get("func_path") or normalized.get("func") or normalized.get("task")
+        normalized["cron"] = normalized.get("cron") or None
+        normalized["interval"] = None if normalized.get("interval") in ("", None) else normalized.get("interval")
         normalized["args"] = list(normalized.get("args") or [])
         normalized["kwargs"] = dict(normalized.get("kwargs") or {})
         normalized["job_options"] = dict(normalized.get("job_options") or {})
         normalized["meta"] = dict(normalized.get("meta") or {})
         return normalized
+
+    @model_validator(mode="after")
+    def validate_schedule_definition(self):
+        has_cron = bool(self.cron)
+        has_interval = self.interval is not None
+        if has_cron == has_interval:
+            raise ValueError("CronTaskSpec must provide exactly one of cron or interval")
+        return self
 
 
 class Task(TaranisBaseModel):

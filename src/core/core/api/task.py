@@ -91,7 +91,7 @@ def resolve_task_kind(task_id: str, task_name: str | None) -> str | None:
         return "presenter_task"
     if task_name == "collector_task" or task_name.startswith("collect_") or task_id.startswith("collect_"):
         return "collector_task"
-    if task_name == "bot_task" or task_id.startswith("bot"):
+    if task_name == "bot_task" or task_name.startswith("bot_") or task_id.startswith("bot"):
         return "bot_task"
     if task_name == "connector_task":
         return "connector_task"

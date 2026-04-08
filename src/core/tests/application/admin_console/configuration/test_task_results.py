@@ -1,6 +1,6 @@
 """Integration tests for task result processing in core API."""
 
-from core.api.task import handle_task_specific_result
+from core.api.task import handle_task_specific_result, resolve_task_kind
 
 
 class TestTaskResultProcessing:
@@ -42,6 +42,32 @@ class TestTaskResultProcessing:
         assert "Bot execution failed: Connection timeout" in caplog.text
         assert calls["found"] == 0
         assert calls["execution"] == 0
+
+    def test_bot_task_kind_resolves_from_cron_job_id_and_bot_prefixed_name(self):
+        assert resolve_task_kind("cron_bot_bot-456_1712572800", "bot_bot-456") == "bot_task"
+
+    def test_cron_bot_result_calls_services(self, monkeypatch):
+        calls = {"found": None, "execution": 0}
+
+        def fake_set_found_bot_tags(payload, change_by_bot=True):
+            calls["found"] = (payload, change_by_bot)
+
+        def fake_set_bot_execution_attribute(payload):
+            calls["execution"] += 1
+
+        monkeypatch.setattr("core.api.task.NewsItemTagService.set_found_bot_tags", fake_set_found_bot_tags)
+        monkeypatch.setattr("core.api.task.NewsItemTagService.set_bot_execution_attribute", fake_set_bot_execution_attribute)
+
+        result = {
+            "bot_type": "WORDLIST_BOT",
+            "result": {"tagged_items": 5},
+            "news_items": [{"id": "item1", "attributes": []}],
+        }
+
+        handle_task_specific_result("cron_bot_bot-456_1712572800", result, "SUCCESS", "bot_bot-456")
+
+        assert calls["found"] == (result, True)
+        assert calls["execution"] == 1
 
     def test_presenter_updates_product(self, monkeypatch):
         updated = {}
