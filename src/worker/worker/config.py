@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     SENTIMENT_ANALYSIS_API_ENDPOINT: str = "http://sentiment_analysis_bot:8000"
     CYBERSEC_CLASSIFIER_API_ENDPOINT: str = "http://cybersec_classifier_bot:8000"
     CYBERSEC_CLASSIFIER_THRESHOLD: float = 0.65
+    CRON_POLL_INTERVAL_SECONDS: float = 15.0
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:
