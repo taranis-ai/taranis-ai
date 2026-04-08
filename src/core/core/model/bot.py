@@ -257,11 +257,9 @@ class Bot(BaseModel):
             from core.managers import queue_manager
 
             qm = queue_manager.queue_manager
-            if qm.error or not qm._redis:
-                return
-
-            qm._redis.publish("taranis:cache:invalidate", "schedule")
-            logger.debug("Published cache invalidation signal for schedules")
+            published = qm.publish_schedule_cache_invalidation()
+            if published:
+                logger.debug("Published %s schedule cache invalidation signals", published)
 
         except Exception as e:
             logger.warning(f"Failed to publish schedule cache invalidation signal: {e}")
