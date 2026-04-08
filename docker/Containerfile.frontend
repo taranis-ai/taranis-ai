@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-dev
 
 COPY ./src/frontend/. /app/
+COPY ./src/models/. /models/
+COPY ./.git /.git
 RUN rm -f /app/frontend/static/assets/openapi3_1.yaml
 COPY ./src/core/core/static/openapi3_1.yaml /app/frontend/static/assets/openapi3_1.yaml
 
@@ -22,7 +24,7 @@ ENV UV_COMPILE_BYTECODE=1
 RUN /app/build_tailwindcss.sh && \
     uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
-    uv sync --frozen
+    uv sync --frozen --no-editable
 
 FROM python:3.13-slim
 
