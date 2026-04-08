@@ -21,8 +21,8 @@ class PublisherPresets(MethodView):
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
     def get(self, preset_id: str | None = None, filter_args: dict | None = None):
         if preset_id:
-            return publisher_preset.PublisherPreset.get_for_api(preset_id)
-        return publisher_preset.PublisherPreset.get_all_for_api(filter_args, with_count=True)
+            return publisher_preset.PublisherPreset.get_for_publish_api(preset_id)
+        return publisher_preset.PublisherPreset.get_all_for_publish_api(filter_args)
 
 
 class Products(MethodView):

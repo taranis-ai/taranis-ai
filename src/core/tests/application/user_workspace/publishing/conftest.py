@@ -14,7 +14,10 @@ def publish_publisher_preset(app):
             "name": "publish_user_preset",
             "description": "User publish preset",
             "type": "ftp_publisher",
-            "parameters": {"FTP_URL": "ftp://example.invalid/export"},
+            "parameters": {
+                "FTP_URL": "ftp://example.invalid/export",
+                "PASSWORD": "super-secret-password",
+            },
         }
 
         if not PublisherPreset.get(publisher_preset["id"]):

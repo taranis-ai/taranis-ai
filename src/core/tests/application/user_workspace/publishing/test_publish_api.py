@@ -41,4 +41,14 @@ class TestPublishApi(BaseTest):
         assert response.get_json()["items"][0]["id"] == publish_publisher_preset["id"]
         assert response.get_json()["items"][0]["name"] == publish_publisher_preset["name"]
         assert response.get_json()["items"][0]["type"] == publish_publisher_preset["type"]
-        assert response.get_json()["items"][0]["parameters"]["FTP_URL"] == publish_publisher_preset["parameters"]["FTP_URL"]
+        assert response.get_json()["items"][0]["description"] == publish_publisher_preset["description"]
+        assert "parameters" not in response.get_json()["items"][0]
+
+    def test_get_publisher_preset_detail(self, client, auth_header, publish_publisher_preset):
+        response = self.assert_get_ok(client, f"publisher-presets/{publish_publisher_preset['id']}", auth_header)
+
+        assert response.get_json()["id"] == publish_publisher_preset["id"]
+        assert response.get_json()["name"] == publish_publisher_preset["name"]
+        assert response.get_json()["type"] == publish_publisher_preset["type"]
+        assert response.get_json()["description"] == publish_publisher_preset["description"]
+        assert "parameters" not in response.get_json()

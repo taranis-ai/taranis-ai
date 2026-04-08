@@ -269,7 +269,7 @@ class BotActions(MethodView):
 class Connectors(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
     @extract_args("search", "page", "limit", "offset", "sort", "order", "fetch_all")
-    def get(self, story_id: str | None = None, filter_args: dict | None = None):
+    def get(self, filter_args: dict | None = None):
         return connector.Connector.get_all_for_user_api(filter_args, user=current_user)
 
     @auth_required("CONNECTOR_USER_ACCESS")
@@ -402,7 +402,6 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/stories/botactions", view_func=BotActions.as_view("bot_actions"))
     assess_bp.add_url_rule("/stories/bulk_action", view_func=Stories.as_view("bulk_action"))
     assess_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors_list"))
-    assess_bp.add_url_rule("/connectors/story/<string:story_id>", view_func=Connectors.as_view("connectors"))
     assess_bp.add_url_rule("/connectors/proposals", view_func=Proposals.as_view("proposals"))
     assess_bp.add_url_rule("/stories/<string:story_id>/revisions", view_func=StoryRevisions.as_view("story_revisions"))
     assess_bp.add_url_rule(

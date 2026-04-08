@@ -46,7 +46,7 @@ class PublisherPreset(TaranisBaseModel):
     name: str
     type: PUBLISHER_TYPES
     description: str | None = ""
-    parameters: dict[str, str] | None = Field(default_factory=dict)
+    parameters: dict[str, str] = Field(default_factory=dict)
 
 
 class Product(TaranisBaseModel):

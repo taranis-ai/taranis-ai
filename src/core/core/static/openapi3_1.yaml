@@ -907,6 +907,42 @@ paths:
         "404":
           $ref: "#/components/responses/404NotFound"
   /assess/connectors:
+    parameters:
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: order
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: fetch_all
+        in: query
+        required: false
+        schema:
+          type: string
     get:
       security:
         - UserAuth: []
@@ -3034,7 +3070,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: "#/components/schemas/publisher_preset.presentation"
+                      $ref: "#/components/schemas/publisher_preset.user"
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -3058,7 +3094,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/publisher_preset.presentation"
+                $ref: "#/components/schemas/publisher_preset.user"
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -3322,6 +3358,21 @@ components:
       allOf:
         - $ref: "#/components/schemas/publisher_preset"
         - $ref: "#/components/schemas/presentation"
+    publisher_preset.user:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        type:
+          type:
+            - string
+            - "null"
     connector.user:
       type: object
       properties:
@@ -3330,9 +3381,13 @@ components:
         name:
           type: string
         description:
-          type: string
+          type:
+            - string
+            - "null"
         type:
-          type: string
+          type:
+            - string
+            - "null"
 
     attribute_group_item:
       type: object
