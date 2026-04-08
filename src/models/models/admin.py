@@ -173,6 +173,7 @@ class User(TaranisBaseModel):
     roles: list[int] | list[dict] = Field(default_factory=list)
     username: str = ""
     password: SecretStr | None = None
+    last_login: datetime | None = None
 
     @field_serializer("password", when_used="json")
     def dump_secret(self, v):

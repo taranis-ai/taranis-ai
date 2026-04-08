@@ -72,6 +72,18 @@
     </div>
 
     <div class="mb-5 w-3/4">
+      <label class="floating-label w-full">
+        <span class="label">Last login</span>
+        <input id="last_login_display"
+               type="text"
+               placeholder="Last login"
+               class="input w-full bg-base-200 text-base-content/60 cursor-not-allowed"
+               value="{{ user.last_login | format_datetime if user.last_login else '' }}"
+               disabled />
+      </label>
+    </div>
+
+    <div class="mb-5 w-3/4">
       <select name="roles[]" multiple required id="user-role-select">
         {% for role in roles %}
           <option value="{{ role.id }}" {% if role.id | string in user_role_ids %}selected{% endif %}>

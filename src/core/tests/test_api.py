@@ -45,6 +45,26 @@ def test_auth_login(client):
     assert response.status_code == 200
 
 
+def test_auth_login_updates_last_login(client, app):
+    from core.model.user import User
+
+    with app.app_context():
+        user = User.find_by_name("user")
+        assert user is not None
+        previous_last_login = user.last_login
+
+    body = {"username": "user", "password": os.getenv("PRE_SEED_PASSWORD_USER")}
+    response = client.post("/api/auth/login", json=body)
+    assert response.status_code == 200
+
+    with app.app_context():
+        user = User.find_by_name("user")
+        assert user is not None
+        assert user.last_login is not None
+        if previous_last_login is not None:
+            assert user.last_login >= previous_last_login
+
+
 def test_auth_login_external_authenticator(tmp_path, monkeypatch):
     db_path = tmp_path / "external-auth.sqlite"
     env_vars = {
@@ -104,6 +124,7 @@ def test_auth_login_external_authenticator(tmp_path, monkeypatch):
             user = User.find_by_name("external-user")
             assert user is not None
             assert user.name == "External User"
+            assert user.last_login is not None
             assert user.organization is not None
             assert user.organization.name == "External Org"
             assert any(role.name == "User" for role in user.roles)

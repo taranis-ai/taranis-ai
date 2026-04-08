@@ -32,6 +32,7 @@ class BaseAuthenticator:
     @staticmethod
     def generate_jwt(username: str) -> Response:
         if user := User.find_by_name(username):
+            user.mark_last_login()
             logger.store_user_activity(user, "LOGIN", "Successful")
             access_token = create_access_token(
                 identity=user,
