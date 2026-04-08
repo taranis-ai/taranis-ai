@@ -39,6 +39,18 @@ class TestAssessApi(BaseTest):
         assert actual_attributes == expected_attributes
         assert len(story["news_items"]) == len(input_data["news_items"])
 
+    def test_get_connectors(self, client, auth_header, assess_connector):
+        response = self.assert_get_ok(client, "connectors", auth_header)
+        items = {item["id"]: item for item in response.get_json()["items"]}
+        connector = items[assess_connector["id"]]
+
+        assert response.get_json()["total_count"] >= 1
+        assert connector["id"] == assess_connector["id"]
+        assert connector["name"] == assess_connector["name"]
+        assert connector["description"] == assess_connector["description"]
+        assert connector["type"] == assess_connector["type"]
+        assert "parameters" not in connector
+
 
 class TestAssessNewsItems(BaseTest):
     base_uri = "/api/assess"

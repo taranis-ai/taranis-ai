@@ -9,9 +9,9 @@ from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
-from core.managers.decorators import validate_json
+from core.managers.decorators import extract_args, validate_json
 from core.managers.sse_manager import sse_manager
-from core.model import news_item, news_item_tag, osint_source, story
+from core.model import connector, news_item, news_item_tag, osint_source, story
 from core.model.revision import StoryRevision
 from core.model.story_conflict import StoryConflict
 from core.service.news_item import NewsItemService
@@ -268,6 +268,11 @@ class BotActions(MethodView):
 
 class Connectors(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
+    @extract_args("search", "page", "limit", "offset", "sort", "order", "fetch_all")
+    def get(self, story_id: str | None = None, filter_args: dict | None = None):
+        return connector.Connector.get_all_for_user_api(filter_args, user=current_user)
+
+    @auth_required("CONNECTOR_USER_ACCESS")
     @validate_json
     def post(self, connector_id):
         """Send stories to an external system."""
@@ -396,6 +401,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
     assess_bp.add_url_rule("/stories/botactions", view_func=BotActions.as_view("bot_actions"))
     assess_bp.add_url_rule("/stories/bulk_action", view_func=Stories.as_view("bulk_action"))
+    assess_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors_list"))
     assess_bp.add_url_rule("/connectors/story/<string:story_id>", view_func=Connectors.as_view("connectors"))
     assess_bp.add_url_rule("/connectors/proposals", view_func=Proposals.as_view("proposals"))
     assess_bp.add_url_rule("/stories/<string:story_id>/revisions", view_func=StoryRevisions.as_view("story_revisions"))

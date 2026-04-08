@@ -906,6 +906,31 @@ paths:
                 examples: ["Story is in use"]
         "404":
           $ref: "#/components/responses/404NotFound"
+  /assess/connectors:
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      operationId: assess.connectors.get
+      description: get connectors available to assess users for story sharing
+      responses:
+        "200":
+          description: a list of assess connectors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/connector.user"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/stories/group:
     put:
       security:
@@ -3297,6 +3322,17 @@ components:
       allOf:
         - $ref: "#/components/schemas/publisher_preset"
         - $ref: "#/components/schemas/presentation"
+    connector.user:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
 
     attribute_group_item:
       type: object

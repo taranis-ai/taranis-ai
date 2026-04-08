@@ -8,8 +8,7 @@ from flask import Response, abort, flash, json, make_response, redirect, render_
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from markupsafe import Markup, escape
-from models.admin import Connector
-from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
+from models.assess import AssessSource, BulkAction, Connector, FilterLists, NewsItem, Story, StoryUpdatePayload
 from models.report import ReportItem
 from pydantic import ValidationError
 from werkzeug.datastructures import FileStorage
