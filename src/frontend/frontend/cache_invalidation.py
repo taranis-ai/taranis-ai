@@ -8,7 +8,7 @@ import threading
 
 from redis import Redis
 
-from frontend.cache import cache
+from frontend.cache import invalidate_cache_keys
 from frontend.log import logger
 
 
@@ -50,28 +50,20 @@ class CacheInvalidationListener:
                 break
 
             if message["type"] == "message":
-                cache_key_suffix = message["data"]
+                cache_key_suffix = str(message["data"])
                 logger.info(f"CacheInvalidationListener: received invalidation signal for: {cache_key_suffix}")
                 self._invalidate_cache(cache_key_suffix)
 
     def _invalidate_cache(self, suffix: str):
         """Invalidate cache entries matching the suffix"""
         try:
-            # Get all cache keys
-            keys = list(cache.cache._cache.keys())
-            invalidated = 0
-
-            for key in keys:
-                # Match keys ending with the suffix (e.g., "_config_schedule")
-                if suffix and key.endswith(f"_{suffix}") or key.endswith(f"_{suffix.replace('/', '_')}"):
-                    cache.delete(key)
-                    invalidated += 1
-                    logger.debug(f"Invalidated cache key: {key}")
-
+            invalidated = invalidate_cache_keys(suffix)
+            if invalidated < 0:
+                logger.info(f"CacheInvalidationListener: cleared entire cache for suffix: {suffix}")
+                return
             logger.info(f"CacheInvalidationListener: invalidated {invalidated} cache entries for suffix: {suffix}")
-
-        except Exception as e:
-            logger.exception(f"CacheInvalidationListener: failed to invalidate cache: {e}")
+        except Exception as exc:
+            logger.exception(f"CacheInvalidationListener: failed to invalidate cache: {exc}")
 
 
 # Global listener instance

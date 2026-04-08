@@ -7,7 +7,7 @@ from flask_jwt_extended import get_jwt_identity
 from models.base import T, TaranisBaseModel
 from requests import Response
 
-from frontend.cache import cache
+from frontend.cache import cache, invalidate_cache_keys
 from frontend.cache_models import CacheObject, PagingData
 from frontend.config import Config
 from frontend.core_api import CoreApi
@@ -51,7 +51,7 @@ class DataPersistenceLayer:
     def get_object(self, object_model: Type[T], object_id: int | str | None = None) -> T | None:
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_user_key(endpoint) if object_id is None else f"{object_id}_{self.make_user_key(endpoint)}"
-        if cache_object := cache.get(key=cache_key):
+        if (cache_object := cache.get(key=cache_key)) is not None:
             return cache_object
         path = endpoint if object_id is None else f"{endpoint}/{object_id}"
         result = self.api.api_get(path)
@@ -62,10 +62,7 @@ class DataPersistenceLayer:
         logger.warning(f"Failed to fetch object from: {endpoint}")
 
     def invalidate_cache(self, suffix: str | None = None) -> None:
-        keys = list(cache.cache._cache.keys())
-        for key in keys:
-            if suffix is None or key.endswith(f"_{suffix}"):
-                cache.delete(key)
+        invalidate_cache_keys(suffix)
 
     def invalidate_cache_by_object(self, object: TaranisBaseModel | Type[TaranisBaseModel]):
         suffix = self.make_key(object._core_endpoint)
@@ -78,7 +75,7 @@ class DataPersistenceLayer:
 
     def get_objects_by_endpoint(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> CacheObject[T]:
         cache_key = self.make_user_key(endpoint, paging_data)
-        if cache_object := cache.get(key=cache_key):
+        if (cache_object := cache.get(key=cache_key)) is not None:
             logger.debug(f"Cache hit for {cache_key}")
             return cache_object
         result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
@@ -91,7 +88,7 @@ class DataPersistenceLayer:
             paging_data = PagingData().set_fetch_all()
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_user_key(endpoint, paging_data)
-        if cache_object := cache.get(key=cache_key):
+        if (cache_object := cache.get(key=cache_key)) is not None:
             logger.debug(f"Cache hit for {cache_key}")
             return cache_object
         result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
@@ -115,9 +112,6 @@ class DataPersistenceLayer:
             query_params=paging_data.query_params if paging_data else {},
             links=links,
         )
-        if not result_object:
-            logger.warning(f"Empty result for {endpoint}, not caching response")
-            return cache_object
         logger.debug(f"Adding {len(cache_object)} items from {endpoint} to cache with timeout: {cache_object.timeout}")
         cache.set(key=self.make_user_key(endpoint, paging_data), value=cache_object, timeout=cache_object.timeout)
         return cache_object
