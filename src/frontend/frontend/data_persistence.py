@@ -14,6 +14,19 @@ from frontend.core_api import CoreApi
 from frontend.log import logger
 
 
+VOLATILE_ENDPOINTS = frozenset(
+    {
+        "/config/schedule",
+        "/config/workers/tasks",
+        "/config/workers/stats",
+        "/config/workers/dashboard",
+        "/config/workers/active",
+        "/config/workers/failed",
+        "/config/task-results",
+    }
+)
+
+
 class DataPersistenceLayer:
     def __init__(self, jwt_token=None):
         self.jwt_token = jwt_token or self.get_jwt_from_request()
@@ -38,6 +51,9 @@ class DataPersistenceLayer:
     def get_endpoint(self, object_model: Type[TaranisBaseModel] | TaranisBaseModel) -> str:
         return object_model._core_endpoint
 
+    def should_cache_endpoint(self, endpoint: str) -> bool:
+        return endpoint not in VOLATILE_ENDPOINTS
+
     def get_first(self, object_model: Type[T]) -> T | None:
         objects = self.get_objects(object_model).items
         return None if len(objects) < 1 else objects[0]
@@ -51,13 +67,15 @@ class DataPersistenceLayer:
     def get_object(self, object_model: Type[T], object_id: int | str | None = None) -> T | None:
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_user_key(endpoint) if object_id is None else f"{object_id}_{self.make_user_key(endpoint)}"
-        if (cache_object := cache.get(key=cache_key)) is not None:
+        should_cache = self.should_cache_endpoint(endpoint)
+        if should_cache and (cache_object := cache.get(key=cache_key)) is not None:
             return cache_object
         path = endpoint if object_id is None else f"{endpoint}/{object_id}"
         result = self.api.api_get(path)
         if isinstance(result, dict):
             cache_object = object_model(**result)
-            cache.set(key=cache_key, value=cache_object)
+            if should_cache:
+                cache.set(key=cache_key, value=cache_object)
             return cache_object
         logger.warning(f"Failed to fetch object from: {endpoint}")
 
@@ -87,12 +105,19 @@ class DataPersistenceLayer:
 
     def get_objects_by_endpoint(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> CacheObject[T]:
         cache_key = self.make_user_key(endpoint, paging_data)
-        if (cache_object := cache.get(key=cache_key)) is not None:
+        should_cache = self.should_cache_endpoint(endpoint)
+        if should_cache and (cache_object := cache.get(key=cache_key)) is not None:
             logger.debug(f"Cache hit for {cache_key}")
             return cache_object
         result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
         if isinstance(result, (dict, list)):
-            return self._cache_and_paginate_objects(self._normalize_collection_payload(result), object_model, endpoint, paging_data)
+            return self._cache_and_paginate_objects(
+                self._normalize_collection_payload(result),
+                object_model,
+                endpoint,
+                paging_data,
+                should_cache=should_cache,
+            )
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
     def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject[T]:
@@ -100,16 +125,29 @@ class DataPersistenceLayer:
             paging_data = PagingData().set_fetch_all()
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_user_key(endpoint, paging_data)
-        if (cache_object := cache.get(key=cache_key)) is not None:
+        should_cache = self.should_cache_endpoint(endpoint)
+        if should_cache and (cache_object := cache.get(key=cache_key)) is not None:
             logger.debug(f"Cache hit for {cache_key}")
             return cache_object
         result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
         if isinstance(result, (dict, list)):
-            return self._cache_and_paginate_objects(self._normalize_collection_payload(result), object_model, endpoint, paging_data)
+            return self._cache_and_paginate_objects(
+                self._normalize_collection_payload(result),
+                object_model,
+                endpoint,
+                paging_data,
+                should_cache=should_cache,
+            )
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
     def _cache_and_paginate_objects(
-        self, result: dict[str, Any], object_model: Type[T], endpoint: str, paging_data: PagingData | None
+        self,
+        result: dict[str, Any],
+        object_model: Type[T],
+        endpoint: str,
+        paging_data: PagingData | None,
+        *,
+        should_cache: bool = True,
     ) -> CacheObject[T]:
         items = result.get("items", [])
         result_object = [object_model(**object) for object in items]
@@ -124,8 +162,9 @@ class DataPersistenceLayer:
             query_params=paging_data.query_params if paging_data else {},
             links=links,
         )
-        logger.debug(f"Adding {len(cache_object)} items from {endpoint} to cache with timeout: {cache_object.timeout}")
-        cache.set(key=self.make_user_key(endpoint, paging_data), value=cache_object, timeout=cache_object.timeout)
+        if should_cache:
+            logger.debug(f"Adding {len(cache_object)} items from {endpoint} to cache with timeout: {cache_object.timeout}")
+            cache.set(key=self.make_user_key(endpoint, paging_data), value=cache_object, timeout=cache_object.timeout)
         return cache_object
 
     def store_object(self, object) -> Response:
