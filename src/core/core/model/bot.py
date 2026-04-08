@@ -55,6 +55,14 @@ class Bot(BaseModel):
     def task_id(self):
         return f"bot_{self.id}"
 
+    @property
+    def cron_job_id(self) -> str:
+        return f"bot_{self.id}"
+
+    @property
+    def cron_run_prefix(self) -> str:
+        return f"cron_{self.cron_job_id}_"
+
     @classmethod
     def add(cls, data):
         bot = super().add(data)
@@ -130,12 +138,17 @@ class Bot(BaseModel):
 
     @classmethod
     def delete(cls, id: str) -> tuple[dict[str, Any], int]:
+        from core.managers import queue_manager
+
         bot = cls.get(id)
         if not bot:
             return {"error": "Bot not found"}, 404
 
         bot.unschedule_bot()
-        TaskModel.delete(bot.task_id)
+        queue_manager.queue_manager.purge_job_artifacts(
+            exact_ids={bot.task_id},
+            prefixes=[bot.cron_run_prefix],
+        )
         db.session.delete(bot)
         db.session.commit()
         return {"message": f"Bot {bot.name} deleted"}, 200
@@ -146,7 +159,7 @@ class Bot(BaseModel):
     def get_cron_spec(self) -> CronSpec:
         return CronSpec(
             meta={"name": f"Bot: {self.name}"},
-            job_id=f"bot_{self.id}",
+            job_id=self.cron_job_id,
             cron=self.get_schedule(),
             func_path="bot_task",
             args=[self.id],
@@ -165,7 +178,7 @@ class Bot(BaseModel):
     def unschedule_bot(self):
         from core.managers import queue_manager
 
-        return queue_manager.queue_manager.unregister_cron_job(f"bot_{self.id}")
+        return queue_manager.queue_manager.unregister_cron_job(self.cron_job_id)
 
     @classmethod
     def get_enabled_schedule_entries(cls, now: datetime | None = None) -> list[dict[str, Any]]:

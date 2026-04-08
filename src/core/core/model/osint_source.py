@@ -103,6 +103,14 @@ class OSINTSource(BaseModel):
     def task_id(self):
         return f"collect_{self.type}_{self.id}"
 
+    @property
+    def cron_job_id(self) -> str:
+        return f"osint_source_{self.id}"
+
+    @property
+    def cron_run_prefix(self) -> str:
+        return f"cron_{self.cron_job_id}_"
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
         data = dict(data)
@@ -399,6 +407,8 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
+        from core.managers import queue_manager
+
         if source_id == "manual":
             return {"error": "The manual source cannot be deleted"}, 400
 
@@ -407,7 +417,10 @@ class OSINTSource(BaseModel):
 
         try:
             source.unschedule_osint_source()
-            TaskModel.delete(source.task_id)
+            queue_manager.queue_manager.purge_job_artifacts(
+                exact_ids={source.task_id},
+                prefixes=[source.cron_run_prefix],
+            )
             if force:
                 news_item_table = db.metadata.tables.get("news_item")
                 if news_item_table is not None:
@@ -431,7 +444,7 @@ class OSINTSource(BaseModel):
         """Get the cron specification for this OSINT source"""
         return CronSpec(
             meta={"name": f"Collector: {self.name}"},
-            job_id=f"osint_source_{self.id}",
+            job_id=self.cron_job_id,
             cron=self.get_schedule_with_default(),
             func_path="collector_task",
             args=[self.id, False],
@@ -464,7 +477,7 @@ class OSINTSource(BaseModel):
         from core.managers import queue_manager
 
         logger.info(f"Unscheduling {self.name}. Notifying cron scheduler...")
-        return queue_manager.queue_manager.unregister_cron_job(f"osint_source_{self.id}")
+        return queue_manager.queue_manager.unregister_cron_job(self.cron_job_id)
 
     def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
         export_dict = {
