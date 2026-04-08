@@ -28,6 +28,7 @@ class _FakeRedis:
         self.hashes = {"rq:cron:def": {"job-123": b'{"cron":"0 * * * *"}'}}
         self.zsets = {"rq:cron:next": {"job-123": 1234.0}}
         self.events: list[tuple[str, dict[str, str]]] = []
+        self.published: list[tuple[str, str]] = []
 
     def hexists(self, key, field):
         return field in self.hashes.get(key, {})
@@ -37,6 +38,10 @@ class _FakeRedis:
 
     def hkeys(self, key):
         return list(self.hashes.get(key, {}).keys())
+
+    def publish(self, channel, message):
+        self.published.append((channel, message))
+        return 1
 
     def pipeline(self):
         redis = self
@@ -178,6 +183,18 @@ def test_cancel_job_returns_false_when_not_found(monkeypatch):
     qm._redis.zsets["rq:cron:next"] = {}  # type: ignore[attr-defined]
 
     assert qm.cancel_job("job-123") is False
+
+
+def test_publish_schedule_cache_invalidation_notifies_scheduler_views():
+    qm = _make_queue_manager()
+
+    published = qm.publish_schedule_cache_invalidation()
+
+    assert published == 2
+    assert qm._redis.published == [  # type: ignore[attr-defined]
+        ("taranis:cache:invalidate", "/config/schedule"),
+        ("taranis:cache:invalidate", "/config/workers/dashboard"),
+    ]
 
 
 def test_get_active_jobs_uses_registry(monkeypatch):

@@ -50,6 +50,8 @@ OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
 CRON_DEFS_KEY = "rq:cron:def"
 CRON_EVENTS_KEY = "rq:cron:events"
 CRON_NEXT_KEY = "rq:cron:next"
+CACHE_INVALIDATION_CHANNEL = "taranis:cache:invalidate"
+SCHEDULE_CACHE_SUFFIXES = ("/config/schedule", "/config/workers/dashboard")
 
 
 def _decode_redis_value(value: bytes | str) -> str:
@@ -288,6 +290,21 @@ class QueueManager:
             exact_ids=exact_ids,
             prefixes=prefixes,
         )
+
+    def publish_cache_invalidation(self, *suffixes: str) -> int:
+        if self.error or not self._redis:
+            return 0
+
+        published = 0
+        for suffix in suffixes:
+            if not suffix:
+                continue
+            self._redis.publish(CACHE_INVALIDATION_CHANNEL, suffix)
+            published += 1
+        return published
+
+    def publish_schedule_cache_invalidation(self) -> int:
+        return self.publish_cache_invalidation(*SCHEDULE_CACHE_SUFFIXES)
 
     def _purge_rq_jobs(self, *, exact_ids: set[str], prefixes: list[str]) -> int:
         if self.error or not self._redis:
