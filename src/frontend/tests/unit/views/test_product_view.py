@@ -1,7 +1,7 @@
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from flask import Response as FlaskResponse
-from models.admin import ProductType
+from models.product import ProductType, PublisherPreset
 from requests import Response
 from requests.structures import CaseInsensitiveDict
 
@@ -54,13 +54,21 @@ def test_product_view_uses_publish_product_types_endpoint():
             type="HTML_PRESENTER",
         )
     ]
+    publishers = [
+        PublisherPreset(
+            id="publisher-1",
+            name="FTP Publisher",
+            description="Primary FTP publisher",
+            type="FTP_PUBLISHER",
+        )
+    ]
 
     with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
         persistence = persistence_cls.return_value
-        persistence.get_objects_by_endpoint.return_value = product_types
-        persistence.get_objects.return_value = []
+        persistence.get_objects.side_effect = [product_types, publishers]
 
         context = ProductView.get_extra_context({})
 
-    assert persistence.get_objects_by_endpoint.call_args.args == (ProductType, "/publish/product-types")
+    assert persistence.get_objects.call_args_list == [call(ProductType), call(PublisherPreset)]
     assert context["product_types"] == [{"id": 7, "name": "CERT Daily Report"}]
+    assert context["publishers"] == [{"id": "publisher-1", "name": "FTP Publisher"}]

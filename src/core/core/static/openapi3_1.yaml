@@ -906,6 +906,67 @@ paths:
                 examples: ["Story is in use"]
         "404":
           $ref: "#/components/responses/404NotFound"
+  /assess/connectors:
+    parameters:
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: order
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: fetch_all
+        in: query
+        required: false
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      operationId: assess.connectors.get
+      description: get connectors available to assess users for story sharing
+      responses:
+        "200":
+          description: a list of assess connectors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/connector.user"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/stories/group:
     put:
       security:
@@ -2989,6 +3050,55 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+  /publish/publisher-presets:
+    get:
+      tags: [publish]
+      operationId: publish.publisher_presets.get
+      description: get publisher presets available to publish users
+      security:
+        - UserAuth: []
+      responses:
+        "200":
+          description: a list of publisher presets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/publisher_preset.user"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /publish/publisher-presets/{preset_id}:
+    parameters:
+      - name: preset_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [publish]
+      operationId: publish.publisher_preset.get
+      description: get a publisher preset available to publish users
+      security:
+        - UserAuth: []
+      responses:
+        "200":
+          description: a publisher preset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/publisher_preset.user"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
 components:
   schemas:
     #requests
@@ -3248,6 +3358,36 @@ components:
       allOf:
         - $ref: "#/components/schemas/publisher_preset"
         - $ref: "#/components/schemas/presentation"
+    publisher_preset.user:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        type:
+          type:
+            - string
+            - "null"
+    connector.user:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        type:
+          type:
+            - string
+            - "null"
 
     attribute_group_item:
       type: object

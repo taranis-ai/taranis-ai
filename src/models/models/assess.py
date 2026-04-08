@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from pydantic import BeforeValidator, ValidationInfo, field_validator, model_validator
 
 from models.base import TaranisBaseModel
+from models.types import CONNECTOR_TYPES
 
 
 def _utcnow() -> datetime:
@@ -173,6 +174,17 @@ class AssessSource(TaranisBaseModel):
     icon: str | None = None
     name: str
     type: str | None = None
+
+
+class Connector(TaranisBaseModel):
+    _core_endpoint = "/assess/connectors"
+    _model_name = "connector"
+    _pretty_name = "Connector"
+
+    id: str | None = None
+    name: str
+    description: str = ""
+    type: CONNECTOR_TYPES | None = None
 
 
 class FilterLists(TaranisBaseModel):

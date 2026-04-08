@@ -45,6 +45,31 @@ class Connector(BaseModel):
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
 
+    def to_user_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "type": self.type.value if self.type else None,
+        }
+
+    @classmethod
+    def get_all_for_user_api(cls, filter_args: dict[str, Any] | None, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        logger.debug(f"Filtering {cls.__name__} for user API with {filter_args}")
+
+        base_query = cls.get_filter_query_with_acl(filter_args, user) if user else cls.get_filter_query(filter_args)
+
+        query = base_query
+        if not cls._should_fetch_all(filter_args):
+            query = cls._add_paging_to_query(filter_args, query)
+
+        query = cls._add_sorting_to_query(filter_args, query)
+
+        items = cls.get_filtered(query) or []
+        count = cls.get_filtered_count(base_query)
+        return {"total_count": count, "items": [item.to_user_dict() for item in items]}, 200
+
     @classmethod
     def add(cls, data):
         connector = cls.from_dict(data)
