@@ -719,7 +719,15 @@ def test_osint_icon_png(testdata_dir):
 
 
 @pytest.fixture
-def test_batch_osint_sources(run_core, access_token, testdata_dir):
+def test_batch_osint_sources(run_core, e2e_server, access_token, access_token_response, testdata_dir):
+
+    def invalidate_osint_source_caches() -> None:
+        session = requests.Session()
+        for cookie in _cookies_from_response(access_token_response):
+            session.cookies.set(cookie["name"], cookie["value"])
+        response = session.get(f"{e2e_server.url()}/invalidate_cache", timeout=30)
+        response.raise_for_status()
+
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
@@ -731,6 +739,7 @@ def test_batch_osint_sources(run_core, access_token, testdata_dir):
 
         r = requests.post(f"{run_core}/config/import-osint-sources", json=source_data, headers=headers)
         r.raise_for_status()
+        invalidate_osint_source_caches()
 
     yield source_data
 
@@ -744,6 +753,7 @@ def test_batch_osint_sources(run_core, access_token, testdata_dir):
                 params={"force": "true"},
             )
             delete_response.raise_for_status()
+    invalidate_osint_source_caches()
 
 
 @pytest.fixture(scope="session")
