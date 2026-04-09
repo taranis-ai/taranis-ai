@@ -4,7 +4,7 @@ services:
     working_dir: /app
     command: >-
       sh -lc "python -m pip install --disable-pip-version-check --no-input --quiet uv &&
-      uv sync --frozen --python 3.13 --no-install-project --no-install-package taranis-models &&
+      uv sync --frozen --python 3.13 --no-install-project &&
       uv pip install --python /tmp/.venv/bin/python --no-deps psycopg-binary &&
       /tmp/.venv/bin/python -m flask run --no-reload --host 0.0.0.0 --port 8080"
     environment:

@@ -52,6 +52,13 @@ Task modules:
 - `connector_tasks.py` - Story sharing with MISP and other systems
 - `misc_tasks.py` - Maintenance tasks (token cleanup, wordlist updates)
 
+## Frontend/API Boundaries
+
+- user-facing frontend views must not import admin-domain models from `models.admin`
+- admin/config endpoints under `src/core/core/api/config.py` are for admin workflows; do not use them from user-facing views
+- when a user workflow needs product or publish-related reference data, expose it through a user-scoped endpoint in `src/core/core/api/publish.py`
+- declare matching user-facing model classes in `src/models/models/product.py` and import those from frontend publish views
+
 ## Testing
 
 See .github/workflows for how tests are configured in CI.

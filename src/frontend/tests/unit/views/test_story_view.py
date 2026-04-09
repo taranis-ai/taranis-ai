@@ -1,6 +1,7 @@
 from flask import url_for
 from lxml import html
 
+from frontend.config import Config
 from frontend.views.story_views import _calculate_story_diff, _normalize_story_import_payload
 
 
@@ -135,3 +136,34 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     source_input = form[0].xpath('.//input[@name="source"]')
     assert len(source_input) == 1
     assert source_input[0].get("required") is None
+
+
+def test_story_sharing_dialog_loads_connectors_from_assess_endpoint(authenticated_client_basic, responses_mock):
+    story_id = "story-1"
+    connector_id = "connector-1"
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}",
+        json={"id": story_id, "title": "Shared Story", "links": ["https://example.com/story"]},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/connectors",
+        json={
+            "total_count": 1,
+            "items": [
+                {
+                    "id": connector_id,
+                    "name": "MISP Connector",
+                    "description": "User-visible connector",
+                    "type": "misp_connector",
+                }
+            ],
+        },
+    )
+
+    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
+
+    assert response.status_code == 200
+    assert connector_id in response.text
+    assert "MISP Connector" in response.text
+    assert all(call.request.url != f"{Config.TARANIS_CORE_URL}/config/connectors" for call in responses_mock.calls)
