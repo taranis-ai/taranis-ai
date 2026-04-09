@@ -385,17 +385,18 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def test_page_osint_sources():
             source_name = test_batch_osint_sources["sources"][0]["name"]
-            page.goto(url_for("admin.osint_sources", _external=True))
             page.goto(url_for("admin.osint_source_groups", _external=True))
             page.get_by_test_id("new-osint_source_group-button").click()
-            page.get_by_role("textbox", name="Search...").first.fill(source_name)
-            source_row = page.locator("#osint_sources tbody tr").filter(
-                has=page.locator('input[type="checkbox"].checkbox-sm'), has_text=source_name
-            ).first
+            form = page.locator("#osint_source_group-form")
+            expect(form).to_be_visible()
+            expect(form.locator("#osint_sources tbody input[type='checkbox'].checkbox-sm")).to_have_count(5, timeout=10000)
+
+            form.get_by_role("textbox", name="Search...").first.fill(source_name)
+            source_row = form.locator("#osint_sources tbody tr").filter(has_text=source_name).first
             expect(source_row).to_be_visible(timeout=10000)
             expect(source_row).to_contain_text(source_name)
             source_row.get_by_role("checkbox").check()
-            expect(page.locator('input[type="hidden"][name="osint_sources[]"]')).to_have_count(1)
+            expect(form.locator('input[type="hidden"][name="osint_sources[]"]')).to_have_count(1)
 
         load_osint_source_groups()
         add_osint_source_group()
