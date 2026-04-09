@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: llm-bot
+  template:
+    metadata:
+      labels:
+        app: llm-bot
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: llm-bot
+          image: ghcr.io/taranis-ai/taranis-llm-bot:latest
+          imagePullPolicy: Always
+          env:
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: DEBUG
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: BOT_API_KEY
+            - name: LLM_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: LLM_BASE_URL
+            - name: LLM_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: LLM_MODEL
+            - name: LLM_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: LLM_TIMEOUT
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: LLM_API_KEY
+          ports:
+            - containerPort: 5500
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5500
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5500
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          resources:
+            limits:
+              cpu: "2"
+              memory: 4Gi
+            requests:
+              cpu: 500m
+              memory: 1Gi
