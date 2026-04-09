@@ -1,56 +1,30 @@
 # Taranis AI Deployment
 
-Kubernetes deployment configuration with three entrypoints:
+Deployment options:
 
-- [`kubernetes/`](./kubernetes) for raw manifests plus Kustomize
-- [`helm/`](./helm) for the Helm chart
-- [`argocd/`](./argocd) for an example ArgoCD `Application` using the Helm chart
-
-Everything is derived from the environment-specific manifests in this repository, with placeholders instead of environment values, upstream `ghcr.io/taranis-ai/*` images, and k3s-oriented defaults.
-
-## Structure
-
-- `kubernetes/`: raw manifests plus `kustomization.yaml`
-- `kubernetes/00-config.yaml`: non-secret application settings
-- `kubernetes/01-secrets.yaml`: placeholder secrets that must be replaced
-- `kubernetes/05-network-policies.yaml`: k3s-oriented network policies
-- `kubernetes/10-storage.yaml`: `core` PVC with `local-path` default
-- `kubernetes/20-services.yaml`: internal Services
-- `kubernetes/30-deployments.yaml`: app Deployments using upstream images with `imagePullPolicy: Always` and explicit `restartPolicy: Always`
-- `kubernetes/40-ingress.yaml`: public Ingress placeholder
-- `helm/`: Helm chart for the same resource set
-- `helm/Chart.yaml`: chart metadata
-- `helm/values.yaml`: default placeholders and tunables
-- `helm/templates/`: chart templates
-- `argocd/`: ArgoCD example files for Helm-based deployment
-- `argocd/application.yaml`: example ArgoCD `Application`
-- `argocd/values-example.yaml`: example Helm overrides consumed by ArgoCD
+- [`kubernetes/`](./kubernetes): raw Kubernetes core stack
+- [`kubernetes-optional-bots/`](./kubernetes-optional-bots): raw Kubernetes overlay that adds `llm-bot`
+- [`helm/`](./helm): Helm chart
+- [`argocd/`](./argocd): ArgoCD example using the Helm chart
 
 ## What You Must Configure
 
 Replace every `CHANGE_ME_...` value before deployment.
 
-Required values:
+Always required:
+- In `kubernetes/00-config.yaml` (or `helm/values.yaml`), set `GRANIAN_HOST`, `TARANIS_BASE_PATH`, `SSE_PATH`.
+- In `kubernetes/01-secrets.yaml` (or `helm/values.yaml`), set `JWT_SECRET_KEY`, `API_KEY`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `QUEUE_BROKER_HOST`, `QUEUE_BROKER_USER`, `QUEUE_BROKER_PASSWORD`.
 
-- In `kubernetes/00-config.yaml` or `helm/values.yaml`, set `GRANIAN_HOST`, `TARANIS_BASE_PATH`, and `SSE_PATH`. `TARANIS_AUTHENTICATOR` defaults to `database` and should usually stay unchanged.
-- In `kubernetes/01-secrets.yaml` or `helm/values.yaml`, set `JWT_SECRET_KEY`, `API_KEY`, `BOT_API_KEY`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `QUEUE_BROKER_HOST`, `QUEUE_BROKER_USER`, and `QUEUE_BROKER_PASSWORD`.
-- In `kubernetes/10-storage.yaml` or `helm/values.yaml`, override storage settings only if `local-path`, `ReadWriteOnce`, or `1Gi` are not appropriate for your cluster.
-- In `kubernetes/40-ingress.yaml` or `helm/values.yaml`, set the public ingress hostname.
+Optional `llm-bot` overlay:
+- In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`, `LLM_MODEL` (and optionally `LLM_TIMEOUT`).
+- In `kubernetes/01-secrets.yaml`, set `BOT_API_KEY`, `LLM_API_KEY`.
+- Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
 
 ## Images
 
-The deployments reference these upstream image paths:
-
-- `ghcr.io/taranis-ai/taranis-core`
-- `ghcr.io/taranis-ai/taranis-frontend`
-- `ghcr.io/taranis-ai/sse-broker`
-- `ghcr.io/taranis-ai/taranis-ingress`
-- `ghcr.io/taranis-ai/taranis-worker`
-- `ghcr.io/taranis-ai/taranis-natural-language-processing`
-- `ghcr.io/taranis-ai/taranis-summarize-bot`
-- `ghcr.io/taranis-ai/taranis-story-clustering`
-
-Pin explicit tags before production rollout instead of relying on `latest`.
+Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `sse-broker`, `taranis-ingress`, `taranis-worker`.
+Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
+Pin explicit tags for production.
 
 ## Raw Kubernetes
 
@@ -58,11 +32,17 @@ Pin explicit tags before production rollout instead of relying on `latest`.
 kubectl apply -k deploy/kubernetes
 ```
 
-Use [`kubernetes/`](./kubernetes) if you want plain manifests with no Helm dependency.
+```bash
+kubectl apply -k deploy/kubernetes-optional-bots
+```
+
+`kubernetes` is core-only. `kubernetes-optional-bots` includes core plus `llm-bot`.
+Default bot endpoints target `llm-bot` routes: `/summarize`, `/ner`, `/cluster`.
 
 ## Helm
 
 Use [`helm/`](./helm) if you want value-driven rendering or upgrades. The chart keeps `global.imagePullPolicy: Always` and renders pod `restartPolicy: Always` explicitly for all Deployments.
+Helm currently still uses legacy `nlp-bot`, `summary-bot`, and `story-bot` workloads.
 
 ```bash
 helm template taranis deploy/helm
@@ -84,7 +64,7 @@ kubectl apply -f deploy/argocd/application.yaml
 
 ## Validation
 
-After deploying with any of the three approaches, verify:
+Verify base services:
 
 ```bash
 kubectl get configmap,secret,pvc,svc,deploy,ingress
@@ -94,23 +74,27 @@ kubectl rollout status deploy/sse-broker
 kubectl rollout status deploy/ingress
 kubectl rollout status deploy/worker
 kubectl rollout status deploy/collector
-kubectl rollout status deploy/nlp-bot
-kubectl rollout status deploy/summary-bot
-kubectl rollout status deploy/story-bot
 ```
 
-Useful checks:
+If optional overlay is enabled:
+
+```bash
+kubectl rollout status deploy/llm-bot
+kubectl get endpoints llm-bot
+```
+
+Useful logs:
 
 ```bash
 kubectl logs deploy/core --tail=200
 kubectl logs deploy/worker --tail=200
 kubectl logs deploy/collector --tail=200
-kubectl get endpoints core frontend sse ingress nlp-bot summary-bot story-bot
 ```
 
 ## Notes
 
 - These manifests expect a reachable PostgreSQL service and a reachable RabbitMQ service, but they do not create those workloads.
+- `STORY_API_ENDPOINT` now defaults to `http://llm-bot:5500/cluster`; ensure your `llm-bot` image exposes that route if you enable story clustering.
 - The `core` PVC is included because the application writes persistent data under `/app/data`.
 - The `core` readiness and liveness probes run every 15 minutes after a 15-second startup delay.
 - The default ingress policy assumes the stock k3s Traefik deployment runs in `kube-system` with label `app.kubernetes.io/name=traefik`. Adjust [`05-network-policies.yaml`](./kubernetes/05-network-policies.yaml) or the Helm values if your ingress controller differs.
