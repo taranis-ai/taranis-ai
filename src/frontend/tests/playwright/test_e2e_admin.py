@@ -75,11 +75,111 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, run_core: str, access_token: str):
         page = logged_in_page
+        health_response = requests.get(f"{run_core}/health", headers=_auth_headers(access_token), timeout=5)
+        assert health_response.status_code in {200, 503}, f"Unexpected health status: {health_response.status_code}"
+        health_payload = health_response.json()
+        services = health_payload.get("services", {})
 
-        page.goto(url_for("base.dashboard", _external=True))
+        page.goto(url_for("admin.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
+
+        health_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_text("System Health", exact=True)).first
+        expect(health_card).to_be_visible()
+        for service, status in services.items():
+            row = health_card.locator("div.flex.items-center.justify-between").filter(has_text=service).first
+            expect(row).to_be_visible()
+            expect(row).to_contain_text(status)
+
+        dashboard_queue_count = _read_dashboard_queue_count(page)
+        page.locator("div.bg-base-100.border").filter(has=page.get_by_role("link", name="Queue")).first.get_by_role("link", name="Queue").click()
+
+        expect(page).to_have_url(url_for("admin.scheduler", _external=True))
+        expect(page.locator("#scheduler-dashboard")).to_be_visible()
+        assert dashboard_queue_count == _read_scheduler_total(page)
+
+    def test_scheduler_reflects_osint_source_schedule_changes(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        run_core: str,
+        access_token: str,
+    ):
+        page = logged_in_page
+        headers = _auth_headers(access_token)
+        scheduler_url = url_for("admin.scheduler", _external=True)
+        source_name = f"E2E Scheduler Source {uuid.uuid4().hex[:8]}"
+        initial_cron = "*/13 * * * *"
+        updated_cron = "*/17 * * * *"
+        source_id: str | None = None
+        baseline_count: int | None = None
+
+        try:
+            page.goto(f"{scheduler_url}?tab=scheduled")
+            expect(page.locator("#scheduler-dashboard")).to_be_visible()
+            baseline_count = _read_scheduler_total(page)
+
+            create_response = requests.post(
+                f"{run_core}/config/osint-sources",
+                headers=headers,
+                json={
+                    "name": source_name,
+                    "description": "Playwright scheduler cache invalidation coverage",
+                    "type": "RSS_COLLECTOR",
+                    "parameters": {
+                        "FEED_URL": "http://fixtures/feed.xml",
+                        "REFRESH_INTERVAL": initial_cron,
+                    },
+                },
+                timeout=5,
+            )
+            assert create_response.ok, f"Failed to create OSINT source: {create_response.status_code} {create_response.text}"
+            source_id = create_response.json().get("id")
+            assert source_id, "OSINT source id missing from create response"
+
+            page.goto(f"{scheduler_url}?tab=scheduled")
+            expect(page.locator("#scheduler-dashboard")).to_be_visible()
+
+            job_row = page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name).first
+            expect(job_row).to_be_visible(timeout=10000)
+            expect(job_row).to_contain_text("collectors")
+            expect(job_row.locator("code")).to_have_text(initial_cron)
+            assert _read_scheduler_total(page) == baseline_count + 1
+
+            update_response = requests.put(
+                f"{run_core}/config/osint-sources/{source_id}",
+                headers=headers,
+                json={"parameters": {"REFRESH_INTERVAL": updated_cron}},
+                timeout=5,
+            )
+            assert update_response.ok, f"Failed to update OSINT source: {update_response.status_code} {update_response.text}"
+
+            with page.expect_response(
+                lambda response: response.request.method == "GET"
+                and response.url.endswith("/admin/scheduler/jobs")
+                and response.status == 200
+            ):
+                page.evaluate(
+                    """() => {
+                        const target = document.getElementById('scheduled-jobs-table');
+                        window.htmx.trigger(target, 'scheduler:refresh');
+                    }"""
+                )
+
+            expect(job_row.locator("code")).to_have_text(updated_cron)
+        finally:
+            if source_id is not None:
+                delete_response = requests.delete(f"{run_core}/config/osint-sources/{source_id}", headers=headers, timeout=5)
+                assert delete_response.status_code in {200, 404}, (
+                    f"Unexpected delete status for {source_id}: {delete_response.status_code} {delete_response.text}"
+                )
+
+                page.goto(f"{scheduler_url}?tab=scheduled")
+                expect(page.locator("#scheduler-dashboard")).to_be_visible()
+                expect(page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name)).to_have_count(0)
+                if baseline_count is not None:
+                    assert _read_scheduler_total(page) == baseline_count
 
     def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
         page = logged_in_page
