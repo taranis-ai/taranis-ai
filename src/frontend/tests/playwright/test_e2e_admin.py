@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -16,6 +17,31 @@ def remove_tz(date_time: str) -> str:
         dt = dt.astimezone(timezone.utc)
     dt = dt.replace(tzinfo=None)
     return dt.isoformat()
+
+
+def _auth_headers(access_token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {access_token}", "Content-type": "application/json"}
+
+
+def _extract_int(text: str, pattern: str) -> int:
+    if match := re.search(pattern, text):
+        return int(match.group(1))
+    raise AssertionError(f"Failed to extract integer using pattern {pattern!r} from text: {text!r}")
+
+
+def _read_dashboard_queue_count(page: Page) -> int:
+    queue_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_role("link", name="Queue")).first
+    expect(queue_card).to_be_visible()
+    return _extract_int(queue_card.inner_text(), r"There are\s+(\d+)\s+tasks scheduled\.")
+
+
+def _read_scheduler_total(page: Page) -> int:
+    scheduled_jobs_table = page.locator("#scheduled-jobs-table")
+    expect(scheduled_jobs_table).to_be_visible()
+    table_text = scheduled_jobs_table.inner_text()
+    if "No scheduled jobs" in table_text:
+        return 0
+    return _extract_int(table_text, r"Total:\s*(\d+)\s+scheduled jobs")
 
 
 @pytest.mark.e2e_admin
