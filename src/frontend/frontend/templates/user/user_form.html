@@ -77,9 +77,9 @@
         <input id="last_login_display"
                type="text"
                placeholder="Last login (UTC)"
-               class="input w-full bg-base-200 text-base-content/60 cursor-not-allowed"
+               class="input w-full bg-base-200 text-base-content/60"
                value="{{ user.last_login | format_datetime if user.last_login else '' }}"
-               disabled />
+               readonly />
       </label>
     </div>
 
