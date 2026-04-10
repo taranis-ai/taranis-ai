@@ -8,4 +8,4 @@ spec:
   ports:
     - name: http
       port: 5500
-      targetPort: 5500
+      targetPort: 8000
