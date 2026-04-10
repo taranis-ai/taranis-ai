@@ -85,4 +85,4 @@ To run the unit tests just call:
 uv run --no-sync --frozen python -m pytest tests/unit
 ```
 
-There are [e2e tests](./tests/playwright/README.md) using Playwright
+Frontend-owned end-to-end tests now live in [../frontend/tests/playwright/README.md](../frontend/tests/playwright/README.md).

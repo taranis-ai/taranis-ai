@@ -13,6 +13,7 @@ pytest --e2e-ci
 The E2E harness starts and stops a dedicated Core Docker Compose service automatically for the test session.
 Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
 You only need Docker/Compose available locally.
+The same frontend-owned test root also contains the RQ/Redis integration E2E suite.
 
 ### Run tests in headful mode
 
@@ -26,9 +27,17 @@ All flags:
 
 - `--e2e-ci` - e2e tests of user and admin parts (headless)
 - `--e2e-admin` - end to end tests of admin section; generate pictures for documentation (also User sections)
-- `--record-video` - record a video (save to `src/core/tests/playwright/videos`)
+- `--record-video` - record a video (save to `src/frontend/tests/playwright/videos`)
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
 - `-s` - see all logs on stdout
+
+### Run only the RQ/Redis integration E2E suite
+
+From `src/frontend` folder run:
+
+```bash
+pytest tests/playwright/test_e2e_rq_tasks.py --e2e-ci
+```
 
 ## Use Playwright Codegen tool to generate tests
 

@@ -81,9 +81,10 @@ See .github/workflows for how tests are configured in CI.
 - `uv run pytest -x` - stop on first failure
 - `uv run pytest -k test_function_name` - run specific test
 
-**End-to-End (E2E) Tests:** Located in `src/core/tests/playwright/` and `src/frontend/tests/playwright/`
+**End-to-End (E2E) Tests:** Located in `src/frontend/tests/playwright/`
 - `uv run pytest tests/playwright/ --e2e-ci` - run e2e tests in CI mode
 - `uv run pytest tests/playwright/test_e2e_admin.py --e2e-ci` - run specific e2e test file
+- `uv run pytest tests/playwright/test_e2e_rq_tasks.py --e2e-ci` - run the RQ/Redis e2e suite from the frontend test root
 - `uv run pytest --e2e-ci` - run e2e tests in CI mode
 - `uv run pytest -k TestEndToEndAdmin` - run specific test
 - `--e2e-ci` flag is required for e2e tests to run properly

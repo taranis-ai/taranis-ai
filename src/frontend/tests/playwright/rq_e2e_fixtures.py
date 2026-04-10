@@ -1,4 +1,3 @@
-import os
 import time
 from collections.abc import Generator
 from pathlib import Path
@@ -7,18 +6,12 @@ import pytest
 import redis
 import requests
 
-from testsupport.docker_harness import (
+from tests.playwright.e2e_harness import (
     compose_logs,
     docker_cleanup_commands,
     docker_setup_commands,
     require_docker_compose_command,
     wait_for_http_ok,
-)
-
-
-os.environ.setdefault(
-    "TARANIS_E2E_UV_CACHE_DIR",
-    os.getenv("UV_CACHE_DIR", str(Path.home() / ".cache" / "uv")),
 )
 
 

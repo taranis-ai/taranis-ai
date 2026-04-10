@@ -17,8 +17,7 @@ def _login(core_url: str) -> str:
     response.raise_for_status()
     if token := response.json().get("access_token"):
         return token
-    else:
-        raise RuntimeError("No access_token in auth response")
+    raise RuntimeError("No access_token in auth response")
 
 
 def _poll_wordlist_entries(
@@ -62,7 +61,6 @@ def _poll_cron_registration(
     job_id: str,
     timeout_seconds: int = 15,
 ) -> dict:
-    """Wait until a cron spec and its next run timestamp are registered in Redis."""
     redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
     deadline = time.monotonic() + timeout_seconds
     last_raw_spec = None
@@ -85,7 +83,6 @@ def _poll_cron_expression(
     expected_cron: str,
     timeout_seconds: int = 10,
 ) -> dict:
-    """Wait until a cron spec is present in Redis with the expected cron expression."""
     redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
     deadline = time.monotonic() + timeout_seconds
     last_spec = None
@@ -119,9 +116,12 @@ def _poll_collector_task_result(
             items = last_payload.get("items") if isinstance(last_payload, dict) else None
             if isinstance(items, list):
                 for item in items:
-                    if item.get("task") == "collector_task" and source_name in (item.get("result") or ""):
-                        if item.get("status") == "SUCCESS":
-                            return item
+                    if (
+                        item.get("task") == "collector_task"
+                        and source_name in (item.get("result") or "")
+                        and item.get("status") == "SUCCESS"
+                    ):
+                        return item
         time.sleep(1.0)
     details = ""
     if redis_backend and cron_job_id:
@@ -207,7 +207,6 @@ def test_rq_cleanup_token_blacklist(
     headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
 
     redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
-    # Use explicit queue name to match worker configuration.
     queue = Queue("misc", connection=redis_conn)
     job_id = f"e2e_cleanup_token_blacklist_{int(time.time())}"
 
@@ -228,7 +227,6 @@ def test_rq_scheduled_collector_cron(
     token = _login(core_process)
     headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
 
-    # Create a minimal RSS collector source using the local feed server.
     source_payload = {
         "name": "E2E RSS Source",
         "description": "E2E RSS source for scheduled collector test",
@@ -249,7 +247,6 @@ def test_rq_scheduled_collector_cron(
     assert source_id, "osint source id missing"
     _poll_cron_registration(redis_backend, f"osint_source_{source_id}")
 
-    # Use cron schedule (every minute) and wait for scheduler + worker to execute it.
     payload = _poll_collector_task_result(
         core_process,
         headers,
@@ -335,7 +332,6 @@ def test_rq_scheduled_wordlist_bot_cron(
     headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
     story_suffix = uuid.uuid4().hex
 
-    # Ensure a story exists with a matching word for the bot to tag.
     story_resp = requests.post(
         f"{core_process}/assess/news-items",
         headers=headers,
@@ -354,7 +350,6 @@ def test_rq_scheduled_wordlist_bot_cron(
     )
     assert story_resp.ok, f"Failed to create manual story: status={story_resp.status_code}, body={story_resp.text}"
 
-    # Create a word list used by the tagging bot and populate it.
     wordlist_resp = requests.post(
         f"{core_process}/config/word-lists",
         headers=headers,
@@ -373,7 +368,6 @@ def test_rq_scheduled_wordlist_bot_cron(
     gather_resp.raise_for_status()
     _poll_wordlist_entries(core_process, headers, wordlist_id)
 
-    # Create a Wordlist Bot with a cron schedule and trigger cron reload via update.
     bot_payload = {
         "name": "E2E Wordlist Bot",
         "description": "E2E wordlist bot",

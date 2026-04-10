@@ -13,7 +13,6 @@ cd src/core
 uv sync --all-extras --dev
 uv run ruff check
 uv run pytest tests/unit tests/functional tests/test_api.py tests/test_schema.py tests/test_settings.py
-uv run pytest tests/e2e/test_rq_e2e_tasks.py --e2e-ci
 ```
 
 Focus:
@@ -31,6 +30,7 @@ uv sync --all-extras --dev
 uv run ruff check
 DEBUG=true uv run pytest tests/unit tests/test_settings.py tests/unit/test_router_helpers.py
 DEBUG=true uv run pytest tests/playwright/test_e2e_admin.py -k "test_admin_dashboard or test_admin_osint_workflow or test_admin_bot" --e2e-ci
+uv run pytest tests/playwright/test_e2e_rq_tasks.py --e2e-ci
 ```
 
 Focus:

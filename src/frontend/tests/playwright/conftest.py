@@ -15,7 +15,7 @@ import responses
 from flask import json
 from playwright.sync_api import Browser, BrowserContext, Page
 
-from testsupport.docker_harness import (
+from tests.playwright.e2e_harness import (
     docker_cleanup_commands,
     docker_setup_commands,
     require_docker_compose_command,
@@ -23,6 +23,9 @@ from testsupport.docker_harness import (
 )
 from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
+
+
+pytest_plugins = ("tests.playwright.rq_e2e_fixtures",)
 
 
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interval: float = 0.5):

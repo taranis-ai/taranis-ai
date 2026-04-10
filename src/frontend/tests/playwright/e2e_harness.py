@@ -1,3 +1,4 @@
+import os
 import shlex
 import shutil
 import subprocess
@@ -6,6 +7,12 @@ from pathlib import Path
 
 import pytest
 import requests
+
+
+os.environ.setdefault(
+    "TARANIS_E2E_UV_CACHE_DIR",
+    os.getenv("UV_CACHE_DIR", str(Path.home() / ".cache" / "uv")),
+)
 
 
 def wait_for_http_ok(url: str, timeout_seconds: int = 20, poll_interval: float = 0.5) -> None:
