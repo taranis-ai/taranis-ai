@@ -1,10 +1,12 @@
 import time
 from collections.abc import Generator
 from pathlib import Path
+import re
 
 import pytest
 import redis
 import requests
+import responses
 
 from tests.playwright.e2e_harness import (
     compose_logs,
@@ -15,7 +17,22 @@ from tests.playwright.e2e_harness import (
 )
 
 
+def _allow_local_http_passthrough() -> None:
+    responses.add_passthru(re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"))
+
+
+@pytest.fixture(autouse=True)
+def allow_local_http_passthrough() -> None:
+    _allow_local_http_passthrough()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def allow_local_http_passthrough_session() -> None:
+    _allow_local_http_passthrough()
+
+
 def _wait_for_admin_login(core_url: str, timeout_seconds: int = 30, poll_interval: float = 0.5) -> None:
+    _allow_local_http_passthrough()
     deadline = time.monotonic() + timeout_seconds
     last_exc: Exception | None = None
     while time.monotonic() < deadline:
@@ -49,6 +66,7 @@ def _wait_for_redis(port: int, timeout_seconds: int = 15) -> None:
 
 
 def _wait_for_worker_registration(core_url: str, timeout_seconds: int = 30) -> None:
+    _allow_local_http_passthrough()
     deadline = time.monotonic() + timeout_seconds
     last_payload = None
     while time.monotonic() < deadline:
@@ -118,6 +136,7 @@ def core_process(
     base_url = f"http://127.0.0.1:{core_port}/api"
 
     try:
+        _allow_local_http_passthrough()
         wait_for_http_ok(f"{base_url}/isalive", timeout_seconds=60)
         _wait_for_admin_login(base_url, timeout_seconds=60)
         yield base_url
