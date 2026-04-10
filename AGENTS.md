@@ -119,6 +119,8 @@ See .github/workflows for how tests are configured in CI.
 - if a new payload/setup fixture is needed outside `tests/application/` as well, add it to `src/core/tests/conftest.py`
 - keep test data in fixtures or `src/core/tests/test_data/`; do not duplicate large inline payloads across test files
 - keep helper functions and builders in dedicated support modules under `src/core/tests/application/support/`, not inside the test files themselves
+- avoid unit tests for orchestration methods whose collaborators are almost entirely monkeypatched or stubbed out; those tests tend to prove call wiring rather than behavior
+- for admin/frontend workflows that depend on cache invalidation, scheduling, seeding, or similar cross-component side effects, prefer frontend e2e coverage over heavily mocked unit tests
 
 ## Development Guidelines
 
