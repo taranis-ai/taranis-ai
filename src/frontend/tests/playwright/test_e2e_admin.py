@@ -462,11 +462,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def load_word_list():
             page.goto(url_for("admin.word_lists", _external=True))
-            expect(page.get_by_role("button", name="Load default Word List")).to_be_visible()
+            expect(page.locator("#word_list-table-container")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_word_lists.png")
 
         def load_default_word_list():
-            page.get_by_role("button", name="Load default Word List").click()
+            load_default_button = page.get_by_role("button", name="Load default Word List")
+            expect(load_default_button).to_be_visible()
+            load_default_button.click()
             page.get_by_role("row", name="Name Description Words Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-word_list-button")
             expect(delete_button).to_contain_text("Delete 9 Word List")
