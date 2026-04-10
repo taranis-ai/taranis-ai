@@ -6,10 +6,12 @@ import re
 import shutil
 import subprocess
 import time
+import uuid
 import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 import requests
@@ -21,9 +23,145 @@ from tests.playwright.fixtures.test_news_item_list import news_items_list  # noq
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
 
 
+FAST_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.yml"
+LOCALHOST_PASSTHRU_PATTERN = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+
+
+def _normalize_and_validate_absolute_url(url: str, env_name: str) -> str:
+    normalized = url.strip().rstrip("/")
+    parsed = urlsplit(normalized)
+    if not parsed.scheme or not parsed.netloc:
+        raise RuntimeError(f"{env_name} must be an absolute URL, got: {url}")
+    return normalized
+
+
+def _external_frontend_base_url() -> str | None:
+    base_url = os.getenv("TARANIS_E2E_EXTERNAL_BASE_URL", "").strip()
+    if not base_url:
+        return None
+    return _normalize_and_validate_absolute_url(base_url, "TARANIS_E2E_EXTERNAL_BASE_URL")
+
+
+def _external_core_api_url() -> str | None:
+    core_url = os.getenv("TARANIS_E2E_EXTERNAL_CORE_URL", "").strip()
+    if not core_url:
+        return None
+    normalized = _normalize_and_validate_absolute_url(core_url, "TARANIS_E2E_EXTERNAL_CORE_URL")
+    return normalized if normalized.endswith("/api") else f"{normalized}/api"
+
+
+def _external_auth_credentials() -> tuple[str, str]:
+    username = os.getenv("TARANIS_E2E_EXTERNAL_AUTH_USERNAME", "admin")
+    password = os.getenv("TARANIS_E2E_EXTERNAL_AUTH_PASSWORD", "admin")
+    return username, password
+
+
+def _external_non_admin_auth_credentials() -> tuple[str, str] | None:
+    username = os.getenv("TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_USERNAME", "").strip()
+    password = os.getenv("TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_PASSWORD", "").strip()
+
+    if not username and not password:
+        return None
+    if not username or not password:
+        raise RuntimeError(
+            "Set both TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_USERNAME and TARANIS_E2E_EXTERNAL_NON_ADMIN_AUTH_PASSWORD or neither."
+        )
+    return username, password
+
+
+def _core_host_from_api_url(core_api_url: str) -> str:
+    parsed = urlsplit(core_api_url)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _allow_requests_passthru(url: str | None = None) -> None:
+    responses.add_passthru(LOCALHOST_PASSTHRU_PATTERN)
+    if not url:
+        return
+
+    parsed = urlsplit(url)
+    if parsed.scheme and parsed.netloc:
+        responses.add_passthru(f"{parsed.scheme}://{parsed.netloc}")
+
+
+def _resolve_external_non_admin_role_id(core_api_url: str, headers: dict[str, str]) -> int:
+    response = requests.get(f"{core_api_url}/config/roles?limit=300", headers=headers, timeout=30)
+    response.raise_for_status()
+    roles = response.json().get("items", [])
+
+    user_role = next((role for role in roles if role.get("name", "").strip().lower() == "user"), None)
+    if user_role and user_role.get("id"):
+        return int(user_role["id"])
+
+    fallback_role = next((role for role in roles if role.get("name", "").strip().lower() != "admin"), None)
+    if fallback_role and fallback_role.get("id"):
+        return int(fallback_role["id"])
+
+    raise RuntimeError("Could not resolve a non-admin role from external core")
+
+
+def _resolve_external_organization_id(core_api_url: str, headers: dict[str, str]) -> int:
+    response = requests.get(f"{core_api_url}/config/organizations?limit=1", headers=headers, timeout=30)
+    response.raise_for_status()
+    organizations = response.json().get("items", [])
+    if not organizations or not organizations[0].get("id"):
+        raise RuntimeError("Could not resolve an organization from external core")
+    return int(organizations[0]["id"])
+
+
+def _provision_external_non_admin_user(core_api_url: str, admin_access_token: str) -> tuple[str, str, int]:
+    _allow_requests_passthru(core_api_url)
+    headers = {"Authorization": f"Bearer {admin_access_token}", "Content-type": "application/json"}
+
+    role_id = _resolve_external_non_admin_role_id(core_api_url, headers)
+    organization_id = _resolve_external_organization_id(core_api_url, headers)
+
+    username = f"e2e-non-admin-{uuid.uuid4().hex[:10]}"
+    password = f"e2e-{uuid.uuid4().hex[:16]}"
+    payload = {
+        "username": username,
+        "name": "E2E Non Admin",
+        "password": password,
+        "organization": organization_id,
+        "roles": [role_id],
+    }
+    response = requests.post(f"{core_api_url}/config/users", headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+    user_id = response.json().get("id")
+    if not user_id:
+        raise RuntimeError("External core user creation response did not contain 'id'")
+    return username, password, int(user_id)
+
+
+def _delete_external_user(core_api_url: str, admin_access_token: str, user_id: int) -> None:
+    _allow_requests_passthru(core_api_url)
+    headers = {"Authorization": f"Bearer {admin_access_token}"}
+    response = requests.delete(f"{core_api_url}/config/users/{user_id}", headers=headers, timeout=30)
+    if response.status_code not in {200, 204, 404}:
+        response.raise_for_status()
+
+
+class ExternalE2EServer:
+    def __init__(self, base_url: str):
+        self._base_url = base_url
+
+    def url(self) -> str:
+        return self._base_url
+
+
+def _login_to_core(core_api_url: str, username: str, password: str):
+    _allow_requests_passthru(core_api_url)
+    response = requests.post(
+        f"{core_api_url}/auth/login",
+        json={"username": username, "password": password},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response
+
+
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interval: float = 0.5):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(url)
 
     deadline = time.monotonic() + timeout_seconds
 
@@ -41,7 +179,7 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_inter
 
 @pytest.fixture(scope="session")
 def docker_compose_file():
-    return str(Path(__file__).parent / "docker-compose.e2e.yml")
+    return str(FAST_CORE_COMPOSE_FILE)
 
 
 @pytest.fixture(scope="session")
@@ -64,10 +202,20 @@ def docker_cleanup():
 
 
 @pytest.fixture(scope="session")
-def run_core(docker_services):
+def run_core(request):
     from frontend.config import Config
 
     taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
+
+    if external_core_url := _external_core_api_url():
+        Config.TARANIS_CORE_HOST = _core_host_from_api_url(external_core_url)
+        Config.TARANIS_CORE_URL = external_core_url
+        print(f"Using external Taranis Core for E2E tests: {external_core_url}")
+        _wait_for_server_to_be_alive(f"{external_core_url}/isalive", taranis_core_start_timeout)
+        yield external_core_url
+        return
+
+    docker_services = request.getfixturevalue("docker_services")
     core_port = docker_services.port_for("core", 8080)
     core_url = f"http://127.0.0.1:{core_port}/api"
 
@@ -104,10 +252,35 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(run_core, app, live_server, build_tailwindcss):
+def e2e_server(run_core, app, request):
+    if external_frontend_url := _external_frontend_base_url():
+        print(f"Using external Taranis Frontend for E2E tests: {external_frontend_url}")
+        yield ExternalE2EServer(external_frontend_url)
+        return
+
+    live_server = request.getfixturevalue("live_server")
+    request.getfixturevalue("build_tailwindcss")
     live_server.app = app
     live_server.start()
     yield live_server
+
+
+@pytest.fixture(scope="session")
+def access_token(request):
+    if external_core_url := _external_core_api_url():
+        username, password = _external_auth_credentials()
+        login_response = _login_to_core(external_core_url, username, password)
+        token = login_response.json().get("access_token")
+        if not token:
+            raise RuntimeError("External core login response does not contain 'access_token'")
+        return token
+
+    app = request.getfixturevalue("app")
+    auth_user = request.getfixturevalue("auth_user")
+    from flask_jwt_extended import create_access_token
+
+    with app.app_context():
+        return create_access_token(identity=auth_user)
 
 
 @pytest.fixture(scope="session")
@@ -202,7 +375,22 @@ def _dismiss_notifications(page: Page):
 def _cookies_from_response(resp) -> list[dict]:
     """Parse Flask Response `Set-Cookie` headers into Playwright cookie dicts (name/value/path only)."""
     cookies: list[dict] = []
-    set_cookie_headers = resp.headers.getlist("Set-Cookie")
+    set_cookie_headers: list[str] = []
+
+    headers = getattr(resp, "headers", None)
+    if headers is not None and hasattr(headers, "getlist"):
+        set_cookie_headers = list(headers.getlist("Set-Cookie"))
+
+    if not set_cookie_headers:
+        raw_headers = getattr(getattr(resp, "raw", None), "headers", None)
+        if raw_headers is not None and hasattr(raw_headers, "getlist"):
+            set_cookie_headers = list(raw_headers.getlist("Set-Cookie"))
+
+    if not set_cookie_headers and headers is not None:
+        header = headers.get("Set-Cookie")
+        if header:
+            set_cookie_headers = [header]
+
     for header in set_cookie_headers:
         c = SimpleCookie()
         c.load(header)
@@ -242,12 +430,19 @@ def _new_authenticated_page(taranis_frontend: Page, e2e_server, token_response) 
 
 
 @pytest.fixture
-def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
+def logged_in_page(taranis_frontend: Page, e2e_server, request):
     """
     Returns a Playwright Page whose browser context has the JWT cookies set,
     so any navigation is already authenticated.
     """
-    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response)
+    external_core_url = _external_core_api_url()
+    if external_core_url:
+        username, password = _external_auth_credentials()
+        token_response = _login_to_core(external_core_url, username, password)
+    else:
+        token_response = request.getfixturevalue("access_token_response")
+
+    page = _new_authenticated_page(taranis_frontend, e2e_server, token_response)
 
     try:
         yield page
@@ -257,8 +452,39 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
 
 
 @pytest.fixture
-def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic):
-    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response_basic)
+def non_admin_auth_credentials(request):
+    external_core_url = _external_core_api_url()
+    created_external_user_id: int | None = None
+    admin_access_token: str | None = None
+
+    if external_core_url:
+        external_non_admin_auth = _external_non_admin_auth_credentials()
+        if external_non_admin_auth:
+            username, password = external_non_admin_auth
+        else:
+            admin_access_token = request.getfixturevalue("access_token")
+            username, password, created_external_user_id = _provision_external_non_admin_user(external_core_url, admin_access_token)
+    else:
+        username, password = "user", "test"
+
+    try:
+        yield username, password
+    finally:
+        if external_core_url and created_external_user_id and admin_access_token:
+            _delete_external_user(external_core_url, admin_access_token, created_external_user_id)
+
+
+@pytest.fixture
+def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic, request):
+    external_core_url = _external_core_api_url()
+
+    if external_core_url:
+        username, password = request.getfixturevalue("non_admin_auth_credentials")
+        token_response = _login_to_core(external_core_url, username, password)
+    else:
+        token_response = access_token_response_basic
+
+    page = _new_authenticated_page(taranis_frontend, e2e_server, token_response)
 
     try:
         yield page
@@ -337,15 +563,14 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         request,
         non_admin_logged_in_page,
         extra_allow_patterns=[
-            r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+            r"(?i)\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(forbidden\)",
         ],
     )
 
 
 @pytest.fixture(scope="session")
 def stories_date_descending_important(run_core, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     headers = {"Authorization": f"Bearer {access_token}"}
 
@@ -358,8 +583,7 @@ def stories_date_descending_important(run_core, access_token):
 
 @pytest.fixture(scope="session")
 def stories_relevance_descending(run_core, stories_date_descending, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     headers = {"Authorization": f"Bearer {access_token}"}
     stories_relevance_desc = requests.get(f"{run_core}/assess/stories?sort=relevance", headers=headers).json().get("items", [])
@@ -368,8 +592,7 @@ def stories_relevance_descending(run_core, stories_date_descending, access_token
 
 @pytest.fixture(scope="session")
 def stories_date_descending(run_core, stories_session_wrapper, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
     headers = {"Authorization": f"Bearer {access_token}"}
 
     story_ids = []
@@ -384,8 +607,7 @@ def stories_date_descending(run_core, stories_session_wrapper, access_token):
 
 @pytest.fixture(scope="session")
 def stories_date_descending_not_important(run_core, stories_session_wrapper, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
     headers = {"Authorization": f"Bearer {access_token}"}
     story_ids = []
     s = requests.get(f"{run_core}/assess/stories?important=false&limit=50", headers=headers).json()
@@ -434,8 +656,7 @@ def stories(run_core, api_header, fake_source, access_token):
     defined in story_item_list (only keeping relevant keys and nested keys),
     and yields the cleaned list.
     """
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
     story_json = os.path.join(dir_path, "test_stories.json")
@@ -585,8 +806,7 @@ def stories(run_core, api_header, fake_source, access_token):
 
 @pytest.fixture(scope="module")
 def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
     headers = {
         "Authorization": f"Bearer {access_token}",
     }
@@ -616,8 +836,7 @@ def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
 
 @pytest.fixture(scope="session")
 def pre_seed_stories_enriched(story_list_enriched, run_core, api_header):  # noqa: F811
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     print("Pre-seeding stories via assess API")
     for story in story_list_enriched:
@@ -629,8 +848,7 @@ def pre_seed_stories_enriched(story_list_enriched, run_core, api_header):  # noq
 
 @pytest.fixture(scope="session")
 def pre_seed_report_stories(story_item_list, run_core, api_header, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     print("Pre-seeding stories via worker API")
 
@@ -664,8 +882,7 @@ ALL_ATTRIBUTE_TYPES = {
 
 def pre_seed_report_type(report_definition, access_token, run_core):
     headers = {"Authorization": f"Bearer {access_token}"}
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     r = requests.get(f"{run_core}/config/attributes?limit=300", headers=headers)
     r.raise_for_status()
@@ -731,8 +948,7 @@ def test_osint_icon_png(testdata_dir):
 
 @pytest.fixture
 def test_batch_osint_sources(run_core, access_token, testdata_dir):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -805,11 +1021,11 @@ def report_item_dict(story_item_list):
 
 @pytest.fixture(scope="session")
 def fake_source(app, run_core, access_token):
-    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
-    responses.add_passthru(pattern)
+    _allow_requests_passthru(run_core)
 
+    source_id = f"e2e-source-{uuid.uuid4().hex[:12]}"
     source_data = {
-        "id": "99",
+        "id": source_id,
         "description": "This is a test source",
         "name": "Test Source",
         "parameters": {"FEED_URL": "https://url/feed.xml"},
@@ -824,6 +1040,18 @@ def fake_source(app, run_core, access_token):
     r.raise_for_status()
 
     yield source_data["id"]
+
+    try:
+        delete_response = requests.delete(
+            f"{run_core}/config/osint-sources/{source_data['id']}",
+            headers=headers,
+            params={"force": "true"},
+            timeout=30,
+        )
+        if delete_response.status_code not in {200, 204, 404}:
+            delete_response.raise_for_status()
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="session")
