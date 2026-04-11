@@ -43,5 +43,5 @@
     </table>
   </div>
 
-  {% if country_chart %}<div class="flex-grow">{{ country_chart | safe }}</div>{% endif %}
+  {% if country_chart %}<div class="flex-grow" data-testid="country-chart">{{ country_chart | safe }}</div>{% endif %}
 {% endblock content %}

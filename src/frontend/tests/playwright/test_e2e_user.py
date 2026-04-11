@@ -104,7 +104,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def test_dashboard_entity_location_pagination(page: Page) -> None:
             page.get_by_role("link", name="Location").click()
-            expect(page.locator("div").filter(has_text="plotly-logomark").nth(5)).to_be_visible()
+            expect(page.get_by_test_id("country-chart")).to_be_visible()
             expect(page.locator("tbody")).to_contain_text("USA")
             expect(page.locator("tbody")).to_contain_text("6")
             expect(page.locator("tbody")).to_contain_text("Wärmestuben")
