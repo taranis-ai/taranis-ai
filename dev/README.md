@@ -41,11 +41,12 @@ Starting from the git root:
 cd $(git rev-parse --show-toplevel)
 ```
 
-Copy env.dev to worker and core
+Copy env.dev to worker and core and set up the core Flask port
 
 ```bash
-cp dev/env.dev src/core/.env
 cp dev/env.dev src/worker/.env
+cp dev/env.dev src/core/.env
+echo "FLASK_RUN_PORT=5001" >> src/core/.env
 ```
 
 Copy env.dev to frontend and set the frontend Flask port
