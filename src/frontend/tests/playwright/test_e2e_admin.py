@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 import json
-import re
 import uuid
 from datetime import datetime, timezone
 
 import pytest
-import requests
 from flask import url_for
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
@@ -19,29 +17,15 @@ def remove_tz(date_time: str) -> str:
     return dt.isoformat()
 
 
-def _auth_headers(access_token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {access_token}", "Content-type": "application/json"}
-
-
-def _extract_int(text: str, pattern: str) -> int:
-    if match := re.search(pattern, text):
-        return int(match.group(1))
-    raise AssertionError(f"Failed to extract integer using pattern {pattern!r} from text: {text!r}")
-
-
-def _read_dashboard_queue_count(page: Page) -> int:
-    queue_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_role("link", name="Queue")).first
-    expect(queue_card).to_be_visible()
-    return _extract_int(queue_card.inner_text(), r"There are\s+(\d+)\s+tasks scheduled\.")
-
-
-def _read_scheduler_total(page: Page) -> int:
-    scheduled_jobs_table = page.locator("#scheduled-jobs-table")
-    expect(scheduled_jobs_table).to_be_visible()
-    table_text = scheduled_jobs_table.inner_text()
-    if "No scheduled jobs" in table_text:
-        return 0
-    return _extract_int(table_text, r"Total:\s*(\d+)\s+scheduled jobs")
+DASHBOARD_BASELINE_QUEUE_TEXT = "There are 1 tasks scheduled."
+DASHBOARD_HEALTH_SERVICES = {
+    "database": "up",
+    "seed_data": "up",
+    "broker": "up",
+    "workers": "up",
+}
+SCHEDULER_BASELINE_TOTAL_TEXT = "Total: 1 scheduled jobs"
+SCHEDULER_UPDATED_TOTAL_TEXT = "Total: 2 scheduled jobs"
 
 
 @pytest.mark.e2e_admin
@@ -75,68 +59,106 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, run_core: str, access_token: str):
+    def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
-        health_response = requests.get(f"{run_core}/health", headers=_auth_headers(access_token), timeout=5)
-        assert health_response.status_code in {200, 503}, f"Unexpected health status: {health_response.status_code}"
-        health_payload = health_response.json()
-        services = health_payload.get("services", {})
 
         page.goto(url_for("admin.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
 
         health_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_text("System Health", exact=True)).first
         expect(health_card).to_be_visible()
-        for service, status in services.items():
+        expect(health_card.get_by_text("Healthy", exact=True)).to_be_visible()
+        for service, status in DASHBOARD_HEALTH_SERVICES.items():
             row = health_card.locator("div.flex.items-center.justify-between").filter(has_text=service).first
             expect(row).to_be_visible()
             expect(row).to_contain_text(status)
 
-        dashboard_queue_count = _read_dashboard_queue_count(page)
-        page.locator("div.bg-base-100.border").filter(has=page.get_by_role("link", name="Queue")).first.get_by_role("link", name="Queue").click()
+        queue_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_role("link", name="Queue")).first
+        expect(queue_card).to_be_visible()
+        expect(queue_card).to_contain_text(DASHBOARD_BASELINE_QUEUE_TEXT)
+        queue_card.get_by_role("link", name="Queue").click()
 
         expect(page).to_have_url(url_for("admin.scheduler", _external=True))
         expect(page.locator("#scheduler-dashboard")).to_be_visible()
-        assert dashboard_queue_count == _read_scheduler_total(page)
+        expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(SCHEDULER_BASELINE_TOTAL_TEXT)
 
     def test_scheduler_reflects_osint_source_schedule_changes(
         self,
         logged_in_page: Page,
         forward_console_and_page_errors,
-        run_core: str,
-        access_token: str,
     ):
         page = logged_in_page
-        headers = _auth_headers(access_token)
         scheduler_url = url_for("admin.scheduler", _external=True)
+        osint_sources_url = url_for("admin.osint_sources", _external=True)
         source_name = f"E2E Scheduler Source {uuid.uuid4().hex[:8]}"
         initial_cron = "*/13 * * * *"
         updated_cron = "*/17 * * * *"
-        source_id: str | None = None
-        baseline_count: int | None = None
+        source_created = False
+
+        def create_scheduled_source():
+            page.goto(osint_sources_url)
+            expect(page.get_by_test_id("new-osint_source-button")).to_be_visible()
+            page.get_by_test_id("new-osint_source-button").click()
+
+            expect(page.get_by_label("Name")).to_have_attribute("required", "")
+            page.get_by_label("Name").fill(source_name)
+            page.get_by_label("Description").fill("Playwright scheduler cache invalidation coverage")
+            feed_url_input = page.locator('input[name="parameters[FEED_URL]"]')
+            self.select_dynamic_type_and_wait(page, "rss_collector", "/admin/source_parameters/0", feed_url_input)
+            expect(feed_url_input).to_have_attribute("required", "")
+            feed_url_input.fill("http://fixtures/feed.xml")
+            refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
+            expect(refresh_interval_input).to_be_visible()
+            refresh_interval_input.fill(initial_cron)
+
+            self.highlight_element(page.locator("#osint_source-form input[type='submit']")).click()
+            expect(page.locator("#osint_source-form")).to_be_visible()
+            expect(page.get_by_label("Name")).to_have_value(source_name)
+
+        def update_source_schedule():
+            page.goto(osint_sources_url)
+            page.get_by_role("link", name=source_name).click()
+
+            form = page.locator("#osint_source-form").first
+            expect(form).to_be_visible()
+            refresh_interval_input = form.locator('input[name="parameters[REFRESH_INTERVAL]"]')
+            expect(refresh_interval_input).to_be_visible()
+            refresh_interval_input.fill(updated_cron)
+
+            self.highlight_element(form.locator('input[type="submit"]')).click()
+            expect(form).to_be_visible()
+            expect(form.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_have_value(updated_cron)
+
+        def delete_source_if_present():
+            page.goto(osint_sources_url)
+            source_row = page.get_by_role("row", name=source_name)
+            if source_row.count() == 0:
+                return
+            source_row.get_by_role("button").last.click()
+            page.get_by_role("button", name="Delete").click()
+            expect(page.get_by_test_id("osint_source-table").get_by_role("link", name=source_name)).not_to_be_visible()
+
+        def expect_scheduler_source_absent():
+            for _ in range(10):
+                page.goto(f"{scheduler_url}?tab=scheduled")
+                expect(page.locator("#scheduler-dashboard")).to_be_visible()
+                source_rows = page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name)
+                if source_rows.count() == 0:
+                    expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(
+                        SCHEDULER_BASELINE_TOTAL_TEXT
+                    )
+                    return
+                page.wait_for_timeout(500)
+
+            expect(page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name)).to_have_count(0)
 
         try:
             page.goto(f"{scheduler_url}?tab=scheduled")
             expect(page.locator("#scheduler-dashboard")).to_be_visible()
-            baseline_count = _read_scheduler_total(page)
+            expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(SCHEDULER_BASELINE_TOTAL_TEXT)
 
-            create_response = requests.post(
-                f"{run_core}/config/osint-sources",
-                headers=headers,
-                json={
-                    "name": source_name,
-                    "description": "Playwright scheduler cache invalidation coverage",
-                    "type": "RSS_COLLECTOR",
-                    "parameters": {
-                        "FEED_URL": "http://fixtures/feed.xml",
-                        "REFRESH_INTERVAL": initial_cron,
-                    },
-                },
-                timeout=5,
-            )
-            assert create_response.ok, f"Failed to create OSINT source: {create_response.status_code} {create_response.text}"
-            source_id = create_response.json().get("id")
-            assert source_id, "OSINT source id missing from create response"
+            create_scheduled_source()
+            source_created = True
 
             page.goto(f"{scheduler_url}?tab=scheduled")
             expect(page.locator("#scheduler-dashboard")).to_be_visible()
@@ -145,41 +167,19 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(job_row).to_be_visible(timeout=10000)
             expect(job_row).to_contain_text("collectors")
             expect(job_row.locator("code")).to_have_text(initial_cron)
-            assert _read_scheduler_total(page) == baseline_count + 1
+            expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(SCHEDULER_UPDATED_TOTAL_TEXT)
 
-            update_response = requests.put(
-                f"{run_core}/config/osint-sources/{source_id}",
-                headers=headers,
-                json={"parameters": {"REFRESH_INTERVAL": updated_cron}},
-                timeout=5,
-            )
-            assert update_response.ok, f"Failed to update OSINT source: {update_response.status_code} {update_response.text}"
+            update_source_schedule()
 
-            with page.expect_response(
-                lambda response: response.request.method == "GET"
-                and response.url.endswith("/admin/scheduler/jobs")
-                and response.status == 200
-            ):
-                page.evaluate(
-                    """() => {
-                        const target = document.getElementById('scheduled-jobs-table');
-                        window.htmx.trigger(target, 'scheduler:refresh');
-                    }"""
-                )
-
+            page.goto(f"{scheduler_url}?tab=scheduled")
+            expect(page.locator("#scheduler-dashboard")).to_be_visible()
+            job_row = page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name).first
+            expect(job_row).to_be_visible(timeout=10000)
             expect(job_row.locator("code")).to_have_text(updated_cron)
         finally:
-            if source_id is not None:
-                delete_response = requests.delete(f"{run_core}/config/osint-sources/{source_id}", headers=headers, timeout=5)
-                assert delete_response.status_code in {200, 404}, (
-                    f"Unexpected delete status for {source_id}: {delete_response.status_code} {delete_response.text}"
-                )
-
-                page.goto(f"{scheduler_url}?tab=scheduled")
-                expect(page.locator("#scheduler-dashboard")).to_be_visible()
-                expect(page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name)).to_have_count(0)
-                if baseline_count is not None:
-                    assert _read_scheduler_total(page) == baseline_count
+            if source_created:
+                delete_source_if_present()
+                expect_scheduler_source_absent()
 
     def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
         page = logged_in_page
@@ -1192,7 +1192,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         publisher_presets_update()
         publisher_presets_delete()
 
-    def test_admin_settings(self, logged_in_page, tmp_path, run_core, access_token, pre_seed_stories):
+    def test_admin_settings(self, logged_in_page, tmp_path, pre_seed_stories):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
@@ -1253,10 +1253,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 self.highlight_element(export_all_btn).click()
             download = dl_info.value
             assert download is not None
-            download_path = download.path()
-            assert download_path is not None
+            export_file = tmp_path / "settings_story_export.json"
+            download.save_as(str(export_file))
 
-            with open(download_path, "r", encoding="utf-8") as f:
+            with open(export_file, "r", encoding="utf-8") as f:
                 exported = json.load(f)
 
             # convert both exported stories and stories in story_list to a comparable format
@@ -1280,6 +1280,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             if export_dialog.is_visible():
                 page.keyboard.press("Escape")
             expect(export_dialog).not_to_be_visible()
+            return export_file
 
         def test_export_stories_metadata_time_filter(story_list):
             export_btn = page.get_by_test_id("story-export-button")
@@ -1352,15 +1353,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 page.keyboard.press("Escape")
             expect(export_dialog).not_to_be_visible()
 
-        def import_stories_from_json():
-            export_response = requests.get(
-                f"{run_core}/admin/export-stories",
-                params={"metadata": "true"},
-                headers={"Authorization": f"Bearer {access_token}"},
-                timeout=30,
-            )
-            export_response.raise_for_status()
-            import_payload = export_response.json()
+        def import_stories_from_json(export_file):
+            with open(export_file, "r", encoding="utf-8") as f:
+                import_payload = json.load(f)
 
             imported_story_title = f"Imported Story {uuid.uuid4().hex[:8]}"
             imported_story_id = str(uuid.uuid4())
@@ -1373,13 +1368,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 news_item["story_id"] = imported_story_id
                 news_item["title"] = f"{imported_story_title} News {index}"
                 news_item["link"] = f"https://example.com/{imported_story_id}/{index}"
+                news_item["osint_source_id"] = "manual"
                 news_item.pop("hash", None)
 
-            import_file = tmp_path / "settings_story_import.json"
-            import_file.write_text(json.dumps([story_to_import]), encoding="utf-8")
+            export_file.write_text(json.dumps([story_to_import]), encoding="utf-8")
 
             with page.expect_response(stories_import_url) as response_info:
-                page.get_by_test_id("settings-story-import-file").set_input_files(str(import_file))
+                page.get_by_test_id("settings-story-import-file").set_input_files(str(export_file))
                 page.get_by_test_id("settings-story-import-submit").click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
 
@@ -1410,9 +1405,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         check_default_values()
         change_default_values()
         check_new_values()
-        test_export_all_stories(pre_seed_stories)
+        exported_stories_file = test_export_all_stories(pre_seed_stories)
         test_export_stories_metadata_time_filter(pre_seed_stories)
-        import_stories_from_json()
+        import_stories_from_json(exported_stories_file)
         revert_to_default_values()
         test_clear_cache()
 

@@ -1,180 +1,123 @@
 import json
 import time
 import uuid
+from typing import Any
 
 import pytest
 import redis
 import requests
 from rq import Queue
+from rq.job import Job
+from rq.results import Result
 
 
-def _login(core_url: str) -> str:
-    response = requests.post(
-        f"{core_url}/auth/login",
-        json={"username": "admin", "password": "admin"},
-        timeout=5,
-    )
-    response.raise_for_status()
-    if token := response.json().get("access_token"):
-        return token
-    raise RuntimeError("No access_token in auth response")
+CRON_ENQUEUE_KEY_PREFIX = "rq:cron:enqueue:"
 
 
-def _poll_wordlist_entries(
-    core_url: str,
-    headers: dict[str, str],
-    wordlist_id: int,
+def _parse_cron_spec(raw_spec: object) -> dict[str, Any]:
+    if isinstance(raw_spec, bytes):
+        raw_text = raw_spec.decode()
+    elif isinstance(raw_spec, str):
+        raw_text = raw_spec
+    else:
+        raise TypeError(f"Unsupported cron spec payload type: {type(raw_spec)!r}")
+
+    parsed = json.loads(raw_text)
+    assert isinstance(parsed, dict), f"Expected cron spec to decode to a dict, got {type(parsed)!r}"
+    return parsed
+
+
+def _redis_conn(redis_backend: dict[str, str]) -> redis.Redis:
+    return redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
+
+
+def _decode_redis_string(raw_value: bytes | str | None) -> str | None:
+    if raw_value is None:
+        return None
+    return raw_value.decode() if isinstance(raw_value, bytes) else raw_value
+
+
+def _cron_enqueue_key(job_id: str) -> str:
+    return f"{CRON_ENQUEUE_KEY_PREFIX}{job_id}"
+
+
+def _wait_for_job_result(
+    redis_backend: dict[str, str],
+    job_id: str,
     timeout_seconds: int = 30,
-) -> dict:
-    deadline = time.monotonic() + timeout_seconds
-    last_payload = {}
-    while time.monotonic() < deadline:
-        resp = requests.get(f"{core_url}/config/word-lists/{wordlist_id}", headers=headers, timeout=5)
-        if resp.status_code == 200:
-            last_payload = resp.json()
-            if (last_payload.get("entry_count") or 0) > 0:
-                return last_payload
-        time.sleep(0.5)
-    raise RuntimeError(f"Word list did not update within {timeout_seconds}s. Last payload: {last_payload}")
+) -> Result:
+    job = Job.fetch(job_id, connection=_redis_conn(redis_backend))
+    result = job.latest_result(timeout=timeout_seconds)
+    if result is None:
+        raise RuntimeError(f"Timed out waiting for RQ result stream for job {job_id}")
+    if result.type == Result.Type.FAILED:
+        raise RuntimeError(f"Job {job_id} failed: {result.exc_string}")
+    return result
 
 
-def _poll_task_result(
+def _get_task_result(
     core_url: str,
     headers: dict[str, str],
     task_id: str,
-    timeout_seconds: int = 30,
 ) -> dict:
-    deadline = time.monotonic() + timeout_seconds
-    last_payload = {}
-    while time.monotonic() < deadline:
-        resp = requests.get(f"{core_url}/config/task-results/{task_id}", headers=headers, timeout=5)
-        if resp.status_code == 200:
-            last_payload = resp.json()
-            if last_payload.get("status") == "SUCCESS":
-                return last_payload
-        time.sleep(0.5)
-    raise RuntimeError(f"Task {task_id} did not report SUCCESS within {timeout_seconds}s. Last payload: {last_payload}")
+    resp = requests.get(f"{core_url}/config/task-results/{task_id}", headers=headers, timeout=5)
+    resp.raise_for_status()
+    return resp.json()
 
 
-def _poll_cron_registration(
-    redis_backend: dict[str, str],
-    job_id: str,
-    timeout_seconds: int = 15,
-) -> dict:
-    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
-    deadline = time.monotonic() + timeout_seconds
-    last_raw_spec = None
-    last_next = None
-
-    while time.monotonic() < deadline:
-        last_raw_spec = redis_conn.hget("rq:cron:def", job_id)
-        last_next = redis_conn.zscore("rq:cron:next", job_id)
-        if last_raw_spec and last_next is not None:
-            parsed = json.loads(last_raw_spec.decode() if isinstance(last_raw_spec, bytes) else last_raw_spec)
-            return parsed
-        time.sleep(0.5)
-
-    raise RuntimeError(f"Cron job {job_id} was not registered in Redis within {timeout_seconds}s. spec={last_raw_spec!r}, next={last_next!r}")
-
-
-def _poll_cron_expression(
-    redis_backend: dict[str, str],
-    job_id: str,
-    expected_cron: str,
-    timeout_seconds: int = 10,
-) -> dict:
-    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
-    deadline = time.monotonic() + timeout_seconds
-    last_spec = None
-
-    while time.monotonic() < deadline:
-        raw_spec = redis_conn.hget("rq:cron:def", job_id)
-        if raw_spec:
-            parsed = json.loads(raw_spec.decode() if isinstance(raw_spec, bytes) else raw_spec)
-            last_spec = parsed
-            if parsed.get("cron") == expected_cron:
-                return parsed
-        time.sleep(0.5)
-
-    raise RuntimeError(f"Cron spec for {job_id} did not update to {expected_cron!r} within {timeout_seconds}s. last_spec={last_spec!r}")
-
-
-def _poll_collector_task_result(
+def _get_wordlist(
     core_url: str,
     headers: dict[str, str],
-    source_name: str,
-    redis_backend: dict[str, str] | None = None,
-    cron_job_id: str | None = None,
-    timeout_seconds: int = 90,
+    wordlist_id: int,
 ) -> dict:
-    deadline = time.monotonic() + timeout_seconds
-    last_payload = {}
-    while time.monotonic() < deadline:
-        resp = requests.get(f"{core_url}/config/task-results", headers=headers, timeout=5)
-        if resp.status_code == 200:
-            last_payload = resp.json()
-            items = last_payload.get("items") if isinstance(last_payload, dict) else None
-            if isinstance(items, list):
-                for item in items:
-                    if (
-                        item.get("task") == "collector_task"
-                        and source_name in (item.get("result") or "")
-                        and item.get("status") == "SUCCESS"
-                    ):
-                        return item
-        time.sleep(1.0)
-    details = ""
-    if redis_backend and cron_job_id:
-        redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
-        next_run = redis_conn.zscore("rq:cron:next", cron_job_id)
-        spec_exists = redis_conn.hexists("rq:cron:def", cron_job_id)
-        queued = redis_conn.llen("rq:queue:collectors")
-        failed = redis_conn.zcard("rq:failed:collectors")
-        details = f" Redis spec_exists={spec_exists}, next={next_run!r}, queue_len={queued}, failed_len={failed}."
-    raise RuntimeError(
-        f"Collector task for source '{source_name}' did not report SUCCESS within {timeout_seconds}s. Last payload: {last_payload}.{details}"
-    )
+    resp = requests.get(f"{core_url}/config/word-lists/{wordlist_id}", headers=headers, timeout=5)
+    resp.raise_for_status()
+    return resp.json()
 
 
-def _poll_bot_task_result(
-    core_url: str,
-    headers: dict[str, str],
-    bot_task_name: str,
-    redis_backend: dict[str, str] | None = None,
-    cron_job_id: str | None = None,
+def _assert_cron_registration(
+    redis_backend: dict[str, str],
+    job_id: str,
+    expected_cron: str | None = None,
+) -> tuple[dict[str, Any], float]:
+    redis_conn = _redis_conn(redis_backend)
+    raw_spec = redis_conn.hget("rq:cron:def", job_id)
+    next_run_raw = redis_conn.zscore("rq:cron:next", job_id)
+    assert isinstance(raw_spec, (bytes, str)), f"Missing cron registration for {job_id}"
+    assert isinstance(next_run_raw, (int, float)), f"Missing or invalid next run entry for {job_id}"
+    next_run = float(next_run_raw)
+    parsed = _parse_cron_spec(raw_spec)
+    if expected_cron is not None:
+        assert parsed.get("cron") == expected_cron
+    return parsed, next_run
+
+
+def _wait_for_cron_enqueue_event(
+    redis_backend: dict[str, str],
+    cron_job_id: str,
     timeout_seconds: int = 90,
-) -> dict:
-    deadline = time.monotonic() + timeout_seconds
-    last_payload = {}
-    while time.monotonic() < deadline:
-        resp = requests.get(f"{core_url}/config/task-results", headers=headers, timeout=5)
-        if resp.status_code == 200:
-            last_payload = resp.json()
-            items = last_payload.get("items") if isinstance(last_payload, dict) else None
-            if isinstance(items, list):
-                for item in items:
-                    if item.get("task") == bot_task_name and item.get("status") == "SUCCESS":
-                        return item
-        time.sleep(1.0)
-    details = ""
-    if redis_backend and cron_job_id:
-        redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
-        next_run = redis_conn.zscore("rq:cron:next", cron_job_id)
-        spec_exists = redis_conn.hexists("rq:cron:def", cron_job_id)
-        queued = redis_conn.llen("rq:queue:bots")
-        failed = redis_conn.zcard("rq:failed:bots")
-        details = f" Redis spec_exists={spec_exists}, next={next_run!r}, queue_len={queued}, failed_len={failed}."
-    raise RuntimeError(f"Bot task '{bot_task_name}' did not report SUCCESS within {timeout_seconds}s. Last payload: {last_payload}.{details}")
+) -> str:
+    redis_conn = _redis_conn(redis_backend)
+    result: tuple[bytes, bytes] | None = redis_conn.blpop(_cron_enqueue_key(cron_job_id), timeout=timeout_seconds)  # type: ignore[assignment]
+    if result is None:
+        raise RuntimeError(f"Timed out waiting for cron enqueue event for {cron_job_id}")
+
+    _, rq_job_id = result
+    if decoded_job_id := _decode_redis_string(rq_job_id):
+        return decoded_job_id
+    else:
+        raise RuntimeError(f"Received empty cron enqueue payload for {cron_job_id}")
 
 
 @pytest.mark.e2e_ci
 def test_rq_wordlist_queue_flow(
     core_process: str,
     worker_process: None,
+    redis_backend: dict[str, str],
     wordlist_server: str,
+    access_token: str,
 ) -> None:
-    token = _login(core_process)
-    headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
+    headers = {"Authorization": f"Bearer {access_token}", "Content-type": "application/json"}
 
     create_resp = requests.post(
         f"{core_process}/config/word-lists",
@@ -193,7 +136,8 @@ def test_rq_wordlist_queue_flow(
     )
     enqueue_resp.raise_for_status()
 
-    payload = _poll_wordlist_entries(core_process, headers, wordlist_id)
+    _wait_for_job_result(redis_backend, f"gather_word_list_{wordlist_id}")
+    payload = _get_wordlist(core_process, headers, wordlist_id)
     assert (payload.get("entry_count") or 0) > 0
 
 
@@ -202,9 +146,9 @@ def test_rq_cleanup_token_blacklist(
     core_process: str,
     worker_process: None,
     redis_backend: dict[str, str],
+    access_token: str,
 ) -> None:
-    token = _login(core_process)
-    headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
+    headers = {"Authorization": f"Bearer {access_token}", "Content-type": "application/json"}
 
     redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
     queue = Queue("misc", connection=redis_conn)
@@ -212,7 +156,8 @@ def test_rq_cleanup_token_blacklist(
 
     queue.enqueue("worker.misc.misc_tasks.cleanup_token_blacklist", job_id=job_id)
 
-    payload = _poll_task_result(core_process, headers, job_id, timeout_seconds=30)
+    _wait_for_job_result(redis_backend, job_id, timeout_seconds=30)
+    payload = _get_task_result(core_process, headers, job_id)
     assert payload.get("status") == "SUCCESS"
 
 
@@ -223,9 +168,9 @@ def test_rq_scheduled_collector_cron(
     cron_process: None,
     redis_backend: dict[str, str],
     rss_server: str,
+    access_token: str,
 ) -> None:
-    token = _login(core_process)
-    headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
+    headers = {"Authorization": f"Bearer {access_token}", "Content-type": "application/json"}
 
     source_payload = {
         "name": "E2E RSS Source",
@@ -245,17 +190,14 @@ def test_rq_scheduled_collector_cron(
     create_resp.raise_for_status()
     source_id = create_resp.json().get("id")
     assert source_id, "osint source id missing"
-    _poll_cron_registration(redis_backend, f"osint_source_{source_id}")
+    cron_job_id = f"osint_source_{source_id}"
+    _assert_cron_registration(redis_backend, cron_job_id, expected_cron=source_payload["parameters"]["REFRESH_INTERVAL"])
 
-    payload = _poll_collector_task_result(
-        core_process,
-        headers,
-        source_payload["name"],
-        redis_backend=redis_backend,
-        cron_job_id=f"osint_source_{source_id}",
-        timeout_seconds=90,
-    )
+    run_job_id = _wait_for_cron_enqueue_event(redis_backend, cron_job_id, timeout_seconds=90)
+    _wait_for_job_result(redis_backend, run_job_id, timeout_seconds=90)
+    payload = _get_task_result(core_process, headers, run_job_id)
     assert payload.get("status") == "SUCCESS"
+    assert source_payload["name"] in (payload.get("result") or "")
 
 
 @pytest.mark.e2e_ci
@@ -264,9 +206,9 @@ def test_rq_osint_cron_update_immediately_refreshes_next_run(
     cron_process: None,
     redis_backend: dict[str, str],
     rss_server: str,
+    access_token: str,
 ) -> None:
-    token = _login(core_process)
-    headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
+    headers = {"Authorization": f"Bearer {access_token}", "Content-type": "application/json"}
 
     initial_cron = "0 0 1 1 *"
     updated_cron = "*/1 * * * *"
@@ -291,12 +233,8 @@ def test_rq_osint_cron_update_immediately_refreshes_next_run(
     assert source_id, "osint source id missing"
     job_id = f"osint_source_{source_id}"
 
-    registered_spec = _poll_cron_registration(redis_backend, job_id)
+    registered_spec, initial_next = _assert_cron_registration(redis_backend, job_id, expected_cron=initial_cron)
     assert registered_spec.get("cron") == initial_cron
-
-    redis_conn = redis.from_url(redis_backend["url"], password=redis_backend["password"] or None, decode_responses=False)
-    initial_next = redis_conn.zscore("rq:cron:next", job_id)
-    assert initial_next is not None
 
     update_payload = {"parameters": {"REFRESH_INTERVAL": updated_cron}}
     update_resp = requests.put(
@@ -307,16 +245,8 @@ def test_rq_osint_cron_update_immediately_refreshes_next_run(
     )
     update_resp.raise_for_status()
 
-    updated_spec = _poll_cron_expression(redis_backend, job_id, updated_cron)
+    updated_spec, next_after_update = _assert_cron_registration(redis_backend, job_id, expected_cron=updated_cron)
     assert updated_spec.get("cron") == updated_cron
-
-    deadline = time.monotonic() + 4.0
-    next_after_update = redis_conn.zscore("rq:cron:next", job_id)
-    while time.monotonic() < deadline and next_after_update == initial_next:
-        time.sleep(0.5)
-        next_after_update = redis_conn.zscore("rq:cron:next", job_id)
-
-    assert next_after_update is not None
     assert next_after_update != initial_next, "Expected scheduler to immediately recompute rq:cron:next after cron spec update"
 
 
@@ -327,9 +257,9 @@ def test_rq_scheduled_wordlist_bot_cron(
     cron_process: None,
     redis_backend: dict[str, str],
     wordlist_server: str,
+    access_token: str,
 ) -> None:
-    token = _login(core_process)
-    headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
+    headers = {"Authorization": f"Bearer {access_token}", "Content-type": "application/json"}
     story_suffix = uuid.uuid4().hex
 
     story_resp = requests.post(
@@ -366,7 +296,9 @@ def test_rq_scheduled_wordlist_bot_cron(
         timeout=5,
     )
     gather_resp.raise_for_status()
-    _poll_wordlist_entries(core_process, headers, wordlist_id)
+    _wait_for_job_result(redis_backend, f"gather_word_list_{wordlist_id}")
+    payload = _get_wordlist(core_process, headers, wordlist_id)
+    assert (payload.get("entry_count") or 0) > 0
 
     bot_payload = {
         "name": "E2E Wordlist Bot",
@@ -393,14 +325,11 @@ def test_rq_scheduled_wordlist_bot_cron(
         timeout=5,
     )
     bot_update.raise_for_status()
-    _poll_cron_registration(redis_backend, f"bot_{bot_id}")
+    cron_job_id = f"bot_{bot_id}"
+    _assert_cron_registration(redis_backend, cron_job_id, expected_cron=bot_payload["parameters"]["REFRESH_INTERVAL"])
 
-    payload = _poll_bot_task_result(
-        core_process,
-        headers,
-        f"bot_{bot_id}",
-        redis_backend=redis_backend,
-        cron_job_id=f"bot_{bot_id}",
-        timeout_seconds=90,
-    )
+    run_job_id = _wait_for_cron_enqueue_event(redis_backend, cron_job_id, timeout_seconds=90)
+    _wait_for_job_result(redis_backend, run_job_id, timeout_seconds=90)
+    payload = _get_task_result(core_process, headers, run_job_id)
     assert payload.get("status") == "SUCCESS"
+    assert payload.get("task") == f"bot_{bot_id}"

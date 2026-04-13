@@ -1,6 +1,6 @@
-import os
 import inspect
 import json
+import os
 import time
 from collections.abc import Awaitable
 from datetime import datetime, timezone
@@ -19,6 +19,8 @@ from worker.log import logger
 DEFS_KEY = "rq:cron:def"  # HASH: job_id -> JSON spec (written by core QueueManager)
 NEXT_KEY = "rq:cron:next"  # ZSET: job_id -> next_run_unix_ts
 LOCK_KEY = "rq:cron:leader"  # STRING: leader node id
+ENQUEUE_KEY_PREFIX = "rq:cron:enqueue:"
+ENQUEUE_KEY_TTL_SECONDS = 300
 
 TASK_FUNCTION_MAP = {
     "collector_task": "worker.collectors.collector_tasks.collector_task",
@@ -100,6 +102,48 @@ def compute_next(spec: dict[str, Any], base_ts: float) -> float:
     raise ValueError("CronTaskSpec must provide exactly one of cron or interval")
 
 
+def _enqueue_key(job_id: str) -> str:
+    return f"{ENQUEUE_KEY_PREFIX}{job_id}"
+
+
+def _enqueue_due_job(
+    redis: Redis,
+    queues: dict[str, Queue],
+    job_id: str,
+    spec: dict[str, Any],
+    now_ts: float,
+) -> str:
+    queue_name = spec["queue_name"]
+    queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
+    task = TASK_FUNCTION_MAP.get(spec["func_path"], spec["func_path"])
+    job_options = dict(spec.get("job_options") or {})
+    kwargs = dict(spec.get("kwargs") or {})
+
+    # Preserve scheduler dashboard labels where available.
+    if spec.get("meta") and "meta" not in job_options:
+        job_options["meta"] = spec["meta"]
+
+    # Deterministic enough for queue dedupe while still carrying the logical cron job id.
+    due_slot = int(now_ts)
+    rq_job_id = f"cron_{job_id}_{due_slot}"
+
+    queue.enqueue(
+        task,
+        *spec.get("args", []),
+        job_id=rq_job_id,
+        **kwargs,
+        **job_options,
+    )
+
+    next_ts = compute_next(spec, now_ts)
+    with redis.pipeline() as pipeline:
+        pipeline.zadd(NEXT_KEY, {job_id: next_ts})
+        pipeline.rpush(_enqueue_key(job_id), rq_job_id)
+        pipeline.expire(_enqueue_key(job_id), ENQUEUE_KEY_TTL_SECONDS)
+        pipeline.execute()
+    return rq_job_id
+
+
 def acquire_leader(redis: Redis, node_id: str, ttl_seconds: int = 10) -> bool:
     return bool(redis.set(LOCK_KEY, node_id, nx=True, ex=ttl_seconds))
 
@@ -146,30 +190,7 @@ def run_scheduler(
                 continue
 
             try:
-                queue_name = spec["queue_name"]
-                queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
-                task = TASK_FUNCTION_MAP.get(spec["func_path"], spec["func_path"])
-                job_options = dict(spec.get("job_options") or {})
-                kwargs = dict(spec.get("kwargs") or {})
-
-                # Preserve scheduler dashboard labels where available.
-                if spec.get("meta") and "meta" not in job_options:
-                    job_options["meta"] = spec["meta"]
-
-                # Deterministic job id helps dedupe if the loop retries.
-                due_slot = int(now_ts)
-                rq_job_id = f"cron_{job_id}_{due_slot}"
-
-                queue.enqueue(
-                    task,
-                    *spec.get("args", []),
-                    job_id=rq_job_id,
-                    **kwargs,
-                    **job_options,
-                )
-
-                next_ts = compute_next(spec, now_ts)
-                redis.zadd(NEXT_KEY, {job_id: next_ts})
+                _enqueue_due_job(redis, queues, job_id, spec, now_ts)
             except Exception:
                 # Keep the job alive and retry on next poll cycle.
                 redis.zadd(NEXT_KEY, {job_id: now_ts + poll_interval_seconds})

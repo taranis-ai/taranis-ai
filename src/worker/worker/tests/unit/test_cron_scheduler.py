@@ -5,7 +5,8 @@ import pytest
 from models.task import CronTaskSpec
 from pydantic import ValidationError
 
-from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _decode, _normalize_spec, _sync_next_index
+import worker.cron_scheduler as cron_scheduler
+from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _decode, _enqueue_due_job, _enqueue_key, _normalize_spec, _sync_next_index
 
 
 def test_cron_task_spec_accepts_interval_schedule():
@@ -131,3 +132,37 @@ def test_decode_rejects_awaitable_values():
             _decode(coroutine, "redis.get")
     finally:
         coroutine.close()
+
+
+def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fake_queue):
+    redis_conn = fakeredis.FakeRedis(decode_responses=False)
+    monkeypatch.setattr(cron_scheduler, "Queue", fake_queue)
+
+    rq_job_id = _enqueue_due_job(
+        redis_conn,
+        {},
+        "osint_source_source-1",
+        {
+            "queue_name": "collectors",
+            "func_path": "collector_task",
+            "cron": "*/5 * * * *",
+            "args": ["source-1", False],
+            "meta": {"name": "Collector: Source 1"},
+        },
+        now_ts=1000.0,
+    )
+
+    assert rq_job_id == "cron_osint_source_source-1_1000"
+    assert fake_queue.enqueued_calls == [
+        {
+            "task": "worker.collectors.collector_tasks.collector_task",
+            "args": ("source-1", False),
+            "job_id": "cron_osint_source_source-1_1000",
+            "kwargs": {"meta": {"name": "Collector: Source 1"}},
+        }
+    ]
+    assert redis_conn.zscore(NEXT_KEY, "osint_source_source-1") is not None
+
+    wait_key_result = redis_conn.blpop(_enqueue_key("osint_source_source-1"), timeout=1)
+    assert wait_key_result is not None
+    assert wait_key_result[1] == b"cron_osint_source_source-1_1000"
