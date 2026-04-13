@@ -12,7 +12,7 @@ from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
 
 
-def publisher_task(product_id: int, publisher_id: str):
+def publisher_task(product_id: str, publisher_id: str):
     """Publish a product to an external system.
 
     Args:
@@ -51,7 +51,7 @@ def publisher_task(product_id: int, publisher_id: str):
     return publisher_impl.publish(publisher, product, rendered_product)
 
 
-def _get_product(core_api: CoreApi, product_id: int) -> dict[str, str]:
+def _get_product(core_api: CoreApi, product_id: str) -> dict[str, str]:
     """Fetch product configuration from core API.
 
     Args:
@@ -64,7 +64,7 @@ def _get_product(core_api: CoreApi, product_id: int) -> dict[str, str]:
     Raises:
         RuntimeError: If product not found
     """
-    product = core_api.get_product(str(product_id))
+    product = core_api.get_product(product_id)
 
     if not product:
         logger.error(f"Product with id {product_id} not found")
@@ -95,7 +95,7 @@ def _get_publisher(core_api: CoreApi, publisher_id: str) -> dict:
     return publisher
 
 
-def _get_rendered_product(core_api: CoreApi, product_id: int) -> Product | None:
+def _get_rendered_product(core_api: CoreApi, product_id: str) -> Product | None:
     """Fetch rendered product from core API.
 
     Args:
@@ -106,7 +106,7 @@ def _get_rendered_product(core_api: CoreApi, product_id: int) -> Product | None:
         Rendered product or None if not found
     """
     logger.debug(f"Getting rendered product for product {product_id}")
-    return core_api.get_product_render(str(product_id))
+    return core_api.get_product_render(product_id)
 
 
 def _get_publisher_impl(pub_type: str) -> BasePublisher:
