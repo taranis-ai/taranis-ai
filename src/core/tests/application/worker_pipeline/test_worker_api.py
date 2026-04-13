@@ -1,5 +1,6 @@
 import importlib.util
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,50 @@ import pytest
 
 class TestWorkerApi:
     base_uri = "/api/worker"
+
+    def test_worker_task_results_passes_task_name_and_persists_empty_dict(self, client, api_header, app, monkeypatch):
+        from core.model.task import Task
+
+        task_id = f"presenter-task-{uuid.uuid4().hex}"
+        recorded = {}
+
+        def fake_handle_task_specific_result(passed_task_id, result, status, task_name=None):
+            recorded["task_id"] = passed_task_id
+            recorded["result"] = result
+            recorded["status"] = status
+            recorded["task_name"] = task_name
+
+        monkeypatch.setattr("core.api.task.handle_task_specific_result", fake_handle_task_specific_result)
+
+        payload = {
+            "id": task_id,
+            "task": "presenter_task",
+            "result": {},
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+
+            assert response.status_code == 201
+            assert response.get_json()["task"] == "presenter_task"
+            assert response.get_json()["result"] == {}
+            assert recorded == {
+                "task_id": task_id,
+                "result": {},
+                "status": "SUCCESS",
+                "task_name": "presenter_task",
+            }
+
+            with app.app_context():
+                stored = Task.get(task_id)
+                assert stored is not None
+                assert stored.to_dict()["result"] == {}
+                assert stored.task == "presenter_task"
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
 
     def test_worker_story_update(self, client, stories, cleanup_story_update_data, api_header):
         """

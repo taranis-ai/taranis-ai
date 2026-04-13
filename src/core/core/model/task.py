@@ -26,7 +26,7 @@ class Task(BaseModel):
             self.status = status
         if task:
             self.task = task
-        self.result = json.dumps(result) if result else ""
+        self.result = json.dumps(result) if result is not None else ""
         if status == "SUCCESS":
             self.last_success = datetime.now(timezone.utc)
         self.last_run = datetime.now(timezone.utc)
@@ -34,7 +34,7 @@ class Task(BaseModel):
     @classmethod
     def add_or_update(cls, entry_data):
         if entry := cls.get(entry_data["id"]):
-            entry.result = json.dumps(entry_data["result"]) if entry_data["result"] else ""
+            entry.result = json.dumps(entry_data["result"]) if entry_data["result"] is not None else ""
             entry.status = entry_data.get("status")
             entry.task = entry_data.get("task", entry.task)
             if entry.status == "SUCCESS":
@@ -127,14 +127,22 @@ class Task(BaseModel):
             return {"variant": "warning", "label": "Some Failures"}
         return {"variant": "error", "label": "Many Failures"}
 
+    @staticmethod
+    def _serialize_timestamp(value: datetime | str | None) -> str | None:
+        if value is None or isinstance(value, str):
+            return value
+        return value.isoformat()
+
     @classmethod
     def _format_task_stats(cls, raw_stats: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
         formatted: dict[str, dict[str, Any]] = {}
         for task_name, stats in raw_stats.items():
             formatted_stats = stats.copy()
+            formatted_stats["last_run"] = cls._serialize_timestamp(stats.get("last_run"))
+            formatted_stats["last_success"] = cls._serialize_timestamp(stats.get("last_success"))
 
-            formatted_stats["last_run_display"] = stats.get("last_run")
-            formatted_stats["last_success_display"] = stats.get("last_success")
+            formatted_stats["last_run_display"] = formatted_stats["last_run"]
+            formatted_stats["last_success_display"] = formatted_stats["last_success"]
             formatted_stats["status_badge"] = cls._build_task_status_badge(formatted_stats)
             formatted[task_name] = formatted_stats
         return formatted

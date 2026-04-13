@@ -280,8 +280,8 @@ class TaskResults(MethodView):
         status = data.get("status")
 
         # Handle task-specific result processing (e.g., presenter results)
-        if status == "SUCCESS" and result and task_id:
-            handle_task_specific_result(task_id, result, status)
+        if status == "SUCCESS" and result is not None and task_id:
+            handle_task_specific_result(task_id, result, status, data.get("task"))
 
         return Task.add_or_update(data)
 
