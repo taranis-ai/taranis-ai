@@ -75,6 +75,50 @@ def _get_wordlist(
     return resp.json()
 
 
+def _get_latest_result_marker(redis_backend: dict[str, str], job_id: str) -> str | None:
+    redis_conn = _redis_conn(redis_backend)
+    entries = redis_conn.xrevrange(Result.get_key(job_id), count=1)
+    if not entries:
+        return None
+
+    result_id, _ = entries[0]  # type: ignore[assignment]
+    return _decode_redis_string(result_id)
+
+
+def _wait_for_next_job_result(
+    redis_backend: dict[str, str],
+    job_id: str,
+    previous_result_id: str | None,
+    timeout_seconds: int = 30,
+) -> Result:
+    redis_conn = _redis_conn(redis_backend)
+    stream_key = Result.get_key(job_id)
+    if latest_entries := redis_conn.xrevrange(stream_key, count=1):
+        result_id, payload = latest_entries[0]  # type: ignore[assignment]
+        decoded_result_id = _decode_redis_string(result_id)
+        if decoded_result_id and decoded_result_id != previous_result_id:
+            return _extracted_from__wait_for_next_job_result_13(job_id, decoded_result_id, payload, redis_conn)
+    start_id = previous_result_id or "$"
+    response = redis_conn.xread({stream_key: start_id}, block=timeout_seconds * 1000)
+    if not response:
+        raise RuntimeError(f"Timed out waiting for a fresh RQ result stream entry for job {job_id}")
+
+    _, entries = response[0]  # type: ignore[assignment]
+    result_id, payload = entries[-1]
+    if decoded_result_id := _decode_redis_string(result_id):
+        return _extracted_from__wait_for_next_job_result_13(job_id, decoded_result_id, payload, redis_conn)
+    else:
+        raise RuntimeError(f"Received an empty result stream id for job {job_id}")
+
+
+# TODO Rename this here and in `_wait_for_next_job_result`
+def _extracted_from__wait_for_next_job_result_13(job_id, decoded_result_id, payload, redis_conn):
+    result = Result.restore(job_id, decoded_result_id, payload, connection=redis_conn)
+    if result.type == Result.Type.FAILED:
+        raise RuntimeError(f"Job {job_id} failed: {result.exc_string}")
+    return result
+
+
 def _assert_cron_registration(
     redis_backend: dict[str, str],
     job_id: str,
@@ -128,6 +172,8 @@ def test_rq_wordlist_queue_flow(
     create_resp.raise_for_status()
     wordlist_id = create_resp.json().get("id")
     assert wordlist_id, "wordlist id missing"
+    gather_job_id = f"gather_word_list_{wordlist_id}"
+    previous_result_id = _get_latest_result_marker(redis_backend, gather_job_id)
 
     enqueue_resp = requests.post(
         f"{core_process}/config/word-lists/gather/{wordlist_id}",
@@ -136,7 +182,7 @@ def test_rq_wordlist_queue_flow(
     )
     enqueue_resp.raise_for_status()
 
-    _wait_for_job_result(redis_backend, f"gather_word_list_{wordlist_id}")
+    _wait_for_next_job_result(redis_backend, gather_job_id, previous_result_id)
     payload = _get_wordlist(core_process, headers, wordlist_id)
     assert (payload.get("entry_count") or 0) > 0
 
@@ -289,6 +335,8 @@ def test_rq_scheduled_wordlist_bot_cron(
     wordlist_resp.raise_for_status()
     wordlist_id = wordlist_resp.json().get("id")
     assert wordlist_id, "wordlist id missing"
+    gather_job_id = f"gather_word_list_{wordlist_id}"
+    previous_result_id = _get_latest_result_marker(redis_backend, gather_job_id)
 
     gather_resp = requests.post(
         f"{core_process}/config/word-lists/gather/{wordlist_id}",
@@ -296,7 +344,7 @@ def test_rq_scheduled_wordlist_bot_cron(
         timeout=5,
     )
     gather_resp.raise_for_status()
-    _wait_for_job_result(redis_backend, f"gather_word_list_{wordlist_id}")
+    _wait_for_next_job_result(redis_backend, gather_job_id, previous_result_id)
     payload = _get_wordlist(core_process, headers, wordlist_id)
     assert (payload.get("entry_count") or 0) > 0
 

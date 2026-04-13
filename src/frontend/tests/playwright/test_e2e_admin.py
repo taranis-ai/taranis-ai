@@ -8,6 +8,8 @@ from flask import url_for
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 
+from tests.playwright.notification_helpers import dismiss_notifications
+
 
 def remove_tz(date_time: str) -> str:
     dt = datetime.fromisoformat(date_time)
@@ -36,10 +38,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
     @staticmethod
     def dismiss_notification_if_visible(page: Page):
-        notification = page.locator("#notification-bar [role='alert']")
-        if notification.is_visible():
-            notification.click()
-            expect(notification).to_be_hidden()
+        dismiss_notifications(page)
 
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend

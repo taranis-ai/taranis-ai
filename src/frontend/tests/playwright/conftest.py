@@ -23,6 +23,7 @@ from tests.playwright.e2e_harness import (
 )
 from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
+from tests.playwright.notification_helpers import dismiss_notifications
 
 
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interval: float = 0.5):
@@ -176,16 +177,7 @@ def _allowed(entry: str, allow_patterns: list[str]) -> bool:
 
 
 def _dismiss_notifications(page: Page):
-    if page.is_closed():
-        return
-
-    alerts = page.locator("#notification-bar [role='alert']")
-    while alerts.count():
-        try:
-            alerts.first.click(timeout=500)
-            page.wait_for_timeout(100)
-        except Exception:
-            break
+    dismiss_notifications(page)
 
 
 def _cookies_from_response(resp) -> list[dict]:
