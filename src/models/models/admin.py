@@ -55,6 +55,7 @@ class ExportStoriesQuery(TaranisBaseModel):
 
 class Job(TaranisBaseModel):
     _core_endpoint = "/config/schedule"
+    _cache_timeout = 1
     _model_name = "job"
     _pretty_name = "Scheduler"
 
@@ -81,16 +82,19 @@ class Job(TaranisBaseModel):
 
 class ActiveJob(Job):
     _core_endpoint = "/config/workers/active"
+    _cache_timeout = 1
     _model_name = "active_job"
 
 
 class FailedJob(Job):
     _core_endpoint = "/config/workers/failed"
+    _cache_timeout = 1
     _model_name = "failed_job"
 
 
 class QueueStatus(TaranisBaseModel):
     _core_endpoint = "/config/workers/tasks"
+    _cache_timeout = 1
     _model_name = "queue_status"
 
     name: str
@@ -99,6 +103,7 @@ class QueueStatus(TaranisBaseModel):
 
 class WorkerStats(TaranisBaseModel):
     _core_endpoint = "/config/workers/stats"
+    _cache_timeout = 1
     _model_name = "worker_stats"
     _pretty_name = "Worker Stats"
 
@@ -109,6 +114,7 @@ class WorkerStats(TaranisBaseModel):
 
 class SchedulerDashboardData(TaranisBaseModel):
     _core_endpoint = "/config/workers/dashboard"
+    _cache_timeout = 1
     _model_name = "scheduler_dashboard"
     _pretty_name = "Scheduler Dashboard"
 
@@ -151,6 +157,7 @@ class TaskHistoryTotals(TaranisBaseModel):
 
 class TaskHistoryResponse(TaranisBaseModel):
     _core_endpoint = "/config/task-results"
+    _cache_timeout = 1
     _model_name = "task_history_response"
     _pretty_name = "Task History Response"
 
@@ -166,6 +173,7 @@ class CronSpec(CronTaskSpec):
 
 class TaskResult(TaranisBaseModel):
     _core_endpoint = "/config/task-results"
+    _cache_timeout = 1
     _model_name = "task_result"
     _pretty_name = "Task Result"
 

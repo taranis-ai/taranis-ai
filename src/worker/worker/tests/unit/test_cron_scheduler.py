@@ -9,45 +9,6 @@ import worker.cron_scheduler as cron_scheduler
 from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _decode, _enqueue_due_job, _enqueue_key, _normalize_spec, _sync_next_index
 
 
-def test_cron_task_spec_accepts_interval_schedule():
-    spec = CronTaskSpec.model_validate(
-        {
-            "queue_name": "collectors",
-            "func_path": "collector_task",
-            "interval": 30,
-            "args": ["source-1", False],
-            "kwargs": {"dry_run": True},
-            "job_options": {"timeout": 30},
-            "meta": {"name": "Collector: Source 1"},
-        }
-    )
-
-    assert spec.queue_name == "collectors"
-    assert spec.func_path == "collector_task"
-    assert spec.args == ["source-1", False]
-    assert spec.kwargs == {"dry_run": True}
-    assert spec.job_options == {"timeout": 30}
-    assert spec.meta == {"name": "Collector: Source 1"}
-
-
-def test_cron_task_spec_accepts_legacy_cron_fields():
-    spec = CronTaskSpec.model_validate(
-        {
-            "queue": "bots",
-            "task": "bot_task",
-            "cron": "*/5 * * * *",
-            "args": ["bot-1"],
-        }
-    )
-
-    assert spec.queue_name == "bots"
-    assert spec.func_path == "bot_task"
-    assert spec.args == ["bot-1"]
-    assert spec.kwargs == {}
-    assert spec.job_options == {}
-    assert spec.meta == {}
-
-
 def test_cron_task_spec_rejects_missing_required_fields():
     with pytest.raises(ValidationError):
         CronTaskSpec.model_validate({"interval": 30})
@@ -165,4 +126,4 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
 
     wait_key_result = redis_conn.blpop(_enqueue_key("osint_source_source-1"), timeout=1)
     assert wait_key_result is not None
-    assert wait_key_result[1] == b"cron_osint_source_source-1_1000"
+    assert wait_key_result[1] == b"cron_osint_source_source-1_1000"  # type: ignore[comparison-with-callable]

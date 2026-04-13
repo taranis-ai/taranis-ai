@@ -48,7 +48,7 @@ class Task(TaranisBaseModel):
     _core_endpoint = "/config/task-results"
     _model_name = "task"
     _pretty_name = "Task"
-    _cache_timeout = 10
+    _cache_timeout = 1
 
     id: str
     task: str | None = None

@@ -1,10 +1,16 @@
 from unittest.mock import Mock
 
-import frontend.data_persistence as data_persistence_module
-from frontend.cache import cache
-from frontend.data_persistence import DataPersistenceLayer
-from models.admin import ActiveJob, Job, OSINTSource, SchedulerDashboardData
+from models.admin import (
+    ActiveJob,
+    Job,
+    OSINTSource,
+    SchedulerDashboardData,
+)
 from models.types import COLLECTOR_TYPES
+
+import frontend.data_persistence as data_persistence_module
+from frontend.cache import cache, list_cache_keys
+from frontend.data_persistence import DataPersistenceLayer
 
 
 def test_get_objects_by_endpoint_caches_empty_results(app, monkeypatch):
@@ -31,7 +37,7 @@ def test_get_objects_by_endpoint_caches_empty_results(app, monkeypatch):
         cache.delete(cache_key)
 
 
-def test_update_object_invalidates_scheduler_caches_for_osint_sources(app, monkeypatch):
+def test_update_object_invalidates_only_osint_source_cache(app, monkeypatch):
     response = Mock()
     response.ok = True
     response.json.return_value = {"id": "source-1"}
@@ -57,18 +63,16 @@ def test_update_object_invalidates_scheduler_caches_for_osint_sources(app, monke
         persistence.update_object(source, "source-1")
 
         assert cache.get("user1__config_osint-sources") is None
-        assert cache.get("user1__config_schedule") is None
-        assert cache.get("user1__config_workers_dashboard") is None
+        assert cache.get("user1__config_schedule") == "schedule"
+        assert cache.get("user1__config_workers_dashboard") == "dashboard"
 
 
-def test_get_objects_does_not_cache_active_jobs(app, monkeypatch):
+def test_get_objects_caches_active_jobs(app, monkeypatch):
     api = Mock()
     api.api_get.return_value = {"items": [], "total_count": 0}
 
     with app.app_context():
         monkeypatch.setattr(data_persistence_module, "get_jwt_identity", lambda: "user1")
-        cache_key = "user1__config_workers_active"
-        cache.delete(cache_key)
 
         persistence = DataPersistenceLayer(jwt_token="token")
         persistence.api = api
@@ -76,11 +80,11 @@ def test_get_objects_does_not_cache_active_jobs(app, monkeypatch):
         persistence.get_objects(ActiveJob)
         persistence.get_objects(ActiveJob)
 
-        assert cache.get(cache_key) is None
-        assert api.api_get.call_count == 2
+        assert any(key.endswith("__config_workers_active") for key in list_cache_keys())
+        assert api.api_get.call_count == 1
 
 
-def test_get_object_does_not_cache_scheduler_dashboard(app, monkeypatch):
+def test_get_object_caches_scheduler_dashboard(app, monkeypatch):
     api = Mock()
     api.api_get.return_value = {
         "scheduled_jobs": [],
@@ -104,5 +108,5 @@ def test_get_object_does_not_cache_scheduler_dashboard(app, monkeypatch):
         persistence.get_object(SchedulerDashboardData)
         persistence.get_object(SchedulerDashboardData)
 
-        assert cache.get(cache_key) is None
-        assert api.api_get.call_count == 2
+        assert cache.get(cache_key) is not None
+        assert api.api_get.call_count == 1

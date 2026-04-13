@@ -136,7 +136,6 @@ class SourceView(AdminMixin, BaseView):
 
         dpl = DataPersistenceLayer()
         dpl.invalidate_cache_by_object(OSINTSource)
-        dpl.invalidate_related_caches(OSINTSource)
         cls.add_flash_notification(response)
         return cls.redirect_htmx(cls.get_base_route())
 
@@ -212,7 +211,6 @@ class SourceView(AdminMixin, BaseView):
 
         dpl = DataPersistenceLayer()
         dpl.invalidate_cache_by_object(OSINTSource)
-        dpl.invalidate_related_caches(OSINTSource)
         items = DataPersistenceLayer().get_objects(cls.model)
         return render_template(cls.get_list_template(), **cls.get_view_context(items))
 
@@ -282,7 +280,6 @@ class SourceView(AdminMixin, BaseView):
             ), 500
 
         dpl.invalidate_cache_by_object(OSINTSource)
-        dpl.invalidate_related_caches(OSINTSource)
         notification = render_template(
             "notification/index.html",
             notification={"message": "OSINT source state updated successfully", "icon": "check-circle", "class": "alert-success"},

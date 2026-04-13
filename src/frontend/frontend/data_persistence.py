@@ -14,19 +14,6 @@ from frontend.core_api import CoreApi
 from frontend.log import logger
 
 
-VOLATILE_ENDPOINTS = frozenset(
-    {
-        "/config/schedule",
-        "/config/workers/tasks",
-        "/config/workers/stats",
-        "/config/workers/dashboard",
-        "/config/workers/active",
-        "/config/workers/failed",
-        "/config/task-results",
-    }
-)
-
-
 class DataPersistenceLayer:
     def __init__(self, jwt_token=None):
         self.jwt_token = jwt_token or self.get_jwt_from_request()
@@ -51,9 +38,6 @@ class DataPersistenceLayer:
     def get_endpoint(self, object_model: Type[TaranisBaseModel] | TaranisBaseModel) -> str:
         return object_model._core_endpoint
 
-    def should_cache_endpoint(self, endpoint: str) -> bool:
-        return endpoint not in VOLATILE_ENDPOINTS
-
     def get_first(self, object_model: Type[T]) -> T | None:
         objects = self.get_objects(object_model).items
         return None if len(objects) < 1 else objects[0]
@@ -67,15 +51,14 @@ class DataPersistenceLayer:
     def get_object(self, object_model: Type[T], object_id: int | str | None = None) -> T | None:
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_user_key(endpoint) if object_id is None else f"{object_id}_{self.make_user_key(endpoint)}"
-        should_cache = self.should_cache_endpoint(endpoint)
-        if should_cache and (cache_object := cache.get(key=cache_key)) is not None:
+        if (cache_object := cache.get(key=cache_key)) is not None:
             return cache_object
         path = endpoint if object_id is None else f"{endpoint}/{object_id}"
         result = self.api.api_get(path)
         if isinstance(result, dict):
             cache_object = object_model(**result)
-            if should_cache:
-                cache.set(key=cache_key, value=cache_object)
+            timeout = getattr(object_model, "_cache_timeout", Config.CACHE_DEFAULT_TIMEOUT)
+            cache.set(key=cache_key, value=cache_object, timeout=timeout)
             return cache_object
         logger.warning(f"Failed to fetch object from: {endpoint}")
 
@@ -91,22 +74,9 @@ class DataPersistenceLayer:
         cache_key = f"{object_id}_{self.make_user_key(endpoint)}"
         cache.delete(cache_key)
 
-    def invalidate_related_caches(self, object: TaranisBaseModel | Type[TaranisBaseModel]) -> None:
-        from models.admin import Bot, Job, OSINTSource, SchedulerDashboardData
-
-        object_type = object if isinstance(object, type) else type(object)
-        related_models: tuple[Type[TaranisBaseModel], ...] = ()
-
-        if object_type in {OSINTSource, Bot}:
-            related_models = (Job, SchedulerDashboardData)
-
-        for related_model in related_models:
-            self.invalidate_cache_by_object(related_model)
-
     def get_objects_by_endpoint(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> CacheObject[T]:
         cache_key = self.make_user_key(endpoint, paging_data)
-        should_cache = self.should_cache_endpoint(endpoint)
-        if should_cache and (cache_object := cache.get(key=cache_key)) is not None:
+        if (cache_object := cache.get(key=cache_key)) is not None:
             logger.debug(f"Cache hit for {cache_key}")
             return cache_object
         result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
@@ -116,7 +86,6 @@ class DataPersistenceLayer:
                 object_model,
                 endpoint,
                 paging_data,
-                should_cache=should_cache,
             )
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
@@ -125,8 +94,7 @@ class DataPersistenceLayer:
             paging_data = PagingData().set_fetch_all()
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_user_key(endpoint, paging_data)
-        should_cache = self.should_cache_endpoint(endpoint)
-        if should_cache and (cache_object := cache.get(key=cache_key)) is not None:
+        if (cache_object := cache.get(key=cache_key)) is not None:
             logger.debug(f"Cache hit for {cache_key}")
             return cache_object
         result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
@@ -136,7 +104,6 @@ class DataPersistenceLayer:
                 object_model,
                 endpoint,
                 paging_data,
-                should_cache=should_cache,
             )
         raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
 
@@ -146,8 +113,6 @@ class DataPersistenceLayer:
         object_model: Type[T],
         endpoint: str,
         paging_data: PagingData | None,
-        *,
-        should_cache: bool = True,
     ) -> CacheObject[T]:
         items = result.get("items", [])
         result_object = [object_model(**object) for object in items]
@@ -162,9 +127,9 @@ class DataPersistenceLayer:
             query_params=paging_data.query_params if paging_data else {},
             links=links,
         )
-        if should_cache:
-            logger.debug(f"Adding {len(cache_object)} items from {endpoint} to cache with timeout: {cache_object.timeout}")
-            cache.set(key=self.make_user_key(endpoint, paging_data), value=cache_object, timeout=cache_object.timeout)
+        timeout = getattr(object_model, "_cache_timeout", cache_object.timeout)
+        logger.debug(f"Adding {len(cache_object)} items from {endpoint} to cache with timeout: {timeout}")
+        cache.set(key=self.make_user_key(endpoint, paging_data), value=cache_object, timeout=timeout)
         return cache_object
 
     def store_object(self, object) -> Response:
@@ -172,7 +137,6 @@ class DataPersistenceLayer:
         response = self.api.api_post(object._core_endpoint, json_data=store_object)
         if response.ok:
             self.invalidate_cache_by_object(object)
-            self.invalidate_related_caches(object)
             # Also invalidate individual object cache
             cache_key = f"{self.make_user_key(object._core_endpoint)}"
             if hasattr(object, "id"):
@@ -185,7 +149,6 @@ class DataPersistenceLayer:
         response = self.api.api_delete(f"{endpoint}/{object_id}")
         if response.ok:
             self.invalidate_cache_by_object(object_model)
-            self.invalidate_related_caches(object_model)
             # Also invalidate individual object cache
             cache_key = f"{self.make_user_key(endpoint)}_{object_id}"
             cache.delete(cache_key)
@@ -196,5 +159,4 @@ class DataPersistenceLayer:
         response = self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump(mode="json"))
         if response.ok:
             self.invalidate_cache_by_object(object)
-            self.invalidate_related_caches(object)
         return response
