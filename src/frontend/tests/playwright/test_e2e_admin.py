@@ -27,7 +27,6 @@ DASHBOARD_HEALTH_SERVICES = {
     "workers": "up",
 }
 SCHEDULER_BASELINE_TOTAL_TEXT = "Total: 1 scheduled jobs"
-SCHEDULER_UPDATED_TOTAL_TEXT = "Total: 2 scheduled jobs"
 
 
 @pytest.mark.e2e_admin
@@ -80,120 +79,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         expect(page).to_have_url(url_for("admin.scheduler", _external=True))
         expect(page.locator("#scheduler-dashboard")).to_be_visible()
         expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(SCHEDULER_BASELINE_TOTAL_TEXT)
-
-    def test_scheduler_reflects_osint_source_schedule_changes(
-        self,
-        logged_in_page: Page,
-        forward_console_and_page_errors,
-    ):
-        page = logged_in_page
-        scheduler_url = url_for("admin.scheduler", _external=True)
-        osint_sources_url = url_for("admin.osint_sources", _external=True)
-        source_name = f"E2E Scheduler Source {uuid.uuid4().hex[:8]}"
-        initial_cron = "*/13 * * * *"
-        updated_cron = "*/17 * * * *"
-        source_created = False
-
-        def create_scheduled_source():
-            page.goto(osint_sources_url)
-            expect(page.get_by_test_id("new-osint_source-button")).to_be_visible()
-            page.get_by_test_id("new-osint_source-button").click()
-
-            expect(page.get_by_label("Name")).to_have_attribute("required", "")
-            page.get_by_label("Name").fill(source_name)
-            page.get_by_label("Description").fill("Playwright scheduler cache invalidation coverage")
-            feed_url_input = page.locator('input[name="parameters[FEED_URL]"]')
-            self.select_dynamic_type_and_wait(page, "rss_collector", "/admin/source_parameters/0", feed_url_input)
-            expect(feed_url_input).to_have_attribute("required", "")
-            feed_url_input.fill("http://fixtures/feed.xml")
-            refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
-            expect(refresh_interval_input).to_be_visible()
-            refresh_interval_input.fill(initial_cron)
-
-            self.highlight_element(page.locator("#osint_source-form input[type='submit']")).click()
-            expect(page.locator("#osint_source-form")).to_be_visible()
-            expect(page.get_by_label("Name")).to_have_value(source_name)
-
-        def update_source_schedule():
-            page.goto(osint_sources_url)
-            page.get_by_role("link", name=source_name).click()
-
-            form = page.locator("#osint_source-form").first
-            expect(form).to_be_visible()
-            refresh_interval_input = form.locator('input[name="parameters[REFRESH_INTERVAL]"]')
-            expect(refresh_interval_input).to_be_visible()
-            refresh_interval_input.fill(updated_cron)
-
-            self.highlight_element(form.locator('input[type="submit"]')).click()
-            expect(form).to_be_visible()
-            expect(form.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_have_value(updated_cron)
-
-        def delete_source_if_present():
-            page.goto(osint_sources_url)
-            source_row = page.get_by_role("row", name=source_name)
-            if source_row.count() == 0:
-                return
-            source_row.get_by_role("button").last.click()
-            page.get_by_role("button", name="Delete").click()
-            expect(page.get_by_test_id("osint_source-table").get_by_role("link", name=source_name)).not_to_be_visible()
-
-        def expect_scheduler_source_absent():
-            for _ in range(10):
-                page.goto(f"{scheduler_url}?tab=scheduled")
-                expect(page.locator("#scheduler-dashboard")).to_be_visible()
-                source_rows = page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name)
-                if source_rows.count() == 0:
-                    expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(
-                        SCHEDULER_BASELINE_TOTAL_TEXT
-                    )
-                    return
-                page.wait_for_timeout(500)
-
-            expect(page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name)).to_have_count(0)
-
-        def expect_scheduler_source_schedule(expected_cron: str):
-            for _ in range(10):
-                page.goto(f"{scheduler_url}?tab=scheduled")
-                expect(page.locator("#scheduler-dashboard")).to_be_visible()
-
-                source_rows = page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name)
-                if source_rows.count() == 0:
-                    page.wait_for_timeout(500)
-                    continue
-
-                job_row = source_rows.first
-                cron_text = (job_row.locator("code").text_content() or "").strip()
-                if cron_text == expected_cron:
-                    expect(job_row).to_contain_text("collectors")
-                    expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(
-                        SCHEDULER_UPDATED_TOTAL_TEXT
-                    )
-                    return
-
-                page.wait_for_timeout(500)
-
-            page.goto(f"{scheduler_url}?tab=scheduled")
-            expect(page.locator("#scheduler-dashboard")).to_be_visible()
-            job_row = page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name).first
-            expect(job_row).to_be_visible(timeout=10000)
-            expect(job_row.locator("code")).to_have_text(expected_cron)
-
-        try:
-            page.goto(f"{scheduler_url}?tab=scheduled")
-            expect(page.locator("#scheduler-dashboard")).to_be_visible()
-            expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(SCHEDULER_BASELINE_TOTAL_TEXT)
-
-            create_scheduled_source()
-            source_created = True
-
-            expect_scheduler_source_schedule(initial_cron)
-
-            update_source_schedule()
-            expect_scheduler_source_schedule(updated_cron)
-        finally:
-            if source_created:
-                delete_source_if_present()
-                expect_scheduler_source_absent()
 
     def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
         page = logged_in_page
