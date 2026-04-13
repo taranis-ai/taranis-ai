@@ -151,6 +151,33 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             expect(page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name)).to_have_count(0)
 
+        def expect_scheduler_source_schedule(expected_cron: str):
+            for _ in range(10):
+                page.goto(f"{scheduler_url}?tab=scheduled")
+                expect(page.locator("#scheduler-dashboard")).to_be_visible()
+
+                source_rows = page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name)
+                if source_rows.count() == 0:
+                    page.wait_for_timeout(500)
+                    continue
+
+                job_row = source_rows.first
+                cron_text = (job_row.locator("code").text_content() or "").strip()
+                if cron_text == expected_cron:
+                    expect(job_row).to_contain_text("collectors")
+                    expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(
+                        SCHEDULER_UPDATED_TOTAL_TEXT
+                    )
+                    return
+
+                page.wait_for_timeout(500)
+
+            page.goto(f"{scheduler_url}?tab=scheduled")
+            expect(page.locator("#scheduler-dashboard")).to_be_visible()
+            job_row = page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name).first
+            expect(job_row).to_be_visible(timeout=10000)
+            expect(job_row.locator("code")).to_have_text(expected_cron)
+
         try:
             page.goto(f"{scheduler_url}?tab=scheduled")
             expect(page.locator("#scheduler-dashboard")).to_be_visible()
@@ -159,22 +186,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             create_scheduled_source()
             source_created = True
 
-            page.goto(f"{scheduler_url}?tab=scheduled")
-            expect(page.locator("#scheduler-dashboard")).to_be_visible()
-
-            job_row = page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name).first
-            expect(job_row).to_be_visible(timeout=10000)
-            expect(job_row).to_contain_text("collectors")
-            expect(job_row.locator("code")).to_have_text(initial_cron)
-            expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(SCHEDULER_UPDATED_TOTAL_TEXT)
+            expect_scheduler_source_schedule(initial_cron)
 
             update_source_schedule()
-
-            page.goto(f"{scheduler_url}?tab=scheduled")
-            expect(page.locator("#scheduler-dashboard")).to_be_visible()
-            job_row = page.locator("#scheduled-jobs-table tbody tr").filter(has_text=source_name).first
-            expect(job_row).to_be_visible(timeout=10000)
-            expect(job_row.locator("code")).to_have_text(updated_cron)
+            expect_scheduler_source_schedule(updated_cron)
         finally:
             if source_created:
                 delete_source_if_present()
