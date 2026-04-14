@@ -277,11 +277,15 @@ class OSINTSource(BaseModel):
                 continue
 
             try:
-                task_result = TaskModel.get(source.task_id)
+                task_result = TaskModel.get_latest_matching(
+                    exact_ids={source.task_id},
+                    prefixes=[source.cron_run_prefix],
+                    task_name="collector_task",
+                )
 
                 schedule_entries.append(
                     QueueManager.build_cron_schedule_entry(
-                        job_id=f"cron_collector_{source.id}",
+                        job_id=source.cron_job_id,
                         name=f"Collector: {source.name}",
                         queue="collectors",
                         cron_schedule=cron_schedule,

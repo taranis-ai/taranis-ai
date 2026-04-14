@@ -52,6 +52,9 @@ CRON_EVENTS_KEY = "rq:cron:events"
 CRON_NEXT_KEY = "rq:cron:next"
 CACHE_INVALIDATION_CHANNEL = "taranis:cache:invalidate"
 SCHEDULE_CACHE_SUFFIXES = ("/config/schedule", "/config/workers/dashboard")
+TOKEN_CLEANUP_JOB_ID = "cleanup_token_blacklist"
+TOKEN_CLEANUP_CRON = "0 2 * * *"
+TOKEN_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Token Blacklist"
 
 
 def _decode_redis_value(value: bytes | str) -> str:
@@ -210,7 +213,10 @@ class QueueManager:
             managed_specs = self._get_managed_cron_specs()
             desired_ids = set(managed_specs)
             current_ids = self._get_registered_cron_job_ids()
-            managed_current_ids = {job_id for job_id in current_ids if job_id.startswith(("osint_source_", "bot_"))}
+            housekeeping_ids = set(self._get_housekeeping_cron_specs())
+            managed_current_ids = {
+                job_id for job_id in current_ids if job_id.startswith(("osint_source_", "bot_")) or job_id in housekeeping_ids
+            }
             stale_ids = sorted(managed_current_ids - desired_ids)
 
             registered = 0
@@ -262,7 +268,19 @@ class QueueManager:
             spec = bot.get_cron_spec()
             specs[spec.job_id] = spec
 
+        specs.update(self._get_housekeeping_cron_specs())
         return specs
+
+    @staticmethod
+    def _get_housekeeping_cron_specs() -> dict[str, CronSpec]:
+        spec = CronSpec(
+            meta={"name": TOKEN_CLEANUP_DISPLAY_NAME},
+            job_id=TOKEN_CLEANUP_JOB_ID,
+            cron=TOKEN_CLEANUP_CRON,
+            func_path="cleanup_token_blacklist",
+            queue_name="misc",
+        )
+        return {spec.job_id: spec}
 
     def _get_registered_cron_job_ids(self) -> set[str]:
         if self.error or not self._redis:
@@ -699,10 +717,19 @@ class QueueManager:
         if not post_collection_bots:
             return {"message": "No post collection bots found"}, 200
 
-        # Enqueue each bot sequentially - bots execute in the order they are enqueued
+        previous_job = None
         for bot_id in post_collection_bots:
             bot_args = {"bot_id": bot_id, "filter": {"SOURCE": source_id}}
-            self.enqueue_task("bots", "bot_task", job_id=f"bot_{bot_id}_{source_id}", **bot_args)
+            job = self.enqueue_task(
+                "bots",
+                "bot_task",
+                job_id=f"bot_{bot_id}_{source_id}",
+                depends_on=previous_job,
+                **bot_args,
+            )
+            if not job:
+                return {"error": f"Could not schedule post collection bot {bot_id}"}, 500
+            previous_job = job
 
         return {"message": f"Post collection bots scheduled for source {source_id}"}, 200
 
@@ -761,35 +788,55 @@ class QueueManager:
             all_jobs.extend(OSINTSource.get_enabled_schedule_entries())
             all_jobs.extend(Bot.get_enabled_schedule_entries())
 
-            # Register housekeeping tasks that are scheduled via cron
-            try:
-                all_jobs.append(
-                    self.build_cron_schedule_entry(
-                        job_id="cron_misc_cleanup_token_blacklist",
-                        name="Maintenance: Cleanup Token Blacklist",
-                        queue="misc",
-                        cron_schedule="0 2 * * *",
-                        task_id="cleanup_token_blacklist",
-                    )
+            cleanup_result = self._get_latest_task_result(
+                exact_ids={TOKEN_CLEANUP_JOB_ID},
+                prefixes=[f"cron_{TOKEN_CLEANUP_JOB_ID}_"],
+                task_name=TOKEN_CLEANUP_JOB_ID,
+            )
+            all_jobs.append(
+                self.build_cron_schedule_entry(
+                    job_id=TOKEN_CLEANUP_JOB_ID,
+                    name=TOKEN_CLEANUP_DISPLAY_NAME,
+                    queue="misc",
+                    cron_schedule=TOKEN_CLEANUP_CRON,
+                    task_id=TOKEN_CLEANUP_JOB_ID,
+                    last_run=cleanup_result.last_run if cleanup_result else None,
+                    last_success=cleanup_result.last_success if cleanup_result else None,
+                    last_status=cleanup_result.status if cleanup_result else None,
                 )
-            except Exception as e:
-                logger.error(f"Failed to calculate next run for housekeeping task cleanup_token_blacklist: {e}")
+            )
         except Exception as e:
             logger.warning(f"Failed to fetch cron schedules: {e}")
             # Don't fail the whole request if cron scheduler is not available
 
         return all_jobs
 
+    @staticmethod
+    def _get_latest_task_result(*, exact_ids: set[str] | None = None, prefixes: list[str] | None = None, task_name: str | None = None):
+        from core.model.task import Task as TaskModel
+
+        return TaskModel.get_latest_matching(exact_ids=exact_ids, prefixes=prefixes, task_name=task_name)
+
     def get_scheduled_job(self, task_id: str) -> tuple[dict, int]:
-        job = Job.fetch(task_id, connection=self._redis)
-        if job:
+        try:
+            job = Job.fetch(task_id, connection=self._redis)
             return {
                 "id": job.id,
                 "name": job.func_name,
                 "scheduled_for": job.enqueued_at.isoformat() if job.enqueued_at else None,
                 "status": job.get_status(),
             }, 200
-        return {"error": "Job not found"}, 404
+        except Exception:
+            cron_job = next((entry for entry in self._get_cron_schedule_entries() if entry.get("id") == task_id), None)
+            if not cron_job:
+                return {"error": "Job not found"}, 404
+
+            annotated_job = _annotate_jobs([cron_job])[0]
+            for field in ("last_run", "last_success", "next_run_time", "previous_run_time"):
+                value = annotated_job.get(field)
+                if isinstance(value, datetime):
+                    annotated_job[field] = value.isoformat()
+            return annotated_job, 200
 
     def get_scheduled_jobs(self) -> tuple[dict, int]:
         """Get all scheduled jobs across all queues
@@ -934,11 +981,11 @@ class QueueManager:
 
             cron_jobs.append(
                 {
-                    "task": "cleanup_token_blacklist",
+                    "task": TOKEN_CLEANUP_JOB_ID,
                     "queue": "misc",
                     "args": [],
-                    "cron": "0 2 * * *",
-                    "task_id": "cleanup_token_blacklist",
+                    "cron": TOKEN_CLEANUP_CRON,
+                    "task_id": TOKEN_CLEANUP_JOB_ID,
                     "name": "Cleanup Token Blacklist",
                 }
             )

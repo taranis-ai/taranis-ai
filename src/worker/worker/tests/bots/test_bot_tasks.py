@@ -106,25 +106,13 @@ class TestBotTask:
         with pytest.raises(ValueError, match="Bot with id bot-999 not found"):
             bot_task("bot-999")
 
-        # Verify error is wrapped in dict - called twice due to raise after save
-        # First call: specific bot not found error handler
-        # Second call: general exception handler
         put_calls = [req for req in requests_mock.request_history if req.method == "PUT" and req.url.endswith("/worker/task-results")]
-        assert len(put_calls) == 2
-
-        # Check first call (specific error)
-        first_call = put_calls[0].json()
-        assert first_call["status"] == "FAILURE"
-        assert isinstance(first_call["result"], dict)
-        assert "error" in first_call["result"]
-        assert first_call["result"]["error"] == "Bot with id bot-999 not found"
-
-        # Check second call (exception handler wrapping)
-        second_call = put_calls[1].json()
-        assert second_call["status"] == "FAILURE"
-        assert isinstance(second_call["result"], dict)
-        assert "error" in second_call["result"]
-        assert "Bot execution failed: Bot with id bot-999 not found" in second_call["result"]["error"]
+        assert len(put_calls) == 1
+        task_data = put_calls[0].json()
+        assert task_data["status"] == "FAILURE"
+        assert isinstance(task_data["result"], dict)
+        assert "error" in task_data["result"]
+        assert task_data["result"]["error"] == "Bot with id bot-999 not found"
 
     def test_bot_task_exception_wraps_error_in_dict(self, current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task wraps exception messages in dict."""
@@ -218,4 +206,3 @@ class TestSaveTaskResult:
         # Verify API was called
         put_calls = [req for req in requests_mock.request_history if req.method == "PUT" and req.url.endswith("/worker/task-results")]
         assert len(put_calls) == 1
-

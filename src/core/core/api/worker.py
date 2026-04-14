@@ -271,19 +271,33 @@ class TaskResults(MethodView):
         from core.api.task import handle_task_specific_result
         from core.model.task import Task
 
-        data = request.json
-        if not data:
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or not data:
             return {"error": "No data provided"}, 400
 
-        task_id = data.get("id")
-        result = data.get("result")
-        status = data.get("status")
+        missing_or_invalid = [
+            field_name for field_name in ("id", "status") if not isinstance(data.get(field_name), str) or not data[field_name].strip()
+        ]
+        if missing_or_invalid:
+            return {"error": f"Missing or invalid required fields: {', '.join(missing_or_invalid)}"}, 400
+
+        if data.get("task") is not None and not isinstance(data.get("task"), str):
+            return {"error": "Invalid task field"}, 400
+
+        payload = data.copy()
+        payload["id"] = payload["id"].strip()
+        payload["status"] = payload["status"].strip()
+        payload.setdefault("result", None)
+
+        task_id = payload["id"]
+        result = payload["result"]
+        status = payload["status"]
 
         # Handle task-specific result processing (e.g., presenter results)
         if status == "SUCCESS" and result is not None and task_id:
-            handle_task_specific_result(task_id, result, status, data.get("task"))
+            handle_task_specific_result(task_id, result, status, payload.get("task"))
 
-        return Task.add_or_update(data)
+        return Task.add_or_update(payload)
 
 
 def initialize(app: Flask):

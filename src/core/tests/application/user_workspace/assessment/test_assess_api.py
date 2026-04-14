@@ -51,6 +51,22 @@ class TestAssessApi(BaseTest):
         assert connector["type"] == assess_connector["type"]
         assert "parameters" not in connector
 
+    def test_get_connectors_clamps_oversized_limit(self, client, auth_header, assess_connector):
+        response = client.get("/api/assess/connectors?limit=9223372036854775808", headers=auth_header)
+        self.assert_json_ok(response)
+
+        items = {item["id"]: item for item in response.get_json()["items"]}
+        assert response.get_json()["total_count"] >= 1
+        assert assess_connector["id"] in items
+
+    def test_get_connectors_clamps_negative_paging_values(self, client, auth_header, assess_connector):
+        response = client.get("/api/assess/connectors?page=-461168601842738790&offset=-461168601842738790", headers=auth_header)
+        self.assert_json_ok(response)
+
+        items = {item["id"]: item for item in response.get_json()["items"]}
+        assert response.get_json()["total_count"] >= 1
+        assert assess_connector["id"] in items
+
 
 class TestAssessNewsItems(BaseTest):
     base_uri = "/api/assess"

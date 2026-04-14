@@ -199,11 +199,15 @@ class Bot(BaseModel):
                 continue
 
             try:
-                task_result = TaskModel.get(bot.task_id)
+                task_result = TaskModel.get_latest_matching(
+                    exact_ids={bot.task_id},
+                    prefixes=[bot.cron_run_prefix],
+                    task_name=bot.task_id,
+                )
 
                 entries.append(
                     QueueManager.build_cron_schedule_entry(
-                        job_id=f"cron_bot_{bot.id}",
+                        job_id=bot.cron_job_id,
                         name=f"Bot: {bot.name}",
                         queue="bots",
                         cron_schedule=cron_schedule,

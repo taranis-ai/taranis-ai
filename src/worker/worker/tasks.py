@@ -1,7 +1,7 @@
 """RQ Task Registration
 
-Import all task modules so their functions are available to RQ workers.
-Task functions are decorated with @job and will be discovered by RQ.
+Import task modules so their functions can be referenced by dotted path.
+RQ workers execute those imported callables; there is no decorator-based discovery here.
 """
 
 import worker.misc.misc_tasks  # noqa: F401 -- ensures cleanup task is registered

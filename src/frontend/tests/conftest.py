@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
+from tests.core_requests import CoreRequestClient
+
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
@@ -134,6 +136,11 @@ def access_token_basic(app, auth_user_basic):
 @pytest.fixture(scope="session")
 def api_header():
     return {"Authorization": f"Bearer {os.getenv('API_KEY')}", "Content-type": "application/json"}
+
+
+@pytest.fixture(scope="session")
+def core_request_client(run_core, access_token):
+    return CoreRequestClient(base_url=run_core, access_token=access_token)
 
 
 @pytest.fixture

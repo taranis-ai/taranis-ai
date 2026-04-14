@@ -117,13 +117,9 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 
 
 @pytest.fixture(scope="session")
-def setup_test_templates(run_core, access_token):
+def setup_test_templates(core_request_client):
     """Set up test template files for e2e tests via core API."""
     test_data_dir = Path(__file__).parent / "testdata"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-type": "application/json",
-    }
 
     uploaded_templates = []
     for test_file in test_data_dir.glob("*.html"):
@@ -131,24 +127,14 @@ def setup_test_templates(run_core, access_token):
             "id": test_file.name,
             "content": base64.b64encode(test_file.read_bytes()).decode("utf-8"),
         }
-        response = requests.post(
-            f"{run_core}/config/templates",
-            headers=headers,
-            json=payload,
-            timeout=30,
-        )
-        response.raise_for_status()
+        core_request_client.post("/config/templates", json_data=payload, timeout_seconds=30)
         uploaded_templates.append(test_file.name)
 
     yield
 
     for template_name in uploaded_templates:
         try:
-            requests.delete(
-                f"{run_core}/config/templates/{template_name}",
-                headers=headers,
-                timeout=30,
-            )
+            core_request_client.delete(f"/config/templates/{template_name}", timeout_seconds=30)
         except Exception:
             pass
 
@@ -324,37 +310,33 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
 
 
 @pytest.fixture(scope="session")
-def stories_date_descending_important(run_core, access_token):
+def stories_date_descending_important(core_request_client):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
-    headers = {"Authorization": f"Bearer {access_token}"}
-
     story_ids = []
-    stories = requests.get(f"{run_core}/assess/stories?important=true", headers=headers).json()
+    stories = core_request_client.json_request("GET", "/assess/stories", params={"important": "true"})
     for story in stories.get("items", []):
         story_ids.append(story.get("id"))
     yield story_ids
 
 
 @pytest.fixture(scope="session")
-def stories_relevance_descending(run_core, stories_date_descending, access_token):
+def stories_relevance_descending(core_request_client, stories_date_descending):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
-    headers = {"Authorization": f"Bearer {access_token}"}
-    stories_relevance_desc = requests.get(f"{run_core}/assess/stories?sort=relevance", headers=headers).json().get("items", [])
+    stories_relevance_desc = core_request_client.json_request("GET", "/assess/stories", params={"sort": "relevance"}).get("items", [])
     yield [story.get("id") for story in stories_relevance_desc]
 
 
 @pytest.fixture(scope="session")
-def stories_date_descending(run_core, stories_session_wrapper, access_token):
+def stories_date_descending(core_request_client, stories_session_wrapper):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
-    headers = {"Authorization": f"Bearer {access_token}"}
 
     story_ids = []
-    s = requests.get(f"{run_core}/assess/stories", headers=headers).json()
+    s = core_request_client.json_request("GET", "/assess/stories")
     for story in s.get("items", []):
         story_ids.append(story.get("id"))
 
@@ -364,12 +346,11 @@ def stories_date_descending(run_core, stories_session_wrapper, access_token):
 
 
 @pytest.fixture(scope="session")
-def stories_date_descending_not_important(run_core, stories_session_wrapper, access_token):
+def stories_date_descending_not_important(core_request_client, stories_session_wrapper):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
-    headers = {"Authorization": f"Bearer {access_token}"}
     story_ids = []
-    s = requests.get(f"{run_core}/assess/stories?important=false&limit=50", headers=headers).json()
+    s = core_request_client.json_request("GET", "/assess/stories", params={"important": "false", "limit": 50})
     for story in s.get("items"):
         story_ids.append(story.get("id"))
     yield story_ids
@@ -390,26 +371,25 @@ def random_timestamp_last_shift() -> str:
 
 
 @pytest.fixture(scope="function")
-def stories_function_wrapper(run_core, api_header, fake_source, access_token):
-    stories_list, request_responses = stories(run_core, api_header, fake_source, access_token)
+def stories_function_wrapper(api_header, fake_source, core_request_client):
+    stories_list, request_responses = stories(core_request_client, api_header, fake_source)
 
     yield stories_list
 
-    headers = {"Authorization": f"Bearer {access_token}"}
     news_item_ids_created = []
     for news_item_ids in request_responses:
         news_item_ids_created.extend(news_item_ids.json().get("news_item_ids"))
     for news_item_id in news_item_ids_created:
-        requests.delete(f"{run_core}/assess/news-items/{news_item_id}", headers=headers)
+        core_request_client.delete(f"/assess/news-items/{news_item_id}")
 
 
 @pytest.fixture(scope="session")
-def stories_session_wrapper(run_core, api_header, fake_source, access_token):
-    stories_list, _ = stories(run_core, api_header, fake_source, access_token)
+def stories_session_wrapper(api_header, fake_source, core_request_client):
+    stories_list, _ = stories(core_request_client, api_header, fake_source)
     yield stories_list
 
 
-def stories(run_core, api_header, fake_source, access_token):
+def stories(core_request_client, api_header, fake_source):
     """
     Loads stories from test_stories.json, normalizes them to the structure
     defined in story_item_list (only keeping relevant keys and nested keys),
@@ -509,7 +489,7 @@ def stories(run_core, api_header, fake_source, access_token):
     _set_important_flags()
     request_responses = []
     for story in cleaned_stories[:36]:
-        r = requests.post(f"{run_core}/worker/stories", json=story, headers=api_header)
+        r = core_request_client.post("/worker/stories", json_data=story, headers=api_header, authenticated=False)
         request_responses.append(r)
 
         # === Story grouping (clustering) logic ===
@@ -519,16 +499,12 @@ def stories(run_core, api_header, fake_source, access_token):
         [cleaned_stories[4]["id"], cleaned_stories[5]["id"]],
     ]
 
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    group_url = f"{run_core}/assess/stories/group"
     for group in story_groups:
         group_ids = [story_id for story_id in group]
-        r = requests.put(group_url, json=group_ids, headers=headers)
+        r = core_request_client.put("/assess/stories/group", json_data=group_ids)
         print(f"Grouped stories {group_ids} -> {r.status_code}")
-        r.raise_for_status()
 
-    result_stories = requests.get(f"{run_core}/worker/stories", headers=api_header).json()
+    result_stories = core_request_client.json_request("GET", "/worker/stories", headers=api_header, authenticated=False)
     return result_stories, request_responses
 
 
@@ -565,18 +541,15 @@ def stories(run_core, api_header, fake_source, access_token):
 
 
 @pytest.fixture(scope="module")
-def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
+def pre_seed_stories(news_items_list, core_request_client):  # noqa: F811
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-    }
 
     print("Pre-seeding stories via assess API")
     story_list = []
     news_item_ids_created: list[str] = []
     for item in news_items_list:
-        r = requests.post(f"{run_core}/assess/news-items", json=item, headers=headers)
+        r = core_request_client.post("/assess/news-items", json_data=item, raise_for_status=False)
         if not r.ok:
             try:
                 error_payload = r.json()
@@ -592,32 +565,30 @@ def pre_seed_stories(news_items_list, run_core, access_token):  # noqa: F811
     yield story_list
 
     for news_item_id in news_item_ids_created:
-        requests.delete(f"{run_core}/assess/news-items/{news_item_id}", headers=headers)
+        core_request_client.delete(f"/assess/news-items/{news_item_id}")
 
 
 @pytest.fixture(scope="session")
-def pre_seed_stories_enriched(story_list_enriched, run_core, api_header):  # noqa: F811
+def pre_seed_stories_enriched(story_list_enriched, api_header, core_request_client):  # noqa: F811
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
     print("Pre-seeding stories via assess API")
     for story in story_list_enriched:
-        r = requests.post(f"{run_core}/worker/stories", json=story, headers=api_header)
-        r.raise_for_status()
+        core_request_client.post("/worker/stories", json_data=story, headers=api_header, authenticated=False)
 
     yield []
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_stories(story_item_list, run_core, api_header, access_token):
+def pre_seed_report_stories(story_item_list, api_header, core_request_client):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
     print("Pre-seeding stories via worker API")
 
     for story in story_item_list:
-        r = requests.post(f"{run_core}/worker/stories", json=story, headers=api_header)
-        r.raise_for_status()
+        core_request_client.post("/worker/stories", json_data=story, headers=api_header, authenticated=False)
 
     yield story_item_list
 
@@ -643,13 +614,11 @@ ALL_ATTRIBUTE_TYPES = {
 }
 
 
-def pre_seed_report_type(report_definition, access_token, run_core):
-    headers = {"Authorization": f"Bearer {access_token}"}
+def pre_seed_report_type(report_definition, core_request_client):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
-    r = requests.get(f"{run_core}/config/attributes?limit=300", headers=headers)
-    r.raise_for_status()
+    r = core_request_client.get("/config/attributes", params={"limit": 300})
     items = r.json()["items"]
 
     # Build lookups
@@ -668,20 +637,19 @@ def pre_seed_report_type(report_definition, access_token, run_core):
     unexpected_types = sorted(available_types - ALL_ATTRIBUTE_TYPES)
     assert not unexpected_types, f"System has unexpected AttributeTypes: {unexpected_types}"
 
-    r = requests.post(f"{run_core}/config/report-item-types", json=report_definition, headers=headers)
-    r.raise_for_status()
+    core_request_client.post("/config/report-item-types", json_data=report_definition)
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types_optional(access_token, run_core, e2e_server):
+def pre_seed_report_type_all_attribute_types_optional(core_request_client):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
-    pre_seed_report_type(report_definition_copy, access_token, run_core)
+    pre_seed_report_type(report_definition_copy, core_request_client)
 
 
 @pytest.fixture(scope="session")
-def pre_seed_report_type_all_attribute_types_required(access_token, run_core, e2e_server):
+def pre_seed_report_type_all_attribute_types_required(core_request_client):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
@@ -691,7 +659,7 @@ def pre_seed_report_type_all_attribute_types_required(access_token, run_core, e2
         for attribute in attribute_group.get("attribute_group_items", {}):
             attribute["required"] = True
 
-    pre_seed_report_type(report_definition_copy, access_token, run_core)
+    pre_seed_report_type(report_definition_copy, core_request_client)
 
 
 @pytest.fixture(scope="session")
@@ -711,7 +679,7 @@ def test_osint_icon_png(testdata_dir):
 
 
 @pytest.fixture
-def test_batch_osint_sources(run_core, e2e_server, access_token, access_token_response, testdata_dir):
+def test_batch_osint_sources(core_request_client, e2e_server, access_token_response, testdata_dir):
 
     def invalidate_osint_source_caches() -> None:
         session = requests.Session()
@@ -723,28 +691,18 @@ def test_batch_osint_sources(run_core, e2e_server, access_token, access_token_re
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-    }
     with open(os.path.join(testdata_dir, "test_report_item_type_sources_paging.json"), encoding="utf-8") as f:
         source_data = json.load(f)
 
-        r = requests.post(f"{run_core}/config/import-osint-sources", json=source_data, headers=headers)
-        r.raise_for_status()
+        core_request_client.post("/config/import-osint-sources", json_data=source_data)
         invalidate_osint_source_caches()
 
     yield source_data
 
-    list_response = requests.get(f"{run_core}/config/osint-sources", headers=headers)
-    list_response.raise_for_status()
+    list_response = core_request_client.get("/config/osint-sources")
     for source in list_response.json().get("items", []):
         if source_id := source.get("id"):
-            delete_response = requests.delete(
-                f"{run_core}/config/osint-sources/{source_id}",
-                headers=headers,
-                params={"force": "true"},
-            )
-            delete_response.raise_for_status()
+            core_request_client.delete(f"/config/osint-sources/{source_id}", params={"force": "true"})
     invalidate_osint_source_caches()
 
 
@@ -795,7 +753,7 @@ def report_item_dict(story_item_list):
 
 
 @pytest.fixture(scope="session")
-def fake_source(app, run_core, access_token):
+def fake_source(core_request_client):
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)
 
@@ -807,12 +765,7 @@ def fake_source(app, run_core, access_token):
         "type": "rss_collector",
     }
 
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-    }
-
-    r = requests.post(f"{run_core}/config/osint-sources", json=source_data, headers=headers)
-    r.raise_for_status()
+    core_request_client.post("/config/osint-sources", json_data=source_data)
 
     yield source_data["id"]
 

@@ -13,6 +13,7 @@ from core.managers.db_manager import db
 
 
 T = TypeVar("T", bound="BaseModel")
+DB_INTEGER_MAX = (2**63) - 1
 
 
 class BaseModel(db.Model):
@@ -162,13 +163,13 @@ class BaseModel(db.Model):
     @classmethod
     def _add_paging_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
         page = int(filter_args.get("page", 1)) - 1
-        limit = int(filter_args.get("limit", 20))
+        limit = max(min(int(filter_args.get("limit", 20)), DB_INTEGER_MAX), 0)
         offset = filter_args.get("offset")
         if offset is None:
             offset = page * limit if limit and limit > 0 else None
 
         if offset is not None:
-            query = query.offset(int(offset))
+            query = query.offset(max(min(int(offset), DB_INTEGER_MAX), 0))
         if limit and limit > 0:
             query = query.limit(limit)
 

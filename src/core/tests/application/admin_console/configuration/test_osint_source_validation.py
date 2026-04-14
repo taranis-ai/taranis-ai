@@ -79,4 +79,3 @@ def test_osint_source_partial_update_reparses_parameters(session):
 
     assert updated_source is not None
     assert ParameterValue.find_value_by_parameter(updated_source.parameters, "FEED_URL") == "https://changed.example/feed.xml"
-

@@ -25,35 +25,25 @@ def bot_task(bot_id: str, filter: dict | None = None):
     """
     job = get_current_job()
     core_api = CoreApi()
+    task_name = f"bot_{bot_id}"
+    task_id = job.id if job else task_name
 
     logger.info(f"Starting bot task with job id {job.id if job else 'manual'}")
 
-    # Initialize result tracking
-    result_message = "Bot executed successfully"
-    task_status = "SUCCESS"
-    task_id = job.id if job else f"bot_{bot_id}"
-
     try:
-        if bot_config := core_api.get_bot_config(bot_id):
-            bot_result = _execute_by_config(bot_config, filter)
+        bot_config = core_api.get_bot_config(bot_id)
+        if not bot_config:
+            raise ValueError(f"Bot with id {bot_id} not found")
 
-            # Wrap result with bot_type for core API processing
-            result = {"bot_type": bot_config.get("type", "UNKNOWN_BOT_TYPE").upper(), **bot_result}
-
-            # Save successful result to database
-            _save_task_result(task_id, f"bot_{bot_id}", result, task_status, core_api)
-            return result
-
-        # Bot not found
-        result_message = f"Bot with id {bot_id} not found"
-        task_status = "FAILURE"
-        _save_task_result(task_id, f"bot_{bot_id}", {"error": result_message}, task_status, core_api)
-        raise ValueError(result_message)
-
-    except Exception as e:
-        result_message = f"Bot execution failed: {str(e)}"
-        task_status = "FAILURE"
-        _save_task_result(task_id, f"bot_{bot_id}", {"error": result_message}, task_status, core_api)
+        bot_result = _execute_by_config(bot_config, filter)
+        result = {"bot_type": bot_config.get("type", "UNKNOWN_BOT_TYPE").upper(), **bot_result}
+        _save_task_result(task_id, task_name, result, "SUCCESS", core_api)
+        return result
+    except Exception as exc:
+        error_message = str(exc)
+        if not (isinstance(exc, ValueError) and error_message == f"Bot with id {bot_id} not found"):
+            error_message = f"Bot execution failed: {error_message}"
+        _save_task_result(task_id, task_name, {"error": error_message}, "FAILURE", core_api)
         raise
 
 

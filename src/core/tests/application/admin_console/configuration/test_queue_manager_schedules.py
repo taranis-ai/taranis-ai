@@ -7,7 +7,7 @@ from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
 
 
-def test_get_scheduled_jobs_includes_cleanup_cron(monkeypatch):
+def test_get_scheduled_jobs_includes_cleanup_cron(app, monkeypatch):
     monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: []))
     monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
 
@@ -16,11 +16,12 @@ def test_get_scheduled_jobs_includes_cleanup_cron(monkeypatch):
     queue_manager._queues = {}
     queue_manager._redis = object()
 
-    schedules, status = QueueManager.get_scheduled_jobs(queue_manager)
+    with app.app_context():
+        schedules, status = QueueManager.get_scheduled_jobs(queue_manager)
 
     assert status == 200
     items = schedules.get("items", [])
-    cleanup_jobs = [job for job in items if job.get("id") == "cron_misc_cleanup_token_blacklist"]
+    cleanup_jobs = [job for job in items if job.get("id") == "cleanup_token_blacklist"]
     assert cleanup_jobs, "expected cleanup cron job to be listed"
     cleanup_job = cleanup_jobs[0]
     assert cleanup_job.get("queue") == "misc"

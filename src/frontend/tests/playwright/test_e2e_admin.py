@@ -759,10 +759,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("link", name="Analyze").click()
             expect(page.get_by_role("row", name="update attr use")).to_be_visible()
 
-            for _ in range(2):
-                page.locator('[data-testid^="action-delete-"]').first.click()
-                expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-                page.get_by_role("button", name="OK").click()
+            page.locator('[data-testid^="action-delete-"]').first.click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+            page.get_by_role("button", name="OK").click()
+
+            page.locator('[data-testid^="action-delete-"]').first.click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+            page.get_by_role("button", name="OK").click()
 
             expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
 

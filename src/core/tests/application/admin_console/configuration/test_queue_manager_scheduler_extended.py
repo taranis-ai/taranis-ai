@@ -302,6 +302,8 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
             self.id = "source-1"
             self.name = "Source One"
             self.task_id = "task-1"
+            self.cron_run_prefix = "cron_osint_source_source-1_"
+            self.cron_job_id = "osint_source_source-1"
 
         def get_schedule(self):
             return "0 * * * *"
@@ -310,13 +312,17 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
             return self.get_schedule()
 
     monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: [FakeSource()]))
-    monkeypatch.setattr(TaskModel, "get", classmethod(lambda cls, task_id: FakeTask() if task_id == "task-1" else None))
+    monkeypatch.setattr(
+        TaskModel,
+        "get_latest_matching",
+        classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: FakeTask()),
+    )
 
     entries = OSINTSource.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
 
     assert entries
     entry = entries[0]
-    assert entry["id"] == "cron_collector_source-1"
+    assert entry["id"] == "osint_source_source-1"
     assert entry["queue"] == "collectors"
     assert entry["previous_run_time"]
 
@@ -328,6 +334,8 @@ def test_osint_schedule_entries_handle_many(monkeypatch):
                 self.id = f"source-{i}"
                 self.name = f"Source {i}"
                 self.task_id = f"task-{i}"
+                self.cron_run_prefix = f"cron_osint_source_source-{i}_"
+                self.cron_job_id = f"osint_source_source-{i}"
 
             def get_schedule(self):
                 return f"*/{(idx % 5) + 1} * * * *"
@@ -338,7 +346,7 @@ def test_osint_schedule_entries_handle_many(monkeypatch):
         return FakeSource(idx)
 
     monkeypatch.setattr(OSINTSource, "get_all_for_collector", classmethod(lambda cls: [make_source(i) for i in range(120)]))
-    monkeypatch.setattr(TaskModel, "get", classmethod(lambda cls, task_id: None))
+    monkeypatch.setattr(TaskModel, "get_latest_matching", classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: None))
 
     entries = OSINTSource.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
 
@@ -364,11 +372,11 @@ def test_bot_schedule_entries_skip_invalid_cron(monkeypatch):
     assert entries == []
 
 
-def test_get_scheduled_jobs_with_many_sources(monkeypatch):
+def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
     def fake_osint_entries():
         return [
             {
-                "id": f"cron_collector_{i}",
+                "id": f"osint_source_{i}",
                 "name": f"Collector {i}",
                 "queue": "collectors",
                 "next_run_time": datetime(2025, 1, 1, 0, 0, 0),
@@ -388,7 +396,8 @@ def test_get_scheduled_jobs_with_many_sources(monkeypatch):
     qm = _make_queue_manager()
     qm._redis = object()
 
-    schedules, status = qm.get_scheduled_jobs()
+    with app.app_context():
+        schedules, status = qm.get_scheduled_jobs()
 
     assert status == 200
     # 120 OSINT cron jobs + housekeeping cleanup cron
@@ -468,6 +477,7 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
 
     assert "osint_source_live-source" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "bot_live-bot" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert "cleanup_token_blacklist" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "osint_source_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "bot_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "custom_keep" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]

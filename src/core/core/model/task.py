@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import case, func
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
@@ -63,6 +63,33 @@ class Task(BaseModel):
     @classmethod
     def get_successful(cls, task_id: str) -> "Task | None":
         return db.session.execute(db.select(cls).where(cls.id == task_id).where(cls.status == "SUCCESS")).scalar()
+
+    @classmethod
+    def get_latest_matching(
+        cls,
+        *,
+        exact_ids: set[str] | None = None,
+        prefixes: list[str] | None = None,
+        task_name: str | None = None,
+    ) -> "Task | None":
+        conditions = []
+
+        exact_ids = {task_id for task_id in (exact_ids or set()) if task_id}
+        prefixes = [prefix for prefix in (prefixes or []) if prefix]
+
+        if exact_ids:
+            conditions.append(cls.id.in_(exact_ids))
+        conditions.extend(cls.id.like(f"{prefix}%") for prefix in prefixes)
+
+        if not conditions:
+            return None
+
+        stmt = db.select(cls).where(or_(*conditions))
+        if task_name is not None:
+            stmt = stmt.where(cls.task == task_name)
+
+        stmt = stmt.order_by(cls.last_run.desc(), cls.last_success.desc(), cls.id.desc()).limit(1)
+        return db.session.execute(stmt).scalars().first()
 
     @classmethod
     def get_failed_by_task(cls, task_type: str) -> int:

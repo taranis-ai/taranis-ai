@@ -9,19 +9,10 @@ import pytest
 class TestWorkerApi:
     base_uri = "/api/worker"
 
-    def test_worker_task_results_passes_task_name_and_persists_empty_dict(self, client, api_header, app, monkeypatch):
+    def test_worker_task_results_persists_empty_dict(self, client, api_header, app):
         from core.model.task import Task
 
         task_id = f"presenter-task-{uuid.uuid4().hex}"
-        recorded = {}
-
-        def fake_handle_task_specific_result(passed_task_id, result, status, task_name=None):
-            recorded["task_id"] = passed_task_id
-            recorded["result"] = result
-            recorded["status"] = status
-            recorded["task_name"] = task_name
-
-        monkeypatch.setattr("core.api.task.handle_task_specific_result", fake_handle_task_specific_result)
 
         payload = {
             "id": task_id,
@@ -36,12 +27,6 @@ class TestWorkerApi:
             assert response.status_code == 201
             assert response.get_json()["task"] == "presenter_task"
             assert response.get_json()["result"] == {}
-            assert recorded == {
-                "task_id": task_id,
-                "result": {},
-                "status": "SUCCESS",
-                "task_name": "presenter_task",
-            }
 
             with app.app_context():
                 stored = Task.get(task_id)
@@ -351,6 +336,100 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert isinstance(response.get_json(), dict)
         assert set(response.get_json()) == expected_tags
+
+
+class TestWorkerTaskResults:
+    base_uri = "/api/worker"
+
+    @pytest.mark.parametrize(
+        ("payload", "expected_error"),
+        [
+            ({"status": "SUCCESS", "result": {}}, "id"),
+            ({"id": "task-1", "result": {}}, "status"),
+            ({"id": 123, "status": "SUCCESS", "result": {}}, "id"),
+            ({"id": "task-1", "status": 123, "result": {}}, "status"),
+        ],
+    )
+    def test_worker_task_results_rejects_missing_or_invalid_required_fields(self, client, api_header, payload, expected_error):
+        response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+
+        assert response.status_code == 400
+        assert expected_error in response.get_json()["error"]
+
+    def test_worker_task_results_rejects_invalid_task_field(self, client, api_header):
+        response = client.put(
+            f"{self.base_uri}/task-results",
+            json={"id": "task-1", "task": ["bad"], "result": {}, "status": "SUCCESS"},
+            headers=api_header,
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "Invalid task field"
+
+    def test_worker_task_results_updates_product_render(self, client, api_header, app, cleanup_product):
+        from core.model.product import Product
+        from core.model.task import Task
+
+        product_id = f"worker-product-{uuid.uuid4().hex}"
+        task_id = f"presenter-job-{uuid.uuid4().hex}"
+        render_result = "YmFzZTY0"
+
+        with app.app_context():
+            Product.add({**cleanup_product, "id": product_id})
+
+        payload = {
+            "id": task_id,
+            "task": "presenter_task",
+            "result": {"product_id": product_id, "render_result": render_result, "message": "ok"},
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+
+            assert response.status_code == 201
+            with app.app_context():
+                product = Product.get(product_id)
+                assert product is not None
+                assert product.render_result == render_result
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+                if Product.get(product_id):
+                    Product.delete(product_id)
+
+    def test_worker_task_results_apply_bot_tags(self, client, stories, auth_header, api_header, app, wordlist_bot_result):
+        from core.model.task import Task
+
+        task_id = f"cron-bot-wordlist-{uuid.uuid4().hex}"
+        payload = {
+            "id": task_id,
+            "task": f"bot_{wordlist_bot_result['result']['bot_id']}",
+            "result": wordlist_bot_result["result"],
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+
+            assert response.status_code == 201
+
+            for story_id in stories:
+                story_response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+                assert story_response.status_code == 200
+
+                story_data = story_response.get_json()
+                structured_tags = {tag["name"]: tag["tag_type"] for tag in story_data.get("tags", [])}
+                expected_tags = wordlist_bot_result["result"]["result"].get(story_id, {})
+
+                assert structured_tags == expected_tags
+                attr_by_key = {attribute.get("key"): attribute.get("value") for attribute in story_data.get("attributes", [])}
+                assert attr_by_key["WORDLIST_BOT"].startswith(f"bot_id={wordlist_bot_result['result']['bot_id']}")
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
 
 
 class TestConnector:

@@ -3,6 +3,8 @@
 Functions for publishing products to external systems.
 """
 
+from typing import Any
+
 from models.product import WorkerProduct as Product
 from rq import get_current_job
 
@@ -28,27 +30,35 @@ def publisher_task(product_id: str, publisher_id: str):
     """
     job = get_current_job()
     core_api = CoreApi()
+    task_name = "publisher_task"
+    task_id = job.id if job else f"{task_name}_{publisher_id}_{product_id}"
 
     logger.info(f"Starting publisher task with job id {job.id if job else 'manual'}")
 
-    # Get product, publisher, and rendered content
-    product = _get_product(core_api, product_id)
-    publisher = _get_publisher(core_api, publisher_id)
-    rendered_product = _get_rendered_product(core_api, product_id)
+    try:
+        # Get product, publisher, and rendered content
+        product = _get_product(core_api, product_id)
+        publisher = _get_publisher(core_api, publisher_id)
+        rendered_product = _get_rendered_product(core_api, product_id)
 
-    if rendered_product is None:
-        raise ValueError("Rendered product is None")
+        if rendered_product is None:
+            raise ValueError("Rendered product is None")
 
-    logger.debug(f"Publishing to {publisher}")
-    logger.debug(f"Product: {product}")
+        logger.debug(f"Publishing to {publisher}")
+        logger.debug(f"Product: {product}")
 
-    # Get publisher implementation
-    pub_type = publisher.get("type")
-    if pub_type is None:
-        raise ValueError(f"Publisher {publisher_id} has no type configured")
-    publisher_impl = _get_publisher_impl(pub_type)
+        # Get publisher implementation
+        pub_type = publisher.get("type")
+        if pub_type is None:
+            raise ValueError(f"Publisher {publisher_id} has no type configured")
+        publisher_impl = _get_publisher_impl(pub_type)
 
-    return publisher_impl.publish(publisher, product, rendered_product)
+        result = publisher_impl.publish(publisher, product, rendered_product)
+        _save_task_result(task_id, task_name, result, "SUCCESS", core_api)
+        return result
+    except Exception as exc:
+        _save_task_result(task_id, task_name, {"error": str(exc)}, "FAILURE", core_api)
+        raise
 
 
 def _get_product(core_api: CoreApi, product_id: str) -> dict[str, str]:
@@ -135,3 +145,21 @@ def _get_publisher_impl(pub_type: str) -> BasePublisher:
         raise ValueError(f"Publisher type '{pub_type}' not found")
 
     return publishers[pub_type]
+
+
+def _save_task_result(job_id: str, task_name: str, result: Any, status: str, core_api: CoreApi):
+    """Save task execution result to Core API."""
+
+    task_data = {
+        "id": job_id,
+        "task": task_name,
+        "result": result,
+        "status": status,
+    }
+
+    try:
+        response = core_api.api_put("/worker/task-results", task_data)
+        if not response:
+            logger.warning(f"Failed to save task result for {job_id}")
+    except Exception as exc:
+        logger.error(f"Failed to save task result for {job_id}: {exc}")

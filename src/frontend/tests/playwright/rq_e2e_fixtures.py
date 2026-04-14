@@ -1,13 +1,13 @@
+import re
 import time
 from collections.abc import Generator
 from pathlib import Path
-import re
 
 import pytest
 import redis
-import requests
 import responses
 
+from tests.core_requests import CoreRequestClient
 from tests.playwright.e2e_harness import (
     compose_logs,
     docker_cleanup_commands,
@@ -17,8 +17,11 @@ from tests.playwright.e2e_harness import (
 )
 
 
+LOCAL_HTTP_URL_PATTERN = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+
+
 def _allow_local_http_passthrough() -> None:
-    responses.add_passthru(re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"))
+    responses.add_passthru(LOCAL_HTTP_URL_PATTERN)
 
 
 @pytest.fixture(autouse=True)
@@ -26,23 +29,18 @@ def allow_local_http_passthrough() -> None:
     _allow_local_http_passthrough()
 
 
-@pytest.fixture(scope="session", autouse=True)
-def allow_local_http_passthrough_session() -> None:
-    _allow_local_http_passthrough()
-
-
 def _wait_for_admin_login(core_url: str, timeout_seconds: int = 30, poll_interval: float = 0.5) -> None:
     _allow_local_http_passthrough()
+    core_client = CoreRequestClient(base_url=core_url)
     deadline = time.monotonic() + timeout_seconds
     last_exc: Exception | None = None
     while time.monotonic() < deadline:
         try:
-            response = requests.post(
-                f"{core_url}/auth/login",
-                json={"username": "admin", "password": "admin"},
-                timeout=2,
+            response = core_client.post(
+                "/auth/login",
+                json_data={"username": "admin", "password": "admin"},
+                timeout_seconds=2,
             )
-            response.raise_for_status()
             if response.json().get("access_token"):
                 return
         except Exception as exc:  # pragma: no cover - readiness polling
@@ -67,24 +65,24 @@ def _wait_for_redis(port: int, timeout_seconds: int = 15) -> None:
 
 def _wait_for_worker_registration(core_url: str, timeout_seconds: int = 30) -> None:
     _allow_local_http_passthrough()
+    core_client = CoreRequestClient(base_url=core_url)
     deadline = time.monotonic() + timeout_seconds
     last_payload = None
     while time.monotonic() < deadline:
-        response = requests.post(
-            f"{core_url}/auth/login",
-            json={"username": "admin", "password": "admin"},
-            timeout=5,
+        response = core_client.post(
+            "/auth/login",
+            json_data={"username": "admin", "password": "admin"},
+            timeout_seconds=5,
         )
-        response.raise_for_status()
         token = response.json().get("access_token")
         if not token:
             time.sleep(0.5)
             continue
 
-        headers = {"Authorization": f"Bearer {token}", "Content-type": "application/json"}
-        resp = requests.get(f"{core_url}/config/workers", headers=headers, timeout=5)
-        if resp.status_code == 200:
-            last_payload = resp.json()
+        worker_client = core_client.with_access_token(token)
+        response = worker_client.get("/config/workers", raise_for_status=False, timeout_seconds=5)
+        if response.status_code == 200:
+            last_payload = response.json()
             if isinstance(last_payload, list) and last_payload:
                 return
             if isinstance(last_payload, dict):
