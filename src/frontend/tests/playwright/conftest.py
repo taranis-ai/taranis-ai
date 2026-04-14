@@ -209,13 +209,27 @@ def _new_authenticated_page(taranis_frontend: Page, e2e_server, token_response) 
 
 
 @pytest.fixture
-def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
-    """
-    Returns a Playwright Page whose browser context has the JWT cookies set,
-    so any navigation is already authenticated.
-    """
-    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response)
+def authenticated_page_factory(taranis_frontend: Page, e2e_server, access_token_response, access_token_response_basic):
+    """Factory fixture for creating authenticated pages with different user types."""
 
+    def _create(user_type="admin"):
+        if user_type == "admin":
+            token_response = access_token_response
+        elif user_type == "basic":
+            token_response = access_token_response_basic
+        else:
+            raise ValueError(f"Unknown user_type: {user_type}")
+
+        page = _new_authenticated_page(taranis_frontend, e2e_server, token_response)
+        return page
+
+    return _create
+
+
+@pytest.fixture
+def logged_in_page(authenticated_page_factory):
+    """Returns a Playwright Page with admin authentication."""
+    page = authenticated_page_factory("admin")
     try:
         yield page
     finally:
@@ -224,9 +238,9 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
 
 
 @pytest.fixture
-def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic):
-    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response_basic)
-
+def non_admin_logged_in_page(authenticated_page_factory):
+    """Returns a Playwright Page with basic user authentication."""
+    page = authenticated_page_factory("basic")
     try:
         yield page
     finally:

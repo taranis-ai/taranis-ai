@@ -4,19 +4,11 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
+from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Page, expect
-from playwright_helpers import PlaywrightHelpers
 
 from tests.playwright.notification_helpers import dismiss_notifications
-
-
-def remove_tz(date_time: str) -> str:
-    dt = datetime.fromisoformat(date_time)
-    if dt.tzinfo is not None and dt.utcoffset() is not None:
-        dt = dt.astimezone(timezone.utc)
-    dt = dt.replace(tzinfo=None)
-    return dt.isoformat()
 
 
 DASHBOARD_BASELINE_QUEUE_TEXT = "There are 1 tasks scheduled."
@@ -29,33 +21,24 @@ DASHBOARD_HEALTH_SERVICES = {
 SCHEDULER_BASELINE_TOTAL_TEXT = "Total: 1 scheduled jobs"
 
 
+def remove_tz(date_time: str) -> str:
+    dt = datetime.fromisoformat(date_time)
+    if dt.tzinfo is not None and dt.utcoffset() is not None:
+        dt = dt.astimezone(timezone.utc)
+    dt = dt.replace(tzinfo=None)
+    return dt.isoformat()
+
+
 @pytest.mark.e2e_admin
 @pytest.mark.e2e_ci
 @pytest.mark.usefixtures("e2e_ci")
-class TestEndToEndAdmin(PlaywrightHelpers):
+class TestEndToEndAdmin(BaseE2ETest):
     """End-to-end tests for the Taranis AI admin interface."""
-
-    @staticmethod
-    def dismiss_notification_if_visible(page: Page):
-        dismiss_notifications(page)
 
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
         page.context.clear_cookies()
-        self.add_keystroke_overlay(page)
-
-        page.goto(url_for("base.login", _external=True))
-        expect(page).to_have_title("Taranis AI", timeout=5000)
-
-        self.highlight_element(page.get_by_placeholder("Username"))
-        expect(page.get_by_placeholder("Username")).to_have_attribute("required", "")
-        page.get_by_placeholder("Username").fill("admin")
-        self.highlight_element(page.get_by_placeholder("Password"))
-        expect(page.get_by_placeholder("Password")).to_have_attribute("required", "")
-        page.get_by_placeholder("Password").fill("admin")
-        page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
-        self.highlight_element(page.get_by_test_id("login-button")).click()
-        expect(page.locator("#dashboard")).to_be_visible()
+        self.login_with_credentials(page, button_name="login-button")
 
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
@@ -97,49 +80,32 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         assert response_info.value.status == 400, f"Expected 400 status, but got {response_info.value.status}"
         expect(page.locator("#notification-bar")).to_contain_text("Invalid BCP 47 language tag")
         expect(page.locator("#news-item-form")).to_be_visible()
-        self.dismiss_notification_if_visible(page)
+        dismiss_notifications(page)
 
     def test_admin_organizations(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
         organization_name = f"test_org_{uuid.uuid4().hex[:6]}"
 
-        def load_organization_list():
-            page.goto(url_for("admin.organizations", _external=True))
-            expect(page.get_by_test_id("organization-table")).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/docs_organizations.png")
+        add_fields = {
+            "Name": organization_name,
+            "Description": "Test description of an organization",
+            "Street": "Test Street",
+            "City": "Test City",
+            "ZIP": "9999",
+            "Country": "Test Country",
+        }
+        submit_locator = "input[type='submit']"
 
-        def add_organization():
-            page.get_by_test_id("new-organization-button").click()
-            expect(page.get_by_label("Name")).to_have_attribute("required", "")
-            page.get_by_label("Name").fill(organization_name)
-            page.get_by_label("Description").fill("Test description of an organization")
-            page.get_by_label("Street").fill("Test Street")
-            page.get_by_label("City").fill("Test City")
-            page.get_by_label("Zip").fill("9999")
-            page.get_by_label("Country").fill("Test Country")
-            page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
+        self.navigate_to_list(page, "admin.organizations", "organization-table")
+        self.create_item(page, "new-organization-button", add_fields, submit_locator)
+        self.assert_item_in_table(page, "organization-table", organization_name)
 
-            self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page).to_have_url(url_for("admin.organizations", _external=True))
-            expect(page.get_by_text(organization_name)).to_be_visible()
+        # Update organization
+        update_fields = {"Description": "Updated description of an organization"}
+        self.update_item(page, organization_name, update_fields, submit_locator)
+        expect(page.get_by_role("row", name=organization_name)).to_contain_text("Updated description of an organization")
 
-        def update_organization():
-            page.get_by_role("link", name=organization_name).click()
-            page.get_by_label("Description").fill("Updated description of an organization")
-
-            self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page).to_have_url(url_for("admin.organizations", _external=True))
-            expect(page.get_by_role("row", name=organization_name)).to_contain_text("Updated description of an organization")
-
-        def remove_organization():
-            page.get_by_role("row", name=organization_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
-            expect(page.get_by_test_id("organization-table").get_by_role("link", name=organization_name)).not_to_be_visible()
-
-        load_organization_list()
-        add_organization()
-        update_organization()
-        remove_organization()
+        self.delete_item(page, "organization-table", organization_name)
 
     def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors, test_user, test_user_list):
         page = logged_in_page
@@ -204,7 +170,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("row", name="John Doe").get_by_test_id("action-delete-4").click()
             page.get_by_role("button", name="OK").click()
             expect(page.get_by_test_id("user-table").get_by_role("link", name="John Doe")).not_to_be_visible()
-            self.dismiss_notification_if_visible(page)
+            dismiss_notifications(page)
 
         load_user_list()
         add_user()
@@ -299,7 +265,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(delete_button).to_contain_text("Delete 10 OSINT Source")
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="OK").click()
-            self.dismiss_notification_if_visible(page)
+            dismiss_notifications(page)
             expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
 
         def import_export_osint_sources():
@@ -318,7 +284,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("row", name="Icon State Name Feed Actions").get_by_role("checkbox").check()
             page.get_by_test_id("delete-osint_source-button").click()
             page.get_by_role("button", name="OK").click()
-            self.dismiss_notification_if_visible(page)
+            dismiss_notifications(page)
 
         def add_osint_sources():
             page.get_by_test_id("new-osint_source-button").click()
@@ -499,7 +465,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(delete_button).to_contain_text("Delete 9 Word List")
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="OK").click()
-            self.dismiss_notification_if_visible(page)
+            dismiss_notifications(page)
 
         def add_word_list():
             page.get_by_test_id("new-word_list-button").click()
@@ -513,7 +479,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             page.screenshot(path="./tests/playwright/screenshots/docs_word_list_add.png")
             self.highlight_element(page.get_by_role("button", name="Create Word List")).click()
-            self.dismiss_notification_if_visible(page)
+            dismiss_notifications(page)
             expect(page.get_by_role("link", name=word_list_name)).to_be_visible()
 
         def update_word_list():
@@ -547,7 +513,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("row", name="Test wordlist").get_by_test_id("action-delete-1").click()
             expect(page.get_by_test_id("user-table").get_by_role("link", name="Test wordlist")).not_to_be_visible()
             page.get_by_role("button", name="OK").click()
-            self.dismiss_notification_if_visible(page)
+            dismiss_notifications(page)
 
         load_word_list()
         load_default_word_list()
@@ -976,7 +942,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             bot_table.locator('[data-testid^="action-delete-"]').last.click()
             expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
             page.get_by_role("button", name="OK").click()
-            self.dismiss_notification_if_visible(page)
+            dismiss_notifications(page)
 
         test_load_bots()
         test_bot_create()
