@@ -13,6 +13,8 @@ Analysts then refine these AI-augmented articles into structured reports that se
 
 For production deployments, see our [Deployment Guide using docker compose](https://taranis.ai/docs/getting-started/01_deployment/)
 
+For existing Celery/RabbitMQ deployments, see the [RQ Migration Guide](./dev/rq_migration_guide.md).
+
 ## Contributions
 
 We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./dev/README.md) to get started.

@@ -26,7 +26,7 @@ spec:
             - secretRef:
                 name: db-credentials
             - secretRef:
-                name: taranis-rabbitmq-credentials
+                name: taranis-redis-credentials
           env:
             - name: APPLICATION_ROOT
               valueFrom:
@@ -279,7 +279,7 @@ spec:
             - configMapRef:
                 name: taranis-config
             - secretRef:
-                name: taranis-rabbitmq-credentials
+                name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
               value: http://core:8080/api
@@ -295,7 +295,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - WORKER_TYPES='[]' celery --app worker status | grep "$(hostname)" | grep -q 'OK'
+                - python -c "import os, redis; redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None).ping()"
             initialDelaySeconds: 30
             periodSeconds: 15
             timeoutSeconds: 10
@@ -304,7 +304,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - WORKER_TYPES='[]' celery --app worker status | grep "$(hostname)" | grep -q 'OK'
+                - python -c "import os, redis; redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None).ping()"
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 10
@@ -343,18 +343,18 @@ spec:
             - secretRef:
                 name: taranis-secrets
             - secretRef:
-                name: taranis-rabbitmq-credentials
+                name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
               value: http://core:8080/api
             - name: WORKER_TYPES
-              value: '["Presenters", "Publishers", "Bots", "Connectors"]'
+              value: '["Presenters", "Publishers", "Bots", "Connectors", "Misc"]'
           readinessProbe:
             exec:
               command:
                 - /bin/sh
                 - -c
-                - WORKER_TYPES='[]' celery --app worker status | grep "$(hostname)" | grep -q 'OK'
+                - python -c "import os, redis; redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None).ping()"
             initialDelaySeconds: 30
             periodSeconds: 15
             timeoutSeconds: 10
@@ -363,7 +363,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - WORKER_TYPES='[]' celery --app worker status | grep "$(hostname)" | grep -q 'OK'
+                - python -c "import os, redis; redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None).ping()"
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 10
@@ -374,3 +374,65 @@ spec:
             requests:
               cpu: "1"
               memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cron
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: cron
+  template:
+    metadata:
+      labels:
+        app: cron
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: cron
+          image: ghcr.io/taranis-ai/taranis-worker:latest
+          imagePullPolicy: Always
+          command:
+            - taranis-cron
+          envFrom:
+            - configMapRef:
+                name: taranis-config
+            - secretRef:
+                name: taranis-redis-credentials
+          env:
+            - name: TARANIS_CORE_URL
+              value: http://core:8080/api
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: API_KEY
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - python -c "import os, redis; r = redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None); r.get('rq:cron:leader') is not None or exit(1)"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - python -c "import os, redis; r = redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None); r.get('rq:cron:leader') is not None or exit(1)"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
