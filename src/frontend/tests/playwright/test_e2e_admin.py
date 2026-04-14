@@ -21,10 +21,10 @@ def remove_tz(date_time: str) -> str:
 
 DASHBOARD_BASELINE_QUEUE_TEXT = "There are 1 tasks scheduled."
 DASHBOARD_HEALTH_SERVICES = {
-    "database": "up",
-    "seed_data": "up",
-    "broker": "up",
-    "workers": "up",
+    "Database": "up",
+    "Pre-seeded": "up",
+    "Redis": "up",
+    "Workers": "up",
 }
 SCHEDULER_BASELINE_TOTAL_TEXT = "Total: 1 scheduled jobs"
 
