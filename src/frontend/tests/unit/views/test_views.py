@@ -442,14 +442,16 @@ def test_admin_dashboard_renders_health_card(authenticated_client, responses_moc
     assert "Core" in html
     assert "Frontend" in html
     assert "1.3.4" in html
-    assert "core123" in html
     assert "1.3.5" in html
-    assert "front456" in html
+    assert "Commit / Branch:" not in html
+    assert "core123" not in html
+    assert "front456" not in html
     assert "System Health" in html
     assert "Degraded" in html
-    assert "database" in html
-    assert "broker" in html
-    assert "workers" in html
+    assert "Database" in html
+    assert "Pre-seeded" in html
+    assert "Redis" in html
+    assert "Workers" in html
 
 
 def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fails(authenticated_client, responses_mock, monkeypatch):
@@ -458,7 +460,7 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
             cache.delete(key)
 
     monkeypatch.setattr(Config, "BUILD_DATE", datetime.fromisoformat("2025-01-16T08:45:00+00:00"))
-    monkeypatch.setattr(Config, "GIT_INFO", {"tag": "1.3.5", "HEAD": "front456", "branch": "master"})
+    monkeypatch.setattr(Config, "GIT_INFO", {"HEAD": "front456", "branch": "master"})
 
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}{AdminDashboardView.model._core_endpoint}",
@@ -501,6 +503,7 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert "Frontend" in html
-    assert "1.3.5" in html
+    assert "Commit / Branch:" in html
     assert "front456" in html
+    assert "master" in html
     assert "Unavailable" in html
