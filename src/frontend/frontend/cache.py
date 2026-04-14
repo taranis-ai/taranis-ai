@@ -1,10 +1,12 @@
-from flask_caching import Cache
 from typing import TypeVar
 
-from frontend.config import Config
-from models.user import UserProfile
-from frontend.log import logger
+from flask_caching import Cache
 from models.base import TaranisBaseModel
+from models.user import UserProfile
+
+from frontend.config import Config
+from frontend.log import logger
+
 
 cache = Cache()
 T = TypeVar("T", bound="TaranisBaseModel")
@@ -28,14 +30,58 @@ def remove_user_from_cache(username: str):
     cache.delete(f"user_cache_{username}")
 
 
-def list_cache_keys():
-    return cache.cache._cache.keys()
+def _get_cache_store():
+    backend = getattr(cache, "cache", None)
+    return getattr(backend, "_cache", None)
+
+
+def get_cache_keys() -> list[str] | None:
+    cache_store = _get_cache_store()
+    if cache_store is None:
+        return None
+
+    try:
+        return [str(key) for key in cache_store.keys()]
+    except Exception:
+        logger.exception("Failed to enumerate cache keys")
+        return None
+
+
+def list_cache_keys() -> list[str]:
+    return get_cache_keys() or []
+
+
+def matches_cache_key_suffix(key: object, suffix: str | None) -> bool:
+    key_str = str(key)
+    if suffix is None:
+        return True
+    if not suffix:
+        return False
+
+    normalized_suffix = suffix.replace("/", "_")
+    return key_str.endswith(f"_{suffix}") or key_str.endswith(f"_{normalized_suffix}")
+
+
+def invalidate_cache_keys(suffix: str | None = None) -> int:
+    keys = get_cache_keys()
+    if keys is None:
+        cache.clear()
+        logger.warning("Cache backend does not support key enumeration; cleared entire frontend cache")
+        return -1
+
+    invalidated = 0
+    for key in keys:
+        if matches_cache_key_suffix(key, suffix):
+            cache.delete(key)
+            invalidated += 1
+
+    return invalidated
 
 
 def get_cached_users() -> list[UserProfile]:
     prefix = "user_cache_"
     users = []
-    for key in cache.cache._cache:
+    for key in list_cache_keys():
         username = key.removeprefix(prefix)
         if username == key:
             continue

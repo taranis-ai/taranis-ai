@@ -1,5 +1,6 @@
 import importlib.util
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,35 @@ import pytest
 
 class TestWorkerApi:
     base_uri = "/api/worker"
+
+    def test_worker_task_results_persists_empty_dict(self, client, api_header, app):
+        from core.model.task import Task
+
+        task_id = f"presenter-task-{uuid.uuid4().hex}"
+
+        payload = {
+            "id": task_id,
+            "task": "presenter_task",
+            "result": {},
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+
+            assert response.status_code == 201
+            assert response.get_json()["task"] == "presenter_task"
+            assert response.get_json()["result"] == {}
+
+            with app.app_context():
+                stored = Task.get(task_id)
+                assert stored is not None
+                assert stored.to_dict()["result"] == {}
+                assert stored.task == "presenter_task"
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
 
     def test_worker_story_update(self, client, stories, cleanup_story_update_data, api_header):
         """
@@ -308,20 +338,139 @@ class TestWorkerApi:
         assert set(response.get_json()) == expected_tags
 
 
+class TestWorkerTaskResults:
+    base_uri = "/api/worker"
+
+    @pytest.mark.parametrize(
+        ("payload", "expected_error"),
+        [
+            ({"status": "SUCCESS", "result": {}}, "id"),
+            ({"id": "task-1", "result": {}}, "status"),
+            ({"id": 123, "status": "SUCCESS", "result": {}}, "id"),
+            ({"id": "task-1", "status": 123, "result": {}}, "status"),
+        ],
+    )
+    def test_worker_task_results_rejects_missing_or_invalid_required_fields(self, client, api_header, payload, expected_error):
+        response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+
+        assert response.status_code == 400
+        assert expected_error in response.get_json()["error"]
+
+    def test_worker_task_results_rejects_invalid_task_field(self, client, api_header):
+        response = client.put(
+            f"{self.base_uri}/task-results",
+            json={"id": "task-1", "task": ["bad"], "result": {}, "status": "SUCCESS"},
+            headers=api_header,
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "Invalid task field"
+
+    def test_worker_task_results_updates_product_render(self, client, api_header, app, cleanup_product):
+        from core.model.product import Product
+        from core.model.task import Task
+
+        product_id = f"worker-product-{uuid.uuid4().hex}"
+        task_id = f"presenter-job-{uuid.uuid4().hex}"
+        render_result = "YmFzZTY0"
+
+        with app.app_context():
+            Product.add({**cleanup_product, "id": product_id})
+
+        payload = {
+            "id": task_id,
+            "task": "presenter_task",
+            "result": {"product_id": product_id, "render_result": render_result, "message": "ok"},
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+
+            assert response.status_code == 201
+            with app.app_context():
+                product = Product.get(product_id)
+                assert product is not None
+                assert product.render_result == render_result
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+                if Product.get(product_id):
+                    Product.delete(product_id)
+
+    def test_worker_task_results_apply_bot_tags(self, client, stories, auth_header, api_header, app, wordlist_bot_result):
+        from core.model.task import Task
+
+        task_id = f"cron-bot-wordlist-{uuid.uuid4().hex}"
+        payload = {
+            "id": task_id,
+            "task": f"bot_{wordlist_bot_result['result']['bot_id']}",
+            "result": wordlist_bot_result["result"],
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+
+            assert response.status_code == 201
+
+            for story_id in stories:
+                story_response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
+                assert story_response.status_code == 200
+
+                story_data = story_response.get_json()
+                structured_tags = {tag["name"]: tag["tag_type"] for tag in story_data.get("tags", [])}
+                expected_tags = wordlist_bot_result["result"]["result"].get(story_id, {})
+
+                assert structured_tags == expected_tags
+                attr_by_key = {attribute.get("key"): attribute.get("value") for attribute in story_data.get("attributes", [])}
+                assert attr_by_key["WORDLIST_BOT"].startswith(f"bot_id={wordlist_bot_result['result']['bot_id']}")
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+
 class TestConnector:
     base_uri = "/api/worker"
 
     def test_connector(self, client, stories, api_header):
-        from unittest.mock import MagicMock
+        import types
 
-        sys.modules["pymisp"] = MagicMock()
-        sys.modules["worker"] = MagicMock()
-        sys.modules["worker.log"] = MagicMock()
-        sys.modules["worker.core_api"] = MagicMock()
-        sys.modules["worker.connectors"] = MagicMock()
-        sys.modules["worker.connectors.definitions"] = MagicMock()
-        sys.modules["worker.connectors.base_misp_builder"] = MagicMock()
-        sys.modules["worker.connectors.definitions.misp_objects"] = MagicMock()
+        class _StubLogger:
+            def warning(self, *_, **__):
+                return None
+
+            def debug(self, *_, **__):
+                return None
+
+        class _StubBaseMispObject:
+            def __init__(self, *_, **__):
+                return None
+
+        class _StubMISPEvent:
+            def __init__(self, *_, **__):
+                return None
+
+        pymisp = types.ModuleType("pymisp")
+        pymisp.MISPEvent = _StubMISPEvent
+
+        worker_module = types.ModuleType("worker")
+        worker_connectors = types.ModuleType("worker.connectors")
+        worker_connectors_definitions = types.ModuleType("worker.connectors.definitions")
+        worker_connectors_misp_objects = types.ModuleType("worker.connectors.definitions.misp_objects")
+        worker_log = types.ModuleType("worker.log")
+
+        worker_log.logger = _StubLogger()
+        worker_connectors_misp_objects.BaseMispObject = _StubBaseMispObject
+
+        sys.modules["pymisp"] = pymisp
+        sys.modules["worker"] = worker_module
+        sys.modules["worker.connectors"] = worker_connectors
+        sys.modules["worker.connectors.definitions"] = worker_connectors_definitions
+        sys.modules["worker.connectors.definitions.misp_objects"] = worker_connectors_misp_objects
+        sys.modules["worker.log"] = worker_log
 
         file_path = Path(__file__).resolve().parents[4] / "worker" / "worker" / "connectors" / "base_misp_builder.py"
 

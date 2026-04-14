@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
+import multiprocessing
 import os
 import time
-import multiprocessing
+
 from granian.cli import cli
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError

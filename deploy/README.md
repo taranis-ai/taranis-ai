@@ -13,7 +13,7 @@ Replace every `CHANGE_ME_...` value before deployment.
 
 Always required:
 - In `kubernetes/00-config.yaml` (or `helm/values.yaml`), set `GRANIAN_HOST`, `TARANIS_BASE_PATH`, `SSE_PATH`.
-- In `kubernetes/01-secrets.yaml` (or `helm/values.yaml`), set `JWT_SECRET_KEY`, `API_KEY`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `QUEUE_BROKER_HOST`, `QUEUE_BROKER_USER`, `QUEUE_BROKER_PASSWORD`.
+- In `kubernetes/01-secrets.yaml` (or `helm/values.yaml`), set `JWT_SECRET_KEY`, `API_KEY`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `REDIS_URL`, `REDIS_PASSWORD`.
 
 Optional `llm-bot` overlay:
 - In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`, `LLM_MODEL` (and optionally `LLM_TIMEOUT`).
@@ -22,7 +22,7 @@ Optional `llm-bot` overlay:
 
 ## Images
 
-Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `sse-broker`, `taranis-ingress`, `taranis-worker`.
+Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `sse-broker`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`).
 Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
 Pin explicit tags for production.
 
@@ -55,7 +55,7 @@ Use [`argocd/`](./argocd) if you want GitOps deployment through the Helm chart.
 
 1. Edit `argocd/application.yaml`:
    `spec.project`, `spec.source.repoURL`, `spec.source.targetRevision`, `spec.destination.namespace`
-1. Edit `argocd/values-example.yaml` with your ingress hostname, storage overrides, database values, RabbitMQ values, secrets, and image tags.
+1. Edit `argocd/values-example.yaml` with your ingress hostname, storage overrides, database values, Redis values, secrets, and image tags.
 1. Apply the application:
 
 ```bash
@@ -74,6 +74,7 @@ kubectl rollout status deploy/sse-broker
 kubectl rollout status deploy/ingress
 kubectl rollout status deploy/worker
 kubectl rollout status deploy/collector
+kubectl rollout status deploy/cron
 ```
 
 If optional overlay is enabled:
@@ -89,11 +90,12 @@ Useful logs:
 kubectl logs deploy/core --tail=200
 kubectl logs deploy/worker --tail=200
 kubectl logs deploy/collector --tail=200
+kubectl logs deploy/cron --tail=200
 ```
 
 ## Notes
 
-- These manifests expect a reachable PostgreSQL service and a reachable RabbitMQ service, but they do not create those workloads.
+- These manifests expect a reachable PostgreSQL service and a reachable Redis service, but they do not create those workloads.
 - `STORY_API_ENDPOINT` now defaults to `http://llm-bot:5500/cluster`; ensure your `llm-bot` image exposes that route if you enable story clustering.
 - The `core` PVC is included because the application writes persistent data under `/app/data`.
 - The `core` readiness and liveness probes run every 15 minutes after a 15-second startup delay.

@@ -22,10 +22,39 @@ jobs:
         working-directory: docker
         run: |
           cp env.sample .env
-          docker compose pull rabbitmq sse database
-          docker compose up ingress core frontend database collector workers sse rabbitmq --pull=never --wait-timeout=60 --wait
-          echo "Echo docker ps -a:"
-          docker ps -a
-          echo "Echo core logs:"
-          docker compose logs core
-          docker compose down
+          docker compose pull redis sse database
+          docker compose up ingress core frontend database redis collector workers cron sse --pull=never --wait-timeout=180 --wait
+
+      - name: Check container status
+        # Show status/logs only when a previous step failed (e.g. compose --wait)
+        if: failure()
+        working-directory: docker
+        run: |
+          echo "Container status:"
+          docker compose ps
+          echo ""
+          echo "Container logs:"
+          docker compose logs
+
+      - name: Verify all containers are healthy
+        # we could drop this step and rely on `--wait` above, but this gives more detailed output
+        if: success()
+        working-directory: docker
+        run: |
+          # Check that services with healthchecks are healthy
+          for service in core frontend collector workers cron database redis; do
+            HEALTH=$(docker compose ps $service --format json | jq -r '.Health')
+            if [ -n "$HEALTH" ] && [ "$HEALTH" != "healthy" ]; then
+              echo "❌ Service $service health check failed (health: $HEALTH)"
+              docker compose ps
+              docker compose logs $service
+              exit 1
+            fi
+          done
+
+          echo "✅ All containers are healthy and running"
+
+      - name: Cleanup
+        if: always()
+        working-directory: docker
+        run: docker compose down

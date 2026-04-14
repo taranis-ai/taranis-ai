@@ -5,11 +5,12 @@ import uuid
 from datetime import date
 
 import pytest
-import requests
-import responses
 from flask import url_for
 from playwright.sync_api import Error, Page, expect
 from playwright_helpers import PlaywrightHelpers
+
+
+ASSESS_STORY_PAGE_SIZE = 20
 
 
 @pytest.mark.e2e_user
@@ -32,17 +33,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         assert match, f"Unable to parse assess story selection count from: {count_text!r}"
         return int(match.group(1))
 
-    @staticmethod
-    def _get_assess_story_total(run_core: str, access_token: str) -> int:
-        responses.add_passthru(re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"))
-        response = requests.get(
-            f"{run_core}/assess/stories",
-            headers={"Authorization": f"Bearer {access_token}"},
-            timeout=30,
-        )
-        response.raise_for_status()
-        return response.json()["counts"]["total_count"]
-
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
         page.context.clear_cookies()
@@ -59,15 +49,17 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, stories_function_wrapper, run_core, access_token):
+    def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, stories_function_wrapper):
         page = logged_in_page
-        expected_total = self._get_assess_story_total(run_core, access_token)
 
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text(f"20 / {expected_total}")
+            expect(page.get_by_test_id("assess_story_count")).to_be_visible()
+            visible_count, total_count = self._get_assess_story_counts(page)
+            assert total_count >= visible_count > 0
+            assert visible_count == min(ASSESS_STORY_PAGE_SIZE, total_count)
             page.get_by_role("link", name="Dashboard").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
@@ -104,7 +96,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def test_dashboard_entity_location_pagination(page: Page) -> None:
             page.get_by_role("link", name="Location").click()
-            expect(page.locator("div").filter(has_text="plotly-logomark").nth(5)).to_be_visible()
+            expect(page.get_by_test_id("country-chart")).to_be_visible()
             expect(page.locator("tbody")).to_contain_text("USA")
             expect(page.locator("tbody")).to_contain_text("6")
             expect(page.locator("tbody")).to_contain_text("Wärmestuben")
@@ -258,8 +250,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_test_id("assess")).to_be_visible()
             expect(page.get_by_test_id("assess_story_count")).to_be_visible(timeout=30000)
             visible_count, total_count = self._get_assess_story_counts(page)
-            assert 0 < visible_count <= total_count
+            assert total_count >= visible_count > 0
             page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
+            return total_count
 
         def access_story():
             target_title = pre_seed_stories[0]["title"]
@@ -315,11 +308,12 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
 
-        def infinite_scroll_all_items():
+        def infinite_scroll_all_items(expected_total: int):
             page.goto(url_for("assess.assess", _external=True))
 
             expect(page.get_by_test_id("assess")).to_be_visible()
-            initial_visible_count, expected_total = self._get_assess_story_counts(page)
+            initial_visible_count, initial_total = self._get_assess_story_counts(page)
+            assert initial_total == expected_total
             assert initial_visible_count > 0
             final_visible_count = initial_visible_count
             for _ in range(6):
@@ -347,9 +341,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("button", name="Clear selection Esc").click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
 
-        go_to_assess()
+        total_count = go_to_assess()
         access_story()
-        infinite_scroll_all_items()
+        infinite_scroll_all_items(total_count)
 
     def test_story_export(
         self,

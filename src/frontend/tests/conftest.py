@@ -1,7 +1,13 @@
 import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 from dotenv import load_dotenv
-import subprocess
+
+from tests.core_requests import CoreRequestClient
+
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
@@ -28,6 +34,13 @@ if not current_path.endswith("src/frontend"):
         pytest.skip("Unable to locate git root to change into src/frontend")
 
 load_dotenv(dotenv_path=env_file, override=True)
+
+# Ensure local packages (models, frontend, etc.) are importable during tests
+repo_root = Path(base_dir).resolve().parents[2]
+for candidate in [repo_root / "src" / "models", repo_root / "src", repo_root]:
+    candidate_str = str(candidate)
+    if candidate.exists() and candidate_str not in sys.path:
+        sys.path.insert(0, candidate_str)
 
 
 def _create_access_token(app, user):
@@ -123,6 +136,11 @@ def access_token_basic(app, auth_user_basic):
 @pytest.fixture(scope="session")
 def api_header():
     return {"Authorization": f"Bearer {os.getenv('API_KEY')}", "Content-type": "application/json"}
+
+
+@pytest.fixture(scope="session")
+def core_request_client(run_core, access_token):
+    return CoreRequestClient(base_url=run_core, access_token=access_token)
 
 
 @pytest.fixture

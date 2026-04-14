@@ -12,6 +12,7 @@ DashboardHealthState = Literal["up", "down", "n/a"]
 
 class DashboardHealthServices(BaseModel):
     database: DashboardHealthState
+    seed_data: DashboardHealthState
     broker: DashboardHealthState
     workers: DashboardHealthState
 

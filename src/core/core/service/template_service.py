@@ -1,7 +1,6 @@
-
 import base64
 import hashlib
-from typing import List, Dict, Optional, Union, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from core.managers.data_manager import (
     get_template_content,
@@ -9,9 +8,11 @@ from core.managers.data_manager import (
 )
 from core.service.template_validation import validate_template_content
 
+
 # Simple in-memory cache for template validation status
 # Key: (template_path, content_hash) -> (encoded_content, validation_status)
 _template_validation_cache: Dict[Tuple[str, str], Tuple[str, dict]] = {}
+
 
 def _get_content_hash(content: Optional[str]) -> str:
     if content is None:
@@ -106,12 +107,15 @@ def build_templates_list() -> List[Dict]:
     for tid in list_templates():
         content = get_template_content(tid)
         encoded_content, validation_status = _build_validation_and_content(content, template_path=tid)
-        items.append({
-            "id": tid,
-            "content": encoded_content,
-            "validation_status": validation_status,
-        })
+        items.append(
+            {
+                "id": tid,
+                "content": encoded_content,
+                "validation_status": validation_status,
+            }
+        )
     return items
+
 
 # Invalidate cache for a template (call after update/delete)
 def invalidate_template_validation_cache(template_path: str, content: Optional[str] = None):

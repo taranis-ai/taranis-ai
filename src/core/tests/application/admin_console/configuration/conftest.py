@@ -18,6 +18,12 @@ def cleanup_sources(app):
             "type": "rss_collector",
         }
 
+        # Ensure we start without any dangling sources from previous runs that reuse this name
+        existing_sources = OSINTSource.get_by_filter({"search": source_data["name"]}) or []
+        for existing in existing_sources:
+            if existing.id != source_data["id"]:
+                OSINTSource.delete(existing.id, force=True)
+
         yield source_data
 
         with suppress(SQLAlchemyError):
