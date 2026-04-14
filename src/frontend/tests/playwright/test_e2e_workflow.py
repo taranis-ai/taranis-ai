@@ -8,24 +8,28 @@ from playwright.sync_api import Page, expect
 
 @pytest.mark.usefixtures("e2e_ci")
 @pytest.mark.e2e_user_workflow
+@pytest.mark.usefixtures("ensure_basic_user_permissions")
 class TestUserWorkflow(BaseE2ETest):
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
-        self.login_with_credentials(page)
+        self.login_with_credentials(page, username="user", password="test", button_name="login-button")
         self.assert_dashboard_sections_visible(page, ["Assess", "Analyze", "Publish", "Connectors"])
+        assert page.get_by_role("link", name="Administration").count() == 0
 
-    def test_instance_setup(self, taranis_frontend: Page):
-        page = taranis_frontend
-        self.highlight_element(page.get_by_role("link", name="Assess").first).click()
-        self.highlight_element(page.get_by_role("heading", name="No stories found."))
-        self.highlight_element(page.get_by_role("link", name="Administration")).click()
-        self.highlight_element(page.get_by_test_id("admin-menu-OSINT Source")).click()
-        self.highlight_element(page.get_by_role("button", name="Load default OSINT Source")).click()
-        page.wait_for_selector("tbody tr")
-        rows = page.locator("tbody tr").count()
-        assert rows == 10
+    def test_instance_setup(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, fake_source):
+        page = non_admin_logged_in_page
+        self.navigate_to_assess(page)
+        expect(page.get_by_test_id("assess")).to_be_visible()
+        assert page.get_by_role("link", name="Administration").count() == 0
+        expect(page.get_by_role("searchbox", name="Select sources")).to_be_visible()
 
-    def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list, stories_date_descending_important: list):
+    def test_assess(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        stories_date_descending_not_important: list,
+        stories_date_descending_important: list,
+    ):
         def go_to_assess():
             self.navigate_to_assess(page)
 
@@ -139,7 +143,7 @@ class TestUserWorkflow(BaseE2ETest):
         #           Run test
         # ============================
 
-        page = taranis_frontend
+        page = non_admin_logged_in_page
 
         go_to_assess()
         # test_hotkey_menu()
@@ -147,7 +151,7 @@ class TestUserWorkflow(BaseE2ETest):
         assess_workflow_1(stories_date_descending_not_important)
         assess_workflow_2(stories_date_descending_important)
 
-    def test_reports(self, taranis_frontend: Page, stories_date_descending: list):
+    def test_reports(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_date_descending: list):
         def go_to_analyze():
             self.navigate_to_analyze(page)
 
@@ -247,7 +251,7 @@ class TestUserWorkflow(BaseE2ETest):
         #           Run test
         # ============================
 
-        page = taranis_frontend
+        page = non_admin_logged_in_page
 
         go_to_analyze()
         report_1()
@@ -268,8 +272,8 @@ class TestUserWorkflow(BaseE2ETest):
         # go_to_assess()
         # check_reports_items_by_tag()
 
-    def test_e2e_publish(self, taranis_frontend: Page):
-        page = taranis_frontend
+    def test_e2e_publish(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin):
+        page = non_admin_logged_in_page
 
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
         page.wait_for_url("**/publish", wait_until="domcontentloaded")

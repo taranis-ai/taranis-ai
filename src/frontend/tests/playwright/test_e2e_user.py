@@ -15,7 +15,7 @@ ASSESS_STORY_PAGE_SIZE = 20
 
 @pytest.mark.e2e_user
 @pytest.mark.e2e_ci
-@pytest.mark.usefixtures("e2e_ci")
+@pytest.mark.usefixtures("e2e_ci", "ensure_basic_user_permissions")
 class TestEndToEndUser(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI user interface."""
 
@@ -49,8 +49,8 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, stories_function_wrapper):
-        page = logged_in_page
+    def test_user_dashboard(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper):
+        page = non_admin_logged_in_page
 
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
@@ -143,8 +143,8 @@ class TestEndToEndUser(PlaywrightHelpers):
         assert page.get_by_role("link", name="Administration").count() == 0
         assert page.get_by_test_id("attribute-table").count() == 0
 
-    def test_user_profile(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
-        page = logged_in_page
+    def test_user_profile(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories):
+        page = non_admin_logged_in_page
 
         def go_to_user_profile():
             page.goto(url_for("user.settings", _external=True))
@@ -168,23 +168,23 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def change_password_fail():
             # Wrong current password
-            page.get_by_role("textbox", name="Current password").fill("admin1")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("textbox", name="Current password").fill("wrong-password")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test")
+            page.get_by_role("textbox", name="Confirm new password").fill("test")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Old password is incorrect")
 
             # Mismatching new passwords
-            page.get_by_role("textbox", name="Current password").fill("admin")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin1")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("textbox", name="Current password").fill("test")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test1")
+            page.get_by_role("textbox", name="Confirm new password").fill("test")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("New password and confirm password do not match")
 
         def change_password():
-            page.get_by_role("textbox", name="Current password").fill("admin")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin1")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin1")
+            page.get_by_role("textbox", name="Current password").fill("test")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test1")
+            page.get_by_role("textbox", name="Confirm new password").fill("test1")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
@@ -213,9 +213,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("link", name="Logout").click()
             expect(page.get_by_role("img", name="Taranis Logo")).to_be_visible()
 
-            page.get_by_role("textbox", name="Username").fill("admin")
+            page.get_by_role("textbox", name="Username").fill("user")
             page.get_by_role("textbox", name="Username").press("Tab")
-            page.get_by_role("textbox", name="Password").fill("admin1")
+            page.get_by_role("textbox", name="Password").fill("test1")
             page.get_by_test_id("login-button").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
@@ -227,10 +227,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator(".collapse > input").check()
-            page.get_by_role("textbox", name="Current password").fill("admin1")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin")
+            page.get_by_role("textbox", name="Current password").fill("test1")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test")
             page.get_by_role("textbox", name="New password", exact=True).press("Tab")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("textbox", name="Confirm new password").fill("test")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
@@ -242,8 +242,8 @@ class TestEndToEndUser(PlaywrightHelpers):
         relog_in()
         change_password_back()
 
-    def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
-        page = logged_in_page
+    def test_user_assess(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories):
+        page = non_admin_logged_in_page
 
         def go_to_assess():
             page.goto(url_for("assess.assess", _external=True))
@@ -347,12 +347,12 @@ class TestEndToEndUser(PlaywrightHelpers):
 
     def test_story_export(
         self,
-        logged_in_page: Page,
-        forward_console_and_page_errors,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
         pre_seed_stories,
         news_items_list: list[dict],
     ):
-        page = logged_in_page
+        page = non_admin_logged_in_page
         expected_story = news_items_list[0]
         expected_title = expected_story["title"]
         possible_story_titles = {expected_title, f"{expected_title} edited title"}
@@ -396,13 +396,13 @@ class TestEndToEndUser(PlaywrightHelpers):
 
     def test_user_analyze(
         self,
-        logged_in_page: Page,
-        forward_console_and_page_errors,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
         pre_seed_report_stories,
         pre_seed_report_type_all_attribute_types_optional,
         pre_seed_report_type_all_attribute_types_required,
     ):
-        page = logged_in_page
+        page = non_admin_logged_in_page
         report_story_one, report_story_two = pre_seed_report_stories
         story_search_term = " ".join(report_story_one["title"].split()[:2])
         story_search_term_lower = story_search_term.lower()
@@ -845,8 +845,8 @@ class TestEndToEndUser(PlaywrightHelpers):
         go_to_analyze()
         check_various_report_type_fields()
 
-    def test_publish(self, logged_in_page: Page, forward_console_and_page_errors, stories_session_wrapper):
-        page = logged_in_page
+    def test_publish(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_session_wrapper):
+        page = non_admin_logged_in_page
         product_title = f"test_product_{str(uuid.uuid4())[:8]}"
 
         def load_product_list():

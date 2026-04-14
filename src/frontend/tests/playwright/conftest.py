@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 import requests
 import responses
-from flask import json
-from playwright.sync_api import Browser, BrowserContext, Page
+from flask import json, url_for
+from playwright.sync_api import Browser, BrowserContext, Page, expect
 
 from tests.playwright.e2e_harness import (
     docker_cleanup_commands,
@@ -201,6 +201,8 @@ def _new_authenticated_page(taranis_frontend: Page, e2e_server, token_response) 
     context = taranis_frontend.context
     base_url: str = e2e_server.url()
 
+    # Ensure we do not leak auth state across test segments (admin -> user).
+    context.clear_cookies()
     _add_auth_cookies(context, base_url, token_response)
 
     page = context.new_page()
@@ -246,6 +248,18 @@ def non_admin_logged_in_page(authenticated_page_factory):
     finally:
         _dismiss_notifications(page)
         page.close()
+
+
+@pytest.fixture
+def ensure_basic_user_permissions(non_admin_logged_in_page):
+    """Fail fast when a user suite accidentally runs with admin privileges."""
+    page = non_admin_logged_in_page
+
+    page.goto(url_for("base.dashboard", _external=True))
+    assert page.get_by_role("link", name="Administration").count() == 0, "Basic user unexpectedly sees Administration menu"
+
+    page.goto(url_for("admin.attributes", _external=True))
+    expect(page.get_by_text("403 - Access denied")).to_be_visible()
 
 
 def _forward_console_and_page_errors(request, page: Page, extra_allow_patterns: list[str] | None = None):
