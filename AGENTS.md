@@ -125,6 +125,7 @@ See .github/workflows for how tests are configured in CI.
 
 ## Development Guidelines
 
+- When creating branches, use only `fix/`, `feature/`, or `chore/` prefixes.
 - never use `git add -A` or in general do not add "all" files lying around
 - use specific git add commands for the files you want to commit
 - don't commit how many tests passed (statistics in commit messages are not useful)
