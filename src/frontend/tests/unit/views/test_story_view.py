@@ -167,3 +167,30 @@ def test_story_sharing_dialog_loads_connectors_from_assess_endpoint(authenticate
     assert connector_id in response.text
     assert "MISP Connector" in response.text
     assert all(call.request.url != f"{Config.TARANIS_CORE_URL}/config/connectors" for call in responses_mock.calls)
+
+
+def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authenticated_client_basic, monkeypatch, responses_mock):
+    story_id = "story-1"
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}",
+        json={"id": story_id, "title": "Shared Story", "links": ["https://example.com/story"]},
+    )
+
+    def raise_connector_loading_error(*args, **kwargs):
+        raise RuntimeError("permission lookup failed")
+
+    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.get_objects", raise_connector_loading_error)
+
+    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
+
+    assert response.status_code == 200
+    assert "Share Stories" in response.text
+    assert "Shared Story" not in response.text
+
+    tree = html.fromstring(response.text)
+    connector_select = tree.xpath('//select[@id="connector"]')
+    assert len(connector_select) == 1
+    options = connector_select[0].xpath("./option")
+    assert len(options) == 1
+    assert options[0].text == "Select a connector"
