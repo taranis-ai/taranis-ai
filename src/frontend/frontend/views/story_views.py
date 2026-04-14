@@ -158,7 +158,7 @@ class StoryView(BaseView):
         try:
             connectors = DataPersistenceLayer().get_objects(Connector)
         except Exception as e:
-            logger.exception(f"Failed to fetch connectors for share dialog: {e}")
+            logger.error(f"Failed to fetch connectors for share dialog: {e}")
             connectors = []
         return render_template(
             "assess/story_sharing_dialog.html", connectors=connectors, story_ids=story_ids, mail_sharing_link=mail_sharing_link
