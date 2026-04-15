@@ -30,6 +30,7 @@ src/.env
 *.pem
 *.key
 *.log
+screenshot_*.png
 
 # settings of editors
 .idea/

@@ -79,6 +79,9 @@ sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
 sudo nginx -t && sudo systemctl restart nginx
 ```
 
+The dev nginx config also serves load-test artifacts from `/tmp/taranis-load-reports/`.
+After running `./dev/run_load_tests.sh`, the latest Locust HTML report is available at `http://local.taranis.ai/load-reports/latest/locust-report.html`.
+
 Start a tmux session with multiple panes for the different processes:
 
 ```bash

@@ -3,16 +3,22 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/tests/load/docker-compose.load.yml"
+ARTIFACTS_ROOT="$ROOT_DIR/tests/load/artifacts"
+PUBLIC_ARTIFACTS_ROOT="/tmp/taranis-load-reports"
+REPORT_URL="http://local.taranis.ai/load-reports/latest/locust-report.html"
 
 PROFILE="smoke"
 USERS=""
 SPAWN_RATE=""
 RUN_TIME=""
 RUN_ID="${LOAD_RUN_ID:-load-$(date +%Y%m%d-%H%M%S)}"
-ARTIFACT_DIR="${LOAD_ARTIFACT_DIR:-$ROOT_DIR/tests/load/artifacts/$RUN_ID}"
+ARTIFACT_DIR="${LOAD_ARTIFACT_DIR:-$ARTIFACTS_ROOT/$RUN_ID}"
+PUBLIC_ARTIFACT_DIR="$PUBLIC_ARTIFACTS_ROOT/$RUN_ID"
 INGRESS_PORT="${LOAD_TEST_INGRESS_PORT:-18080}"
 PROJECT_NAME="taranis-load-${RUN_ID//[^a-zA-Z0-9]/}"
 PROJECT_NAME="${PROJECT_NAME,,}"
+LATEST_ARTIFACT_LINK="$ARTIFACTS_ROOT/latest"
+LATEST_PUBLIC_ARTIFACT_LINK="$PUBLIC_ARTIFACTS_ROOT/latest"
 
 usage() {
   cat <<'EOF'
@@ -75,6 +81,17 @@ export LOCUST_RUN_TIME="${RUN_TIME:-$DEFAULT_RUN_TIME}"
 export COMPOSE_PROJECT_NAME="$PROJECT_NAME"
 
 mkdir -p "$ARTIFACT_DIR"
+mkdir -p "$PUBLIC_ARTIFACTS_ROOT"
+
+publish_artifacts() {
+  rm -rf "$PUBLIC_ARTIFACT_DIR"
+  mkdir -p "$PUBLIC_ARTIFACT_DIR"
+  cp -a "$ARTIFACT_DIR"/. "$PUBLIC_ARTIFACT_DIR"/
+  if [[ -f "$ARTIFACT_DIR/locust-report.html" ]]; then
+    ln -sfn "$ARTIFACT_DIR" "$LATEST_ARTIFACT_LINK"
+    ln -sfn "$PUBLIC_ARTIFACT_DIR" "$LATEST_PUBLIC_ARTIFACT_LINK"
+  fi
+}
 
 compose() {
   docker compose -f "$COMPOSE_FILE" "$@"
@@ -99,6 +116,7 @@ run_and_capture() {
 
 cleanup() {
   capture_logs
+  publish_artifacts
   compose down -v --remove-orphans || true
 }
 
@@ -106,6 +124,10 @@ trap cleanup EXIT
 
 echo "Run id: $RUN_ID"
 echo "Artifacts: $ARTIFACT_DIR"
+echo "Latest artifacts link: $LATEST_ARTIFACT_LINK"
+echo "Latest Locust report: $LATEST_ARTIFACT_LINK/locust-report.html"
+echo "Public artifacts root: $PUBLIC_ARTIFACTS_ROOT"
+echo "Latest Locust report URL: $REPORT_URL"
 echo "Profile: $PROFILE"
 echo "Users: $LOCUST_USERS"
 echo "Spawn rate: $LOCUST_SPAWN_RATE"

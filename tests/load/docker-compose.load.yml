@@ -139,6 +139,8 @@ services:
       - sh
       - -c
       - >
+        mkdir -p /artifacts/screenshots &&
+        cd /artifacts/screenshots &&
         locust
         --headless
         --only-summary
