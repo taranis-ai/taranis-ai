@@ -38,7 +38,7 @@ class TestEndToEndAdmin(BaseE2ETest):
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
         page.context.clear_cookies()
-        self.login_with_credentials(page, button_name="login-button")
+        self.login_with_credentials(page)
 
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page

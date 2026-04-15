@@ -6,7 +6,12 @@ from playwright_helpers import PlaywrightHelpers
 class BaseE2ETest(PlaywrightHelpers):
     """Base class for E2E tests with common CRUD operations and shared logic."""
 
-    def login_with_credentials(self, page: Page, username: str = "admin", password: str = "admin", button_name: str = "login"):
+    def login_with_credentials(
+        self,
+        page: Page,
+        username: str = "admin",
+        password: str = "admin",
+    ):
         """Perform login with given credentials."""
         page.goto(url_for("base.login", _external=True))
         expect(page).to_have_title("Taranis AI", timeout=5000)
@@ -17,11 +22,9 @@ class BaseE2ETest(PlaywrightHelpers):
         page.get_by_placeholder("Username").fill(username)
         self.highlight_element(page.get_by_placeholder("Password"))
         page.get_by_placeholder("Password").fill(password)
-        login_button = page.get_by_role("button", name=button_name)
-        if login_button.count():
-            self.highlight_element(login_button).click()
-        else:
-            self.highlight_element(page.get_by_test_id(button_name)).click()
+        login_button = page.get_by_test_id("login-button")
+        expect(login_button).to_be_visible(timeout=10000)
+        self.highlight_element(login_button).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         expect(page.locator("#dashboard")).to_be_visible()
 
@@ -31,7 +34,7 @@ class BaseE2ETest(PlaywrightHelpers):
         expect(page.get_by_test_id(table_test_id)).to_be_visible()
         page.screenshot(path=f"./tests/playwright/screenshots/docs_{url_endpoint.split('.')[-1]}.png")
 
-    def fill_form_field(self, page: Page, label: str, value: str, exact: bool = False, required: bool = False):
+    def fill_form_field(self, page: Page, label: str, value: str, exact: bool = True, required: bool = False):
         """Fill a form field by label, with optional required validation."""
         field = page.get_by_label(label, exact=exact)
         if required:
@@ -62,24 +65,36 @@ class BaseE2ETest(PlaywrightHelpers):
         """Assert that an item does not appear in a table."""
         expect(page.get_by_test_id(table_test_id).get_by_role("link", name=item_name)).not_to_be_visible()
 
-    def create_item(self, page: Page, new_button_test_id: str, fields: dict[str, str], submit_locator: str):
+    def create_item(
+        self,
+        page: Page,
+        new_button_test_id: str,
+        text_fields: dict[str, str],
+        submit_locator: str,
+        select_fields: dict[str, str] | None = None,
+    ):
         """Create a new item by filling form fields."""
         page.get_by_test_id(new_button_test_id).click()
-        for label, value in fields.items():
-            if label.startswith("select:"):
-                self.select_form_option(page, label[7:], value)
-            else:
-                self.fill_form_field(page, label, value)
+        for label, value in text_fields.items():
+            self.fill_form_field(page, label, value, exact=False)
+        for label, value in (select_fields or {}).items():
+            self.select_form_option(page, label, value)
         self.submit_form(page, submit_locator)
 
-    def update_item(self, page: Page, item_name: str, fields: dict[str, str], submit_locator: str):
+    def update_item(
+        self,
+        page: Page,
+        item_name: str,
+        text_fields: dict[str, str],
+        submit_locator: str,
+        select_fields: dict[str, str] | None = None,
+    ):
         """Update an existing item."""
         page.get_by_role("link", name=item_name).click()
-        for label, value in fields.items():
-            if label.startswith("select:"):
-                self.select_form_option(page, label[7:], value)
-            else:
-                self.fill_form_field(page, label, value)
+        for label, value in text_fields.items():
+            self.fill_form_field(page, label, value, exact=False)
+        for label, value in (select_fields or {}).items():
+            self.select_form_option(page, label, value)
         self.submit_form(page, submit_locator)
 
     def delete_item(self, page: Page, table_test_id: str, item_name: str):
@@ -122,7 +137,7 @@ class BaseE2ETest(PlaywrightHelpers):
         story_card = page.get_by_test_id(f"story-card-{story_id}")
         self.highlight_element(story_card.get_by_test_id("toggle-summary")).click()
         self.highlight_element(story_card.get_by_test_id("open-detail-view")).click()
-        self.short_sleep(0.5)
+        expect(page.get_by_test_id("story-title")).to_be_visible(timeout=10000)
 
     def set_story_filters(self, page: Page, read: str | None = None, important: str | None = None):
         """Set story filters."""

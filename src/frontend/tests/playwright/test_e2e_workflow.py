@@ -12,7 +12,7 @@ from playwright.sync_api import Page, expect
 class TestUserWorkflow(BaseE2ETest):
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
-        self.login_with_credentials(page, username="user", password="test", button_name="login-button")
+        self.login_with_credentials(page, username="user", password="test")
         self.assert_dashboard_sections_visible(page, ["Assess", "Analyze", "Publish", "Connectors"])
         assert page.get_by_role("link", name="Administration").count() == 0
 
