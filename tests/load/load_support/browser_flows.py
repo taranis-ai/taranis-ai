@@ -11,6 +11,7 @@ from testsupport.load_testing.browser_contract import (
     LOGIN_BUTTON_TEST_ID,
     LOGIN_PASSWORD_PLACEHOLDER,
     LOGIN_USERNAME_PLACEHOLDER,
+    NAVBAR_ROOT_SELECTOR,
     REPORT_TABLE_TEST_ID,
     USER_NAV_ANALYZE_LABEL,
     USER_NAV_ASSESS_LABEL,
@@ -35,6 +36,10 @@ async def assert_dashboard(page) -> None:
     await expect(dashboard).to_be_visible()
     for marker in DASHBOARD_MARKERS:
         await expect(dashboard.get_by_text(marker, exact=False)).to_be_visible()
+
+
+def navbar(page):
+    return page.locator(NAVBAR_ROOT_SELECTOR)
 
 
 async def assert_assess(page) -> None:
@@ -69,7 +74,7 @@ class FrontendBrowserUser(PlaywrightUser):
     @pw
     async def assess_flow(self, page):
         await login_and_land_on_dashboard(page, self.username, self.password)
-        await page.get_by_role("link", name=USER_NAV_ASSESS_LABEL).click()
+        await navbar(page).get_by_role("link", name=USER_NAV_ASSESS_LABEL).click()
         await page.wait_for_url("**/frontend/assess**", wait_until="domcontentloaded")
         await assert_assess(page)
 
@@ -77,6 +82,6 @@ class FrontendBrowserUser(PlaywrightUser):
     @pw
     async def analyze_flow(self, page):
         await login_and_land_on_dashboard(page, self.username, self.password)
-        await page.get_by_role("link", name=USER_NAV_ANALYZE_LABEL).click()
+        await navbar(page).get_by_role("link", name=USER_NAV_ANALYZE_LABEL).click()
         await page.wait_for_url("**/frontend/analyze**", wait_until="domcontentloaded")
         await assert_analyze(page)

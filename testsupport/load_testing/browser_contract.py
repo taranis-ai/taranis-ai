@@ -8,6 +8,7 @@ LOGIN_PASSWORD_PLACEHOLDER = "Password"
 LOGIN_BUTTON_TEST_ID = "login-button"
 
 DASHBOARD_ROOT_SELECTOR = "#dashboard"
+NAVBAR_ROOT_SELECTOR = "#navbar"
 DASHBOARD_MARKERS = ("Assess", "Analyze", "Publish", "Connectors")
 
 USER_NAV_ASSESS_LABEL = "Assess"
