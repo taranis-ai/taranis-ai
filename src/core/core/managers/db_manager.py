@@ -1,12 +1,14 @@
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.engine import reflection, Engine
-from sqlalchemy import event, text
 from sqlite3 import Connection as SQLite3Connection
 
-from core.managers.db_seed_manager import pre_seed, pre_seed_update, sync_enums
-from core.managers.db_migration_manager import perform_migration
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event, text
+from sqlalchemy.engine import Engine, reflection
+
 from core.log import logger
+from core.managers.db_migration_manager import perform_migration
+from core.managers.db_seed_manager import pre_seed, pre_seed_update, sync_enums
+
 
 db: SQLAlchemy = SQLAlchemy()
 

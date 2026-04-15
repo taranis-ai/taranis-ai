@@ -1,5 +1,5 @@
 from flask import Response, jsonify
-from flask_jwt_extended import create_access_token, set_access_cookies, create_refresh_token, set_refresh_cookies
+from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
 
 from core.log import logger
 from core.model.token_blacklist import TokenBlacklist

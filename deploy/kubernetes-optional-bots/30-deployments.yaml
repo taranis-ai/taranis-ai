@@ -51,18 +51,18 @@ spec:
                   name: taranis-secrets
                   key: LLM_API_KEY
           ports:
-            - containerPort: 5500
+            - containerPort: 8000
               name: http
           readinessProbe:
             httpGet:
               path: /health
-              port: 5500
+              port: 8000
             initialDelaySeconds: 20
             periodSeconds: 15
           livenessProbe:
             httpGet:
               path: /health
-              port: 5500
+              port: 8000
             initialDelaySeconds: 40
             periodSeconds: 30
           resources:

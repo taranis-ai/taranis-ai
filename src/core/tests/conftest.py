@@ -75,28 +75,21 @@ def db(app):
 @pytest.fixture
 def session(db):
     """Creates a new database session for a test."""
+    original_session = db.session
     connection = db.engine.connect()
     transaction = connection.begin()
+    test_session = scoped_session(session_factory=sessionmaker(bind=connection))
+    db.session = test_session
 
-    # Store the original session to restore later
-    original_session = db.session
-
-    db.session = scoped_session(session_factory=sessionmaker(bind=connection))
-
-    yield db.session
-
-    # Ensure all pending changes are cleared before rollback
-    db.session.expunge_all()
-
-    # Check if transaction is still active before rolling back
-    if transaction.is_active:
-        transaction.rollback()
-
-    connection.close()
-    db.session.remove()
-
-    # Restore the original session for cleanup fixtures
-    db.session = original_session
+    try:
+        yield test_session
+    finally:
+        test_session.expunge_all()
+        if transaction.is_active:
+            transaction.rollback()
+        connection.close()
+        test_session.remove()
+        db.session = original_session
 
 
 @pytest.fixture(scope="session")
@@ -241,53 +234,6 @@ def _is_vscode(config) -> bool:
     return bool(os.getenv("VSCODE_PID") or os.getenv("VSCODE_CWD"))
 
 
-def pytest_addoption(parser):
-    group = parser.getgroup("e2e")
-    group.addoption("--e2e-user", action="store_const", const="e2e_user", default=None, help="run e2e tests")
-    group.addoption("--e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
-    group.addoption("--e2e-timeout", action="store", default="10000", help="milliseconds to wait for e2e tests")
-    group.addoption("--highlight-delay", action="store", default="2", help="delay for highlighting elements in e2e tests")
-    group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
-    group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
-
-
-def skip_tests(items, keyword, reason):
-    skip_marker = pytest.mark.skip(reason=reason)
-    for item in items:
-        if keyword not in item.keywords:
-            item.add_marker(skip_marker)
-
-
-def pytest_collection_modifyitems(config, items):
-    config.option.start_live_server = False
-
-    if _is_vscode(config):
-        config.option.trace = True
-        config.option.headed = False
-        return
-
-    options = {
-        "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
-        "--e2e-user": ("e2e_user", "skip for --e2e-user test"),
-        "--e2e-user-workflow": ("e2e_user_workflow", "need --e2e-user-workflow option to run tests marked with e2e_user_workflow"),
-    }
-
-    config.option.headed = True
-
-    for option, (keyword, reason) in options.items():
-        if config.getoption(option):
-            if option == "--e2e-ci":
-                config.option.trace = True
-                config.option.headed = False
-            skip_tests(items, keyword, reason)
-            return
-
-    skip_all = pytest.mark.skip(reason="need --e2e-user, --e2e-ci, --e2e-user-workflow option to run these tests")
-    for item in items:
-        if any(keyword in item.keywords for keyword, _ in options.values()):
-            item.add_marker(skip_all)
-
-
 @pytest.fixture
 def sample_report_type(app):
     """Create a sample ReportItemType for testing"""
@@ -388,6 +334,152 @@ def sample_product_type_multi_report_types(app):
         yield product_type
         try:
             db.session.delete(product_type)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def osint_sources(app):
+    """Create test OSINT sources with schedules"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource
+
+        source1 = OSINTSource(
+            name="Test RSS Source",
+            description="RSS collector used in cron job tests",
+            type="rss_collector",
+            parameters={"feed": "https://example.com/feed", "REFRESH_INTERVAL": "0 * * * *"},
+        )
+        source1.enabled = True
+
+        source2 = OSINTSource(
+            name="Test Web Source",
+            description="Web collector used in cron job tests",
+            type="simple_web_collector",
+            parameters={"url": "https://example.com", "REFRESH_INTERVAL": "*/30 * * * *"},
+        )
+        source2.enabled = True
+
+        sources = [source1, source2]
+        db.session.add_all(sources)
+        db.session.commit()
+        yield sources
+        try:
+            for source in sources:
+                db.session.delete(source)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def disabled_osint_source(app):
+    """Create a disabled OSINT source"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource
+
+        source = OSINTSource(
+            name="Disabled Source",
+            description="Disabled collector fixture",
+            type="rss_collector",
+            parameters={"feed": "https://example.com/disabled", "REFRESH_INTERVAL": "0 * * * *"},
+        )
+        source.enabled = False
+        db.session.add(source)
+        db.session.commit()
+        yield source
+        try:
+            db.session.delete(source)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def osint_source_no_schedule(app):
+    """Create an OSINT source without a schedule"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource
+
+        source = OSINTSource(
+            name="No Schedule Source",
+            description="Collector without schedule for exclusion test",
+            type="rss_collector",
+            parameters={"feed": "https://example.com/no-schedule", "REFRESH_INTERVAL": ""},  # Empty REFRESH_INTERVAL to skip scheduling
+        )
+        source.enabled = True
+        db.session.add(source)
+        db.session.commit()
+        yield source
+        try:
+            db.session.delete(source)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def bots(app):
+    """Create test bots with schedules"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.bot import Bot
+
+        highest_index = Bot.get_highest_index()
+
+        bot1 = Bot(
+            name="Test IOC Bot",
+            description="IOC bot fixture for cron job tests",
+            type="ioc_bot",
+            index=highest_index + 1,
+            parameters={"REFRESH_INTERVAL": "0 2 * * *"},  # Daily at 2am
+        )
+        bot1.enabled = True
+
+        bot2 = Bot(
+            name="Test NLP Bot",
+            description="NLP bot fixture for cron job tests",
+            type="nlp_bot",
+            index=highest_index + 2,
+            parameters={"REFRESH_INTERVAL": "0 */6 * * *"},  # Every 6 hours
+        )
+        bot2.enabled = True
+
+        bots = [bot1, bot2]
+        db.session.add_all(bots)
+        db.session.commit()
+        yield bots
+        try:
+            for bot in bots:
+                db.session.delete(bot)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+@pytest.fixture
+def disabled_bot(app):
+    """Create a disabled bot"""
+    with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.bot import Bot
+
+        bot = Bot(
+            name="Disabled Bot",
+            description="Disabled bot fixture",
+            type="ioc_bot",
+            parameters={"REFRESH_INTERVAL": "0 * * * *"},
+        )
+        bot.enabled = False
+        db.session.add(bot)
+        db.session.commit()
+        yield bot
+        try:
+            db.session.delete(bot)
             db.session.commit()
         except Exception:
             db.session.rollback()

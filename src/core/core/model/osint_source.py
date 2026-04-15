@@ -1,12 +1,12 @@
 import base64
 import json
 import uuid
+from datetime import datetime
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Sequence
 
-from apscheduler.triggers.cron import CronTrigger
+from models.admin import CronSpec, OSINTSourceUpdateModel
 from models.admin import OSINTSource as OSINTSourceModel
-from models.admin import OSINTSourceUpdateModel
 from models.types import COLLECTOR_TYPES
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
@@ -16,7 +16,6 @@ from sqlalchemy.sql import Select
 
 from core.config import Config
 from core.log import logger
-from core.managers import schedule_manager
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
@@ -103,6 +102,14 @@ class OSINTSource(BaseModel):
     @property
     def task_id(self):
         return f"collect_{self.type}_{self.id}"
+
+    @property
+    def cron_job_id(self) -> str:
+        return f"osint_source_{self.id}"
+
+    @property
+    def cron_run_prefix(self) -> str:
+        return f"cron_{self.cron_job_id}_"
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
@@ -213,6 +220,9 @@ class OSINTSource(BaseModel):
         if self.status:
             data["status"] = self.status
 
+        # Include refresh schedule for worker self-rescheduling
+        data["refresh"] = self.get_schedule_with_default()
+
         return data
 
     @staticmethod
@@ -236,26 +246,61 @@ class OSINTSource(BaseModel):
         }
 
     def get_schedule(self) -> str:
-        if refresh_interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):
-            return refresh_interval
+        """Return only the explicit REFRESH_INTERVAL; empty string if unset."""
+        return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
 
+    @staticmethod
+    def get_default_schedule() -> str:
+        """Global default collector interval from settings."""
         return Settings.get_settings().get("default_collector_interval", "0 */8 * * *")
 
-    def to_task_dict(self, crontab_str: str):
-        return {
-            "id": self.task_id,
-            "name": f"{self.type}_{self.name}",
-            "jobs_params": {
-                "trigger": CronTrigger.from_crontab(crontab_str),
-                "max_instances": 1,
-            },
-            "celery": {
-                "name": "collector_task",
-                "args": [self.id],
-                "queue": "collectors",
-                "task_id": self.task_id,
-            },
-        }
+    def get_schedule_with_default(self) -> str:
+        """Return schedule with fallback to the global default when missing."""
+        return self.get_schedule() or self.get_default_schedule()
+
+    @classmethod
+    def get_enabled_schedule_entries(cls, now: datetime | None = None) -> list[dict[str, Any]]:
+        """Get schedule entries for all enabled OSINT sources.
+
+        Note: All times are calculated in UTC for consistency across the system.
+        """
+        from datetime import timezone
+
+        from core.managers.queue_manager import QueueManager
+
+        now = now or datetime.now(timezone.utc).replace(tzinfo=None)
+        schedule_entries: list[dict[str, Any]] = []
+
+        sources = cls.get_all_for_collector()
+        for source in sources:
+            if not (cron_schedule := source.get_schedule_with_default()):
+                continue
+
+            try:
+                task_result = TaskModel.get_latest_matching(
+                    exact_ids={source.task_id},
+                    prefixes=[source.cron_run_prefix],
+                    task_name="collector_task",
+                )
+
+                schedule_entries.append(
+                    QueueManager.build_cron_schedule_entry(
+                        job_id=source.cron_job_id,
+                        name=f"Collector: {source.name}",
+                        queue="collectors",
+                        cron_schedule=cron_schedule,
+                        now=now,
+                        source_id=source.id,
+                        task_id=source.task_id,
+                        last_run=task_result.last_run if task_result else None,
+                        last_success=task_result.last_success if task_result else None,
+                        last_status=task_result.status if task_result else None,
+                    )
+                )
+            except Exception as exc:
+                logger.error(f"Failed to calculate next run for source {source.id}: {exc}")
+
+        return schedule_entries
 
     @classmethod
     def add(cls, data):
@@ -263,6 +308,11 @@ class OSINTSource(BaseModel):
         db.session.add(osint_source)
         db.session.commit()
         osint_source.schedule_osint_source()
+        osint_source._publish_frontend_cache_invalidation(
+            "/config/osint-sources",
+            "/config/schedule",
+            "/config/workers/dashboard",
+        )
         return osint_source
 
     @classmethod
@@ -284,6 +334,11 @@ class OSINTSource(BaseModel):
             return {"error": "Invalid state"}, 400
 
         db.session.commit()
+        osint_source._publish_frontend_cache_invalidation(
+            "/config/osint-sources",
+            "/config/schedule",
+            "/config/workers/dashboard",
+        )
         return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
 
     @classmethod
@@ -306,6 +361,11 @@ class OSINTSource(BaseModel):
             osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
         db.session.commit()
         osint_source.schedule_osint_source()
+        osint_source._publish_frontend_cache_invalidation(
+            "/config/osint-sources",
+            "/config/schedule",
+            "/config/workers/dashboard",
+        )
         return osint_source
 
     def _parse_icon(self, icon: bytes | str) -> bytes:
@@ -366,6 +426,8 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
+        from core.managers import queue_manager
+
         if source_id == "manual":
             return {"error": "The manual source cannot be deleted"}, 400
 
@@ -374,13 +436,21 @@ class OSINTSource(BaseModel):
 
         try:
             source.unschedule_osint_source()
-            TaskModel.delete(source.task_id)
+            queue_manager.queue_manager.purge_job_artifacts(
+                exact_ids={source.task_id},
+                prefixes=[source.cron_run_prefix],
+            )
             if force:
                 news_item_table = db.metadata.tables.get("news_item")
                 if news_item_table is not None:
                     db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
             db.session.delete(source)
             db.session.commit()
+            source._publish_frontend_cache_invalidation(
+                "/config/osint-sources",
+                "/config/schedule",
+                "/config/workers/dashboard",
+            )
             return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
@@ -388,14 +458,31 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def schedule_all_osint_sources(cls):
+        """Schedule all enabled OSINT sources using RQ"""
         sources = cls.get_all_for_collector()
         for source in sources:
-            interval = source.get_schedule()
-            entry = source.to_task_dict(interval)
-            schedule_manager.schedule.add_celery_task(entry)
-        logger.info(f"Gathering for {len(sources)} OSINT Sources scheduled")
+            source.schedule_osint_source()
+        logger.info(f"Scheduling for {len(sources)} OSINT Sources completed")
+
+    def get_cron_spec(self) -> CronSpec:
+        """Get the cron specification for this OSINT source"""
+        return CronSpec(
+            meta={"name": f"Collector: {self.name}"},
+            job_id=self.cron_job_id,
+            cron=self.get_schedule_with_default(),
+            func_path="collector_task",
+            args=[self.id, False],
+            queue_name="collectors",
+        )
 
     def schedule_osint_source(self):
+        """Schedule this OSINT source collection using RQ
+
+        The scheduler process reads cron definitions from Redis.
+        This method validates the source and upserts its cron definition.
+        """
+        from core.managers import queue_manager
+
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             logger.warning(f"OSINT Source: {self.name} is a manual collector, skipping scheduling")
             return {"message": "Manual collector does not need to be scheduled"}, 200
@@ -404,17 +491,28 @@ class OSINTSource(BaseModel):
             logger.warning(f"OSINT Source: {self.name} is disabled, skipping scheduling")
             return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}"}, 400
 
-        interval = self.get_schedule()
-        entry = self.to_task_dict(interval)
-        schedule_manager.schedule.add_celery_task(entry)
-        logger.info(f"Schedule for source {self.id} updated")
-        return {"message": f"Schedule for source {self.name} updated", "id": f"{self.id}"}, 200
+        return queue_manager.queue_manager.register_cron_job(self.get_cron_spec())
 
     def unschedule_osint_source(self):
-        entry_id = self.task_id
-        schedule_manager.schedule.remove_periodic_task(entry_id)
-        logger.info(f"Schedule for source {self.id} removed")
-        return {"message": f"Schedule for source {self.name} removed", "id": f"{self.id}"}, 200
+        """Cancel scheduled collection for this OSINT source
+
+        Removes the source cron definition from Redis.
+        """
+        from core.managers import queue_manager
+
+        logger.info(f"Unscheduling {self.name}. Notifying cron scheduler...")
+        return queue_manager.queue_manager.unregister_cron_job(self.cron_job_id)
+
+    @classmethod
+    def _publish_frontend_cache_invalidation(cls, *suffixes: str) -> None:
+        try:
+            from core.managers import queue_manager
+
+            published = queue_manager.queue_manager.publish_cache_invalidation(*suffixes)
+            if published:
+                logger.debug("Published %s frontend cache invalidation signals", published)
+        except Exception as exc:
+            logger.warning(f"Failed to publish frontend cache invalidation signal: {exc}")
 
     def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
         export_dict = {
@@ -604,6 +702,11 @@ class OSINTSource(BaseModel):
             raise ValueError("Unsupported version")
 
         ids = cls.add_multiple_with_group(data, groups)
+        cls._publish_frontend_cache_invalidation(
+            "/config/osint-sources",
+            "/config/schedule",
+            "/config/workers/dashboard",
+        )
         logger.debug(f"Imported {len(ids)} sources")
         return ids
 

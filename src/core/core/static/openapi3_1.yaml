@@ -1920,7 +1920,7 @@ paths:
     get:
       tags: [config]
       operationId: Workers
-      description: get all workers connected for CELERY (via RabbitMQ)
+      description: get all workers connected for RQ (via Redis)
       security:
         - UserAuth: []
       responses:
@@ -1935,7 +1935,7 @@ paths:
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "500":
-          description: could not connect to RabbitMQ
+          description: could not connect to Redis
   /config/worker-types:
     get:
       tags: [config]
@@ -2052,7 +2052,7 @@ paths:
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "500":
-          description: could not connect to RabbitMQ
+          description: could not connect to Redis
           content:
             application/json:
               schema:
@@ -2083,7 +2083,7 @@ paths:
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "500":
-          description: could not connect to RabbitMQ
+          description: could not connect to Redis
           content:
             application/json:
               schema:

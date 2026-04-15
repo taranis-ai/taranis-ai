@@ -1,0 +1,1 @@
+pytest_plugins = ("tests.playwright.rq_e2e_fixtures",)

@@ -4,6 +4,7 @@ from typing import Any, Literal
 from pydantic import AnyUrl, Field, PastDatetime, SecretStr, field_serializer, field_validator, model_validator
 
 from models.base import TaranisBaseModel
+from models.task import CronTaskSpec
 from models.types import (
     BOT_TYPES,
     COLLECTOR_TYPES,
@@ -54,6 +55,7 @@ class ExportStoriesQuery(TaranisBaseModel):
 
 class Job(TaranisBaseModel):
     _core_endpoint = "/config/schedule"
+    _cache_timeout = 1
     _model_name = "job"
     _pretty_name = "Scheduler"
 
@@ -62,10 +64,116 @@ class Job(TaranisBaseModel):
     trigger: str | None = None
     kwargs: str | None = None
     next_run_time: str | None = None
+    queue: str | None = None
+    type: Literal["scheduled", "cron"] | None = None
+    schedule: str | None = None
+    status: str | None = None
+    started_at: str | None = None
+    failed_at: str | None = None
+    error: str | None = None
+    previous_run_time: str | None = None
+    last_run: str | None = None
+    last_success: str | None = None
+    last_run_display: str | None = None
+    last_run_relative: str | None = None
+    status_badge: dict[str, str] | None = None
+    is_overdue: bool | None = None
+
+
+class ActiveJob(Job):
+    _core_endpoint = "/config/workers/active"
+    _cache_timeout = 1
+    _model_name = "active_job"
+
+
+class FailedJob(Job):
+    _core_endpoint = "/config/workers/failed"
+    _cache_timeout = 1
+    _model_name = "failed_job"
+
+
+class QueueStatus(TaranisBaseModel):
+    _core_endpoint = "/config/workers/tasks"
+    _cache_timeout = 1
+    _model_name = "queue_status"
+
+    name: str
+    messages: int = 0
+
+
+class WorkerStats(TaranisBaseModel):
+    _core_endpoint = "/config/workers/stats"
+    _cache_timeout = 1
+    _model_name = "worker_stats"
+    _pretty_name = "Worker Stats"
+
+    total_workers: int = 0
+    busy_workers: int = 0
+    idle_workers: int = 0
+
+
+class SchedulerDashboardData(TaranisBaseModel):
+    _core_endpoint = "/config/workers/dashboard"
+    _cache_timeout = 1
+    _model_name = "scheduler_dashboard"
+    _pretty_name = "Scheduler Dashboard"
+
+    scheduled_jobs: list[Job] = Field(default_factory=list)
+    scheduled_total_count: int = 0
+    queues: list[QueueStatus] = Field(default_factory=list)
+    worker_stats: WorkerStats | None = None
+    active_jobs: list[ActiveJob] = Field(default_factory=list)
+    active_total_count: int = 0
+    failed_jobs: list[FailedJob] = Field(default_factory=list)
+    failed_total_count: int = 0
+
+
+class TaskHistoryEntry(TaranisBaseModel):
+    id: str
+    task: str | None = None
+    result: Any | None = None
+    status: str | None = None
+    last_run: datetime | None = None
+    last_success: datetime | None = None
+
+
+class TaskHistoryStats(TaranisBaseModel):
+    last_run: str | None = None
+    last_success: str | None = None
+    last_run_display: str | None = None
+    last_success_display: str | None = None
+    successes: int = 0
+    failures: int = 0
+    total: int = 0
+    success_pct: int = 0
+    status_badge: dict[str, str] | None = None
+
+
+class TaskHistoryTotals(TaranisBaseModel):
+    successes: int = 0
+    failures: int = 0
+    overall_success_rate: int = 0
+
+
+class TaskHistoryResponse(TaranisBaseModel):
+    _core_endpoint = "/config/task-results"
+    _cache_timeout = 1
+    _model_name = "task_history_response"
+    _pretty_name = "Task History Response"
+
+    items: list[TaskHistoryEntry] = Field(default_factory=list)
+    total_count: int = 0
+    task_stats: dict[str, TaskHistoryStats] = Field(default_factory=dict)
+    totals: TaskHistoryTotals = Field(default_factory=TaskHistoryTotals)
+
+
+class CronSpec(CronTaskSpec):
+    job_id: str
 
 
 class TaskResult(TaranisBaseModel):
     _core_endpoint = "/config/task-results"
+    _cache_timeout = 1
     _model_name = "task_result"
     _pretty_name = "Task Result"
 

@@ -3,7 +3,7 @@ import json
 from typing import Any, Literal
 
 from flask import render_template, request, url_for
-from models.admin import Job, OSINTSource, TaskResult
+from models.admin import OSINTSource, TaskResult
 from models.dashboard import Dashboard
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
@@ -134,7 +134,8 @@ class SourceView(AdminMixin, BaseView):
             error = "Failed to import sources"
             return cls.import_view(error)
 
-        DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
+        dpl = DataPersistenceLayer()
+        dpl.invalidate_cache_by_object(OSINTSource)
         cls.add_flash_notification(response)
         return cls.redirect_htmx(cls.get_base_route())
 
@@ -208,7 +209,8 @@ class SourceView(AdminMixin, BaseView):
             logger.error(error_message)
             return render_template("notification/index.html", notification={"message": error_message, "error": True})
 
-        DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
+        dpl = DataPersistenceLayer()
+        dpl.invalidate_cache_by_object(OSINTSource)
         items = DataPersistenceLayer().get_objects(cls.model)
         return render_template(cls.get_list_template(), **cls.get_view_context(items))
 
@@ -278,7 +280,6 @@ class SourceView(AdminMixin, BaseView):
             ), 500
 
         dpl.invalidate_cache_by_object(OSINTSource)
-        dpl.invalidate_cache_by_object(Job)
         notification = render_template(
             "notification/index.html",
             notification={"message": "OSINT source state updated successfully", "icon": "check-circle", "class": "alert-success"},

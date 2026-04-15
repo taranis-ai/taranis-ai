@@ -68,4 +68,4 @@ To run the unit tests just call:
 pytest
 ```
 
-There are [e2e tests](./tests/playwright/README.md) using playwright
+There are [e2e tests](./tests/playwright/README.md) using Playwright, including the browser suite and the RQ/Redis integration e2e suite.

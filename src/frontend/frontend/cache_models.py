@@ -46,7 +46,13 @@ class CacheObject(list[T], Generic[T]):
     def __getitem__(self, item):  # type: ignore[override]
         result = super().__getitem__(item)
         if isinstance(item, slice):
-            return CacheObject(result, page=self.page, limit=self.limit, order=self.order, total_count=self._total_count)
+            return CacheObject(
+                result,
+                page=self.page,
+                limit=self.limit,
+                order=self.order,
+                total_count=self._total_count,
+            )
         return result
 
     @property
