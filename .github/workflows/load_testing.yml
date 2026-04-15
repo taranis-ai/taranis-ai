@@ -1,0 +1,69 @@
+name: Manual load testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Load profile"
+        required: true
+        default: "smoke"
+        type: choice
+        options:
+          - smoke
+          - browser_load
+      users:
+        description: "Optional Locust user override"
+        required: false
+        default: ""
+        type: string
+      spawn_rate:
+        description: "Optional Locust spawn rate override"
+        required: false
+        default: ""
+        type: string
+      run_time:
+        description: "Optional Locust run time override"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  load_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Run browser load test
+        env:
+          LOAD_RUN_ID: github-${{ github.run_id }}
+          LOAD_ARTIFACT_DIR: ${{ github.workspace }}/tests/load/artifacts/github-${{ github.run_id }}
+        run: |
+          chmod +x ./dev/run_load_tests.sh
+          args=(--profile "${{ inputs.profile }}")
+
+          if [ -n "${{ inputs.users }}" ]; then
+            args+=(--users "${{ inputs.users }}")
+          fi
+
+          if [ -n "${{ inputs.spawn_rate }}" ]; then
+            args+=(--spawn-rate "${{ inputs.spawn_rate }}")
+          fi
+
+          if [ -n "${{ inputs.run_time }}" ]; then
+            args+=(--run-time "${{ inputs.run_time }}")
+          fi
+
+          ./dev/run_load_tests.sh "${args[@]}"
+
+      - name: Upload load test artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: load-test-artifacts-${{ github.run_id }}
+          path: tests/load/artifacts/github-${{ github.run_id }}
+          if-no-files-found: warn
