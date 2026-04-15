@@ -1,0 +1,187 @@
+services:
+  database:
+    image: "docker.io/library/postgres:17-alpine"
+    shm_size: 512mb
+    environment:
+      POSTGRES_DB: taranis
+      POSTGRES_USER: taranis
+      POSTGRES_PASSWORD: taranis
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=200"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taranis -d taranis"]
+      interval: 5s
+      start_period: 10s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: "redis:7-alpine"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 2s
+
+  core:
+    build:
+      context: ../..
+      dockerfile: docker/Containerfile.core
+    environment:
+      DB_URL: database
+      DB_DATABASE: taranis
+      DB_USER: taranis
+      DB_PASSWORD: taranis
+      TARANIS_AUTHENTICATOR: database
+      APPLICATION_ROOT: /
+      REDIS_URL: redis://redis:6379/0
+      REDIS_PASSWORD: ""
+      PRE_SEED_PASSWORD_ADMIN: admin
+      PRE_SEED_PASSWORD_USER: test
+      JWT_SECRET_KEY: load_testing_secret_key
+      API_KEY: load_testing_api_key
+      DEBUG: "true"
+      DISABLE_SSE: "true"
+      TARANIS_CORE_SENTRY_DSN: ""
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/isalive', timeout=2)\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: docker/Containerfile.frontend
+    environment:
+      TARANIS_CORE_URL: http://core:8080/api
+      APPLICATION_ROOT: /frontend
+      JWT_SECRET_KEY: load_testing_secret_key
+      REDIS_URL: redis://redis:6379/0
+      REDIS_PASSWORD: ""
+      DEBUG: "true"
+    depends_on:
+      core:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "taranis-frontend-healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  ingress:
+    build:
+      context: ../..
+      dockerfile: docker/Containerfile.ingress
+    environment:
+      NGINX_WORKERS: "2"
+      NGINX_CONNECTIONS: "32"
+      TARANIS_CORE_UPSTREAM: core:8080
+      TARANIS_FRONTEND_UPSTREAM: frontend:8080
+      TARANIS_SSE_UPSTREAM: core:8080
+      TARANIS_BASE_PATH: /
+    depends_on:
+      core:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "${LOAD_TEST_INGRESS_PORT:-18080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "/usr/bin/curl --fail http://localhost:8080/frontend/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  seed:
+    build:
+      context: ../..
+      dockerfile: tests/load/Containerfile
+    working_dir: /workspace
+    command: ["python", "-m", "tests.load.load_support.seed"]
+    environment:
+      PYTHONPATH: /workspace
+      CORE_API_URL: http://core:8080/api
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+      API_KEY: load_testing_api_key
+      SEED_REPORT_TYPE_TITLE: Load Testing Report Type
+      SEED_REPORT_TITLE_PREFIX: Load Test Report
+      SEED_STORY_SOURCE_ID: "99"
+    volumes:
+      - ../..:/workspace
+      - ${LOAD_ARTIFACT_DIR:?set LOAD_ARTIFACT_DIR}:/artifacts
+    depends_on:
+      ingress:
+        condition: service_healthy
+
+  locust:
+    build:
+      context: ../..
+      dockerfile: tests/load/Containerfile
+    working_dir: /workspace
+    command:
+      - sh
+      - -c
+      - >
+        locust
+        --headless
+        --only-summary
+        --exit-code-on-error 1
+        --stop-timeout 30
+        --host "${TARGET_HOST:-http://ingress:8080}"
+        --users "${LOCUST_USERS:-1}"
+        --spawn-rate "${LOCUST_SPAWN_RATE:-1}"
+        --run-time "${LOCUST_RUN_TIME:-2m}"
+        --html "/artifacts/locust-report.html"
+        --csv "/artifacts/locust"
+        -f /workspace/tests/load/locustfile.py
+    environment:
+      PYTHONPATH: /workspace
+      PWHEADLESS: "1"
+      PWBROWSER: chromium
+      TARGET_HOST: http://ingress:8080
+      TARANIS_LOAD_USERNAME: user
+      TARANIS_LOAD_PASSWORD: test
+      TARANIS_EXPECTED_REPORT_TITLE: Load Test Report 1
+    volumes:
+      - ../..:/workspace
+      - ${LOAD_ARTIFACT_DIR:?set LOAD_ARTIFACT_DIR}:/artifacts
+    depends_on:
+      ingress:
+        condition: service_healthy
+
+  check_recovery:
+    build:
+      context: ../..
+      dockerfile: tests/load/Containerfile
+    working_dir: /workspace
+    command: ["python", "-m", "tests.load.load_support.check_recovery", "verify"]
+    environment:
+      PYTHONPATH: /workspace
+      CORE_API_URL: http://core:8080/api
+      FRONTEND_URL: http://ingress:8080/frontend
+      RECOVERY_TIMEOUT_SECONDS: "60"
+      RECOVERY_BASELINE_PATH: /artifacts/recovery-baseline.json
+      RECOVERY_OUTPUT_PATH: /artifacts/recovery-results.json
+    volumes:
+      - ../..:/workspace
+      - ${LOAD_ARTIFACT_DIR:?set LOAD_ARTIFACT_DIR}:/artifacts
+    depends_on:
+      ingress:
+        condition: service_healthy

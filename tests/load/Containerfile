@@ -1,0 +1,18 @@
+FROM python:3.13-slim
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    UV_PROJECT_ENVIRONMENT=/opt/loadtest/.venv \
+    UV_LINK_MODE=copy \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /opt/loadtest
+
+COPY tests/load/pyproject.toml tests/load/uv.lock ./
+
+RUN uv sync --frozen --no-dev --no-editable && \
+    /opt/loadtest/.venv/bin/playwright install --with-deps chromium
+
+ENV PATH="/opt/loadtest/.venv/bin:${PATH}"
