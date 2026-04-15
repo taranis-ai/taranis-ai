@@ -5,6 +5,38 @@ from core.model.role import TLPLevel
 
 
 class TestRBAC:
+    def test_report_item_tlp_gate_blocks_read_and_update_below_required_level(self, report_items):
+        from core.model.report_item import ReportItem
+
+        _, report_item_amber, _, _ = report_items
+
+        clear_user = Mock()
+        clear_user.id = "clear-user"
+        clear_user.get_highest_tlp.return_value = TLPLevel.CLEAR
+
+        amber_user = Mock()
+        amber_user.id = "amber-user"
+        amber_user.get_highest_tlp.return_value = TLPLevel.AMBER
+
+        read_error, read_status = ReportItem.get_for_api(report_item_amber.id, clear_user)
+        assert read_status == 403
+        assert read_error == {"error": f"User {clear_user.id} is not allowed to read Report {report_item_amber.id}"}
+
+        blocked_report, update_error, update_status = ReportItem.get_report_item_and_check_permission(report_item_amber.id, clear_user)
+        assert blocked_report is None
+        assert update_status == 403
+        assert update_error == {"error": f"User {clear_user.id} is not allowed to update Report {report_item_amber.id}"}
+
+        read_data, read_status = ReportItem.get_for_api(report_item_amber.id, amber_user)
+        assert read_status == 200
+        assert read_data["id"] == report_item_amber.id
+
+        allowed_report, update_error, update_status = ReportItem.get_report_item_and_check_permission(report_item_amber.id, amber_user)
+        assert allowed_report is not None
+        assert allowed_report.id == report_item_amber.id
+        assert update_status == 200
+        assert update_error == {}
+
     def test_filter_report_query_with_tlp(self, report_items):
         from core.model.report_item import ReportItem
         from core.service.role_based_access import RoleBasedAccessService
