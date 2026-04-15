@@ -62,7 +62,7 @@ def _finalize_successful_non_run(job, core_api: CoreApi, result_message: str, *,
         job.meta["message"] = result_message
         job.save_meta()
 
-    _save_task_result(job.id, "collector_task", result_message, "SUCCESS", core_api)
+    core_api.save_task_result(job.id, "collector_task", result_message, "SUCCESS")
     return result_message
 
 
@@ -117,7 +117,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
 
             # Save failure to database
             if job:
-                _save_task_result(job.id, "collector_task", result_message, task_status, core_api)
+                core_api.save_task_result(job.id, "collector_task", result_message, task_status)
 
             raise RuntimeError(e) from e
 
@@ -126,33 +126,9 @@ def collector_task(osint_source_id: str, manual: bool = False):
 
     # Save task result to database
     if job:
-        _save_task_result(job.id, "collector_task", result_message, task_status, core_api)
+        core_api.save_task_result(job.id, "collector_task", result_message, task_status)
 
     return result_message
-
-
-def _save_task_result(job_id: str, task_name: str, result: str, status: str, core_api: CoreApi):
-    """Save task result to database via Core API.
-
-    Args:
-        job_id: RQ job ID
-        task_name: Task name/type (e.g., "collector_task")
-        result: Task result message
-        status: Task status ("SUCCESS" or "FAILURE")
-        core_api: CoreApi instance for making API calls
-    """
-    try:
-        task_data = {
-            "id": job_id,
-            "task": task_name,
-            "result": result,
-            "status": status,
-        }
-        response = core_api.api_put("/worker/task-results", task_data)
-        if not response:
-            logger.warning(f"Failed to save task result for {job_id}")
-    except Exception as e:
-        logger.error(f"Error saving task result for {job_id}: {e}")
 
 
 def collector_preview(osint_source_id: str):
@@ -210,7 +186,7 @@ def fetch_single_news_item(parameters: dict[str, Any]):
 
             # Save task result to database
             if job:
-                _save_task_result(job.id, "collector_task", result_message, task_status, core_api)
+                core_api.save_task_result(job.id, "collector_task", result_message, task_status)
 
             return result_message
         except Exception as e:

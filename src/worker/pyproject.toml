@@ -50,6 +50,7 @@ dynamic = ["version"]
 [project.scripts]
 taranis-cron = "worker.cron_scheduler_main:main"
 taranis-worker = "worker:start_worker"
+taranis-worker-healthcheck = "worker.healthcheck:main"
 
 [project.optional-dependencies]
 dev = [

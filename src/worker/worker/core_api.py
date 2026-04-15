@@ -1,7 +1,10 @@
+from typing import Any
 from urllib.parse import urlencode
 
 import requests
 from models.product import WorkerProduct as Product
+from models.task import TaskSubmission
+from pydantic import ValidationError
 
 from worker.config import Config
 from worker.log import logger
@@ -59,6 +62,39 @@ class CoreApi:
         url = f"{self.api_url}{url}"
         response = requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
+
+    def submit_task_result(self, task_data: TaskSubmission | dict) -> dict | None:
+        try:
+            submission = task_data if isinstance(task_data, TaskSubmission) else TaskSubmission.model_validate(task_data)
+            payload = submission.model_dump(mode="json", by_alias=True)
+        except ValidationError as exc:
+            logger.error(f"Invalid task payload: {exc}")
+            return None
+        return self.api_post("/tasks", payload)
+
+    def save_task_result(self, job_id: str, task_name: str, result: Any, status: str) -> bool:
+        """Persist task execution result to the Core task API.
+
+        Returns True when persistence succeeds, otherwise False.
+        """
+        try:
+            response = self.submit_task_result(
+                {
+                    "id": job_id,
+                    "task": task_name,
+                    "result": result,
+                    "status": status,
+                }
+            )
+            if not response:
+                logger.warning(f"Failed to save task result for {job_id}")
+                return False
+
+            logger.debug(f"Saved task result for {task_name}: {status}")
+            return True
+        except Exception as exc:
+            logger.error(f"Failed to save task result for {job_id}: {exc}")
+            return False
 
     def get_all_osint_sources(self) -> list[dict] | None:
         """Get all OSINT sources from the Core API.

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+from hmac import compare_digest
 
 from flask import Flask, Response, jsonify, make_response, request
 from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, verify_jwt_in_request
@@ -16,6 +17,7 @@ from core.model.user import User
 
 current_authenticator = DatabaseAuthenticator()
 jwt = JWTManager()
+AUTH_ERROR = ({"error": "not authorized"}, 401)
 
 
 def cleanup_token_blacklist(app):
@@ -73,36 +75,13 @@ def logout(jti):
 
 
 def auth_required(permissions: list | str | None = None):
+    permissions_set = _get_permissions_set(permissions)
+
     def auth_required_wrap(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            error = ({"error": "not authorized"}, 401)
-            if permissions is None:
-                permissions_set = set()
-            elif isinstance(permissions, list):
-                permissions_set = set(permissions)
-            else:
-                permissions_set = {permissions}
-
-            try:
-                verify_jwt_in_request()
-            except Exception as ex:
-                logger.exception(str(ex))
-                return error
-
-            user_name = get_jwt_identity()
-            if not user_name:
-                logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")
-                return error
-
-            permission_claims = current_user.get_permissions()
-
-            # is there at least one match with the permissions required by the call or no permissions required
-            if permissions_set and not permissions_set.intersection(permission_claims):
-                logger.store_auth_error_activity(
-                    f"user {user_name} Insufficient permissions in JWT for identity",
-                )
-                return {"error": "forbidden"}, 403
+            if auth_error := _jwt_authorize(permissions_set):
+                return auth_error
 
             return fn(*args, **kwargs)
 
@@ -114,23 +93,83 @@ def auth_required(permissions: list | str | None = None):
 def api_key_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        error = ({"error": "not authorized"}, 401)
-        auth_header = request.headers.get("Authorization", None)
-
-        if not auth_header or not auth_header.startswith("Bearer"):
-            logger.store_auth_error_activity("Missing Authorization Bearer")
-            return error
-
-        api_key = auth_header.replace("Bearer ", "")
-
-        if Config.API_KEY.get_secret_value() != api_key:
-            logger.store_auth_error_activity("Incorrect api key")
-            return error
+        if not _has_valid_api_key(log_failures=True):
+            return AUTH_ERROR
 
         # allow
         return fn(*args, **kwargs)
 
     return wrapper
+
+
+def _get_permissions_set(permissions: list | str | None) -> set[str]:
+    if permissions is None:
+        return set()
+    return set(permissions) if isinstance(permissions, list) else {permissions}
+
+
+def _extract_bearer_token() -> str | None:
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer"):
+        return None
+
+    provided_token = auth_header.removeprefix("Bearer").strip()
+    return provided_token or None
+
+
+def _has_valid_api_key(*, log_failures: bool = False) -> bool:
+    if not (provided_token := _extract_bearer_token()):
+        if log_failures:
+            logger.store_auth_error_activity("Missing Authorization Bearer")
+        return False
+
+    if not compare_digest(Config.API_KEY.get_secret_value(), provided_token):
+        if log_failures:
+            logger.store_auth_error_activity("Incorrect api key")
+        return False
+
+    return True
+
+
+def _jwt_authorize(permissions_set: set[str]) -> tuple[dict[str, str], int] | None:
+    try:
+        verify_jwt_in_request()
+    except Exception as ex:
+        logger.exception(str(ex))
+        return AUTH_ERROR
+
+    user_name = get_jwt_identity()
+    if not user_name:
+        logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")
+        return AUTH_ERROR
+
+    permission_claims = current_user.get_permissions()
+    if permissions_set and not permissions_set.intersection(permission_claims):
+        logger.store_auth_error_activity(
+            f"user {user_name} Insufficient permissions in JWT for identity",
+        )
+        return {"error": "forbidden"}, 403
+
+    return None
+
+
+def api_key_or_auth_required(permissions: list | str | None = None):
+    permissions_set = _get_permissions_set(permissions)
+
+    def auth_required_wrap(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            if _has_valid_api_key():
+                return fn(*args, **kwargs)
+
+            if auth_error := _jwt_authorize(permissions_set):
+                return auth_error
+
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return auth_required_wrap
 
 
 @jwt.user_lookup_loader

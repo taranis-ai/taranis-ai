@@ -86,7 +86,7 @@ def test_scheduler_dashboard_initial_render_uses_aggregate_endpoints(authenticat
     assert response.status_code == 200
     requested_paths = _requested_core_paths(responses_mock)
     assert "/config/workers/dashboard" in requested_paths
-    assert "/config/task-results" in requested_paths
+    assert "/tasks" in requested_paths
     assert "/config/schedule" not in requested_paths
     assert "/config/workers/tasks" not in requested_paths
     assert "/config/workers/stats" not in requested_paths
@@ -101,7 +101,7 @@ def test_scheduler_dashboard_initial_render_uses_aggregate_endpoints(authenticat
         ("admin.scheduler_queue_cards", ["/config/workers/tasks", "/config/workers/stats"], "Collectors"),
         ("admin.scheduler_active_jobs", ["/config/workers/active"], "Running Bot"),
         ("admin.scheduler_failed_jobs", ["/config/workers/failed"], "Failed Connector"),
-        ("admin.scheduler_history", ["/config/task-results"], "Success Rate"),
+        ("admin.scheduler_history", ["/tasks"], "Success Rate"),
     ],
 )
 def test_scheduler_htmx_partials_use_granular_endpoints(

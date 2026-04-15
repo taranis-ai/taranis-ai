@@ -1,4 +1,5 @@
 from typing import get_origin
+
 import pytest
 import responses
 from faker import Faker
@@ -14,6 +15,7 @@ from frontend.views.base_view import BaseView
 
 from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation
 
+
 @pytest.fixture
 def form_data():
     return html_form_to_dict
@@ -23,6 +25,7 @@ def form_data():
 def responses_mock():
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
+
 
 def get_items_from_factory(view_name, model):
     factory = ModelFactory.create_factory(model=model)
@@ -195,7 +198,7 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
         content_type="application/json",
     )
     responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/config/task-results",
+        f"{Config.TARANIS_CORE_URL}/tasks",
         json={
             "items": [
                 {
