@@ -4253,8 +4253,6 @@ components:
           minLength: 1
         result:
           description: JSON-serializable task payload
-        traceback:
-          type: [string, "null"]
       required:
         - status
       anyOf:

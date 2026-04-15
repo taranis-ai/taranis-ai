@@ -200,7 +200,6 @@ class TestConnectorTaskResults(BaseTest):
                     }
                 ],
             },
-            "traceback": None,
             "task": "connector_task",
         }
 
@@ -215,7 +214,6 @@ class TestConnectorTaskResults(BaseTest):
                 "message": "1 proposals submitted to MISP",
                 "sync_results": [],
             },
-            "traceback": None,
             "task": "connector_task",
         }
 
@@ -328,7 +326,6 @@ class TestConnectorTaskResults(BaseTest):
                     "message": "Connector finished with mixed results",
                     "sync_results": [{"type": "unknown_connector_result"}],
                 },
-                "traceback": None,
                 "task": "connector_task",
             },
             headers=api_header,

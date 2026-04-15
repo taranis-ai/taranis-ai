@@ -7,18 +7,18 @@ from pydantic import ValidationError
 
 from core.config import Config
 from core.log import logger
-from core.managers.auth_manager import api_key_or_auth_required, api_key_required
+from core.managers.auth_manager import api_key_required, auth_required
 from core.managers.decorators import extract_args
 from core.service.task import TaskService
 
 
 class Task(MethodView):
-    @api_key_or_auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
     def get(self, task_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if task_id:
             return TaskService.get_task(task_id)
-        return TaskService.get_tasks(filter_args=filter_args, user=None)
+        return TaskService.get_tasks(filter_args=filter_args)
 
     @api_key_required
     def post(self):
@@ -34,7 +34,7 @@ class Task(MethodView):
         logger.debug(f"Received task result with id {submission.id} and status {submission.status}")
         return TaskService.save_task_result(submission)
 
-    @api_key_or_auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def delete(self, task_id: str):
         return TaskService.delete_task(task_id)
 

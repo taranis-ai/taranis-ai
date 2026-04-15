@@ -31,7 +31,6 @@ wordlist_bot_result = {
             },
         },
     },
-    "traceback": None,
     "task": "bot_task",
 }
 
@@ -54,7 +53,6 @@ ioc_bot_result = {
             "2d9822c6-0b28-4b66-8fc9-62aefbdd105c": {"CVE-2014-0160": "cves", "CVE-2025-13834": "cves", "CVE-2025-13328": "cves"},
         },
     },
-    "traceback": None,
     "task": "bot_task",
 }
 

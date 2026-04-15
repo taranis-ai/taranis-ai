@@ -70,15 +70,14 @@ class TaskSubmission(TaranisBaseModel):
     task: str | None = None
     result: Any | None = None
     status: str = Field(min_length=1)
-    traceback: str | None = None
 
     @field_validator("id", "status", mode="after")
     @classmethod
     def strip_required_fields(cls, value: str) -> str:
-        stripped = value.strip()
-        if not stripped:
+        if stripped := value.strip():
+            return stripped
+        else:
             raise ValueError("Field cannot be empty")
-        return stripped
 
     @field_validator("task", mode="after")
     @classmethod

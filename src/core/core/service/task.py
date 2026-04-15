@@ -26,8 +26,8 @@ class TaskService:
         return {"status": "PENDING"}, 404
 
     @staticmethod
-    def get_tasks(filter_args: dict[str, Any] | None = None, user: Any = None) -> tuple[dict[str, Any], int]:
-        result, status = TaskModel.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
+    def get_tasks(filter_args: dict[str, Any] | None = None) -> tuple[dict[str, Any], int]:
+        result, status = TaskModel.get_all_for_api(filter_args=filter_args, with_count=True)
         if status != 200:
             return result, status
 
