@@ -19,22 +19,22 @@ REQUEST_TIMEOUT = 30
 
 
 def require_env(name: str, default: str | None = None) -> str:
-    value = os.getenv(name, default)
-    if not value:
+    if value := os.getenv(name, default):
+        return value
+    else:
         raise RuntimeError(f"Missing required environment variable: {name}")
-    return value
 
 
 def ensure_ok(response: requests.Response, context: str) -> dict[str, Any]:
     if response.ok:
-        if response.content:
-            return response.json()
-        return {}
+        return response.json() if response.content else {}
     try:
         payload = response.json()
     except ValueError:
         payload = response.text
-    raise RuntimeError(f"{context} failed with status {response.status_code}: {payload}")
+    raise RuntimeError(
+        f"{context} failed with status {response.status_code}: {payload}"
+    )
 
 
 def login_session(core_api_url: str, username: str, password: str) -> requests.Session:
@@ -52,7 +52,9 @@ def login_session(core_api_url: str, username: str, password: str) -> requests.S
     return session
 
 
-def ensure_osint_source(session: requests.Session, core_api_url: str, source_id: str) -> None:
+def ensure_osint_source(
+    session: requests.Session, core_api_url: str, source_id: str
+) -> None:
     response = session.get(
         f"{core_api_url}/config/osint-sources",
         params={"search": source_id, "fetch_all": "true"},
@@ -92,7 +94,9 @@ def ensure_report_type(session: requests.Session, core_api_url: str, title: str)
     create_payload = ensure_ok(create_response, "create load test report item type")
     report_type_id = create_payload.get("id")
     if report_type_id is None:
-        raise RuntimeError(f"Load test report item type was created without an id: {create_payload}")
+        raise RuntimeError(
+            f"Load test report item type was created without an id: {create_payload}"
+        )
     return int(report_type_id)
 
 
@@ -111,7 +115,13 @@ def seed_stories(core_api_url: str, api_key: str, source_id: str) -> list[str]:
     return story_ids
 
 
-def seed_reports(session: requests.Session, core_api_url: str, report_type_id: int, story_ids: list[str], title_prefix: str) -> list[str]:
+def seed_reports(
+    session: requests.Session,
+    core_api_url: str,
+    report_type_id: int,
+    story_ids: list[str],
+    title_prefix: str,
+) -> list[str]:
     report_ids: list[str] = []
     for index in range(1, 4):
         payload = build_report_payload(
@@ -136,14 +146,20 @@ def main() -> int:
     admin_password = require_env("ADMIN_PASSWORD", "admin")
     api_key = require_env("API_KEY")
     source_id = require_env("SEED_STORY_SOURCE_ID", DEFAULT_STORY_SOURCE_ID)
-    report_type_title = require_env("SEED_REPORT_TYPE_TITLE", LOAD_TEST_REPORT_TYPE_TITLE)
-    report_title_prefix = require_env("SEED_REPORT_TITLE_PREFIX", LOAD_TEST_REPORT_TITLE_PREFIX)
+    report_type_title = require_env(
+        "SEED_REPORT_TYPE_TITLE", LOAD_TEST_REPORT_TYPE_TITLE
+    )
+    report_title_prefix = require_env(
+        "SEED_REPORT_TITLE_PREFIX", LOAD_TEST_REPORT_TITLE_PREFIX
+    )
 
     session = login_session(core_api_url, admin_username, admin_password)
     ensure_osint_source(session, core_api_url, source_id)
     report_type_id = ensure_report_type(session, core_api_url, report_type_title)
     story_ids = seed_stories(core_api_url, api_key, source_id)
-    report_ids = seed_reports(session, core_api_url, report_type_id, story_ids, report_title_prefix)
+    report_ids = seed_reports(
+        session, core_api_url, report_type_id, story_ids, report_title_prefix
+    )
 
     print(
         {

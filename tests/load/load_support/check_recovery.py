@@ -17,17 +17,16 @@ class EndpointSnapshot:
 
 
 def read_env(name: str, default: str | None = None) -> str:
-    value = os.getenv(name, default)
-    if not value:
+    if value := os.getenv(name, default):
+        return value
+    else:
         raise RuntimeError(f"Missing required environment variable: {name}")
-    return value
 
 
 def snapshot_endpoint(name: str, url: str) -> EndpointSnapshot:
     response = requests.get(url, timeout=10)
     body_subset: dict[str, Any] = {}
-    with_body = response.headers.get("content-type", "").startswith("application/json")
-    if with_body:
+    if response.headers.get("content-type", "").startswith("application/json"):
         payload = response.json()
         if name == "core_isalive":
             body_subset = {"isalive": payload.get("isalive")}
