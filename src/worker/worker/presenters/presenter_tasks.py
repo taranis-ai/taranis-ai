@@ -30,6 +30,7 @@ def presenter_task(product_id: str):
     """
     job = get_current_job()
     core_api = CoreApi()
+    worker_type = "presenter_task"
 
     logger.info(f"Starting presenter task with job id {job.id if job else 'manual'}")
 
@@ -38,6 +39,7 @@ def presenter_task(product_id: str):
 
     # Get presenter for product type
     presenter = _get_presenter(product)
+    worker_type = presenter.type
 
     # Get template if needed
     type_id: int = int(product["type_id"])
@@ -60,14 +62,28 @@ def presenter_task(product_id: str):
 
         # Save task result to database
         if job:
-            _save_task_result(job.id, "presenter_task", result_data, "SUCCESS", core_api)
+            core_api.save_task_result(
+                job.id,
+                "presenter_task",
+                result_data,
+                "SUCCESS",
+                worker_id=product_id,
+                worker_type=worker_type,
+            )
 
         return result_data
 
     # Failed to generate product
     if job:
         error_msg = f"Presenter {presenter.type} returned no content"
-        _save_task_result(job.id, "presenter_task", error_msg, "FAILURE", core_api)
+        core_api.save_task_result(
+            job.id,
+            "presenter_task",
+            error_msg,
+            "FAILURE",
+            worker_id=product_id,
+            worker_type=worker_type,
+        )
 
     raise ValueError(f"Presenter {presenter.type} returned no content")
 
@@ -151,25 +167,3 @@ def _get_presenter(product: dict[str, Any]) -> BasePresenter:
         return presenter
 
     raise ValueError(f"Presenter {presenter_type} not implemented")
-
-
-def _save_task_result(job_id: str, task_name: str, result: str | dict, status: str, core_api: CoreApi):
-    """Save task execution result to Core API.
-
-    Args:
-        job_id: RQ job ID
-        task_name: Name of the task function
-        result: Task result (string or dict)
-        status: Task status (SUCCESS, FAILURE, etc.)
-        core_api: CoreApi instance for making API calls
-    """
-    task_data = {
-        "id": job_id,
-        "task": task_name,
-        "result": result,
-        "status": status,
-    }
-
-    response = core_api.api_put("/worker/task-results", task_data)
-    if not response:
-        logger.warning(f"Failed to save task result for {job_id}")

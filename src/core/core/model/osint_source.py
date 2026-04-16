@@ -50,7 +50,7 @@ class OSINTSource(BaseModel):
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
-    _ALLOWED_ICON_FORMATS = {"PNG", "JPEG", "WEBP"}
+    _ALLOWED_ICON_FORMATS = {"ICO", "PNG", "JPEG", "WEBP"}
 
     def __init__(
         self,
@@ -384,14 +384,13 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def _normalize_icon_image(cls, icon_bytes: bytes) -> bytes:
-        if cls._looks_like_svg(icon_bytes):
-            raise ValueError("SVG icons are not supported. Allowed formats: PNG, JPEG, WEBP.")
-
         try:
             with Image.open(BytesIO(icon_bytes)) as image:
                 image_format = image.format.upper() if image.format else None
                 if image_format not in cls._ALLOWED_ICON_FORMATS:
-                    raise ValueError(f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP.")
+                    raise ValueError(
+                        f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: {', '.join(cls._ALLOWED_ICON_FORMATS)}."
+                    )
                 image.load()
                 normalized = ImageOps.exif_transpose(image).convert("RGBA")
         except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
@@ -413,11 +412,6 @@ class OSINTSource(BaseModel):
     @classmethod
     def _probe_icon_image(cls, icon_bytes: bytes) -> None:
         cls._normalize_icon_image(icon_bytes)
-
-    @staticmethod
-    def _looks_like_svg(icon_bytes: bytes) -> bool:
-        prefix = icon_bytes[:1024].lstrip().lower()
-        return prefix.startswith(b"<svg") or (prefix.startswith(b"<?xml") and b"<svg" in prefix)
 
     def update_parameters(self, parameters: dict[str, Any]):
         update_parameter = ParameterValue.get_or_create_from_list(parameters)

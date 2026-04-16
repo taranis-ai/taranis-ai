@@ -100,11 +100,13 @@ class SourceIcon(MethodView):
                 try:
                     source.update_icon(file.read())
                 except ValueError as exc:
+                    logger.error(f"Error updating icon for source {source_id}: {exc}")
                     return {"error": str(exc)}, 400
                 return {"message": "Icon uploaded"}, 200
             return {"error": f"Source with id {source_id} not found"}, 404
         except Exception:
             logger.exception()
+            return {"error": "Internal server error"}, 500
 
 
 class Stories(MethodView):
@@ -264,42 +266,6 @@ class Reports(MethodView):
         return ReportItem.get_for_api(report_id)
 
 
-class TaskResults(MethodView):
-    @api_key_required
-    def put(self):
-        """Save or update task result from worker."""
-        from core.api.task import handle_task_specific_result
-        from core.model.task import Task
-
-        data = request.get_json(silent=True)
-        if not isinstance(data, dict) or not data:
-            return {"error": "No data provided"}, 400
-
-        missing_or_invalid = [
-            field_name for field_name in ("id", "status") if not isinstance(data.get(field_name), str) or not data[field_name].strip()
-        ]
-        if missing_or_invalid:
-            return {"error": f"Missing or invalid required fields: {', '.join(missing_or_invalid)}"}, 400
-
-        if data.get("task") is not None and not isinstance(data.get("task"), str):
-            return {"error": "Invalid task field"}, 400
-
-        payload = data.copy()
-        payload["id"] = payload["id"].strip()
-        payload["status"] = payload["status"].strip()
-        payload.setdefault("result", None)
-
-        task_id = payload["id"]
-        result = payload["result"]
-        status = payload["status"]
-
-        # Handle task-specific result processing (e.g., presenter results)
-        if status == "SUCCESS" and result is not None and task_id:
-            handle_task_specific_result(task_id, result, status, payload.get("task"))
-
-        return Task.add_or_update(payload)
-
-
 def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
@@ -323,6 +289,4 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
-    worker_bp.add_url_rule("/task-results", view_func=TaskResults.as_view("task_results_worker"))
-
     app.register_blueprint(worker_bp)

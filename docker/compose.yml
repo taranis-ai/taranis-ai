@@ -141,11 +141,11 @@ services:
       WORKER_TYPES: '["Collectors"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import redis, os; r = redis.Redis(host='redis', port=6379, password=os.getenv('REDIS_PASSWORD') or None, decode_responses=True); r.ping()\""]
+      test: ["CMD", "taranis-worker-healthcheck", "--mode", "worker"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 20s
     logging:
       driver: "json-file"
       options:
@@ -170,7 +170,7 @@ services:
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import redis, os; r = redis.Redis(host='redis', port=6379, password=os.getenv('REDIS_PASSWORD') or None, decode_responses=True); r.get('rq:cron:leader') is not None or exit(1)\""]
+      test: ["CMD", "taranis-worker-healthcheck", "--mode", "cron"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -198,11 +198,11 @@ services:
       WORKER_TYPES: '["Presenters", "Publishers", "Bots", "Connectors", "Misc"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import redis, os; r = redis.Redis(host='redis', port=6379, password=os.getenv('REDIS_PASSWORD') or None, decode_responses=True); r.ping()\""]
+      test: ["CMD", "taranis-worker-healthcheck", "--mode", "worker"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 20s
     logging:
       driver: "json-file"
       options:
@@ -283,7 +283,7 @@ services:
 
 
   redis:
-    image: "docker.io/library/redis:7-alpine"
+    image: "docker.io/library/redis:8-alpine"
     deploy:
       restart_policy:
         condition: always

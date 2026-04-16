@@ -18,7 +18,7 @@ def test_collector_task_missing_source_is_skipped(current_job, requests_mock):
         status_code=404,
         json={"error": "not found"},
     )
-    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/task-results", json={"message": "saved"})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     result = collector_tasks.collector_task("source-missing", manual=False)
 
@@ -26,11 +26,13 @@ def test_collector_task_missing_source_is_skipped(current_job, requests_mock):
     assert current_job.meta["status"] == "SKIPPED"
     assert current_job.meta["message"] == result
 
-    put_calls = [req for req in requests_mock.request_history if req.method == "PUT" and req.url.endswith("/worker/task-results")]
+    put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
     assert len(put_calls) == 1
     assert put_calls[0].json() == {
         "id": "test-job-123",
         "task": "collector_task",
+        "worker_id": "source-missing",
+        "worker_type": "collector_task",
         "result": result,
         "status": "SUCCESS",
     }

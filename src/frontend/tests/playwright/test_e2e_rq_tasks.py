@@ -203,7 +203,7 @@ class RqE2EHarness:
         return response_payload
 
     def task_result(self, task_id: str) -> JsonDict:
-        task_result = self.core_client.json_request("GET", f"/config/task-results/{task_id}")
+        task_result = self.core_client.json_request("GET", f"/tasks/{task_id}")
         assert isinstance(task_result, dict), f"Expected task result to be a dict, got {type(task_result)!r}"
         return task_result
 
