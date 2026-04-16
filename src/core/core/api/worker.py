@@ -100,11 +100,13 @@ class SourceIcon(MethodView):
                 try:
                     source.update_icon(file.read())
                 except ValueError as exc:
+                    logger.error(f"Error updating icon for source {source_id}: {exc}")
                     return {"error": str(exc)}, 400
                 return {"message": "Icon uploaded"}, 200
             return {"error": f"Source with id {source_id} not found"}, 404
         except Exception:
             logger.exception()
+            return {"error": "Internal server error"}, 500
 
 
 class Stories(MethodView):

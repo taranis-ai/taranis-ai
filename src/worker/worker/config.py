@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     ]
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
+    RQ_WORKER_CLASS: Literal["auto", "fork", "spawn"] = "auto"
     SUMMARY_API_ENDPOINT: str = "http://summary_bot:8000"
     NLP_API_ENDPOINT: str = "http://nlp_bot:8000"
     STORY_API_ENDPOINT: str = "http://story_bot:8000"

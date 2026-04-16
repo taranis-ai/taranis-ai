@@ -103,9 +103,8 @@ class NewsItemTagService:
         story.tags = story_tags
 
     @staticmethod
-    def set_found_bot_tags(result: dict[str, Any], change_by_bot: bool = False):
+    def set_found_bot_tags(found_tags: dict[str, Any], change_by_bot: bool = False):
         errors = {}
-        found_tags = result.get("result", {}) or {}
         for story_id, tags in found_tags.items():
             if not tags:
                 continue

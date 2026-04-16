@@ -41,7 +41,8 @@ class TaskService:
 
     @classmethod
     def save_task_result(cls, submission: TaskSubmission) -> tuple[dict[str, Any], int]:
-        cls._handle_success_result(submission)
+        if submission.status == "SUCCESS" and submission.result is not None:
+            cls._handle_success_result(submission)
 
         payload: dict[str, Any] = {
             "id": submission.id,
@@ -76,9 +77,6 @@ class TaskService:
 
     @classmethod
     def _handle_success_result(cls, submission: TaskSubmission) -> None:
-        if submission.status != "SUCCESS" or submission.result is None:
-            return
-
         task_kind = cls._resolve_task_kind(submission.id, submission.task)
         if not task_kind:
             return
@@ -124,17 +122,7 @@ class TaskService:
 
     @staticmethod
     def _handle_bot_result(result: dict[str, Any]) -> None:
-        bot_result = result.get("result")
-        if not isinstance(bot_result, dict):
-            logger.error("Invalid bot task result payload")
-            return
-
-        error_message = bot_result.get("error") or bot_result.get("message")
-        if error_message:
-            logger.error(error_message)
-            return
-
-        bot_type = result.get("bot_type", "")
+        bot_type = result.pop("bot_type", "")
         if bot_type in TAGGING_BOTS:
             NewsItemTagService.set_found_bot_tags(result, change_by_bot=True)
 

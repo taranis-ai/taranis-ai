@@ -14,7 +14,7 @@ Usage:
 import sys
 
 import redis
-from rq import Queue, Worker
+from rq import Queue, SpawnWorker, Worker
 
 from worker.config import Config
 from worker.core_api import CoreApi
@@ -51,15 +51,36 @@ def get_queues():
     return queue_names
 
 
+def register_task_modules():
+    """Import task modules so RQ can resolve task callables."""
+    from worker.tasks import register_tasks
+
+    register_tasks()
+
+
+def resolve_worker_class() -> type[Worker]:
+    """Resolve the RQ worker implementation for the current platform."""
+    worker_class = Config.RQ_WORKER_CLASS
+
+    if worker_class == "spawn":
+        return SpawnWorker
+
+    if worker_class == "fork":
+        return Worker
+
+    if sys.platform == "darwin":
+        return SpawnWorker
+
+    return Worker
+
+
 def start_worker():
     """Start RQ worker with configured queues."""
     # Initialize core API for worker tasks to use
     CoreApi()
 
     # Import task modules to register functions
-    from worker.tasks import register_tasks
-
-    register_tasks()
+    register_task_modules()
 
     # Get Redis connection
     redis_conn = get_redis_connection()
@@ -74,7 +95,9 @@ def start_worker():
     queues = [Queue(name, connection=redis_conn) for name in queue_names]
 
     logger.info(f"Starting RQ worker for queues: {', '.join(queue_names)}")
+    worker_class = resolve_worker_class()
+    logger.info(f"Using RQ worker class: {worker_class.__name__} (RQ_WORKER_CLASS={Config.RQ_WORKER_CLASS}, platform={sys.platform})")
 
     # Start worker
-    worker = Worker(queues, connection=redis_conn)
+    worker = worker_class(queues, connection=redis_conn)
     worker.work(with_scheduler=True)
