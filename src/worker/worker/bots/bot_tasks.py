@@ -27,6 +27,7 @@ def bot_task(bot_id: str, filter: dict | None = None):
     core_api = CoreApi()
     task_name = f"bot_{bot_id}"
     task_id = job.id if job else task_name
+    bot_type = "UNKNOWN_BOT_TYPE"
 
     logger.info(f"Starting bot task with job id {job.id if job else 'manual'}")
 
@@ -35,15 +36,17 @@ def bot_task(bot_id: str, filter: dict | None = None):
         if not bot_config:
             raise ValueError(f"Bot with id {bot_id} not found")
 
+        bot_type = bot_config.get("type", bot_type).upper()
         bot_result = _execute_by_config(bot_config, filter)
-        result = {"bot_type": bot_config.get("type", "UNKNOWN_BOT_TYPE").upper(), **bot_result}
+        result = {"bot_id": bot_id, "bot_type": bot_type, "result": bot_result}
         core_api.save_task_result(task_id, task_name, result, "SUCCESS")
         return result
     except Exception as exc:
         error_message = str(exc)
         if not (isinstance(exc, ValueError) and error_message == f"Bot with id {bot_id} not found"):
             error_message = f"Bot execution failed: {error_message}"
-        core_api.save_task_result(task_id, task_name, {"error": error_message}, "FAILURE")
+        result = {"bot_id": bot_id, "bot_type": bot_type, "result": {"error": error_message}}
+        core_api.save_task_result(task_id, task_name, result, "FAILURE")
         raise
 
 

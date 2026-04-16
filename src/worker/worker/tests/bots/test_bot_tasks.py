@@ -61,41 +61,48 @@ def stub_bots(monkeypatch):
 class TestBotTask:
     """Tests for bot_task function."""
 
-    def test_bot_task_success_passes_result_dict(self, current_job, requests_mock, bot_config, stub_bots):
-        """Test that bot_task passes the full result dict to CoreApi.save_task_result on success."""
+    def test_bot_task_success_persists_canonical_payload(self, current_job, requests_mock, bot_config, stub_bots):
+        """Test that bot_task persists the canonical bot payload on success."""
         requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
         requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "ok"})
 
-        # Mock bot execution result - bot returns result WITHOUT bot_type
         bot_execution_result = {
             "result": {"tagged_items": 5, "tags_applied": ["malware", "apt"]},
             "news_items": [{"id": "item1"}, {"id": "item2"}],
         }
         stub_bots._execute_impl = staticmethod(lambda params: bot_execution_result)
 
-        # Execute
         result = bot_task("bot-456", filter={"story_id": "123"})
 
-        # Verify result dict (not message string) is saved
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
         assert len(put_calls) == 1
         task_data = put_calls[0].json()
         assert task_data["id"] == "test-job-123"
         assert task_data["task"] == "bot_bot-456"
         assert task_data["status"] == "SUCCESS"
-        # Verify the full result dict is passed, not just a message string
-        assert isinstance(task_data["result"], dict)
-        # Verify bot_type was added by bot_task
-        assert "bot_type" in task_data["result"]
+        assert task_data["result"]["bot_id"] == "bot-456"
         assert task_data["result"]["bot_type"] == "WORDLIST_BOT"
-        # Verify bot execution result is included
-        assert "result" in task_data["result"]
-        assert task_data["result"]["result"] == bot_execution_result["result"]
-        assert "news_items" in task_data["result"]
+        assert task_data["result"]["result"] == bot_execution_result
 
-        # Verify return value includes bot_type
-        assert result["bot_type"] == "WORDLIST_BOT"
-        assert result["result"] == bot_execution_result["result"]
+        assert result == task_data["result"]
+
+    def test_bot_task_success_handles_none_result(self, current_job, requests_mock, bot_config, stub_bots):
+        """Test that bot_task can persist a bot that returns None."""
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "ok"})
+        stub_bots._execute_impl = staticmethod(lambda params: None)
+
+        result = bot_task("bot-456")
+
+        put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+        assert len(put_calls) == 1
+        task_data = put_calls[0].json()
+        assert task_data["result"] == {
+            "bot_id": "bot-456",
+            "bot_type": "WORDLIST_BOT",
+            "result": None,
+        }
+        assert result == task_data["result"]
 
     def test_bot_task_not_found_wraps_error_in_dict(self, current_job, requests_mock):
         """Test that bot_task wraps error messages in dict when bot not found."""
@@ -110,9 +117,11 @@ class TestBotTask:
         assert len(put_calls) == 1
         task_data = put_calls[0].json()
         assert task_data["status"] == "FAILURE"
-        assert isinstance(task_data["result"], dict)
-        assert "error" in task_data["result"]
-        assert task_data["result"]["error"] == "Bot with id bot-999 not found"
+        assert task_data["result"] == {
+            "bot_id": "bot-999",
+            "bot_type": "UNKNOWN_BOT_TYPE",
+            "result": {"error": "Bot with id bot-999 not found"},
+        }
 
     def test_bot_task_exception_wraps_error_in_dict(self, current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task wraps exception messages in dict."""
@@ -133,9 +142,9 @@ class TestBotTask:
         assert len(put_calls) == 1
         task_data = put_calls[0].json()
         assert task_data["status"] == "FAILURE"
-        assert isinstance(task_data["result"], dict)
-        assert "error" in task_data["result"]
-        assert "Bot execution failed: Bot execution crashed" in task_data["result"]["error"]
+        assert task_data["result"]["bot_id"] == "bot-456"
+        assert task_data["result"]["bot_type"] == "WORDLIST_BOT"
+        assert task_data["result"]["result"] == {"error": "Bot execution failed: Bot execution crashed"}
 
     def test_bot_task_without_job_uses_fallback_id(self, no_current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task uses fallback task_id when no RQ job exists."""
@@ -151,6 +160,8 @@ class TestBotTask:
         assert len(put_calls) == 1
         task_data = put_calls[0].json()
         assert task_data["id"] == "bot_bot-789"
+        assert task_data["result"]["bot_id"] == "bot-789"
+        assert task_data["result"]["bot_type"] == "WORDLIST_BOT"
 
 
 class TestSaveTaskResult:
@@ -185,6 +196,22 @@ class TestSaveTaskResult:
         assert task_data["task"] == "bot_test"
         assert task_data["result"] == result
         assert task_data["status"] == "FAILURE"
+
+    def test_save_task_result_normalizes_json_unsafe_values(self, requests_mock):
+        """Test that save_task_result converts sets into JSON-safe values."""
+        result_dict = {
+            "bot_id": "bot-123",
+            "bot_type": "TAGGING_BOT",
+            "result": {"story-1": {"beta", "alpha"}},
+        }
+
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+        CoreApi().save_task_result("job-123", "bot_tagging", result_dict, "SUCCESS")
+
+        put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+        assert len(put_calls) == 1
+        payload = put_calls[0].json()
+        assert payload["result"]["result"]["story-1"] == ["alpha", "beta"]
 
     def test_save_task_result_handles_api_failure_gracefully(self, requests_mock, caplog):
         """Test that save_task_result handles API call failures without raising."""
