@@ -236,7 +236,7 @@ class TaranisConfig(TaranisBaseModel):
 
 
 class Settings(TaranisBaseModel):
-    _core_endpoint = "/admin/settings"
+    _core_endpoint = "/settings/settings"
     _model_name = "settings"
     _pretty_name = "Settings"
     _cache_timeout = 30
@@ -277,6 +277,7 @@ class OSINTSource(TaranisBaseModel):
 
     icon: str | None = None
     enabled: bool | None = True
+    news_items_count: int | None = None
     status: Task | None = None
 
 
