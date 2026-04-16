@@ -7,13 +7,14 @@ class FakeRedis:
     def __init__(
         self,
         *,
-        worker_keys: list[str] | None = None,
+        workers: dict[str, dict[str, str]] | None = None,
         leader: str | None = None,
     ):
-        self.worker_keys = worker_keys or []
+        self.workers = workers or {}
         self.leader = leader
         self.ping_called = False
         self.scan_match: str | None = None
+        self.hgetall_keys: list[str] = []
 
     def ping(self):
         self.ping_called = True
@@ -21,29 +22,36 @@ class FakeRedis:
 
     def scan_iter(self, *, match: str, count: int):
         self.scan_match = match
-        assert count == 1
-        for key in self.worker_keys:
+        assert count > 0
+        for key in self.workers:
             if key.startswith(match[:-1]):
                 yield key
+
+    def hgetall(self, key: str):
+        self.hgetall_keys.append(key)
+        return self.workers.get(key, {})
 
     def get(self, key: str):
         assert key == healthcheck.CRON_LEADER_KEY
         return self.leader
 
 
-def test_check_worker_health_passes_when_local_worker_key_exists():
-    redis_connection = FakeRedis(worker_keys=["rq:worker:node-a.12345"])
+def test_check_worker_health_passes_when_expected_queue_exists(monkeypatch):
+    monkeypatch.setattr(healthcheck.Config, "WORKER_TYPES", ["Collectors"])
+    redis_connection = FakeRedis(workers={"rq:worker:worker-a": {"queues": "collectors"}})
 
     healthcheck.check_worker_health(redis_connection=redis_connection, hostname="node-a")
 
     assert redis_connection.ping_called is True
-    assert redis_connection.scan_match == "rq:worker:node-a.*"
+    assert redis_connection.scan_match == "rq:worker:*"
+    assert redis_connection.hgetall_keys == ["rq:worker:worker-a"]
 
 
-def test_check_worker_health_fails_when_local_worker_key_missing():
-    redis_connection = FakeRedis(worker_keys=["rq:worker:node-b.99999"])
+def test_check_worker_health_fails_when_expected_queue_missing(monkeypatch):
+    monkeypatch.setattr(healthcheck.Config, "WORKER_TYPES", ["Collectors"])
+    redis_connection = FakeRedis(workers={"rq:worker:worker-b": {"queues": "bots"}})
 
-    with pytest.raises(RuntimeError, match="no worker key found"):
+    with pytest.raises(RuntimeError, match="no active worker found for queues: collectors"):
         healthcheck.check_worker_health(redis_connection=redis_connection, hostname="node-a")
 
 

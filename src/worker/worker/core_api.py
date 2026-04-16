@@ -72,20 +72,32 @@ class CoreApi:
             return None
         return self.api_post("/tasks", payload)
 
-    def save_task_result(self, job_id: str, task_name: str, result: Any, status: str) -> bool:
+    def save_task_result(
+        self,
+        job_id: str,
+        task_name: str,
+        result: Any,
+        status: str,
+        *,
+        worker_id: str | None = None,
+        worker_type: str | None = None,
+    ) -> bool:
         """Persist task execution result to the Core task API.
 
         Returns True when persistence succeeds, otherwise False.
         """
         try:
-            response = self.submit_task_result(
-                {
-                    "id": job_id,
-                    "task": task_name,
-                    "result": result,
-                    "status": status,
-                }
-            )
+            payload: dict[str, Any] = {
+                "id": job_id,
+                "task": task_name,
+                "result": result,
+                "status": status,
+            }
+            if worker_id is not None:
+                payload["worker_id"] = worker_id
+            if worker_type is not None:
+                payload["worker_type"] = worker_type
+            response = self.submit_task_result(payload)
             if not response:
                 logger.warning(f"Failed to save task result for {job_id}")
                 return False

@@ -31,7 +31,7 @@ class TaskService:
         if status != 200:
             return result, status
 
-        result.update(TaskModel.get_task_statistics())
+        result.update(TaskModel.get_task_statistics(group_by_worker_type=True))
         validated = TaskHistoryResponse.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), status
 
@@ -51,6 +51,10 @@ class TaskService:
         }
         if submission.task is not None:
             payload["task"] = submission.task
+        if submission.worker_id is not None:
+            payload["worker_id"] = submission.worker_id
+        if submission.worker_type is not None:
+            payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
         validated = TaskResponseModel.model_validate(result)
@@ -107,7 +111,7 @@ class TaskService:
             return
 
         if task_kind == "bot_task":
-            cls._handle_bot_result(submission.result)
+            cls._handle_bot_result(submission)
 
     @staticmethod
     def _handle_presenter_result(result: dict[str, Any]) -> None:
@@ -121,9 +125,15 @@ class TaskService:
         Product.update_render_for_id(product_id, rendered_product)
 
     @staticmethod
-    def _handle_bot_result(result: dict[str, Any]) -> None:
-        bot_type = result.pop("bot_type", "")
-        if bot_type in TAGGING_BOTS:
-            NewsItemTagService.set_found_bot_tags(result, change_by_bot=True)
+    def _handle_bot_result(submission: TaskSubmission) -> None:
+        worker_type = submission.worker_type or ""
+        worker_id = submission.worker_id or "UNKNOWN_ID"
+        bot_result = submission.result
+        if not isinstance(bot_result, dict):
+            logger.error("Invalid bot task result payload")
+            return
 
-        NewsItemTagService.set_bot_execution_attribute(result)
+        if worker_type in TAGGING_BOTS:
+            NewsItemTagService.set_found_bot_tags(bot_result, change_by_bot=True)
+
+        NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)

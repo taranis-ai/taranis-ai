@@ -37,7 +37,14 @@ def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
     job = get_current_job()
     if job:
         core_api = CoreApi()
-        core_api.save_task_result(job.id, "cleanup_token_blacklist", message, "SUCCESS")
+        core_api.save_task_result(
+            job.id,
+            "cleanup_token_blacklist",
+            message,
+            "SUCCESS",
+            worker_id=job.id,
+            worker_type="cleanup_token_blacklist",
+        )
 
     return message
 

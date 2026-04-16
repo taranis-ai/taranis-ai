@@ -53,6 +53,8 @@ class Task(TaranisBaseModel):
 
     id: str
     task: str | None = None
+    worker_id: str | None = None
+    worker_type: str | None = None
     result: Any | None = None
     status: str | None = None
     last_run: datetime | None = None
@@ -68,6 +70,8 @@ class TaskSubmission(TaranisBaseModel):
 
     id: str = Field(min_length=1, validation_alias=AliasChoices("id", "task_id"), serialization_alias="id")
     task: str | None = None
+    worker_id: str | None = None
+    worker_type: str | None = None
     result: Any | None = None
     status: str = Field(min_length=1)
 
@@ -100,6 +104,8 @@ class TaskSubmission(TaranisBaseModel):
 class TaskHistoryEntry(TaranisBaseModel):
     id: str
     task: str | None = None
+    worker_id: str | None = None
+    worker_type: str | None = None
     result: Any | None = None
     status: str | None = None
     last_run: datetime | None = None
@@ -107,6 +113,8 @@ class TaskHistoryEntry(TaranisBaseModel):
 
 
 class TaskHistoryStats(TaranisBaseModel):
+    worker_id: str | None = None
+    worker_type: str | None = None
     last_run: str | None = None
     last_success: str | None = None
     last_run_display: str | None = None

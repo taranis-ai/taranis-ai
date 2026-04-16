@@ -31,6 +31,8 @@ def test_collector_task_missing_source_is_skipped(current_job, requests_mock):
     assert put_calls[0].json() == {
         "id": "test-job-123",
         "task": "collector_task",
+        "worker_id": "source-missing",
+        "worker_type": "collector_task",
         "result": result,
         "status": "SUCCESS",
     }

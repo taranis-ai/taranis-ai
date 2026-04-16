@@ -115,23 +115,20 @@ class NewsItemTagService:
             story.set_tags(tags, change_by_bot=change_by_bot)
 
     @staticmethod
-    def set_bot_execution_attribute(result: dict[str, Any]):
-        bot_type = result.get("bot_type", "UNKNOWN_BOT")
-        bot_id = result.get("bot_id", "UNKNOWN_ID")
-        found_tags = result.get("result", {}) or {}
+    def set_worker_execution_attribute(*, worker_type: str, worker_id: str, found_tags: dict[str, Any]):
         now = datetime.now().isoformat()
 
         for story_id, tags in found_tags.items():
             if story := Story.get(story_id):
                 tag_count = len(tags)
-                attribute_value = f"bot_id={bot_id}|count={tag_count}|{now}"
+                attribute_value = f"worker_id={worker_id}|count={tag_count}|{now}"
                 story.attributes.append(
                     NewsItemAttribute(
-                        key=f"{bot_type}",
+                        key=f"{worker_type}",
                         value=attribute_value,
                     )
                 )
-                story.record_revision(note="set_bot_execution_attribute")
+                story.record_revision(note="set_worker_execution_attribute")
 
         db.session.commit()
 

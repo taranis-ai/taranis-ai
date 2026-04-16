@@ -203,7 +203,9 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             "items": [
                 {
                     "id": "task-1",
-                    "task": "collectors.fetch",
+                    "task": "collector_task",
+                    "worker_type": "rss_collector",
+                    "worker_id": "source-1",
                     "status": "SUCCESS",
                     "result": None,
                     "last_run": "2024-01-01T00:00:00Z",
@@ -211,7 +213,9 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
                 },
                 {
                     "id": "task-2",
-                    "task": "bots.process",
+                    "task": "bot_task",
+                    "worker_type": "WORDLIST_BOT",
+                    "worker_id": "bot-1",
                     "status": "FAILURE",
                     "result": {"error": "timeout"},
                     "last_run": "2024-01-02T12:00:00Z",
@@ -220,22 +224,26 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             ],
             "total_count": 2,
             "task_stats": {
-                "collectors.fetch": {
+                "rss_collector": {
                     "last_run": "2024-01-01T00:00:00Z",
                     "last_success": "2024-01-01T00:00:00Z",
                     "last_run_display": "2024-01-01T00:00:00Z",
                     "last_success_display": "2024-01-01T00:00:00Z",
+                    "worker_type": "rss_collector",
+                    "worker_id": "source-1",
                     "successes": 1,
                     "failures": 0,
                     "total": 1,
                     "success_pct": 100,
                     "status_badge": {"label": "All Success", "variant": "success"},
                 },
-                "bots.process": {
+                "WORDLIST_BOT": {
                     "last_run": "2024-01-02T12:00:00Z",
                     "last_success": "2024-01-02T10:00:00Z",
                     "last_run_display": "2024-01-02T12:00:00Z",
                     "last_success_display": "2024-01-02T10:00:00Z",
+                    "worker_type": "WORDLIST_BOT",
+                    "worker_id": "bot-1",
                     "successes": 0,
                     "failures": 1,
                     "total": 1,

@@ -1,5 +1,3 @@
-import socket
-
 import click
 from redis import Redis
 
@@ -7,6 +5,14 @@ from worker.config import Config
 
 
 CRON_LEADER_KEY = "rq:cron:leader"
+WORKER_QUEUE_NAMES = {
+    "Bots": "bots",
+    "Collectors": "collectors",
+    "Presenters": "presenters",
+    "Publishers": "publishers",
+    "Connectors": "connectors",
+    "Misc": "misc",
+}
 
 
 def _redis_connection() -> Redis:
@@ -17,14 +23,24 @@ def _redis_connection() -> Redis:
     )
 
 
+def _expected_worker_queues() -> set[str]:
+    return {WORKER_QUEUE_NAMES[worker_type] for worker_type in Config.WORKER_TYPES if worker_type in WORKER_QUEUE_NAMES}
+
+
 def check_worker_health(redis_connection: Redis, hostname: str | None = None) -> None:
     redis_connection.ping()
 
-    local_hostname = hostname or socket.gethostname()
-    worker_key_pattern = f"rq:worker:{local_hostname}.*"
-    worker_key = next(redis_connection.scan_iter(match=worker_key_pattern, count=1), None)
-    if worker_key is None:
-        raise RuntimeError(f"no worker key found for host '{local_hostname}'")
+    del hostname
+
+    expected_queues = _expected_worker_queues()
+    worker_key_pattern = "rq:worker:*"
+    for worker_key in redis_connection.scan_iter(match=worker_key_pattern, count=50):
+        worker_data = redis_connection.hgetall(worker_key)
+        worker_queues = {queue.strip() for queue in worker_data.get("queues", "").split(",") if queue.strip()}
+        if worker_queues.intersection(expected_queues):
+            return
+
+    raise RuntimeError(f"no active worker found for queues: {', '.join(sorted(expected_queues))}")
 
 
 def check_cron_health(redis_connection: Redis) -> None:

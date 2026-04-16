@@ -122,3 +122,17 @@ def test_scheduler_htmx_partials_use_granular_endpoints(
     assert _requested_core_paths(responses_mock) == expected_paths
     assert "/config/workers/dashboard" not in _requested_core_paths(responses_mock)
     assert expected_text in response.get_data(as_text=True)
+
+
+def test_scheduler_history_displays_worker_type_and_hover_worker_id(
+    authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_history")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "WORDLIST_BOT" in html
+    assert 'title="Worker ID: bot-1"' in html

@@ -13,10 +13,13 @@ class TestWorkerApi:
         from core.model.task import Task
 
         task_id = f"presenter-task-{uuid.uuid4().hex}"
+        product_id = f"product-{uuid.uuid4().hex}"
 
         payload = {
             "id": task_id,
             "task": "presenter_task",
+            "worker_id": product_id,
+            "worker_type": "html_presenter",
             "result": {},
             "status": "SUCCESS",
         }
@@ -26,12 +29,16 @@ class TestWorkerApi:
 
             assert response.status_code == 200
             assert response.get_json()["task"] == "presenter_task"
+            assert response.get_json()["worker_id"] == product_id
+            assert response.get_json()["worker_type"] == "html_presenter"
             assert response.get_json()["result"] == {}
 
             with app.app_context():
                 stored = Task.get(task_id)
                 assert stored is not None
                 assert stored.to_dict()["result"] == {}
+                assert stored.to_dict()["worker_id"] == product_id
+                assert stored.to_dict()["worker_type"] == "html_presenter"
                 assert stored.task == "presenter_task"
         finally:
             with app.app_context():
@@ -405,7 +412,9 @@ class TestWorkerTaskResults:
         task_id = f"cron-bot-wordlist-{uuid.uuid4().hex}"
         payload = {
             "id": task_id,
-            "task": f"bot_{wordlist_bot_result['result']['bot_id']}",
+            "task": f"bot_{wordlist_bot_result['worker_id']}",
+            "worker_id": wordlist_bot_result["worker_id"],
+            "worker_type": wordlist_bot_result["worker_type"],
             "result": wordlist_bot_result["result"],
             "status": "SUCCESS",
         }
@@ -421,11 +430,11 @@ class TestWorkerTaskResults:
 
                 story_data = story_response.get_json()
                 structured_tags = {tag["name"]: tag["tag_type"] for tag in story_data.get("tags", [])}
-                expected_tags = wordlist_bot_result["result"]["result"].get(story_id, {})
+                expected_tags = wordlist_bot_result["result"].get(story_id, {})
 
                 assert structured_tags == expected_tags
                 attr_by_key = {attribute.get("key"): attribute.get("value") for attribute in story_data.get("attributes", [])}
-                assert attr_by_key["WORDLIST_BOT"].startswith(f"bot_id={wordlist_bot_result['result']['bot_id']}")
+                assert attr_by_key["WORDLIST_BOT"].startswith(f"worker_id={wordlist_bot_result['worker_id']}")
         finally:
             with app.app_context():
                 if Task.get(task_id):

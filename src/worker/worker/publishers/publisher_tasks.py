@@ -30,6 +30,7 @@ def publisher_task(product_id: str, publisher_id: str):
     core_api = CoreApi()
     task_name = "publisher_task"
     task_id = job.id if job else f"{task_name}_{publisher_id}_{product_id}"
+    worker_type = "publisher_task"
 
     logger.info(f"Starting publisher task with job id {job.id if job else 'manual'}")
 
@@ -49,13 +50,21 @@ def publisher_task(product_id: str, publisher_id: str):
         pub_type = publisher.get("type")
         if pub_type is None:
             raise ValueError(f"Publisher {publisher_id} has no type configured")
+        worker_type = pub_type
         publisher_impl = _get_publisher_impl(pub_type)
 
         result = publisher_impl.publish(publisher, product, rendered_product)
-        core_api.save_task_result(task_id, task_name, result, "SUCCESS")
+        core_api.save_task_result(task_id, task_name, result, "SUCCESS", worker_id=publisher_id, worker_type=worker_type)
         return result
     except Exception as exc:
-        core_api.save_task_result(task_id, task_name, {"error": str(exc)}, "FAILURE")
+        core_api.save_task_result(
+            task_id,
+            task_name,
+            {"error": str(exc)},
+            "FAILURE",
+            worker_id=publisher_id,
+            worker_type=worker_type,
+        )
         raise
 
 

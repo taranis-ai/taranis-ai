@@ -53,7 +53,15 @@ class Collector:
         raise ValueError(f"Source {source['id']} has no collector_type")
 
 
-def _finalize_successful_non_run(job, core_api: CoreApi, result_message: str, *, meta_status: str | None = None) -> str:
+def _finalize_successful_non_run(
+    job,
+    core_api: CoreApi,
+    result_message: str,
+    *,
+    worker_id: str | None = None,
+    worker_type: str | None = None,
+    meta_status: str | None = None,
+) -> str:
     if not job:
         return result_message
 
@@ -62,7 +70,7 @@ def _finalize_successful_non_run(job, core_api: CoreApi, result_message: str, *,
         job.meta["message"] = result_message
         job.save_meta()
 
-    core_api.save_task_result(job.id, "collector_task", result_message, "SUCCESS")
+    core_api.save_task_result(job.id, "collector_task", result_message, "SUCCESS", worker_id=worker_id, worker_type=worker_type)
     return result_message
 
 
@@ -89,9 +97,17 @@ def collector_task(osint_source_id: str, manual: bool = False):
     except LookupError as exc:
         result_message = f"Skipped collector task: {exc}"
         logger.warning(result_message)
-        return _finalize_successful_non_run(job, core_api, result_message, meta_status="SKIPPED")
+        return _finalize_successful_non_run(
+            job,
+            core_api,
+            result_message,
+            worker_id=osint_source_id,
+            worker_type="collector_task",
+            meta_status="SKIPPED",
+        )
 
     collector_impl = collector.get_collector(source)
+    worker_type = source.get("type") or "collector_task"
     formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector_impl.name} {job.id if job else 'preview'}")
     task_description = (
         f"Collect: source '{source.get('name')}' with id {source.get('id')} using collector: '{collector_impl.name}' "
@@ -109,7 +125,14 @@ def collector_task(osint_source_id: str, manual: bool = False):
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             result_message = f"No changes: {e}"
-            return _finalize_successful_non_run(job, core_api, result_message, meta_status="NOT_MODIFIED")
+            return _finalize_successful_non_run(
+                job,
+                core_api,
+                result_message,
+                worker_id=osint_source_id,
+                worker_type=worker_type,
+                meta_status="NOT_MODIFIED",
+            )
         except Exception as e:
             logger.error(f"Collector task failed: {task_description}")
             task_status = "FAILURE"
@@ -117,7 +140,14 @@ def collector_task(osint_source_id: str, manual: bool = False):
 
             # Save failure to database
             if job:
-                core_api.save_task_result(job.id, "collector_task", result_message, task_status)
+                core_api.save_task_result(
+                    job.id,
+                    "collector_task",
+                    result_message,
+                    task_status,
+                    worker_id=osint_source_id,
+                    worker_type=worker_type,
+                )
 
             raise RuntimeError(e) from e
 
@@ -126,7 +156,14 @@ def collector_task(osint_source_id: str, manual: bool = False):
 
     # Save task result to database
     if job:
-        core_api.save_task_result(job.id, "collector_task", result_message, task_status)
+        core_api.save_task_result(
+            job.id,
+            "collector_task",
+            result_message,
+            task_status,
+            worker_id=osint_source_id,
+            worker_type=worker_type,
+        )
 
     return result_message
 
@@ -167,6 +204,8 @@ def collector_preview(osint_source_id: str):
 def fetch_single_news_item(parameters: dict[str, Any]):
     job = get_current_job()
     collector = worker.collectors.SimpleWebCollector()
+    worker_type = "simple_web_collector"
+    worker_id = str(parameters.get("url") or (job.id if job else "preview"))
     formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {job.id if job else 'preview'}")
     task_description = f"Fetching news item wtih {parameters=} and {job.id if job else 'preview'}"
     logger.info(f"Starting collector task: {task_description}")
@@ -186,7 +225,14 @@ def fetch_single_news_item(parameters: dict[str, Any]):
 
             # Save task result to database
             if job:
-                core_api.save_task_result(job.id, "collector_task", result_message, task_status)
+                core_api.save_task_result(
+                    job.id,
+                    "collector_task",
+                    result_message,
+                    task_status,
+                    worker_id=worker_id,
+                    worker_type=worker_type,
+                )
 
             return result_message
         except Exception as e:
