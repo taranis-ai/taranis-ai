@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from hmac import compare_digest
 
-from flask import Flask, Response, jsonify, make_response, request
+from flask import Flask, Response, g, jsonify, make_response, request
 from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, verify_jwt_in_request
 
 from core.auth.database_authenticator import DatabaseAuthenticator
@@ -150,6 +150,7 @@ def _jwt_authorize(permissions_set: set[str]) -> tuple[dict[str, str], int] | No
         )
         return {"error": "forbidden"}, 403
 
+    g.authenticated_user = current_user
     return None
 
 
@@ -159,7 +160,8 @@ def api_key_or_auth_required(permissions: list | str | None = None):
     def auth_required_wrap(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            if _has_valid_api_key():
+            if _has_valid_api_key(log_failures=True):
+                g.authenticated_user = None
                 return fn(*args, **kwargs)
 
             if auth_error := _jwt_authorize(permissions_set):

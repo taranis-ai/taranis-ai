@@ -1316,6 +1316,10 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  message:
+                    type: string
+                required: [message]
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
