@@ -749,10 +749,10 @@ def cleanup_publisher(app):
 def remap_result_keys(payload: dict, stories) -> dict:
     payload = deepcopy(payload)
 
-    old = payload["result"]["result"]
+    old = payload["result"]
     story_ids = [str(getattr(s, "id", s)) for s in stories]
 
-    payload["result"]["result"] = {story_id: tags_dict for story_id, tags_dict in zip(story_ids, old.values())}
+    payload["result"] = {story_id: tags_dict for story_id, tags_dict in zip(story_ids, old.values())}
     return payload
 
 

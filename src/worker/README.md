@@ -30,6 +30,12 @@ Or use the development script with auto-reload:
 ./start_dev_worker.py
 ```
 
+Run the worker container healthcheck command:
+
+```bash
+uv run --no-sync --frozen taranis-worker-healthcheck --mode worker
+```
+
 ## Architecture
 
 see [docs](https://github.com/taranis-ai/taranis-ai/tree/master/doc)

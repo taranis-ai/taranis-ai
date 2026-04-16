@@ -27,6 +27,7 @@ def bot_task(bot_id: str, filter: dict | None = None):
     core_api = CoreApi()
     task_name = f"bot_{bot_id}"
     task_id = job.id if job else task_name
+    worker_type = "BOT_TASK"
 
     logger.info(f"Starting bot task with job id {job.id if job else 'manual'}")
 
@@ -35,15 +36,19 @@ def bot_task(bot_id: str, filter: dict | None = None):
         if not bot_config:
             raise ValueError(f"Bot with id {bot_id} not found")
 
+        worker_type = bot_config.get("type", worker_type).upper()
         bot_result = _execute_by_config(bot_config, filter)
-        result = {"bot_type": bot_config.get("type", "UNKNOWN_BOT_TYPE").upper(), **bot_result}
-        _save_task_result(task_id, task_name, result, "SUCCESS", core_api)
-        return result
+        core_api.save_task_result(task_id, task_name, bot_result, "SUCCESS", worker_id=bot_id, worker_type=worker_type)
+        return (
+            {"worker_id": bot_id, "worker_type": worker_type, **bot_result}
+            if isinstance(bot_result, dict)
+            else {"worker_id": bot_id, "worker_type": worker_type, "result": bot_result}
+        )
     except Exception as exc:
         error_message = str(exc)
         if not (isinstance(exc, ValueError) and error_message == f"Bot with id {bot_id} not found"):
             error_message = f"Bot execution failed: {error_message}"
-        _save_task_result(task_id, task_name, {"error": error_message}, "FAILURE", core_api)
+        core_api.save_task_result(task_id, task_name, {"error": error_message}, "FAILURE", worker_id=bot_id, worker_type=worker_type)
         raise
 
 
@@ -86,21 +91,3 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None):
         bot_params["filter"] = filter
 
     return bot.execute(bot_params)
-
-
-def _save_task_result(job_id: str, task_name: str, result: dict, status: str, core_api):
-    """Save task result to database via Core API.
-
-    Args:
-        job_id: RQ job ID
-        task_name: Task identifier (e.g., 'bot_123')
-        result: Result data dictionary from bot execution
-        status: Task status ('SUCCESS' or 'FAILURE')
-        core_api: CoreApi instance for making API calls
-    """
-    try:
-        task_data = {"id": job_id, "task": task_name, "result": result, "status": status}
-        if core_api.api_put("/worker/task-results", task_data):
-            logger.debug(f"Saved task result for {task_name}: {status}")
-    except Exception as e:
-        logger.error(f"Failed to save task result for {task_name}: {e}")

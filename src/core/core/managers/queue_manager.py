@@ -1085,21 +1085,28 @@ class QueueManager:
 
             workers = Worker.all(connection=self._redis)
             worker_entries = []
-            for w in workers:
-                current_job = w.get_current_job()
+            busy_workers = 0
+            idle_workers = 0
+            for worker in workers:
+                if worker.state == "busy":
+                    busy_workers += 1
+                elif worker.state == "idle":
+                    idle_workers += 1
+
+                current_job = worker.get_current_job()
                 worker_entries.append(
                     {
-                        "name": w.name,
-                        "state": w.state,
-                        "queues": [q.name for q in w.queues],
+                        "name": worker.name,
+                        "state": worker.state,
+                        "queues": [q.name for q in worker.queues],
                         "current_job": current_job.id if current_job else None,
                     }
                 )
 
             worker_stats = {
                 "total_workers": len(workers),
-                "busy_workers": sum(w.state == "busy" for w in workers),
-                "idle_workers": sum(w.state == "idle" for w in workers),
+                "busy_workers": busy_workers,
+                "idle_workers": idle_workers,
                 "workers": worker_entries,
             }
 

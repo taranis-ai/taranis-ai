@@ -37,25 +37,16 @@ def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
     job = get_current_job()
     if job:
         core_api = CoreApi()
-        _save_task_result(job.id, "cleanup_token_blacklist", message, "SUCCESS", core_api)
+        core_api.save_task_result(
+            job.id,
+            "cleanup_token_blacklist",
+            message,
+            "SUCCESS",
+            worker_id=job.id,
+            worker_type="cleanup_token_blacklist",
+        )
 
     return message
-
-
-def _save_task_result(job_id: str, task_name: str, result: str, status: str, core_api: CoreApi):
-    """Persist task result to Core via the worker API."""
-    try:
-        payload = {
-            "id": job_id,
-            "task": task_name,
-            "result": result,
-            "status": status,
-        }
-        response = core_api.api_put("/worker/task-results", payload)
-        if not response:
-            logger.warning(f"Failed to save task result for {job_id}")
-    except Exception as exc:  # pragma: no cover - log and continue
-        logger.error(f"Error saving task result for {job_id}: {exc}")
 
 
 def _reschedule_cleanup():

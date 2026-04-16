@@ -1,6 +1,7 @@
 from flask import render_template, request
 from flask.views import MethodView
-from models.admin import ActiveJob, FailedJob, Job, QueueStatus, SchedulerDashboardData, TaskHistoryResponse, WorkerStats
+from models.admin import ActiveJob, FailedJob, Job, QueueStatus, SchedulerDashboardData, WorkerStats
+from models.task import TaskHistoryResponse
 
 from frontend.auth import auth_required
 from frontend.config import Config
