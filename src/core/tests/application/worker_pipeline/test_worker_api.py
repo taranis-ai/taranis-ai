@@ -1,4 +1,5 @@
 import importlib.util
+import logging
 import sys
 import uuid
 from pathlib import Path
@@ -398,6 +399,37 @@ class TestWorkerTaskResults:
                     Task.delete(task_id)
                 if Product.get(product_id):
                     Product.delete(product_id)
+
+    def test_worker_task_results_accepts_non_tagging_bot_results(self, client, api_header, app, caplog):
+        from core.model.task import Task
+
+        task_id = f"cron-bot-analyst-{uuid.uuid4().hex}"
+        payload = {
+            "id": task_id,
+            "task": "bot_task",
+            "result": {
+                "bot_id": "bot-123",
+                "bot_type": "ANALYST_BOT",
+                "result": None,
+            },
+            "status": "SUCCESS",
+        }
+
+        try:
+            with caplog.at_level(logging.ERROR):
+                response = client.post(self.base_uri, json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            assert not any("Invalid bot task result payload" in record.message for record in caplog.records)
+
+            with app.app_context():
+                task = Task.get(task_id)
+                assert task is not None
+                assert task.to_dict()["result"] == payload["result"]
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
 
     def test_worker_task_results_apply_bot_tags(self, client, stories, auth_header, api_header, app, wordlist_bot_result):
         from core.model.task import Task

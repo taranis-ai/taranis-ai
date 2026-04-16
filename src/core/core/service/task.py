@@ -122,8 +122,28 @@ class TaskService:
 
     @staticmethod
     def _handle_bot_result(result: dict[str, Any]) -> None:
-        bot_type = result.pop("bot_type", "")
+        if "result" not in result:
+            logger.error("Invalid bot task result payload")
+            return
+
+        bot_result = result.get("result")
+        if bot_result is None:
+            return
+
+        if not isinstance(bot_result, dict):
+            logger.error("Invalid bot task result payload")
+            return
+
+        error_message = bot_result.get("error")
+        if error_message:
+            logger.error(error_message)
+            return
+
+        if set(bot_result.keys()) <= {"message"}:
+            return
+
+        bot_type = result.get("bot_type", "")
         if bot_type in TAGGING_BOTS:
-            NewsItemTagService.set_found_bot_tags(result, change_by_bot=True)
+            NewsItemTagService.set_found_bot_tags(bot_result, change_by_bot=True)
 
         NewsItemTagService.set_bot_execution_attribute(result)
