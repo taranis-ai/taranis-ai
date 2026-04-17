@@ -9,6 +9,7 @@ from core.managers.auth_manager import auth_required
 from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
 from core.model.revision import ReportRevision
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.product import ProductService
 
 
@@ -29,7 +30,13 @@ class ReportStories(MethodView):
         if not isinstance(request_data, list):
             logger.warning("No data in request")
             return {"error": "No data in request"}, 400
-        return report_item.ReportItem.set_stories(report_item_id, request_data, current_user)
+        response, status = report_item.ReportItem.set_stories(report_item_id, request_data, current_user)
+        invalidate_frontend_cache_on_success(
+            status,
+            models=("report_item", "story", "product"),
+            object_ids={"report_item": report_item_id},
+        )
+        return response, status
 
     @auth_required("ANALYZE_UPDATE")
     def post(self, report_item_id: str):
@@ -37,7 +44,13 @@ class ReportStories(MethodView):
         if not isinstance(request_data, list):
             logger.warning("No data in request")
             return {"error": "No data in request"}, 400
-        return report_item.ReportItem.add_stories(report_item_id, request_data, current_user)
+        response, status = report_item.ReportItem.add_stories(report_item_id, request_data, current_user)
+        invalidate_frontend_cache_on_success(
+            status,
+            models=("report_item", "story", "product"),
+            object_ids={"report_item": report_item_id},
+        )
+        return response, status
 
 
 class ReportItem(MethodView):
@@ -67,6 +80,7 @@ class ReportItem(MethodView):
         if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
             sse_manager.report_item_updated(new_report_item.id)
+            invalidate_frontend_cache_on_success(status, models=("report_item", "story", "product"))
 
         return {"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}, status
 
@@ -80,6 +94,11 @@ class ReportItem(MethodView):
         if status == 200:
             sse_manager.report_item_updated(report_item_id)
             ProductService.autopublish_product(report_item_id)
+            invalidate_frontend_cache_on_success(
+                status,
+                models=("report_item", "story", "product"),
+                object_ids={"report_item": report_item_id},
+            )
 
         return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
 
@@ -88,6 +107,11 @@ class ReportItem(MethodView):
         result, code = report_item.ReportItem.delete(report_item_id)
         if code == 200:
             sse_manager.report_item_updated(report_item_id)
+            invalidate_frontend_cache_on_success(
+                code,
+                models=("report_item", "story", "product"),
+                object_ids={"report_item": report_item_id},
+            )
         return result, code
 
 
@@ -101,6 +125,7 @@ class CloneReportItem(MethodView):
             return abort(400, f"Error cloning report item: {ex}")
         if status == 200:
             sse_manager.report_item_updated(result["id"])
+            invalidate_frontend_cache_on_success(status, models=("report_item", "story", "product"))
 
         return result, status
 

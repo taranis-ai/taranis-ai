@@ -135,8 +135,6 @@ class SourceView(AdminMixin, BaseView):
             error = "Failed to import sources"
             return cls.import_view(error)
 
-        dpl = DataPersistenceLayer()
-        dpl.invalidate_cache_by_object(OSINTSource)
         cls.add_flash_notification(response)
         return cls.redirect_htmx(cls.get_base_route())
 
@@ -210,8 +208,6 @@ class SourceView(AdminMixin, BaseView):
             logger.error(error_message)
             return render_template("notification/index.html", notification={"message": error_message, "error": True})
 
-        dpl = DataPersistenceLayer()
-        dpl.invalidate_cache_by_object(OSINTSource)
         items = DataPersistenceLayer().get_objects(cls.model)
         return render_template(cls.get_list_template(), **cls.get_view_context(items))
 
@@ -280,7 +276,6 @@ class SourceView(AdminMixin, BaseView):
                 "notification/index.html", notification={"message": "Failed to toggle OSINT source state", "error": True}
             ), 500
 
-        dpl.invalidate_cache_by_object(OSINTSource)
         notification = render_template(
             "notification/index.html",
             notification={"message": "OSINT source state updated successfully", "icon": "check-circle", "class": "alert-success"},

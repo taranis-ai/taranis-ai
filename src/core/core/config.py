@@ -56,8 +56,6 @@ class Settings(BaseSettings):
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
     DATA_FOLDER: str = "./taranis_data"  # When started with Docker, the path is /app/data
-    CACHE_TYPE: str = "SimpleCache"
-    CACHE_DEFAULT_TIMEOUT: int = 300
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
@@ -108,6 +106,11 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: SecretStr | None = None
+    CACHE_ENABLED: bool = True
+    CACHE_DEFAULT_TIMEOUT: int = 300
+    CACHE_KEY_PREFIX: str = "taranis_frontend"
+    CACHE_REDIS_URL: str | None = None
+    CACHE_REDIS_PASSWORD: SecretStr | None = None
 
     @field_validator("JWT_SECRET_KEY", "API_KEY", mode="before")
     def check_non_empty_string_or_secret(cls, v, info: ValidationInfo) -> str | SecretStr:

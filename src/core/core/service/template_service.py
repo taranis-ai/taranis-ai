@@ -1,130 +1,167 @@
 import base64
-import hashlib
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TypedDict
+
+from jinja2 import DebugUndefined, TemplateSyntaxError, UndefinedError
+from jinja2.sandbox import ImmutableSandboxedEnvironment
 
 from core.managers.data_manager import (
+    InvalidPresenterTemplatePathError,
     get_template_content,
     list_templates,
+    save_template_content,
 )
-from core.service.template_validation import validate_template_content
 
 
-# Simple in-memory cache for template validation status
-# Key: (template_path, content_hash) -> (encoded_content, validation_status)
-_template_validation_cache: Dict[Tuple[str, str], Tuple[str, dict]] = {}
+type TemplateContent = str | bytes | bytearray | memoryview | None
 
 
-def _get_content_hash(content: Optional[str]) -> str:
-    if content is None:
-        return "__NONE__"
-    if not isinstance(content, str):
-        try:
-            content = bytes(content).decode("utf-8")
-        except Exception:
-            return "__INVALID_UTF8__"
-    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+class ValidationStatus(TypedDict):
+    is_valid: bool
+    error_message: str
+    error_type: str
 
 
-ContentType = Optional[Union[bytes, bytearray, memoryview, str]]
+class TemplateResponse(TypedDict):
+    id: str
+    content: str | None
+    validation_status: ValidationStatus
 
 
-def _build_validation_and_content(content: ContentType, template_path: Optional[str] = None):
-    """Normalize content and compute validation_status and encoded content.
+_INVALID_UTF8_SENTINEL = "__INVALID_UTF8__"
+_EMPTY_TEMPLATE_SENTINEL = "__EMPTY__"
 
-    Mirrors the inline logic previously in the API router to keep behavior identical.
-    Returns a tuple: (encoded_content, validation_status), where encoded_content
-    is a base64 string, "" (empty string), or None depending on input and errors.
+
+def _error_status(message: str, error_type: str) -> ValidationStatus:
+    return {
+        "is_valid": False,
+        "error_message": message,
+        "error_type": error_type,
+    }
+
+
+def _decode_template_content(content: bytes | bytearray | memoryview) -> str | None:
+    try:
+        return bytes(content).decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def create_or_update_template(template_id, base64_content):
     """
-    if content is None:
-        return None, {
-            "is_valid": False,
-            "error_message": "Template file not found.",
-            "error_type": "NotFound",
-        }
-    if content == "__INVALID_UTF8__":
-        return None, {
-            "is_valid": False,
-            "error_message": "Template file is not valid UTF-8.",
-            "error_type": "UnicodeDecodeError",
-        }
-    if content == "__EMPTY__":
-        return "", {
-            "is_valid": False,
-            "error_message": "Template file is empty.",
-            "error_type": "EmptyFile",
-        }
+    Shared logic for creating or updating a template.
+    Decodes base64 content, validates, and saves the template.
+    Returns a tuple: (response_dict, status_code)
+    """
+    if not template_id or not base64_content:
+        return {"error": "Missing template id or content"}, 400
 
-    # content is actual data; ensure we have a str for validation/encoding
-    text: Optional[str]
+    # Decode content
+    try:
+        template_content = base64.b64decode(base64_content).decode("utf-8")
+    except Exception as e:
+        return {"error": f"Failed to decode content: {e}"}, 400
+
+    # Validate
+    validation_status = validate_template_content(template_content)
+
+    # Store in file
+    try:
+        save_template_content(template_id, template_content)
+    except InvalidPresenterTemplatePathError as e:
+        return {"error": str(e)}, 400
+    except Exception as e:
+        return {"error": f"Failed to save template: {e}"}, 500
+
+    response = {
+        "message": "Template updated or created",
+        "path": template_id,
+        "validation_status": validation_status,
+    }
+    if not validation_status["is_valid"]:
+        response["warning"] = f"Template saved but has validation errors: {validation_status['error_message']}"
+    return response, 200
+
+
+def validate_template_content(template_content: str) -> ValidationStatus:
+    """
+    Validate Jinja2 template content with comprehensive validation.
+
+    Performs both syntax parsing and render testing to catch template errors.
+    Uses DebugUndefined to provide better error messages for undefined variables.
+
+    Args:
+        template_content (str): The template string to validate
+
+    Returns:
+        dict: {
+            "is_valid": bool,
+            "error_message": str,  # Empty string if valid
+            "error_type": str      # Empty string if valid
+        }
+    """
+    if not template_content or not template_content.strip():
+        return {"is_valid": False, "error_message": "Template file is empty.", "error_type": "EmptyFile"}
+
+    try:
+        # Create Jinja2 environment with DebugUndefined for better error messages
+        env = ImmutableSandboxedEnvironment(autoescape=False, undefined=DebugUndefined)
+
+        # Compile and attempt to render with empty context
+        template = env.from_string(template_content)
+        try:
+            template.render({})
+        except UndefinedError:
+            # Ignore undefined variable errors - these are expected with empty context
+            pass
+        except Exception as e:
+            # Catch other rendering errors (e.g., filter errors, logic errors)
+            return {"is_valid": False, "error_message": str(e), "error_type": type(e).__name__}
+
+        # Template is valid
+        return {"is_valid": True, "error_message": "", "error_type": ""}
+
+    except TemplateSyntaxError as e:
+        return {"is_valid": False, "error_message": str(e), "error_type": "TemplateSyntaxError"}
+    except Exception as e:
+        return {"is_valid": False, "error_message": str(e), "error_type": type(e).__name__}
+
+
+def _build_validation_and_content(content: TemplateContent) -> tuple[str | None, ValidationStatus]:
+    """Normalize template content and compute the API-ready payload fields."""
+    if content is None:
+        return None, _error_status("Template file not found.", "NotFound")
+
+    if content == _INVALID_UTF8_SENTINEL:
+        return None, _error_status("Template file is not valid UTF-8.", "UnicodeDecodeError")
+
+    if content == _EMPTY_TEMPLATE_SENTINEL:
+        return "", _error_status("Template file is empty.", "EmptyFile")
+
     if isinstance(content, str):
         text = content
-    elif isinstance(content, (bytes, bytearray, memoryview)):
-        try:
-            text = bytes(content).decode("utf-8")
-        except Exception:
-            return None, {
-                "is_valid": False,
-                "error_message": "Template file is not valid UTF-8.",
-                "error_type": "UnicodeDecodeError",
-            }
+    elif isinstance(content, bytes | bytearray | memoryview):
+        if (text := _decode_template_content(content)) is None:
+            return None, _error_status("Template file is not valid UTF-8.", "UnicodeDecodeError")
     else:
-        # Unknown type; treat as not found/invalid
-        return None, {
-            "is_valid": False,
-            "error_message": "Template file not found.",
-            "error_type": "NotFound",
-        }
+        return None, _error_status("Template file not found.", "NotFound")
 
-    # Use cache if available
-    cache_key = None
-    if template_path is not None:
-        content_hash = _get_content_hash(text)
-        cache_key = (template_path, content_hash)
-        if cache_key in _template_validation_cache:
-            return _template_validation_cache[cache_key]
-
-    validation_status = validate_template_content(text)
-    encoded_content = base64.b64encode(text.encode("utf-8")).decode("utf-8")
-    if cache_key is not None:
-        _template_validation_cache[cache_key] = (encoded_content, validation_status)
-    return encoded_content, validation_status
+    return base64.b64encode(text.encode("utf-8")).decode("utf-8"), validate_template_content(text)
 
 
-def build_template_response(template_path: str) -> Dict:
-    """Return a dict with id, content (base64|None|""), and validation_status for a template."""
-    content = get_template_content(template_path)
-    encoded_content, validation_status = _build_validation_and_content(content, template_path=template_path)
+def _build_template_response(template_id: str, content: TemplateContent) -> TemplateResponse:
+    encoded_content, validation_status = _build_validation_and_content(content)
     return {
-        "id": template_path,
+        "id": template_id,
         "content": encoded_content,
         "validation_status": validation_status,
     }
 
 
-def build_templates_list() -> List[Dict]:
-    """Return a list of template dicts as provided by build_template_response for all templates."""
-    items: List[Dict] = []
-    for tid in list_templates():
-        content = get_template_content(tid)
-        encoded_content, validation_status = _build_validation_and_content(content, template_path=tid)
-        items.append(
-            {
-                "id": tid,
-                "content": encoded_content,
-                "validation_status": validation_status,
-            }
-        )
-    return items
+def build_template_response(template_path: str) -> TemplateResponse:
+    """Return a template payload with id, base64 content, and validation status."""
+    return _build_template_response(template_path, get_template_content(template_path))
 
 
-# Invalidate cache for a template (call after update/delete)
-def invalidate_template_validation_cache(template_path: str, content: Optional[str] = None):
-    """Remove cached validation for a template. If content is given, only remove that hash; else remove all for path."""
-    if content is not None:
-        content_hash = _get_content_hash(content)
-        _template_validation_cache.pop((template_path, content_hash), None)
-    else:
-        # Remove all cache entries for this template_path
-        keys_to_remove = [k for k in _template_validation_cache if k[0] == template_path]
-        for k in keys_to_remove:
-            _template_validation_cache.pop(k, None)
+def build_templates_list() -> list[TemplateResponse]:
+    """Return API payloads for every stored presenter template."""
+    return [_build_template_response(template_id, get_template_content(template_id)) for template_id in list_templates()]

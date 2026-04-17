@@ -29,6 +29,16 @@ uv sync --frozen
 granian app
 ```
 
+### Cache configuration
+
+Frontend caching now uses Redis directly and falls back to a no-op cache when disabled or when Redis is unavailable.
+
+- `CACHE_ENABLED=true|false` toggles frontend caching
+- `CACHE_REDIS_URL` optionally overrides the Redis URL used for cache storage
+- `CACHE_REDIS_PASSWORD` optionally overrides the Redis password used for cache storage
+- when the cache-specific settings are unset, frontend falls back to `REDIS_URL` and `REDIS_PASSWORD`
+- unit tests disable caching by default unless `CACHE_ENABLED=true` is explicitly set in the test app config
+
 ## Development Setup
 
 ### 0. Read the documentation

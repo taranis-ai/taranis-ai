@@ -10,16 +10,14 @@ from frontend.views import AuthView, DashboardView
 class InvalidateCache(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self, suffix: str | None = None):
-        if not suffix:
-            DataPersistenceLayer().invalidate_cache(None)
-        DataPersistenceLayer().invalidate_cache(suffix)
-        return "Cache invalidated"
+        response = DataPersistenceLayer().invalidate_cache(suffix)
+        return ("Cache invalidated", response.status_code) if response.ok else (response.text, response.status_code)
 
     @auth_required("ADMIN_OPERATIONS")
     def post(self, suffix: str | None = None):
-        if not suffix:
-            DataPersistenceLayer().invalidate_cache(None)
-        DataPersistenceLayer().invalidate_cache(suffix)
+        response = DataPersistenceLayer().invalidate_cache(suffix)
+        if not response.ok:
+            return Response(response.text, status=response.status_code)
         return Response(status=204, headers={"HX-Refresh": "true"})
 
 

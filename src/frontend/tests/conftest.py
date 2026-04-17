@@ -1,10 +1,12 @@
 import os
 import subprocess
 import sys
+from fnmatch import fnmatch
 from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
+from models.user import UserProfile
 
 from tests.core_requests import CoreRequestClient
 
@@ -73,12 +75,38 @@ def _build_authenticated_client(app, access_token):
     return client
 
 
+class _InMemoryCacheBackend:
+    def __init__(self):
+        self.store: dict[str, object] = {}
+
+    @property
+    def enabled(self) -> bool:
+        return True
+
+    def get(self, key: str):
+        return self.store.get(key)
+
+    def set(self, key: str, value, timeout: int | None = None) -> bool:
+        self.store[key] = value
+        return True
+
+    def delete(self, key: str) -> int:
+        return int(self.store.pop(key, None) is not None)
+
+    def clear(self) -> int:
+        deleted = len(self.store)
+        self.store.clear()
+        return deleted
+
+    def scan_keys(self, pattern: str) -> list[str]:
+        return sorted(key for key in self.store if fnmatch(key, pattern))
+
+
 @pytest.fixture(scope="session")
 def app():
     from frontend.__init__ import create_app
 
-    app = create_app()
-    app.config.update(
+    app = create_app(
         {
             "TESTING": True,
             "DEBUG": True,
@@ -91,36 +119,32 @@ def app():
 
 @pytest.fixture(scope="session")
 def auth_user():
-    from frontend.cache import add_user_to_cache
+    debug_user = UserProfile(
+        id=1,
+        username="admin",
+        name="Arthur Dent",
+        organization={"id": 1, "name": "Galactic Government"},
+        permissions=["ALL"],
+        profile={},
+        roles=[{"id": 1, "name": "Admin"}],
+    )
 
-    debug_user = {
-        "id": 1,
-        "username": "admin",
-        "name": "Arthur Dent",
-        "organization": {"id": 1, "name": "Galactic Government"},
-        "permissions": ["ALL"],
-        "profile": {},
-        "roles": [{"id": 1, "name": "Admin"}],
-    }
-
-    yield add_user_to_cache(debug_user)
+    yield debug_user
 
 
 @pytest.fixture(scope="session")
 def auth_user_basic():
-    from frontend.cache import add_user_to_cache
+    basic_user = UserProfile(
+        id=2,
+        username="user",
+        name="Ford Prefect",
+        organization={"id": 1, "name": "Galactic Government"},
+        permissions=["ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
+        profile={},
+        roles=[{"id": 2, "name": "User"}],
+    )
 
-    basic_user = {
-        "id": 2,
-        "username": "user",
-        "name": "Ford Prefect",
-        "organization": {"id": 1, "name": "Galactic Government"},
-        "permissions": ["ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
-        "profile": {},
-        "roles": [{"id": 2, "name": "User"}],
-    }
-
-    yield add_user_to_cache(basic_user)
+    yield basic_user
 
 
 @pytest.fixture(scope="session")
@@ -154,12 +178,39 @@ def access_token_response_basic(app, auth_user_basic, run_core):
 
 
 @pytest.fixture
-def authenticated_client(app, access_token):
+def test_cache_backend(app):
+    from frontend.cache import cache
+
+    backend = _InMemoryCacheBackend()
+    original_backend = cache._backend
+    original_prefix = cache.key_prefix
+    original_timeout = cache.default_timeout
+    cache._backend = backend
+    cache.key_prefix = app.config["CACHE_KEY_PREFIX"]
+    cache.default_timeout = app.config["CACHE_DEFAULT_TIMEOUT"]
+    try:
+        yield backend
+    finally:
+        cache._backend = original_backend
+        cache.key_prefix = original_prefix
+        cache.default_timeout = original_timeout
+
+
+def _seed_authenticated_user_cache(user: UserProfile) -> None:
+    from frontend.cache import add_user_to_cache
+
+    add_user_to_cache(user.model_dump(mode="json"))
+
+
+@pytest.fixture
+def authenticated_client(app, access_token, auth_user, test_cache_backend):
+    _seed_authenticated_user_cache(auth_user)
     return _build_authenticated_client(app, access_token)
 
 
 @pytest.fixture
-def authenticated_client_basic(app, access_token_basic):
+def authenticated_client_basic(app, access_token_basic, auth_user_basic, test_cache_backend):
+    _seed_authenticated_user_cache(auth_user_basic)
     return _build_authenticated_client(app, access_token_basic)
 
 

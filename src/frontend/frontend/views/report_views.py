@@ -3,7 +3,6 @@ from typing import Any
 from flask import Response, abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.assess import Story
-from models.product import Product
 from models.report import ReportItem, ReportItemAttributeGroup, ReportTypes
 from pydantic import ValidationError
 
@@ -59,7 +58,6 @@ class ReportItemView(BaseView):
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         try:
             dpl = DataPersistenceLayer()
-            dpl.invalidate_cache_by_object(ReportTypes)
             report_types = dpl.get_objects(ReportTypes)
             base_context["report_types"] = report_types
             layout = request.args.get("layout") or request.form.get("layout") or base_context.get("layout", "split")
@@ -129,9 +127,6 @@ class ReportItemView(BaseView):
         if not report_id:
             return abort(400, description="No report ID provided for cloning.")
         CoreApi().clone_report(report_id)
-        DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
-        DataPersistenceLayer().invalidate_cache_by_object(Product)
         return ReportItemView.list_view()
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
@@ -152,8 +147,6 @@ class ReportItemView(BaseView):
                 **cls.get_update_context(object_id, error=error, resp_obj=core_response),
             ), 400
 
-        DataPersistenceLayer().invalidate_cache_by_object(Product)
-
         notification_response = cls.render_response_notification(core_response)
         response = notification_response + render_template(
             cls.get_update_template(),
@@ -166,9 +159,6 @@ class ReportItemView(BaseView):
     @classmethod
     def delete_view(cls, object_id: str | int) -> tuple[str, int]:
         core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
-        if core_response.ok:
-            DataPersistenceLayer().invalidate_cache_by_object(Story)
-            DataPersistenceLayer().invalidate_cache_by_object(Product)
 
         response = cls.get_notification_from_response(core_response)
         table, table_response = cls.render_list()

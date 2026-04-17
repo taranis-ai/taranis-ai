@@ -1,11 +1,8 @@
+from collections.abc import Iterator
+from contextlib import contextmanager
 from unittest.mock import Mock
 
-from models.admin import (
-    ActiveJob,
-    Job,
-    OSINTSource,
-    SchedulerDashboardData,
-)
+from models.admin import ActiveJob, OSINTSource, SchedulerDashboardData
 from models.types import COLLECTOR_TYPES
 
 import frontend.data_persistence as data_persistence_module
@@ -13,43 +10,87 @@ from frontend.cache import cache, list_cache_keys
 from frontend.data_persistence import DataPersistenceLayer
 
 
+class _InMemoryBackend:
+    def __init__(self):
+        self.store: dict[str, object] = {}
+
+    @property
+    def enabled(self) -> bool:
+        return True
+
+    def get(self, key: str):
+        return self.store.get(key)
+
+    def set(self, key: str, value, timeout: int | None = None) -> bool:
+        self.store[key] = value
+        return True
+
+    def delete(self, key: str) -> int:
+        return int(self.store.pop(key, None) is not None)
+
+    def clear(self) -> int:
+        deleted = len(self.store)
+        self.store.clear()
+        return deleted
+
+    def scan_keys(self, pattern: str) -> list[str]:
+        if pattern.endswith("*"):
+            prefix = pattern[:-1]
+            return sorted(key for key in self.store if key.startswith(prefix))
+        return sorted(key for key in self.store if key == pattern)
+
+
+@contextmanager
+def _swap_backend() -> Iterator[_InMemoryBackend]:
+    backend = _InMemoryBackend()
+    original_backend = cache._backend
+    original_prefix = cache.key_prefix
+    original_timeout = cache.default_timeout
+    cache._backend = backend
+    cache.key_prefix = "test_frontend"
+    cache.default_timeout = 300
+    try:
+        yield backend
+    finally:
+        cache._backend = original_backend
+        cache.key_prefix = original_prefix
+        cache.default_timeout = original_timeout
+
+
 def test_get_objects_by_endpoint_caches_empty_results(app, monkeypatch):
-    cache_key = "user1__config_empty"
     api = Mock()
     api.api_get.return_value = {"items": [], "total_count": 0}
 
-    with app.app_context():
+    with app.app_context(), _swap_backend() as backend:
         monkeypatch.setattr(data_persistence_module, "get_jwt_identity", lambda: "user1")
-        cache.delete(cache_key)
 
         persistence = DataPersistenceLayer(jwt_token="token")
         persistence.api = api
+        cache_key = persistence.make_list_cache_key(ActiveJob, "/config/empty")
 
-        first_result = persistence.get_objects_by_endpoint(Job, "/config/empty")
-        second_result = persistence.get_objects_by_endpoint(Job, "/config/empty")
+        first_result = persistence.get_objects_by_endpoint(ActiveJob, "/config/empty")
+        second_result = persistence.get_objects_by_endpoint(ActiveJob, "/config/empty")
 
         assert first_result.total_count == 0
         assert second_result.total_count == 0
         assert list(second_result) == []
-        assert cache.get(cache_key) is not None
+        assert list_cache_keys() == [cache_key]
+        assert backend.store
         assert api.api_get.call_count == 1
 
-        cache.delete(cache_key)
 
-
-def test_update_object_invalidates_only_osint_source_cache(app, monkeypatch):
+def test_update_object_does_not_invalidate_local_cache(app, monkeypatch):
     response = Mock()
     response.ok = True
-    response.json.return_value = {"id": "source-1"}
-
     api = Mock()
     api.api_put.return_value = response
 
-    with app.test_request_context():
+    with app.test_request_context(), _swap_backend():
         monkeypatch.setattr(data_persistence_module, "get_jwt_identity", lambda: "user1")
-        cache.set("user1__config_osint-sources", "sources")
-        cache.set("user1__config_schedule", "schedule")
-        cache.set("user1__config_workers_dashboard", "dashboard")
+        story_cache_key = cache.model_list_key("user1", "osint_source", "list-suffix")
+        schedule_cache_key = cache.model_list_key("user1", "scheduler_dashboard", "dashboard-suffix")
+        cache.set(story_cache_key, {"items": []})
+        cache.set(schedule_cache_key, {"items": []})
 
         persistence = DataPersistenceLayer(jwt_token="token")
         persistence.api = api
@@ -62,16 +103,15 @@ def test_update_object_invalidates_only_osint_source_cache(app, monkeypatch):
 
         persistence.update_object(source, "source-1")
 
-        assert cache.get("user1__config_osint-sources") is None
-        assert cache.get("user1__config_schedule") == "schedule"
-        assert cache.get("user1__config_workers_dashboard") == "dashboard"
+        assert cache.get(story_cache_key) == {"items": []}
+        assert cache.get(schedule_cache_key) == {"items": []}
 
 
 def test_get_objects_caches_active_jobs(app, monkeypatch):
     api = Mock()
     api.api_get.return_value = {"items": [], "total_count": 0}
 
-    with app.app_context():
+    with app.app_context(), _swap_backend():
         monkeypatch.setattr(data_persistence_module, "get_jwt_identity", lambda: "user1")
 
         persistence = DataPersistenceLayer(jwt_token="token")
@@ -80,7 +120,7 @@ def test_get_objects_caches_active_jobs(app, monkeypatch):
         persistence.get_objects(ActiveJob)
         persistence.get_objects(ActiveJob)
 
-        assert any(key.endswith("__config_workers_active") for key in list_cache_keys())
+        assert list_cache_keys()
         assert api.api_get.call_count == 1
 
 
@@ -97,16 +137,32 @@ def test_get_object_caches_scheduler_dashboard(app, monkeypatch):
         "failed_total_count": 0,
     }
 
-    with app.app_context():
+    with app.app_context(), _swap_backend():
         monkeypatch.setattr(data_persistence_module, "get_jwt_identity", lambda: "user1")
-        cache_key = "user1__config_workers_dashboard"
-        cache.delete(cache_key)
 
         persistence = DataPersistenceLayer(jwt_token="token")
         persistence.api = api
 
-        persistence.get_object(SchedulerDashboardData)
-        persistence.get_object(SchedulerDashboardData)
+        dashboard = persistence.get_object(SchedulerDashboardData)
+        cached_dashboard = persistence.get_object(SchedulerDashboardData)
 
-        assert cache.get(cache_key) is not None
+        assert dashboard == cached_dashboard
         assert api.api_get.call_count == 1
+
+
+def test_invalidate_cache_forwards_suffix_without_scope_mapping(app):
+    response = Mock()
+    api = Mock()
+    api.api_post.return_value = response
+
+    with app.test_request_context():
+        persistence = DataPersistenceLayer(jwt_token="token")
+        persistence.api = api
+
+        result = persistence.invalidate_cache("config/workers/dashboard")
+
+    assert result is response
+    api.api_post.assert_called_once_with(
+        "/admin/cache/invalidate",
+        json_data={"mode": "model", "model": "config/workers/dashboard"},
+    )

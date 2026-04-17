@@ -253,21 +253,6 @@ class Bot(BaseModel):
         else:
             self.unschedule_bot()
 
-        self._publish_schedule_cache_invalidation()
-
-    def _publish_schedule_cache_invalidation(self):
-        """Publish cache invalidation signal for schedule-related frontend views."""
-        try:
-            from core.managers import queue_manager
-
-            qm = queue_manager.queue_manager
-            published = qm.publish_schedule_cache_invalidation()
-            if published:
-                logger.debug("Published %s schedule cache invalidation signals", published)
-
-        except Exception as e:
-            logger.warning(f"Failed to publish schedule cache invalidation signal: {e}")
-
 
 class BotParameterValue(BaseModel):
     bot_id: Mapped[str] = db.Column(db.String, db.ForeignKey("bot.id", ondelete="CASCADE"), primary_key=True)
