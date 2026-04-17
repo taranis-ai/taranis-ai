@@ -32,7 +32,7 @@ class TaskService:
         if status != 200:
             return result, status
 
-        result.update(TaskModel.get_task_statistics(group_by_worker_type=True))
+        result.update(TaskModel.get_task_statistics())
         validated = TaskHistoryResponse.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), status
 

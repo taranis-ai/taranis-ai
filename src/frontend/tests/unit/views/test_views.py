@@ -324,6 +324,7 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
         parameters={},
         icon=_VALID_PNG_BASE64,
         enabled=True,
+        news_items_count=7,
         status=None,
     )
 
@@ -348,6 +349,7 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
     assert 'data-testid="osint-source-rank"' in html
     assert 'value="3"' in html
     assert 'aria-label="3 stars"' in html
+    assert "News items in database: 7" in html
     assert "checked" in html
 
 
@@ -361,6 +363,7 @@ def test_osint_source_form_disables_rank_for_manual_source(app):
         parameters={},
         icon=None,
         enabled=True,
+        news_items_count=13,
         status=None,
     )
 
@@ -381,6 +384,7 @@ def test_osint_source_form_disables_rank_for_manual_source(app):
     assert 'data-testid="osint-source-rank"' in html
     assert 'name="rank" value="0"' in html
     assert 'aria-label="Unrated"' in html
+    assert "News items in database: 13" in html
     assert html.count('name="rank"') == 7
     assert html.count("disabled") >= 6
 

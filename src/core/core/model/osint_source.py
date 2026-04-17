@@ -119,7 +119,18 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def from_payload(cls, payload: OSINTSourceModel) -> "OSINTSource":
-        return cls(**payload.model_dump(exclude={"status"}))
+        return cls(**payload.model_dump(exclude={"status", "news_items_count"}))
+
+    def to_detail_dict(self) -> dict[str, Any]:
+        data = self.to_dict()
+        data["news_items_count"] = self.get_news_items_count()
+        return data
+
+    def get_news_items_count(self) -> int:
+        from core.model.news_item import NewsItem
+
+        query = db.select(NewsItem).where(NewsItem.osint_source_id == self.id)
+        return NewsItem.get_filtered_count(query)
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
