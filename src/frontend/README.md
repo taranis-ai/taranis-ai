@@ -33,6 +33,7 @@ granian app
 
 Frontend caching now uses Redis directly and falls back to a no-op cache when disabled or when Redis is unavailable.
 
+- `src/models/models/cache_contract.py` defines the shared cache defaults and key/pattern helpers used by both core and frontend
 - `CACHE_ENABLED=true|false` toggles frontend caching
 - `CACHE_REDIS_URL` optionally overrides the Redis URL used for cache storage
 - `CACHE_REDIS_PASSWORD` optionally overrides the Redis password used for cache storage

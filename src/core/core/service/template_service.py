@@ -27,25 +27,6 @@ class TemplateResponse(TypedDict):
     validation_status: ValidationStatus
 
 
-_INVALID_UTF8_SENTINEL = "__INVALID_UTF8__"
-_EMPTY_TEMPLATE_SENTINEL = "__EMPTY__"
-
-
-def _error_status(message: str, error_type: str) -> ValidationStatus:
-    return {
-        "is_valid": False,
-        "error_message": message,
-        "error_type": error_type,
-    }
-
-
-def _decode_template_content(content: bytes | bytearray | memoryview) -> str | None:
-    try:
-        return bytes(content).decode("utf-8")
-    except UnicodeDecodeError:
-        return None
-
-
 def create_or_update_template(template_id, base64_content):
     """
     Shared logic for creating or updating a template.
@@ -129,21 +110,20 @@ def validate_template_content(template_content: str) -> ValidationStatus:
 def _build_validation_and_content(content: TemplateContent) -> tuple[str | None, ValidationStatus]:
     """Normalize template content and compute the API-ready payload fields."""
     if content is None:
-        return None, _error_status("Template file not found.", "NotFound")
-
-    if content == _INVALID_UTF8_SENTINEL:
-        return None, _error_status("Template file is not valid UTF-8.", "UnicodeDecodeError")
-
-    if content == _EMPTY_TEMPLATE_SENTINEL:
-        return "", _error_status("Template file is empty.", "EmptyFile")
+        return None, {"is_valid": False, "error_message": "Template file not found.", "error_type": "NotFound"}
 
     if isinstance(content, str):
         text = content
-    elif isinstance(content, bytes | bytearray | memoryview):
-        if (text := _decode_template_content(content)) is None:
-            return None, _error_status("Template file is not valid UTF-8.", "UnicodeDecodeError")
+    elif isinstance(content, (bytes, bytearray, memoryview)):
+        try:
+            text = bytes(content).decode("utf-8")
+        except UnicodeDecodeError:
+            return None, {"is_valid": False, "error_message": "Template file is not valid UTF-8.", "error_type": "UnicodeDecodeError"}
     else:
-        return None, _error_status("Template file not found.", "NotFound")
+        return None, {"is_valid": False, "error_message": "Template file not found.", "error_type": "NotFound"}
+
+    if not text.strip():
+        return "", {"is_valid": False, "error_message": "Template file is empty.", "error_type": "EmptyFile"}
 
     return base64.b64encode(text.encode("utf-8")).decode("utf-8"), validate_template_content(text)
 

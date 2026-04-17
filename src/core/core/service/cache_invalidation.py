@@ -1,6 +1,14 @@
 from collections.abc import Iterable
-from typing import Any, cast
+from typing import cast
 
+from models.cache_contract import (
+    build_model_detail_pattern,
+    build_model_list_pattern,
+    build_model_pattern,
+    build_namespace_pattern,
+    build_user_profile_pattern,
+    get_secret_value,
+)
 from redis import Redis
 
 from core.config import Config
@@ -21,18 +29,6 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
 }
 
 
-def _get_secret_value(value: Any) -> str | None:
-    if value is None:
-        return None
-    if hasattr(value, "get_secret_value"):
-        return value.get_secret_value()
-    return str(value) or None
-
-
-def _is_success_status(status_code: int) -> bool:
-    return 200 <= status_code < 300
-
-
 class FrontendCacheInvalidationService:
     def __init__(self):
         self._client: Redis | None = None
@@ -42,24 +38,19 @@ class FrontendCacheInvalidationService:
     def scope_names(self) -> set[str]:
         return set(SCOPE_MODEL_NAMES)
 
-    def _get_redis_url(self) -> str | None:
-        return Config.CACHE_REDIS_URL or Config.REDIS_URL
-
-    def _get_redis_password(self) -> str | None:
-        return _get_secret_value(Config.CACHE_REDIS_PASSWORD) or _get_secret_value(Config.REDIS_PASSWORD)
-
     def _get_client(self) -> Redis | None:
         if self._disabled or not Config.CACHE_ENABLED:
             return None
         if self._client is not None:
             return self._client
 
-        redis_url = self._get_redis_url()
+        redis_url = Config.CACHE_REDIS_URL or Config.REDIS_URL
         if not redis_url:
             return None
 
         try:
-            self._client = Redis.from_url(redis_url, password=self._get_redis_password(), decode_responses=True)
+            redis_password = get_secret_value(Config.CACHE_REDIS_PASSWORD) or get_secret_value(Config.REDIS_PASSWORD)
+            self._client = Redis.from_url(redis_url, password=redis_password, decode_responses=True)
             self._client.ping()
         except Exception:
             logger.exception("Failed to initialize frontend cache invalidation Redis client")
@@ -85,15 +76,15 @@ class FrontendCacheInvalidationService:
         return cast(int, client.delete(*keys_to_delete)) if keys_to_delete else 0
 
     def invalidate_all(self) -> int:
-        return self._delete_matching_patterns([f"{Config.CACHE_KEY_PREFIX}:*"])
+        return self._delete_matching_patterns([build_namespace_pattern(Config.CACHE_KEY_PREFIX)])
 
     def invalidate_model(self, model_name: str, object_id: str | int | None = None) -> int:
         if object_id is None:
-            patterns = [f"{Config.CACHE_KEY_PREFIX}:user:*:model:{model_name}:*"]
+            patterns = [build_model_pattern(Config.CACHE_KEY_PREFIX, model_name)]
         else:
             patterns = [
-                f"{Config.CACHE_KEY_PREFIX}:user:*:model:{model_name}:detail:{object_id}",
-                f"{Config.CACHE_KEY_PREFIX}:user:*:model:{model_name}:list:*",
+                build_model_detail_pattern(Config.CACHE_KEY_PREFIX, model_name, object_id),
+                build_model_list_pattern(Config.CACHE_KEY_PREFIX, model_name),
             ]
         return self._delete_matching_patterns(patterns)
 
@@ -105,8 +96,7 @@ class FrontendCacheInvalidationService:
         return sum(self.invalidate_model(model_name) for model_name in model_names)
 
     def invalidate_user_profile(self, username: str) -> int:
-        pattern = f"{Config.CACHE_KEY_PREFIX}:user:{username}:model:user_profile:*"
-        return self._delete_matching_patterns([pattern])
+        return self._delete_matching_patterns([build_user_profile_pattern(Config.CACHE_KEY_PREFIX, username)])
 
 
 cache_invalidation_service = FrontendCacheInvalidationService()
@@ -121,7 +111,7 @@ def invalidate_frontend_cache_on_success(
     user_profiles: Iterable[str] = (),
     object_ids: dict[str, str | int] | None = None,
 ) -> int:
-    if not _is_success_status(status_code):
+    if not 200 <= status_code < 300:
         return 0
 
     deleted = 0

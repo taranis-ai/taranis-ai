@@ -2,7 +2,7 @@ from flask import Blueprint, Flask, Response, jsonify, render_template, send_fro
 from flask.views import MethodView
 
 from frontend.auth import auth_required, logout
-from frontend.cache import get_cached_users, list_cache_keys
+from frontend.cache import get_cache_keys, get_cached_users
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.views import AuthView, DashboardView
 
@@ -24,7 +24,7 @@ class InvalidateCache(MethodView):
 class ListCacheKeys(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
-        return Response("<br>".join(list_cache_keys()))
+        return Response("<br>".join(get_cache_keys()))
 
 
 class ListUserCache(MethodView):

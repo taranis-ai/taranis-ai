@@ -5,13 +5,21 @@ from typing import Any, Type
 from flask import request
 from flask_jwt_extended import get_jwt_identity
 from models.base import T, TaranisBaseModel
+from models.cache_contract import CACHE_DEFAULT_LIST_SUFFIX
 from requests import Response
 
-from frontend.cache import DEFAULT_LIST_CACHE_SUFFIX, cache
+from frontend.cache import cache
 from frontend.cache_models import CacheObject, PagingData
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.log import logger
+
+
+CACHE_INVALIDATION_ENDPOINT = "/admin/cache/invalidate"
+CACHE_INVALIDATION_MODE_ALL = "all"
+CACHE_INVALIDATION_MODE_MODEL = "model"
+CACHE_INVALIDATION_FIELD_MODEL = "model"
+CACHE_INVALIDATION_FIELD_OBJECT_ID = "object_id"
 
 
 class DataPersistenceLayer:
@@ -26,9 +34,56 @@ class DataPersistenceLayer:
             identity = None
         return str(identity or "anonymous")
 
-    def make_filter_key(self, filter_data: Any) -> str:
+    @staticmethod
+    def _make_filter_key(filter_data: Any) -> str:
         json_str = json.dumps(filter_data, sort_keys=True, separators=(",", ":"))
         return hashlib.md5(json_str.encode("utf-8")).hexdigest()
+
+    def _build_list_cache_suffix(self, endpoint: str, paging_data: PagingData | None = None) -> str:
+        payload = {
+            "endpoint": endpoint,
+            "paging": paging_data.model_dump(mode="json") if paging_data else {},
+        }
+        if payload["paging"] or endpoint:
+            return self._make_filter_key(payload)
+        return CACHE_DEFAULT_LIST_SUFFIX
+
+    def _load_cached_object(
+        self,
+        cache_key: str,
+        object_model: Type[T],
+        paging_data: PagingData | None = None,
+        *,
+        collection: bool = False,
+    ) -> Any | None:
+        cached_payload = cache.get(key=cache_key)
+        if cached_payload is None:
+            return None
+
+        try:
+            if collection:
+                return self._build_cache_object(object_model, cached_payload, paging_data)
+            if paging_data is None:
+                return self._deserialize_object(object_model, cached_payload)
+            return self._build_cache_object(object_model, cached_payload, paging_data)
+        except Exception:
+            logger.exception(f"Failed to deserialize cached data for {cache_key}")
+            cache.delete(cache_key)
+            return None
+
+    def _post_cache_invalidation(
+        self,
+        mode: str,
+        *,
+        model: str | None = None,
+        object_id: str | None = None,
+    ) -> Response:
+        request_payload: dict[str, str] = {"mode": mode}
+        if model is not None:
+            request_payload[CACHE_INVALIDATION_FIELD_MODEL] = model
+        if object_id is not None:
+            request_payload[CACHE_INVALIDATION_FIELD_OBJECT_ID] = object_id
+        return self.api.api_post(CACHE_INVALIDATION_ENDPOINT, json_data=request_payload)
 
     def get_jwt_from_request(self):
         return request.cookies.get(Config.JWT_ACCESS_COOKIE_NAME)
@@ -46,15 +101,9 @@ class DataPersistenceLayer:
             return {"items": result, "total_count": len(result)}
         return result
 
-    def make_list_cache_suffix(self, endpoint: str, paging_data: PagingData | None = None) -> str:
-        payload = {
-            "endpoint": endpoint,
-            "paging": paging_data.model_dump(mode="json") if paging_data else {},
-        }
-        return self.make_filter_key(payload) if payload["paging"] or endpoint else DEFAULT_LIST_CACHE_SUFFIX
-
     def make_list_cache_key(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> str:
-        return cache.model_list_key(self.get_cache_username(), object_model._model_name, self.make_list_cache_suffix(endpoint, paging_data))
+        suffix = self._build_list_cache_suffix(endpoint, paging_data)
+        return cache.model_list_key(self.get_cache_username(), object_model._model_name, suffix)
 
     def make_detail_cache_key(self, object_model: Type[T], object_id: int | str | None = None) -> str:
         return cache.model_detail_key(self.get_cache_username(), object_model._model_name, object_id)
@@ -81,44 +130,41 @@ class DataPersistenceLayer:
     def get_object(self, object_model: Type[T], object_id: int | str | None = None) -> T | None:
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_detail_cache_key(object_model, object_id)
-        if (cached_payload := cache.get(key=cache_key)) is not None:
-            try:
-                return self._deserialize_object(object_model, cached_payload)
-            except Exception:
-                logger.exception("Failed to deserialize cached object for %s", cache_key)
-                cache.delete(cache_key)
+        cached_object = self._load_cached_object(cache_key, object_model)
+        if cached_object is not None:
+            logger.debug(f"Cache hit for {cache_key}")
+            return cached_object
+
         path = endpoint if object_id is None else f"{endpoint}/{object_id}"
         result = self.api.api_get(path)
         if isinstance(result, dict):
             cache_object = object_model(**result)
-            timeout = getattr(object_model, "_cache_timeout", Config.CACHE_DEFAULT_TIMEOUT)
-            cache.set(key=cache_key, value=cache_object.model_dump(mode="json"), timeout=timeout)
+            cache.set(key=cache_key, value=cache_object.model_dump(mode="json"), timeout=getattr(object_model, "_cache_timeout", None))
             return cache_object
         logger.warning(f"Failed to fetch object from: {endpoint}")
 
     def invalidate_cache(self, suffix: str | None = None) -> Response:
         if not suffix:
-            return self.api.api_post("/admin/cache/invalidate", json_data={"mode": "all"})
-        return self.api.api_post("/admin/cache/invalidate", json_data={"mode": "model", "model": suffix})
+            return self._post_cache_invalidation(CACHE_INVALIDATION_MODE_ALL)
+        return self._post_cache_invalidation(CACHE_INVALIDATION_MODE_MODEL, model=suffix)
 
     def invalidate_cache_by_object(self, object_model: TaranisBaseModel | Type[TaranisBaseModel]) -> Response:
-        return self.api.api_post("/admin/cache/invalidate", json_data={"mode": "model", "model": object_model._model_name})
+        return self._post_cache_invalidation(CACHE_INVALIDATION_MODE_MODEL, model=object_model._model_name)
 
     def invalidate_cache_by_object_id(self, object_model: TaranisBaseModel | Type[TaranisBaseModel], object_id: int | str) -> Response:
-        return self.api.api_post(
-            "/admin/cache/invalidate",
-            json_data={"mode": "model", "model": object_model._model_name, "object_id": str(object_id)},
+        return self._post_cache_invalidation(
+            CACHE_INVALIDATION_MODE_MODEL,
+            model=object_model._model_name,
+            object_id=str(object_id),
         )
 
     def get_objects_by_endpoint(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> CacheObject[T]:
         cache_key = self.make_list_cache_key(object_model, endpoint, paging_data)
-        if (cached_payload := cache.get(key=cache_key)) is not None:
+        cached_payload = self._load_cached_object(cache_key, object_model, paging_data, collection=True)
+        if cached_payload is not None:
             logger.debug(f"Cache hit for {cache_key}")
-            try:
-                return self._build_cache_object(object_model, cached_payload, paging_data)
-            except Exception:
-                logger.exception("Failed to deserialize cached object list for %s", cache_key)
-                cache.delete(cache_key)
+            return cached_payload
+
         result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
         if isinstance(result, (dict, list)):
             return self._cache_and_paginate_objects(
@@ -134,13 +180,11 @@ class DataPersistenceLayer:
             paging_data = PagingData().set_fetch_all()
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_list_cache_key(object_model, endpoint, paging_data)
-        if (cached_payload := cache.get(key=cache_key)) is not None:
+        cached_payload = self._load_cached_object(cache_key, object_model, paging_data, collection=True)
+        if cached_payload is not None:
             logger.debug(f"Cache hit for {cache_key}")
-            try:
-                return self._build_cache_object(object_model, cached_payload, paging_data)
-            except Exception:
-                logger.exception("Failed to deserialize cached model list for %s", cache_key)
-                cache.delete(cache_key)
+            return cached_payload
+
         result = self.api.api_get(endpoint, paging_data.query_params if paging_data else None)
         if isinstance(result, (dict, list)):
             return self._cache_and_paginate_objects(

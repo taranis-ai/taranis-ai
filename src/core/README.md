@@ -44,10 +44,12 @@ taranis-ai
 
 Core owns frontend cache invalidation for write operations.
 
+- `src/models/models/cache_contract.py` holds the shared cache defaults and key helpers used by both core and frontend
 - `CACHE_ENABLED=true|false` toggles frontend-cache invalidation support in core
 - `CACHE_REDIS_URL` optionally overrides the Redis URL used for frontend cache invalidation
 - `CACHE_REDIS_PASSWORD` optionally overrides the Redis password used for frontend cache invalidation
 - when the cache-specific settings are unset, core falls back to `REDIS_URL` and `REDIS_PASSWORD`
+- unit tests keep cache disabled by default through `build_config_overrides`
 - admin configuration writes under `/api/config/*` currently invalidate the full frontend cache by design
 - the manual invalidation endpoint is `POST /api/admin/cache/invalidate`
 

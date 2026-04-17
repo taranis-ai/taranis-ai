@@ -20,11 +20,12 @@ def test_build_validation_and_content_accepts_memoryview():
     ("template_content", "expected_content", "expected_error_type"),
     [
         pytest.param(None, None, "NotFound", id="missing-template"),
-        pytest.param("__INVALID_UTF8__", None, "UnicodeDecodeError", id="invalid-utf8-sentinel"),
-        pytest.param("__EMPTY__", "", "EmptyFile", id="empty-template-sentinel"),
+        pytest.param(b"\xff\xfe", None, "UnicodeDecodeError", id="invalid-utf8"),
+        pytest.param("", "", "EmptyFile", id="empty-template"),
+        pytest.param("Hello {{ name }}", base64.b64encode(b"Hello {{ name }}").decode("utf-8"), "", id="valid-template"),
     ],
 )
-def test_build_template_response_handles_special_template_states(
+def test_build_template_response_handles_real_template_states(
     monkeypatch,
     template_content,
     expected_content,
@@ -42,7 +43,8 @@ def test_build_template_response_handles_special_template_states(
 def test_build_templates_list_returns_api_payloads(monkeypatch):
     templates = {
         "valid.html": "Hello {{ name }}",
-        "empty.html": "__EMPTY__",
+        "empty.html": "",
+        "invalid.html": b"\xff\xfe",
     }
 
     monkeypatch.setattr(template_service, "list_templates", lambda: list(templates))
@@ -67,6 +69,15 @@ def test_build_templates_list_returns_api_payloads(monkeypatch):
                 "is_valid": False,
                 "error_message": "Template file is empty.",
                 "error_type": "EmptyFile",
+            },
+        },
+        {
+            "id": "invalid.html",
+            "content": None,
+            "validation_status": {
+                "is_valid": False,
+                "error_message": "Template file is not valid UTF-8.",
+                "error_type": "UnicodeDecodeError",
             },
         },
     ]

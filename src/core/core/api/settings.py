@@ -137,3 +137,8 @@ def initialize(app: Flask):
     settings_bp.add_url_rule("/settings", view_func=SettingsView.as_view("settings"))
 
     app.register_blueprint(settings_bp)
+    app.add_url_rule(
+        f"{Config.APPLICATION_ROOT}api/admin/cache/invalidate",
+        view_func=CacheInvalidate.as_view("admin_cache_invalidate"),
+        methods=["POST"],
+    )

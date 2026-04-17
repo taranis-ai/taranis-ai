@@ -1,7 +1,6 @@
 import os
 import subprocess
 import sys
-from fnmatch import fnmatch
 from pathlib import Path
 
 import pytest
@@ -9,6 +8,7 @@ from dotenv import load_dotenv
 from models.user import UserProfile
 
 from tests.core_requests import CoreRequestClient
+from tests.support.cache_backend import InMemoryRedisClient
 
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -73,33 +73,6 @@ def _build_authenticated_client(app, access_token):
         value=access_token,
     )
     return client
-
-
-class _InMemoryCacheBackend:
-    def __init__(self):
-        self.store: dict[str, object] = {}
-
-    @property
-    def enabled(self) -> bool:
-        return True
-
-    def get(self, key: str):
-        return self.store.get(key)
-
-    def set(self, key: str, value, timeout: int | None = None) -> bool:
-        self.store[key] = value
-        return True
-
-    def delete(self, key: str) -> int:
-        return int(self.store.pop(key, None) is not None)
-
-    def clear(self) -> int:
-        deleted = len(self.store)
-        self.store.clear()
-        return deleted
-
-    def scan_keys(self, pattern: str) -> list[str]:
-        return sorted(key for key in self.store if fnmatch(key, pattern))
 
 
 @pytest.fixture(scope="session")
@@ -181,17 +154,17 @@ def access_token_response_basic(app, auth_user_basic, run_core):
 def test_cache_backend(app):
     from frontend.cache import cache
 
-    backend = _InMemoryCacheBackend()
-    original_backend = cache._backend
+    backend = InMemoryRedisClient()
+    original_client = cache.client
     original_prefix = cache.key_prefix
     original_timeout = cache.default_timeout
-    cache._backend = backend
+    cache.client = backend
     cache.key_prefix = app.config["CACHE_KEY_PREFIX"]
     cache.default_timeout = app.config["CACHE_DEFAULT_TIMEOUT"]
     try:
         yield backend
     finally:
-        cache._backend = original_backend
+        cache.client = original_client
         cache.key_prefix = original_prefix
         cache.default_timeout = original_timeout
 
