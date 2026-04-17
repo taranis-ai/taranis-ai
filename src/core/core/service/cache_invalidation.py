@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, cast
 
 from redis import Redis
 
@@ -72,8 +72,7 @@ class FrontendCacheInvalidationService:
         if client is None:
             return 0
 
-        deleted = 0
-        batch: list[str] = []
+        keys_to_delete: list[str] = []
         seen: set[str] = set()
         for pattern in patterns:
             for key in client.scan_iter(match=pattern, count=1000):
@@ -81,14 +80,9 @@ class FrontendCacheInvalidationService:
                 if key_str in seen:
                     continue
                 seen.add(key_str)
-                batch.append(key_str)
-                if len(batch) >= 500:
-                    deleted += int(client.delete(*batch))
-                    batch.clear()
+                keys_to_delete.append(key_str)
 
-        if batch:
-            deleted += int(client.delete(*batch))
-        return deleted
+        return cast(int, client.delete(*keys_to_delete)) if keys_to_delete else 0
 
     def invalidate_all(self) -> int:
         return self._delete_matching_patterns([f"{Config.CACHE_KEY_PREFIX}:*"])
@@ -106,7 +100,7 @@ class FrontendCacheInvalidationService:
     def invalidate_scope(self, scope_name: str) -> int:
         model_names = SCOPE_MODEL_NAMES.get(scope_name)
         if model_names is None:
-            logger.warning("Unknown frontend cache invalidation scope: %s", scope_name)
+            logger.warning(f"Unknown frontend cache invalidation scope: {scope_name}")
             return 0
         return sum(self.invalidate_model(model_name) for model_name in model_names)
 

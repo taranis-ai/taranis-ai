@@ -33,8 +33,8 @@ class ReportStories(MethodView):
         response, status = report_item.ReportItem.set_stories(report_item_id, request_data, current_user)
         invalidate_frontend_cache_on_success(
             status,
-            models=("report_item", "story", "product"),
-            object_ids={"report_item": report_item_id},
+            models=("report", "story", "product"),
+            object_ids={"report": report_item_id},
         )
         return response, status
 
@@ -47,8 +47,8 @@ class ReportStories(MethodView):
         response, status = report_item.ReportItem.add_stories(report_item_id, request_data, current_user)
         invalidate_frontend_cache_on_success(
             status,
-            models=("report_item", "story", "product"),
-            object_ids={"report_item": report_item_id},
+            models=("report", "story", "product"),
+            object_ids={"report": report_item_id},
         )
         return response, status
 
@@ -70,7 +70,7 @@ class ReportItem(MethodView):
                 logger.debug("No data in request")
                 return {"error": "No data in request"}, 400
             new_report_item, status = report_item.ReportItem.add(request.json, current_user)
-            if status != 200:
+            if status != 200 or not isinstance(new_report_item, report_item.ReportItem):
                 return new_report_item, status
         except Exception as ex:
             logger.exception()
@@ -80,7 +80,7 @@ class ReportItem(MethodView):
         if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
             sse_manager.report_item_updated(new_report_item.id)
-            invalidate_frontend_cache_on_success(status, models=("report_item", "story", "product"))
+            invalidate_frontend_cache_on_success(status, models=("report", "story", "product"))
 
         return {"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}, status
 
@@ -96,8 +96,8 @@ class ReportItem(MethodView):
             ProductService.autopublish_product(report_item_id)
             invalidate_frontend_cache_on_success(
                 status,
-                models=("report_item", "story", "product"),
-                object_ids={"report_item": report_item_id},
+                models=("report", "story", "product"),
+                object_ids={"report": report_item_id},
             )
 
         return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
@@ -109,8 +109,8 @@ class ReportItem(MethodView):
             sse_manager.report_item_updated(report_item_id)
             invalidate_frontend_cache_on_success(
                 code,
-                models=("report_item", "story", "product"),
-                object_ids={"report_item": report_item_id},
+                models=("report", "story", "product"),
+                object_ids={"report": report_item_id},
             )
         return result, code
 
@@ -125,7 +125,7 @@ class CloneReportItem(MethodView):
             return abort(400, f"Error cloning report item: {ex}")
         if status == 200:
             sse_manager.report_item_updated(result["id"])
-            invalidate_frontend_cache_on_success(status, models=("report_item", "story", "product"))
+            invalidate_frontend_cache_on_success(status, models=("report", "story", "product"))
 
         return result, status
 
