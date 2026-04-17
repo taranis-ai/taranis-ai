@@ -8,6 +8,7 @@ from flask import Response, abort, flash, json, make_response, redirect, render_
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from markupsafe import Markup, escape
+from models.admin import OSINTSource
 from models.assess import AssessSource, BulkAction, Connector, FilterLists, NewsItem, Story, StoryUpdatePayload
 from models.report import ReportItem
 from pydantic import ValidationError
@@ -505,6 +506,7 @@ class StoryView(BaseView):
 
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         DataPersistenceLayer().invalidate_cache_by_object(NewsItem)
+        DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
         if story_id:
             DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
 

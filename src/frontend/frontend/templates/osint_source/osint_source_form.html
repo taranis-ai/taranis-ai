@@ -13,6 +13,9 @@
   </div>
 
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ osint_id }}</p>
+  {% if osint_id != "0" %}
+    <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">News items in database: {{ osint_source.news_items_count or 0 }}</p>
+  {% endif %}
   {% if read_only %}
     <div role="alert" class="alert alert-warning alert-horizontal w-3/4 mb-4 ml-[10%]">
       {{ heroicon_outline("exclamation-triangle") }}

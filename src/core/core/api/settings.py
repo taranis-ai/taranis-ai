@@ -60,14 +60,14 @@ class SettingsView(MethodView):
     def get(self):
         settings_data, return_code = Settings.get_all_for_api({})
         settings_data["_links"] = {
-            "delete_tags": url_for("admin.delete_tags"),
-            "delete_stories": url_for("admin.delete_stories"),
-            "ungroup_stories": url_for("admin.ungroup_all_stories"),
-            "reset_database": url_for("admin.reset_database"),
-            "clear_queues": url_for("admin.clear_queue"),
-            "rebuild_story_search_vectors": url_for("admin.rebuild_story_search_vectors"),
-            "export_stories": url_for("admin.export_stories"),
-            "update_settings": url_for("admin.settings"),
+            "delete_tags": url_for("settings.delete_tags"),
+            "delete_stories": url_for("settings.delete_stories"),
+            "ungroup_stories": url_for("settings.ungroup_all_stories"),
+            "reset_database": url_for("settings.reset_database"),
+            "clear_queues": url_for("settings.clear_queue"),
+            "rebuild_story_search_vectors": url_for("settings.rebuild_story_search_vectors"),
+            "export_stories": url_for("settings.export_stories"),
+            "update_settings": url_for("settings.settings"),
         }
 
         return settings_data, return_code
@@ -86,18 +86,18 @@ class SettingsView(MethodView):
 
 
 def initialize(app: Flask):
-    admin_bp = Blueprint("admin", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/admin")
+    settings_bp = Blueprint("settings", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/settings")
 
-    admin_bp.add_url_rule("/delete-tags", view_func=DeleteTags.as_view("delete_tags"))
-    admin_bp.add_url_rule("/delete-stories", view_func=DeleteStories.as_view("delete_stories"))
-    admin_bp.add_url_rule("/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))
-    admin_bp.add_url_rule("/reset-database", view_func=ResetDatabase.as_view("reset_database"))
-    admin_bp.add_url_rule("/clear-queues", view_func=ClearQueues.as_view("clear_queue"))
-    admin_bp.add_url_rule(
+    settings_bp.add_url_rule("/delete-tags", view_func=DeleteTags.as_view("delete_tags"))
+    settings_bp.add_url_rule("/delete-stories", view_func=DeleteStories.as_view("delete_stories"))
+    settings_bp.add_url_rule("/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))
+    settings_bp.add_url_rule("/reset-database", view_func=ResetDatabase.as_view("reset_database"))
+    settings_bp.add_url_rule("/clear-queues", view_func=ClearQueues.as_view("clear_queue"))
+    settings_bp.add_url_rule(
         "/rebuild-story-search-vectors",
         view_func=RebuildStorySearchVectors.as_view("rebuild_story_search_vectors"),
     )
-    admin_bp.add_url_rule("/export-stories", view_func=ExportStories.as_view("export_stories"))
-    admin_bp.add_url_rule("/settings", view_func=SettingsView.as_view("settings"))
+    settings_bp.add_url_rule("/export-stories", view_func=ExportStories.as_view("export_stories"))
+    settings_bp.add_url_rule("/settings", view_func=SettingsView.as_view("settings"))
 
-    app.register_blueprint(admin_bp)
+    app.register_blueprint(settings_bp)
