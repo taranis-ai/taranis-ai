@@ -10,7 +10,6 @@ from core.model.news_item import NewsItem
 from core.model.report_item import ReportItem
 from core.model.revision import ReportRevision, StoryRevision
 from core.model.story import Story
-from core.model.user import User
 from core.service.news_item import NewsItemService
 from core.service.news_item_tag import NewsItemTagService
 
@@ -39,8 +38,12 @@ def _create_story(news_item_count: int = 1) -> Story:
         "news_items": [_news_item_payload() for _ in range(news_item_count)],
     }
     result, status = Story.add(payload)
+    story_id = result.get("story_id")
+    assert story_id is not None
     assert status == 200
-    return Story.get(result["story_id"])
+    story = Story.get(story_id)
+    assert story is not None
+    return story
 
 
 def _fetch_story_revisions(story_id: str) -> list[StoryRevision]:
@@ -54,11 +57,10 @@ def _fetch_report_revisions(report_id: str) -> list[ReportRevision]:
 
 
 @pytest.mark.usefixtures("session")
-def test_story_revisions_are_created_on_updates():
-    user = User.find_by_name("admin")
+def test_story_revisions_are_created_on_updates(admin_user):
     story = _create_story()
 
-    Story.update(story.id, {"title": "Updated Title"}, user)
+    Story.update(story.id, {"title": "Updated Title"}, admin_user)
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert len(revisions) == 2
@@ -68,9 +70,9 @@ def test_story_revisions_are_created_on_updates():
     assert revisions[1].revision == 2
     assert revisions[1].data["title"] == "Updated Title"
     assert revisions[1].note == "update"
-    assert revisions[1].created_by_id == user.id
+    assert revisions[1].created_by_id == admin_user.id
 
-    Story.update(story.id, {"description": "Changed description"}, user)
+    Story.update(story.id, {"description": "Changed description"}, admin_user)
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert len(revisions) == 3
@@ -78,7 +80,7 @@ def test_story_revisions_are_created_on_updates():
     assert revisions[-1].revision == 3
     assert revisions[-1].data["description"] == "Changed description"
     assert revisions[-1].note == "update"
-    assert revisions[-1].created_by_id == user.id
+    assert revisions[-1].created_by_id == admin_user.id
 
 
 @pytest.mark.usefixtures("session")
@@ -96,8 +98,7 @@ def test_story_set_tags_creates_created_and_update_revisions():
 
 
 @pytest.mark.usefixtures("session")
-def test_news_item_service_update_creates_story_revisions():
-    user = User.find_by_name("admin")
+def test_news_item_service_update_creates_story_revisions(admin_user):
     payload = {
         "title": f"Story {uuid.uuid4()}",
         "description": "initial desc",
@@ -106,9 +107,10 @@ def test_news_item_service_update_creates_story_revisions():
     result, status = Story.add(payload)
     assert status == 200
     story = Story.get(result["story_id"])
+    assert story is not None
     news_item = story.news_items[0]
 
-    response, status = NewsItemService.update(news_item.id, {"title": "Updated News Item"}, user)
+    response, status = NewsItemService.update(news_item.id, {"title": "Updated News Item"}, admin_user)
 
     assert status == 200
     assert response["story_id"] == story.id
@@ -144,8 +146,7 @@ def test_story_add_single_news_item_detects_duplicates_by_title_and_link():
 
 
 @pytest.mark.usefixtures("session")
-def test_news_item_service_update_rejects_duplicate_title_and_link_hash():
-    user = User.find_by_name("admin")
+def test_news_item_service_update_rejects_duplicate_title_and_link_hash(admin_user):
     first_story = _create_story()
     second_story = _create_story()
     first_news_item = first_story.news_items[0]
@@ -158,7 +159,7 @@ def test_news_item_service_update_rejects_duplicate_title_and_link_hash():
         "link": first_news_item.link,
         "content": f"new-content-{uuid.uuid4()}",
     }
-    response, status = NewsItemService.update(second_news_item.id, update_payload, user)
+    response, status = NewsItemService.update(second_news_item.id, update_payload, admin_user)
 
     assert status == 409
     assert response["error"] == "Identical news item found. Skipping..."
@@ -207,16 +208,16 @@ def test_story_creation_handles_mixed_timezone_published_dates(mixed_timezone_st
 
 
 @pytest.mark.usefixtures("session")
-def test_report_item_revisions_cover_create_and_update(sample_report_type):
-    user = User.find_by_name("admin")
+def test_report_item_revisions_cover_create_and_update(sample_report_type, admin_user):
     payload = {
         "title": "Initial Report",
         "completed": False,
         "report_item_type_id": sample_report_type.id,
         "stories": [],
     }
-    report_item, status = ReportItem.add(payload, user)
+    report_item, status = ReportItem.add(payload, admin_user)
     assert status == 200
+    assert isinstance(report_item, ReportItem)
     assert report_item.revision == 1
 
     revisions = _fetch_report_revisions(report_item.id)
@@ -224,9 +225,9 @@ def test_report_item_revisions_cover_create_and_update(sample_report_type):
     assert revisions[0].revision == 1
     assert revisions[0].data["title"] == "Initial Report"
     assert revisions[0].note == "created"
-    assert revisions[0].created_by_id == user.id
+    assert revisions[0].created_by_id == admin_user.id
 
-    ReportItem.update_report_item(report_item.id, {"title": "Updated Report"}, user)
+    ReportItem.update_report_item(report_item.id, {"title": "Updated Report"}, admin_user)
     db.session.refresh(report_item)
     revisions = _fetch_report_revisions(report_item.id)
     assert len(revisions) == 2
@@ -237,19 +238,19 @@ def test_report_item_revisions_cover_create_and_update(sample_report_type):
 
 
 @pytest.mark.usefixtures("session")
-def test_report_add_stories_creates_created_and_update_revisions(sample_report_type):
-    user = User.find_by_name("admin")
+def test_report_add_stories_creates_created_and_update_revisions(sample_report_type, admin_user):
     payload = {
         "title": "Initial Report",
         "completed": False,
         "report_item_type_id": sample_report_type.id,
         "stories": [],
     }
-    report_item, status = ReportItem.add(payload, user)
+    report_item, status = ReportItem.add(payload, admin_user)
+    assert isinstance(report_item, ReportItem)
     assert status == 200
     story = _create_story()
 
-    response, status = ReportItem.add_stories(report_item.id, [story.id], user)
+    response, status = ReportItem.add_stories(report_item.id, [story.id], admin_user)
 
     assert status == 200
     assert response["message"].startswith("Successfully added")
@@ -260,12 +261,11 @@ def test_report_add_stories_creates_created_and_update_revisions(sample_report_t
 
 
 @pytest.mark.usefixtures("session")
-def test_story_revision_uses_database_parent_value_when_instance_is_stale():
-    user = User.find_by_name("admin")
+def test_story_revision_uses_database_parent_value_when_instance_is_stale(admin_user):
     story = _create_story()
 
     db.session.execute(db.text("UPDATE story SET revision = 5 WHERE id = :story_id"), {"story_id": story.id})
-    story.record_revision(user, note="stale-sync")
+    story.record_revision(admin_user, note="stale-sync")
     db.session.flush()
 
     db.session.refresh(story)
@@ -276,19 +276,19 @@ def test_story_revision_uses_database_parent_value_when_instance_is_stale():
 
 
 @pytest.mark.usefixtures("session")
-def test_report_revision_uses_database_parent_value_when_instance_is_stale(sample_report_type):
-    user = User.find_by_name("admin")
+def test_report_revision_uses_database_parent_value_when_instance_is_stale(sample_report_type, admin_user):
     payload = {
         "title": "Initial Report",
         "completed": False,
         "report_item_type_id": sample_report_type.id,
         "stories": [],
     }
-    report_item, status = ReportItem.add(payload, user)
+    report_item, status = ReportItem.add(payload, admin_user)
+    assert isinstance(report_item, ReportItem)
     assert status == 200
 
     db.session.execute(db.text("UPDATE report_item SET revision = 5 WHERE id = :report_id"), {"report_id": report_item.id})
-    report_item.record_revision(user, note="stale-sync")
+    report_item.record_revision(admin_user, note="stale-sync")
     db.session.flush()
 
     db.session.refresh(report_item)
@@ -299,8 +299,7 @@ def test_report_revision_uses_database_parent_value_when_instance_is_stale(sampl
 
 
 @pytest.mark.usefixtures("session")
-def test_story_update_votes_before_single_commit(monkeypatch):
-    user = User.find_by_name("admin")
+def test_story_update_votes_before_single_commit(monkeypatch, admin_user):
     story = _create_story()
     story.revision = 1
     db.session.flush()
@@ -320,14 +319,13 @@ def test_story_update_votes_before_single_commit(monkeypatch):
     monkeypatch.setattr(db.session, "commit", commit_spy)
 
     with pytest.raises(RuntimeError, match="stop-after-commit"):
-        Story.update(story.id, {"vote": "like", "title": "Updated Title"}, user)
+        Story.update(story.id, {"vote": "like", "title": "Updated Title"}, admin_user)
 
     assert events == ["record_revision", "commit"]
 
 
 @pytest.mark.usefixtures("session")
-def test_story_update_attributes_before_single_commit(monkeypatch):
-    user = User.find_by_name("admin")
+def test_story_update_attributes_before_single_commit(monkeypatch, admin_user):
     story = _create_story()
     story.revision = 1
     db.session.flush()
@@ -347,14 +345,13 @@ def test_story_update_attributes_before_single_commit(monkeypatch):
     monkeypatch.setattr(db.session, "commit", commit_spy)
 
     with pytest.raises(RuntimeError, match="stop-after-commit"):
-        Story.update(story.id, {"attributes": [{"key": "threat_actor", "value": "APT29"}]}, user)
+        Story.update(story.id, {"attributes": [{"key": "threat_actor", "value": "APT29"}]}, admin_user)
 
     assert events == ["record_revision", "commit"]
 
 
 @pytest.mark.usefixtures("session")
-def test_report_title_retag_happens_before_revision_and_commit(sample_report_type, monkeypatch):
-    user = User.find_by_name("admin")
+def test_report_title_retag_happens_before_revision_and_commit(sample_report_type, monkeypatch, admin_user):
     story = _create_story()
     payload = {
         "title": "Initial Report",
@@ -362,7 +359,8 @@ def test_report_title_retag_happens_before_revision_and_commit(sample_report_typ
         "report_item_type_id": sample_report_type.id,
         "stories": [story.id],
     }
-    report_item, status = ReportItem.add(payload, user)
+    report_item, status = ReportItem.add(payload, admin_user)
+    assert isinstance(report_item, ReportItem)
     assert status == 200
     events: list[str] = []
 
@@ -388,6 +386,6 @@ def test_report_title_retag_happens_before_revision_and_commit(sample_report_typ
     monkeypatch.setattr(db.session, "commit", commit_spy)
 
     with pytest.raises(RuntimeError, match="stop-after-commit"):
-        ReportItem.update_report_item(report_item.id, {"title": "Renamed Report"}, user)
+        ReportItem.update_report_item(report_item.id, {"title": "Renamed Report"}, admin_user)
 
     assert events == ["remove_report_tag", "add_report_tag", "record_revision", "commit"]

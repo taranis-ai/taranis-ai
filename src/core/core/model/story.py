@@ -542,7 +542,7 @@ class Story(BaseModel):
                 story.delete(story_id)
 
     @classmethod
-    def add(cls, data) -> "tuple[dict, int]":
+    def add(cls, data) -> "tuple[dict[str, Any], int]":
         try:
             if tags := data.get("tags"):
                 data["tags"] = NewsItemTag.unify_tags(tags)

@@ -86,7 +86,6 @@ class ProductView(BaseView):
                 error = core_resp.json().get("error", "Unknown error")
 
             message = core_resp.json().get("message", "Unknown error")
-            DataPersistenceLayer().invalidate_cache_by_object_id(Product, product_id)
             return render_template("notification/index.html", notification={"message": message, "error": False}), 200
         except Exception as e:
             logger.error(f"Render product failed: {str(e)}")

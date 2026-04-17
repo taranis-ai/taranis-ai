@@ -341,7 +341,20 @@ def mock_core_get_item_endpoint_data(core_payloads):
 
 
 @pytest.fixture
-def mock_core_get_item_endpoints(responses_mock, mock_core_get_item_endpoint_data, worker_parameter_data):
+def mock_core_get_item_endpoints(responses_mock, core_payloads, mock_core_get_item_endpoint_data, worker_parameter_data):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/worker-parameters", json=worker_parameter_data)
+
+    for data in core_payloads.values():
+        responses_mock.get(
+            data["_url"],
+            json={
+                "items": data["items"],
+                "total_count": data["total_count"],
+            },
+            status=200,
+            content_type="application/json",
+        )
+
     for view_name, view_data in mock_core_get_item_endpoint_data.items():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)

@@ -2,7 +2,6 @@ from types import SimpleNamespace
 
 from flask import url_for
 from lxml import html
-from models.admin import OSINTSource
 
 from frontend.config import Config
 from frontend.views.story_views import StoryView, _calculate_story_diff, _normalize_story_import_payload
@@ -199,17 +198,7 @@ def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authent
     assert options[0].text == "Select a connector"
 
 
-def test_handle_news_item_response_invalidates_osint_source_cache(app, monkeypatch):
-    invalidated_objects = []
-
-    def fake_invalidate(self, object_model):
-        invalidated_objects.append(object_model)
-
-    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.__init__", lambda self, jwt_token=None: None)
-    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.invalidate_cache_by_object", fake_invalidate)
-    monkeypatch.setattr(
-        "frontend.views.story_views.DataPersistenceLayer.invalidate_cache_by_object_id", lambda self, object_model, object_id: None
-    )
+def test_handle_news_item_response_returns_notification_and_content(app, monkeypatch):
     monkeypatch.setattr(StoryView, "get_notification_from_response", lambda response, oob=True: "notification")
 
     response = SimpleNamespace(ok=True, json=lambda: {"story_id": "story-1"})
@@ -217,9 +206,9 @@ def test_handle_news_item_response_invalidates_osint_source_cache(app, monkeypat
     with app.test_request_context("/"):
         result = StoryView._handle_news_item_response(
             response,
-            content_builder=lambda _story_id: "",
+            content_builder=lambda _story_id: "<div>content</div>",
             redirect_on_story=False,
         )
 
     assert result.status_code == 200
-    assert OSINTSource in invalidated_objects
+    assert result.get_data(as_text=True) == "notification<div>content</div>"

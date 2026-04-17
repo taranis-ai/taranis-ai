@@ -36,11 +36,8 @@ from core.model import (
     worker,
 )
 from core.model.permission import Permission
-
-# Project import for shared template logic
-from core.service.template_crud import create_or_update_template
-from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
-from core.service.template_validation import validate_template_content
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.template_service import build_template_response, build_templates_list, create_or_update_template, validate_template_content
 
 
 def convert_integrity_error(error: IntegrityError) -> str:
@@ -68,6 +65,10 @@ def convert_integrity_error(error: IntegrityError) -> str:
     return str(error)
 
 
+def _invalidate_admin_cache(status_code: int) -> int:
+    return invalidate_frontend_cache_on_success(status_code, full=True)
+
+
 class DictionariesReload(MethodView):
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def post(self, dictionary_type: str):
@@ -86,15 +87,20 @@ class ACLEntries(MethodView):
     @auth_required("CONFIG_ACL_CREATE")
     def post(self):
         acl = role_based_access.RoleBasedAccess.add(request.json)
+        _invalidate_admin_cache(201)
         return {"message": "ACL created", "id": acl.id}, 201
 
     @auth_required("CONFIG_ACL_UPDATE")
     def put(self, acl_id: int):
-        return role_based_access.RoleBasedAccess.update(acl_id, request.json)
+        response, status = role_based_access.RoleBasedAccess.update(acl_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_ACL_DELETE")
     def delete(self, acl_id: int):
-        return role_based_access.RoleBasedAccess.delete(acl_id)
+        response, status = role_based_access.RoleBasedAccess.delete(acl_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class Attributes(MethodView):
@@ -109,15 +115,20 @@ class Attributes(MethodView):
     @auth_required("CONFIG_ATTRIBUTE_CREATE")
     def post(self):
         attribute_result = attribute.Attribute.add(request.json)
+        _invalidate_admin_cache(201)
         return {"message": "Attribute added", "id": attribute_result.id}, 201
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id: int):
-        return attribute.Attribute.update(attribute_id, request.json)
+        response, status = attribute.Attribute.update(attribute_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_ATTRIBUTE_DELETE")
     def delete(self, attribute_id: int):
-        return attribute.Attribute.delete(attribute_id)
+        response, status = attribute.Attribute.delete(attribute_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class ReportItemTypesImport(MethodView):
@@ -158,6 +169,7 @@ class ReportItemTypes(MethodView):
     def post(self):
         try:
             item = report_item_type.ReportItemType.add(request.json)
+            _invalidate_admin_cache(201)
             return {"message": f"ReportItemType {item.title} added", "id": item.id}, 201
         except Exception:
             logger.exception("Failed to add report item type")
@@ -166,12 +178,15 @@ class ReportItemTypes(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_UPDATE")
     def put(self, type_id: int):
         if item := report_item_type.ReportItemType.update(type_id, request.json):
+            _invalidate_admin_cache(200)
             return {"message": f"Report item type {item.title} updated", "id": f"{item.id}"}, 200
         return {"error": f"Report item type with ID: {type_id} not found"}, 404
 
     @auth_required("CONFIG_REPORT_TYPE_DELETE")
     def delete(self, type_id: int):
-        return report_item_type.ReportItemType.delete(type_id)
+        response, status = report_item_type.ReportItemType.delete(type_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class ProductTypes(MethodView):
@@ -186,6 +201,7 @@ class ProductTypes(MethodView):
     def post(self):
         try:
             product = product_type.ProductType.add(request.json)
+            _invalidate_admin_cache(201)
             return {"message": "Product type created", "id": product.id}, 201
         except ValueError as e:
             return {"error": str(e)}, 400
@@ -198,7 +214,9 @@ class ProductTypes(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
     def put(self, type_id: int):
         try:
-            return product_type.ProductType.update(type_id, request.json, current_user)
+            response, status = product_type.ProductType.update(type_id, request.json, current_user)
+            _invalidate_admin_cache(status)
+            return response, status
         except ValueError as e:
             return {"error": str(e)}, 400
         except Exception as e:
@@ -208,7 +226,9 @@ class ProductTypes(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, type_id: int):
         try:
-            return product_type.ProductType.delete(type_id)
+            response, status = product_type.ProductType.delete(type_id)
+            _invalidate_admin_cache(status)
+            return response, status
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception as e:
@@ -248,12 +268,15 @@ class Roles(MethodView):
     @auth_required("CONFIG_ROLE_CREATE")
     def post(self):
         new_role = role.Role.add(request.json)
+        _invalidate_admin_cache(201)
         return {"message": "Role created", "id": new_role.id}, 201
 
     @auth_required("CONFIG_ROLE_UPDATE")
     def put(self, role_id: int):
         if data := request.json:
-            return role.Role.update(role_id, data)
+            response, status = role.Role.update(role_id, data)
+            _invalidate_admin_cache(status)
+            return response, status
         return {"error": "No data provided"}, 400
 
     @auth_required("CONFIG_ROLE_DELETE")
@@ -261,7 +284,9 @@ class Roles(MethodView):
         if user.UserRole.has_assigned_user(role_id):
             logger.warning(f"Role {role_id} cannot be deleted, it has assigned users")
             return {"error": f"Role {role_id} cannot be deleted, it has assigned users"}, 400
-        return role.Role.delete(role_id)
+        response, status = role.Role.delete(role_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class Templates(MethodView):
@@ -282,7 +307,9 @@ class Templates(MethodView):
             return {"error": "No data provided"}, 400
         template_id = request.json.get("id")
         base64_content = request.json.get("content")
-        return create_or_update_template(template_id, base64_content)
+        response, status = create_or_update_template(template_id, base64_content)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def put(self, template_path: str):
@@ -290,8 +317,9 @@ class Templates(MethodView):
         if not request.json:
             return {"error": "No data provided"}, 400
         base64_content = request.json.get("content")
-        invalidate_template_validation_cache(template_path)
-        return create_or_update_template(template_path, base64_content)
+        response, status = create_or_update_template(template_path, base64_content)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str):
@@ -299,8 +327,8 @@ class Templates(MethodView):
             validate_presenter_template_id(template_path)
         except ValueError as e:
             return {"error": str(e)}, 400
-        invalidate_template_validation_cache(template_path)
         if delete_template(template_path):
+            _invalidate_admin_cache(200)
             return {"message": "Template deleted", "path": template_path}, 200
         return {"error": "Could not delete template"}, 500
 
@@ -347,15 +375,20 @@ class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_CREATE")
     def post(self):
         org = organization.Organization.add(request.json)
+        _invalidate_admin_cache(201)
         return {"message": "Organization created", "id": org.id}, 201
 
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
     def put(self, organization_id: int):
-        return organization.Organization.update(organization_id, request.json)
+        response, status = organization.Organization.update(organization_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_ORGANIZATION_DELETE")
     def delete(self, organization_id: int):
-        return organization.Organization.delete(organization_id)
+        response, status = organization.Organization.delete(organization_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class UsersImport(MethodView):
@@ -365,6 +398,7 @@ class UsersImport(MethodView):
         if not isinstance(user_list, list):
             return {"error": "Invalid data format"}, 400
         if users := user.User.import_users(user_list):
+            _invalidate_admin_cache(200)
             return {"users": users, "count": len(users), "message": "Successfully imported users"}
         return {"error": "Unable to import"}, 400
 
@@ -396,6 +430,7 @@ class Users(MethodView):
     def post(self):
         try:
             new_user = user.User.add(request.json)
+            _invalidate_admin_cache(201)
             return {"message": f"User {new_user.username} created", "id": new_user.id}, 201
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
@@ -406,7 +441,9 @@ class Users(MethodView):
     @auth_required("CONFIG_USER_UPDATE")
     def put(self, user_id: int):
         try:
-            return user.User.update(user_id, request.json)
+            response, status = user.User.update(user_id, request.json)
+            _invalidate_admin_cache(status)
+            return response, status
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception:
@@ -416,7 +453,9 @@ class Users(MethodView):
     @auth_required("CONFIG_USER_DELETE")
     def delete(self, user_id: int):
         try:
-            return user.User.delete(user_id)
+            response, status = user.User.delete(user_id)
+            _invalidate_admin_cache(status)
+            return response, status
         except Exception:
             logger.exception()
             return {"error": "Could not delete user"}, 400
@@ -437,6 +476,7 @@ class Bots(MethodView):
         try:
             if updated_bot := bot.Bot.update(bot_id, update_data):
                 logger.debug(f"Successfully updated {updated_bot}")
+                _invalidate_admin_cache(200)
                 return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
         except ValueError as e:
             return {"error": str(e)}, 400
@@ -445,11 +485,14 @@ class Bots(MethodView):
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):
         new_bot = bot.Bot.add(request.json)
+        _invalidate_admin_cache(201)
         return {"message": f"Bot {new_bot.name} created", "id": new_bot.id}, 201
 
     @auth_required("CONFIG_BOT_DELETE")
     def delete(self, bot_id: str):
-        return bot.Bot.delete(bot_id)
+        response, status = bot.Bot.delete(bot_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class BotExecute(MethodView):
@@ -553,6 +596,7 @@ class Connectors(MethodView):
     @auth_required("CONFIG_CONNECTOR_CREATE")
     def post(self):
         if source := connector.Connector.add(request.json):
+            _invalidate_admin_cache(201)
             return {"id": source.id, "message": "Connector created successfully"}, 201
         return {"error": "Connector could not be created"}, 400
 
@@ -562,6 +606,7 @@ class Connectors(MethodView):
             return {"error": "No update data passed"}, 400
         try:
             if source := connector.Connector.update(connector_id, update_data):
+                _invalidate_admin_cache(200)
                 return {"message": f"Connector {source.name} updated", "id": f"{connector_id}"}, 200
         except ValueError as e:
             return {"error": str(e)}, 500
@@ -570,7 +615,9 @@ class Connectors(MethodView):
     @auth_required("CONFIG_CONNECTOR_DELETE")
     def delete(self, connector_id: str):
         # TODO: Implement force delete logic if needed
-        return connector.Connector.delete(connector_id)
+        response, status = connector.Connector.delete(connector_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
     def patch(self, connector_id: str):
@@ -602,6 +649,7 @@ class OSINTSources(MethodView):
     def post(self):
         try:
             if source := osint_source.OSINTSource.add(request.json):
+                _invalidate_admin_cache(201)
                 return {"id": source.id, "message": "OSINT source created successfully"}, 201
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
@@ -615,6 +663,7 @@ class OSINTSources(MethodView):
             return {"error": "No update data passed"}, 400
         try:
             if source := osint_source.OSINTSource.update(source_id, update_data):
+                _invalidate_admin_cache(200)
                 return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
@@ -634,7 +683,9 @@ class OSINTSources(MethodView):
                 To delete this item and all related News Items, set the 'force' flag."""
                 }, 409
 
-        return osint_source.OSINTSource.delete(source_id, force=force)
+        response, status = osint_source.OSINTSource.delete(source_id, force=force)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def patch(self, source_id: str):
@@ -643,7 +694,9 @@ class OSINTSources(MethodView):
         else:
             state = request.args.get("state", default="enabled", type=str)
         logger.debug(f"Toggling OSINT source {source_id} to state {state}")
-        return osint_source.OSINTSource.toggle_state(source_id, state)
+        response, status = osint_source.OSINTSource.toggle_state(source_id, state)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class OSINTSourceCollect(MethodView):
@@ -702,6 +755,7 @@ class OSINTSourcesImport(MethodView):
         if sources is None:
             logger.error("Failed to import OSINT sources")
             return {"error": "Unable to import"}, 400
+        _invalidate_admin_cache(200)
         return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
 
 
@@ -716,17 +770,22 @@ class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
         source_group = osint_source.OSINTSourceGroup.add(request.json)
+        _invalidate_admin_cache(200)
         return {"id": source_group.id, "message": "OSINT source group created successfully"}, 200
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_UPDATE")
     def put(self, group_id: str):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
-        return osint_source.OSINTSourceGroup.update(group_id, data, user=current_user)
+        response, status = osint_source.OSINTSourceGroup.update(group_id, data, user=current_user)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_DELETE")
     def delete(self, group_id: str):
-        return osint_source.OSINTSourceGroup.delete(group_id)
+        response, status = osint_source.OSINTSourceGroup.delete(group_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class Presenters(MethodView):
@@ -758,15 +817,20 @@ class PublisherPresets(MethodView):
     @auth_required("CONFIG_PUBLISHER_CREATE")
     def post(self):
         pub_result = publisher_preset.PublisherPreset.add(request.json)
+        _invalidate_admin_cache(200)
         return {"id": pub_result.id, "message": "Publisher preset created successfully"}, 200
 
     @auth_required("CONFIG_PUBLISHER_UPDATE")
     def put(self, preset_id: str):
-        return publisher_preset.PublisherPreset.update(preset_id, request.json)
+        response, status = publisher_preset.PublisherPreset.update(preset_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_PUBLISHER_DELETE")
     def delete(self, preset_id: str):
-        return publisher_preset.PublisherPreset.delete(preset_id)
+        response, status = publisher_preset.PublisherPreset.delete(preset_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class WordLists(MethodView):
@@ -780,12 +844,15 @@ class WordLists(MethodView):
     @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):
         wordlist = word_list.WordList.add(request.json)
+        _invalidate_admin_cache(200)
         return {"id": wordlist.id, "message": "Word list created successfully"}, 200
 
     @auth_required("CONFIG_WORD_LIST_DELETE")
     def delete(self, word_list_id: int):
         try:
-            return word_list.WordList.delete(word_list_id)
+            response, status = word_list.WordList.delete(word_list_id)
+            _invalidate_admin_cache(status)
+            return response, status
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception:
@@ -795,7 +862,9 @@ class WordLists(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def put(self, word_list_id: int):
         if data := request.json:
-            return word_list.WordList.update(word_list_id, data)
+            response, status = word_list.WordList.update(word_list_id, data)
+            _invalidate_admin_cache(status)
+            return response, status
         return {"error": "No data provided"}, 400
 
 
@@ -815,6 +884,7 @@ class WordListImport(MethodView):
             for wl in wls:
                 queue_manager.queue_manager.gather_word_list(wl.id)
 
+            _invalidate_admin_cache(200)
             return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
         except ValueError as exc:
             logger.warning(f"Invalid word list import payload: {exc}")
