@@ -1,10 +1,10 @@
 import contextlib
 
 import requests
-from flask import Response, make_response, render_template, request, url_for
+from flask import Response, make_response, request, url_for
 from flask.views import MethodView
 
-from frontend.auth import is_safe_redirect_target, logout
+from frontend.auth import is_safe_redirect_target, logout, render_login_page
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.log import logger
@@ -13,10 +13,9 @@ from frontend.log import logger
 class AuthView(MethodView):
     @staticmethod
     def _safe_next_location() -> str:
-        fallback = url_for("base.dashboard")
-        next_target = request.args.get("next")
+        next_target = request.args.get("next", url_for("base.dashboard"))
         if not is_safe_redirect_target(next_target):
-            return fallback
+            return url_for("base.dashboard")
         return next_target
 
     def _external_login_with_retries(self, auth_headers: dict[str, str], attempts: int = 3) -> Response:
@@ -37,11 +36,11 @@ class AuthView(MethodView):
 
             if attempt < attempts:
                 logger.debug(f"External login attempt failed, retrying... Status code: {status_code}")
-        return make_response(render_template("login/index.html", login_error="Login failed, no response from server"), 500)
+        return make_response(render_login_page(login_error="Login failed, no response from server"), 500)
 
     def login_flow(self, core_response: requests.Response) -> Response:
         if core_response is None:
-            return make_response(render_template("login/index.html", login_error="Login failed, no response from server"), 500)
+            return make_response(render_login_page(login_error="Login failed, no response from server"), 500)
 
         if not core_response.ok:
             error_message = "Login failed"
@@ -49,7 +48,7 @@ class AuthView(MethodView):
                 response_json = core_response.json()
                 if isinstance(response_json, dict):
                     error_message = response_json.get("error", error_message)
-            return make_response(render_template("login/index.html", login_error=error_message), core_response.status_code)
+            return make_response(render_login_page(login_error=error_message), core_response.status_code)
 
         location = self._safe_next_location()
         response = Response(status=302, headers={"Location": location})
@@ -67,28 +66,25 @@ class AuthView(MethodView):
                 auth_headers = {k.upper(): v for k, v in request.headers.items() if k.upper() in auth_header_names.values()}
                 if auth_header_names.get("username_header") not in auth_headers:
                     logger.debug(f"Missing required auth header for external login: {auth_header_names.get('username_header')}")
-                    return render_template(
-                        "login/index.html",
+                    return render_login_page(
                         notification={"message": "Missing required authentication headers - contact your admin", "error": True},
                     ), 400
                 return self._external_login_with_retries(auth_headers, attempts=3)
-            return render_template("login/index.html", auth_method=auth_method)
+            return render_login_page(), 200
 
-        return render_template(
-            "login/index.html", notification={"message": f"API is not reachable - {Config.TARANIS_CORE_URL}", "error": True}
-        ), 500
+        return render_login_page(notification={"message": f"API is not reachable - {Config.TARANIS_CORE_URL}", "error": True}), 500
 
     def post(self):
         username = request.form.get("username")
         password = request.form.get("password")
 
         if not username or not password:
-            return render_template("login/index.html", login_error="Username and password are required"), 400
+            return render_login_page(login_error="Username and password are required"), 400
 
         try:
             core_response = CoreApi().login(username, password)
         except Exception:
-            return render_template("login/index.html", login_error="Login failed, no response from server"), 500
+            return render_login_page(login_error="Login failed, no response from server"), 500
 
         return self.login_flow(core_response)
 

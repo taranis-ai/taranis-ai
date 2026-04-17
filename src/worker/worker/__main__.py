@@ -1,4 +1,9 @@
-from worker import CeleryWorker
+from worker import start_worker
 
-cw = CeleryWorker()
-celery = cw.app
+
+def main() -> None:
+    start_worker()
+
+
+if __name__ == "__main__":
+    main()

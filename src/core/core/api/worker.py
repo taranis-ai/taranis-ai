@@ -65,8 +65,14 @@ class Publishers(MethodView):
 
 class Sources(MethodView):
     @api_key_required
-    def get(self, source_id: str):
+    def get(self, source_id: str | None = None):
         try:
+            # Get all sources (for cron scheduler)
+            if source_id is None:
+                sources = OSINTSource.get_all_for_collector()
+                return {"sources": [source.to_worker_dict() for source in sources]}, 200
+
+            # Get specific source
             if not (source := OSINTSource.get(source_id)):
                 return {"error": f"Source with id {source_id} not found"}, 404
 
@@ -79,6 +85,12 @@ class Sources(MethodView):
             return {"error": "Internal server error"}, 500
 
 
+class CronJobs(MethodView):
+    @api_key_required
+    def get(self):
+        return queue_manager.queue_manager.get_cron_job_configs()
+
+
 class SourceIcon(MethodView):
     @api_key_required
     def put(self, source_id: str):
@@ -88,11 +100,13 @@ class SourceIcon(MethodView):
                 try:
                     source.update_icon(file.read())
                 except ValueError as exc:
+                    logger.error(f"Error updating icon for source {source_id}: {exc}")
                     return {"error": str(exc)}, 400
                 return {"message": "Icon uploaded"}, 200
             return {"error": f"Source with id {source_id} not found"}, 404
         except Exception:
             logger.exception()
+            return {"error": "Internal server error"}, 500
 
 
 class Stories(MethodView):
@@ -255,8 +269,10 @@ class Reports(MethodView):
 def initialize(app: Flask):
     worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
+    worker_bp.add_url_rule("/osint-sources", view_func=Sources.as_view("osint_sources_all_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
+    worker_bp.add_url_rule("/cron-jobs", view_func=CronJobs.as_view("cron_jobs_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
     worker_bp.add_url_rule("/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
@@ -273,5 +289,4 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
-
     app.register_blueprint(worker_bp)

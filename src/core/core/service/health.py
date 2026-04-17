@@ -1,6 +1,5 @@
 from typing import Literal
 
-from celery.exceptions import CeleryError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -29,8 +28,8 @@ def get_health_response() -> tuple[dict[str, bool | dict[str, HealthStatus]], in
 
 
 def broker_health_applicable() -> bool:
-    broker_url = (queue_manager.queue_manager.celery.conf.broker_url or "").lower()
-    return broker_url.startswith(("amqp://", "amqps://"))
+    qm = getattr(queue_manager, "queue_manager", None)
+    return bool(qm and getattr(qm, "redis_url", None))
 
 
 def check_database() -> HealthStatus:
@@ -56,19 +55,26 @@ def check_seed_data() -> HealthStatus:
 
 
 def check_broker() -> HealthStatus:
+    qm = getattr(queue_manager, "queue_manager", None)
+    if not qm or not getattr(qm, "_redis", None):
+        return "down"
+
     try:
-        with queue_manager.queue_manager.celery.connection() as conn:
-            conn.ensure_connection(max_retries=1, timeout=1)
+        qm._redis.ping()
         return "up"
     except Exception:
         return "down"
 
 
 def check_workers() -> HealthStatus:
-    try:
-        workers = queue_manager.queue_manager.celery.control.ping(timeout=1)
-        return "up" if workers else "down"
-    except (CeleryError, OSError):
+    qm = getattr(queue_manager, "queue_manager", None)
+    if not qm or not getattr(qm, "_redis", None):
         return "down"
+
+    try:
+        from rq.worker import Worker
+
+        workers = Worker.all(connection=qm._redis)
+        return "up" if workers else "down"
     except Exception:
         return "down"

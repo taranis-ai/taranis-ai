@@ -41,17 +41,19 @@ Starting from the git root:
 cd $(git rev-parse --show-toplevel)
 ```
 
-Copy env.dev to worker and core
+Copy env.dev to worker and core and set up the core Flask port
 
 ```bash
-cp dev/env.dev src/core/.env
 cp dev/env.dev src/worker/.env
+cp dev/env.dev src/core/.env
+echo "FLASK_RUN_PORT=5001" >> src/core/.env
 ```
 
-Copy env.sample to frontend
+Copy env.dev to frontend and set the frontend Flask port
 
 ```bash
-cp src/frontend/env.sample src/frontend/.env
+cp dev/env.dev src/frontend/.env
+echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 ```
 
 Start support services via the dev compose file
@@ -59,6 +61,9 @@ Start support services via the dev compose file
 ```bash
 docker compose -f dev/compose.yml up -d
 ```
+
+This starts local Redis without authentication on `localhost:${TARANIS_REDIS_PORT:-6379}`.
+Queue state is not persisted across local Redis restarts in this dev setup.
 
 Setup nginx.
 Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
@@ -74,7 +79,7 @@ sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
 sudo nginx -t && sudo systemctl restart nginx
 ```
 
-Start a tmux session with 3 panes for the 3 processes:
+Start a tmux session with multiple panes for the different processes:
 
 ```bash
 # Start a new session named taranis with the first tab and cd to src/core
@@ -86,9 +91,17 @@ tmux new-window -t taranis:1 -n frontend -c src/frontend
 # Create the third tab and cd to src/worker
 tmux new-window -t taranis:2 -n worker -c src/worker
 
+# Create the fourth tab for cron scheduler
+tmux new-window -t taranis:3 -n cron -c src/worker
+
+# Create the fifth tab for rq-dashboard (optional, for monitoring)
+tmux new-window -t taranis:4 -n rq-dashboard -c src/worker
+
 # Attach to the session
 tmux attach-session -t taranis
 ```
+
+Or simply run `./dev/start_tmux.sh` which sets up all windows automatically.
 
 In Core Tab:
 
@@ -100,7 +113,8 @@ uv venv
 source .venv/bin/activate
 
 # Install requirements
-uv sync --upgrade --all-extras
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
 
 # Run core
 flask run
@@ -116,10 +130,11 @@ uv venv
 source .venv/bin/activate
 
 # Install requirements
-uv sync --upgrade --all-extras
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
 
 # Run worker
-celery -A worker worker
+uv run python start_dev_worker.py
 ```
 
 In Frontend Tab:
@@ -141,7 +156,8 @@ uv venv
 source .venv/bin/activate
 
 # Install requirements
-uv sync --upgrade --all-extras
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
 
 # Run the frontend dev server
 flask run
@@ -149,12 +165,56 @@ flask run
 
 Taranis AI should be reachable on _local.taranis.ai_.
 
+## Development Tools
+
+### RQ Cron Scheduler
+
+The development setup includes an **RQ Cron Scheduler** that automatically enqueues recurring jobs based on database schedules. It:
+
+* Monitors OSINT sources and bots with cron schedules in the database
+* Automatically enqueues collection and bot tasks at their scheduled times
+* Picks up definition changes from Redis on each poll cycle
+
+When using `./dev/start_tmux.sh`, the cron scheduler is automatically started in window 4.
+
+**Manual start:**
+```bash
+cd src/worker
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
+uv run --no-sync --frozen taranis-cron
+```
+
+**Updating schedules:**
+When you update a source/bot schedule in the database (via the UI or API):
+1. The change is immediately saved to the database
+2. Core updates the cron definition in Redis
+3. The cron scheduler picks up the change on the next poll cycle
+
+### RQ Dashboard
+
+The development setup includes [rq-dashboard](https://github.com/Parallels/rq-dashboard) for monitoring RQ workers and jobs. It provides:
+
+* Real-time view of queues, workers, and jobs
+* Job details including arguments, results, and tracebacks
+* Ability to cancel jobs, requeue failed jobs, and empty queues
+
+When using `./dev/start_tmux.sh`, rq-dashboard is automatically started on port **9181** in window 5.
+
+Access it at: http://localhost:9181
+
+**Manual start:**
+```bash
+cd src/worker
+./install_and_run_rq_dashboard.sh
+```
+
 ## Technology stack
 
 ### Backend
 
 * Python: Used for the core backend services including [REST API](../src/core/README.md).
-* Celery: For managing asynchronous tasks and [worker processes](../src/worker/README.md).
+* RQ (Redis Queue): For managing asynchronous tasks and [worker processes](../src/worker/README.md).
 
 ### Frontend
 
@@ -163,7 +223,7 @@ The frontend is served by the [Flask & HTMX REST frontend](../src/frontend/READM
 ### Support Services
 
 * PostgreSQL: As the primary database.
-* RabbitMQ: For message brokering and queue management.
+* Redis: For message brokering and job queue management (via RQ).
 
 ### DevOps and Deployment
 

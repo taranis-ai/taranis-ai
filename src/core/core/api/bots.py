@@ -6,6 +6,7 @@ from flask.views import MethodView
 from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import api_key_required
+from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model import bot, news_item, story
@@ -87,8 +88,12 @@ class StoryAttributes(MethodView):
         if current_story := story.Story.get(story_id):
             if input_data := request.json:
                 current_story.patch_attributes(input_data)
+                sse_manager.news_items_updated()
             else:
                 return {"error": "No data provided"}, 400
+            current_story.updated = current_story.utcnow()
+            current_story.record_revision(note="update_story_attributes")
+            db.session.commit()
             return {"message": f"Story {story_id} updated successfully"}, 200
         return {"error": f"Story {story_id} not found"}, 404
 
@@ -100,7 +105,9 @@ class UpdateStory(MethodView):
 
     @api_key_required
     def put(self, story_id: str):
-        return story.Story.update(story_id, request.json)
+        result = story.Story.update(story_id, request.json)
+        sse_manager.news_items_updated()
+        return result
 
 
 class BotsInfo(MethodView):

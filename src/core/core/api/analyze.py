@@ -95,6 +95,10 @@ class ReportItem(MethodView):
 class ReportItemPublishProduct(MethodView):
     @auth_required(["ANALYZE_CREATE", "PUBLISH_CREATE", "PUBLISH_PRODUCT"])
     def post(self):
+        required_permissions = {"ANALYZE_CREATE", "PUBLISH_CREATE", "PUBLISH_PRODUCT"}
+        user_permissions = set(current_user.get_permissions()) if current_user else set()
+        if not required_permissions.issubset(user_permissions):
+            return {"error": "forbidden"}, 403
         return ReportPublishWorkflowService.create_and_publish(request.json, current_user)
 
 

@@ -21,12 +21,13 @@ def update_wordlist(word_list_id: int):
         logger.error(f"Word list with id {word_list_id} not found")
         raise LookupError(f"Word list with id {word_list_id} not found")
 
+    word_list_name = word_list.get("name", f"word_list_{word_list_id}")
     url = word_list["link"]
-    logger.info(f"Updating word list {word_list['name']} from {url}")
+    logger.info(f"Updating word list {word_list_name} ({word_list_id}) from {url}")
     response = requests.get(url=url, timeout=60)
     if not response.ok:
-        logger.error(f"Failed to download word list {word_list['name']} - from {url} : {response.status_code}")
-        raise RuntimeError(f"Failed to download word list {word_list['name']} - from {url} : {response.status_code}")
+        logger.error(f"Failed to download word list {word_list_name} ({word_list_id}) from {url}: {response.status_code}")
+        raise RuntimeError(f"Failed to download word list {word_list_name} ({word_list_id}) from {url}: {response.status_code}")
 
     content_type = response.headers.get("content-type", "")
     if content_type == "text/csv" or url.endswith(".csv"):
@@ -39,4 +40,17 @@ def update_wordlist(word_list_id: int):
         logger.error("Could not determine content type.")
         raise ValueError("Could not determine content type.")
 
-    return {"word_list_id": word_list["id"], "content": content, "content_type": content_type}
+    # Save the downloaded content to the database via Core API
+    try:
+        result = core_api.update_word_list(word_list_id, content, content_type)
+        if not result:
+            logger.error(f"Failed to save word list {word_list_name} ({word_list_id}): core API returned an empty response")
+            raise RuntimeError("core API returned an empty response")
+        logger.info(
+            f"Successfully updated word list {word_list_name} ({word_list_id}) with "
+            f"{len(content) if isinstance(content, (list, str)) else 'unknown'} entries"
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Failed to save word list {word_list_name} ({word_list_id}): {e}")
+        raise RuntimeError(f"Failed to save word list {word_list_name} ({word_list_id}): {e}") from e

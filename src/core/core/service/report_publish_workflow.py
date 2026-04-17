@@ -71,7 +71,7 @@ class ReportPublishWorkflowService:
             return {"error": "Story ids not found", "story_ids": missing_story_ids}, 400
 
         report_item = ReportItem.from_dict(sanitized_report)
-        if user and not report_item.allowed_with_acl(user, True):
+        if user and not report_item.access_allowed(user, True):
             return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
 
         if user:

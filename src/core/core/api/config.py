@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError  # noqa: F401
 
 from core.config import Config
 from core.log import logger
-from core.managers import queue_manager, schedule_manager
+from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
     delete_template,
@@ -36,7 +36,8 @@ from core.model import (
     worker,
 )
 from core.model.permission import Permission
-from core.service.news_item import NewsItemService
+
+# Project import for shared template logic
 from core.service.template_crud import create_or_update_template
 from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
 from core.service.template_validation import validate_template_content
@@ -469,35 +470,76 @@ class QueueTasks(MethodView):
         return queue_manager.queue_manager.get_queued_tasks()
 
 
+class ActiveJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_active_jobs()
+
+
+class FailedJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_failed_jobs()
+
+
+class WorkerStats(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_worker_stats()
+
+
+class SchedulerDashboard(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        scheduled_jobs, scheduled_status = queue_manager.queue_manager.get_scheduled_jobs()
+        if scheduled_status != 200:
+            return scheduled_jobs, scheduled_status
+
+        queues, queue_status = queue_manager.queue_manager.get_queued_tasks()
+        if queue_status != 200:
+            return queues, queue_status
+
+        worker_stats, worker_stats_status = queue_manager.queue_manager.get_worker_stats()
+        if worker_stats_status != 200:
+            return worker_stats, worker_stats_status
+
+        active_jobs, active_status = queue_manager.queue_manager.get_active_jobs()
+        if active_status != 200:
+            return active_jobs, active_status
+
+        failed_jobs, failed_status = queue_manager.queue_manager.get_failed_jobs()
+        if failed_status != 200:
+            return failed_jobs, failed_status
+
+        return {
+            "scheduled_jobs": scheduled_jobs.get("items", []),
+            "scheduled_total_count": scheduled_jobs.get("total_count", 0),
+            "queues": queues if isinstance(queues, list) else [],
+            "worker_stats": worker_stats if isinstance(worker_stats, dict) else {},
+            "active_jobs": active_jobs.get("items", []),
+            "active_total_count": active_jobs.get("total_count", 0),
+            "failed_jobs": failed_jobs.get("items", []),
+            "failed_total_count": failed_jobs.get("total_count", 0),
+        }, 200
+
+
+class CronJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_cron_job_configs()
+
+
 class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self, task_id: str | None = None):
         try:
             if task_id:
-                if result := schedule_manager.schedule.get_periodic_task(task_id):
-                    return result, 200
-                return {"error": "Task not found"}, 404
-            if schedules := schedule_manager.schedule.get_periodic_tasks():
-                return schedules, 200
-            return {"error": "No schedules found"}, 404
+                return queue_manager.queue_manager.get_scheduled_job(task_id)
+
+            return queue_manager.queue_manager.get_scheduled_jobs()
         except Exception:
             logger.exception()
-
-
-class RefreshInterval(MethodView):
-    @auth_required("CONFIG_WORKER_ACCESS")
-    def post(self):
-        data = request.get_json()
-        cron_expr = data.get("cron")
-        if not cron_expr:
-            return jsonify({"error": "Missing cron expression"}), 400
-        try:
-            fire_times = schedule_manager.schedule.get_next_n_fire_times_from_cron(cron_expr, n=3)
-            formatted_times = [ft.isoformat(timespec="minutes") for ft in fire_times]
-            return jsonify(formatted_times), 200
-        except Exception as e:
-            logger.exception(e)
-            return jsonify({"error": "Failed to compute schedule"}), 500
+            return {"error": "Failed to get schedules"}, 500
 
 
 class Connectors(MethodView):
@@ -583,11 +625,14 @@ class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id: str):
         force = request.args.get("force", default=False, type=bool)
-        if not force and NewsItemService.has_related_news_items(source_id):
-            return {
-                "error": f"""OSINT Source with ID: {source_id} has related News Items.
+        if not force:
+            from core.service.news_item import NewsItemService as _NewsItemService
+
+            if _NewsItemService.has_related_news_items(source_id):
+                return {
+                    "error": f"""OSINT Source with ID: {source_id} has related News Items.
                 To delete this item and all related News Items, set the 'force' flag."""
-            }, 409
+                }, 409
 
         return osint_source.OSINTSource.delete(source_id, force=force)
 
@@ -682,19 +727,6 @@ class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_DELETE")
     def delete(self, group_id: str):
         return osint_source.OSINTSourceGroup.delete(group_id)
-
-
-class TaskResults(MethodView):
-    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, task_id: str | None = None, filter_args: dict[str, Any] | None = None):
-        if task_id:
-            return task.Task.get_for_api(task_id)
-        return task.Task.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
-
-    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def delete(self, task_id: str):
-        return task.Task.delete(task_id)
 
 
 class Presenters(MethodView):
@@ -841,72 +873,85 @@ class Workers(MethodView):
         return {"error": "Worker not found"}, 404
 
 
+def build_config_blueprint(name: str) -> Blueprint:
+    config_bp = Blueprint(name, __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/{name}")
+
+    config_bp.add_url_rule("/acls", view_func=ACLEntries.as_view(f"{name}_acls"))
+    config_bp.add_url_rule("/acls/<int:acl_id>", view_func=ACLEntries.as_view(f"{name}_acl"))
+    config_bp.add_url_rule("/attributes", view_func=Attributes.as_view(f"{name}_attributes"))
+    config_bp.add_url_rule("/attributes/<int:attribute_id>", view_func=Attributes.as_view(f"{name}_attribute"))
+    config_bp.add_url_rule("/bots", view_func=Bots.as_view(f"{name}_bots_config"))
+    config_bp.add_url_rule("/bots/<string:bot_id>", view_func=Bots.as_view(f"{name}_bot_config"))
+    config_bp.add_url_rule("/bots/<string:bot_id>/execute", view_func=BotExecute.as_view(f"{name}_bot_execute"))
+    config_bp.add_url_rule(
+        "/dictionaries-reload/<string:dictionary_type>", view_func=DictionariesReload.as_view(f"{name}_dictionaries_reload")
+    )
+    config_bp.add_url_rule("/organizations", view_func=Organizations.as_view(f"{name}_organizations"))
+    config_bp.add_url_rule("/organizations/<int:organization_id>", view_func=Organizations.as_view(f"{name}_organization"))
+    config_bp.add_url_rule("/osint-sources", view_func=OSINTSources.as_view(f"{name}_osint_sources"))
+    config_bp.add_url_rule("/sources", view_func=OSINTSources.as_view(f"{name}_sources"))
+    config_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=OSINTSources.as_view(f"{name}_osint_source"))
+    config_bp.add_url_rule("/sources/<string:source_id>", view_func=OSINTSources.as_view(f"{name}_source"))
+    config_bp.add_url_rule("/osint-sources/<string:source_id>/collect", view_func=OSINTSourceCollect.as_view(f"{name}_osint_source_collect"))
+    config_bp.add_url_rule("/osint-sources/collect", view_func=OSINTSourceCollect.as_view(f"{name}_osint_sources_collect"))
+    config_bp.add_url_rule("/osint-sources/<string:source_id>/preview", view_func=OSINTSourcePreview.as_view(f"{name}_osint_source_preview"))
+    config_bp.add_url_rule("/osint-source-groups", view_func=OSINTSourceGroups.as_view(f"{name}_osint_source_groups_config"))
+    config_bp.add_url_rule("/osint-source-groups/<string:group_id>", view_func=OSINTSourceGroups.as_view(f"{name}_osint_source_group"))
+    config_bp.add_url_rule("/export-osint-sources", view_func=OSINTSourcesExport.as_view(f"{name}_osint_sources_export"))
+    config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view(f"{name}_osint_sources_import"))
+    config_bp.add_url_rule("/parameters", view_func=Parameters.as_view(f"{name}_parameters"))
+    config_bp.add_url_rule("/worker-parameters", view_func=WorkerParameters.as_view(f"{name}_worker_parameters"))
+    config_bp.add_url_rule("/permissions", view_func=Permissions.as_view(f"{name}_permissions"))
+    config_bp.add_url_rule("/presenters", view_func=Presenters.as_view(f"{name}_presenters"))
+    config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view(f"{name}_product_types_config"))
+    config_bp.add_url_rule("/product-types/<int:type_id>", view_func=ProductTypes.as_view(f"{name}_product_type"))
+    config_bp.add_url_rule("/templates", view_func=Templates.as_view(f"{name}_templates"))
+    config_bp.add_url_rule("/templates/<string:template_path>", view_func=Templates.as_view(f"{name}_template"))
+    config_bp.add_url_rule("/templates/validate", view_func=TemplateValidation.as_view(f"{name}_template_validation"))
+    config_bp.add_url_rule("/publishers", view_func=Publishers.as_view(f"{name}_publishers"))
+    config_bp.add_url_rule("/publishers-presets", view_func=PublisherPresets.as_view(f"{name}_publishers_presets"))
+    config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view(f"{name}_publishers_preset"))
+    config_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view(f"{name}_publisher_presets"))
+    config_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view(f"{name}_publisher_preset"))
+    config_bp.add_url_rule("/report-item-types", view_func=ReportItemTypes.as_view(f"{name}_report_item_types"))
+    config_bp.add_url_rule("/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view(f"{name}_report_item_type"))
+    config_bp.add_url_rule("/export-report-item-types", view_func=ReportItemTypesExport.as_view(f"{name}_report_item_types_export"))
+    config_bp.add_url_rule("/import-report-item-types", view_func=ReportItemTypesImport.as_view(f"{name}_report_item_types_import"))
+    config_bp.add_url_rule("/roles", view_func=Roles.as_view(f"{name}_roles"))
+    config_bp.add_url_rule("/roles/<int:role_id>", view_func=Roles.as_view(f"{name}_role"))
+    config_bp.add_url_rule("/users", view_func=Users.as_view(f"{name}_users"))
+    config_bp.add_url_rule("/users-import", view_func=UsersImport.as_view(f"{name}_users_import"))
+    config_bp.add_url_rule("/users-export", view_func=UsersExport.as_view(f"{name}_users_export"))
+    config_bp.add_url_rule("/users/<int:user_id>", view_func=Users.as_view(f"{name}_user"))
+    config_bp.add_url_rule("/word-lists", view_func=WordLists.as_view(f"{name}_word_lists"))
+    config_bp.add_url_rule("/word-lists/<int:word_list_id>", view_func=WordLists.as_view(f"{name}_word_list"))
+    config_bp.add_url_rule("/word-lists/gather/<int:word_list_id>", view_func=WordListGather.as_view(f"{name}_word_list_gather"))
+    config_bp.add_url_rule("/word-lists/gather", view_func=WordListGather.as_view(f"{name}_word_list_gather_all"))
+    config_bp.add_url_rule("/export-word-lists", view_func=WordListExport.as_view(f"{name}_word_list_export"))
+    config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view(f"{name}_word_list_import"))
+    config_bp.add_url_rule("/workers", view_func=WorkerInstances.as_view(f"{name}_workers"))
+    config_bp.add_url_rule("/workers/cron-jobs", view_func=CronJobs.as_view(f"{name}_cron_jobs"))
+    config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view(f"{name}_queue_schedule_config"))
+    config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view(f"{name}_queue_tasks"))
+    config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view(f"{name}_queue_status"))
+    config_bp.add_url_rule("/workers/active", view_func=ActiveJobs.as_view(f"{name}_active_jobs"))
+    config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view(f"{name}_failed_jobs"))
+    config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view(f"{name}_worker_stats"))
+    config_bp.add_url_rule("/workers/dashboard", view_func=SchedulerDashboard.as_view(f"{name}_scheduler_dashboard"))
+    config_bp.add_url_rule("/schedule", view_func=Schedule.as_view(f"{name}_queue_schedule"))
+    config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view(f"{name}_queue_schedule_task"))
+    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view(f"{name}_worker_types"))
+    config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view(f"{name}_worker_type_patch"))
+    config_bp.add_url_rule("/connectors", view_func=Connectors.as_view(f"{name}_connectors"))
+    config_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view(f"{name}_connector"))
+    config_bp.add_url_rule("/connectors/<string:connector_id>/pull", view_func=ConnectorsPull.as_view(f"{name}_connector_collect"))
+
+    return config_bp
+
+
 def initialize(app: Flask):
-    config_bp = Blueprint("config", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/config")
-
-    config_bp.add_url_rule("/acls", view_func=ACLEntries.as_view("acls"))
-    config_bp.add_url_rule("/acls/<int:acl_id>", view_func=ACLEntries.as_view("acl"))
-    config_bp.add_url_rule("/attributes", view_func=Attributes.as_view("attributes"))
-    config_bp.add_url_rule("/attributes/<int:attribute_id>", view_func=Attributes.as_view("attribute"))
-    config_bp.add_url_rule("/bots", view_func=Bots.as_view("bots_config"))
-    config_bp.add_url_rule("/bots/<string:bot_id>", view_func=Bots.as_view("bot_config"))
-    config_bp.add_url_rule("/bots/<string:bot_id>/execute", view_func=BotExecute.as_view("bot_execute"))
-    config_bp.add_url_rule("/dictionaries-reload/<string:dictionary_type>", view_func=DictionariesReload.as_view("dictionaries_reload"))
-    config_bp.add_url_rule("/organizations", view_func=Organizations.as_view("organizations"))
-    config_bp.add_url_rule("/organizations/<int:organization_id>", view_func=Organizations.as_view("organization"))
-    config_bp.add_url_rule("/osint-sources", view_func=OSINTSources.as_view("osint_sources"))
-    config_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=OSINTSources.as_view("osint_source"))
-    config_bp.add_url_rule("/osint-sources/<string:source_id>/collect", view_func=OSINTSourceCollect.as_view("osint_source_collect"))
-    config_bp.add_url_rule("/osint-sources/collect", view_func=OSINTSourceCollect.as_view("osint_sources_collect"))
-    config_bp.add_url_rule("/osint-sources/<string:source_id>/preview", view_func=OSINTSourcePreview.as_view("osint_source_preview"))
-    config_bp.add_url_rule("/osint-source-groups", view_func=OSINTSourceGroups.as_view("osint_source_groups_config"))
-    config_bp.add_url_rule("/osint-source-groups/<string:group_id>", view_func=OSINTSourceGroups.as_view("osint_source_group"))
-    config_bp.add_url_rule("/export-osint-sources", view_func=OSINTSourcesExport.as_view("osint_sources_export"))
-    config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view("osint_sources_import"))
-    config_bp.add_url_rule("/parameters", view_func=Parameters.as_view("parameters"))
-    config_bp.add_url_rule("/worker-parameters", view_func=WorkerParameters.as_view("worker_parameters"))
-    config_bp.add_url_rule("/permissions", view_func=Permissions.as_view("permissions"))
-    config_bp.add_url_rule("/presenters", view_func=Presenters.as_view("presenters"))
-    config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types_config"))
-    config_bp.add_url_rule("/product-types/<int:type_id>", view_func=ProductTypes.as_view("product_type"))
-    config_bp.add_url_rule("/templates", view_func=Templates.as_view("templates"))
-    config_bp.add_url_rule("/templates/<string:template_path>", view_func=Templates.as_view("template"))
-    config_bp.add_url_rule("/templates/validate", view_func=TemplateValidation.as_view("template_validation"))
-    config_bp.add_url_rule("/publishers", view_func=Publishers.as_view("publishers"))
-    config_bp.add_url_rule("/publishers-presets", view_func=PublisherPresets.as_view("publishers_presets"))
-    config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publishers_preset"))
-    config_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
-    config_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
-    config_bp.add_url_rule("/task-results", view_func=TaskResults.as_view("task_results"))
-    config_bp.add_url_rule("/task-results/<string:task_id>", view_func=TaskResults.as_view("task_result"))
-
-    config_bp.add_url_rule("/report-item-types", view_func=ReportItemTypes.as_view("report_item_types"))
-    config_bp.add_url_rule("/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view("report_item_type"))
-    config_bp.add_url_rule("/export-report-item-types", view_func=ReportItemTypesExport.as_view("report_item_types_export"))
-    config_bp.add_url_rule("/import-report-item-types", view_func=ReportItemTypesImport.as_view("report_item_types_import"))
-    config_bp.add_url_rule("/roles", view_func=Roles.as_view("roles"))
-    config_bp.add_url_rule("/roles/<int:role_id>", view_func=Roles.as_view("role"))
-    config_bp.add_url_rule("/users", view_func=Users.as_view("users"))
-    config_bp.add_url_rule("/users-import", view_func=UsersImport.as_view("users_import"))
-    config_bp.add_url_rule("/users-export", view_func=UsersExport.as_view("users_export"))
-    config_bp.add_url_rule("/users/<int:user_id>", view_func=Users.as_view("user"))
-    config_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists"))
-    config_bp.add_url_rule("/word-lists/<int:word_list_id>", view_func=WordLists.as_view("word_list"))
-    config_bp.add_url_rule("/word-lists/gather/<int:word_list_id>", view_func=WordListGather.as_view("word_list_gather"))
-    config_bp.add_url_rule("/word-lists/gather", view_func=WordListGather.as_view("word_list_gather_all"))
-    config_bp.add_url_rule("/export-word-lists", view_func=WordListExport.as_view("word_list_export"))
-    config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
-    config_bp.add_url_rule("/workers", view_func=WorkerInstances.as_view("workers"))
-    config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view("queue_schedule_config"))
-    config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
-    config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
-    config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
-    config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
-    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
-    config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
-    config_bp.add_url_rule("/refresh-interval", view_func=RefreshInterval.as_view("refresh_interval"))
-    config_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors"))
-    config_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connector"))
-    config_bp.add_url_rule("/connectors/<string:connector_id>/pull", view_func=ConnectorsPull.as_view("connector_collect"))
+    config_bp = build_config_blueprint("config")
+    admin_bp = build_config_blueprint("admin")
 
     app.register_blueprint(config_bp)
+    app.register_blueprint(admin_bp)

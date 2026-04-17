@@ -32,15 +32,15 @@
                   <div>
                     Tag: <b>{{ section_build_info.get("tag") }}</b>
                   </div>
-                {% endif %}
-                {% if section_build_info.get("HEAD") %}
+                {% elif section_build_info.get("HEAD") or section_build_info.get("branch") %}
                   <div>
-                    Commit: <b>{{ section_build_info.get("HEAD") }}</b>
-                  </div>
-                {% endif %}
-                {% if section_build_info.get("branch") %}
-                  <div>
-                    Branch: <b>{{ section_build_info.get("branch") }}</b>
+                    Commit / Branch:
+                    {% if section_build_info.get("HEAD") %}
+                      <b>{{ section_build_info.get("HEAD") }}</b>
+                    {% else %}
+                      <span class="text-base-content/60">Unavailable</span>
+                    {% endif %}
+                    {% if section_build_info.get("branch") %}<span class="text-base-content/60">/</span><b>{{ section_build_info.get("branch") }}</b>{% endif %}
                   </div>
                 {% endif %}
               {% else %}

@@ -1,7 +1,11 @@
+from types import SimpleNamespace
+
 from flask import url_for
 from lxml import html
+from models.admin import OSINTSource
 
-from frontend.views.story_views import _calculate_story_diff, _normalize_story_import_payload
+from frontend.config import Config
+from frontend.views.story_views import StoryView, _calculate_story_diff, _normalize_story_import_payload
 
 
 def test_calculate_story_diff_ignores_empty_tag_changes():
@@ -135,3 +139,87 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     source_input = form[0].xpath('.//input[@name="source"]')
     assert len(source_input) == 1
     assert source_input[0].get("required") is None
+
+
+def test_story_sharing_dialog_loads_connectors_from_assess_endpoint(authenticated_client_basic, responses_mock):
+    story_id = "story-1"
+    connector_id = "connector-1"
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}",
+        json={"id": story_id, "title": "Shared Story", "links": ["https://example.com/story"]},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/connectors",
+        json={
+            "total_count": 1,
+            "items": [
+                {
+                    "id": connector_id,
+                    "name": "MISP Connector",
+                    "description": "User-visible connector",
+                    "type": "misp_connector",
+                }
+            ],
+        },
+    )
+
+    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
+
+    assert response.status_code == 200
+    assert connector_id in response.text
+    assert "MISP Connector" in response.text
+    assert all(call.request.url != f"{Config.TARANIS_CORE_URL}/config/connectors" for call in responses_mock.calls)
+
+
+def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authenticated_client_basic, monkeypatch, responses_mock):
+    story_id = "story-1"
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}",
+        json={"id": story_id, "title": "Shared Story", "links": ["https://example.com/story"]},
+    )
+
+    def raise_connector_loading_error(*args, **kwargs):
+        raise RuntimeError("permission lookup failed")
+
+    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.get_objects", raise_connector_loading_error)
+
+    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
+
+    assert response.status_code == 200
+    assert "Share Stories" in response.text
+    assert "Shared Story" not in response.text
+
+    tree = html.fromstring(response.text)
+    connector_select = tree.xpath('//select[@id="connector"]')
+    assert len(connector_select) == 1
+    options = connector_select[0].xpath("./option")
+    assert len(options) == 1
+    assert options[0].text == "Select a connector"
+
+
+def test_handle_news_item_response_invalidates_osint_source_cache(app, monkeypatch):
+    invalidated_objects = []
+
+    def fake_invalidate(self, object_model):
+        invalidated_objects.append(object_model)
+
+    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.__init__", lambda self, jwt_token=None: None)
+    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.invalidate_cache_by_object", fake_invalidate)
+    monkeypatch.setattr(
+        "frontend.views.story_views.DataPersistenceLayer.invalidate_cache_by_object_id", lambda self, object_model, object_id: None
+    )
+    monkeypatch.setattr(StoryView, "get_notification_from_response", lambda response, oob=True: "notification")
+
+    response = SimpleNamespace(ok=True, json=lambda: {"story_id": "story-1"})
+
+    with app.test_request_context("/"):
+        result = StoryView._handle_news_item_response(
+            response,
+            content_builder=lambda _story_id: "",
+            redirect_on_story=False,
+        )
+
+    assert result.status_code == 200
+    assert OSINTSource in invalidated_objects

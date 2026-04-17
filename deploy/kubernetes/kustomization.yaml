@@ -5,6 +5,6 @@ resources:
   - 01-secrets.yaml
   - 05-network-policies.yaml
   - 10-storage.yaml
-  - 20-services.yaml
-  - 30-deployments.yaml
+  - 20-services-core.yaml
+  - 30-deployments-core.yaml
   - 40-ingress.yaml

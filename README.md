@@ -13,6 +13,8 @@ Analysts then refine these AI-augmented articles into structured reports that se
 
 For production deployments, see our [Deployment Guide using docker compose](https://taranis.ai/docs/getting-started/01_deployment/)
 
+For existing Celery/RabbitMQ deployments, see the [RQ Migration Guide](./dev/rq_migration_guide.md).
+
 ## Contributions
 
 We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./dev/README.md) to get started.
@@ -30,14 +32,14 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 | Entrypoint | ingress   | Nginx entrypoint configured as reverse proxy |
 | Frontend   | frontend  | Flask, HTMX & tailwindcss based REST frontend |
 | Backend    | core      | Backend for communication with the Database and offering REST Endpoints to workers and frontend |
-| Worker     | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
+| Worker     | worker    | RQ workers offering collectors, bots, presenters and publisher features |
 
 ### Support services
 
 | Type            | Name                 | Description                           |
 | :-------------- | :------------------- | :------------------------------------ |
 | Database        | database             | Supported are PostgreSQL and SQLite with PostgreSQL as our primary citizen |
-| Message-broker  | rabbitmq             | Message Broker for distribution of Workers and Publish Subscribe Queue Management |
+| Message-broker  | redis                | Message broker and job queue for RQ workers |
 | SSE             | sse                  | [SSE Broker](https://github.com/taranis-ai/sse-broker) |
 
 ## Features

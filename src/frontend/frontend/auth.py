@@ -3,7 +3,7 @@ from functools import wraps
 from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit
 
-from flask import Flask, Response, abort, current_app, make_response, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, current_app, g, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import JWTManager, current_user, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 from flask_jwt_extended.exceptions import JWTExtendedException
 from models.user import UserProfile
@@ -27,8 +27,10 @@ def init(app: Flask) -> None:
 
 def user_has_admin_permissions(permissions: Iterable[str] | None) -> bool:
     permission_set = set(permissions or [])
-    return "ALL" in permission_set or "ADMIN_OPERATIONS" in permission_set or any(
-        permission.startswith("CONFIG_") for permission in permission_set
+    return (
+        "ALL" in permission_set
+        or "ADMIN_OPERATIONS" in permission_set
+        or any(permission.startswith("CONFIG_") for permission in permission_set)
     )
 
 
@@ -47,13 +49,17 @@ def is_safe_redirect_target(next_target: str | None) -> bool:
     adapter = current_app.url_map.bind_to_environ(request.environ)
 
     try:
-        adapter.match(parsed_target.path, method="GET")
-    except RequestRedirect:
-        return True
+        rule, _ = adapter.match(parsed_target.path, method="GET", return_rule=True)
+    except RequestRedirect as exc:
+        redirected_path = urlsplit(exc.new_url).path
+        try:
+            rule, _ = adapter.match(redirected_path, method="GET", return_rule=True)
+        except (RequestRedirect, NotFound, MethodNotAllowed):
+            return False
     except (NotFound, MethodNotAllowed):
         return False
 
-    return True
+    return rule.endpoint != "base.login"
 
 
 def _login_url_with_next() -> str:
@@ -75,8 +81,19 @@ def _login_url_with_next() -> str:
     return url_for("base.login", next=next_target)
 
 
-def _redirect_to_login():
+def _redirect_to_login_with_next():
     return redirect(_login_url_with_next(), code=302)
+
+
+def render_login_page(**context: Any) -> str:
+    g.skip_current_user_injection = True
+    return render_template("login/index.html", **context)
+
+
+def _redirect_expired_session_to_login():
+    response = make_response(redirect(_login_url_with_next(), code=302))
+    unset_jwt_cookies(response)
+    return response
 
 
 def _resolve_authenticated_user() -> tuple[str, UserProfile] | None:
@@ -114,12 +131,12 @@ def logout() -> tuple[str, int] | Response:
     except Exception as exc:
         # If the core isn't reachable, fall back to the login page without crashing.
         logger.error(f"Core logout failed: {exc}")
-        return render_template("login/index.html", login_error="Logout failed"), 500
+        return render_login_page(login_error="Logout failed"), 500
 
     if not core_response.ok:
         with contextlib.suppress(Exception):
             error_msg = core_response.json().get("error", error_msg)
-        return render_template("login/index.html", login_error=error_msg), core_response.status_code
+        return render_login_page(login_error=error_msg), core_response.status_code
 
     response = make_response("Session expired! Redirecting to Login Page")
     if is_htmx_request():
@@ -146,7 +163,7 @@ def auth_required(permissions: list[str] | str | None = None):
 
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _redirect_to_login()
+                return _redirect_to_login_with_next()
 
             user_name, user = resolved_user
             permission_claims = set(user.permissions or [])
@@ -171,7 +188,7 @@ def admin_required():
         def wrapper(*args, **kwargs: dict[str, Any]):
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _redirect_to_login()
+                return _redirect_to_login_with_next()
 
             user_name, user = resolved_user
             if not user_has_admin_permissions(user.permissions):
@@ -235,9 +252,9 @@ def check_if_token_is_revoked(jwt_header, jwt_payload: dict[str, Any]) -> bool:
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return _redirect_to_login()
+    return _redirect_expired_session_to_login()
 
 
 @jwt.unauthorized_loader
 def unauthorized_callback(callback):
-    return _redirect_to_login()
+    return _redirect_to_login_with_next()

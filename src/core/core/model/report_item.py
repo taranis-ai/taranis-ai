@@ -88,7 +88,7 @@ class ReportItem(BaseModel):
         item = cls.get(item_id)
         if not item:
             return {"error": f"{cls.__name__} {item_id} not found"}, 404
-        if user and not item.allowed_with_acl(user, False):
+        if user and not item.access_allowed(user, False):
             return {"error": f"User {user.id} is not allowed to read Report {item.id}"}, 403
 
         return item.to_detail_dict(), 200
@@ -287,7 +287,7 @@ class ReportItem(BaseModel):
         if not report:
             return {"error": "Report not found"}, 404
 
-        if not report.allowed_with_acl(user, True):
+        if not report.access_allowed(user, True):
             return {"error": "Permission Denied"}, 403
 
         new_report = report.clone_report(user=user)
@@ -314,7 +314,7 @@ class ReportItem(BaseModel):
         report_item = cls.from_dict(sanitized_data)
 
         if user:
-            if not report_item.allowed_with_acl(user, True):
+            if not report_item.access_allowed(user, True):
                 return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
 
             report_item.user_id = user.id
@@ -360,7 +360,24 @@ class ReportItem(BaseModel):
                 self.attributes.append(ReportItemAttribute(**attr))
                 next_index += 1
 
-    def allowed_with_acl(self, user, require_write_access) -> bool:
+    def access_allowed(self, user, require_write_access=False) -> bool:
+        if not user:
+            return True
+
+        return self._allowed_with_acl(user, require_write_access) and self._allowed_with_tlp(user)
+
+    def _allowed_with_tlp(self, user) -> bool:
+        user_tlp_level = user.get_highest_tlp()
+        if user_tlp_level.value == "red":
+            return True
+
+        accessible_tlps = user_tlp_level.get_accessible_levels()
+        if item_tlp_attributes := [attr for attr in self.attributes if attr.attribute_type == AttributeType.TLP]:
+            return all(tlp_attr.value in accessible_tlps for tlp_attr in item_tlp_attributes)
+
+        return True
+
+    def _allowed_with_acl(self, user, require_write_access) -> bool:
         if not RoleBasedAccess.is_enabled() or not user:
             return True
 
@@ -424,7 +441,7 @@ class ReportItem(BaseModel):
         if not (report_item := cls.get(report_id)):
             return None, {"error": "Report Item not Found"}, 404
 
-        if not report_item.allowed_with_acl(user, True):
+        if not report_item.access_allowed(user, True):
             return None, {"error": f"User {user.id} is not allowed to update Report {report_item.id}"}, 403
 
         return report_item, {}, 200

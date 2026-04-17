@@ -16,6 +16,9 @@ def pre_seed():
         pre_seed_source_groups()
         logger.debug("Source groups seeded")
 
+        pre_seed_manual_source()
+        logger.debug("Manual source seeded")
+
         pre_seed_roles()
         logger.debug("Roles seeded")
 
@@ -36,9 +39,6 @@ def pre_seed():
 
         pre_seed_assets()
         logger.debug("Assets seeded")
-
-        pre_seed_manual_source()
-        logger.debug("Manual source seeded")
 
     except Exception:
         logger.exception()
@@ -80,7 +80,7 @@ def pre_seed_update(db_engine: Engine):
     cleanup_empty_stories()
     migrate_missing_initial_revisions()
     if db_engine.dialect.name == "postgresql":
-        migrate_search_indexes()
+        rebuild_story_search_vectors()
 
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):
@@ -134,11 +134,11 @@ def sync_presenter_templates():
     sync_presenter_templates_to_data()
 
 
-def migrate_search_indexes():
+def rebuild_story_search_vectors():
     from core.service.story import StoryService
 
-    count = StoryService.update_search_vector()
-    logger.info(f"Updated search indexes for {count} stories")
+    count = StoryService.rebuild_search_vectors()
+    logger.info(f"Rebuilt search vectors for {count} stories")
 
 
 def cleanup_empty_stories():

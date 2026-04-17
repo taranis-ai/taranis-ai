@@ -1,7 +1,7 @@
 import re
 from typing import Any
 
-from flask import Flask, redirect, render_template, url_for
+from flask import Flask, g, redirect, render_template, url_for
 from flask.json.provider import DefaultJSONProvider
 from flask_htmx import HTMX
 from flask_jwt_extended import current_user, verify_jwt_in_request
@@ -116,6 +116,9 @@ def inject_current_user() -> dict[str, Any]:
     Makes `current_user` available in all Jinja templates.
     If no JWT is present, it will be None.
     """
+    if getattr(g, "skip_current_user_injection", False):
+        return {"current_user": None, "is_admin": False}
+
     try:
         verify_jwt_in_request(optional=True)
     except JWTExtendedException:

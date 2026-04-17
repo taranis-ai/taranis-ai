@@ -4,10 +4,11 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-import requests
 from flask import url_for
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
+
+from tests.playwright.notification_helpers import dismiss_notifications
 
 
 def remove_tz(date_time: str) -> str:
@@ -18,6 +19,16 @@ def remove_tz(date_time: str) -> str:
     return dt.isoformat()
 
 
+DASHBOARD_BASELINE_QUEUE_TEXT = "There are 1 tasks scheduled."
+DASHBOARD_HEALTH_SERVICES = {
+    "Database": "up",
+    "Pre-seeded": "up",
+    "Redis": "up",
+    "Workers": "up",
+}
+SCHEDULER_BASELINE_TOTAL_TEXT = "Total: 1 scheduled jobs"
+
+
 @pytest.mark.e2e_admin
 @pytest.mark.e2e_ci
 @pytest.mark.usefixtures("e2e_ci")
@@ -26,10 +37,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
     @staticmethod
     def dismiss_notification_if_visible(page: Page):
-        notification = page.locator("#notification-bar [role='alert']")
-        if notification.is_visible():
-            notification.click()
-            expect(notification).to_be_hidden()
+        dismiss_notifications(page)
 
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
@@ -52,8 +60,25 @@ class TestEndToEndAdmin(PlaywrightHelpers):
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
 
-        page.goto(url_for("base.dashboard", _external=True))
+        page.goto(url_for("admin.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
+
+        health_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_text("System Health", exact=True)).first
+        expect(health_card).to_be_visible()
+        expect(health_card.get_by_text("Healthy", exact=True)).to_be_visible()
+        for service, status in DASHBOARD_HEALTH_SERVICES.items():
+            row = health_card.locator("div.flex.items-center.justify-between").filter(has_text=service).first
+            expect(row).to_be_visible()
+            expect(row).to_contain_text(status)
+
+        queue_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_role("link", name="Queue")).first
+        expect(queue_card).to_be_visible()
+        expect(queue_card).to_contain_text(DASHBOARD_BASELINE_QUEUE_TEXT)
+        queue_card.get_by_role("link", name="Queue").click()
+
+        expect(page).to_have_url(url_for("admin.scheduler", _external=True))
+        expect(page.locator("#scheduler-dashboard")).to_be_visible()
+        expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(SCHEDULER_BASELINE_TOTAL_TEXT)
 
     def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
         page = logged_in_page
@@ -384,16 +409,19 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_test_id("osint_source_group-table").get_by_role("link", name=osint_group_name)).not_to_be_visible()
 
         def test_page_osint_sources():
-            page.goto(url_for("admin.osint_sources", _external=True))
+            source_name = test_batch_osint_sources["sources"][0]["name"]
             page.goto(url_for("admin.osint_source_groups", _external=True))
             page.get_by_test_id("new-osint_source_group-button").click()
-            source_row = page.locator("#osint_sources tbody tr").first
-            expect(source_row).to_be_visible()
-            source_name = source_row.locator("td").nth(1).inner_text().strip()
-            page.get_by_role("textbox", name="Search...").first.fill(source_name)
+            form = page.locator("#osint_source_group-form")
+            expect(form).to_be_visible()
+            expect(form.locator("#osint_sources tbody input[type='checkbox'].checkbox-sm")).to_have_count(5, timeout=10000)
+
+            form.get_by_role("textbox", name="Search...").first.fill(source_name)
+            source_row = form.locator("#osint_sources tbody tr").filter(has_text=source_name).first
+            expect(source_row).to_be_visible(timeout=10000)
             expect(source_row).to_contain_text(source_name)
             source_row.get_by_role("checkbox").check()
-            expect(page.locator('input[type="hidden"][name="osint_sources[]"]')).to_have_count(1)
+            expect(form.locator('input[type="hidden"][name="osint_sources[]"]')).to_have_count(1)
 
         load_osint_source_groups()
         add_osint_source_group()
@@ -459,11 +487,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def load_word_list():
             page.goto(url_for("admin.word_lists", _external=True))
-            expect(page.get_by_role("button", name="Load default Word List")).to_be_visible()
+            expect(page.locator("#word_list-table-container")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_word_lists.png")
 
         def load_default_word_list():
-            page.get_by_role("button", name="Load default Word List").click()
+            load_default_button = page.get_by_role("button", name="Load default Word List")
+            expect(load_default_button).to_be_visible()
+            load_default_button.click()
             page.get_by_role("row", name="Name Description Words Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-word_list-button")
             expect(delete_button).to_contain_text("Delete 9 Word List")
@@ -729,10 +759,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("link", name="Analyze").click()
             expect(page.get_by_role("row", name="update attr use")).to_be_visible()
 
-            for _ in range(2):
-                page.locator('[data-testid^="action-delete-"]').first.click()
-                expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-                page.get_by_role("button", name="OK").click()
+            page.locator('[data-testid^="action-delete-"]').first.click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+            page.get_by_role("button", name="OK").click()
+
+            page.locator('[data-testid^="action-delete-"]').first.click()
+            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
+            page.get_by_role("button", name="OK").click()
 
             expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
 
@@ -1061,7 +1094,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         publisher_presets_update()
         publisher_presets_delete()
 
-    def test_admin_settings(self, logged_in_page, tmp_path, run_core, access_token, pre_seed_stories):
+    def test_admin_settings(self, logged_in_page, tmp_path, pre_seed_stories):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
@@ -1122,10 +1155,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 self.highlight_element(export_all_btn).click()
             download = dl_info.value
             assert download is not None
-            download_path = download.path()
-            assert download_path is not None
+            export_file = tmp_path / "settings_story_export.json"
+            download.save_as(str(export_file))
 
-            with open(download_path, "r", encoding="utf-8") as f:
+            with open(export_file, "r", encoding="utf-8") as f:
                 exported = json.load(f)
 
             # convert both exported stories and stories in story_list to a comparable format
@@ -1149,6 +1182,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             if export_dialog.is_visible():
                 page.keyboard.press("Escape")
             expect(export_dialog).not_to_be_visible()
+            return export_file
 
         def test_export_stories_metadata_time_filter(story_list):
             export_btn = page.get_by_test_id("story-export-button")
@@ -1221,15 +1255,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 page.keyboard.press("Escape")
             expect(export_dialog).not_to_be_visible()
 
-        def import_stories_from_json():
-            export_response = requests.get(
-                f"{run_core}/admin/export-stories",
-                params={"metadata": "true"},
-                headers={"Authorization": f"Bearer {access_token}"},
-                timeout=30,
-            )
-            export_response.raise_for_status()
-            import_payload = export_response.json()
+        def import_stories_from_json(export_file):
+            with open(export_file, "r", encoding="utf-8") as f:
+                import_payload = json.load(f)
 
             imported_story_title = f"Imported Story {uuid.uuid4().hex[:8]}"
             imported_story_id = str(uuid.uuid4())
@@ -1242,13 +1270,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 news_item["story_id"] = imported_story_id
                 news_item["title"] = f"{imported_story_title} News {index}"
                 news_item["link"] = f"https://example.com/{imported_story_id}/{index}"
+                news_item["osint_source_id"] = "manual"
                 news_item.pop("hash", None)
 
-            import_file = tmp_path / "settings_story_import.json"
-            import_file.write_text(json.dumps([story_to_import]), encoding="utf-8")
+            export_file.write_text(json.dumps([story_to_import]), encoding="utf-8")
 
             with page.expect_response(stories_import_url) as response_info:
-                page.get_by_test_id("settings-story-import-file").set_input_files(str(import_file))
+                page.get_by_test_id("settings-story-import-file").set_input_files(str(export_file))
                 page.get_by_test_id("settings-story-import-submit").click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
 
@@ -1279,9 +1307,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         check_default_values()
         change_default_values()
         check_new_values()
-        test_export_all_stories(pre_seed_stories)
+        exported_stories_file = test_export_all_stories(pre_seed_stories)
         test_export_stories_metadata_time_filter(pre_seed_stories)
-        import_stories_from_json()
+        import_stories_from_json(exported_stories_file)
         revert_to_default_values()
         test_clear_cache()
 

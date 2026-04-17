@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db

@@ -1,89 +1,46 @@
-# type: ignore
-from datetime import datetime
+from typing import Any
 
-from flask import Blueprint, Flask, request
+from flask import Blueprint, Flask, g, request
 from flask.views import MethodView
+from models.task import TaskSubmission
+from pydantic import ValidationError
 
 from core.config import Config
 from core.log import logger
-from core.managers.auth_manager import api_key_required
-from core.model.product import Product
-from core.model.task import Task as TaskModel
-from core.model.token_blacklist import TokenBlacklist
-from core.model.word_list import WordList
-from core.service.news_item_tag import NewsItemTagService
+from core.managers.auth_manager import api_key_or_auth_required, api_key_required
+from core.managers.decorators import extract_args
+from core.service.task import TaskService
 
 
 class Task(MethodView):
-    @api_key_required
-    def get(self, task_id: str):
-        if result := TaskModel.get(task_id):
-            return result.to_dict(), 200
-        return {"status": "PENDING"}, 404
+    @api_key_or_auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    def get(self, task_id: str | None = None, filter_args: dict[str, Any] | None = None):
+        if task_id:
+            return TaskService.get_task(task_id)
+        return TaskService.get_tasks(filter_args=filter_args, user=getattr(g, "authenticated_user", None))
 
     @api_key_required
     def post(self):
-        data = request.json
-        if not data or "task_id" not in data:
-            return {"error": "task_id not found"}, 400
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return {"error": "No data provided"}, 400
 
-        task_id = data.get("task_id")
-        result = data.get("result")
-        status = data.get("status")
-        task = data.get("task", "")
+        try:
+            submission = TaskSubmission.model_validate(payload)
+        except ValidationError as exc:
+            return {"error": TaskSubmission.format_validation_errors(exc)}, 400
 
-        logger.debug(f"Received task result with id {task_id} and status {status}")
+        logger.debug(f"Received task result with id {submission.id} and status {submission.status}")
+        return TaskService.save_task_result(submission)
 
-        if status == "SUCCESS" and result:
-            handle_task_specific_result(task_id, result, status)
-        TaskModel.add_or_update({"id": task_id, "result": serialize_result(result), "status": status, "task": task})
-        return {"status": status}, 200
+    @api_key_or_auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    def delete(self, task_id: str):
+        return TaskService.delete_task(task_id)
 
 
 def initialize(app: Flask):
     task_bp = Blueprint("tasks", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/tasks")
-
     task_bp.add_url_rule("", view_func=Task.as_view("tasks"))
     task_bp.add_url_rule("/<string:task_id>", view_func=Task.as_view("task"))
     app.register_blueprint(task_bp)
-
-
-def serialize_result(result: dict | str | None = None):
-    if result is None:
-        return None
-
-    if isinstance(result, str):
-        return result
-    if "exc_message" in result:
-        if isinstance(result["exc_message"], (list, tuple)):
-            return " ".join(map(str, result["exc_message"]))
-        return result["exc_message"]
-
-    return result["message"] if "message" in result else result
-
-
-def handle_task_specific_result(task_id: str, result: dict | str, status: str):
-    if task_id.startswith("gather_word_list"):
-        WordList.update_word_list(**result)
-    elif task_id.startswith("cleanup_token_blacklist"):
-        TokenBlacklist.delete_older(datetime.now() - Config.JWT_ACCESS_TOKEN_EXPIRES)
-    elif task_id.startswith("presenter_task"):
-        rendered_product = result.get("render_result")
-        product_id = result.get("product_id")
-        if not product_id or not rendered_product:
-            logger.error(f"Product {product_id} not found or no render result")
-        else:
-            Product.update_render_for_id(product_id, rendered_product)
-    elif task_id.startswith("collect_"):
-        logger.info(f"Collector task {task_id} completed with result: {result}")
-    # TODO: check, when falsy values make sense as results. e.g. IOC bot may make sense, but summary bot may want to be executed again and again and not save the bot_type attribute
-    elif task_id.startswith("bot"):
-        if result.get("result").get("error") or result.get("result").get("message"):
-            logger.error((result.get("result").get("error") or result.get("result").get("message")))
-            return
-        bot_type = result.get("bot_type", "")
-        tagging_bots = ["WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"]
-        if bot_type in tagging_bots:
-            NewsItemTagService.set_found_bot_tags(result, change_by_bot=True)
-
-        NewsItemTagService.set_bot_execution_attribute(result)

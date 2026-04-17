@@ -15,14 +15,14 @@ classifiers = [
 ]
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "apscheduler",
     "Flask",
     "Flask-Cors",
     "Flask-JWT-Extended",
     "yoyo-migrations",
     "Flask-SQLAlchemy",
     "click",
-    "celery",
+    "rq>=2.5",
+    "croniter>=6.0.0",
     "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",
@@ -58,7 +58,19 @@ taranis-core-healthcheck = "core.healthcheck:main"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-celery", "pytest-flask", "schemathesis < 4", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright"]
+dev = [
+    "ruff",
+    "pytest",
+    "pytest-flask",
+    "pytest-docker",
+    "fakeredis",
+    "schemathesis < 4",
+    "build",
+    "wheel",
+    "setuptools_scm",
+    "pytest-playwright",
+    "playwright",
+]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -71,15 +83,7 @@ target-version = "py313"
 lines-after-imports = 2
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
-markers = [
-    "e2e_user: marks tests as to run only when calling with --e2e-user option",
-    "e2e_ci: marks tests as to run only when calling with --e2e-ci option",
-    "e2e_timeout: time in milliseconds to wait for the e2e tests to finish",
-    "e2e_publish: marks only the tests related to publishing in from the e2e test",
-    "e2e_admin: marks tests that produce pictures for the documentation",
-    "e2e_user_workflow: marks tests that execute the defined user workflow"
-]
+pythonpath = [".", "../.."]
 filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",
     "ignore::DeprecationWarning",
@@ -131,3 +135,6 @@ required-environments = [
   "sys_platform == 'darwin' and platform_machine == 'x86_64'",
   "sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
+
+[tool.uv.sources]
+taranis-models = { path = "../models", editable = true }

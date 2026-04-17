@@ -1,7 +1,10 @@
+from typing import Any
 from urllib.parse import urlencode
 
 import requests
 from models.product import WorkerProduct as Product
+from models.task import TaskSubmission
+from pydantic import ValidationError
 
 from worker.config import Config
 from worker.log import logger
@@ -60,6 +63,100 @@ class CoreApi:
         response = requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
+    def submit_task_result(self, task_data: TaskSubmission | dict) -> dict | None:
+        try:
+            submission = task_data if isinstance(task_data, TaskSubmission) else TaskSubmission.model_validate(task_data)
+            payload = submission.model_dump(mode="json", by_alias=True)
+        except ValidationError as exc:
+            logger.error(f"Invalid task payload: {exc}")
+            return None
+        return self.api_post("/tasks", payload)
+
+    def save_task_result(
+        self,
+        job_id: str,
+        task_name: str,
+        result: Any,
+        status: str,
+        *,
+        worker_id: str | None = None,
+        worker_type: str | None = None,
+    ) -> bool:
+        """Persist task execution result to the Core task API.
+
+        Returns True when persistence succeeds, otherwise False.
+        """
+        try:
+            payload: dict[str, Any] = {
+                "id": job_id,
+                "task": task_name,
+                "result": result,
+                "status": status,
+            }
+            if worker_id is not None:
+                payload["worker_id"] = worker_id
+            if worker_type is not None:
+                payload["worker_type"] = worker_type
+            response = self.submit_task_result(payload)
+            if not response:
+                logger.warning(f"Failed to save task result for {job_id}")
+                return False
+
+            logger.debug(f"Saved task result for {task_name}: {status}")
+            return True
+        except Exception as exc:
+            logger.error(f"Failed to save task result for {job_id}: {exc}")
+            return False
+
+    def get_all_osint_sources(self) -> list[dict] | None:
+        """Get all OSINT sources from the Core API.
+
+        Returns:
+            List of source dictionaries, or None if the request fails
+        """
+        try:
+            response = self.api_get("/worker/osint-sources")
+            if response and "sources" in response:
+                return response["sources"]
+            return None
+        except Exception:
+            logger.exception("Can't get all OSINT sources")
+            return None
+
+    def get_all_bots(self) -> list[dict] | None:
+        """Get all bots from the Core API.
+
+        Returns:
+            List of bot dictionaries, or None if the request fails
+        """
+        try:
+            response = self.api_get("/worker/bots")
+            # API returns {"items": [...]} format
+            if response and isinstance(response, dict) and "items" in response:
+                return response["items"]
+            # Fallback for direct list format (backwards compatibility)
+            if response and isinstance(response, list):
+                return response
+            return None
+        except Exception:
+            logger.exception("Can't get all bots")
+            return None
+
+    def get_cron_jobs(self) -> list[dict] | None:
+        """Get all cron job configurations from the Core API.
+
+        Returns:
+            List of cron job configurations, or None if the request fails
+        """
+        try:
+            response = self.api_get("/worker/cron-jobs")
+            if response and "cron_jobs" in response:
+                return response["cron_jobs"]
+            return None
+        except Exception:
+            logger.exception("Can't get cron job configurations")
+            return None
+
     def get_bot_config(self, bot_id: str) -> dict | None:
         try:
             return self.api_get(f"/worker/bots/{bot_id}")
@@ -100,6 +197,40 @@ class CoreApi:
         return self.api_get(
             url=f"/worker/word-list/{word_list_id}",
         )
+
+    def update_word_list(self, word_list_id: int, content: str | dict | list, content_type: str) -> dict | None:
+        """Update a word list with new content.
+
+        Args:
+            word_list_id: ID of the word list to update
+            content: The content to upload (text/csv string or json list/dict)
+            content_type: MIME type of the content ('text/csv' or 'application/json')
+
+        Returns:
+            Response from the API or None on failure
+        """
+        try:
+            url = f"{self.api_url}/worker/word-list/{word_list_id}"
+            headers = {**self.headers, "Content-Type": content_type}
+
+            if content_type == "application/json":
+                response = requests.put(url=url, headers=headers, json=content, verify=self.verify, timeout=self.timeout)
+            elif content_type == "text/csv":
+                response = requests.put(
+                    url=url,
+                    headers=headers,
+                    data=content.encode("utf-8") if isinstance(content, str) else content,
+                    verify=self.verify,
+                    timeout=self.timeout,
+                )
+            else:
+                logger.error(f"Unsupported content type: {content_type}")
+                return None
+
+            return self.check_response(response, url)
+        except Exception as e:
+            logger.exception(f"Failed to update word list {word_list_id}: {e}")
+            return None
 
     def get_news_items(self, limit) -> dict | None:
         try:
@@ -224,17 +355,3 @@ class CoreApi:
         except Exception:
             logger.exception("Cannot add or update story.")
             return None
-
-    def store_task_result(self, data: dict) -> dict | None:
-        try:
-            return self.api_post(url="/tasks/", json_data=data)
-        except Exception:
-            logger.exception("Cannot store task result")
-            return None
-
-    def get_task(self, task_id) -> requests.Response:
-        try:
-            url = f"{self.api_url}/tasks/{task_id}"
-            return requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
-        except Exception as e:
-            raise e

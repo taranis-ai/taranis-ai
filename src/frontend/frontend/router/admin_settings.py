@@ -1,4 +1,4 @@
-from flask import Flask, Blueprint, request
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
 
 from frontend.auth import admin_required
@@ -8,12 +8,16 @@ from frontend.views.admin_views.settings_views import SettingsView
 class SettingsAction(MethodView):
     @admin_required()
     def get(self, action: str):
-        action_url = f"/admin/{action}?{request.query_string.decode()}"
+        action_path = action.replace("_", "-")
+        query_string = request.query_string.decode()
+        action_url = f"/settings/{action_path}"
+        if query_string:
+            action_url = f"{action_url}?{query_string}"
         return SettingsView.settings_action(action_url)
 
     @admin_required()
     def post(self, action: str):
-        action_url = f"/admin/{action}"
+        action_url = f"/settings/{action.replace('_', '-')}"
         return SettingsView.settings_action(action_url, method="post")
 
 

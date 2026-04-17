@@ -8,8 +8,8 @@ from flask import Response, abort, flash, json, make_response, redirect, render_
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from markupsafe import Markup, escape
-from models.admin import Connector
-from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
+from models.admin import OSINTSource
+from models.assess import AssessSource, BulkAction, Connector, FilterLists, NewsItem, Story, StoryUpdatePayload
 from models.report import ReportItem
 from pydantic import ValidationError
 from werkzeug.datastructures import FileStorage
@@ -156,7 +156,11 @@ class StoryView(BaseView):
             story_ids = [story_id]
 
         mail_sharing_link = cls.share_story_link(story_ids)
-        connectors = DataPersistenceLayer().get_objects(Connector)
+        try:
+            connectors = DataPersistenceLayer().get_objects(Connector)
+        except Exception as e:
+            logger.error(f"Failed to fetch connectors for share dialog: {e}")
+            connectors = []
         return render_template(
             "assess/story_sharing_dialog.html", connectors=connectors, story_ids=story_ids, mail_sharing_link=mail_sharing_link
         )
@@ -295,7 +299,7 @@ class StoryView(BaseView):
     @classmethod
     def _build_pagination_context(
         cls,
-        stories: CacheObject[Story] | None,
+        stories: CacheObject | None,
         paging: PagingData,
         request_params: dict[str, list[str]],
     ) -> dict[str, Any]:
@@ -357,7 +361,7 @@ class StoryView(BaseView):
             items, error = None, str(exc)
 
         context = cls.get_view_context(items, error)
-        context["pagination"] = cls._build_pagination_context(items or None, paging_data, request_params)
+        context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
 
         return render_template(cls.get_list_template(), **context), 200
 
@@ -441,29 +445,6 @@ class StoryView(BaseView):
     def story_view(cls, story_id: str):
         return render_template("assess/story_view.html", **cls.get_item_context(story_id)), 200
 
-    @staticmethod
-    def _extract_report_ids_from_story_data(story_data: Any) -> list[str]:
-        tags = story_data.get("tags") if isinstance(story_data, dict) else None
-        report_ids: list[str] = []
-        for tag in tags or []:
-            tag_type = tag.get("tag_type")
-            if isinstance(tag_type, str) and tag_type.startswith("report_"):
-                if report_id := tag_type.split("report_", 1)[1]:
-                    report_ids.append(report_id)
-
-        return report_ids
-
-    @classmethod
-    def _invalidate_related_report_caches(cls, core_response: Any) -> None:
-        story_data = None
-        if isinstance(core_response, dict):
-            story_data = core_response.get("story")
-        report_ids = cls._extract_report_ids_from_story_data(story_data)
-        if not report_ids:
-            return
-        for report_id in report_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(ReportItem, report_id)
-
     @classmethod
     @auth_required()
     def trigger_bot_action(cls, story_id: str):
@@ -525,6 +506,7 @@ class StoryView(BaseView):
 
         DataPersistenceLayer().invalidate_cache_by_object(Story)
         DataPersistenceLayer().invalidate_cache_by_object(NewsItem)
+        DataPersistenceLayer().invalidate_cache_by_object(OSINTSource)
         if story_id:
             DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
 
@@ -775,7 +757,7 @@ class StoryView(BaseView):
         notification_html = cls.get_notification_from_response(response)
 
         DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
-        cls._invalidate_related_report_caches(response.json())
+        DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
 
         content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
