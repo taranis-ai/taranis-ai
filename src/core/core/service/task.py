@@ -10,6 +10,7 @@ from core.model.product import Product
 from core.model.task import Task as TaskModel
 from core.model.token_blacklist import TokenBlacklist
 from core.model.word_list import WordList
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.misp_story_sync import handle_misp_connector_result
 from core.service.news_item_tag import NewsItemTagService
 
@@ -31,7 +32,7 @@ class TaskService:
         if status != 200:
             return result, status
 
-        result.update(TaskModel.get_task_statistics(group_by_worker_type=True))
+        result.update(TaskModel.get_task_statistics())
         validated = TaskHistoryResponse.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), status
 
@@ -81,6 +82,7 @@ class TaskService:
 
     @classmethod
     def _handle_success_result(cls, submission: TaskSubmission) -> None:
+        invalidate_frontend_cache_on_success(200, full=True)
         task_kind = cls._resolve_task_kind(submission.id, submission.task)
         if not task_kind:
             return
@@ -95,7 +97,7 @@ class TaskService:
             return
 
         if task_kind == "connector_task":
-            handle_misp_connector_result(submission.result)
+            handle_misp_connector_result(submission.result)  # type: ignore TODO: validate result before handling
             return
 
         if not isinstance(submission.result, dict):

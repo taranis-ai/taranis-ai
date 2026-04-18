@@ -10,7 +10,7 @@ from flask import render_template
 from models.admin import OSINTSource
 from models.types import COLLECTOR_TYPES
 
-from frontend.cache import cache
+from frontend.cache import add_user_to_cache, cache
 from frontend.config import Config
 from frontend.views.admin_views.dashboard_views import AdminDashboardView
 from frontend.views.admin_views.report_type_views import ReportItemTypeView
@@ -324,6 +324,7 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
         parameters={},
         icon=_VALID_PNG_BASE64,
         enabled=True,
+        news_items_count=7,
         status=None,
     )
 
@@ -348,6 +349,7 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
     assert 'data-testid="osint-source-rank"' in html
     assert 'value="3"' in html
     assert 'aria-label="3 stars"' in html
+    assert "News items in database: 7" in html
     assert "checked" in html
 
 
@@ -361,6 +363,7 @@ def test_osint_source_form_disables_rank_for_manual_source(app):
         parameters={},
         icon=None,
         enabled=True,
+        news_items_count=13,
         status=None,
     )
 
@@ -381,14 +384,14 @@ def test_osint_source_form_disables_rank_for_manual_source(app):
     assert 'data-testid="osint-source-rank"' in html
     assert 'name="rank" value="0"' in html
     assert 'aria-label="Unrated"' in html
+    assert "News items in database: 13" in html
     assert html.count('name="rank"') == 7
     assert html.count("disabled") >= 6
 
 
-def test_admin_dashboard_renders_health_card(authenticated_client, responses_mock, monkeypatch):
-    for key in list(cache.cache._cache.keys()):
-        if key.endswith("_dashboard"):
-            cache.delete(key)
+def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, responses_mock, monkeypatch):
+    cache.clear()
+    add_user_to_cache(auth_user.model_dump(mode="json"))
 
     monkeypatch.setattr(Config, "BUILD_DATE", datetime.fromisoformat("2025-01-16T08:45:00+00:00"))
     monkeypatch.setattr(Config, "GIT_INFO", {"tag": "1.3.5", "HEAD": "front456", "branch": "master"})
@@ -454,10 +457,11 @@ def test_admin_dashboard_renders_health_card(authenticated_client, responses_moc
     assert "Workers" in html
 
 
-def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fails(authenticated_client, responses_mock, monkeypatch):
-    for key in list(cache.cache._cache.keys()):
-        if key.endswith("_dashboard"):
-            cache.delete(key)
+def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fails(
+    authenticated_client, auth_user, responses_mock, monkeypatch
+):
+    cache.clear()
+    add_user_to_cache(auth_user.model_dump(mode="json"))
 
     monkeypatch.setattr(Config, "BUILD_DATE", datetime.fromisoformat("2025-01-16T08:45:00+00:00"))
     monkeypatch.setattr(Config, "GIT_INFO", {"HEAD": "front456", "branch": "master"})

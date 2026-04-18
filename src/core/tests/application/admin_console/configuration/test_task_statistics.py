@@ -53,7 +53,7 @@ def test_get_task_statistics_serializes_timestamps(monkeypatch):
     assert task_stats["last_success_display"] == last_success.isoformat()
 
 
-def test_get_task_statistics_can_group_by_worker_type(monkeypatch):
+def test_get_task_statistics_includes_worker_metadata(monkeypatch):
     last_run = datetime(2026, 4, 13, 12, 30, tzinfo=timezone.utc)
     last_success = datetime(2026, 4, 13, 11, 45, tzinfo=timezone.utc)
 
@@ -61,7 +61,7 @@ def test_get_task_statistics_can_group_by_worker_type(monkeypatch):
         Task,
         "get_status_counts_by_task",
         classmethod(
-            lambda cls, include_timestamps=False, group_by_worker_type=False: {
+            lambda cls, include_timestamps=False: {
                 "WORDLIST_BOT": {
                     "failures": 1,
                     "successes": 2,
@@ -76,7 +76,7 @@ def test_get_task_statistics_can_group_by_worker_type(monkeypatch):
         ),
     )
 
-    statistics = Task.get_task_statistics(group_by_worker_type=True)
+    statistics = Task.get_task_statistics()
     task_stats = statistics["task_stats"]["WORDLIST_BOT"]
 
     assert task_stats["worker_type"] == "WORDLIST_BOT"

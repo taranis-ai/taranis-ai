@@ -154,6 +154,35 @@ class TestAssessNewsItems(BaseTest):
 class TestAssessStories(BaseTest):
     base_uri = "/api/assess"
 
+    def test_import_story_payload(self, client, auth_header):
+        imported_story_id = str(uuid.uuid4())
+        imported_news_item_id = str(uuid.uuid4())
+        payload = [
+            {
+                "id": imported_story_id,
+                "title": f"Imported Story {imported_story_id[:8]}",
+                "news_items": [
+                    {
+                        "id": imported_news_item_id,
+                        "story_id": imported_story_id,
+                        "osint_source_id": "manual",
+                        "title": "Imported News Item",
+                        "content": "Imported story content",
+                        "link": f"https://example.com/{imported_news_item_id}",
+                    }
+                ],
+            }
+        ]
+
+        response = self.assert_post_ok(client, "import", payload, auth_header)
+
+        imported = response.get_json()["imported_stories"]
+        assert len(imported) == 1
+        assert imported[0]["id"] == imported_story_id
+
+        cleanup_response = client.delete(f"/api/assess/story/{imported_story_id}", headers=auth_header)
+        assert cleanup_response.status_code < 300
+
     def test_story_creation(self, client, stories, auth_header):
         """
         This test queries the stories authenticated.

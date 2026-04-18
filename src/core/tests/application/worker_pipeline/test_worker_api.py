@@ -601,7 +601,7 @@ class TestOSINTSourceScheduling:
             }
         }
 
-        response = client.put("/api/admin/settings", json=settings_payload, headers=auth_header)
+        response = client.put("/api/settings/settings", json=settings_payload, headers=auth_header)
         assert response.status_code == 200, f"Failed to set settings for row {row}: {response}"
 
         source_id = "test_id"

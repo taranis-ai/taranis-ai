@@ -25,6 +25,7 @@ def test_osint_source_from_dict_accepts_parameter_dict():
             "description": "A test",
             "type": "rss_collector",
             "parameters": {"FEED_URL": "https://example.com/feed.xml"},
+            "news_items_count": 3,
         }
     )
 
@@ -79,3 +80,40 @@ def test_osint_source_partial_update_reparses_parameters(session):
 
     assert updated_source is not None
     assert ParameterValue.find_value_by_parameter(updated_source.parameters, "FEED_URL") == "https://changed.example/feed.xml"
+
+
+@pytest.mark.usefixtures("app")
+def test_osint_source_to_detail_dict_includes_news_items_count(session):
+    source = OSINTSource(
+        name="Source",
+        description="A test",
+        type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        parameters={"FEED_URL": "https://example.com/feed.xml"},
+    )
+    session.add(source)
+    session.flush()
+
+    from core.model.news_item import NewsItem
+
+    first = NewsItem(
+        title="News Item 1",
+        source="source",
+        content="content 1",
+        osint_source_id=source.id,
+        link="https://example.com/1",
+        story_id=None,
+    )
+    second = NewsItem(
+        title="News Item 2",
+        source="source",
+        content="content 2",
+        osint_source_id=source.id,
+        link="https://example.com/2",
+        story_id=None,
+    )
+    session.add_all([first, second])
+    session.flush()
+
+    detail = source.to_detail_dict()
+
+    assert detail["news_items_count"] == 2
