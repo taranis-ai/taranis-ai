@@ -5,13 +5,13 @@
 
 {% set current_settings = settings[0].settings | default({}) %}
 {% set links = {
-  "delete_tags": "/api/admin/delete_tags",
-  "delete_stories": "/api/admin/delete-stories",
-  "ungroup_stories": "/api/admin/ungroup-stories",
-  "reset_database": "/api/admin/reset-database",
-  "clear_queues": "/api/admin/clear-queues",
-  "export_stories": "/api/admin/export-stories",
-  "update_settings": "/api/admin/settings"
+  "delete_tags": "/api/settings/delete-tags",
+  "delete_stories": "/api/settings/delete-stories",
+  "ungroup_stories": "/api/settings/ungroup-stories",
+  "reset_database": "/api/settings/reset-database",
+  "clear_queues": "/api/settings/clear-queues",
+  "export_stories": "/api/settings/export-stories",
+  "update_settings": "/api/settings/settings"
 } %}
 
 <div class="container mx-auto p-2" id="settings-container" hx-target="#settings-container" hx-select="#settings-container" hx-swap="outerHTML">

@@ -28,7 +28,7 @@ def test_settings_export_error_returns_oob_notification(app, monkeypatch):
 
     class FakeCoreApi:
         def api_download(self, action_url):
-            assert action_url == "/admin/export-stories"
+            assert action_url == "/settings/export-stories"
             return FakeResponse()
 
     monkeypatch.setattr(settings_views, "CoreApi", FakeCoreApi)
@@ -38,8 +38,8 @@ def test_settings_export_error_returns_oob_notification(app, monkeypatch):
         classmethod(lambda cls: ('<div id="settings-container"></div>', 200)),
     )
 
-    with app.test_request_context("/admin/settings/api/admin/export-stories"):
-        body, status = settings_views.SettingsView.settings_action("/admin/export-stories")
+    with app.test_request_context("/admin/settings/api/settings/export-stories"):
+        body, status = settings_views.SettingsView.settings_action("/settings/export-stories")
 
     assert status == 200
     assert 'hx-swap-oob="true"' in body
@@ -51,7 +51,7 @@ def test_story_transfer_partial_guards_future_export_dates(app):
     with app.test_request_context("/admin/settings/"):
         body = render_template(
             "settings/story_transfer.html",
-            links={"export_stories": "/api/admin/export-stories"},
+            links={"export_stories": "/api/settings/export-stories"},
         )
 
     assert 'data-testid="story-export-time-from"' in body

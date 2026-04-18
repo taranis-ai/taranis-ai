@@ -184,16 +184,22 @@ def test_cancel_job_returns_false_when_not_found(monkeypatch):
     assert qm.cancel_job("job-123") is False
 
 
-def test_publish_schedule_cache_invalidation_notifies_scheduler_views():
+def test_publish_schedule_cache_invalidation_notifies_scheduler_views(monkeypatch):
     qm = _make_queue_manager()
+    cache_invalidation_calls: list[str] = []
+
+    def fake_invalidate_scope(scope_name: str) -> int:
+        cache_invalidation_calls.append(scope_name)
+        return 2
+
+    from core.service import cache_invalidation as cache_invalidation_module
+
+    monkeypatch.setattr(cache_invalidation_module.cache_invalidation_service, "invalidate_scope", fake_invalidate_scope)
 
     published = qm.publish_schedule_cache_invalidation()
 
     assert published == 2
-    assert qm._redis.published == [  # type: ignore[attr-defined]
-        ("taranis:cache:invalidate", "/config/schedule"),
-        ("taranis:cache:invalidate", "/config/workers/dashboard"),
-    ]
+    assert cache_invalidation_calls == ["schedule"]
 
 
 def test_get_active_jobs_uses_registry(monkeypatch):

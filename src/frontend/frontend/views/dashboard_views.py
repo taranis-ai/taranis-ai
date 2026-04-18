@@ -9,7 +9,6 @@ from models.dashboard import Cluster, Dashboard, NewsItemConflict, StoryConflict
 from models.user import ProfileSettingsDashboard
 
 from frontend.auth import auth_required, update_current_user_cache
-from frontend.cache import cache
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
@@ -156,15 +155,8 @@ class DashboardView(BaseView):
         internal_story_summaries: dict[str, dict] = {}
         for story_id in story_ids:
             summary_endpoint = f"/connectors/story-summary/{story_id}"
-            summary_cache_key = persistence_layer.make_user_key(summary_endpoint)
-
-            if cached_summary := cache.get(summary_cache_key):
-                internal_story_summaries[story_id] = cached_summary
-                continue
-
             if summary_response := persistence_layer.api.api_get(summary_endpoint):
                 internal_story_summaries[story_id] = summary_response
-                cache.set(summary_cache_key, summary_response)
         return internal_story_summaries
 
     @staticmethod
@@ -461,7 +453,6 @@ class DashboardView(BaseView):
         form_data = {"dashboard": form_data.get("dashboard", {})}
         core_response = CoreApi().update_user_profile(form_data)
         update_current_user_cache()
-        DataPersistenceLayer().invalidate_cache_by_object(TrendingCluster)
 
         if not core_response:
             html = render_template(

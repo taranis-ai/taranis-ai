@@ -3934,6 +3934,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/parameter_value"
+        news_items_count:
+          type: integer
 
     osint_source_group:
       type: object

@@ -5,7 +5,7 @@ from tests.application.support.api_test_base import BaseTest
 
 
 class TestAdminApi(BaseTest):
-    base_uri = "/api/admin"
+    base_uri = "/api/settings"
 
     def test_delete_all_stories(self, client, stories, auth_header):
         response = self.assert_post_ok(client, "delete-stories", {}, auth_header)
@@ -43,7 +43,7 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     news_item_ids = {ni["id"] for ni in full_story[0].get("news_items", [])}
 
     # Export without metadata
-    r = client.get("/api/admin/export-stories", headers=auth_header)
+    r = client.get("/api/settings/export-stories", headers=auth_header)
     assert r.status_code == 200
     assert r.mimetype.startswith("application/json")
     r.direct_passthrough = False  # send_file response
@@ -77,7 +77,7 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert "updated" not in data[0]
 
     # Export with metadata
-    r = client.get("/api/admin/export-stories?metadata=true", headers=auth_header)
+    r = client.get("/api/settings/export-stories?metadata=true", headers=auth_header)
     assert r.status_code == 200
     assert r.mimetype.startswith("application/json")
     r.direct_passthrough = False
@@ -114,7 +114,7 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
 
 
 def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
-    r = client.get("/api/admin/export-stories?timefrom=invalid", headers=auth_header)
+    r = client.get("/api/settings/export-stories?timefrom=invalid", headers=auth_header)
 
     assert r.status_code == 400
     assert r.get_json()["error"][0]["loc"] == ["timefrom"]
@@ -123,13 +123,38 @@ def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
 def test_export_stories_rejects_future_datetime_filters(client, auth_header):
     future_time = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
 
-    r = client.get(f"/api/admin/export-stories?timeto={future_time}", headers=auth_header)
+    r = client.get(f"/api/settings/export-stories?timeto={future_time}", headers=auth_header)
 
     assert r.status_code == 400
     assert r.get_json()["error"][0]["loc"] == ["timeto"]
 
 
 def test_export_stories_allows_empty_datetime_filters(client, auth_header):
-    r = client.get("/api/admin/export-stories?timefrom=&timeto=", headers=auth_header)
+    r = client.get("/api/settings/export-stories?timefrom=&timeto=", headers=auth_header)
 
     assert r.status_code == 200
+
+
+def test_cache_invalidate_all_endpoint(client, auth_header, monkeypatch):
+    from core.service import cache_invalidation as cache_invalidation_module
+
+    monkeypatch.setattr(cache_invalidation_module.cache_invalidation_service, "invalidate_all", lambda: 5)
+
+    response = client.post("/api/admin/cache/invalidate", json={"mode": "all"}, headers=auth_header)
+
+    assert response.status_code == 200
+    assert response.get_json() == {"message": "Frontend cache invalidated", "deleted": 5, "mode": "all"}
+
+
+def test_cache_invalidate_model_endpoint_requires_model(client, auth_header):
+    response = client.post("/api/admin/cache/invalidate", json={"mode": "model"}, headers=auth_header)
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "model is required for mode=model"
+
+
+def test_cache_invalidate_scope_endpoint_rejects_unknown_scope(client, auth_header):
+    response = client.post("/api/admin/cache/invalidate", json={"mode": "scope", "scope": "unknown"}, headers=auth_header)
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Unknown scope: unknown"

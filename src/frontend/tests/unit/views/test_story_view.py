@@ -1,8 +1,10 @@
+from types import SimpleNamespace
+
 from flask import url_for
 from lxml import html
 
 from frontend.config import Config
-from frontend.views.story_views import _calculate_story_diff, _normalize_story_import_payload
+from frontend.views.story_views import StoryView, _calculate_story_diff, _normalize_story_import_payload
 
 
 def test_calculate_story_diff_ignores_empty_tag_changes():
@@ -194,3 +196,19 @@ def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authent
     options = connector_select[0].xpath("./option")
     assert len(options) == 1
     assert options[0].text == "Select a connector"
+
+
+def test_handle_news_item_response_returns_notification_and_content(app, monkeypatch):
+    monkeypatch.setattr(StoryView, "get_notification_from_response", lambda response, oob=True: "notification")
+
+    response = SimpleNamespace(ok=True, json=lambda: {"story_id": "story-1"})
+
+    with app.test_request_context("/"):
+        result = StoryView._handle_news_item_response(
+            response,
+            content_builder=lambda _story_id: "<div>content</div>",
+            redirect_on_story=False,
+        )
+
+    assert result.status_code == 200
+    assert result.get_data(as_text=True) == "notification<div>content</div>"

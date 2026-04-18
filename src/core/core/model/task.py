@@ -111,17 +111,11 @@ class Task(BaseModel):
     def get_status_counts_by_task(
         cls,
         include_timestamps: bool = False,
-        *,
-        group_by_worker_type: bool = False,
     ) -> dict[str, dict[str, Any]]:
-        """Return per-task execution stats grouped by task identifier or worker type."""
+        """Return per-task execution stats grouped by worker type."""
 
-        if group_by_worker_type:
-            task_label = func.coalesce(cls.worker_type, cls.task)
-            group_filter = or_(cls.worker_type.is_not(None), cls.task.is_not(None))
-        else:
-            task_label = cls.task
-            group_filter = cls.task.is_not(None)
+        task_label = func.coalesce(cls.worker_type, cls.task)
+        group_filter = or_(cls.worker_type.is_not(None), cls.task.is_not(None))
 
         columns = [
             task_label.label("task_type"),
@@ -129,9 +123,8 @@ class Task(BaseModel):
             func.count(case((cls.status == "SUCCESS", 1))).label("successes"),
         ]
 
-        if group_by_worker_type:
-            columns.append(func.max(cls.worker_type).label("worker_type"))
-            columns.append(func.max(cls.worker_id).label("worker_id"))
+        columns.append(func.max(cls.worker_type).label("worker_type"))
+        columns.append(func.max(cls.worker_id).label("worker_id"))
 
         if include_timestamps:
             columns.append(func.max(cls.last_run).label("last_run"))
@@ -154,9 +147,8 @@ class Task(BaseModel):
                 "total": total,
             }
 
-            if group_by_worker_type:
-                entry["worker_type"] = row.worker_type or row.task_type
-                entry["worker_id"] = row.worker_id
+            entry["worker_type"] = row.worker_type or row.task_type
+            entry["worker_id"] = row.worker_id
 
             if include_timestamps:
                 entry["last_run"] = row.last_run
@@ -205,13 +197,10 @@ class Task(BaseModel):
         return formatted
 
     @classmethod
-    def get_task_statistics(cls, *, group_by_worker_type: bool = False) -> dict[str, Any]:
+    def get_task_statistics(cls) -> dict[str, Any]:
         """Return per-task stats along with overall totals."""
 
-        if group_by_worker_type:
-            raw_task_stats = cls.get_status_counts_by_task(include_timestamps=True, group_by_worker_type=True)
-        else:
-            raw_task_stats = cls.get_status_counts_by_task(include_timestamps=True)
+        raw_task_stats = cls.get_status_counts_by_task(include_timestamps=True)
         task_stats = cls._format_task_stats(raw_task_stats)
         total_successes = sum(stat.get("successes", 0) for stat in raw_task_stats.values())
         total_failures = sum(stat.get("failures", 0) for stat in raw_task_stats.values())
