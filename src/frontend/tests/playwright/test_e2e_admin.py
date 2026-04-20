@@ -105,7 +105,14 @@ class TestEndToEndAdmin(BaseE2ETest):
         self.update_item(page, organization_name, update_fields, submit_locator)
         expect(page.get_by_role("row", name=organization_name)).to_contain_text("Updated description of an organization")
 
-        self.delete_item(page, "organization-table", organization_name)
+        org_delete_button_test_id = (
+            page.get_by_test_id("organization-table")
+            .get_by_role("row", name=organization_name)
+            .locator('[data-testid^="action-delete-"]')
+            .first.get_attribute("data-testid")
+            or ""
+        )
+        self.delete_item(page, "organization-table", organization_name, org_delete_button_test_id)
 
     def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors, test_user, test_user_list):
         page = logged_in_page
@@ -147,8 +154,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("link", name="Test User Updated")).to_be_visible()
 
         def remove_user():
-            page.get_by_role("row", name=username).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("user-table")
+                    .get_by_role("row", name=username)
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(page.get_by_test_id("user-table").get_by_role("link", name=username)).not_to_be_visible()
 
         def import_export_users():
@@ -164,11 +179,27 @@ class TestEndToEndAdmin(BaseE2ETest):
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
             assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
-            page.get_by_role("row", name="Jane Smith").get_by_test_id("action-delete-3").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("user-table")
+                    .get_by_role("row", name="Jane Smith")
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(page.get_by_test_id("user-table").get_by_role("link", name="Jane Smith")).not_to_be_visible()
-            page.get_by_role("button", name="OK").click()
-            page.get_by_role("row", name="John Doe").get_by_test_id("action-delete-4").click()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("user-table")
+                    .get_by_role("row", name="John Doe")
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(page.get_by_test_id("user-table").get_by_role("link", name="John Doe")).not_to_be_visible()
             dismiss_notifications(page)
 
@@ -228,8 +259,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(template_row).to_contain_text("Invalid")
 
         def remove_template():
-            page.get_by_role("row", name=template_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("template-table")
+                    .get_by_role("row", name=template_name)
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(page.get_by_test_id("template-table").get_by_role("link", name=template_name)).not_to_be_visible()
 
         load_template_list()
@@ -331,8 +370,17 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(osint_row.locator("img.icon")).to_have_count(0)
 
         def remove_osint_sources():
-            page.get_by_role("row", name=osint_source_name).get_by_role("button").last.click()
-            page.get_by_role("button", name="Delete").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("osint_source-table")
+                    .get_by_role("row", name=osint_source_name)
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+                confirm_button_name="Delete",
+            )
             expect(page.get_by_test_id("osint_source-table").get_by_role("link", name=osint_source_name)).not_to_be_visible()
 
         load_osint_sources()
@@ -370,8 +418,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("row", name=osint_group_name)).to_contain_text("Updated description of an OSINT source group")
 
         def remove_osint_source_group():
-            page.get_by_role("row", name=osint_group_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("osint_source_group-table")
+                    .get_by_role("row", name=osint_group_name)
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(page.get_by_test_id("osint_source_group-table").get_by_role("link", name=osint_group_name)).not_to_be_visible()
 
         def test_page_osint_sources():
@@ -437,8 +493,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("row", name=role_name)).to_contain_text("Updated description of a role")
 
         def remove_role():
-            page.get_by_role("row", name=role_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("role-table")
+                    .get_by_role("row", name=role_name)
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(page.get_by_test_id("role-table").get_by_role("link", name=role_name)).not_to_be_visible()
 
         load_role_list()
@@ -493,8 +557,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("link", name="Updated description of a word list")).to_be_visible()
 
         def remove_word_list():
-            page.get_by_role("row", name=word_list_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("word_list-table")
+                    .get_by_role("row", name=word_list_name)
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             # expect(page.get_by_test_id("word_list-table").get_by_role("link", name=word_list_name)).not_to_be_visible() # TODO: Wordlist table not rendered afer last element is deleted
 
         def import_export_word_lists():
@@ -510,9 +582,17 @@ class TestEndToEndAdmin(BaseE2ETest):
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
             assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
-            page.get_by_role("row", name="Test wordlist").get_by_test_id("action-delete-1").click()
-            expect(page.get_by_test_id("user-table").get_by_role("link", name="Test wordlist")).not_to_be_visible()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("word_list-table")
+                    .get_by_role("row", name="Test wordlist")
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
+            expect(page.get_by_test_id("word_list-table").get_by_role("link", name="Test wordlist")).not_to_be_visible()
             dismiss_notifications(page)
 
         load_word_list()
@@ -585,9 +665,16 @@ class TestEndToEndAdmin(BaseE2ETest):
         def test_acl_delete():
             acl_row = acl_table.locator("tbody tr", has=page.get_by_role("link", name="Test ACL updated", exact=True)).first
             expect(acl_row).to_be_visible()
-            acl_row.locator('[data-testid^="action-delete-"]').click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("acl-table")
+                    .get_by_role("row", name="Test ACL updated")
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(acl_row).not_to_be_visible()
 
         load_acls()
@@ -724,14 +811,28 @@ class TestEndToEndAdmin(BaseE2ETest):
         def test_attribute_delete():
             page.get_by_role("link", name="Analyze").click()
             expect(page.get_by_role("row", name="update attr use")).to_be_visible()
+            page.pause()
 
-            page.locator('[data-testid^="action-delete-"]').first.click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-            page.get_by_role("button", name="OK").click()
-
-            page.locator('[data-testid^="action-delete-"]').first.click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("report-table")
+                    .get_by_role("row", name="update attr use")
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("report-table")
+                    .get_by_role("row", name="number 5 in report")
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
 
             expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
 
@@ -741,10 +842,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_test_id("admin-menu-Report Item Type").click()
             expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
-            page.get_by_test_id("action-delete-6").click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("report_item_type-table")
+                    .get_by_role("row", name="report item type test 5")
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
             page.get_by_test_id("admin-menu-Attribute").click()
@@ -753,10 +860,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_text("›").click()
             expect(page.get_by_role("row", name="Rich Text Rich Text Rich Edit")).to_be_visible()
 
-            page.get_by_test_id("action-delete-28").click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("attribute-table")
+                    .get_by_role("row", name="attribute number 6")
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
 
         load_attributes()
         test_attribute_create()
@@ -830,8 +943,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(row).to_contain_text("Updated description of a report item type")
 
         def remove_report_type():
-            page.get_by_role("row", name=report_type_title).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("report_item_type-table")
+                    .get_by_role("row", name=report_type_title)
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(page.get_by_test_id("report_item_type-table").get_by_role("link", name=report_type_title)).not_to_be_visible()
 
         load_report_types()
@@ -882,8 +1003,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("row", name=product_type_name)).to_contain_text("Updated description of a product type")
 
         def remove_product_type():
-            page.get_by_role("row", name=product_type_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("product_type-table")
+                    .get_by_role("row", name=product_type_name)
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(page.get_by_test_id("product_type-table").get_by_role("link", name=product_type_name)).not_to_be_visible()
 
         load_product_types()
@@ -939,9 +1068,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             bot_table = page.get_by_test_id("bot-table")
             all_rows = bot_table.locator("tbody tr")
             expect(all_rows).to_have_count(8)
-            bot_table.locator('[data-testid^="action-delete-"]').last.click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("bot-table")
+                    .get_by_role("row", name="test bot updated")
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             dismiss_notifications(page)
 
         test_load_bots()
@@ -999,9 +1135,16 @@ class TestEndToEndAdmin(BaseE2ETest):
         def remove_connector():
             connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first
             expect(connector_row).to_be_visible()
-            connector_row.locator('[data-testid^="action-delete-"]').click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("connector-table")
+                    .get_by_role("row", name=updated_connector_name)
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(connector_row).not_to_be_visible()
 
         load_connectors()
@@ -1048,11 +1191,16 @@ class TestEndToEndAdmin(BaseE2ETest):
             publisher_table = page.get_by_test_id("publisher_preset-table")
             all_rows = publisher_table.locator("tbody tr")
             expect(all_rows).to_have_count(1)
-            publisher_table.locator('[data-testid^="action-delete-"]').first.click()
-
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-
-            page.get_by_role("button", name="OK").click()
+            self.delete_table_row(
+                page,
+                (
+                    page.get_by_test_id("publisher_preset-table")
+                    .get_by_role("row", name="publisher preset test updated")
+                    .locator('[data-testid^="action-delete-"]')
+                    .first.get_attribute("data-testid")
+                    or ""
+                ),
+            )
             expect(publisher_table.get_by_role("link", name="publisher preset test updated")).not_to_be_visible()
 
         load_publisher_presets()

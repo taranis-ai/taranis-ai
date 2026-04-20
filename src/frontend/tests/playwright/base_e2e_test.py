@@ -50,12 +50,21 @@ class BaseE2ETest(PlaywrightHelpers):
         submit_button = page.locator(submit_locator)
         self.highlight_element(submit_button).click()
 
-    def delete_table_row(self, page: Page, row_name: str, confirm: bool = True):
-        """Delete row from table by name."""
-        row = page.get_by_role("row", name=row_name)
-        row.get_by_role("button").click()
+    def delete_table_row(
+        self,
+        page: Page,
+        delete_button_test_id: str,
+        confirm: bool = True,
+        confirm_button_name: str = "OK",
+    ):
+        """Delete row by explicit delete action test id."""
+        assert delete_button_test_id, "delete_table_row requires delete_button_test_id"
+        delete_button = page.get_by_test_id(delete_button_test_id)
+        assert delete_button.count() == 1, f"Expected exactly one delete button '{delete_button_test_id}', found {delete_button.count()}"
+        expect(delete_button).to_be_visible(timeout=10000)
+        delete_button.click()
         if confirm:
-            page.get_by_role("button", name="OK").click()
+            page.get_by_role("button", name=confirm_button_name).click()
 
     def assert_item_in_table(self, page: Page, table_test_id: str, item_name: str):
         """Assert that an item appears in a table."""
@@ -97,9 +106,9 @@ class BaseE2ETest(PlaywrightHelpers):
             self.select_form_option(page, label, value)
         self.submit_form(page, submit_locator)
 
-    def delete_item(self, page: Page, table_test_id: str, item_name: str):
+    def delete_item(self, page: Page, table_test_id: str, item_name: str, delete_button_test_id: str):
         """Delete an item."""
-        self.delete_table_row(page, item_name)
+        self.delete_table_row(page, delete_button_test_id)
         self.assert_item_not_in_table(page, table_test_id, item_name)
 
     # Navigation methods for workflow tests

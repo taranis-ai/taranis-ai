@@ -458,7 +458,7 @@ def pre_seed_default_user():
 
     if not User.find_by_name(username="admin") and not User.find_by_role_name(role_name="Admin"):
         if admin_role := Role.filter_by_name("Admin"):
-            User.add(
+            admin_user = User.add(
                 {
                     "username": "admin",
                     "name": "Arthur Dent",
@@ -467,6 +467,7 @@ def pre_seed_default_user():
                     "password": Config.PRE_SEED_PASSWORD_ADMIN,
                 }
             )
+            User.update_profile(admin_user, {"dashboard": {"trending_cluster_days": 1}})
 
     if not Organization.get(2):
         Organization.add(
@@ -484,7 +485,7 @@ def pre_seed_default_user():
 
     if not User.find_by_name(username="user"):
         user_role = Role.filter_by_name("User").id  # type: ignore
-        User.add(
+        default_user = User.add(
             {
                 "username": "user",
                 "name": "Terry Pratchett",
@@ -493,6 +494,7 @@ def pre_seed_default_user():
                 "password": Config.PRE_SEED_PASSWORD_USER,
             }
         )
+        User.update_profile(default_user, {"dashboard": {"trending_cluster_days": 1}})
 
 
 def pre_seed_assets():
