@@ -8,7 +8,7 @@ from flask_jwt_extended import JWTManager, current_user, get_jwt_identity, unset
 from flask_jwt_extended.exceptions import JWTExtendedException
 from models.user import UserProfile
 from requests.models import Response as ReqResponse
-from werkzeug.exceptions import MethodNotAllowed, NotFound
+from werkzeug.exceptions import HTTPException, MethodNotAllowed, NotFound
 from werkzeug.routing import RequestRedirect
 
 from frontend.cache import add_user_to_cache, get_user_from_cache
@@ -128,6 +128,8 @@ def logout() -> tuple[str, int] | Response:
     error_msg = "Logout failed"
     try:
         core_response: ReqResponse = CoreApi().logout()
+    except HTTPException:
+        raise
     except Exception as exc:
         # If the core isn't reachable, fall back to the login page without crashing.
         logger.error(f"Core logout failed: {exc}")

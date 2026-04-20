@@ -1,5 +1,6 @@
 from flask import abort, render_template
 from models.dashboard import Dashboard
+from werkzeug.exceptions import HTTPException
 
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
@@ -28,6 +29,8 @@ class AdminDashboardView(AdminMixin, BaseView):
         data_persistence = DataPersistenceLayer()
         try:
             dashboard = data_persistence.get_first(Dashboard)
+        except HTTPException:
+            raise
         except Exception as exc:
             dashboard = None
             error = str(exc)

@@ -2,6 +2,7 @@ from typing import IO, Any, cast
 
 import requests
 from flask import Response, request
+from werkzeug.exceptions import Forbidden, HTTPException
 from werkzeug.wsgi import wrap_file
 
 from frontend.config import Config
@@ -20,6 +21,17 @@ class CoreApi:
         self.session.verify = self.verify
         self.timeout = Config.REQUESTS_TIMEOUT
 
+    @staticmethod
+    def _extract_forbidden_message(response: requests.Response) -> str:
+        message = "Access denied"
+        try:
+            payload = response.json()
+            if isinstance(payload, dict):
+                message = payload.get("error") or payload.get("message") or message
+        except Exception:
+            message = response.text or message
+        return message
+
     def get_headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.jwt_token}", "Content-type": "application/json"}
 
@@ -27,6 +39,10 @@ class CoreApi:
         return request.cookies.get(Config.JWT_ACCESS_COOKIE_NAME)
 
     def check_response(self, response: requests.Response, url: str):
+        if response.status_code == 403:
+            message = self._extract_forbidden_message(response)
+            logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
+            raise Forbidden(description=message)
         try:
             if response.ok:
                 return response.json()
@@ -121,6 +137,8 @@ class CoreApi:
     def load_default_osint_sources(self):
         try:
             return self.api_get("/static/default_sources.json")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Load default OSINT sources failed: {e}")
             return None
@@ -128,6 +146,8 @@ class CoreApi:
     def get_osint_source_preview(self, osint_source_id: str):
         try:
             return self.api_get(f"/config/osint-sources/{osint_source_id}/preview")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Retrieving OSINT source preview failed: {e}")
             return None
@@ -163,6 +183,8 @@ class CoreApi:
     def load_default_word_lists(self):
         try:
             return self.api_get("/static/default_word_lists.json")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Load default word lists failed: {e}")
             return None

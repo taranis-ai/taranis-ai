@@ -7,6 +7,7 @@ from jinja2 import TemplateNotFound
 from models.base import TaranisBaseModel
 from pydantic import ValidationError
 from requests import Response as RequestsResponse
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
 from frontend.cache_models import CacheObject
@@ -131,6 +132,8 @@ class BaseView(MethodView):
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
@@ -145,6 +148,8 @@ class BaseView(MethodView):
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
@@ -325,6 +330,8 @@ class BaseView(MethodView):
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, cls.model))
             items, error = None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"Error retrieving {cls.model_name()} items")
             items, error = None, str(exc)
@@ -345,6 +352,8 @@ class BaseView(MethodView):
             logger.exception(format_pydantic_errors(exc, cls.model))
             items, error = None, format_pydantic_errors(exc, cls.model)
             status_code = 400
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"Error retrieving {cls.model_name()} items")
             items, error = None, str(exc)
@@ -357,6 +366,8 @@ class BaseView(MethodView):
         try:
             items = DataPersistenceLayer().get_objects(cls.model)
             error = None
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"Error retrieving {cls.model_name()} items")
             items, error = None, str(exc)
