@@ -484,6 +484,7 @@ class TestUserConfigApi(BaseTest):
         assert response.json["items"][0]["username"] == cleanup_user["username"]
         assert response.json["items"][0]["name"] == "Testy McTestFace"
         assert response.json["items"][0]["id"] == user_id
+        assert response.json["items"][0]["last_login"] is None
         assert len(response.json["items"][0]["permissions"]) == 14
         assert "password" not in response.json["items"][0]
 

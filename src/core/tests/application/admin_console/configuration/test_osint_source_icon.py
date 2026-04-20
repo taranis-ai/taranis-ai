@@ -175,7 +175,7 @@ def test_osint_source_creation_rejects_oversized_icon():
 
 @pytest.mark.usefixtures("app")
 def test_osint_source_creation_rejects_svg_icon():
-    with pytest.raises(ValueError, match="SVG icons are not supported"):
+    with pytest.raises(ValueError, match="Icon payload is not a valid image file."):
         OSINTSource(
             name="SVG Icon",
             description="A test",

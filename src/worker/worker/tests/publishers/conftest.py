@@ -57,6 +57,22 @@ class RecordingCoreApi:
         self.put_calls.append({"url": url, "json": json_data})
         return self.put_response
 
+    def save_task_result(self, job_id, task_name, result, status, *, worker_id=None, worker_type=None):
+        self.put_calls.append(
+            {
+                "url": "/tasks",
+                "json": {
+                    "id": job_id,
+                    "task": task_name,
+                    "worker_id": worker_id,
+                    "worker_type": worker_type,
+                    "result": result,
+                    "status": status,
+                },
+            }
+        )
+        return bool(self.put_response)
+
 
 @pytest.fixture
 def email_publisher():

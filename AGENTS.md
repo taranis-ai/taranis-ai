@@ -3,6 +3,7 @@
 This file contains project-specific instructions for coding agents working on the taranis.ai codebase.
 
 ## Agent Persona
+
 Name: jipitiii
 
 ## Project Overview
@@ -23,28 +24,30 @@ See [README.md](README.md) for more information.
 
 - do not assume every developer uses tmux
 - before suggesting local startup steps, ask which workflow they want:
-	- `./dev/start_dev.sh` (automated)
-	- manual service startup without tmux (start support services with `docker compose -f dev/compose.yml up -d`, then run `./install_and_run_dev.sh` in `src/core`, `src/frontend`, and `src/worker` in separate terminals)
-	- manual tmux workflow from `dev/README.md`
+  - `./dev/start_dev.sh` (automated)
+  - manual service startup without tmux (start support services with `docker compose -f dev/compose.yml up -d`, then run `./install_and_run_dev.sh` in `src/core`, `src/frontend`, and `src/worker` in separate terminals)
+  - manual tmux workflow from `dev/README.md`
 - if the developer does not specify a preference, propose `./dev/start_dev.sh` as default and mention alternatives briefly
 
 ## Architecture
 
 - **core** (`src/core/`) - Flask REST API backend using SQLAlchemy ORM
 - **ingress** (`src/ingress/`) - Nginx entrypoint for routing requests to frontend and backend
-- **frontend** (`src/frontend/`) - Flask application with HTMX and DaisyUI, currently serves admin section (will gradually replace gui)
+- **frontend** (`src/frontend/`) - Flask application with HTMX and DaisyUI, and Tailwind CSS for styling.
 - **worker** (`src/worker/`) - RQ workers for collectors, bots, presenters and publishers
 - **models** (`src/models/`) - Pydantic models for input/output validation
 
 ### Task Queue System
 
 The application uses **RQ (Redis Queue)** with **Redis** as the message broker for background task processing:
+
 - **Queue Manager** (`src/core/core/managers/queue_manager.py`) - Manages job scheduling and enqueueing using RQ
 - **Task Functions** (`src/worker/worker/*/`) - Background jobs for data collection, analysis, and publishing
 - **Redis** - Message broker (port 6379) and job persistence
 - **Scheduling** - Uses RQ's built-in scheduler with cron expressions via `croniter>=6.0.0`
 
 Task modules:
+
 - `collector_tasks.py` - OSINT source data collection
 - `bot_tasks.py` - Automated analysis and processing
 - `presenter_tasks.py` - Report and product generation
@@ -66,37 +69,25 @@ See .github/workflows for how tests are configured in CI.
 ### Running Tests Locally
 
 **Setup:** In each src directory (`src/core`, `src/frontend`, `src/models`, `src/worker`), run:
+
 - `uv sync --all-extras --dev` to install all dependencies and dev extras.
 
-**Application Test Suites:** In each component directory, run (after changing into that directory, e.g. `cd src/frontend`):
-- `uv run pytest` - run all tests for that component
-- `uv run pytest tests/application/` - run the consolidated core application test suite
-- `uv run pytest tests/application/admin_console/` - run admin-facing tests
-- `uv run pytest tests/application/user_workspace/` - run normal user workflows
-- `uv run pytest tests/application/worker_pipeline/` - run worker and bot interfaces
-- `uv run pytest tests/application/mixed_flows/` - run cross-surface and system lifecycle tests
-- `uv run pytest -v` - verbose output
-- `uv run pytest -x` - stop on first failure
-- `uv run pytest -v` - verbose output
-- `uv run pytest -x` - stop on first failure
-- `uv run pytest -k test_function_name` - run specific test
+**Full Test Pipeline:** run this first when validating a branch or chasing a CI regression:
 
-**End-to-End (E2E) Tests:** Located in `src/frontend/tests/playwright/`
-- `uv run pytest tests/playwright/ --e2e-ci` - run e2e tests in CI mode
-- `uv run pytest tests/playwright/test_e2e_admin.py --e2e-ci` - run specific e2e test file
-- `uv run pytest tests/playwright/test_e2e_rq_tasks.py --e2e-ci` - run the RQ/Redis e2e suite from the frontend test root
-- `uv run pytest --e2e-ci` - run e2e tests in CI mode
-- `uv run pytest -k TestEndToEndAdmin` - run specific test
-- `--e2e-ci` flag is required for e2e tests to run properly
-- Add `--record-video` to record test execution videos
-- Add `--highlight-delay=2` to slow down test execution for debugging
+- `cd src/core && uv run pytest`
+- `cd src/frontend && uv run pytest`
+- `cd src/frontend && uv run pytest --e2e-ci`
+
+Use narrower `pytest` targets only after the full pipeline reproduces or if you are isolating one failing area.
 
 **Linting:** In each component directory:
+
 - `uv run ruff check` - check for linting issues
 - `uv run ruff check --fix` - fix auto-fixable linting issues
 - `uv run ruff format` - format code
 
 **Important Notes:**
+
 - You must run commands separately in each src directory to ensure all dependencies are installed
 - For `src/core` migration work, first launch core once so it bootstraps the current database state; only after that should you apply migrations
 - If the latest core migration was only marked as applied, undo or unmark that last migration first and then reapply it
@@ -107,12 +98,6 @@ See .github/workflows for how tests are configured in CI.
 - E2E admin tests in master branch have many functions commented out to avoid flakiness - do not uncomment without ensuring they pass
 - Models package does not have unit tests
 - Worker package includes Playwright browser installation for web scraping tests
-- `src/core/tests/application/` is organized by access surface:
-  - `admin_console/` for admin/config/dashboard behavior
-  - `user_workspace/` for assess/analyze/publish workflows
-  - `worker_pipeline/` for worker and bot interfaces
-  - `mixed_flows/` for cross-surface, auth, health, migrations, and integration tests
-  - `support/` for reusable non-fixture test helpers such as API test bases and payload builders
 - when adding tests in `src/core`, prefer reusing existing fixtures from the nearest `conftest.py`
 - if a fixture is broadly useful across the application suite, add it to `src/core/tests/application/conftest.py`
 - if a fixture is specific to one cluster such as admin configuration, keep it in that folder's local `conftest.py`
@@ -125,6 +110,10 @@ See .github/workflows for how tests are configured in CI.
 
 ## Development Guidelines
 
+- The best code is no code.
+- Complexity is bad. Keep designs as simple as possible.
+- Mocking is also bad. Use it only when it is absolutely necessary.
+- DRY matters, but do not force reuse if it hurts readability.
 - When creating branches, use only `fix/`, `feature/`, or `chore/` prefixes.
 - never use `git add -A` or in general do not add "all" files lying around
 - use specific git add commands for the files you want to commit
@@ -137,6 +126,7 @@ See .github/workflows for how tests are configured in CI.
 - fix linting issues before committing code
 - don't write commit messages like "x tests are passing" or "resolves linting failures"
 - don't add comments like "Restore template files ..." directly in the code, when you add new codelines
+
 ## Datetime Handling
 
 - in `src/core`, treat persisted naive datetimes as **UTC**, not local time

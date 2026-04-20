@@ -2,7 +2,7 @@ from flask import Blueprint, Flask, Response, jsonify, render_template, send_fro
 from flask.views import MethodView
 
 from frontend.auth import auth_required, logout
-from frontend.cache import get_cached_users, list_cache_keys
+from frontend.cache import get_cache_keys, get_cached_users
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.views import AuthView, DashboardView
 
@@ -10,23 +10,21 @@ from frontend.views import AuthView, DashboardView
 class InvalidateCache(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self, suffix: str | None = None):
-        if not suffix:
-            DataPersistenceLayer().invalidate_cache(None)
-        DataPersistenceLayer().invalidate_cache(suffix)
-        return "Cache invalidated"
+        response = DataPersistenceLayer().invalidate_cache(suffix)
+        return ("Cache invalidated", response.status_code) if response.ok else (response.text, response.status_code)
 
     @auth_required("ADMIN_OPERATIONS")
     def post(self, suffix: str | None = None):
-        if not suffix:
-            DataPersistenceLayer().invalidate_cache(None)
-        DataPersistenceLayer().invalidate_cache(suffix)
+        response = DataPersistenceLayer().invalidate_cache(suffix)
+        if not response.ok:
+            return Response(response.text, status=response.status_code)
         return Response(status=204, headers={"HX-Refresh": "true"})
 
 
 class ListCacheKeys(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
-        return Response("<br>".join(list_cache_keys()))
+        return Response("<br>".join(get_cache_keys()))
 
 
 class ListUserCache(MethodView):

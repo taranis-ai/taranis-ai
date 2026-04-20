@@ -6,11 +6,7 @@ from core.model.news_item import NewsItem
 from core.model.story import Story
 
 
-def handle_misp_connector_result(result: dict[str, Any] | str) -> None:
-    if not isinstance(result, dict):
-        logger.error(f"Invalid connector task result type: {type(result)}")
-        return
-
+def handle_misp_connector_result(result: dict[str, Any]) -> None:
     if result.get("connector_type") != "MISP_CONNECTOR":
         logger.info(f"Skipping unsupported connector task result: {result.get('connector_type')}")
         return
@@ -57,7 +53,7 @@ def apply_misp_sync_story_result(payload: dict[str, Any]) -> bool:
             current_attr.value = misp_event_uuid
             changed = True
     else:
-        story.patch_attributes([{"key": "misp_event_uuid", "value": misp_event_uuid}])
+        story.patch_attributes([{"key": "misp_event_uuid", "value": misp_event_uuid}])  # type: ignore TODO: parse attributes before patching
         changed = True
 
     if story.last_change != "external":

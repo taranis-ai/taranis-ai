@@ -14,18 +14,24 @@ class Task(BaseModel):
 
     id: Mapped[str] = db.Column(db.String, primary_key=True)
     task: Mapped[str] = db.Column(db.String, nullable=True)
+    worker_id: Mapped[str] = db.Column(db.String, nullable=True)
+    worker_type: Mapped[str] = db.Column(db.String, nullable=True)
     result: Mapped[str] = db.Column(db.String, nullable=True)
     status: Mapped[str] = db.Column(db.String, nullable=True)
     last_run: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     last_success: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, result=None, status=None, id=None, task=None):
+    def __init__(self, result=None, status=None, id=None, task=None, worker_id=None, worker_type=None):
         if id:
             self.id = id
         if status:
             self.status = status
         if task:
             self.task = task
+        if worker_id is not None:
+            self.worker_id = worker_id
+        if worker_type is not None:
+            self.worker_type = worker_type
         self.result = json.dumps(result) if result is not None else ""
         if status == "SUCCESS":
             self.last_success = datetime.now(timezone.utc)
@@ -37,6 +43,8 @@ class Task(BaseModel):
             entry.result = json.dumps(entry_data["result"]) if entry_data["result"] is not None else ""
             entry.status = entry_data.get("status")
             entry.task = entry_data.get("task", entry.task)
+            entry.worker_id = entry_data.get("worker_id", entry.worker_id)
+            entry.worker_type = entry_data.get("worker_type", entry.worker_type)
             if entry.status == "SUCCESS":
                 entry.last_success = datetime.now(timezone.utc)
             entry.last_run = datetime.now(timezone.utc)
@@ -51,6 +59,8 @@ class Task(BaseModel):
             "id": self.id,
             "result": result,
             "task": self.task,
+            "worker_id": self.worker_id,
+            "worker_type": self.worker_type,
             "status": self.status,
             "last_run": self.last_run.isoformat() if self.last_run else None,
             "last_success": self.last_success.isoformat() if self.last_success else None,
@@ -98,20 +108,29 @@ class Task(BaseModel):
         return db.session.execute(stmt).scalar_one()
 
     @classmethod
-    def get_status_counts_by_task(cls, include_timestamps: bool = False) -> dict[str, dict[str, Any]]:
-        """Return per-task execution stats grouped by task identifier."""
+    def get_status_counts_by_task(
+        cls,
+        include_timestamps: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        """Return per-task execution stats grouped by worker type."""
+
+        task_label = func.coalesce(cls.worker_type, cls.task)
+        group_filter = or_(cls.worker_type.is_not(None), cls.task.is_not(None))
 
         columns = [
-            cls.task.label("task_type"),
+            task_label.label("task_type"),
             func.count(case((cls.status == "FAILURE", 1))).label("failures"),
             func.count(case((cls.status == "SUCCESS", 1))).label("successes"),
         ]
+
+        columns.append(func.max(cls.worker_type).label("worker_type"))
+        columns.append(func.max(cls.worker_id).label("worker_id"))
 
         if include_timestamps:
             columns.append(func.max(cls.last_run).label("last_run"))
             columns.append(func.max(cls.last_success).label("last_success"))
 
-        stmt = db.select(*columns).where(cls.task.is_not(None)).group_by(cls.task)
+        stmt = db.select(*columns).where(group_filter).group_by(task_label)
 
         results = db.session.execute(stmt).all()
 
@@ -127,6 +146,9 @@ class Task(BaseModel):
                 "success_pct": success_pct,
                 "total": total,
             }
+
+            entry["worker_type"] = row.worker_type or row.task_type
+            entry["worker_id"] = row.worker_id
 
             if include_timestamps:
                 entry["last_run"] = row.last_run

@@ -14,9 +14,11 @@
       </thead>
       <tbody>
         {% for task_id, stats in task_stats.items() %}
+          {% set task_label = stats.worker_type or task_id %}
+          {% set hover_worker_id = stats.worker_id or "unknown" %}
           <tr>
             <td>
-              <div class="font-medium">{{ task_id }}</div>
+              <div class="font-medium" title="Worker ID: {{ hover_worker_id }}">{{ task_label }}</div>
             </td>
             <td>
               {% set badge = stats.status_badge %}

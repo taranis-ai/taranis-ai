@@ -16,7 +16,6 @@ classifiers = [
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "Flask",
-    "Flask-Caching",
     "Flask-JWT-Extended",
     "flask-htmx",
     "jinja2-fragments",

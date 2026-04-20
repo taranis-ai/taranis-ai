@@ -1,4 +1,5 @@
 from typing import get_origin
+
 import pytest
 import responses
 from faker import Faker
@@ -14,6 +15,7 @@ from frontend.views.base_view import BaseView
 
 from .utils.formdata import gather_fields_from_model, html_form_to_dict, unwrap_annotation
 
+
 @pytest.fixture
 def form_data():
     return html_form_to_dict
@@ -23,6 +25,7 @@ def form_data():
 def responses_mock():
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
+
 
 def get_items_from_factory(view_name, model):
     factory = ModelFactory.create_factory(model=model)
@@ -195,12 +198,14 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
         content_type="application/json",
     )
     responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/config/task-results",
+        f"{Config.TARANIS_CORE_URL}/tasks",
         json={
             "items": [
                 {
                     "id": "task-1",
-                    "task": "collectors.fetch",
+                    "task": "collector_task",
+                    "worker_type": "rss_collector",
+                    "worker_id": "source-1",
                     "status": "SUCCESS",
                     "result": None,
                     "last_run": "2024-01-01T00:00:00Z",
@@ -208,7 +213,9 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
                 },
                 {
                     "id": "task-2",
-                    "task": "bots.process",
+                    "task": "bot_task",
+                    "worker_type": "WORDLIST_BOT",
+                    "worker_id": "bot-1",
                     "status": "FAILURE",
                     "result": {"error": "timeout"},
                     "last_run": "2024-01-02T12:00:00Z",
@@ -217,22 +224,26 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             ],
             "total_count": 2,
             "task_stats": {
-                "collectors.fetch": {
+                "rss_collector": {
                     "last_run": "2024-01-01T00:00:00Z",
                     "last_success": "2024-01-01T00:00:00Z",
                     "last_run_display": "2024-01-01T00:00:00Z",
                     "last_success_display": "2024-01-01T00:00:00Z",
+                    "worker_type": "rss_collector",
+                    "worker_id": "source-1",
                     "successes": 1,
                     "failures": 0,
                     "total": 1,
                     "success_pct": 100,
                     "status_badge": {"label": "All Success", "variant": "success"},
                 },
-                "bots.process": {
+                "WORDLIST_BOT": {
                     "last_run": "2024-01-02T12:00:00Z",
                     "last_success": "2024-01-02T10:00:00Z",
                     "last_run_display": "2024-01-02T12:00:00Z",
                     "last_success_display": "2024-01-02T10:00:00Z",
+                    "worker_type": "WORDLIST_BOT",
+                    "worker_id": "bot-1",
                     "successes": 0,
                     "failures": 1,
                     "total": 1,
@@ -330,7 +341,20 @@ def mock_core_get_item_endpoint_data(core_payloads):
 
 
 @pytest.fixture
-def mock_core_get_item_endpoints(responses_mock, mock_core_get_item_endpoint_data, worker_parameter_data):
+def mock_core_get_item_endpoints(responses_mock, core_payloads, mock_core_get_item_endpoint_data, worker_parameter_data):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/worker-parameters", json=worker_parameter_data)
+
+    for data in core_payloads.values():
+        responses_mock.get(
+            data["_url"],
+            json={
+                "items": data["items"],
+                "total_count": data["total_count"],
+            },
+            status=200,
+            content_type="application/json",
+        )
+
     for view_name, view_data in mock_core_get_item_endpoint_data.items():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)

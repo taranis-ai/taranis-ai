@@ -50,7 +50,7 @@ class OSINTSource(BaseModel):
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
-    _ALLOWED_ICON_FORMATS = {"PNG", "JPEG", "WEBP"}
+    _ALLOWED_ICON_FORMATS = {"ICO", "PNG", "JPEG", "WEBP"}
 
     def __init__(
         self,
@@ -119,7 +119,18 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def from_payload(cls, payload: OSINTSourceModel) -> "OSINTSource":
-        return cls(**payload.model_dump(exclude={"status"}))
+        return cls(**payload.model_dump(exclude={"status", "news_items_count"}))
+
+    def to_detail_dict(self) -> dict[str, Any]:
+        data = self.to_dict()
+        data["news_items_count"] = self.get_news_items_count()
+        return data
+
+    def get_news_items_count(self) -> int:
+        from core.model.news_item import NewsItem
+
+        query = db.select(NewsItem).where(NewsItem.osint_source_id == self.id)
+        return NewsItem.get_filtered_count(query)
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
@@ -308,11 +319,6 @@ class OSINTSource(BaseModel):
         db.session.add(osint_source)
         db.session.commit()
         osint_source.schedule_osint_source()
-        osint_source._publish_frontend_cache_invalidation(
-            "/config/osint-sources",
-            "/config/schedule",
-            "/config/workers/dashboard",
-        )
         return osint_source
 
     @classmethod
@@ -334,11 +340,6 @@ class OSINTSource(BaseModel):
             return {"error": "Invalid state"}, 400
 
         db.session.commit()
-        osint_source._publish_frontend_cache_invalidation(
-            "/config/osint-sources",
-            "/config/schedule",
-            "/config/workers/dashboard",
-        )
         return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
 
     @classmethod
@@ -361,11 +362,6 @@ class OSINTSource(BaseModel):
             osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
         db.session.commit()
         osint_source.schedule_osint_source()
-        osint_source._publish_frontend_cache_invalidation(
-            "/config/osint-sources",
-            "/config/schedule",
-            "/config/workers/dashboard",
-        )
         return osint_source
 
     def _parse_icon(self, icon: bytes | str) -> bytes:
@@ -384,14 +380,13 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def _normalize_icon_image(cls, icon_bytes: bytes) -> bytes:
-        if cls._looks_like_svg(icon_bytes):
-            raise ValueError("SVG icons are not supported. Allowed formats: PNG, JPEG, WEBP.")
-
         try:
             with Image.open(BytesIO(icon_bytes)) as image:
                 image_format = image.format.upper() if image.format else None
                 if image_format not in cls._ALLOWED_ICON_FORMATS:
-                    raise ValueError(f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: PNG, JPEG, WEBP.")
+                    raise ValueError(
+                        f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: {', '.join(cls._ALLOWED_ICON_FORMATS)}."
+                    )
                 image.load()
                 normalized = ImageOps.exif_transpose(image).convert("RGBA")
         except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
@@ -413,11 +408,6 @@ class OSINTSource(BaseModel):
     @classmethod
     def _probe_icon_image(cls, icon_bytes: bytes) -> None:
         cls._normalize_icon_image(icon_bytes)
-
-    @staticmethod
-    def _looks_like_svg(icon_bytes: bytes) -> bool:
-        prefix = icon_bytes[:1024].lstrip().lower()
-        return prefix.startswith(b"<svg") or (prefix.startswith(b"<?xml") and b"<svg" in prefix)
 
     def update_parameters(self, parameters: dict[str, Any]):
         update_parameter = ParameterValue.get_or_create_from_list(parameters)
@@ -446,11 +436,6 @@ class OSINTSource(BaseModel):
                     db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
             db.session.delete(source)
             db.session.commit()
-            source._publish_frontend_cache_invalidation(
-                "/config/osint-sources",
-                "/config/schedule",
-                "/config/workers/dashboard",
-            )
             return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
@@ -502,17 +487,6 @@ class OSINTSource(BaseModel):
 
         logger.info(f"Unscheduling {self.name}. Notifying cron scheduler...")
         return queue_manager.queue_manager.unregister_cron_job(self.cron_job_id)
-
-    @classmethod
-    def _publish_frontend_cache_invalidation(cls, *suffixes: str) -> None:
-        try:
-            from core.managers import queue_manager
-
-            published = queue_manager.queue_manager.publish_cache_invalidation(*suffixes)
-            if published:
-                logger.debug("Published %s frontend cache invalidation signals", published)
-        except Exception as exc:
-            logger.warning(f"Failed to publish frontend cache invalidation signal: {exc}")
 
     def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
         export_dict = {
@@ -702,11 +676,6 @@ class OSINTSource(BaseModel):
             raise ValueError("Unsupported version")
 
         ids = cls.add_multiple_with_group(data, groups)
-        cls._publish_frontend_cache_invalidation(
-            "/config/osint-sources",
-            "/config/schedule",
-            "/config/workers/dashboard",
-        )
         logger.debug(f"Imported {len(ids)} sources")
         return ids
 
