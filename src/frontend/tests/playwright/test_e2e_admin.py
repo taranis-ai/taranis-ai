@@ -287,14 +287,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(all_rows).to_have_count(10)
 
             # search by an actual default source name instead of a stale hardcoded term
-            first_source_name = all_rows.first.locator("td").nth(3).inner_text().strip()
+            first_source_name = all_rows.first.locator("td").nth(2).inner_text().strip()
             page.get_by_placeholder("Search...").fill(first_source_name)
             expect(all_rows).to_have_count(1)
             expect(all_rows.first).to_contain_text(first_source_name)
             page.get_by_placeholder("Search...").fill("")
             expect(all_rows).to_have_count(10)
 
-            page.get_by_role("row", name="Icon State Name Feed Actions").get_by_role("checkbox").check()
+            osint_table.locator("thead").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-osint_source-button")
             expect(delete_button).to_contain_text("Delete 10 OSINT Source")
             self.highlight_element(delete_button).click()
@@ -315,7 +315,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
             assert original_content == downloaded_content, "Downloaded file content does not match uploaded file content"
-            page.get_by_role("row", name="Icon State Name Feed Actions").get_by_role("checkbox").check()
+            page.get_by_test_id("osint_source-table").locator("thead").get_by_role("checkbox").check()
             page.get_by_test_id("delete-osint_source-button").click()
             page.get_by_role("button", name="OK").click()
             self.dismiss_notification_if_visible(page)
@@ -349,6 +349,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             self.highlight_element(form.locator('input[type="submit"]')).click()
             expect(form).to_be_visible()
             expect(page.get_by_test_id("current-osint-icon")).to_be_visible()
+            expect(form.locator('input[name="rank"][value="2"]')).to_be_checked()
+            expect(page.get_by_label("Name")).to_have_value(osint_source_name)
 
             form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
@@ -359,12 +361,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             self.highlight_element(form.locator('input[type="submit"]')).click()
             expect(form).to_be_visible()
             expect(page.get_by_label("Name")).to_have_value(osint_source_name)
-            page.goto(url_for("admin.osint_sources", _external=True))
-            expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible()
-            osint_row = page.get_by_role("row", name=osint_source_name)
-            expect(osint_row.locator("img.icon")).to_have_count(0)
+            expect(form.locator('input[name="rank"][value="2"]')).to_be_checked()
+            expect(page.get_by_test_id("current-osint-icon")).to_have_count(0)
 
         def remove_osint_sources():
+            page.goto(url_for("admin.osint_sources", _external=True))
+            expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible()
             page.get_by_role("row", name=osint_source_name).get_by_role("button").last.click()
             page.get_by_role("button", name="Delete").click()
             expect(page.get_by_test_id("osint_source-table").get_by_role("link", name=osint_source_name)).not_to_be_visible()
