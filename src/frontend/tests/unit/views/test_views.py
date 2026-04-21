@@ -141,6 +141,12 @@ class TestCRUDViews:
 
 
 class TestSourceView:
+    def test_get_columns_omits_icon_column(self):
+        columns = SourceView.get_columns()
+
+        assert [column["title"] for column in columns] == ["State", "Name", "Feed"]
+        assert all(column["field"] != "icon" for column in columns)
+
     def test_import_post_view(self, authenticated_client, responses_mock):
         """
         Test that the import_post_view method correctly extracts the "sources" key

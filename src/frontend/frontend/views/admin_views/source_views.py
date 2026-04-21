@@ -14,7 +14,7 @@ from frontend.auth import admin_required
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.filters import render_icon, render_source_parameter, render_truncated, render_worker_status
+from frontend.filters import render_source_parameter, render_truncated, render_worker_status
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.validation_helpers import format_pydantic_errors
@@ -99,7 +99,6 @@ class SourceView(AdminMixin, BaseView):
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
-            {"title": "Icon", "field": "icon", "sortable": False, "renderer": render_icon},
             {"title": "State", "field": "status", "sortable": True, "renderer": render_worker_status},
             {
                 "title": "Name",
