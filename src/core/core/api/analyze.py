@@ -85,7 +85,9 @@ class ReportItem(MethodView):
         return {"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}, status
 
     @auth_required("ANALYZE_UPDATE")
-    def put(self, report_item_id: str):
+    def put(self, report_item_id: str | None = None):
+        if not report_item_id:
+            return {"error": "No report_item_id provided"}, 400
         request_data = request.json
         if not request_data:
             logger.debug("No data in request")
@@ -103,7 +105,9 @@ class ReportItem(MethodView):
         return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
 
     @auth_required("ANALYZE_DELETE")
-    def delete(self, report_item_id: str):
+    def delete(self, report_item_id: str | None = None):
+        if not report_item_id:
+            return {"error": "No report_item_id provided"}, 400
         result, code = report_item.ReportItem.delete(report_item_id)
         if code == 200:
             sse_manager.report_item_updated(report_item_id)
@@ -230,8 +234,16 @@ def initialize(app: Flask):
     analyze_bp.add_url_rule("/report-types", view_func=ReportTypes.as_view("report_types"))
     analyze_bp.add_url_rule("/report-items", view_func=ReportItem.as_view("report_items"))
     analyze_bp.add_url_rule("/reports", view_func=ReportItem.as_view("reports"))
-    analyze_bp.add_url_rule("/report-items/<string:report_item_id>", view_func=ReportItem.as_view("report_item"))
-    analyze_bp.add_url_rule("/report/<string:report_item_id>", view_func=ReportItem.as_view("report"))
+    analyze_bp.add_url_rule(
+        "/report-items/<string:report_item_id>",
+        view_func=ReportItem.as_view("report_item"),
+        methods=["GET", "PUT", "DELETE"],
+    )
+    analyze_bp.add_url_rule(
+        "/report/<string:report_item_id>",
+        view_func=ReportItem.as_view("report"),
+        methods=["GET", "PUT", "DELETE"],
+    )
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/clone", view_func=CloneReportItem.as_view("clone_report_item"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
     analyze_bp.add_url_rule("/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))

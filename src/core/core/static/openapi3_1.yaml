@@ -10,17 +10,13 @@ info:
   license:
     name: EUPL-1.2
     url: https://eupl.eu/1.2/en/
-  version: 1.3.2
+  version: 1.3.6
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/
 servers:
   - url: /api
     description: default
-  - url: https://dev.taranis.ai/api
-    description: master
-  - url: https://stage.taranis.ai/api
-    description: stage
 tags:
   - name: auth
     description: session-related functionality
@@ -59,7 +55,7 @@ paths:
     post:
       tags:
         - auth
-      operationId: LoginPost
+      operationId: auth.login.post
       description: authenticate with either username and password
       security: []
       requestBody:
@@ -89,7 +85,7 @@ paths:
     get:
       tags:
         - auth
-      operationId: auth.refresh
+      operationId: auth.refresh.get
       description: refresh an API token
       responses:
         "200":
@@ -109,7 +105,7 @@ paths:
     delete:
       tags:
         - auth
-      operationId: auth.logout
+      operationId: auth.logout.delete
       description: invalidate API token (i.e. logout)
       parameters:
         - name: jwt
@@ -138,7 +134,7 @@ paths:
     get:
       tags:
         - isalive
-      operationId: isalive
+      operationId: isalive.get
       description: see whether the Taranis instance is alive
       security: []
       responses:
@@ -156,7 +152,7 @@ paths:
     get:
       tags:
         - health
-      operationId: health
+      operationId: health.get
       description: see whether the Taranis instance dependencies are healthy
       security: []
       responses:
@@ -208,7 +204,7 @@ paths:
     get:
       security:
         - UserAuth: []
-      operationId: user.user_info
+      operationId: user.user_info.get
       tags: [users]
       description: get the users details
       responses:
@@ -271,6 +267,39 @@ paths:
         "500":
           description: Internal server error
 
+    post:
+      security:
+        - UserAuth: []
+      tags: [users]
+      description: handle profile
+      operationId: user.user_profile.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /analyze/report-types:
     get:
       security:
@@ -381,6 +410,55 @@ paths:
         "404":
           $ref: "#/components/responses/404NotFound"
 
+    put:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: update report items
+      operationId: analyze.report_items.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: delete report items
+      operationId: analyze.report_items.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /analyze/report-items/{report_item_id}:
     parameters:
       - name: report_item_id
@@ -451,6 +529,7 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
   /analyze/report-items/{report_item_id}/locks:
     parameters:
       - name: report_item_id
@@ -556,6 +635,7 @@ paths:
         - UserAuth: []
       tags: [assess]
       description: get all the user's OSINT source groups
+      operationId: assess.osint_source_groups-list.get
       responses:
         "200":
           description: all the user's OSINT source groups
@@ -580,6 +660,7 @@ paths:
         - UserAuth: []
       tags: [assess]
       description: get manual OSINT sources
+      operationId: assess.osint_sources_list.get
       responses:
         "200":
           description: all manual OSINT sources
@@ -600,6 +681,7 @@ paths:
         - UserAuth: []
       tags: [assess]
       description: add news item
+      operationId: assess.news_items.post
       requestBody:
         content:
           application/json:
@@ -624,12 +706,33 @@ paths:
           description: Unprocessable Entity
         "500":
           description: Adding news item failed
+
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get news items
+      operationId: assess.news_items.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/stories:
     get:
       security:
         - UserAuth: []
       tags: [assess]
       description: get stories by filters
+      operationId: assess.stories.get
       parameters:
         - name: search
           in: query
@@ -719,6 +822,40 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: handle stories
+      operationId: assess.stories.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/news-items/{item_id}:
     parameters:
       - name: item_id
@@ -731,6 +868,7 @@ paths:
         - UserAuth: []
       tags: [assess]
       description: get the specified news item
+      operationId: assess.news_item.get
       responses:
         "200":
           description: the news item
@@ -748,6 +886,7 @@ paths:
         - UserAuth: []
       tags: [assess]
       description: modify the specified news item
+      operationId: assess.news_item.put
       requestBody:
         content:
           application/json:
@@ -773,6 +912,7 @@ paths:
         - UserAuth: []
       tags: [assess]
       description: partially modify the specified news item
+      operationId: assess.news_item.patch
       requestBody:
         content:
           application/json:
@@ -798,6 +938,7 @@ paths:
         - UserAuth: []
       tags: [assess]
       description: delete the specified news item
+      operationId: assess.news_item.delete
       responses:
         "200":
           description: the news item was deleted
@@ -830,6 +971,7 @@ paths:
         - UserAuth: []
       tags: [assess]
       description: get the specified story
+      operationId: assess.story.get
       responses:
         "200":
           description: the story
@@ -848,6 +990,7 @@ paths:
         - UserAuth: []
       tags: [assess]
       description: modify the specified story
+      operationId: assess.story.put
       requestBody:
         content:
           application/json:
@@ -885,6 +1028,7 @@ paths:
         - UserAuth: []
       tags: [assess]
       description: delete the specified story
+      operationId: assess.story.delete
       responses:
         "200":
           description: the story was deleted
@@ -904,6 +1048,34 @@ paths:
               schema:
                 type: string
                 examples: ["Story is in use"]
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    patch:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: update story
+      operationId: assess.story.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
   /assess/connectors:
@@ -947,7 +1119,7 @@ paths:
       security:
         - UserAuth: []
       tags: [assess]
-      operationId: assess.connectors.get
+      operationId: assess.connectors_list.get
       description: get connectors available to assess users for story sharing
       responses:
         "200":
@@ -967,12 +1139,47 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: handle connectors
+      operationId: assess.connectors_list.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/stories/group:
     put:
       security:
         - UserAuth: []
       tags: [assess]
       description: Group News Items to an Story
+      operationId: assess.group_action.put
       requestBody:
         content:
           application/json:
@@ -997,12 +1204,46 @@ paths:
         "404":
           $ref: "#/components/responses/404NotFound"
 
+    post:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: handle stories group
+      operationId: assess.group_action.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/stories/ungroup:
     put:
       security:
         - UserAuth: []
       tags: [assess]
       description: Remove News Items from an story
+      operationId: assess.ungroup_stories.put
       requestBody:
         content:
           application/json:
@@ -1031,6 +1272,7 @@ paths:
         - UserAuth: []
       tags: [assets]
       description: get and add to the user's asset groups
+      operationId: asset_groups.get
       responses:
         "200":
           description: the user's asset group
@@ -1054,6 +1296,7 @@ paths:
         - UserAuth: []
       tags: [assets]
       description: add new asset to the user's asset groups
+      operationId: asset_groups.post
       requestBody:
         content:
           application/json:
@@ -1070,6 +1313,54 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: update asset groups
+      operationId: asset_groups.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: delete asset groups
+      operationId: asset_groups.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /asset-groups/{group_id}:
     parameters:
       - name: group_id
@@ -1082,6 +1373,7 @@ paths:
         - UserAuth: []
       tags: [assets]
       description: update an asset group
+      operationId: asset_group.put
       requestBody:
         content:
           application/json:
@@ -1103,6 +1395,7 @@ paths:
         - UserAuth: []
       tags: [assets]
       description: delete an asset group
+      operationId: asset_group.delete
       responses:
         "200":
           description: the group has been deleted
@@ -1115,11 +1408,32 @@ paths:
         "404":
           $ref: "#/components/responses/404NotFound"
 
+    get:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: get asset groups
+      operationId: asset_group.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /worker/osint-sources/{source_id}:
     get:
       security:
         - APIKey: []
       description: Get OSINT source by ID
+      operationId: worker.osint_sources_worker.get
       parameters:
         - name: source_id
           in: path
@@ -1140,27 +1454,89 @@ paths:
       security:
         - APIKey: []
       description: Get all bots
+      operationId: worker.bots_worker.get
       responses:
         "200":
           description: OK
         "401":
           $ref: "#/components/responses/401Unauthorized"
 
+    put:
+      security:
+        - APIKey: []
+      description: update bots
+      operationId: worker.bots_worker.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /worker/stories:
     get:
       security:
         - APIKey: []
       description: Get stories
+      operationId: worker.stories_worker.get
       responses:
         "200":
           description: OK
         "401":
           $ref: "#/components/responses/401Unauthorized"
+
+    post:
+      security:
+        - APIKey: []
+      description: create stories
+      operationId: worker.stories_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /worker/tags:
     get:
       security:
         - APIKey: []
       description: Get all tags
+      operationId: worker.tags_worker.get
       responses:
         "200":
           description: OK
@@ -1172,6 +1548,7 @@ paths:
         - APIKey: []
       tags: [bots]
       description: update news item tags
+      operationId: worker.tags_worker.put
       requestBody:
         content:
           application/json:
@@ -1194,7 +1571,7 @@ paths:
   /tasks:
     post:
       tags: [config]
-      operationId: TaskCreate
+      operationId: tasks.tasks.post
       description: submit a worker task result
       security:
         - APIKey: []
@@ -1218,7 +1595,7 @@ paths:
 
     get:
       tags: [config]
-      operationId: TaskList
+      operationId: tasks.tasks.get
       description: list task history and statistics
       security:
         - APIKey: []
@@ -1267,6 +1644,26 @@ paths:
         "401":
           $ref: "#/components/responses/401Unauthorized"
 
+    delete:
+      security:
+        - APIKey: []
+        - UserAuth: []
+      tags: [config]
+      description: delete tasks
+      operationId: tasks.tasks.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /tasks/{task_id}:
     parameters:
       - name: task_id
@@ -1276,7 +1673,7 @@ paths:
           type: string
     get:
       tags: [config]
-      operationId: TaskGet
+      operationId: tasks.task.get
       description: get a single task result
       security:
         - APIKey: []
@@ -1304,7 +1701,7 @@ paths:
 
     delete:
       tags: [config]
-      operationId: TaskDelete
+      operationId: tasks.task.delete
       description: delete a task result
       security:
         - APIKey: []
@@ -1331,6 +1728,7 @@ paths:
         - APIKey: []
       tags: [bots]
       description: get all news items
+      operationId: bots.bots_news_item.get
       parameters:
         - name: limit
           in: query
@@ -1351,6 +1749,33 @@ paths:
         "404":
           $ref: "#/components/responses/404NotFound"
 
+    put:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: update news item
+      operationId: bots.bots_news_item.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /bots/news-item/{news_item_id}/attributes:
     parameters:
       - name: news_item_id
@@ -1363,6 +1788,7 @@ paths:
         - APIKey: []
       tags: [bots]
       description: update news item attributes
+      operationId: bots.update_news_item_attributes.put
       requestBody:
         content:
           application/json:
@@ -1385,6 +1811,7 @@ paths:
         - APIKey: []
       tags: [bots]
       description: Group News Items to a Story
+      operationId: bots.group_stories.put
       requestBody:
         content:
           application/json:
@@ -1412,6 +1839,7 @@ paths:
         - UserAuth: []
       tags: [config]
       description: get attributes
+      operationId: config.config_attributes.get
       parameters:
         - name: search
           in: query
@@ -1440,6 +1868,7 @@ paths:
         - UserAuth: []
       tags: [config]
       description: add attribute
+      operationId: config.config_attributes.post
       requestBody:
         content:
           application/json:
@@ -1450,6 +1879,54 @@ paths:
           description: success
         "401":
           $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update attributes
+      operationId: config.config_attributes.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete attributes
+      operationId: config.config_attributes.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
   /config/attributes/{attribute_id}:
@@ -1467,6 +1944,7 @@ paths:
         - UserAuth: []
       tags: [config]
       description: update attribute
+      operationId: config.config_attribute.put
       requestBody:
         content:
           application/json:
@@ -1484,6 +1962,7 @@ paths:
         - UserAuth: []
       tags: [config]
       description: delete attribute
+      operationId: config.config_attribute.delete
       responses:
         "200":
           description: success
@@ -1491,10 +1970,32 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get attributes
+      operationId: config.config_attribute.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /config/report-item-types:
     get:
       tags: [config]
       description: get report item types
+      operationId: config.config_report_item_types.get
       security:
         - UserAuth: []
       parameters:
@@ -1523,6 +2024,7 @@ paths:
     post:
       tags: [config]
       description: add report item type
+      operationId: config.config_report_item_types.post
       security:
         - UserAuth: []
       requestBody:
@@ -1535,6 +2037,54 @@ paths:
           description: success
         "401":
           $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update report item types
+      operationId: config.config_report_item_types.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete report item types
+      operationId: config.config_report_item_types.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
   /config/report-item-types/{type_id}:
@@ -1550,6 +2100,7 @@ paths:
     put:
       tags: [config]
       description: update report item type
+      operationId: config.config_report_item_type.put
       security:
         - UserAuth: []
       requestBody:
@@ -1567,6 +2118,7 @@ paths:
     delete:
       tags: [config]
       description: delete report item type
+      operationId: config.config_report_item_type.delete
       security:
         - UserAuth: []
       responses:
@@ -1576,10 +2128,32 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get report item types
+      operationId: config.config_report_item_type.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /config/product-types:
     get:
       tags: [config]
       description: get all product types
+      operationId: config.config_product_types_config.get
       security:
         - UserAuth: []
       parameters:
@@ -1608,6 +2182,7 @@ paths:
     post:
       tags: [config]
       description: add product type
+      operationId: config.config_product_types_config.post
       security:
         - UserAuth: []
       requestBody:
@@ -1620,6 +2195,54 @@ paths:
           description: success
         "401":
           $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update product types
+      operationId: config.config_product_types_config.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete product types
+      operationId: config.config_product_types_config.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
   /config/product-types/{type_id}:
@@ -1635,6 +2258,7 @@ paths:
     put:
       tags: [config]
       description: update product type
+      operationId: config.config_product_type.put
       security:
         - UserAuth: []
       requestBody:
@@ -1652,6 +2276,7 @@ paths:
     delete:
       tags: [config]
       description: delete product type
+      operationId: config.config_product_type.delete
       security:
         - UserAuth: []
       responses:
@@ -1661,10 +2286,32 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get product types
+      operationId: config.config_product_type.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /config/permissions:
     get:
       tags: [config]
       description: get all permissions
+      operationId: config.config_permissions.get
       security:
         - UserAuth: []
       parameters:
@@ -1694,6 +2341,7 @@ paths:
     get:
       tags: [config]
       description: get all roles
+      operationId: config.config_roles.get
       security:
         - UserAuth: []
       parameters:
@@ -1720,6 +2368,7 @@ paths:
     post:
       tags: [config]
       description: add role
+      operationId: config.config_roles.post
       security:
         - UserAuth: []
       requestBody:
@@ -1732,6 +2381,54 @@ paths:
           description: success
         "401":
           $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update roles
+      operationId: config.config_roles.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete roles
+      operationId: config.config_roles.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
   /config/roles/{role_id}:
@@ -1747,6 +2444,7 @@ paths:
     put:
       tags: [config]
       description: update role
+      operationId: config.config_role.put
       security:
         - UserAuth: []
       requestBody:
@@ -1764,6 +2462,7 @@ paths:
     delete:
       tags: [config]
       description: delete role
+      operationId: config.config_role.delete
       security:
         - UserAuth: []
       responses:
@@ -1773,10 +2472,32 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get roles
+      operationId: config.config_role.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /config/acls:
     get:
       tags: [config]
       description: get all ACL entries
+      operationId: config.config_acls.get
       security:
         - UserAuth: []
       parameters:
@@ -1805,6 +2526,7 @@ paths:
     post:
       tags: [config]
       description: add ACL entry
+      operationId: config.config_acls.post
       security:
         - UserAuth: []
       requestBody:
@@ -1817,6 +2539,54 @@ paths:
           description: success
         "401":
           $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update acls
+      operationId: config.config_acls.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete acls
+      operationId: config.config_acls.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
   /config/acls/{acl_id}:
@@ -1832,6 +2602,7 @@ paths:
     put:
       tags: [config]
       description: update ACL entry
+      operationId: config.config_acl.put
       security:
         - UserAuth: []
       requestBody:
@@ -1849,6 +2620,7 @@ paths:
     delete:
       tags: [config]
       description: delete ACL entry
+      operationId: config.config_acl.delete
       security:
         - UserAuth: []
       responses:
@@ -1858,10 +2630,32 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get acls
+      operationId: config.config_acl.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /config/organizations:
     get:
       tags: [config]
       description: get all organizations
+      operationId: config.config_organizations.get
       security:
         - UserAuth: []
       parameters:
@@ -1890,6 +2684,7 @@ paths:
     post:
       tags: [config]
       description: add organization
+      operationId: config.config_organizations.post
       security:
         - UserAuth: []
       requestBody:
@@ -1902,6 +2697,54 @@ paths:
           description: success
         "401":
           $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update organizations
+      operationId: config.config_organizations.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete organizations
+      operationId: config.config_organizations.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
   /config/organizations/{organization_id}:
@@ -1917,6 +2760,7 @@ paths:
     put:
       tags: [config]
       description: update organization
+      operationId: config.config_organization.put
       security:
         - UserAuth: []
       requestBody:
@@ -1934,6 +2778,7 @@ paths:
     delete:
       tags: [config]
       description: delete organization
+      operationId: config.config_organization.delete
       security:
         - UserAuth: []
       responses:
@@ -1944,10 +2789,31 @@ paths:
         "404":
           $ref: "#/components/responses/404NotFound"
 
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get organizations
+      operationId: config.config_organization.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /config/users:
     get:
       tags: [config]
       description: get all users
+      operationId: config.config_users.get
       security:
         - UserAuth: []
       parameters:
@@ -1976,6 +2842,7 @@ paths:
     post:
       tags: [config]
       description: add user
+      operationId: config.config_users.post
       security:
         - UserAuth: []
       requestBody:
@@ -1992,6 +2859,54 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update users
+      operationId: config.config_users.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete users
+      operationId: config.config_users.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /config/users/{user_id}:
     parameters:
       - name: user_id
@@ -2004,6 +2919,7 @@ paths:
     get:
       tags: [config]
       description: get user details
+      operationId: config.config_user.get
       security:
         - UserAuth: []
       responses:
@@ -2020,6 +2936,7 @@ paths:
     put:
       tags: [config]
       description: update user
+      operationId: config.config_user.put
       security:
         - UserAuth: []
       requestBody:
@@ -2039,6 +2956,7 @@ paths:
     delete:
       tags: [config]
       description: delete user
+      operationId: config.config_user.delete
       security:
         - UserAuth: []
       responses:
@@ -2050,10 +2968,11 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
   /config/workers:
     get:
       tags: [config]
-      operationId: Workers
+      operationId: config.config_workers.get
       description: get all workers connected for RQ (via Redis)
       security:
         - UserAuth: []
@@ -2073,7 +2992,7 @@ paths:
   /config/worker-types:
     get:
       tags: [config]
-      operationId: WorkerTypesGet
+      operationId: config.config_worker_types.get
       description: get all worker types
       security:
         - UserAuth: []
@@ -2088,7 +3007,7 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
     patch:
       tags: [config]
-      operationId: WorkerTypesPut
+      operationId: config.config_worker_types.patch
       description: create new worker type
       security:
         - UserAuth: []
@@ -2114,6 +3033,7 @@ paths:
     get:
       tags: [config]
       description: export Wordlists
+      operationId: config.config_word_list_export.get
       security:
         - UserAuth: []
       responses:
@@ -2131,6 +3051,7 @@ paths:
     post:
       tags: [config]
       description: import Wordlists
+      operationId: config.config_word_list_import.post
       security:
         - UserAuth: []
       requestBody:
@@ -2169,7 +3090,7 @@ paths:
           maximum: 100000
     post:
       tags: [config]
-      operationId: WordListGather
+      operationId: config.config_word_list_gather.post
       description: gather wordlist entries
       security:
         - UserAuth: []
@@ -2198,7 +3119,7 @@ paths:
   /config/workers/queue-status:
     get:
       tags: [config]
-      operationId: WorkersQueueStatus
+      operationId: config.config_queue_status.get
       description: get queue status for all workers
       security:
         - UserAuth: []
@@ -2230,7 +3151,7 @@ paths:
     get:
       tags: [config]
       description: get all parameters
-      operationId: Parameters
+      operationId: config.config_parameters.get
       security:
         - UserAuth: []
       responses:
@@ -2249,7 +3170,7 @@ paths:
     get:
       tags: [config]
       description: get all presenters
-      operationId: Presenters
+      operationId: config.config_presenters.get
       security:
         - UserAuth: []
       responses:
@@ -2273,7 +3194,7 @@ paths:
     get:
       tags: [config]
       description: get all publishers
-      operationId: config.publishers.get
+      operationId: config.config_publishers.get
       security:
         - UserAuth: []
       responses:
@@ -2296,7 +3217,7 @@ paths:
     get:
       tags: [config]
       description: get all bots
-      operationId: config.bots_config.get
+      operationId: config.config_bots_config.get
       parameters:
         - name: search
           in: query
@@ -2323,7 +3244,7 @@ paths:
     post:
       tags: [config]
       description: add bot
-      operationId: config.bots_config.post
+      operationId: config.config_bots_config.post
       requestBody:
         content:
           application/json:
@@ -2346,6 +3267,53 @@ paths:
         "401":
           $ref: "#/components/responses/401Unauthorized"
 
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update bots
+      operationId: config.config_bots_config.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete bots
+      operationId: config.config_bots_config.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /config/bots/{bot_id}:
     parameters:
       - name: bot_id
@@ -2356,7 +3324,7 @@ paths:
     delete:
       tags: [config]
       description: delete bot
-      operationId: BotsDelete
+      operationId: config.config_bot_config.delete
       security:
         - UserAuth: []
       responses:
@@ -2367,7 +3335,7 @@ paths:
     put:
       tags: [config]
       description: update bot
-      operationId: BotsPut
+      operationId: config.config_bot_config.put
       requestBody:
         content:
           application/json:
@@ -2381,6 +3349,26 @@ paths:
         "401":
           $ref: "#/components/responses/401Unauthorized"
 
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get bots
+      operationId: config.config_bot_config.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /config/bots/{bot_id}/execute:
     parameters:
       - name: bot_id
@@ -2391,7 +3379,7 @@ paths:
     post:
       tags: [config]
       description: execute bot
-      operationId: BotExecute
+      operationId: config.config_bot_execute.post
       security:
         - UserAuth: []
       responses:
@@ -2404,7 +3392,7 @@ paths:
     get:
       tags: [config]
       description: get all wordlists
-      operationId: config.word_lists.get
+      operationId: config.config_word_lists.get
       parameters:
         - name: search
           in: query
@@ -2433,7 +3421,7 @@ paths:
     post:
       tags: [config]
       description: add wordlist
-      operationId: config.word_lists.post
+      operationId: config.config_word_lists.post
       requestBody:
         content:
           application/json:
@@ -2446,6 +3434,54 @@ paths:
           description: success
         "401":
           $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update word lists
+      operationId: config.config_word_lists.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete word lists
+      operationId: config.config_word_lists.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
   /config/word-lists/{word_list_id}:
@@ -2461,7 +3497,7 @@ paths:
     put:
       tags: [config]
       description: update wordlist
-      operationId: config.word_list.put
+      operationId: config.config_word_list.put
       requestBody:
         content:
           application/json:
@@ -2479,7 +3515,7 @@ paths:
     delete:
       tags: [config]
       description: delete wordlist
-      operationId: config.word_list.delete
+      operationId: config.config_word_list.delete
       security:
         - UserAuth: []
       responses:
@@ -2489,11 +3525,32 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get word lists
+      operationId: config.config_word_list.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /config/osint-sources:
     get:
       tags: [config]
       description: get all OSINT sources
-      operationId: config.osint_sources.get
+      operationId: config.config_osint_sources.get
       parameters:
         - name: search
           in: query
@@ -2522,7 +3579,7 @@ paths:
     post:
       tags: [config]
       description: add OSINT source
-      operationId: config.osint_sources.post
+      operationId: config.config_osint_sources.post
       requestBody:
         content:
           application/json:
@@ -2537,6 +3594,82 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update osint sources
+      operationId: config.config_osint_sources.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    patch:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update osint sources
+      operationId: config.config_osint_sources.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete osint sources
+      operationId: config.config_osint_sources.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /config/osint-sources/{osint_source_id}:
     parameters:
       - name: osint_source_id
@@ -2547,6 +3680,7 @@ paths:
     put:
       tags: [config]
       description: update OSINT source
+      operationId: config.config_osint_source.put
       requestBody:
         content:
           application/json:
@@ -2564,6 +3698,7 @@ paths:
     delete:
       tags: [config]
       description: delete OSINT source
+      operationId: config.config_osint_source.delete
       security:
         - UserAuth: []
       responses:
@@ -2571,6 +3706,54 @@ paths:
           description: success
         "401":
           $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get osint sources
+      operationId: config.config_osint_source.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    patch:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update osint sources
+      operationId: config.config_osint_source.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
   /config/osint-sources/{osint_source_id}/collect:
@@ -2583,6 +3766,7 @@ paths:
     post:
       tags: [config]
       description: collect OSINT source
+      operationId: config.config_osint_source_collect.post
       requestBody:
         content:
           application/json:
@@ -2608,6 +3792,7 @@ paths:
     post:
       tags: [config]
       description: collect all OSINT sources
+      operationId: config.config_osint_sources_collect.post
       requestBody:
         content:
           application/json:
@@ -2641,6 +3826,7 @@ paths:
     get:
       tags: [config]
       description: export OSINT sources
+      operationId: config.config_osint_sources_export.get
       security:
         - UserAuth: []
       responses:
@@ -2658,6 +3844,7 @@ paths:
     post:
       tags: [config]
       description: import OSINT sources
+      operationId: config.config_osint_sources_import.post
       requestBody:
         content:
           multipart/form-data:
@@ -2689,6 +3876,7 @@ paths:
     get:
       tags: [config]
       description: get all OSINT source groups
+      operationId: config.config_osint_source_groups_config.get
       parameters:
         - name: search
           in: query
@@ -2717,6 +3905,7 @@ paths:
     post:
       tags: [config]
       description: add OSINT source group
+      operationId: config.config_osint_source_groups_config.post
       requestBody:
         content:
           application/json:
@@ -2731,6 +3920,54 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update osint source groups
+      operationId: config.config_osint_source_groups_config.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete osint source groups
+      operationId: config.config_osint_source_groups_config.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /config/osint-source-groups/{group_id}:
     parameters:
       - name: group_id
@@ -2741,7 +3978,7 @@ paths:
     put:
       tags: [config]
       description: update OSINT source group
-      operationId: config.osint_source_group.put
+      operationId: config.config_osint_source_group.put
       requestBody:
         content:
           application/json:
@@ -2759,7 +3996,7 @@ paths:
     delete:
       tags: [config]
       description: delete OSINT source group
-      operationId: config.osint_source_group.delete
+      operationId: config.config_osint_source_group.delete
       security:
         - UserAuth: []
       responses:
@@ -2769,11 +4006,32 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get osint source groups
+      operationId: config.config_osint_source_group.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /config/publishers-presets:
     get:
       tags: [config]
       description: get all publisher preset
-      operationId: config.publisher_presets.get
+      operationId: config.config_publishers_presets.get
       parameters:
         - name: search
           in: query
@@ -2802,7 +4060,7 @@ paths:
     post:
       tags: [config]
       description: add publisher preset
-      operationId: config.publisher_presets.post
+      operationId: config.config_publishers_presets.post
       requestBody:
         content:
           application/json:
@@ -2815,6 +4073,54 @@ paths:
           description: success
         "401":
           $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update publishers presets
+      operationId: config.config_publishers_presets.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete publishers presets
+      operationId: config.config_publishers_presets.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
   /config/publishers-presets/{preset_id}:
@@ -2827,7 +4133,7 @@ paths:
     put:
       tags: [config]
       description: update publisher preset
-      operationId: config.publisher_preset.put
+      operationId: config.config_publishers_preset.put
       requestBody:
         content:
           application/json:
@@ -2842,10 +4148,51 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get publishers presets
+      operationId: config.config_publishers_preset.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete publishers presets
+      operationId: config.config_publishers_preset.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /config/templates:
     get:
       tags: [config]
       description: list all presenter templates with validation status
+      operationId: config.config_templates.get
       security:
         - UserAuth: []
       responses:
@@ -2862,6 +4209,7 @@ paths:
     post:
       tags: [config]
       description: create or update a presenter template (by id in body) and return validation status
+      operationId: config.config_templates.post
       security:
         - UserAuth: []
       requestBody:
@@ -2881,6 +4229,54 @@ paths:
           description: invalid request
         "401":
           $ref: "#/components/responses/401Unauthorized"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update templates
+      operationId: config.config_templates.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete templates
+      operationId: config.config_templates.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /config/templates/{template_path}:
     parameters:
       - name: template_path
@@ -2891,6 +4287,7 @@ paths:
     get:
       tags: [config]
       description: get a single presenter template (base64 encoded content) with validation status
+      operationId: config.config_template.get
       security:
         - UserAuth: []
       responses:
@@ -2907,6 +4304,7 @@ paths:
     put:
       tags: [config]
       description: update a presenter template (by path) and return validation status
+      operationId: config.config_template.put
       security:
         - UserAuth: []
       requestBody:
@@ -2936,6 +4334,7 @@ paths:
     delete:
       tags: [config]
       description: delete a presenter template
+      operationId: config.config_template.delete
       security:
         - UserAuth: []
       responses:
@@ -2945,10 +4344,45 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: handle templates
+      operationId: config.config_template.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /config/templates/validate:
     post:
       tags: [config]
       description: validate a Jinja2 template without saving it
+      operationId: config.config_template_validation.post
       security:
         - UserAuth: []
       requestBody:
@@ -2972,7 +4406,7 @@ paths:
           description: Internal server error
   /dashboard/trending-clusters:
     get:
-      operationId: dashboard.trending-clusters
+      operationId: dashboard.trending-clusters.get
       tags: [dashboard]
       description: get trending clusters
       security:
@@ -2997,6 +4431,7 @@ paths:
     get:
       tags: [dashboard]
       description: get dashboard data
+      operationId: dashboard.dashboard.get
       security:
         - UserAuth: []
       responses:
@@ -3033,6 +4468,7 @@ paths:
     get:
       tags: [publish]
       description: get products
+      operationId: publish.products.get
       parameters:
         - name: search
           in: query
@@ -3074,6 +4510,88 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [publish]
+      description: handle products
+      operationId: publish.products.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [publish]
+      description: update products
+      operationId: publish.products.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [publish]
+      description: delete products
+      operationId: publish.products.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /publish/products/{product_id}:
     parameters:
       - name: product_id
@@ -3084,6 +4602,7 @@ paths:
     get:
       tags: [publish]
       description: get product details
+      operationId: publish.product.get
       security:
         - UserAuth: []
       responses:
@@ -3100,6 +4619,7 @@ paths:
     put:
       tags: [publish]
       description: update product details
+      operationId: publish.product.put
       security:
         - UserAuth: []
       requestBody:
@@ -3119,6 +4639,7 @@ paths:
       security:
         - UserAuth: []
       description: delete product
+      operationId: publish.product.delete
       responses:
         "200":
           description: success
@@ -3126,6 +4647,7 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
   /publish/products/{product_id}/render:
     parameters:
       - name: product_id
@@ -3173,7 +4695,7 @@ paths:
           type: string
     post:
       tags: [publish]
-      operationId: publish.publish_product
+      operationId: publish.publish_product.post
       description: generate a specific product at a specific publisher
       security:
         - UserAuth: []
@@ -3233,6 +4755,3889 @@ paths:
           $ref: "#/components/responses/401Unauthorized"
         "404":
           $ref: "#/components/responses/404NotFound"
+
+  /analyze/report-items/{report_item_id}/revisions:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: get report items revisions
+      operationId: analyze.report_item_revisions.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /analyze/report-items/{report_item_id}/revisions/{revision_number}:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: revision_number
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: get report items revisions
+      operationId: analyze.report_item_revision_data.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /analyze/report-items/{report_item_id}/stories:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: get report items stories
+      operationId: analyze.report_stories.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: handle report items stories
+      operationId: analyze.report_stories.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: update report items stories
+      operationId: analyze.report_stories.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /analyze/report/{report_item_id}:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: get report
+      operationId: analyze.report.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: update report
+      operationId: analyze.report.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: delete report
+      operationId: analyze.report.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /analyze/reports:
+    get:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: get reports
+      operationId: analyze.reports.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: handle reports
+      operationId: analyze.reports.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: update reports
+      operationId: analyze.reports.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: delete reports
+      operationId: analyze.reports.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/connectors/proposals:
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get connectors proposals
+      operationId: assess.proposals.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/filter-lists:
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get filter lists
+      operationId: assess.filter_lists.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/import:
+    post:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: handle import
+      operationId: assess.import.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/news-items/fetch:
+    post:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: handle news items fetch
+      operationId: assess.news_item_fetch.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/news-items/ungroup:
+    put:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: update news items ungroup
+      operationId: assess.ungroup_news_items.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/news-items/{news_item_id}/attributes:
+    parameters:
+      - name: news_item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: update news items attributes
+      operationId: assess.update_news_item_attributes.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/stories/botactions:
+    post:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: run bot actions
+      operationId: assess.bot_actions.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/stories/bulk_action:
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get stories bulk action
+      operationId: assess.bulk_action.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: handle stories bulk action
+      operationId: assess.bulk_action.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/stories/{story_id}:
+    parameters:
+      - name: story_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get stories
+      operationId: assess.story_.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: update stories
+      operationId: assess.story_.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    patch:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: update stories
+      operationId: assess.story_.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: delete stories
+      operationId: assess.story_.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/stories/{story_id}/revisions:
+    parameters:
+      - name: story_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get stories revisions
+      operationId: assess.story_revisions.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/stories/{story_id}/revisions/{revision_number}:
+    parameters:
+      - name: story_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: revision_number
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get stories revisions
+      operationId: assess.story_revision_data.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/story/{connector_id}/share:
+    parameters:
+      - name: connector_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get story share
+      operationId: assess.share_to_connector.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: handle story share
+      operationId: assess.share_to_connector.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/taglist:
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get tag list
+      operationId: assess.taglist.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assess/tags:
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get tags
+      operationId: assess.tags.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assets:
+    get:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: get assets
+      operationId: assets.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: handle assets
+      operationId: assets.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: update assets
+      operationId: assets.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: delete assets
+      operationId: assets.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assets/{asset_id}:
+    parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: get assets
+      operationId: asset.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: update assets
+      operationId: asset.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: delete assets
+      operationId: asset.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /assets/{asset_id}/vulnerabilities/{vulnerability_id}:
+    parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: vulnerability_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      security:
+        - UserAuth: []
+      tags: [assets]
+      description: update vulnerabilities
+      operationId: asset_vulnerability.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /auth/change_password:
+    post:
+      security:
+        - UserAuth: []
+      tags: [auth]
+      description: handle change password
+      operationId: auth.change_password.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /auth/method:
+    get:
+      security: []
+      tags: [auth]
+      description: get auth method
+      operationId: auth.auth_method.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /bots:
+    get:
+      security:
+        - UserAuth: []
+      tags: [bots]
+      description: get bots
+      operationId: bots.bots.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [bots]
+      description: update bots
+      operationId: bots.bots.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /bots/news-item/{news_item_id}:
+    parameters:
+      - name: news_item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: get news item
+      operationId: bots.update_news_item.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: update news item
+      operationId: bots.update_news_item.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /bots/stories/group-multiple:
+    put:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: update stories group multiple
+      operationId: bots.group_multiple_stories.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /bots/stories/ungroup:
+    put:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: update stories ungroup
+      operationId: bots.ungroup_stories_bot.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /bots/story/{story_id}:
+    parameters:
+      - name: story_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: get story
+      operationId: bots.update_story.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: update story
+      operationId: bots.update_story.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /bots/story/{story_id}/attributes:
+    parameters:
+      - name: story_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: get story attributes
+      operationId: bots.story_attributes.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    patch:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: update story attributes
+      operationId: bots.story_attributes.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /bots/{bot_id}:
+    parameters:
+      - name: bot_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: get bots
+      operationId: bots.bot_info.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - APIKey: []
+      tags: [bots]
+      description: update bots
+      operationId: bots.bot_info.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/connectors:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get connectors
+      operationId: config.config_connectors.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: handle connectors
+      operationId: config.config_connectors.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update connectors
+      operationId: config.config_connectors.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    patch:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update connectors
+      operationId: config.config_connectors.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete connectors
+      operationId: config.config_connectors.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/connectors/{connector_id}:
+    parameters:
+      - name: connector_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get connectors
+      operationId: config.config_connector.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update connectors
+      operationId: config.config_connector.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    patch:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update connectors
+      operationId: config.config_connector.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete connectors
+      operationId: config.config_connector.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/connectors/{connector_id}/pull:
+    parameters:
+      - name: connector_id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: handle connectors pull
+      operationId: config.config_connector_collect.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/dictionaries-reload/{dictionary_type}:
+    parameters:
+      - name: dictionary_type
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: handle dictionaries reload
+      operationId: config.config_dictionaries_reload.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/export-report-item-types:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get export report item types
+      operationId: config.config_report_item_types_export.get
+      responses:
+        "200":
+          description: success
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/import-report-item-types:
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: handle import report item types
+      operationId: config.config_report_item_types_import.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/osint-sources/{source_id}/preview:
+    parameters:
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get osint sources preview
+      operationId: config.config_osint_source_preview.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: handle osint sources preview
+      operationId: config.config_osint_source_preview.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/publisher-presets:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get publisher presets
+      operationId: config.config_publisher_presets.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: handle publisher presets
+      operationId: config.config_publisher_presets.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update publisher presets
+      operationId: config.config_publisher_presets.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete publisher presets
+      operationId: config.config_publisher_presets.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/publisher-presets/{preset_id}:
+    parameters:
+      - name: preset_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get publisher presets
+      operationId: config.config_publisher_preset.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update publisher presets
+      operationId: config.config_publisher_preset.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete publisher presets
+      operationId: config.config_publisher_preset.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/schedule:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get schedule
+      operationId: config.config_queue_schedule.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/schedule/{task_id}:
+    parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get schedule
+      operationId: config.config_queue_schedule_task.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/sources:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get sources
+      operationId: config.config_sources.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: handle sources
+      operationId: config.config_sources.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update sources
+      operationId: config.config_sources.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    patch:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update sources
+      operationId: config.config_sources.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete sources
+      operationId: config.config_sources.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/sources/{source_id}:
+    parameters:
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get sources
+      operationId: config.config_source.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update sources
+      operationId: config.config_source.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    patch:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update sources
+      operationId: config.config_source.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete sources
+      operationId: config.config_source.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/users-export:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get users export
+      operationId: config.config_users_export.get
+      responses:
+        "200":
+          description: success
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/users-import:
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: handle users import
+      operationId: config.config_users_import.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/word-lists/gather:
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: handle word lists gather
+      operationId: config.config_word_list_gather_all.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/worker-parameters:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get worker parameters
+      operationId: config.config_worker_parameters.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/worker-types/{worker_id}:
+    parameters:
+      - name: worker_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get worker types
+      operationId: config.config_worker_type_patch.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    patch:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update worker types
+      operationId: config.config_worker_type_patch.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/workers/active:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get workers active
+      operationId: config.config_active_jobs.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/workers/cron-jobs:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get workers cron jobs
+      operationId: config.config_cron_jobs.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/workers/dashboard:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get workers dashboard
+      operationId: config.config_scheduler_dashboard.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/workers/failed:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get workers failed
+      operationId: config.config_failed_jobs.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/workers/schedule:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get workers schedule
+      operationId: config.config_queue_schedule_config.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/workers/stats:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get workers stats
+      operationId: config.config_worker_stats.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/workers/tasks:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get workers tasks
+      operationId: config.config_queue_tasks.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /connectors/conflicts/clear:
+    post:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: clear conflicts
+      operationId: connectors.clear_conflicts.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /connectors/conflicts/news-items:
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get conflicts news items
+      operationId: connectors.news_item_conflicts.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: handle conflicts news items
+      operationId: connectors.news_item_conflicts.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: update conflicts news items
+      operationId: connectors.news_item_conflicts.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /connectors/conflicts/stories:
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get conflicts stories
+      operationId: connectors.story_conflicts.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: update conflicts stories
+      operationId: connectors.story_conflicts.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /connectors/conflicts/stories/{story_id}:
+    parameters:
+      - name: story_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get conflicts stories
+      operationId: connectors.story_conflict.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: update conflicts stories
+      operationId: connectors.story_conflict.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /connectors/story-summary/{story_id}:
+    parameters:
+      - name: story_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get story summary
+      operationId: connectors.story_summary.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /dashboard/build-info:
+    get:
+      security:
+        - UserAuth: []
+      tags: [dashboard]
+      description: get build info
+      operationId: dashboard.build-info.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /dashboard/cluster-names:
+    get:
+      security:
+        - UserAuth: []
+      tags: [dashboard]
+      description: get cluster names
+      operationId: dashboard.cluster-names.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /dashboard/cluster/{tag_type}:
+    parameters:
+      - name: tag_type
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [dashboard]
+      description: get cluster
+      operationId: dashboard.cluster-by-type.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /dashboard/delete-tag/{tag_name}:
+    parameters:
+      - name: tag_name
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      security:
+        - UserAuth: []
+      tags: [dashboard]
+      description: delete tag
+      operationId: dashboard.delete-tag.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /dashboard/story-clusters:
+    get:
+      security:
+        - UserAuth: []
+      tags: [dashboard]
+      description: get story clusters
+      operationId: dashboard.story-clusters.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /publish/product-types:
+    get:
+      security:
+        - UserAuth: []
+      tags: [publish]
+      description: get product types
+      operationId: publish.product_types.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /publish/products/auto-render/{report_item_id}:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [publish]
+      description: auto render products
+      operationId: publish.auto_render_products.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /settings/clear-queues:
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: clear queues
+      operationId: settings.clear_queue.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /settings/delete-stories:
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete stories
+      operationId: settings.delete_stories.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /settings/delete-tags:
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: delete tags
+      operationId: settings.delete_tags.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /settings/export-stories:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: export stories
+      operationId: settings.export_stories.get
+      responses:
+        "200":
+          description: success
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /settings/rebuild-story-search-vectors:
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: rebuild story search vectors
+      operationId: settings.rebuild_story_search_vectors.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /settings/reset-database:
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: reset database
+      operationId: settings.reset_database.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+  /settings/settings:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get settings
+      operationId: settings.settings.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update settings
+      operationId: settings.settings.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: update settings
+      operationId: settings.settings.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /settings/ungroup-stories:
+    post:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: ungroup stories
+      operationId: settings.ungroup_all_stories.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /users/sse-connected:
+    post:
+      security:
+        - UserAuth: []
+      tags: [users]
+      description: handle sse connected
+      operationId: user.sse_connected.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/bots/{bot_id}:
+    parameters:
+      - name: bot_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      description: get bots
+      operationId: worker.bot_info_worker.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - APIKey: []
+      description: update bots
+      operationId: worker.bot_info_worker.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/connectors/{connector_id}:
+    parameters:
+      - name: connector_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      description: get connectors
+      operationId: worker.connectors_worker.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/cron-jobs:
+    get:
+      security:
+        - APIKey: []
+      description: get cron jobs
+      operationId: worker.cron_jobs_worker.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/misp/last-change:
+    post:
+      security:
+        - APIKey: []
+      description: handle misp last change
+      operationId: worker.last_change.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - APIKey: []
+      description: update misp last change
+      operationId: worker.last_change.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/misp/stories:
+    post:
+      security:
+        - APIKey: []
+      description: handle misp stories
+      operationId: worker.misp_stories_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - APIKey: []
+      description: update misp stories
+      operationId: worker.misp_stories_worker.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/news-items:
+    post:
+      security:
+        - APIKey: []
+      description: handle news items
+      operationId: worker.news_items_worker.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/osint-sources:
+    get:
+      security:
+        - APIKey: []
+      description: get osint sources
+      operationId: worker.osint_sources_all_worker.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/osint-sources/{source_id}/icon:
+    parameters:
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      security:
+        - APIKey: []
+      description: upload source icon
+      operationId: worker.osint_sources_worker_icon.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/post-collection-bots:
+    put:
+      security:
+        - APIKey: []
+      description: update post collection bots
+      operationId: worker.post_collection_bots_worker.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/presenters/{presenter}:
+    parameters:
+      - name: presenter
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      description: download presenter
+      operationId: worker.presenters_worker.get
+      responses:
+        "200":
+          description: success
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/products/{product_id}:
+    parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      description: get products
+      operationId: worker.products_worker.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/products/{product_id}/render:
+    parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      description: render product
+      operationId: worker.products_render_worker.get
+      responses:
+        "200":
+          description: success
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/publishers/{publisher}:
+    parameters:
+      - name: publisher
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      description: get publishers
+      operationId: worker.publishers_worker.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/report-items/{report_id}:
+    parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - APIKey: []
+      description: get report items
+      operationId: worker.report_by_id_worker.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/word-list/{word_list_id}:
+    parameters:
+      - name: word_list_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      security:
+        - APIKey: []
+      description: get word list
+      operationId: worker.word_list_by_id_worker.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - APIKey: []
+      description: update word list
+      operationId: worker.word_list_by_id_worker.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /worker/word-lists:
+    get:
+      security:
+        - APIKey: []
+      description: get word lists
+      operationId: worker.word_lists_worker.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    put:
+      security:
+        - APIKey: []
+      description: update word lists
+      operationId: worker.word_lists_worker.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
 components:
   schemas:
     #requests
@@ -3867,7 +9272,7 @@ components:
         id:
           type: string
         title:
-          type: string
+          type: [string, "null"]
         description:
           type: string
         created:
