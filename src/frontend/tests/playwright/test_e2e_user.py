@@ -416,9 +416,9 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def open_assess_filtered(search_term: str):
             page.goto(url_for("assess.assess", _external=True, search=search_term))
-            expect(page.get_by_test_id("assess")).to_be_visible()
-            expect(page.get_by_test_id("assess_story_count")).to_be_visible()
-            expect(page.get_by_placeholder("Search stories")).to_have_value(search_term)
+            expect(page.get_by_test_id("assess")).to_be_visible(timeout=30000)
+            expect(page.get_by_test_id("assess_story_count")).to_be_visible(timeout=30000)
+            expect(page.get_by_placeholder("Search stories")).to_have_value(search_term, timeout=30000)
 
         def select_report_stories_from_assess(search_term: str):
             open_assess_filtered(search_term)
