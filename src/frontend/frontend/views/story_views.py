@@ -12,6 +12,7 @@ from models.assess import AssessSource, BulkAction, Connector, FilterLists, News
 from models.report import ReportItem
 from pydantic import ValidationError
 from werkzeug.datastructures import FileStorage
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
 from frontend.cache import add_model_to_cache, get_model_from_cache
@@ -158,6 +159,8 @@ class StoryView(BaseView):
         mail_sharing_link = cls.share_story_link(story_ids)
         try:
             connectors = DataPersistenceLayer().get_objects(Connector)
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to fetch connectors for share dialog: {e}")
             connectors = []
@@ -181,6 +184,8 @@ class StoryView(BaseView):
             core_response = CoreApi().api_post(f"/assess/story/{connector_id}/share", json_data={"story_ids": story_ids})
             notification_html = cls.get_notification_from_response(core_response)
             status_code = getattr(core_response, "status_code", 500) or 500
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to share stories with connector.")
             notification_html = cls.render_response_notification({"error": "Failed to share stories with connector."})
@@ -350,6 +355,8 @@ class StoryView(BaseView):
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, cls.model))
             items, error = None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"Error retrieving {cls.model_name()} items")
             items, error = None, str(exc)
@@ -451,6 +458,8 @@ class StoryView(BaseView):
         try:
             response = api.api_post("/assess/stories/botactions", json_data={"story_id": story_id, "bot_id": bot_id})
             payload = response.json()
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to decode bot action response.")
             notification = {"message": "Failed to decode bot action response", "error": True}
@@ -471,6 +480,8 @@ class StoryView(BaseView):
         api = CoreApi()
         try:
             tags = api.api_get(f"/assess/taglist?search={query}")
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to fetch tag suggestions.")
             tags = []
@@ -567,6 +578,8 @@ class StoryView(BaseView):
             core_response = CoreApi().api_post("/assess/import", json_data=json_data)
             cls.add_flash_notification(core_response)
             return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id=core_response.json().get("id", "0")))
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to create news item from file.")
             flash("Failed to create news item from file", "error")
@@ -589,6 +602,8 @@ class StoryView(BaseView):
         except JSONDecodeError:
             logger.warning("Failed to decode story import JSON payload.")
             return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to import stories.")
             return make_response(cls.render_response_notification({"error": "Failed to import stories."}), 500)
@@ -613,6 +628,8 @@ class StoryView(BaseView):
         try:
             core_response = CoreApi().api_post("/assess/news-items/fetch", json_data={"url": url})
             return cls.news_item_edit_view(core_response)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to create news item from URL.")
             return cls.render_response_notification({"error": "Failed to create news item from URL."})
@@ -622,6 +639,8 @@ class StoryView(BaseView):
     def delete_news_item(cls, news_item_id: str):
         try:
             core_response = CoreApi().api_delete(f"/assess/news-items/{news_item_id}")
+        except HTTPException:
+            raise
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete news item"})
 
@@ -636,6 +655,8 @@ class StoryView(BaseView):
     def delete_story(cls, story_id: str):
         try:
             core_response = CoreApi().api_delete(f"/assess/story/{story_id}")
+        except HTTPException:
+            raise
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete story"})
 
@@ -687,6 +708,8 @@ class StoryView(BaseView):
                 notification_html = cls.get_notification_from_response(response)
                 content = cls._get_action_response_content(story_id)
                 return make_response(notification_html + content, 200)
+            except HTTPException:
+                raise
             except Exception:
                 logger.exception("Failed to ungroup news item.")
                 return cls.render_response_notification({"error": "Failed to ungroup news item."})
@@ -695,6 +718,8 @@ class StoryView(BaseView):
                 core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
                 cls.add_flash_notification(core_response)
                 return cls.redirect_htmx(url_for("assess.assess"))
+            except HTTPException:
+                raise
             except Exception:
                 logger.exception("Failed to ungroup story.")
                 return cls.render_response_notification({"error": "Failed to ungroup story."})
@@ -719,6 +744,8 @@ class StoryView(BaseView):
                 f'attachment; filename="stories_export_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
             )
             return flask_response
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to export stories.")
             return cls.render_response_notification({"error": "Failed to export stories."}), 500
