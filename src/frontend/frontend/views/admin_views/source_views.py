@@ -8,6 +8,7 @@ from models.dashboard import Dashboard
 from models.task import Task
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import admin_required
 from frontend.config import Config
@@ -38,6 +39,8 @@ class SourceView(AdminMixin, BaseView):
             if dashboard := DataPersistenceLayer().get_first(Dashboard):
                 if worker_status := dashboard.worker_status:
                     return worker_status.get("collector_task", {}).get("failures", 0)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Error retrieving dashboard for source admin menu badge")
 
@@ -172,6 +175,8 @@ class SourceView(AdminMixin, BaseView):
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Error storing form data")
             return None, "Error storing form data"

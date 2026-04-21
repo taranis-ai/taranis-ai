@@ -5,6 +5,7 @@ from flask.typing import ResponseReturnValue
 from models.assess import Story
 from models.report import ReportItem, ReportItemAttributeGroup, ReportTypes
 from pydantic import ValidationError
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
@@ -75,6 +76,8 @@ class ReportItemView(BaseView):
                 "layout": layout,
                 "actions": cls.get_report_actions(),
             }
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Error getting extra context for ReportItemView")
 
@@ -181,6 +184,8 @@ class ReportItemView(BaseView):
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)

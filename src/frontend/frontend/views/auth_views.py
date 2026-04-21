@@ -3,6 +3,7 @@ import contextlib
 import requests
 from flask import Response, make_response, request, url_for
 from flask.views import MethodView
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import is_safe_redirect_target, logout, render_login_page
 from frontend.config import Config
@@ -25,6 +26,8 @@ class AuthView(MethodView):
 
             try:
                 core_response = CoreApi().external_login(auth_headers)
+            except HTTPException:
+                raise
             except Exception as exc:
                 logger.warning(f"External login request failed on attempt {attempt}: {exc}")
 
@@ -83,6 +86,8 @@ class AuthView(MethodView):
 
         try:
             core_response = CoreApi().login(username, password)
+        except HTTPException:
+            raise
         except Exception:
             return render_login_page(login_error="Login failed, no response from server"), 500
 
