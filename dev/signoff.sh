@@ -10,6 +10,12 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
 }
 
+ensure_clean_worktree() {
+  if [ -n "$(git status --short --untracked-files=normal)" ]; then
+    fail "$1"
+  fi
+}
+
 run_step() {
   printf '\n==> %s\n' "$1"
 }
@@ -30,9 +36,7 @@ cd "$ROOT_DIR"
 require_command uv
 require_command gh
 
-if [ -n "$(git status --short --untracked-files=normal)" ]; then
-  fail "Working tree is not clean. Commit or stash changes before running signoff."
-fi
+ensure_clean_worktree "Working tree is not clean. Commit or stash changes before running signoff."
 
 if ! gh auth status --hostname github.com >/dev/null 2>&1; then
   fail "GitHub CLI is not authenticated for github.com. Run 'gh auth login'."
