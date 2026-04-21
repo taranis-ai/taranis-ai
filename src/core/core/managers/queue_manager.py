@@ -29,6 +29,7 @@ When a source/bot schedule is updated:
 """
 
 import contextlib
+import hashlib
 import json
 import time
 from datetime import datetime, timedelta, timezone
@@ -610,22 +611,36 @@ class QueueManager:
             return {"message": f"Preview for source {source_id} scheduled", "id": job.id, "status": "STARTED"}, 201
         return {"error": "Could not reach Redis"}, 500
 
-    def fetch_single_news_item(self, parameters: dict[str, str]):
+    @staticmethod
+    def _get_single_fetch_url(parameters: dict) -> str:
+        collector_parameters = parameters.get("parameters", {})
+        if isinstance(collector_parameters, dict):
+            return str(collector_parameters.get("WEB_URL") or parameters.get("url") or "").strip()
+        return str(parameters.get("url") or "").strip()
+
+    @classmethod
+    def _get_single_fetch_job_id(cls, parameters: dict) -> str:
+        url = cls._get_single_fetch_url(parameters)
+        url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
+        return f"fetch_single_news_item_{url_hash}"
+
+    def fetch_single_news_item(self, parameters: dict[str, Any]):
+        url = self._get_single_fetch_url(parameters)
         job = self.enqueue_task(
             "collectors",
             "fetch_single_news_item",
             parameters,
-            job_id=f"fetch_single_news_item_{parameters.get('url')}",
+            job_id=self._get_single_fetch_job_id(parameters),
         )
         if not job:
             logger.error("Could not schedule fetch_single_news_item task")
             return {"error": "Could not reach Redis"}, 500
 
-        logger.info(f"Fetch for single news item {parameters.get('url')} scheduled")
+        logger.info(f"Fetch for single news item {url} scheduled")
         try:
             return self._await_job_result(job)
         except TimeoutError:
-            logger.error("Timed out waiting for fetch_single_news_item result for %s", parameters.get("url"))
+            logger.error("Timed out waiting for fetch_single_news_item result for %s", url)
         except Exception:
             logger.exception("Failed to fetch single news item")
         return {"error": "Failed to fetch single news item"}, 500
