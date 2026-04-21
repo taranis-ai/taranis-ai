@@ -414,6 +414,29 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_test_id("analyze")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
 
+        def open_assess_filtered(search_term: str):
+            page.goto(url_for("assess.assess", _external=True, search=search_term))
+            expect(page.get_by_test_id("assess")).to_be_visible()
+            expect(page.get_by_test_id("assess_story_count")).to_be_visible()
+            expect(page.get_by_placeholder("Search stories")).to_have_value(search_term)
+
+        def select_report_stories_from_assess(search_term: str):
+            open_assess_filtered(search_term)
+
+            first_story = page.get_by_test_id(f"story-card-{report_story_one['id']}")
+            second_story = page.get_by_test_id(f"story-card-{report_story_two['id']}")
+            expect(first_story).to_be_visible()
+            expect(second_story).to_be_visible()
+
+            first_story.click()
+            expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("stories selected")
+            assert self._get_assess_selection_count(page) == 1
+
+            second_story.click()
+            expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("stories selected")
+            assert self._get_assess_selection_count(page) == 2
+            expect(page.get_by_role("button", name="Cluster")).to_be_visible()
+
         def check_report_view_layout_changes():
             page.get_by_test_id("new-report-button").click()
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
@@ -482,15 +505,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             return report_uuid
 
         def add_stories_to_report():
-            page.goto(url_for("assess.assess", _external=True))
-
-            page.get_by_role("searchbox", name="Select sources").click()
-
-            page.get_by_placeholder("Search stories").fill(story_search_term)
-            page.get_by_placeholder("Search stories").press("Enter")
-
-            page.get_by_role("heading", name=report_story_one["title"]).click()
-            page.get_by_role("heading", name=report_story_two["title"]).click()
+            select_report_stories_from_assess(story_search_term)
             page.get_by_role("button", name="Add to Report").click()
             popup = page.get_by_label("Add Stories to report")
             popup.click()
@@ -584,13 +599,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_text("Report item updated").click()
 
             def add_stories_to_new_report():
-                page.get_by_role("link", name="Assess").click()
-                page.get_by_placeholder("Search stories").fill(story_search_term)
-                page.get_by_placeholder("Search stories").press("Enter")
-                page.get_by_role("heading", name=report_story_one["title"]).click()
-                page.get_by_role("heading", name=report_story_two["title"]).click()
-                expect(page.get_by_role("button", name="Cluster")).to_be_visible()
-
+                select_report_stories_from_assess(story_search_term)
                 page.get_by_role("button", name="Add to Report").click()
                 popup = page.get_by_label("Add Stories to report")
                 popup.click()
@@ -743,13 +752,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 expect(page.get_by_role("textbox", name="CVSS")).to_be_visible()
 
             def add_stories_to_new_report_required():
-                page.get_by_role("link", name="Assess").click()
-                page.get_by_placeholder("Search stories").fill(story_search_term)
-                page.get_by_placeholder("Search stories").press("Enter")
-                page.get_by_role("heading", name=report_story_one["title"]).click()
-                page.get_by_role("heading", name=report_story_two["title"]).click()
-                expect(page.get_by_role("button", name="Cluster")).to_be_visible()
-
+                select_report_stories_from_assess(story_search_term)
                 page.get_by_role("button", name="Add to Report").click()
                 popup = page.get_by_label("Add Stories to report")
                 popup.click()
