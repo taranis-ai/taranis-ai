@@ -53,23 +53,25 @@ fi
 export DEBUG=true
 
 run_step "src/core"
-run_in_dir src/core uv sync --all-extras
-run_in_dir src/core uv run ruff check
-run_in_dir src/core uv run pytest
+run_in_dir src/core uv sync --frozen --all-extras
+run_in_dir src/core uv run --frozen --no-sync ruff check
+run_in_dir src/core uv run --frozen --no-sync pytest
 
 run_step "src/frontend"
-run_in_dir src/frontend uv sync --all-extras
-run_in_dir src/frontend uv run ruff check
-run_in_dir src/frontend uv run djlint --profile=jinja --check frontend/templates
-run_in_dir src/frontend uv run pytest
+run_in_dir src/frontend uv sync --frozen --all-extras
+run_in_dir src/frontend uv run --frozen --no-sync ruff check
+run_in_dir src/frontend uv run --frozen --no-sync djlint --profile=jinja --check frontend/templates
+run_in_dir src/frontend uv run --frozen --no-sync pytest
 
 run_step "src/frontend e2e"
-run_in_dir src/frontend uv run pytest --e2e-ci
+run_in_dir src/frontend uv run --frozen --no-sync pytest --e2e-ci
 
 run_step "src/worker"
-run_in_dir src/worker uv sync --all-extras
-run_in_dir src/worker uv run ruff check
-run_in_dir src/worker uv run pytest
+run_in_dir src/worker uv sync --frozen --all-extras
+run_in_dir src/worker uv run --frozen --no-sync ruff check
+run_in_dir src/worker uv run --frozen --no-sync pytest
+
+ensure_clean_worktree "Working tree changed during local validation. Review the changes before running signoff."
 
 run_step "gh signoff"
 gh signoff
