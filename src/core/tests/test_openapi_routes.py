@@ -32,12 +32,13 @@ def _load_openapi_paths() -> dict[str, set[str]]:
     return paths
 
 
-def _load_openapi_operations() -> tuple[dict[tuple[str, str], str], list[str]]:
+def _load_openapi_operations() -> tuple[dict[tuple[str, str], str], list[str], list[tuple[str, str]]]:
     with OPENAPI_PATH.open("r", encoding="utf-8") as handle:
         spec = yaml.safe_load(handle)
 
     operations: dict[tuple[str, str], str] = {}
     operation_ids: list[str] = []
+    missing_operation_ids: list[tuple[str, str]] = []
     for path, methods in spec["paths"].items():
         canonical = _canonical_path(path)
         for method, operation in methods.items():
@@ -47,8 +48,10 @@ def _load_openapi_operations() -> tuple[dict[tuple[str, str], str], list[str]]:
             if operation_id:
                 operations[(canonical, method.upper())] = operation_id
                 operation_ids.append(operation_id)
+            else:
+                missing_operation_ids.append((canonical, method.upper()))
 
-    return operations, operation_ids
+    return operations, operation_ids, missing_operation_ids
 
 
 def _load_routes(app) -> dict[str, set[str]]:
@@ -119,7 +122,7 @@ def test_openapi_covers_app_routes():
 
 def test_openapi_operation_ids_match_view_funcs():
     app = create_app(initial_setup=False)
-    spec_operations, operation_ids = _load_openapi_operations()
+    spec_operations, operation_ids, missing_operation_ids = _load_openapi_operations()
     route_endpoints = _load_route_endpoints(app)
 
     mismatches = sorted(
@@ -134,7 +137,11 @@ def test_openapi_operation_ids_match_view_funcs():
     )
     duplicates = sorted(op_id for op_id, count in Counter(operation_ids).items() if count > 1)
 
-    assert not mismatches and not duplicates, _format_operation_id_failure(mismatches, duplicates)
+    assert not mismatches and not duplicates and not missing_operation_ids, _format_operation_id_failure(
+        mismatches,
+        duplicates,
+        missing_operation_ids,
+    )
 
 
 def _format_failure(
@@ -161,7 +168,11 @@ def _format_failure(
     return "\n".join(lines)
 
 
-def _format_operation_id_failure(mismatches: list[tuple[str, str, str, str | None]], duplicates: list[str]) -> str:
+def _format_operation_id_failure(
+    mismatches: list[tuple[str, str, str, str | None]],
+    duplicates: list[str],
+    missing_operation_ids: list[tuple[str, str]],
+) -> str:
     lines = [
         "OpenAPI operationId drift detected.",
         f"OperationId mismatches: {len(mismatches)}",
@@ -171,4 +182,7 @@ def _format_operation_id_failure(mismatches: list[tuple[str, str, str, str | Non
     lines.append(f"Duplicate operationIds: {len(duplicates)}")
     if duplicates:
         lines.extend(f"  - {operation_id}" for operation_id in duplicates)
+    lines.append(f"Missing operationIds: {len(missing_operation_ids)}")
+    if missing_operation_ids:
+        lines.extend(f"  - {method} {path}" for path, method in missing_operation_ids)
     return "\n".join(lines)

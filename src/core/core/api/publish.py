@@ -95,7 +95,7 @@ def initialize(app: Flask):
     publish_bp.add_url_rule(
         "/products/<string:product_id>/publishers/<string:publisher_id>", view_func=PublishProduct.as_view("publish_product")
     )
-    publish_bp.add_url_rule("/products", view_func=Products.as_view("products"))
+    publish_bp.add_url_rule("/products", view_func=Products.as_view("products"), methods=["GET", "POST"])
     publish_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("product"), methods=["GET", "PUT", "DELETE"])
     publish_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types"))
     publish_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))

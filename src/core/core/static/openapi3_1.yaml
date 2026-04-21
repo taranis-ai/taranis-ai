@@ -4544,54 +4544,6 @@ paths:
           description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
-
-    put:
-      security:
-        - UserAuth: []
-      tags: [publish]
-      description: update products
-      operationId: publish.products.put
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        "200":
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        "400":
-          description: invalid request
-        "401":
-          $ref: "#/components/responses/401Unauthorized"
-        "403":
-          description: forbidden
-        "404":
-          $ref: "#/components/responses/404NotFound"
-
-    delete:
-      security:
-        - UserAuth: []
-      tags: [publish]
-      description: delete products
-      operationId: publish.products.delete
-      responses:
-        "200":
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        "401":
-          $ref: "#/components/responses/401Unauthorized"
-        "403":
-          description: forbidden
-        "404":
-          $ref: "#/components/responses/404NotFound"
   /publish/products/{product_id}:
     parameters:
       - name: product_id
