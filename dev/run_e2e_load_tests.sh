@@ -70,6 +70,115 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+clear_report_server_state() {
+  rm -f "$REPORT_SERVER_PID_FILE" "$REPORT_SERVER_PORT_FILE"
+}
+
+discover_report_server() {
+  local line pid command port
+
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    line="${line#"${line%%[![:space:]]*}"}"
+
+    pid="${line%% *}"
+    command="${line#"$pid"}"
+    command="${command#" "}"
+
+    if [[ "$command" != *"http.server"* ]]; then
+      continue
+    fi
+    if [[ "$command" != *"--bind $REPORT_SERVER_HOST"* ]]; then
+      continue
+    fi
+    if [[ "$command" != *"--directory $ARTIFACTS_ROOT"* ]]; then
+      continue
+    fi
+
+    port=""
+    if [[ "$command" =~ http\.server[[:space:]]+([0-9]+) ]]; then
+      port="${BASH_REMATCH[1]}"
+    fi
+
+    printf '%s %s\n' "$pid" "$port"
+    return 0
+  done < <(ps -axo pid=,command= 2>/dev/null || true)
+
+  return 1
+}
+
+report_server_matches() {
+  local pid="$1"
+  local command
+  command="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+  [[ -n "$command" && "$command" == *"http.server"* && "$command" == *"--bind $REPORT_SERVER_HOST"* && "$command" == *"--directory $ARTIFACTS_ROOT"* ]]
+}
+
+resolve_report_server() {
+  local existing_pid=""
+  local existing_port=""
+  local discovered=""
+
+  if [[ -f "$REPORT_SERVER_PID_FILE" ]]; then
+    existing_pid="$(<"$REPORT_SERVER_PID_FILE")"
+  fi
+  if [[ -f "$REPORT_SERVER_PORT_FILE" ]]; then
+    existing_port="$(<"$REPORT_SERVER_PORT_FILE")"
+  fi
+
+  if [[ -n "$existing_pid" ]] && report_server_matches "$existing_pid"; then
+    printf '%s %s\n' "$existing_pid" "$existing_port"
+    return 0
+  fi
+
+  clear_report_server_state
+
+  if ! discovered="$(discover_report_server)"; then
+    return 1
+  fi
+
+  read -r existing_pid existing_port <<<"$discovered"
+  printf '%s\n' "$existing_pid" >"$REPORT_SERVER_PID_FILE"
+  if [[ -n "$existing_port" ]]; then
+    printf '%s\n' "$existing_port" >"$REPORT_SERVER_PORT_FILE"
+  fi
+
+  printf '%s %s\n' "$existing_pid" "$existing_port"
+}
+
+stop_report_server() {
+  mkdir -p "$ARTIFACTS_ROOT"
+
+  local existing_pid=""
+  local existing_port=""
+
+  if ! read -r existing_pid existing_port < <(resolve_report_server); then
+    clear_report_server_state
+    echo "No matching report server process is running."
+    return 0
+  fi
+
+  kill "$existing_pid"
+  sleep 0.2
+
+  if kill -0 "$existing_pid" 2>/dev/null; then
+    echo "Failed to stop report server with pid $existing_pid" >&2
+    return 1
+  fi
+
+  clear_report_server_state
+  if [[ -n "$existing_port" ]]; then
+    echo "Stopped report server on http://$REPORT_SERVER_HOST:$existing_port/"
+  else
+    echo "Stopped report server."
+  fi
+}
+
+if [[ "$COMMAND" == "stop-report-server" ]]; then
+  stop_report_server
+  exit 0
+fi
+
 case "$PROFILE" in
   smoke)
     DEFAULT_USERS="1"
@@ -132,18 +241,11 @@ running_report_server_command() {
 ensure_report_server() {
   local existing_pid=""
   local existing_port=""
-  local existing_command=""
 
-  if [[ -f "$REPORT_SERVER_PID_FILE" && -f "$REPORT_SERVER_PORT_FILE" ]]; then
-    existing_pid="$(<"$REPORT_SERVER_PID_FILE")"
-    existing_port="$(<"$REPORT_SERVER_PORT_FILE")"
-    existing_command="$(running_report_server_command "$existing_pid")"
-
-    if [[ -n "$existing_command" && "$existing_command" == *"http.server"* && "$existing_command" == *"$ARTIFACTS_ROOT"* ]]; then
-      REPORT_SERVER_PORT="$existing_port"
-      REPORT_URL="http://$REPORT_SERVER_HOST:$REPORT_SERVER_PORT/latest/locust-report.html"
-      return 0
-    fi
+  if read -r existing_pid existing_port < <(resolve_report_server); then
+    REPORT_SERVER_PORT="$existing_port"
+    REPORT_URL="http://$REPORT_SERVER_HOST:$REPORT_SERVER_PORT/latest/locust-report.html"
+    return 0
   fi
 
   local port
