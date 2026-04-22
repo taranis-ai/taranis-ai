@@ -287,7 +287,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(all_rows).to_have_count(10)
 
             # search by an actual default source name instead of a stale hardcoded term
-            first_source_name = all_rows.first.locator("td").nth(2).inner_text().strip()
+            first_source_name = osint_table.locator("[data-testid^='osint-source-name-']").first.inner_text().strip()
             page.get_by_placeholder("Search...").fill(first_source_name)
             expect(all_rows).to_have_count(1)
             expect(all_rows.first).to_contain_text(first_source_name)
@@ -315,7 +315,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
             assert original_content == downloaded_content, "Downloaded file content does not match uploaded file content"
-            page.get_by_test_id("osint_source-table").locator("thead").get_by_role("checkbox").check()
+            osint_table = page.get_by_test_id("osint_source-table")
+            osint_table.locator("thead").get_by_role("checkbox").check()
             page.get_by_test_id("delete-osint_source-button").click()
             page.get_by_role("button", name="OK").click()
             self.dismiss_notification_if_visible(page)

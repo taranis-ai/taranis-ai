@@ -143,9 +143,22 @@ class TestCRUDViews:
 class TestSourceView:
     def test_get_columns_omits_icon_column(self):
         columns = SourceView.get_columns()
+        titles = [column["title"] for column in columns]
+        fields = [column["field"] for column in columns]
 
-        assert [column["title"] for column in columns] == ["State", "Name", "Feed"]
-        assert all(column["field"] != "icon" for column in columns)
+        assert {"State", "Name", "Feed"}.issubset(titles)
+        assert {"status", "name", "parameters"}.issubset(fields)
+        assert "icon" not in fields
+
+    def test_list_view_renders_source_name_cell_testid(self, authenticated_client, mock_core_get_endpoints):
+        source_payload = mock_core_get_endpoints["OSINT Source"]["items"][0]
+
+        resp = authenticated_client.get(SourceView.get_base_route())
+
+        assert resp.status_code == 200
+        assert "id" in source_payload
+        html = resp.get_data(as_text=True)
+        assert f'data-testid="osint-source-name-{source_payload["id"]}"' in html
 
     def test_import_post_view(self, authenticated_client, responses_mock):
         """

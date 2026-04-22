@@ -105,6 +105,7 @@ class SourceView(AdminMixin, BaseView):
                 "field": "name",
                 "sortable": True,
                 "renderer": render_truncated,
+                "cell_testid_prefix": "osint-source-name",
                 "render_args": {"field": "name"},
             },
             {"title": "Feed", "field": "parameters", "sortable": False, "renderer": render_source_parameter},
