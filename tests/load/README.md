@@ -16,11 +16,13 @@ From the repository root:
 ```bash
 ./dev/run_e2e_load_tests.sh --profile smoke
 ./dev/run_e2e_load_tests.sh --profile browser_load --users 4 --spawn-rate 1 --run-time 10m
+./dev/run_e2e_load_tests.sh --stop-report-server
 ```
 
 The runner keeps the newest completed artifact set linked at `tests/load/artifacts/latest/`.
 It also starts or reuses a small local HTTP server for `tests/load/artifacts/`, starting at `http://127.0.0.1:18081/` and moving to the next free port if needed.
 The exact Locust report URL is printed by the runner, and the preferred starting port can be changed with `--report-port` or `LOAD_TEST_REPORT_PORT`.
+Use `--stop-report-server` to stop that local HTTP server when you no longer need it.
 
 Defaults:
 
