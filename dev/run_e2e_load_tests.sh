@@ -11,6 +11,7 @@ REPORT_SERVER_PID_FILE="$ARTIFACTS_ROOT/.report-server.pid"
 REPORT_SERVER_LOG="$ARTIFACTS_ROOT/.report-server.log"
 REPORT_SERVER_PORT=""
 REPORT_URL=""
+COMMAND="run"
 
 PROFILE="smoke"
 USERS=""
@@ -25,7 +26,9 @@ LATEST_ARTIFACT_LINK="$ARTIFACTS_ROOT/latest"
 
 usage() {
   cat <<'EOF'
-Usage: ./dev/run_e2e_load_tests.sh [--profile smoke|browser_load] [--users N] [--spawn-rate N] [--run-time 2m] [--report-port N]
+Usage:
+  ./dev/run_e2e_load_tests.sh [--profile smoke|browser_load] [--users N] [--spawn-rate N] [--run-time 2m] [--report-port N]
+  ./dev/run_e2e_load_tests.sh --stop-report-server
 EOF
 }
 
@@ -50,6 +53,10 @@ while [[ $# -gt 0 ]]; do
     --report-port)
       REPORT_SERVER_START_PORT="$2"
       shift 2
+      ;;
+    --stop-report-server)
+      COMMAND="stop-report-server"
+      shift
       ;;
     --help|-h)
       usage
