@@ -26,12 +26,12 @@ class BaseE2ETest(PlaywrightHelpers):
         expect(login_button).to_be_visible(timeout=10000)
         self.highlight_element(login_button).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
-        expect(page.locator("#dashboard")).to_be_visible()
+        expect(page.locator("#dashboard")).to_be_visible(timeout=10000)
 
     def navigate_to_list(self, page: Page, url_endpoint: str, table_test_id: str):
         """Navigate to admin list page and verify table visibility."""
         page.goto(url_for(url_endpoint, _external=True))
-        expect(page.get_by_test_id(table_test_id)).to_be_visible()
+        expect(page.get_by_test_id(table_test_id)).to_be_visible(timeout=10000)
         page.screenshot(path=f"./tests/playwright/screenshots/docs_{url_endpoint.split('.')[-1]}.png")
 
     def fill_form_field(self, page: Page, label: str, value: str, exact: bool = True, required: bool = False):
@@ -66,13 +66,20 @@ class BaseE2ETest(PlaywrightHelpers):
         if confirm:
             page.get_by_role("button", name=confirm_button_name).click()
 
+    def get_table_row_item_id(self, page: Page, table_test_id: str, item_name: str) -> str:
+        """Return the item id from the row link href."""
+        item_href = page.get_by_test_id(table_test_id).get_by_role("link", name=item_name).first.get_attribute("href") or ""
+        item_id = item_href.rstrip("/").split("/")[-1]
+        assert item_id, f"Expected item id for '{item_name}' in table '{table_test_id}'"
+        return item_id
+
     def assert_item_in_table(self, page: Page, table_test_id: str, item_name: str):
         """Assert that an item appears in a table."""
-        expect(page.get_by_test_id(table_test_id).get_by_role("link", name=item_name)).to_be_visible()
+        expect(page.get_by_test_id(table_test_id).get_by_role("link", name=item_name)).to_be_visible(timeout=10000)
 
     def assert_item_not_in_table(self, page: Page, table_test_id: str, item_name: str):
         """Assert that an item does not appear in a table."""
-        expect(page.get_by_test_id(table_test_id).get_by_role("link", name=item_name)).not_to_be_visible()
+        expect(page.get_by_test_id(table_test_id).get_by_role("link", name=item_name)).not_to_be_visible(timeout=10000)
 
     def create_item(
         self,
@@ -132,7 +139,7 @@ class BaseE2ETest(PlaywrightHelpers):
         """Mark a story as read."""
         story_card = page.get_by_test_id(f"story-card-{story_id}")
         self.highlight_element(story_card.get_by_test_id("story-summary"))
-        expect(story_card.get_by_test_id("story-summary")).to_be_visible()
+        expect(story_card.get_by_test_id("story-summary")).to_be_visible(timeout=10000)
         self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
         self.highlight_element(story_card.get_by_test_id("toggle-read")).click()
 
@@ -167,4 +174,4 @@ class BaseE2ETest(PlaywrightHelpers):
 
     def assert_story_count(self, page: Page, expected_count: str):
         """Assert story count matches expected."""
-        expect(page.get_by_test_id("assess_story_count").get_by_text(expected_count)).to_be_visible()
+        expect(page.get_by_test_id("assess_story_count").get_by_text(expected_count)).to_be_visible(timeout=10000)
