@@ -1191,6 +1191,140 @@ paths:
         "404":
           $ref: "#/components/responses/404NotFound"
 
+  /tasks:
+    post:
+      tags: [config]
+      operationId: TaskCreate
+      description: submit a worker task result
+      security:
+        - APIKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/task_submission"
+      responses:
+        "200":
+          description: task result saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/task"
+        "400":
+          description: invalid payload
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+
+    get:
+      tags: [config]
+      operationId: TaskList
+      description: list task history and statistics
+      security:
+        - APIKey: []
+        - UserAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+        - name: fetch_all
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: task history response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/task_history_response"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+
+  /tasks/{task_id}:
+    parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [config]
+      operationId: TaskGet
+      description: get a single task result
+      security:
+        - APIKey: []
+        - UserAuth: []
+      responses:
+        "200":
+          description: task response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/task"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          description: task not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: PENDING
+                required: [status]
+
+    delete:
+      tags: [config]
+      operationId: TaskDelete
+      description: delete a task result
+      security:
+        - APIKey: []
+        - UserAuth: []
+      responses:
+        "200":
+          description: task deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                required: [message]
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /bots/news-item:
     get:
       security:
@@ -3800,6 +3934,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/parameter_value"
+        news_items_count:
+          type: integer
 
     osint_source_group:
       type: object
@@ -4103,6 +4239,135 @@ components:
           type: string
         message:
           type: string
+
+    task_submission:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: canonical task identifier
+        task_id:
+          type: string
+          minLength: 1
+          description: accepted input alias for id
+        task:
+          type: [string, "null"]
+        status:
+          type: string
+          minLength: 1
+        result:
+          description: JSON-serializable task payload
+      required:
+        - status
+      anyOf:
+        - required: [id]
+        - required: [task_id]
+
+    task:
+      type: object
+      properties:
+        id:
+          type: string
+        task:
+          type: [string, "null"]
+        result:
+          description: JSON payload stored as provided by the worker
+        status:
+          type: [string, "null"]
+        last_run:
+          type: [string, "null"]
+          format: date-time
+        last_success:
+          type: [string, "null"]
+          format: date-time
+      required:
+        - id
+
+    task_history_entry:
+      type: object
+      properties:
+        id:
+          type: string
+        task:
+          type: [string, "null"]
+        result:
+          description: JSON payload stored as provided by the worker
+        status:
+          type: [string, "null"]
+        last_run:
+          type: [string, "null"]
+          format: date-time
+        last_success:
+          type: [string, "null"]
+          format: date-time
+      required:
+        - id
+
+    task_history_stats:
+      type: object
+      properties:
+        last_run:
+          type: [string, "null"]
+        last_success:
+          type: [string, "null"]
+        last_run_display:
+          type: [string, "null"]
+        last_success_display:
+          type: [string, "null"]
+        successes:
+          type: integer
+        failures:
+          type: integer
+        total:
+          type: integer
+        success_pct:
+          type: integer
+        status_badge:
+          type: [object, "null"]
+          additionalProperties:
+            type: string
+      required:
+        - successes
+        - failures
+        - total
+        - success_pct
+
+    task_history_totals:
+      type: object
+      properties:
+        successes:
+          type: integer
+        failures:
+          type: integer
+        overall_success_rate:
+          type: integer
+      required:
+        - successes
+        - failures
+        - overall_success_rate
+
+    task_history_response:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/task_history_entry"
+        total_count:
+          type: integer
+        task_stats:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/task_history_stats"
+        totals:
+          $ref: "#/components/schemas/task_history_totals"
+      required:
+        - items
+        - total_count
+        - task_stats
+        - totals
 
   securitySchemes:
     APIKey:

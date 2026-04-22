@@ -2,6 +2,11 @@ from datetime import datetime, timedelta
 from typing import Annotated, Any, Literal
 from urllib.parse import urlparse, urlunparse
 
+from models.cache_contract import (
+    CACHE_DEFAULT_TIMEOUT_DEFAULT,
+    CACHE_ENABLED_DEFAULT,
+    CACHE_KEY_PREFIX_DEFAULT,
+)
 from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -56,8 +61,6 @@ class Settings(BaseSettings):
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
     DATA_FOLDER: str = "./taranis_data"  # When started with Docker, the path is /app/data
-    CACHE_TYPE: str = "SimpleCache"
-    CACHE_DEFAULT_TIMEOUT: int = 300
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
@@ -108,6 +111,11 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: SecretStr | None = None
+    CACHE_ENABLED: bool = CACHE_ENABLED_DEFAULT
+    CACHE_DEFAULT_TIMEOUT: int = CACHE_DEFAULT_TIMEOUT_DEFAULT
+    CACHE_KEY_PREFIX: str = CACHE_KEY_PREFIX_DEFAULT
+    CACHE_REDIS_URL: str | None = None
+    CACHE_REDIS_PASSWORD: SecretStr | None = None
 
     @field_validator("JWT_SECRET_KEY", "API_KEY", mode="before")
     def check_non_empty_string_or_secret(cls, v, info: ValidationInfo) -> str | SecretStr:

@@ -45,6 +45,8 @@ BCP47 = Annotated[str | None, BeforeValidator(validate_bcp47)]
 
 class NewsItem(TaranisBaseModel):
     _core_endpoint = "/assess/news-items"
+    _model_name = "news_item"
+    _pretty_name = "News Item"
 
     osint_source_id: str
     id: str | None = None

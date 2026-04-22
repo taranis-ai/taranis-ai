@@ -13,25 +13,32 @@ class TestWorkerApi:
         from core.model.task import Task
 
         task_id = f"presenter-task-{uuid.uuid4().hex}"
+        product_id = f"product-{uuid.uuid4().hex}"
 
         payload = {
             "id": task_id,
             "task": "presenter_task",
+            "worker_id": product_id,
+            "worker_type": "html_presenter",
             "result": {},
             "status": "SUCCESS",
         }
 
         try:
-            response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+            response = client.post("/api/tasks", json=payload, headers=api_header)
 
-            assert response.status_code == 201
+            assert response.status_code == 200
             assert response.get_json()["task"] == "presenter_task"
+            assert response.get_json()["worker_id"] == product_id
+            assert response.get_json()["worker_type"] == "html_presenter"
             assert response.get_json()["result"] == {}
 
             with app.app_context():
                 stored = Task.get(task_id)
                 assert stored is not None
                 assert stored.to_dict()["result"] == {}
+                assert stored.to_dict()["worker_id"] == product_id
+                assert stored.to_dict()["worker_type"] == "html_presenter"
                 assert stored.task == "presenter_task"
         finally:
             with app.app_context():
@@ -339,7 +346,7 @@ class TestWorkerApi:
 
 
 class TestWorkerTaskResults:
-    base_uri = "/api/worker"
+    base_uri = "/api/tasks"
 
     @pytest.mark.parametrize(
         ("payload", "expected_error"),
@@ -351,20 +358,20 @@ class TestWorkerTaskResults:
         ],
     )
     def test_worker_task_results_rejects_missing_or_invalid_required_fields(self, client, api_header, payload, expected_error):
-        response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+        response = client.post(self.base_uri, json=payload, headers=api_header)
 
         assert response.status_code == 400
         assert expected_error in response.get_json()["error"]
 
     def test_worker_task_results_rejects_invalid_task_field(self, client, api_header):
-        response = client.put(
-            f"{self.base_uri}/task-results",
+        response = client.post(
+            self.base_uri,
             json={"id": "task-1", "task": ["bad"], "result": {}, "status": "SUCCESS"},
             headers=api_header,
         )
 
         assert response.status_code == 400
-        assert response.get_json()["error"] == "Invalid task field"
+        assert "task" in response.get_json()["error"]
 
     def test_worker_task_results_updates_product_render(self, client, api_header, app, cleanup_product):
         from core.model.product import Product
@@ -385,9 +392,9 @@ class TestWorkerTaskResults:
         }
 
         try:
-            response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+            response = client.post(self.base_uri, json=payload, headers=api_header)
 
-            assert response.status_code == 201
+            assert response.status_code == 200
             with app.app_context():
                 product = Product.get(product_id)
                 assert product is not None
@@ -405,15 +412,17 @@ class TestWorkerTaskResults:
         task_id = f"cron-bot-wordlist-{uuid.uuid4().hex}"
         payload = {
             "id": task_id,
-            "task": f"bot_{wordlist_bot_result['result']['bot_id']}",
+            "task": f"bot_{wordlist_bot_result['worker_id']}",
+            "worker_id": wordlist_bot_result["worker_id"],
+            "worker_type": wordlist_bot_result["worker_type"],
             "result": wordlist_bot_result["result"],
             "status": "SUCCESS",
         }
 
         try:
-            response = client.put(f"{self.base_uri}/task-results", json=payload, headers=api_header)
+            response = client.post(self.base_uri, json=payload, headers=api_header)
 
-            assert response.status_code == 201
+            assert response.status_code == 200
 
             for story_id in stories:
                 story_response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
@@ -421,15 +430,58 @@ class TestWorkerTaskResults:
 
                 story_data = story_response.get_json()
                 structured_tags = {tag["name"]: tag["tag_type"] for tag in story_data.get("tags", [])}
-                expected_tags = wordlist_bot_result["result"]["result"].get(story_id, {})
+                expected_tags = wordlist_bot_result["result"].get(story_id, {})
 
                 assert structured_tags == expected_tags
                 attr_by_key = {attribute.get("key"): attribute.get("value") for attribute in story_data.get("attributes", [])}
-                assert attr_by_key["WORDLIST_BOT"].startswith(f"bot_id={wordlist_bot_result['result']['bot_id']}")
+                assert attr_by_key["WORDLIST_BOT"].startswith(f"worker_id={wordlist_bot_result['worker_id']}")
         finally:
             with app.app_context():
                 if Task.get(task_id):
                     Task.delete(task_id)
+
+    def test_task_submission_accepts_task_id_alias(self, client, api_header, app):
+        from core.model.task import Task
+
+        task_id = f"alias-task-{uuid.uuid4().hex}"
+        payload = {
+            "task_id": task_id,
+            "task": "collector_task",
+            "result": {"message": "ok"},
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+            assert response.status_code == 200
+            assert response.get_json()["id"] == task_id
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_tasks_get_allows_jwt_auth(self, client, auth_header):
+        response = client.get(self.base_uri, headers=auth_header)
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert isinstance(payload, dict)
+        assert "items" in payload
+        assert "task_stats" in payload
+        assert "totals" in payload
+
+    def test_tasks_get_allows_api_key_auth(self, client, api_header):
+        response = client.get(self.base_uri, headers=api_header)
+        assert response.status_code == 200
+
+    def test_tasks_delete_allows_jwt_auth(self, client, auth_header, app):
+        from core.model.task import Task
+
+        task_id = f"delete-task-{uuid.uuid4().hex}"
+        with app.app_context():
+            Task.add({"id": task_id, "task": "collector_task", "result": {"message": "ok"}, "status": "SUCCESS"})
+
+        response = client.delete(f"{self.base_uri}/{task_id}", headers=auth_header)
+        assert response.status_code == 200
 
 
 class TestConnector:
@@ -549,7 +601,7 @@ class TestOSINTSourceScheduling:
             }
         }
 
-        response = client.put("/api/admin/settings", json=settings_payload, headers=auth_header)
+        response = client.put("/api/settings/settings", json=settings_payload, headers=auth_header)
         assert response.status_code == 200, f"Failed to set settings for row {row}: {response}"
 
         source_id = "test_id"

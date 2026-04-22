@@ -5,6 +5,7 @@ from flask_jwt_extended import current_user, jwt_required
 from core.config import Config
 from core.managers.sse_manager import sse_manager
 from core.model.user import User
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 
 
 class UserInfo(MethodView):
@@ -22,13 +23,17 @@ class UserProfile(MethodView):
     def put(self):
         if not (json_data := request.json):
             return {"error": "No input data provided"}, 400
-        return User.update_profile(current_user, json_data)
+        response, status = User.update_profile(current_user, json_data)
+        invalidate_frontend_cache_on_success(status, scopes=("trending_clusters",), user_profiles=(current_user.username,))
+        return response, status
 
     @jwt_required()
     def post(self):
         if not (json_data := request.json):
             return {"error": "No input data provided"}, 400
-        return User.update_profile(current_user, json_data)
+        response, status = User.update_profile(current_user, json_data)
+        invalidate_frontend_cache_on_success(status, scopes=("trending_clusters",), user_profiles=(current_user.username,))
+        return response, status
 
 
 class SSEConnected(MethodView):

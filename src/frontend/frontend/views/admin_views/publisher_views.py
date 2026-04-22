@@ -3,6 +3,7 @@ from typing import Any
 from flask import render_template, request
 from models.admin import ProductType, PublisherPreset, ReportItemType, Template
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
+from werkzeug.exceptions import HTTPException
 
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_item_type
@@ -89,6 +90,8 @@ class ProductTypeView(AdminMixin, BaseView):
         try:
             form_data = parse_formdata(request.form)
             return cls.store_form_data(form_data, object_id)
+        except HTTPException:
+            raise
         except Exception as exc:
             return None, str(exc)
 

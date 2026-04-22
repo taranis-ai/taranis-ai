@@ -1,10 +1,9 @@
 from typing import Any
 
 from flask import request
-from models.admin import Attribute, ReportItemType
+from models.admin import Attribute
 from models.types import AttributeType
 
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_item_type
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
@@ -32,10 +31,7 @@ class AttributeView(AdminMixin, BaseView):
         try:
             form_data = parse_formdata(request.form)
             logger.debug(f"Parsed form data: {form_data}")
-            core_response, error = cls.store_form_data(form_data, object_id)
-            if core_response and not error:
-                DataPersistenceLayer().invalidate_cache_by_object(ReportItemType)
-            return core_response, error
+            return cls.store_form_data(form_data, object_id)
         except Exception as exc:
             logger.exception("Error processing form data for Attribute")
             return None, str(exc)

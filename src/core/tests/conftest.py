@@ -112,6 +112,16 @@ def access_token(app):
 
 
 @pytest.fixture
+def admin_user(app):
+    with app.app_context():
+        from core.model.user import User
+
+        admin = User.find_by_name("admin")
+        assert admin is not None, "Admin user not found in database"
+        yield admin
+
+
+@pytest.fixture
 def auth_header(access_token):
     return {
         "Authorization": f"Bearer {access_token}",

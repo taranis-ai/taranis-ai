@@ -14,14 +14,14 @@
     "npm:@codemirror/view@^6.41.0": "6.41.0",
     "npm:@tailwindcss/cli@*": "4.2.2",
     "npm:@tailwindcss/cli@^4.2.2": "4.2.2",
-    "npm:alpinejs@*": "3.15.10",
-    "npm:alpinejs@^3.15.10": "3.15.10",
-    "npm:choices.js@*": "11.2.1",
-    "npm:choices.js@^11.2.1": "11.2.1",
+    "npm:alpinejs@*": "3.15.11",
+    "npm:alpinejs@^3.15.11": "3.15.11",
+    "npm:choices.js@*": "11.2.2",
+    "npm:choices.js@^11.2.2": "11.2.2",
     "npm:codemirror@^6.0.2": "6.0.2",
     "npm:daisyui@^5.5.19": "5.5.19",
-    "npm:fuse.js@*": "7.1.0",
-    "npm:fuse.js@^7.1.0": "7.1.0",
+    "npm:fuse.js@*": "7.3.0",
+    "npm:fuse.js@^7.3.0": "7.3.0",
     "npm:highlight-search-term@*": "1.0.3",
     "npm:highlight-search-term@^1.0.3": "1.0.3",
     "npm:htmx-ext-response-targets@*": "2.0.4",
@@ -356,14 +356,14 @@
     "@vue/shared@3.1.5": {
       "integrity": "sha512-oJ4F3TnvpXaQwZJNF3ZK+kLPHKarDmJjJ6jyzVNDKH9md1dptjC7lWR//jrGuLdek/U6iltWxqAnYOu8gCiOvA=="
     },
-    "alpinejs@3.15.10": {
-      "integrity": "sha512-WIWpBws5uNQlrqDf791PPbArItCsY4itOMnI3xk9vCwpNgcsa10ek2sBQsLNTdvWq2LOv12A6GZXMUqu5JDJXw==",
+    "alpinejs@3.15.11": {
+      "integrity": "sha512-m26gkTg/MId8O+F4jHKK3vB3SjbFxxk/JHP+qzmw1H6aQrZuPAg4CUoAefnASzzp/eNroBjrRQe7950bNeaBJw==",
       "dependencies": [
         "@vue/reactivity"
       ]
     },
-    "choices.js@11.2.1": {
-      "integrity": "sha512-SyA0FRr0+UHOjKO/9oR0/hVYRgk3v5C9ZD+CLnQfLFR7ZSiNb/rQeAUOsqXaPTk/552X5dtvRaDiG94Ga7G2Gg==",
+    "choices.js@11.2.2": {
+      "integrity": "sha512-fvG4GcRTXw13SEKYzxydxikmN54PSTagO9SQaZwthr5g/L3iM4iVER8Mmy+9Ei50Df/XAqHItSmqcjZHx7tfhA==",
       "dependencies": [
         "fuse.js"
       ]
@@ -396,8 +396,8 @@
         "tapable"
       ]
     },
-    "fuse.js@7.1.0": {
-      "integrity": "sha512-trLf4SzuuUxfusZADLINj+dE8clK1frKdmqiJNb1Es75fmI5oY6X2mxLVUciLLjxqw/xr72Dhy+lER6dGd02FQ=="
+    "fuse.js@7.3.0": {
+      "integrity": "sha512-plz8RVjfcDedTGfVngWH1jmJvBvAwi1v2jecfDerbEnMcmOYUEEwKFTHbNoCiYyzaK2Ws8lABkTCcRSqCY1q4w=="
     },
     "graceful-fs@4.2.11": {
       "integrity": "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="
@@ -550,11 +550,11 @@
       "npm:@codemirror/state@^6.6.0",
       "npm:@codemirror/view@^6.41.0",
       "npm:@tailwindcss/cli@^4.2.2",
-      "npm:alpinejs@^3.15.10",
-      "npm:choices.js@^11.2.1",
+      "npm:alpinejs@^3.15.11",
+      "npm:choices.js@^11.2.2",
       "npm:codemirror@^6.0.2",
       "npm:daisyui@^5.5.19",
-      "npm:fuse.js@^7.1.0",
+      "npm:fuse.js@^7.3.0",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",
       "npm:htmx.org@^2.0.8",

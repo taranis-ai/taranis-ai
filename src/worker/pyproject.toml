@@ -50,6 +50,7 @@ dynamic = ["version"]
 [project.scripts]
 taranis-cron = "worker.cron_scheduler_main:main"
 taranis-worker = "worker:start_worker"
+taranis-worker-healthcheck = "worker.healthcheck:main"
 
 [project.optional-dependencies]
 dev = [
@@ -122,6 +123,7 @@ reportIncompatibleVariableOverride = "none"
 reportIncompatibleMethodOverride = "none"
 
 [tool.uv]
+config-settings = { editable_mode = "compat" }
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",

@@ -117,12 +117,12 @@ class TestTaggingBotsResults(BaseTest):
 
             structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
 
-            expected_tags = wordlist_bot_result["result"]["result"].get(story_id, {})
+            expected_tags = wordlist_bot_result["result"].get(story_id, {})
             assert structured_tags == expected_tags
 
             attr_by_key = {a.get("key"): a.get("value") for a in response.get_json().get("attributes", [])}
             assert attr_by_key["TLP"] == "clear"
-            assert str(attr_by_key["WORDLIST_BOT"]).startswith("bot_id=")
+            assert str(attr_by_key["WORDLIST_BOT"]).startswith("worker_id=")
 
     def test_check_story_tags_after_ioc_bot(
         self,
@@ -141,8 +141,8 @@ class TestTaggingBotsResults(BaseTest):
             structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
 
             expected = {}
-            expected |= wordlist_bot_result["result"]["result"].get(story_id, {})
-            expected |= ioc_bot_result["result"]["result"].get(story_id, {})
+            expected |= wordlist_bot_result["result"].get(story_id, {})
+            expected |= ioc_bot_result["result"].get(story_id, {})
 
             assert structured_tags == expected
 
@@ -165,17 +165,17 @@ class TestTaggingBotsResults(BaseTest):
             structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
 
             expected = {}
-            expected |= wordlist_bot_result["result"]["result"].get(story_id, {})
-            expected |= ioc_bot_result["result"]["result"].get(story_id, {})
-            expected |= nlp_bot_result["result"]["result"].get(story_id, {})
+            expected |= wordlist_bot_result["result"].get(story_id, {})
+            expected |= ioc_bot_result["result"].get(story_id, {})
+            expected |= nlp_bot_result["result"].get(story_id, {})
 
             assert structured_tags == expected
 
             attr_by_key = {a.get("key"): a.get("value") for a in response.get_json().get("attributes", [])}
             assert attr_by_key["TLP"] == "clear"
-            assert attr_by_key["WORDLIST_BOT"].startswith("bot_id=")
-            assert attr_by_key["IOC_BOT"].startswith("bot_id=")
-            assert attr_by_key["NLP_BOT"].startswith("bot_id=")
+            assert attr_by_key["WORDLIST_BOT"].startswith("worker_id=")
+            assert attr_by_key["IOC_BOT"].startswith("worker_id=")
+            assert attr_by_key["NLP_BOT"].startswith("worker_id=")
 
 
 class TestConnectorTaskResults(BaseTest):
@@ -200,7 +200,6 @@ class TestConnectorTaskResults(BaseTest):
                     }
                 ],
             },
-            "traceback": None,
             "task": "connector_task",
         }
 
@@ -215,7 +214,6 @@ class TestConnectorTaskResults(BaseTest):
                 "message": "1 proposals submitted to MISP",
                 "sync_results": [],
             },
-            "traceback": None,
             "task": "connector_task",
         }
 
@@ -328,7 +326,6 @@ class TestConnectorTaskResults(BaseTest):
                     "message": "Connector finished with mixed results",
                     "sync_results": [{"type": "unknown_connector_result"}],
                 },
-                "traceback": None,
                 "task": "connector_task",
             },
             headers=api_header,

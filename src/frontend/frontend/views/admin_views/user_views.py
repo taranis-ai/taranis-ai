@@ -72,7 +72,6 @@ class UserView(AdminMixin, BaseView):
             error = "Failed to import users"
             return cls.import_view(error)
 
-        DataPersistenceLayer().invalidate_cache_by_object(User)
         return Response(status=200, headers={"HX-Refresh": "true"})
 
     @classmethod

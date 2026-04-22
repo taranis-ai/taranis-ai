@@ -131,7 +131,7 @@ def test_pool_options_applied_to_actual_engine(app):
         assert db.engine is not None
         assert db.engine.pool is not None
 
-        assert db.engine.pool.size() == 20
+        assert db.engine.pool.size() == 20  # type: ignore
 
 
 def test_pool_options_with_custom_values_applied_to_engine(monkeypatch, clear_pool_env_vars):

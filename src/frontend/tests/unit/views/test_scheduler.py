@@ -12,13 +12,9 @@ def _requested_core_paths(responses_mock):
 
 @pytest.fixture(autouse=True)
 def _clear_scheduler_cache():
-    for key in list(cache.cache._cache.keys()):
-        if not str(key).startswith("user_cache_"):
-            cache.delete(key)
+    cache.clear()
     yield
-    for key in list(cache.cache._cache.keys()):
-        if not str(key).startswith("user_cache_"):
-            cache.delete(key)
+    cache.clear()
 
 
 @pytest.mark.parametrize(
@@ -86,7 +82,7 @@ def test_scheduler_dashboard_initial_render_uses_aggregate_endpoints(authenticat
     assert response.status_code == 200
     requested_paths = _requested_core_paths(responses_mock)
     assert "/config/workers/dashboard" in requested_paths
-    assert "/config/task-results" in requested_paths
+    assert "/tasks" in requested_paths
     assert "/config/schedule" not in requested_paths
     assert "/config/workers/tasks" not in requested_paths
     assert "/config/workers/stats" not in requested_paths
@@ -101,7 +97,7 @@ def test_scheduler_dashboard_initial_render_uses_aggregate_endpoints(authenticat
         ("admin.scheduler_queue_cards", ["/config/workers/tasks", "/config/workers/stats"], "Collectors"),
         ("admin.scheduler_active_jobs", ["/config/workers/active"], "Running Bot"),
         ("admin.scheduler_failed_jobs", ["/config/workers/failed"], "Failed Connector"),
-        ("admin.scheduler_history", ["/config/task-results"], "Success Rate"),
+        ("admin.scheduler_history", ["/tasks"], "Success Rate"),
     ],
 )
 def test_scheduler_htmx_partials_use_granular_endpoints(
@@ -122,3 +118,17 @@ def test_scheduler_htmx_partials_use_granular_endpoints(
     assert _requested_core_paths(responses_mock) == expected_paths
     assert "/config/workers/dashboard" not in _requested_core_paths(responses_mock)
     assert expected_text in response.get_data(as_text=True)
+
+
+def test_scheduler_history_displays_worker_type_and_hover_worker_id(
+    authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_history")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "WORDLIST_BOT" in html
+    assert 'title="Worker ID: bot-1"' in html
