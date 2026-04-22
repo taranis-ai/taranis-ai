@@ -280,7 +280,8 @@ class TestEndToEndUser(PlaywrightHelpers):
             story_card().get_by_test_id("story-actions-menu").click()
             story_card().get_by_test_id("toggle-important").click()
             story_card().get_by_test_id("story-actions-menu").click()
-            story_card().get_by_test_id("share-story").click()
+            share_story = story_card().get_by_test_id("share-story")
+            share_story.dispatch_event("click")
             page.get_by_role("button", name="✕").click()
             story_card().get_by_test_id("open-detail-view").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(title)
@@ -368,9 +369,14 @@ class TestEndToEndUser(PlaywrightHelpers):
         expect(story).to_be_visible()
         story_title = story.get_by_test_id("story-title").inner_text()
         assert story_title in possible_story_titles
+        story_id = story.get_attribute("data-story-id")
+        assert story_id, "Expected story card to expose a story id"
+
+        story = page.locator(f'article[data-story-id="{story_id}"]')
 
         story.get_by_test_id("story-actions-menu").click()
-        story.get_by_test_id("share-story").click()
+        share_story = story.get_by_test_id("share-story")
+        share_story.dispatch_event("click")
 
         dialog = page.locator("#share_story_to_connector_dialog")
         expect(dialog).to_be_visible()
