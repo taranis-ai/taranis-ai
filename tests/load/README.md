@@ -1,6 +1,6 @@
-# Load testing
+# End-to-end load testing
 
-Manual browser load testing for Taranis AI using Locust and `locust-plugins` Playwright users.
+Manual browser end-to-end load testing for Taranis AI using Locust and `locust-plugins` Playwright users.
 
 ## What it does
 
@@ -14,13 +14,13 @@ Manual browser load testing for Taranis AI using Locust and `locust-plugins` Pla
 From the repository root:
 
 ```bash
-./dev/run_load_tests.sh --profile smoke
-./dev/run_load_tests.sh --profile browser_load --users 4 --spawn-rate 1 --run-time 10m
+./dev/run_e2e_load_tests.sh --profile smoke
+./dev/run_e2e_load_tests.sh --profile browser_load --users 4 --spawn-rate 1 --run-time 10m
 ```
 
-The runner copies each finished artifact set to `/tmp/taranis-load-reports/` and updates `/tmp/taranis-load-reports/latest/`.
-With the local nginx config from `dev/nginx.conf`, the newest report is available at `http://local.taranis.ai/load-reports/latest/locust-report.html`.
-If your local nginx still uses an older copy of `dev/nginx.conf`, copy the updated file into your nginx config and reload nginx once.
+The runner keeps the newest completed artifact set linked at `tests/load/artifacts/latest/`.
+It also starts or reuses a small local HTTP server for `tests/load/artifacts/`, starting at `http://127.0.0.1:18081/` and moving to the next free port if needed.
+The exact Locust report URL is printed by the runner, and the preferred starting port can be changed with `--report-port` or `LOAD_TEST_REPORT_PORT`.
 
 Defaults:
 
@@ -28,7 +28,7 @@ Defaults:
 - `browser_load`: `4` browser users, `1/s`, `10m`
 
 Artifacts are written to a timestamped directory below `tests/load/artifacts/`.
-The latest run is also linked at `tests/load/artifacts/latest/`, so the newest HTML report is always available at `tests/load/artifacts/latest/locust-report.html`.
+The newest HTML report is always linked at `tests/load/artifacts/latest/locust-report.html`.
 
 ## Notes
 
