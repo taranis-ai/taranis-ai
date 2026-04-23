@@ -252,7 +252,7 @@ class BaseView(MethodView):
             "submit_text": f"Update {cls.pretty_name()}",
         }
 
-        context[model_context_key] = model_instance or cls.model.model_construct(id="0")
+        context[model_context_key] = model_instance if model_instance is not None else cls.model.model_construct(id="0")
 
         if response_message:
             context["message"] = response_message
@@ -527,18 +527,17 @@ class BaseView(MethodView):
         cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None
     ) -> tuple[str, int]:
         submitted_model = cls._submitted_form_model(object_id)
-        response_object_id, model_instance, response_message = cls.resolve_update_response(object_id, resp_obj)
-        context = (
-            cls.get_create_context()
-            if object_id == 0
-            else cls.get_update_context(
+        if object_id == 0:
+            context = cls.get_create_context()
+        else:
+            response_object_id, model_instance, response_message = cls.resolve_update_response(object_id, resp_obj)
+            context = cls.get_update_context(
                 object_id,
                 error=error,
                 model_instance=model_instance,
                 response_message=response_message,
                 form_action_object_id=response_object_id,
             )
-        )
 
         if object_id == 0:
             if error:
