@@ -1135,27 +1135,24 @@ class QueueManager:
             logger.exception(f"Failed to get worker stats: {e}")
             return {"error": f"Failed to get worker stats: {str(e)}"}, 500
 
-    def autopublish_product(self, product_id: str, auto_publisher_id: str) -> bool:
+    @staticmethod
+    def _build_unique_job_id(task_name: str, product_id: str) -> str:
+        return f"{task_name}_{product_id}_{time.time_ns()}"
+
+    def autopublish_product(self, product_id: str, auto_publisher_id: str) -> tuple[dict[str, Any], int]:
         """Render a product and publish it once rendering finishes."""
         if self.error or not self._redis:
             logger.error("QueueManager not initialized, cannot autopublish product %s", product_id)
-            return False
+            return {"error": "QueueManager not initialized"}, 500
 
-        presenter_job_id = f"presenter_task_{product_id}"
+        presenter_job_id = self._build_unique_job_id("presenter_task", product_id)
         presenter_job = self.enqueue_task("presenters", "presenter_task", product_id, job_id=presenter_job_id)
 
         if not presenter_job:
-            try:
-                presenter_job = Job.fetch(presenter_job_id, connection=self._redis)
-                logger.debug("Reusing existing presenter job %s for product %s", presenter_job_id, product_id)
-            except NoSuchJobError:
-                logger.error("Presenter job %s could not be enqueued and no existing job was found", presenter_job_id)
-                return False
-            except Exception as exc:  # pragma: no cover - defensive catch for Redis errors
-                logger.error("Could not schedule presenter job %s: %s", presenter_job_id, exc)
-                return False
+            logger.error("Could not schedule presenter job %s for product %s", presenter_job_id, product_id)
+            return {"error": f"Could not schedule presenter job for product {product_id}"}, 500
 
-        publisher_job_id = f"publisher_task_{product_id}"
+        publisher_job_id = self._build_unique_job_id("publisher_task", product_id)
         publisher_job = self.enqueue_task(
             "publishers",
             "publisher_task",
@@ -1167,15 +1164,20 @@ class QueueManager:
 
         if not publisher_job:
             logger.error("Could not schedule publisher job %s for product %s", publisher_job_id, product_id)
-            return False
+            return {"error": f"Could not schedule publisher job for product {product_id}"}, 500
 
+        message = f"Autopublishing Product: {product_id} with publisher: {auto_publisher_id} scheduled"
         logger.info(
             "Autopublish scheduled: presenter job %s -> publisher job %s for product %s",
             presenter_job_id,
             publisher_job_id,
             product_id,
         )
-        return True
+        return {
+            "message": message,
+            "presenter_job_id": presenter_job_id,
+            "publisher_job_id": publisher_job_id,
+        }, 200
 
 
 def initialize(app: Flask, initial_setup: bool = True):

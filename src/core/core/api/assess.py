@@ -159,6 +159,10 @@ class Stories(MethodView):
             return {"error": "No story ids provided"}, 400
         story_ids = data_json.get("story_ids")
         payload = data_json.get("payload")
+        if not isinstance(story_ids, list) or not story_ids:
+            return {"error": "No story ids provided"}, 400
+        if payload is not None and not isinstance(payload, dict):
+            return {"error": "Invalid payload provided"}, 400
         result_dict = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
         for s in [story.Story.get(sid) for sid in story_ids if sid]:
             if not s:
@@ -300,13 +304,17 @@ class BotActions(MethodView):
 class Connectors(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
     @extract_args("search", "page", "limit", "offset", "sort", "order", "fetch_all")
-    def get(self, filter_args: dict | None = None):
+    def get(self, connector_id: str | None = None, filter_args: dict | None = None):
+        if connector_id:
+            return connector.Connector.get_for_api(connector_id)
         return connector.Connector.get_all_for_user_api(filter_args, user=current_user)
 
     @auth_required("CONNECTOR_USER_ACCESS")
     @validate_json
-    def post(self, connector_id):
+    def post(self, connector_id: str | None = None):
         """Send stories to an external system."""
+        if not connector_id:
+            return {"error": "No connector_id provided"}, 400
         if not request.json:
             return {"error": "Invalid JSON payload"}, 400
 
