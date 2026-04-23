@@ -3,6 +3,7 @@ from typing import Any
 
 from flask import request
 from models.admin import Template
+from werkzeug.exceptions import HTTPException
 
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
@@ -62,6 +63,8 @@ class TemplateView(AdminMixin, BaseView):
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
             return (result.json(), None) if result.ok else (None, result.json().get("error"))
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)

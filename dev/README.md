@@ -2,6 +2,24 @@
 
 Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json).
 
+## Optional local signoff
+
+This repo accepts either a successful `test and lint` workflow run or a successful local `gh signoff` on the current PR head commit. See [basecamp/gh-signoff](https://github.com/basecamp/gh-signoff/blob/main/README.md) for upstream details.
+
+Setup:
+
+```bash
+gh auth login
+gh extension install basecamp/gh-signoff
+```
+
+Workflow:
+
+1. Push your branch and create or update the pull request.
+2. Run `./dev/signoff.sh` from the repository root. It runs the same local lint, unit test, and e2e scope as the PR workflow, then calls `gh signoff` only if everything passes.
+3. Run `./dev/signoff.sh` again after every new commit you push.
+4. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the fallback path.
+
 ## Easy Mode
 
 Clone Repository

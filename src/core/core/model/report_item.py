@@ -409,6 +409,9 @@ class ReportItem(BaseModel):
                 date_limit = date_limit.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                 query = query.filter(ReportItem.created >= date_limit)
 
+        if story_id := filter_args.get("story_id"):
+            query = query.filter(cls.stories.any(Story.id == story_id))
+
         completed = filter_args.get("completed", "").lower()
         if completed == "true":
             query = query.filter(ReportItem.completed)

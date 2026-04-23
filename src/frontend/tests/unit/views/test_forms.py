@@ -20,7 +20,7 @@ def test_users_form_put(users_get_mock, users_put_mock, authenticated_client, ht
     assert response.headers["Location"] == url_for("admin.users")
 
 
-def test_users_form_delete(users_delete_mock, authenticated_client, htmx_header):
+def test_users_form_delete(users_delete_mock, users_get_mock, organizations_get_mock, roles_get_mock, authenticated_client, htmx_header):
     response = authenticated_client.delete(url_for("admin.edit_user", user_id=2), headers=htmx_header)
 
     tree = html.fromstring(response.text)

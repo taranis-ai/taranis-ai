@@ -10,6 +10,7 @@ from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model import bot, news_item, story
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 
 
 class BotGroupAction(MethodView):
@@ -20,6 +21,7 @@ class BotGroupAction(MethodView):
             return {"error": "No story ids provided"}, 400
         response, code = story.Story.group_stories(story_ids)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
 
 
@@ -31,6 +33,7 @@ class BotGroupMultipleAction(MethodView):
             return {"error": "No stories provided"}, 400
         response, code = story.Story.group_multiple_stories(story_ids)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
 
 
@@ -42,6 +45,7 @@ class BotUnGroupAction(MethodView):
             return {"error": "No news items provided"}, 400
         response, code = story.Story.ungroup_news_items_from_story(newsitem_ids)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
 
 
@@ -63,7 +67,9 @@ class NewsItem(MethodView):
             if not request.json:
                 return {"Not update data provided"}
             if language := request.json.get("language"):
-                return news_item.NewsItem.update_news_item_lang(news_item_id, language)
+                response, status = news_item.NewsItem.update_news_item_lang(news_item_id, language)
+                invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+                return response, status
             return {"Not implemented"}
         except Exception as e:
             logger.error(str(e))
@@ -73,7 +79,9 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @api_key_required
     def put(self, news_item_id):
-        return news_item.NewsItem.update_attributes(news_item_id, request.json)
+        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json)
+        invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+        return response, status
 
 
 class StoryAttributes(MethodView):
@@ -94,6 +102,7 @@ class StoryAttributes(MethodView):
             current_story.updated = current_story.utcnow()
             current_story.record_revision(note="update_story_attributes")
             db.session.commit()
+            invalidate_frontend_cache_on_success(200, models=("story", "report_item"), object_ids={"story": story_id})
             return {"message": f"Story {story_id} updated successfully"}, 200
         return {"error": f"Story {story_id} not found"}, 404
 
@@ -107,6 +116,7 @@ class UpdateStory(MethodView):
     def put(self, story_id: str):
         result = story.Story.update(story_id, request.json)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(result[1], models=("story", "report_item"), object_ids={"story": story_id})
         return result
 
 
@@ -121,6 +131,7 @@ class BotsInfo(MethodView):
     @api_key_required
     def put(self, bot_id):
         if bot_result := bot.Bot.update(bot_id, request.json):
+            invalidate_frontend_cache_on_success(200, models=("bot",), scopes=("schedule",), object_ids={"bot": bot_id})
             return {"message": f"Bot {bot_result.name} updated", "id": bot_result.id}, 200
         return {"message": f"Bot {bot_id} not found"}, 404
 

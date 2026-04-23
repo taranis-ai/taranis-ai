@@ -96,6 +96,53 @@ class TestAnalyzeApi(BaseTest):
                     if ReportItem.get(payload["id"]):
                         ReportItem.delete(payload["id"])
 
+    def test_get_reports_filters_by_story_id(self, client, auth_header, cleanup_report_item, stories, app):
+        from core.model.report_item import ReportItem
+
+        unique_suffix = uuid4().hex
+        target_report_id = f"target-{unique_suffix}"
+        other_report_id = f"other-{unique_suffix}"
+
+        payloads = [
+            {
+                "id": target_report_id,
+                "title": f"Story Filter Report {unique_suffix}",
+                "completed": False,
+                "report_item_type_id": cleanup_report_item["report_item_type_id"],
+                "stories": [stories[0]],
+            },
+            {
+                "id": other_report_id,
+                "title": f"Story Filter Report {unique_suffix}",
+                "completed": False,
+                "report_item_type_id": cleanup_report_item["report_item_type_id"],
+                "stories": [stories[1]],
+            },
+        ]
+
+        with app.app_context():
+            for payload in payloads:
+                report_item, status = ReportItem.add(payload)
+                assert status == 200
+                assert report_item.id == payload["id"]
+
+        try:
+            response = self.assert_get_ok(
+                client,
+                f"report-items?search={unique_suffix}&story_id={stories[0]}",
+                auth_header,
+            )
+            payload = response.get_json()
+
+            assert payload["total_count"] == 1
+            assert [item["id"] for item in payload["items"]] == [target_report_id]
+            assert payload["items"][0]["stories"] == [stories[0]]
+        finally:
+            with app.app_context():
+                for report_id in (target_report_id, other_report_id):
+                    if ReportItem.get(report_id):
+                        ReportItem.delete(report_id)
+
     def test_update_report(self, client, auth_header, cleanup_report_item):
         """
         PUT to /api/analyze/report-items/<report_id> endpoint to update an existing report

@@ -14,6 +14,7 @@ from core.managers.sse_manager import sse_manager
 from core.model import connector, news_item, news_item_tag, osint_source, story
 from core.model.revision import StoryRevision
 from core.model.story_conflict import StoryConflict
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.news_item import NewsItemService
 from core.service.story import StoryService
 
@@ -51,6 +52,7 @@ class NewsItems(MethodView):
         data_json["osint_source_id"] = "manual"
         result, status = story.Story.add_single_news_item(data_json)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
         return result, status
 
 
@@ -58,7 +60,11 @@ class NewsItemFetch(MethodView):
     @auth_required("ASSESS_CREATE")
     def post(self):
         if parameters := request.get_json():
-            return StoryService.fetch_and_create_story(parameters)
+            if not isinstance(parameters, dict) or not parameters.get("parameters") or not parameters.get("id"):
+                return {"error": "Couldn't create News Item"}, 400
+            response, status = StoryService.fetch_and_create_story(parameters)
+            invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
+            return response, status
 
         return {"error": "Couldn't create News Item"}, 400
 
@@ -73,6 +79,7 @@ class NewsItem(MethodView):
     def put(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
         return response, code
 
     @auth_required("ASSESS_UPDATE")
@@ -80,19 +87,23 @@ class NewsItem(MethodView):
     def patch(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
         return response, code
 
     @auth_required("ASSESS_DELETE")
     def delete(self, item_id: str):
         response, code = NewsItemService.delete(item_id, current_user)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
         return response, code
 
 
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self, news_item_id: str):
-        return news_item.NewsItem.update_attributes(news_item_id, request.json)
+        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json)
+        invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+        return response, status
 
 
 class Stories(MethodView):
@@ -137,6 +148,10 @@ class Stories(MethodView):
             return {"error": "No story ids provided"}, 400
         story_ids = data_json.get("story_ids")
         payload = data_json.get("payload")
+        if not isinstance(story_ids, list) or not story_ids:
+            return {"error": "No story ids provided"}, 400
+        if payload is not None and not isinstance(payload, dict):
+            return {"error": "Invalid payload provided"}, 400
         result_dict = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
         for s in [story.Story.get(sid) for sid in story_ids if sid]:
             if not s:
@@ -149,6 +164,7 @@ class Stories(MethodView):
                 result_dict["updated"] += 1
 
         result_dict["message"] = f"Bulk action completed. {result_dict['updated']} stories updated."
+        invalidate_frontend_cache_on_success(200, models=("story",))
         return result_dict, 200
 
 
@@ -192,18 +208,21 @@ class Story(MethodView):
     def put(self, story_id):
         response, code = story.Story.update(story_id, request.json, current_user)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "report_item"), object_ids={"story": story_id})
         return response, code
 
     @auth_required("ASSESS_DELETE")
     def delete(self, story_id):
         response, code = story.Story.delete_by_id(story_id, current_user)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "report_item"), object_ids={"story": story_id})
         return response, code
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def patch(self, story_id):
         response, code = story.Story.update(story_id, request.json, current_user)
+        invalidate_frontend_cache_on_success(code, models=("story", "report_item"), object_ids={"story": story_id})
         return response, code
 
 
@@ -215,6 +234,7 @@ class UnGroupNewsItem(MethodView):
             return {"error": "No news item ids provided"}, 400
         response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
 
 
@@ -226,6 +246,7 @@ class UnGroupStories(MethodView):
             return {"error": "No story ids provided"}, 400
         response, code = story.Story.ungroup_multiple_stories(story_ids, current_user)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
 
 
@@ -237,6 +258,7 @@ class GroupAction(MethodView):
             return {"error": "No story ids provided"}, 400
         response, code = story.Story.group_stories(story_ids, current_user)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
 
     @auth_required("ASSESS_UPDATE")
@@ -246,6 +268,7 @@ class GroupAction(MethodView):
             return {"error": "No story ids provided"}, 400
         response, code = story.Story.group_stories(story_ids, current_user)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
 
 
@@ -263,19 +286,24 @@ class BotActions(MethodView):
             return {"error": "No story_id provided"}, 400
         response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter={"story_id": story_id})
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story",), object_ids={"story": story_id})
         return response, code
 
 
 class Connectors(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
     @extract_args("search", "page", "limit", "offset", "sort", "order", "fetch_all")
-    def get(self, filter_args: dict | None = None):
+    def get(self, connector_id: str | None = None, filter_args: dict | None = None):
+        if connector_id:
+            return connector.Connector.get_for_api(connector_id)
         return connector.Connector.get_all_for_user_api(filter_args, user=current_user)
 
     @auth_required("CONNECTOR_USER_ACCESS")
     @validate_json
-    def post(self, connector_id):
+    def post(self, connector_id: str | None = None):
         """Send stories to an external system."""
+        if not connector_id:
+            return {"error": "No connector_id provided"}, 400
         if not request.json:
             return {"error": "Invalid JSON payload"}, 400
 
@@ -374,6 +402,10 @@ class AssessImport(MethodView):
 
         imported_stories = StoryService.import_stories(data_json, current_user)
         sse_manager.news_items_updated()
+        status = getattr(imported_stories, "status_code", None)
+        if status is None and isinstance(imported_stories, tuple) and len(imported_stories) > 1:
+            status = imported_stories[1]
+        invalidate_frontend_cache_on_success(int(status or 200), full=True)
         return imported_stories
 
 

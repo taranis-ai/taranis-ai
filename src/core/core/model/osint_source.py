@@ -319,11 +319,6 @@ class OSINTSource(BaseModel):
         db.session.add(osint_source)
         db.session.commit()
         osint_source.schedule_osint_source()
-        osint_source._publish_frontend_cache_invalidation(
-            "/config/osint-sources",
-            "/config/schedule",
-            "/config/workers/dashboard",
-        )
         return osint_source
 
     @classmethod
@@ -345,11 +340,6 @@ class OSINTSource(BaseModel):
             return {"error": "Invalid state"}, 400
 
         db.session.commit()
-        osint_source._publish_frontend_cache_invalidation(
-            "/config/osint-sources",
-            "/config/schedule",
-            "/config/workers/dashboard",
-        )
         return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
 
     @classmethod
@@ -372,11 +362,6 @@ class OSINTSource(BaseModel):
             osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
         db.session.commit()
         osint_source.schedule_osint_source()
-        osint_source._publish_frontend_cache_invalidation(
-            "/config/osint-sources",
-            "/config/schedule",
-            "/config/workers/dashboard",
-        )
         return osint_source
 
     def _parse_icon(self, icon: bytes | str) -> bytes:
@@ -451,11 +436,6 @@ class OSINTSource(BaseModel):
                     db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
             db.session.delete(source)
             db.session.commit()
-            source._publish_frontend_cache_invalidation(
-                "/config/osint-sources",
-                "/config/schedule",
-                "/config/workers/dashboard",
-            )
             return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
@@ -507,17 +487,6 @@ class OSINTSource(BaseModel):
 
         logger.info(f"Unscheduling {self.name}. Notifying cron scheduler...")
         return queue_manager.queue_manager.unregister_cron_job(self.cron_job_id)
-
-    @classmethod
-    def _publish_frontend_cache_invalidation(cls, *suffixes: str) -> None:
-        try:
-            from core.managers import queue_manager
-
-            published = queue_manager.queue_manager.publish_cache_invalidation(*suffixes)
-            if published:
-                logger.debug("Published %s frontend cache invalidation signals", published)
-        except Exception as exc:
-            logger.warning(f"Failed to publish frontend cache invalidation signal: {exc}")
 
     def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
         export_dict = {
@@ -707,11 +676,6 @@ class OSINTSource(BaseModel):
             raise ValueError("Unsupported version")
 
         ids = cls.add_multiple_with_group(data, groups)
-        cls._publish_frontend_cache_invalidation(
-            "/config/osint-sources",
-            "/config/schedule",
-            "/config/workers/dashboard",
-        )
         logger.debug(f"Imported {len(ids)} sources")
         return ids
 

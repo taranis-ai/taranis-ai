@@ -9,8 +9,53 @@ env:
   UV_FROZEN: true
 
 jobs:
+  detect_signoff:
+    name: detect signoff
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: read
+    outputs:
+      signedoff: ${{ steps.detect.outputs.signedoff }}
+    steps:
+      - name: Check signoff status
+        id: detect
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const headRepo = context.payload.pull_request?.head?.repo?.full_name || process.env.GITHUB_REPOSITORY;
+            const [owner, repo] = headRepo.split("/");
+            const ref = context.payload.pull_request?.head?.sha || context.sha;
+            let signedoff = false;
+
+            try {
+              const statuses = await github.paginate(
+                github.rest.repos.listCommitStatusesForRef,
+                {
+                  owner,
+                  repo,
+                  ref,
+                  per_page: 100,
+                }
+              );
+              const signoff = statuses.find((status) => status.context === "signoff");
+
+              if (signoff?.state === "success") {
+                signedoff = true;
+              }
+
+              core.info(
+                `Checked signoff status for ${headRepo}@${ref}: ${signoff?.state || "missing"}`
+              );
+            } catch (error) {
+              core.warning(`Failed to read signoff status for ${headRepo}@${ref}: ${error.message}`);
+            }
+
+            core.setOutput("signedoff", signedoff ? "true" : "false");
+
   test_core:
     name: pytest core
+    needs: detect_signoff
+    if: needs.detect_signoff.outputs.signedoff != 'true'
     defaults:
       run:
         working-directory: src/core
@@ -45,6 +90,8 @@ jobs:
 
   test_frontend:
     name: pytest frontend
+    needs: detect_signoff
+    if: needs.detect_signoff.outputs.signedoff != 'true'
     defaults:
       run:
         working-directory: src/frontend
@@ -82,8 +129,9 @@ jobs:
 
   e2e_tests:
     name: End-to-End Tests
+    if: needs.detect_signoff.outputs.signedoff != 'true'
     runs-on: ubuntu-latest
-    needs: [test_core, test_frontend]
+    needs: [detect_signoff, test_core, test_frontend]
     steps:
       - uses: actions/checkout@v6
 
@@ -167,6 +215,8 @@ jobs:
 
   test_worker:
     name: pytest worker
+    needs: detect_signoff
+    if: needs.detect_signoff.outputs.signedoff != 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -201,3 +251,40 @@ jobs:
           echo "- **❌ Failed:** $(grep -oP '\d+(?= failed)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Skipped:** $(grep -oP '\d+(?= skipped)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+
+  local_or_ci:
+    name: local or ci
+    if: always()
+    runs-on: ubuntu-latest
+    needs:
+      - detect_signoff
+      - test_core
+      - test_frontend
+      - e2e_tests
+      - test_worker
+    permissions:
+      statuses: read
+    steps:
+      - name: Evaluate signoff or CI result
+        env:
+          SIGNEDOFF: ${{ needs.detect_signoff.outputs.signedoff }}
+          TEST_CORE_RESULT: ${{ needs.test_core.result }}
+          TEST_FRONTEND_RESULT: ${{ needs.test_frontend.result }}
+          E2E_RESULT: ${{ needs.e2e_tests.result }}
+          TEST_WORKER_RESULT: ${{ needs.test_worker.result }}
+        run: |
+          if [ "$SIGNEDOFF" = "true" ]; then
+            echo "Current head commit is signed off."
+            exit 0
+          fi
+
+          if [ "$TEST_CORE_RESULT" = "success" ] \
+            && [ "$TEST_FRONTEND_RESULT" = "success" ] \
+            && [ "$E2E_RESULT" = "success" ] \
+            && [ "$TEST_WORKER_RESULT" = "success" ]; then
+            echo "All CI jobs passed."
+            exit 0
+          fi
+
+          echo "::error ::Neither a valid local signoff nor a full successful CI run is present."
+          exit 1

@@ -8,6 +8,7 @@ from models.dashboard import Dashboard
 from models.task import Task
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import admin_required
 from frontend.config import Config
@@ -38,6 +39,8 @@ class SourceView(AdminMixin, BaseView):
             if dashboard := DataPersistenceLayer().get_first(Dashboard):
                 if worker_status := dashboard.worker_status:
                     return worker_status.get("collector_task", {}).get("failures", 0)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Error retrieving dashboard for source admin menu badge")
 
@@ -135,8 +138,6 @@ class SourceView(AdminMixin, BaseView):
             error = "Failed to import sources"
             return cls.import_view(error)
 
-        dpl = DataPersistenceLayer()
-        dpl.invalidate_cache_by_object(OSINTSource)
         cls.add_flash_notification(response)
         return cls.redirect_htmx(cls.get_base_route())
 
@@ -174,6 +175,8 @@ class SourceView(AdminMixin, BaseView):
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Error storing form data")
             return None, "Error storing form data"
@@ -210,8 +213,6 @@ class SourceView(AdminMixin, BaseView):
             logger.error(error_message)
             return render_template("notification/index.html", notification={"message": error_message, "error": True})
 
-        dpl = DataPersistenceLayer()
-        dpl.invalidate_cache_by_object(OSINTSource)
         items = DataPersistenceLayer().get_objects(cls.model)
         return render_template(cls.get_list_template(), **cls.get_view_context(items))
 
@@ -280,7 +281,6 @@ class SourceView(AdminMixin, BaseView):
                 "notification/index.html", notification={"message": "Failed to toggle OSINT source state", "error": True}
             ), 500
 
-        dpl.invalidate_cache_by_object(OSINTSource)
         notification = render_template(
             "notification/index.html",
             notification={"message": "OSINT source state updated successfully", "icon": "check-circle", "class": "alert-success"},

@@ -50,8 +50,6 @@ OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
 CRON_DEFS_KEY = "rq:cron:def"
 CRON_EVENTS_KEY = "rq:cron:events"
 CRON_NEXT_KEY = "rq:cron:next"
-CACHE_INVALIDATION_CHANNEL = "taranis:cache:invalidate"
-SCHEDULE_CACHE_SUFFIXES = ("/config/schedule", "/config/workers/dashboard")
 TOKEN_CLEANUP_JOB_ID = "cleanup_token_blacklist"
 TOKEN_CLEANUP_CRON = "0 2 * * *"
 TOKEN_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Token Blacklist"
@@ -108,16 +106,12 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 job["status_badge"] = {"variant": variant, "label": label}
                 job["is_overdue"] = False
                 continue
-            elif prev_run_dt and last_run_dt >= prev_run_dt:
+            elif prev_run_dt and last_run_dt >= prev_run_dt or not prev_run_dt:
                 label = "On schedule"
                 variant = "success"
-            elif not prev_run_dt:
-                label = "On schedule"
-                variant = "success"
-
             if prev_run_dt:
-                ran_current_window = bool(last_run_dt and last_run_dt >= prev_run_dt)
                 overdue_threshold = prev_run_dt + OVERDUE_GRACE_PERIOD
+                ran_current_window = bool(last_run_dt and last_run_dt >= prev_run_dt)
                 if now > overdue_threshold and not ran_current_window:
                     label = "Missed"
                     variant = "error"
@@ -126,11 +120,10 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     label = "On schedule"
                     variant = "success"
 
-        else:
-            if next_run_dt and now > (next_run_dt + OVERDUE_GRACE_PERIOD):
-                label = "Missed"
-                variant = "warning"
-                is_overdue = True
+        elif next_run_dt and now > (next_run_dt + OVERDUE_GRACE_PERIOD):
+            label = "Missed"
+            variant = "warning"
+            is_overdue = True
 
         job["status_badge"] = {"variant": variant, "label": label}
         job["is_overdue"] = is_overdue
@@ -220,9 +213,16 @@ class QueueManager:
             stale_ids = sorted(managed_current_ids - desired_ids)
 
             registered = 0
-            for spec in managed_specs.values():
+            source_count = 0
+            bot_count = 0
+            for job_id, spec in managed_specs.items():
                 if self.register_cron_job(spec):
                     registered += 1
+
+                if job_id.startswith("osint_source_"):
+                    source_count += 1
+                elif job_id.startswith("bot_"):
+                    bot_count += 1
 
             purged_jobs = 0
             purged_tasks = 0
@@ -231,8 +231,6 @@ class QueueManager:
                     self.unregister_cron_job(stale_id)
                 purged_jobs, purged_tasks = self.purge_job_artifacts(prefixes=[f"cron_{job_id}_" for job_id in stale_ids])
 
-            source_count = sum(1 for job_id in managed_specs if job_id.startswith("osint_source_"))
-            bot_count = sum(1 for job_id in managed_specs if job_id.startswith("bot_"))
             logger.info(
                 "Synchronized %s source cron jobs and %s bot cron jobs, removed %s stale registrations, "
                 "purged %s stale Redis jobs and %s task rows.",
@@ -268,7 +266,7 @@ class QueueManager:
             spec = bot.get_cron_spec()
             specs[spec.job_id] = spec
 
-        specs.update(self._get_housekeeping_cron_specs())
+        specs |= self._get_housekeeping_cron_specs()
         return specs
 
     @staticmethod
@@ -308,21 +306,6 @@ class QueueManager:
             exact_ids=exact_ids,
             prefixes=prefixes,
         )
-
-    def publish_cache_invalidation(self, *suffixes: str) -> int:
-        if self.error or not self._redis:
-            return 0
-
-        published = 0
-        for suffix in suffixes:
-            if not suffix:
-                continue
-            self._redis.publish(CACHE_INVALIDATION_CHANNEL, suffix)
-            published += 1
-        return published
-
-    def publish_schedule_cache_invalidation(self) -> int:
-        return self.publish_cache_invalidation(*SCHEDULE_CACHE_SUFFIXES)
 
     def _purge_rq_jobs(self, *, exact_ids: set[str], prefixes: list[str]) -> int:
         if self.error or not self._redis:
@@ -405,6 +388,11 @@ class QueueManager:
             logger.info("All queues cleared")
         except Exception as e:
             logger.error(f"Failed to clear queues: {e}")
+
+    def publish_schedule_cache_invalidation(self) -> int:
+        from core.service.cache_invalidation import cache_invalidation_service
+
+        return cache_invalidation_service.invalidate_scope("schedule")
 
     @property
     def redis(self) -> Redis | None:
@@ -733,14 +721,11 @@ class QueueManager:
 
         return {"message": f"Post collection bots scheduled for source {source_id}"}, 200
 
-    @staticmethod
-    def _format_task_name(func_name: str) -> str:
-        """Format a function name into a human-readable task name"""
-        return func_name.split(".")[-1].replace("_", " ").title()
-
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""
-        return job.meta.get("name", self._format_task_name(job.func_name))
+        if func_name := job.func_name:
+            return job.meta.get("name", func_name.split(".")[-1].replace("_", " ").title())
+        return job.id or "Unknown Task"
 
     @staticmethod
     def build_cron_schedule_entry(
@@ -1116,8 +1101,8 @@ class QueueManager:
             return {"error": f"Failed to get worker stats: {str(e)}"}, 500
 
     @staticmethod
-    def _build_unique_job_id(task_name: str, worker_id: str) -> str:
-        return f"{task_name}_{worker_id}_{time.time_ns()}"
+    def _build_unique_job_id(task_name: str, product_id: str) -> str:
+        return f"{task_name}_{product_id}_{time.time_ns()}"
 
     def autopublish_product(self, product_id: str, auto_publisher_id: str) -> tuple[dict[str, Any], int]:
         """Render a product and publish it once rendering finishes."""

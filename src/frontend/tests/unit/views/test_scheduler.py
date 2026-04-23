@@ -12,13 +12,9 @@ def _requested_core_paths(responses_mock):
 
 @pytest.fixture(autouse=True)
 def _clear_scheduler_cache():
-    for key in list(cache.cache._cache.keys()):
-        if not str(key).startswith("user_cache_"):
-            cache.delete(key)
+    cache.clear()
     yield
-    for key in list(cache.cache._cache.keys()):
-        if not str(key).startswith("user_cache_"):
-            cache.delete(key)
+    cache.clear()
 
 
 @pytest.mark.parametrize(
