@@ -144,16 +144,29 @@ class ReportItemView(BaseView):
     @classmethod
     def update_view(cls, object_id: int | str = 0):
         core_response, error = cls.process_form_data(object_id)
+        response_object_id, model_instance, response_message = cls.resolve_update_response(object_id, core_response)
         if not core_response or error:
             return render_template(
                 cls.get_update_template(),
-                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+                **cls.get_update_context(
+                    object_id,
+                    error=error,
+                    model_instance=model_instance,
+                    response_message=response_message,
+                    form_action_object_id=response_object_id,
+                ),
             ), 400
 
         notification_response = cls.render_response_notification(core_response)
         response = notification_response + render_template(
             cls.get_update_template(),
-            **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+            **cls.get_update_context(
+                object_id,
+                error=error,
+                model_instance=model_instance,
+                response_message=response_message,
+                form_action_object_id=response_object_id,
+            ),
         )
         flask_response = make_response(response, 200)
         flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
