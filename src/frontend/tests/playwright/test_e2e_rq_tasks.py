@@ -128,6 +128,13 @@ def _assert_cron_registration(
     return parsed, next_run
 
 
+def _force_cron_job_due(redis_backend: RedisBackend, job_id: str) -> float:
+    redis_conn = _redis_conn(redis_backend)
+    due_timestamp = time.time() - 1
+    redis_conn.zadd(CRON_NEXT_KEY, {job_id: due_timestamp})
+    return due_timestamp
+
+
 def _wait_for_cron_enqueue_event(
     redis_backend: RedisBackend,
     cron_job_id: str,
@@ -218,6 +225,9 @@ class RqE2EHarness:
     ) -> tuple[dict[str, Any], float]:
         return _assert_cron_registration(self.redis_backend, job_id, expected_cron=expected_cron)
 
+    def force_cron_job_due(self, job_id: str) -> float:
+        return _force_cron_job_due(self.redis_backend, job_id)
+
     def wait_for_cron_task_result(
         self,
         cron_job_id: str,
@@ -282,15 +292,17 @@ def test_rq_scheduled_collector_cron(
     source_id = rq_harness.create_osint_source(source_payload)
     cron_job_id = f"osint_source_{source_id}"
     rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
     assert payload.get("status") == "SUCCESS"
     assert source_payload["name"] in (payload.get("result") or "")
+    _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    assert next_run_after_execution > forced_due_timestamp
 
 
 @pytest.mark.e2e_ci
 def test_rq_osint_cron_update_immediately_refreshes_next_run(
-    cron_process: None,
     rq_harness: RqE2EHarness,
     rss_server: str,
 ) -> None:
@@ -359,7 +371,10 @@ def test_rq_scheduled_wordlist_bot_cron(
     rq_harness.update_bot(bot_id, bot_payload)
     cron_job_id = f"bot_{bot_id}"
     rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
     assert payload.get("status") == "SUCCESS"
     assert payload.get("task") == f"bot_{bot_id}"
+    _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    assert next_run_after_execution > forced_due_timestamp
