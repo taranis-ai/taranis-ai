@@ -55,6 +55,48 @@ class ReportItemView(BaseView):
                 used_story_ids.extend(story_id.strip() for story_id in str(attribute.value).split(",") if story_id and story_id.strip())
         return story_attributes, list(dict.fromkeys(used_story_ids))
 
+    @staticmethod
+    def _normalize_request_attribute_value(value: Any) -> str | None:
+        if isinstance(value, list):
+            filtered = [str(item) for item in value if item]
+            return ",".join(filtered)
+        if value is None:
+            return None
+        return str(value)
+
+    @staticmethod
+    def _coerce_report_type_id(value: Any) -> Any:
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+        return value
+
+    @classmethod
+    def _apply_request_values_to_report(cls, report: ReportItem | None) -> ReportItem | None:
+        if report is None:
+            return None
+
+        submitted_data = parse_formdata(request.values)
+        if not submitted_data:
+            return report
+
+        if title := submitted_data.get("title"):
+            report.title = title
+        if report_item_type_id := submitted_data.get("report_item_type_id"):
+            report.report_item_type_id = cls._coerce_report_type_id(report_item_type_id)
+
+        submitted_attributes = submitted_data.get("attributes", {})
+        if isinstance(submitted_attributes, dict):
+            for group in report.grouped_attributes or []:
+                for attribute in group.attributes:
+                    if attribute.id is None:
+                        continue
+                    attribute_key = str(attribute.id)
+                    if attribute_key not in submitted_attributes:
+                        continue
+                    attribute.value = cls._normalize_request_attribute_value(submitted_attributes[attribute_key])
+
+        return report
+
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -62,7 +104,8 @@ class ReportItemView(BaseView):
             report_types = dpl.get_objects(ReportTypes)
             base_context["report_types"] = report_types
             layout = request.args.get("layout") or request.form.get("layout") or base_context.get("layout", "split")
-            report = base_context.get("report")
+            report = cls._apply_request_values_to_report(base_context.get("report"))
+            base_context["report"] = report
             base_context["story_attributes"] = []
             base_context["used_story_ids"] = []
 
@@ -89,13 +132,9 @@ class ReportItemView(BaseView):
         report = context.get("report")
         if not report:
             return context
-        if title := request.values.get("title"):
-            report.title = title
-        if report_item_type_id := request.values.get("report_item_type_id"):
-            report.report_item_type_id = report_item_type_id
         if story_ids := request.args.getlist("story_ids"):
             report.stories = [s for s in DataPersistenceLayer().get_objects(Story) if s.id in story_ids]
-            context["report"] = report
+        context["report"] = cls._apply_request_values_to_report(report)
 
         return context
 

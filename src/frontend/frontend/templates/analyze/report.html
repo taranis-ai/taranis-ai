@@ -92,14 +92,15 @@
       <div class="grid grid-cols-12 gap-4">
         <div class="col-span-12 {{ column_class }}">
           <div class="grid grid-cols-12 gap-4">
-            <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', report.title, form_error.title, input_id='report-title') }}</div>
+            <div class="col-span-12 md:col-span-6">
+              {{ form_input('Title', 'title', report.title, form_error.title, input_id='report-title', preserve=False) }}
+            </div>
             <div class="col-span-12 md:col-span-6">
               <label class="select w-full mb-5">
                 <span class="label">Report Type</span>
                 <select id="report_item_selector"
                         name="report_item_type_id"
                         data-testid="report-type-select"
-                        hx-preserve
                         class="select select-bordered w-full"
                         {% if is_edit %}disabled{% endif %}>
                   {% if not report.report_item_type_id %}<option value="" disabled selected>Select a report type</option>{% endif %}
