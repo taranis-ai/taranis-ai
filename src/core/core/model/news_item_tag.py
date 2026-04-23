@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func
+from sqlalchemy import func, literal_column
 from sqlalchemy.orm import Mapped, relationship
 
 from core.log import logger
@@ -9,7 +9,7 @@ from core.model.base_model import BaseModel
 
 
 if TYPE_CHECKING:
-    from core.model.story import Story
+    from core.model.news_item import NewsItem
 
 
 class NewsItemTag(BaseModel):
@@ -18,8 +18,8 @@ class NewsItemTag(BaseModel):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(255))
     tag_type: Mapped[str] = db.Column(db.String(255))
-    story_id: Mapped[str] = db.Column(db.ForeignKey("story.id", ondelete="CASCADE"))
-    story: Mapped["Story"] = relationship("Story", back_populates="tags")
+    news_item_id: Mapped[str] = db.Column(db.ForeignKey("news_item.id", ondelete="CASCADE"), index=True)
+    news_item: Mapped["NewsItem"] = relationship("NewsItem", back_populates="tags")
 
     def __init__(self, name: str, tag_type: str = "misc"):
         if not isinstance(name, str):
@@ -31,7 +31,10 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def get_filtered_tags(cls, filter_args: dict) -> dict[str, str]:
-        query = db.select(cls.name, cls.tag_type).where(cls.tag_type.not_ilike("report_%"))
+        from core.model.news_item import NewsItem
+
+        story_count = func.count(func.distinct(NewsItem.story_id))
+        query = db.select(cls.name, cls.tag_type, story_count.label("story_count")).join(NewsItem).where(cls.tag_type.not_ilike("report_%"))
 
         if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
@@ -39,16 +42,17 @@ class NewsItemTag(BaseModel):
         if tag_type := filter_args.get("tag_type"):
             query = query.filter(cls.tag_type == tag_type)
 
+        query = query.group_by(cls.name, cls.tag_type)
         if min_size := filter_args.get("min_size"):
             # returns only tags where the name appears at least min_size times in the database
-            query = query.group_by(cls.name, cls.tag_type).having(func.count(cls.name) >= min_size)
-            query = query.order_by(func.count(cls.name).desc())
+            query = query.having(story_count >= min_size)
+            query = query.order_by(story_count.desc())
 
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
         query = query.offset(offset).limit(limit)
         result = db.session.execute(query).tuples()
-        return {name: tag_type for name, tag_type in result}
+        return {name: tag_type for name, tag_type, _ in result}
 
     @classmethod
     def get_all_for_collector(cls):
@@ -61,7 +65,10 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def remove_by_story(cls, story):
-        db.session.execute(db.delete(cls).where(cls.story_id == story.id))
+        from core.model.news_item import NewsItem
+
+        news_item_ids = db.select(NewsItem.id).where(NewsItem.story_id == story.id)
+        db.session.execute(db.delete(cls).where(cls.news_item_id.in_(news_item_ids)))
 
     def to_dict(self) -> dict[str, Any]:
         return {"name": self.name, "tag_type": self.tag_type}
@@ -73,9 +80,9 @@ class NewsItemTag(BaseModel):
     @classmethod
     def apply_sort(cls, query, sort_str: str):
         if sort_str == "size_desc":
-            return query.order_by(func.count(cls.name).desc())
+            return query.order_by(literal_column("size").desc())
         elif sort_str == "size_asc":
-            return query.order_by(func.count(cls.name).asc())
+            return query.order_by(literal_column("size").asc())
         elif sort_str == "name_asc":
             return query.order_by(cls.name.asc())
         elif sort_str == "name_desc":
@@ -85,14 +92,18 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def get_cluster_by_filter(cls, filter_args: dict):
-        query = db.select(cls).with_only_columns(cls.name, func.count(cls.name).label("size"))
-        if tag_type := filter_args.get("tag_type"):
-            query = query.filter(cls.tag_type == tag_type).group_by(cls.name)
+        from core.model.news_item import NewsItem
 
-        count = cls.get_filtered_count(query)
+        story_count = func.count(func.distinct(NewsItem.story_id))
+        query = db.select(cls.name, story_count.label("size")).join(NewsItem).where(cls.tag_type.not_ilike("report_%"))
+        if tag_type := filter_args.get("tag_type"):
+            query = query.filter(cls.tag_type == tag_type)
 
         if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
+        query = query.group_by(cls.name)
+
+        count = db.session.execute(db.select(func.count()).select_from(query.subquery())).scalar_one()
         if sort := filter_args.get("sort", "size_desc"):
             query = cls.apply_sort(query, sort)
 
@@ -134,6 +145,9 @@ class NewsItemTag(BaseModel):
             else:
                 raise ValueError(f"Invalid tag format for key '{tag_key}': {type(tag_data).__name__} - must be str or dict")
 
+            if not isinstance(name, str) or not name.strip():
+                continue
+            name = name.strip()
             tag_type = tag_type if tag_type else "misc"
             parsed_tags[name] = NewsItemTag(name=name, tag_type=tag_type)
 

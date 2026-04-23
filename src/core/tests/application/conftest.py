@@ -277,6 +277,11 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
         assert manual_important is not None
         assert source_only is not None
 
+        assert grouped_flagged.set_tags(["filter-alpha"])[1] == 200
+        assert grouped_plain.set_tags(["filter-beta"])[1] == 200
+        assert manual_important.set_tags(["filter-gamma"])[1] == 200
+        assert source_only.set_tags(["filter-delta"])[1] == 200
+
         grouped_flagged.read = True
         grouped_flagged.important = True
         grouped_flagged.relevance = 10
@@ -293,11 +298,6 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
         source_only.important = False
         source_only.relevance = 5
         db.session.commit()
-
-        assert grouped_flagged.set_tags(["filter-alpha"])[1] == 200
-        assert grouped_plain.set_tags(["filter-beta"])[1] == 200
-        assert manual_important.set_tags(["filter-gamma"])[1] == 200
-        assert source_only.set_tags(["filter-delta"])[1] == 200
 
         report_payload = deepcopy(cleanup_report_item)
         report_payload["id"] = "story-filter-report-item"
@@ -747,12 +747,18 @@ def cleanup_publisher(app):
 
 
 def remap_result_keys(payload: dict, stories) -> dict:
+    from core.model.story import Story
+
     payload = deepcopy(payload)
 
     old = payload["result"]
-    story_ids = [str(getattr(s, "id", s)) for s in stories]
+    news_item_ids = []
+    for story_ref in stories:
+        story_id = str(getattr(story_ref, "id", story_ref))
+        if story := Story.get(story_id):
+            news_item_ids.extend(news_item.id for news_item in story.news_items[:1])
 
-    payload["result"] = {story_id: tags_dict for story_id, tags_dict in zip(story_ids, old.values())}
+    payload["result"] = {news_item_id: tags_dict for news_item_id, tags_dict in zip(news_item_ids, old.values())}
     return payload
 
 

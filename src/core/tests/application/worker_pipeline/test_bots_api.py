@@ -117,7 +117,9 @@ class TestTaggingBotsResults(BaseTest):
 
             structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
 
-            expected_tags = wordlist_bot_result["result"].get(story_id, {})
+            expected_tags = {}
+            for news_item in response.get_json().get("news_items", []):
+                expected_tags |= wordlist_bot_result["result"].get(news_item["id"], {})
             assert structured_tags == expected_tags
 
             attr_by_key = {a.get("key"): a.get("value") for a in response.get_json().get("attributes", [])}
@@ -141,8 +143,9 @@ class TestTaggingBotsResults(BaseTest):
             structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
 
             expected = {}
-            expected |= wordlist_bot_result["result"].get(story_id, {})
-            expected |= ioc_bot_result["result"].get(story_id, {})
+            for news_item in response.get_json().get("news_items", []):
+                expected |= wordlist_bot_result["result"].get(news_item["id"], {})
+                expected |= ioc_bot_result["result"].get(news_item["id"], {})
 
             assert structured_tags == expected
 
@@ -165,9 +168,10 @@ class TestTaggingBotsResults(BaseTest):
             structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
 
             expected = {}
-            expected |= wordlist_bot_result["result"].get(story_id, {})
-            expected |= ioc_bot_result["result"].get(story_id, {})
-            expected |= nlp_bot_result["result"].get(story_id, {})
+            for news_item in response.get_json().get("news_items", []):
+                expected |= wordlist_bot_result["result"].get(news_item["id"], {})
+                expected |= ioc_bot_result["result"].get(news_item["id"], {})
+                expected |= nlp_bot_result["result"].get(news_item["id"], {})
 
             assert structured_tags == expected
 

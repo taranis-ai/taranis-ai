@@ -198,7 +198,7 @@ class TestAnalyzeApi(BaseTest):
             for story_id in stories[:2]:
                 story = Story.get(story_id)
                 assert story is not None
-                assert any(tag.tag_type == f"report_{report_payload['id']}" for tag in story.tags)
+                assert story.find_attribute_by_key(f"report_{report_payload['id']}") is not None
                 assert story.relevance_feedback == 3
                 assert story.relevance == story.relevance_source + 3 + (story.relevance_override or 0)
 
@@ -226,7 +226,7 @@ class TestAnalyzeApi(BaseTest):
 
             story_after_delete = Story.get(stories[0])
             assert story_after_delete is not None
-            assert all(tag.tag_type != f"report_{report_payload['id']}" for tag in story_after_delete.tags)
+            assert story_after_delete.find_attribute_by_key(f"report_{report_payload['id']}") is None
             assert story_after_delete.relevance_feedback == 0
             assert story_after_delete.relevance == story_after_delete.relevance_source + (story_after_delete.relevance_override or 0)
 
@@ -250,7 +250,7 @@ class TestAnalyzeApi(BaseTest):
 
             story = Story.get(stories[0])
             assert story is not None
-            assert all(tag.tag_type != f"report_{report_payload['id']}" for tag in story.tags)
+            assert story.find_attribute_by_key(f"report_{report_payload['id']}") is None
             assert story.relevance_feedback == 0
 
     def test_get_report_item_passes_current_user_for_acl_check(self, client, auth_header, monkeypatch):

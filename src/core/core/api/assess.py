@@ -104,6 +104,30 @@ class UpdateNewsItemAttributes(MethodView):
         return response, status
 
 
+class UpdateNewsItemTags(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def put(self, news_item_id: str):
+        return self._update(news_item_id)
+
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def patch(self, news_item_id: str):
+        return self._update(news_item_id)
+
+    @staticmethod
+    def _update(news_item_id: str):
+        item = news_item.NewsItem.get(news_item_id)
+        if not item:
+            return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
+        if not item.allowed_with_acl(current_user, require_write_access=True):
+            return {"error": "User does not have write access to this news item"}, 403
+
+        response, status = item.set_tags(request.json, user=current_user)
+        invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+        return response, status
+
+
 class Stories(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
@@ -418,6 +442,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule(
         "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")
     )
+    assess_bp.add_url_rule("/news-items/<string:news_item_id>/tags", view_func=UpdateNewsItemTags.as_view("update_news_item_tags"))
     assess_bp.add_url_rule("/stories/group", view_func=GroupAction.as_view("group_action"))
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))

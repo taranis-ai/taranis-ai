@@ -248,6 +248,8 @@ class TestWorkerApi:
         assert story.get("title") == full_story[0].get("title")
         assert len(story.get("news_items", [])) == len(full_story[0].get("news_items", []))
         assert len(story.get("tags", [])) == len(full_story[0].get("tags", []))
+        for news_item in story.get("news_items", []):
+            assert len(news_item.get("tags", [])) == len(full_story[0].get("tags", []))
         assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1  # TLP is automatically added
 
     def test_worker_post_to_misp_endpoint(self, client, full_story: list[dict], api_header):
@@ -276,41 +278,47 @@ class TestWorkerApi:
         assert story.get("title") == full_story[0].get("title")
         assert len(story.get("news_items", [])) == len(full_story[0].get("news_items", []))
         assert len(story.get("tags", [])) == len(full_story[0].get("tags", []))
+        for news_item in story.get("news_items", []):
+            assert len(news_item.get("tags", [])) == len(full_story[0].get("tags", []))
         assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1
 
     def test_worker_put_tags(self, client, stories, api_header):
         story_1_id = stories[0]
         tags = ["tag3", "tag4"]
+        story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
+        news_item_id = story_response.get_json()[0]["news_items"][0]["id"]
 
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: tags}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: tags}, headers=api_header)
 
         assert response.status_code == 200
         assert response.get_json().get("message") == "Tags updated"
 
     def test_worker_put_tags_invalid_cases(self, client, stories, api_header):
         story_1_id = stories[0]
+        story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
+        news_item_id = story_response.get_json()[0]["news_items"][0]["id"]
 
         # Empty list
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: []}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: []}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
 
         # Tags not a list
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: "notalist"}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: "notalist"}, headers=api_header)
         assert response.status_code == 207
         assert "message" in response.get_json()
 
-        # Missing story id
-        response = client.put(f"{self.base_uri}/tags", json={"not_a_story_id": ["tag1"]}, headers=api_header)
+        # Missing news item id
+        response = client.put(f"{self.base_uri}/tags", json={"not_a_news_item_id": ["tag1"]}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
 
         # Tags list contains non-string elements
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: [123, None]}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: [123, None]}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
 
-        # Story ID is not a string
+        # News item ID is not a string
         response = client.put(f"{self.base_uri}/tags", json={123: ["tag1"]}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
@@ -335,7 +343,7 @@ class TestWorkerApi:
 
         story = Story.get(stories[0])
         assert story is not None
-        update_result, update_status = story.set_tags(sorted(expected_tags))
+        update_result, update_status = story.news_items[0].set_tags(sorted(expected_tags))
         assert update_status == 200, update_result
 
         response = client.get(f"{self.base_uri}/tags", headers=api_header)
@@ -430,7 +438,9 @@ class TestWorkerTaskResults:
 
                 story_data = story_response.get_json()
                 structured_tags = {tag["name"]: tag["tag_type"] for tag in story_data.get("tags", [])}
-                expected_tags = wordlist_bot_result["result"].get(story_id, {})
+                expected_tags = {}
+                for news_item in story_data.get("news_items", []):
+                    expected_tags |= wordlist_bot_result["result"].get(news_item["id"], {})
 
                 assert structured_tags == expected_tags
                 attr_by_key = {attribute.get("key"): attribute.get("value") for attribute in story_data.get("attributes", [])}

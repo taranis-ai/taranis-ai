@@ -121,6 +121,31 @@ class TestAssessNewsItems(BaseTest):
         response = self.assert_get_ok(client, f"news-items/{cleanup_news_item['id']}", auth_header)
         assert response.get_json()["id"] == cleanup_news_item["id"]
 
+    def test_put_NewsItem_tags_updates_news_item_and_story_union(self, client, cleanup_news_item, auth_header):
+        item_id = cleanup_news_item["id"]
+        item_response = client.get(f"/api/assess/news-items/{item_id}", headers=auth_header)
+        if item_response.status_code == 404:
+            create_response = self.assert_post_ok(client, "news-items", cleanup_news_item, auth_header)
+            story_id = create_response.get_json()["story_id"]
+        else:
+            story_id = item_response.get_json()["story_id"]
+
+        tag_name = f"endpoint-tag-{uuid.uuid4().hex}"
+        response = self.assert_put_ok(
+            client,
+            f"news-items/{item_id}/tags",
+            [{"name": tag_name, "tag_type": "endpoint"}],
+            auth_header,
+        )
+        assert response.get_json()["message"].startswith("Successfully updated news item")
+
+        item_response = self.assert_get_ok(client, f"news-items/{item_id}", auth_header)
+        assert item_response.get_json()["tags"] == [{"name": tag_name, "tag_type": "endpoint"}]
+
+        story_response = self.assert_get_ok(client, f"story/{story_id}", auth_header)
+        story_tags = {tag["name"]: tag["tag_type"] for tag in story_response.get_json()["tags"]}
+        assert story_tags[tag_name] == "endpoint"
+
     def test_put_NewsItem(self, client, cleanup_news_item, auth_header):
         from core.model.news_item import NewsItem
 
@@ -399,6 +424,32 @@ class TestAssessUngroupBigStory(BaseTest):
         assert response.get_json()["news_items"][1]["last_change"] == "external"
         assert len(response.get_json()["attributes"]) == 4
         assert len(response.get_json()["tags"]) == 3
+
+    def test_story_tags_are_deduped_from_news_item_tags(self, client, full_story_with_multiple_items_id, auth_header):
+        full_story_id, _ = full_story_with_multiple_items_id
+        response = self.assert_get_ok(client, f"/story/{full_story_id}", auth_header)
+        news_items = response.get_json()["news_items"]
+        assert len(news_items) == 2
+
+        shared_tag = f"shared-{uuid.uuid4().hex}"
+        first_tag = f"first-{uuid.uuid4().hex}"
+        second_tag = f"second-{uuid.uuid4().hex}"
+        self.assert_put_ok(
+            client,
+            f"news-items/{news_items[0]['id']}/tags",
+            [{"name": shared_tag, "tag_type": "shared"}, {"name": first_tag, "tag_type": "one"}],
+            auth_header,
+        )
+        self.assert_put_ok(
+            client,
+            f"news-items/{news_items[1]['id']}/tags",
+            {shared_tag: "shared", second_tag: "two"},
+            auth_header,
+        )
+
+        response = self.assert_get_ok(client, f"/story/{full_story_id}", auth_header)
+        story_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json()["tags"]}
+        assert story_tags == {first_tag: "one", second_tag: "two", shared_tag: "shared"}
 
     def test_ungroup_story_with_multiple_news_items(self, client, full_story_with_multiple_items_id, auth_header):
         from core.managers.db_manager import db

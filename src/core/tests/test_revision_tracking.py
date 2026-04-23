@@ -366,11 +366,11 @@ def test_report_title_retag_happens_before_revision_and_commit(sample_report_typ
 
     original_record_revision = ReportItem.record_revision
 
-    def remove_tag_spy(*args, **kwargs):
-        events.append("remove_report_tag")
+    def remove_attribute_spy(*args, **kwargs):
+        events.append("remove_report_attribute")
 
-    def add_tag_spy(*args, **kwargs):
-        events.append("add_report_tag")
+    def add_attribute_spy(*args, **kwargs):
+        events.append("add_report_attribute")
 
     def record_revision_spy(self, *args, **kwargs):
         events.append("record_revision")
@@ -380,12 +380,12 @@ def test_report_title_retag_happens_before_revision_and_commit(sample_report_typ
         events.append("commit")
         raise RuntimeError("stop-after-commit")
 
-    monkeypatch.setattr(NewsItemTagService, "remove_report_tag", remove_tag_spy)
-    monkeypatch.setattr(NewsItemTagService, "add_report_tag", add_tag_spy)
+    monkeypatch.setattr(NewsItemTagService, "remove_report_attribute", remove_attribute_spy)
+    monkeypatch.setattr(NewsItemTagService, "add_report_attribute", add_attribute_spy)
     monkeypatch.setattr(ReportItem, "record_revision", record_revision_spy)
     monkeypatch.setattr(db.session, "commit", commit_spy)
 
     with pytest.raises(RuntimeError, match="stop-after-commit"):
         ReportItem.update_report_item(report_item.id, {"title": "Renamed Report"}, admin_user)
 
-    assert events == ["remove_report_tag", "add_report_tag", "record_revision", "commit"]
+    assert events == ["remove_report_attribute", "add_report_attribute", "record_revision", "commit"]

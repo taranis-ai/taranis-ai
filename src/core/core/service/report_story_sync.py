@@ -37,20 +37,20 @@ class ReportStorySyncService:
 
         if action == "attach":
             for story in stories:
-                NewsItemTagService.add_report_tag(story, report)
+                NewsItemTagService.add_report_attribute(story, report)
             cls.update_affected_stories(stories)
             return stories
 
         if action == "detach":
             for story in stories:
-                NewsItemTagService.remove_report_tag(story, report.id)
+                NewsItemTagService.remove_report_attribute(story, report.id)
             cls.update_affected_stories(stories)
             return stories
 
         if action == "retag":
             for story in stories:
-                NewsItemTagService.remove_report_tag(story, report.id)
-                NewsItemTagService.add_report_tag(story, report)
+                NewsItemTagService.remove_report_attribute(story, report.id)
+                NewsItemTagService.add_report_attribute(story, report)
             return stories
 
         raise ValueError(f"Unsupported report story sync action: {action}")

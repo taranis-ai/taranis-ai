@@ -10,6 +10,7 @@ from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 from core.model.connector import Connector
+from core.model.news_item import NewsItem
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource
 from core.model.product import Product
@@ -180,14 +181,14 @@ class Tags(MethodView):
         errors = {}
         if not isinstance(data, dict):
             return {"error": "Expected a dict for tags"}, 400
-        for story_id, tags in data.items():
-            story = Story.get(story_id)
-            if not story:
-                errors[story_id] = "Story not found"
+        for news_item_id, tags in data.items():
+            news_item = NewsItem.get(news_item_id)
+            if not news_item:
+                errors[news_item_id] = "News item not found"
                 continue
-            _, status = story.set_tags(tags)
+            _, status = news_item.set_tags(tags)
             if status != 200:
-                errors[story_id] = status
+                errors[news_item_id] = status
         if errors:
             return {"message": "Some tags failed to update", "errors": errors}, 207
         return {"message": "Tags updated"}, 200

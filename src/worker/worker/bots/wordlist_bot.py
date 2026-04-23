@@ -45,15 +45,16 @@ class WordlistBot(BaseBot):
         for i, story in enumerate(data):
             if i % max(len(data) // 10, 1) == 0:
                 logger.debug(f"Extracting words from {story['id']}: {i}/{len(data)}")
-            found_tags[story["id"]] = self._find_tags(story, word_list_entries, override_existing_tags, ignore_case)
+            for news_item in story["news_items"]:
+                found_tags[news_item["id"]] = self._find_tags(news_item, word_list_entries, override_existing_tags, ignore_case)
         return found_tags
 
-    def _find_tags(self, stord, word_list_entries, override_existing_tags, ignore_case) -> dict[str, str]:
+    def _find_tags(self, news_item, word_list_entries, override_existing_tags, ignore_case) -> dict[str, str]:
         findings = {}
         entry_set = {item["value"]: item["category"] for item in word_list_entries}
-        existing_tags = stord["tags"] or {}
+        existing_tags = self._tag_names(news_item.get("tags") or {})
 
-        all_content = self._story_content(stord)
+        all_content = self._news_item_content(news_item)
 
         for entry, category in entry_set.items():
             if re.search(r"\b" + re.escape(entry) + r"\b", all_content, ignore_case):
@@ -64,5 +65,13 @@ class WordlistBot(BaseBot):
         return findings
 
     @staticmethod
-    def _story_content(story):
-        return " ".join([news_item["title"] + news_item["review"] + news_item["content"] for news_item in story["news_items"]])
+    def _news_item_content(news_item):
+        return " ".join([news_item.get("title", ""), news_item.get("review", ""), news_item.get("content", "")])
+
+    @staticmethod
+    def _tag_names(tags) -> set[str]:
+        if isinstance(tags, dict):
+            return set(tags)
+        if isinstance(tags, list):
+            return {tag["name"] for tag in tags if isinstance(tag, dict) and isinstance(tag.get("name"), str)}
+        return set()

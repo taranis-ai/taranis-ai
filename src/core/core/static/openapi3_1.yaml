@@ -818,6 +818,56 @@ paths:
         "404":
           $ref: "#/components/responses/404NotFound"
 
+  /assess/news-items/{item_id}/tags:
+    parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: replace tags for the specified news item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/news_item_tags_update"
+      responses:
+        "200":
+          description: tags were updated
+        "400":
+          description: invalid tag payload
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: write access denied
+        "404":
+          $ref: "#/components/responses/404NotFound"
+    patch:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: replace tags for the specified news item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/news_item_tags_update"
+      responses:
+        "200":
+          description: tags were updated
+        "400":
+          description: invalid tag payload
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: write access denied
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /assess/story/{story_id}:
     parameters:
       - name: story_id
@@ -1171,12 +1221,14 @@ paths:
       security:
         - APIKey: []
       tags: [bots]
-      description: update news item tags
+      description: update tags keyed by news item id
       requestBody:
         content:
           application/json:
             schema:
               type: object
+              additionalProperties:
+                $ref: "#/components/schemas/news_item_tags_update"
       responses:
         "200":
           description: tag has been updated
@@ -3796,6 +3848,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/news_item_attribute"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/news_item_tag"
       required:
         - title
         - source
@@ -3861,6 +3917,18 @@ components:
           type: string
         tag_type:
           type: string
+    news_item_tags_update:
+      oneOf:
+        - type: array
+          items:
+            oneOf:
+              - type: string
+              - $ref: "#/components/schemas/news_item_tag"
+        - type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - $ref: "#/components/schemas/news_item_tag"
     story:
       type: object
       properties:

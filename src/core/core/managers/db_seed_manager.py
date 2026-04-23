@@ -78,6 +78,7 @@ def pre_seed_update(db_engine: Engine):
     migrate_use_feed_content()
     migrate_user_profiles()
     cleanup_empty_stories()
+    sync_report_story_attributes()
     migrate_missing_initial_revisions()
     if db_engine.dialect.name == "postgresql":
         rebuild_story_search_vectors()
@@ -148,6 +149,21 @@ def cleanup_empty_stories():
     logger.info(f"Deleted {empty_stories} empty stories")
 
 
+def sync_report_story_attributes():
+    from core.managers.db_manager import db
+    from core.model.report_item import ReportItem
+    from core.service.report_story_sync import ReportStorySyncService
+
+    reports = db.session.execute(db.select(ReportItem).options(selectinload(ReportItem.stories)).order_by(ReportItem.id)).scalars().all()
+    synced_stories = 0
+    for report in reports:
+        synced_stories += len(ReportStorySyncService.sync_report_membership(report, report.stories, "retag"))
+
+    if synced_stories:
+        db.session.commit()
+        logger.info(f"Synced report story attributes for {synced_stories} stories")
+
+
 def migrate_missing_initial_revisions(batch_size: int = 100):
     migrated_story_revisions = _migrate_missing_story_revisions(batch_size=batch_size)
     migrated_report_revisions = _migrate_missing_report_revisions(batch_size=batch_size)
@@ -170,7 +186,7 @@ def _migrate_missing_story_revisions(batch_size: int) -> int:
             db.select(Story)
             .options(
                 selectinload(Story.attributes),
-                selectinload(Story.tags),
+                selectinload(Story.news_items).selectinload(NewsItem.tags),
                 selectinload(Story.news_items).selectinload(NewsItem.attributes),
             )
             .where(Story.revision == -1)
@@ -201,7 +217,7 @@ def _migrate_missing_report_revisions(batch_size: int) -> int:
             .options(
                 selectinload(ReportItem.report_item_type),
                 selectinload(ReportItem.attributes),
-                selectinload(ReportItem.stories).selectinload(Story.tags),
+                selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.tags),
                 selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.attributes),
             )
             .where(ReportItem.revision == -1)

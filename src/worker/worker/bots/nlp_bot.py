@@ -40,9 +40,10 @@ class NLPBot(BaseBot):
                 is_cybersecurity = story["attributes"].get("cybersecurity", {}).get("value", "no") == "yes"
             else:
                 is_cybersecurity = False
-            story_content = "\n".join(news_item["content"] for news_item in story["news_items"])
-            current_keywords = self._extract_ner(story_content, is_cybersecurity)
-            update_result[story["id"]] = current_keywords
+            for news_item in story["news_items"]:
+                news_item_content = "\n".join([news_item.get("title", ""), news_item.get("review", ""), news_item.get("content", "")])
+                current_keywords = self._extract_ner(news_item_content, is_cybersecurity)
+                update_result[news_item["id"]] = current_keywords
 
         return update_result
 

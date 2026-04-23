@@ -57,7 +57,6 @@ class Story(BaseModel):
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
-    tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
     search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), server_default="")
 
     def __init__(
@@ -98,7 +97,7 @@ class Story(BaseModel):
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
         if tags:
-            self.tags = NewsItemTag.load_multiple(tags)
+            self.apply_tags_to_news_items(NewsItemTag.parse_tags(tags))
         self.recompute_relevance(in_reports_count=0)
 
     def get_creation_date(self, created: datetime | str | None):
@@ -120,6 +119,15 @@ class Story(BaseModel):
     @property
     def links(self) -> list[str]:
         return [item.link for item in self.news_items if getattr(item, "link", None)]
+
+    @property
+    def tags(self) -> list["NewsItemTag"]:
+        tags_by_name: dict[str, NewsItemTag] = {}
+        for news_item in self.news_items:
+            for tag in news_item.tags:
+                if tag.name:
+                    tags_by_name[tag.name] = tag
+        return sorted(tags_by_name.values(), key=lambda tag: tag.name.lower())
 
     @property
     def relevance_source(self) -> int:
@@ -245,8 +253,13 @@ class Story(BaseModel):
 
         if tags := filter_args.get("tags"):
             for tag in tags:
+                item_alias = aliased(NewsItem)
                 alias = aliased(NewsItemTag)
-                query = query.join(alias, Story.id == alias.story_id).filter(or_(alias.name == tag, alias.tag_type == tag))
+                query = (
+                    query.join(item_alias, item_alias.story_id == Story.id)
+                    .join(alias, item_alias.id == alias.news_item_id)
+                    .filter(or_(alias.name == tag, alias.tag_type == tag))
+                )
 
         if filter_range := filter_args.get("range", "").lower():
             date_limit = cls.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -698,7 +711,7 @@ class Story(BaseModel):
             story.comments = data["comments"]
 
         if "tags" in data:
-            story.tags = story.get_tags(data["tags"])
+            story.apply_tags_to_news_items(NewsItemTag.parse_tags(data["tags"]))
 
         if "summary" in data:
             story.summary = data["summary"]
@@ -914,57 +927,43 @@ class Story(BaseModel):
     def is_assigned_to_report(cls, story_ids: list) -> bool:
         return any(ReportItemStory.is_assigned(story_id) for story_id in story_ids)
 
-    def get_tags_to_remove(self, tags: dict[str, NewsItemTag]) -> set[str]:
-        incoming_tag_names = set(tags.keys())
-        existing_tag_names = {tag.name for tag in self.tags}
-        return existing_tag_names - incoming_tag_names
-
     @classmethod
     def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
         return list(NewsItemTag.parse_tags(incoming_tags).values())
 
-    def set_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
+    @staticmethod
+    def _clone_tags(tags: dict[str, NewsItemTag]) -> dict[str, NewsItemTag]:
+        return {name: NewsItemTag(name=tag.name, tag_type=tag.tag_type) for name, tag in tags.items()}
+
+    def apply_tags_to_news_items(self, tags: dict[str, NewsItemTag], change_by_bot: bool = False) -> None:
+        for news_item in self.news_items:
+            cloned_tags = self._clone_tags(tags)
+            if change_by_bot:
+                news_item.patch_tags(cloned_tags)
+                continue
+            tags_to_remove = news_item.get_tags_to_remove(cloned_tags)
+            news_item.patch_tags(cloned_tags)
+            news_item.remove_tags(tags_to_remove)
+
+    def set_tags(self, incoming_tags: list | dict, change_by_bot: bool = False, user: User | None = None) -> tuple[dict, int]:
         try:
-            return self._update_tags(incoming_tags, change_by_bot=change_by_bot)
+            return self._update_tags(incoming_tags, change_by_bot=change_by_bot, user=user)
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
             return {"error": str(e)}, 500
 
-    def _update_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
+    def _update_tags(self, incoming_tags: list | dict, change_by_bot: bool = False, user: User | None = None) -> tuple[dict, int]:
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400
 
-        if change_by_bot:
-            self.patch_tags(parsed_tags)
-        else:
-            tags_to_remove = self.get_tags_to_remove(parsed_tags)
-            self.patch_tags(parsed_tags)
-            self.remove_tags(tags_to_remove)
+        self.apply_tags_to_news_items(parsed_tags, change_by_bot=change_by_bot)
 
-        self.record_revision(note="set_tags")
+        self.update_status()
+        self.record_revision(user, note="set_tags")
         db.session.commit()
         return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
-
-    def patch_tags(self, tags: dict[str, NewsItemTag]):
-        for tag in tags.values():
-            self.upsert_tag(tag)
-
-    def remove_tags(self, keys: set[str]):
-        for key in keys:
-            if tag := self.find_tag_by_name(key):
-                self.tags.remove(tag)
-                db.session.delete(tag)
-
-    def upsert_tag(self, tag: NewsItemTag) -> None:
-        if existing_tag := self.find_tag_by_name(tag.name):
-            existing_tag.tag_type = tag.tag_type
-        else:
-            self.tags.append(tag)
-
-    def find_tag_by_name(self, name: str) -> NewsItemTag | None:
-        return next((tag for tag in self.tags if tag.name == name), None)
 
     @classmethod
     def group_multiple_stories(cls, story_mappings: list[list[str]]):
@@ -1010,7 +1009,6 @@ class Story(BaseModel):
                 if not source_story:
                     continue
 
-                StoryOperationsService.merge_story_tags(first_story, source_story)
                 for news_item in source_story.news_items[:]:
                     StoryOperationsService.transfer_news_item_to_story(first_story, news_item, source_stories_by_id, user)
 
@@ -1040,8 +1038,8 @@ class Story(BaseModel):
             story = cls.get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404
-            for tag in story.tags:
-                if tag.to_dict().get("tag_type", "").startswith("report"):
+            for attribute in story.attributes:
+                if attribute.key.startswith("report_"):
                     return {"error": f"Story {story.id} is part of a report, you need to remove the news items manually"}, 500
             for news_item in story.news_items[:]:
                 if user is None or news_item.allowed_with_acl(user, True):

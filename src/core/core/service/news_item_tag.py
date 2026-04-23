@@ -5,6 +5,7 @@ from sqlalchemy import func
 
 from core.log import logger
 from core.managers.db_manager import db
+from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_tag import NewsItemTag
 from core.model.story import Story
@@ -21,8 +22,10 @@ class NewsItemTagService:
 
         subquery = (
             db.select(NewsItemTag.name, NewsItemTag.tag_type, Story.id, Story.created)
-            .join(NewsItemTag.story)
-            .filter(Story.created >= start_date)
+            .join(NewsItemTag.news_item)
+            .join(Story, NewsItem.story_id == Story.id)
+            .filter(Story.created >= start_date, NewsItemTag.tag_type.not_ilike("report_%"))
+            .distinct()
             .subquery()
         )
 
@@ -58,13 +61,18 @@ class NewsItemTagService:
 
     @classmethod
     def get_n_biggest_tags_by_type(cls, tag_type: str, n: int, days: int = 0) -> list[dict]:
-        stmt = db.select(NewsItemTag.name, func.count(NewsItemTag.name).label("name_count")).filter(NewsItemTag.tag_type == tag_type)
+        story_count = func.count(func.distinct(NewsItem.story_id))
+        stmt = (
+            db.select(NewsItemTag.name, story_count.label("name_count"))
+            .join(NewsItemTag.news_item)
+            .filter(NewsItemTag.tag_type == tag_type, NewsItemTag.tag_type.not_ilike("report_%"))
+        )
 
         if days > 0:
             date_threshold = datetime.now() - timedelta(days=days)
-            stmt = stmt.join(Story, NewsItemTag.story_id == Story.id).filter(Story.created >= date_threshold)
+            stmt = stmt.join(Story, NewsItem.story_id == Story.id).filter(Story.created >= date_threshold)
 
-        stmt = stmt.group_by(NewsItemTag.name).order_by(func.count(NewsItemTag.name).desc()).limit(n)
+        stmt = stmt.group_by(NewsItemTag.name).order_by(story_count.desc()).limit(n)
 
         result = db.session.execute(stmt).all()
         return [{"name": row[0], "size": row[1]} for row in result]
@@ -73,9 +81,10 @@ class NewsItemTagService:
     def get_tag_types(cls) -> list[str]:
         items = db.session.execute(
             db.select(NewsItemTag.tag_type)
+            .join(NewsItemTag.news_item)
             .where(NewsItemTag.tag_type.not_ilike("report_%"))
             .group_by(NewsItemTag.tag_type)
-            .order_by(func.count(NewsItemTag.name).desc())
+            .order_by(func.count(func.distinct(NewsItem.story_id)).desc())
         ).all()
         return [row[0] for row in items] if items else []
 
@@ -92,49 +101,44 @@ class NewsItemTagService:
         return largest_tag_types
 
     @classmethod
-    def add_report_tag(cls, story: "Story", report: "ReportItem"):
-        story_tags = []
-        for tag in story.tags:
-            if tag.tag_type == f"report_{report.id}":
-                return
-            story_tags.append(tag)
-        new_tag = NewsItemTag(name=report.title, tag_type=f"report_{report.id}")
-        story_tags.append(new_tag)
-        story.tags = story_tags
+    def add_report_attribute(cls, story: "Story", report: "ReportItem"):
+        story.upsert_attribute(NewsItemAttribute(key=f"report_{report.id}", value=report.title))
 
     @staticmethod
     def set_found_bot_tags(found_tags: dict[str, Any], change_by_bot: bool = False):
         errors = {}
-        for story_id, tags in found_tags.items():
+        for news_item_id, tags in found_tags.items():
             if not tags:
                 continue
-            story = Story.get(story_id)
-            if not story:
-                errors[story_id] = "Story not found"
+            news_item = NewsItem.get(news_item_id)
+            if not news_item:
+                errors[news_item_id] = "News item not found"
                 continue
-            story.set_tags(tags, change_by_bot=change_by_bot)
+            news_item.set_tags(tags, change_by_bot=change_by_bot)
 
     @staticmethod
     def set_worker_execution_attribute(*, worker_type: str, worker_id: str, found_tags: dict[str, Any]):
         now = datetime.now().isoformat()
+        tag_counts_by_story: dict[str, int] = {}
+        stories_by_id: dict[str, Story] = {}
 
-        for story_id, tags in found_tags.items():
-            if story := Story.get(story_id):
-                tag_count = len(tags)
-                attribute_value = f"worker_id={worker_id}|count={tag_count}|{now}"
-                story.attributes.append(
-                    NewsItemAttribute(
-                        key=f"{worker_type}",
-                        value=attribute_value,
-                    )
-                )
-                story.record_revision(note="set_worker_execution_attribute")
+        for news_item_id, tags in found_tags.items():
+            if news_item := NewsItem.get(news_item_id):
+                if story := news_item.story:
+                    stories_by_id[story.id] = story
+                    tag_counts_by_story[story.id] = tag_counts_by_story.get(story.id, 0) + len(tags)
+
+        for story_id, tag_count in tag_counts_by_story.items():
+            story = stories_by_id[story_id]
+            attribute_value = f"worker_id={worker_id}|count={tag_count}|{now}"
+            story.upsert_attribute(NewsItemAttribute(key=f"{worker_type}", value=attribute_value))
+            story.record_revision(note="set_worker_execution_attribute")
 
         db.session.commit()
 
     @classmethod
-    def remove_report_tag(cls, story: "Story", report_id: str):
-        story.tags = [tag for tag in story.tags if tag.tag_type != f"report_{report_id}"]
+    def remove_report_attribute(cls, story: "Story", report_id: str):
+        story.remove_attributes([f"report_{report_id}"])
 
     @classmethod
     def delete_tags_by_name(cls, tag_name: str):

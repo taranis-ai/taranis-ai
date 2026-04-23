@@ -61,6 +61,7 @@ class NewsItem(TaranisBaseModel):
     collected: datetime | None = None
     updated: datetime | None = None
     attributes: list[str | dict[str, Any]] | None = None
+    tags: list[dict[str, Any]] | dict[str, Any] | None = None
     story_id: str | None = None
     language: BCP47 = None
     last_change: str | None = None
