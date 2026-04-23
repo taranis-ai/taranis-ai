@@ -14,8 +14,9 @@ from tests.core_requests import CoreRequestClient
 
 
 CRON_ENQUEUE_KEY_PREFIX = "rq:cron:enqueue:"
+CRON_NEXT_KEY = "rq:cron:next"
 DEFAULT_JOB_TIMEOUT_SECONDS = 30
-CRON_JOB_TIMEOUT_SECONDS = 90
+CRON_JOB_TIMEOUT_SECONDS = 20
 
 RedisBackend = dict[str, str]
 JsonDict = dict[str, Any]
@@ -117,7 +118,7 @@ def _assert_cron_registration(
 ) -> tuple[dict[str, Any], float]:
     redis_conn = _redis_conn(redis_backend)
     raw_spec = redis_conn.hget("rq:cron:def", job_id)
-    next_run_raw = redis_conn.zscore("rq:cron:next", job_id)
+    next_run_raw = redis_conn.zscore(CRON_NEXT_KEY, job_id)
     assert isinstance(raw_spec, (bytes, str)), f"Missing cron registration for {job_id}"
     assert isinstance(next_run_raw, (int, float)), f"Missing or invalid next run entry for {job_id}"
     next_run = float(next_run_raw)
