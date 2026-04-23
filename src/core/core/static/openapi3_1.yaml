@@ -410,12 +410,58 @@ paths:
         "404":
           $ref: "#/components/responses/404NotFound"
 
+    put:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: update report items
+      operationId: analyze.report_items.put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+    delete:
+      security:
+        - UserAuth: []
+      tags: [analyze]
+      description: delete report items
+      operationId: analyze.report_items.delete
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid request
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
   /analyze/report-items/publish-product:
     post:
       security:
         - UserAuth: []
       tags: [analyze]
-      operationId: analyze.report_items.publish_product
+      operationId: analyze.report_items_publish_product.post
       description: |-
         Create a report and a product in a single request, then schedule an asynchronous render -> publish workflow for that product.
 
