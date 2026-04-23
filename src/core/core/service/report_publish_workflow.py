@@ -17,7 +17,7 @@ from core.service.report_story_sync import ReportStorySyncService
 
 class ReportPublishWorkflowService:
     @classmethod
-    def create_and_publish(cls, data: Any, user: User | None):
+    def create_and_publish(cls, data: dict, user: User | None):
         if not isinstance(data, dict):
             return {"error": "Invalid request payload"}, 400
 
@@ -115,7 +115,7 @@ class ReportPublishWorkflowService:
 
         default_publisher = data.get("default_publisher")
         if not isinstance(default_publisher, str) or not default_publisher.strip():
-            return {"error": "Publisher preset not found"}, 404
+            return {"error": "Invalid publisher preset value"}, 400
 
         publisher_preset = PublisherPreset.get(default_publisher.strip())
         if not publisher_preset:
@@ -148,14 +148,14 @@ class ReportPublishWorkflowService:
         return parsed if parsed > 0 else None
 
     @staticmethod
-    def _get_stories(story_ids: list[str]):
+    def _get_stories(story_ids: list[str]) -> tuple[list[Story], list[str]]:
         stories = Story.get_bulk(story_ids) if story_ids else []
         found_story_ids = {story.id for story in stories}
         missing_story_ids = [story_id for story_id in story_ids if story_id not in found_story_ids]
         return stories, missing_story_ids
 
     @classmethod
-    def _apply_attribute_overrides(cls, report_item: ReportItem, overrides: Any):
+    def _apply_attribute_overrides(cls, report_item: ReportItem, overrides: list[dict]):
         if overrides is None:
             return None
         if not isinstance(overrides, list):
@@ -209,7 +209,7 @@ class ReportPublishWorkflowService:
         }, None
 
     @staticmethod
-    def _build_response(report_item: ReportItem, product: Product, publish_result: dict[str, Any], publish_status: int):
+    def _build_response(report_item: ReportItem, product: Product, publish_result: dict[str, Any], publish_status: int) -> dict[str, Any]:
         publish_payload = {
             "status": "scheduled" if publish_status == 200 else "failed",
             "publisher_id": product.default_publisher,
@@ -229,13 +229,13 @@ class ReportPublishWorkflowService:
         }
 
     @staticmethod
-    def _serialize_report(report_item: ReportItem):
+    def _serialize_report(report_item: ReportItem) -> dict[str, Any]:
         data = report_item.to_detail_dict()
         data["attributes"] = [attribute.to_report_dict() for attribute in report_item.attributes]
         return data
 
     @staticmethod
-    def _serialize_product(product: Product):
+    def _serialize_product(product: Product) -> dict[str, Any]:
         data = product.to_detail_dict()
         data["auto_publish"] = product.auto_publish
         data["default_publisher"] = product.default_publisher

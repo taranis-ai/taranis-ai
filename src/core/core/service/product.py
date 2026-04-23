@@ -20,7 +20,7 @@ class ProductService:
             task_name="presenter_task",
         )
         if render_error and render_error.status == "FAILURE":
-            logger.debug(f"Failed to render product {product_id}: {render_error.to_dict()}")
+            logger.error(f"Failed to render product {product_id}: {render_error.to_dict()}")
             return {"error": render_error.result}, 200
         if product_data := Product.get_render(product_id):
             binary = b64decode(product_data["blob"])
