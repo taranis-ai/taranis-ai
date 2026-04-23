@@ -51,8 +51,12 @@ def test_fetch_single_news_item_accepts_simple_web_source_payload(current_job, m
     monkeypatch.setattr(collector_tasks.worker.collectors, "SimpleWebCollector", FakeSimpleWebCollector)
 
     result = collector_tasks.fetch_single_news_item(
-        {"id": "manual", "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"}}
+        {"id": "manual", "type": "simple_web_collector", "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"}}
     )
 
     assert result == [{"title": "Fetched item", "content": "Fetched content", "osint_source_id": "manual"}]
-    assert captured_parameters == {"id": "manual", "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"}}
+    assert captured_parameters == {
+        "id": "manual",
+        "type": "simple_web_collector",
+        "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
+    }

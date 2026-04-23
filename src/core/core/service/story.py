@@ -6,6 +6,7 @@ from flask import Response, abort, jsonify
 from flask_jwt_extended import current_user
 from sqlalchemy import Row, bindparam, func
 
+from core.log import logger
 from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.news_item import NewsItem
@@ -152,7 +153,7 @@ class StoryService:
         return len(deleted_ids)
 
     @staticmethod
-    def fetch_and_create_story(parameters: dict[str, str]):
+    def fetch_and_create_story(parameters: dict[str, Any]) -> tuple[dict[str, Any], int]:
         result = queue_manager.queue_manager.fetch_single_news_item(parameters=parameters)
         if isinstance(result, tuple):
             return result
@@ -174,14 +175,14 @@ class StoryService:
             for story_data in json_data:
                 story = Story.from_dict(story_data)
                 db.session.add(story)
-                db.session.flush()
-                story.record_revision(note="created")
+                story.record_revision(user, note="created")
                 imported_stories.append(story)
             db.session.commit()
             invalidate_frontend_cache_on_success(200, full=True)
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            abort(400, description=f"Failed to import stories: {str(e)}")
+            logger.exception("Failed to import stories")
+            abort(400, description="Failed to import stories")
         return jsonify({"imported_stories": [story.to_dict() for story in imported_stories]})
 
     @staticmethod
@@ -197,10 +198,22 @@ class StoryService:
                 imported_news_items.append(news_item)
             db.session.commit()
             invalidate_frontend_cache_on_success(200, full=True)
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            abort(400, description=f"Failed to import news items: {str(e)}")
+            logger.exception("Failed to import news items")
+            abort(400, description="Failed to import news items")
         return jsonify({"imported_news_items": [news_item.to_dict() for news_item in imported_news_items]})
+
+    @staticmethod
+    def _get_import_payload_kind(item: Any) -> str | None:
+        if not isinstance(item, dict):
+            return None
+
+        has_story_fields = "news_items" in item
+        has_news_item_fields = "source" in item
+        if has_story_fields == has_news_item_fields:
+            return None
+        return "story" if has_story_fields else "news_item"
 
     @staticmethod
     def import_stories(json_data: dict[str, Any] | list[dict[str, Any]], user: User) -> Response:
@@ -209,11 +222,17 @@ class StoryService:
         """
         if not isinstance(json_data, list):
             json_data = [json_data]
-        if "news_items" in json_data[0]:
+        if not json_data:
+            abort(400, description="Invalid JSON data for import.")
+
+        payload_kinds = {StoryService._get_import_payload_kind(item) for item in json_data}
+        if payload_kinds == {"story"}:
             return StoryService._import_story_list(json_data=json_data, user=user)
-        elif "source" in json_data[0]:
+        if payload_kinds == {"news_item"}:
             return StoryService._import_news_item_list(json_data=json_data, user=user)
-        abort(400, description="Invalid JSON data for import.")
+        if None in payload_kinds:
+            abort(400, description="Invalid JSON data for import.")
+        abort(400, description="Cannot mix story and news item imports.")
 
     @staticmethod
     def _serialize_revision(revision: StoryRevision, include_data: bool = False) -> dict[str, Any]:

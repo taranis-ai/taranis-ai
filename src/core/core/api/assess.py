@@ -15,6 +15,7 @@ from core.model import connector, news_item, news_item_tag, osint_source, story
 from core.model.story_conflict import StoryConflict
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.news_item import NewsItemService
+from core.service.simple_web_collector import get_simple_web_collector_url
 from core.service.story import StoryService
 
 
@@ -57,31 +58,26 @@ class NewsItems(MethodView):
 
 class NewsItemFetch(MethodView):
     @staticmethod
-    def _get_web_url(parameters: dict) -> str:
-        collector_parameters = parameters.get("parameters", {})
-        if isinstance(collector_parameters, dict):
-            return str(collector_parameters.get("WEB_URL") or parameters.get("url") or "").strip()
-        return str(parameters.get("url") or "").strip()
-
-    @staticmethod
     def _is_supported_web_url(url: str) -> bool:
         parsed_url = urlparse(url)
         return parsed_url.scheme in {"http", "https"} and bool(parsed_url.netloc)
 
     @auth_required("ASSESS_CREATE")
     def post(self):
-        if parameters := request.get_json():
-            if not isinstance(parameters, dict):
-                return {"error": "Collector parameters must be an object"}, 400
-            url = self._get_web_url(parameters)
-            if not self._is_supported_web_url(url):
-                return {"error": "A valid http or https URL is required"}, 400
-            response, status = StoryService.fetch_and_create_story(parameters)
+        request_payload = request.get_json(silent=True)
+        if not isinstance(request_payload, dict):
+            return {"error": "Couldn't create News Item"}, 400
+
+        parameters = request_payload
+        url = get_simple_web_collector_url(parameters)
+        if not self._is_supported_web_url(url):
+            return {"error": "A valid http or https URL is required"}, 400
+
+        response, status = StoryService.fetch_and_create_story(parameters)
+        if 200 <= status < 300:
             sse_manager.news_items_updated()
             invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
-            return response, status
-
-        return {"error": "Couldn't create News Item"}, 400
+        return response, status
 
 
 class NewsItem(MethodView):

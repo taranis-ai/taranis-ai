@@ -45,6 +45,7 @@ from rq.job import Job
 
 from core.config import Config
 from core.log import logger
+from core.service.simple_web_collector import get_simple_web_collector_url
 
 
 OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
@@ -611,21 +612,40 @@ class QueueManager:
             return {"message": f"Preview for source {source_id} scheduled", "id": job.id, "status": "STARTED"}, 201
         return {"error": "Could not reach Redis"}, 500
 
+    @classmethod
+    def _get_single_fetch_url(cls, parameters: dict[str, Any]) -> str:
+        return get_simple_web_collector_url(parameters)
+
     @staticmethod
-    def _get_single_fetch_url(parameters: dict) -> str:
-        collector_parameters = parameters.get("parameters", {})
-        if isinstance(collector_parameters, dict):
-            return str(collector_parameters.get("WEB_URL") or parameters.get("url") or "").strip()
-        return str(parameters.get("url") or "").strip()
+    def _normalize_single_fetch_job_id_value(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                str(key): QueueManager._normalize_single_fetch_job_id_value(value[key]) for key in sorted(value, key=lambda item: str(item))
+            }
+        if isinstance(value, (list, tuple)):
+            return [QueueManager._normalize_single_fetch_job_id_value(item) for item in value]
+        if isinstance(value, set):
+            normalized_items = [QueueManager._normalize_single_fetch_job_id_value(item) for item in value]
+            return sorted(normalized_items, key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":")))
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
 
     @classmethod
-    def _get_single_fetch_job_id(cls, parameters: dict) -> str:
-        url = cls._get_single_fetch_url(parameters)
-        url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
-        return f"fetch_single_news_item_{url_hash}"
+    def _get_single_fetch_job_payload(cls, parameters: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "url": get_simple_web_collector_url(parameters),
+            "parameters": cls._normalize_single_fetch_job_id_value(parameters.get("parameters", {})),
+        }
+
+    @classmethod
+    def _get_single_fetch_job_id(cls, parameters: dict[str, Any]) -> str:
+        payload_json = json.dumps(cls._get_single_fetch_job_payload(parameters), sort_keys=True, separators=(",", ":"))
+        payload_hash = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        return f"fetch_single_news_item_{payload_hash}"
 
     def fetch_single_news_item(self, parameters: dict[str, Any]):
-        url = self._get_single_fetch_url(parameters)
+        url = get_simple_web_collector_url(parameters)
         job = self.enqueue_task(
             "collectors",
             "fetch_single_news_item",
