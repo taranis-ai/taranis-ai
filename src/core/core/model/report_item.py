@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from sqlalchemy import inspect, or_
 from sqlalchemy.orm import Mapped, relationship
@@ -304,7 +304,7 @@ class ReportItem(BaseModel):
         return [cls.from_dict(report_item) for report_item in data]
 
     @classmethod
-    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem" | dict[str, Any], int]:
+    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem", Literal[200]] | tuple[dict[str, Any], int]:
         sanitized_data, error = cls._sanitize_create_payload(report_item_data)
         if error:
             return error[0], error[1]
@@ -408,7 +408,7 @@ class ReportItem(BaseModel):
             if filter_range.upper() == "MONTH":
                 date_limit = date_limit.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                 query = query.filter(ReportItem.created >= date_limit)
-        
+
         if story_id := filter_args.get("story_id"):
             query = query.filter(cls.stories.any(Story.id == story_id))
 

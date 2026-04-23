@@ -14,8 +14,13 @@ from core.model.task import Task
 class ProductService:
     @classmethod
     def get_render(cls, product_id: str):
-        if render_error := Task.get_failed(product_id):
-            logger.debug(f"Failed to render product {product_id}: {render_error.to_dict()}")
+        render_error = Task.get_latest_matching(
+            exact_ids={product_id, f"presenter_task_{product_id}"},
+            prefixes=[f"presenter_task_{product_id}_"],
+            task_name="presenter_task",
+        )
+        if render_error and render_error.status == "FAILURE":
+            logger.error(f"Failed to render product {product_id}: {render_error.to_dict()}")
             return {"error": render_error.result}, 200
         if product_data := Product.get_render(product_id):
             binary = b64decode(product_data["blob"])
@@ -34,8 +39,14 @@ class ProductService:
             if not product.default_publisher:
                 logger.warning(f"Product {product.id} is set to auto publish but has no default publisher")
                 continue
-            if not queue_manager.queue_manager.autopublish_product(product.id, product.default_publisher):
-                logger.error(f"Failed to schedule autopublish jobs for product {product.id}")
+            result, status = queue_manager.queue_manager.autopublish_product(product.id, product.default_publisher)
+            if status != 200:
+                logger.error(
+                    "Failed to schedule autopublish jobs for product %s: %s",
+                    product.id,
+                    result.get("error", "unknown error"),
+                )
+        return products
 
     @classmethod
     def get_products_for_auto_render(cls, report_item_id: str) -> list[Product]:
