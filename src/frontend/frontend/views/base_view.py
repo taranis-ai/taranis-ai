@@ -238,31 +238,44 @@ class BaseView(MethodView):
         object_id: int | str,
         error: str | None = None,
         form_error: str | None = None,
-        resp_obj: dict[str, Any] | None = None,
+        model_instance: TaranisBaseModel | None = None,
+        response_message: str | None = None,
+        form_action_object_id: int | str | None = None,
     ) -> dict[str, Any]:
-        submit = f"Update {cls.pretty_name()}"
+        model_context_key = cls.model_name()
 
-        context = cls._common_context(object_id=object_id)
-        context.update(
-            {
-                "error": error,
-                "form_error": form_error,
-                "form_action": cls.get_form_action(object_id),
-                "submit_text": submit,
-            }
-        )
+        context = {
+            **cls._common_context(object_id=object_id),
+            "error": error,
+            "form_error": form_error,
+            "form_action": cls.get_form_action(form_action_object_id if form_action_object_id is not None else object_id),
+            "submit_text": f"Update {cls.pretty_name()}",
+        }
 
-        if resp_obj:
-            if model_instance := resp_obj.get(cls.model_name()):
-                context[cls.model_name()] = cls.model(**model_instance)
-            if msg := resp_obj.get("message"):
-                context["message"] = msg
-            if new_id := resp_obj.get("id"):
-                context["form_action"] = cls.get_form_action(new_id)
-        else:
-            context[cls.model_name()] = cls.model.model_construct(id="0")
+        context[model_context_key] = model_instance or cls.model.model_construct(id="0")
+
+        if response_message:
+            context["message"] = response_message
 
         return cls.get_extra_context(base_context=context)
+
+    @classmethod
+    def resolve_update_response(
+        cls, object_id: int | str, resp_obj: dict[str, Any] | None
+    ) -> tuple[int | str, TaranisBaseModel | None, str | None]:
+        if not resp_obj:
+            return object_id, None, None
+
+        response_object_id = resp_obj.get("id", object_id)
+        persisted_object_id = None if response_object_id in {0, "0", None, ""} else response_object_id
+        model_instance = None
+
+        if model_payload := resp_obj.get(cls.model_name()):
+            model_instance = cls.model(**model_payload)
+        elif persisted_object_id is not None:
+            model_instance = DataPersistenceLayer().get_object(cls.model, persisted_object_id)
+
+        return response_object_id, model_instance, resp_obj.get("message")
 
     @classmethod
     def get_default_actions(cls) -> list[dict[str, Any]]:
@@ -304,16 +317,29 @@ class BaseView(MethodView):
     @classmethod
     def update_view(cls, object_id: int | str = 0):
         core_response, error = cls.process_form_data(object_id)
+        response_object_id, model_instance, response_message = cls.resolve_update_response(object_id, core_response)
         if not core_response or error:
             return render_template(
                 cls.get_update_template(),
-                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+                **cls.get_update_context(
+                    object_id,
+                    error=error,
+                    model_instance=model_instance,
+                    response_message=response_message,
+                    form_action_object_id=response_object_id,
+                ),
             ), 400
 
         notification_response = cls.render_response_notification(core_response)
         response = notification_response + render_template(
             cls.get_update_template(),
-            **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+            **cls.get_update_context(
+                object_id,
+                error=error,
+                model_instance=model_instance,
+                response_message=response_message,
+                form_action_object_id=response_object_id,
+            ),
         )
         flask_response = make_response(response, 200)
         flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
@@ -501,7 +527,18 @@ class BaseView(MethodView):
         cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None
     ) -> tuple[str, int]:
         submitted_model = cls._submitted_form_model(object_id)
-        context = cls.get_create_context() if object_id == 0 else cls.get_update_context(object_id, error=error, resp_obj=resp_obj)
+        response_object_id, model_instance, response_message = cls.resolve_update_response(object_id, resp_obj)
+        context = (
+            cls.get_create_context()
+            if object_id == 0
+            else cls.get_update_context(
+                object_id,
+                error=error,
+                model_instance=model_instance,
+                response_message=response_message,
+                form_action_object_id=response_object_id,
+            )
+        )
 
         if object_id == 0:
             if error:
@@ -519,9 +556,16 @@ class BaseView(MethodView):
 
     @classmethod
     def handle_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
+        response_object_id, model_instance, response_message = cls.resolve_update_response(object_id, resp_obj)
         return render_template(
             cls.get_update_template(),
-            **cls.get_update_context(object_id, error=error, resp_obj=resp_obj),
+            **cls.get_update_context(
+                object_id,
+                error=error,
+                model_instance=model_instance,
+                response_message=response_message,
+                form_action_object_id=response_object_id,
+            ),
         ), 400
 
     @classmethod
