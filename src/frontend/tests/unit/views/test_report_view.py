@@ -52,18 +52,20 @@ def test_report_update_response_fetches_saved_report_when_core_response_only_con
         assert model is ReportTypes
         return [ReportTypes.model_construct(id=4, title="CERT Report")]
 
-    monkeypatch.setattr("frontend.views.base_view.DataPersistenceLayer.get_object", mock_get_object)
+    monkeypatch.setattr(
+        "frontend.views.base_view.BaseView.get_object_by_id", classmethod(lambda cls, object_id: mock_get_object(None, cls.model, object_id))
+    )
     monkeypatch.setattr("frontend.views.report_views.DataPersistenceLayer.get_objects", mock_get_objects)
 
     with app.test_request_context("/report/0?layout=split"):
-        response_object_id, model_instance, response_message = ReportItemView.resolve_update_response(
+        persisted_object_id, model_instance, response_message = ReportItemView.resolve_update_response(
             0, {"id": saved_report_id, "message": "Report item created"}
         )
         context = ReportItemView.get_update_context(
             0,
             model_instance=model_instance,
             response_message=response_message,
-            form_action_object_id=response_object_id,
+            form_action_object_id=persisted_object_id,
         )
 
     assert context["report"].id == saved_report_id
@@ -94,7 +96,9 @@ def test_report_create_post_renders_saved_report_when_core_response_only_contain
         assert model is ReportTypes
         return [ReportTypes.model_construct(id=4, title="CERT Report")]
 
-    monkeypatch.setattr("frontend.views.base_view.DataPersistenceLayer.get_object", mock_get_object)
+    monkeypatch.setattr(
+        "frontend.views.base_view.BaseView.get_object_by_id", classmethod(lambda cls, object_id: mock_get_object(None, cls.model, object_id))
+    )
     monkeypatch.setattr("frontend.views.report_views.DataPersistenceLayer.get_objects", mock_get_objects)
 
     with app.test_request_context():
