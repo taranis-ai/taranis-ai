@@ -14,7 +14,7 @@ from frontend.auth import admin_required
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.filters import render_source_parameter, render_truncated, render_worker_status
+from frontend.filters import render_osint_source_name, render_source_parameter, render_worker_status
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.validation_helpers import format_pydantic_errors
@@ -104,9 +104,7 @@ class SourceView(AdminMixin, BaseView):
                 "title": "Name",
                 "field": "name",
                 "sortable": True,
-                "renderer": render_truncated,
-                "cell_testid_prefix": "osint-source-name",
-                "render_args": {"field": "name"},
+                "renderer": render_osint_source_name,
             },
             {"title": "Feed", "field": "parameters", "sortable": False, "renderer": render_source_parameter},
         ]

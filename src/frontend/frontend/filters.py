@@ -9,6 +9,7 @@ from jinja2 import pass_context
 from markupsafe import Markup, escape
 from models.admin import OSINTSource
 from models.assess import Story
+from slugify import slugify
 
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "get_var",
     "b64decode",
     "render_truncated",
+    "render_osint_source_name",
     "render_icon",
     "render_parameter",
     "render_count",
@@ -135,6 +137,14 @@ def render_truncated(item, field: str) -> str:
     if hasattr(item, field) and isinstance(getattr(item, field), str):
         value = getattr(item, field)
         return Markup(f"<div class='truncate'>{value}</div>")
+    return Markup("<div class='truncate max-w-[50ch]'>N/A</div>")
+
+
+def render_osint_source_name(item: OSINTSource) -> str:
+    if hasattr(item, "name") and isinstance(item.name, str):
+        value = item.name
+        testid_suffix = slugify(value) or "unnamed"
+        return Markup(f"<div class='truncate' data-testid='osint-source-name-{testid_suffix}'>{escape(value)}</div>")
     return Markup("<div class='truncate max-w-[50ch]'>N/A</div>")
 
 
