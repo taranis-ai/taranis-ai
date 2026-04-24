@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from flask import url_for
+from flask import render_template_string, url_for
 from lxml import html
 
 from frontend.config import Config
@@ -138,6 +138,58 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     source_input = form[0].xpath('.//input[@name="source"]')
     assert len(source_input) == 1
     assert source_input[0].get("required") is None
+
+
+def test_assess_search_form_uses_single_htmx_submission_path(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={"tags": [], "sources": [], "groups": []},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [], "total_count": 0},
+    )
+
+    response = authenticated_client.get(url_for("assess.assess", search="pull"))
+
+    assert response.status_code == 200
+
+    tree = html.fromstring(response.text)
+    form = tree.xpath('//form[@id="assess-sidebar"]')[0]
+    search_input = tree.xpath('//input[@id="story_search"]')[0]
+
+    assert (
+        form.get("hx-trigger")
+        == "change[event.target.id != 'story_search'] from:form, input changed delay:500ms from:#story_search, keyup[key=='Enter'] from:#story_search"
+    )
+    assert search_input.get("hx-trigger") is None
+
+
+def test_table_search_bar_uses_htmx_submit_without_input_level_trigger(app):
+    with app.test_request_context("/frontend/admin/osint-sources?search=alpha"):
+        markup = render_template_string(
+            '{% from "macros/table.html" import table_search_bar %}{{ table_search_bar("osint_table", "/frontend/admin/osint-sources") }}'
+        )
+
+    tree = html.fromstring(markup)
+    form = tree.xpath("//form")[0]
+    search_input = tree.xpath('//input[@id="osint_table-search"]')[0]
+
+    assert form.get("hx-trigger") == "input changed delay:500ms from:#osint_table-search, keyup[key=='Enter'] from:#osint_table-search"
+    assert search_input.get("hx-trigger") is None
+
+
+def test_omnisearch_dialog_form_uses_htmx_submit(authenticated_client):
+    response = authenticated_client.get(url_for("base.omnisearch"))
+
+    assert response.status_code == 200
+
+    tree = html.fromstring(response.text)
+    form = tree.xpath('//dialog[@id="assess_search_dialog"]//div[@class="modal-box"]/form')[0]
+    search_input = tree.xpath('//input[@id="omni_search"]')[0]
+
+    assert form.get("hx-trigger") == "input changed delay:500ms from:#omni_search, keyup[key=='Enter'] from:#omni_search"
+    assert search_input.get("hx-trigger") is None
 
 
 def test_story_sharing_dialog_loads_connectors_from_assess_endpoint(authenticated_client_basic, responses_mock):
