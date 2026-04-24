@@ -2,8 +2,10 @@ import json
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
+from croniter import croniter
 import pytest
 import redis
 from rq import Queue
@@ -128,9 +130,21 @@ def _assert_cron_registration(
     return parsed, next_run
 
 
+def _previous_scheduled_timestamp(cron_spec: dict[str, Any], current_next_run: float) -> float:
+    if cron_expression := cron_spec.get("cron"):
+        current_next_run_dt = datetime.fromtimestamp(current_next_run, tz=timezone.utc)
+        return croniter(str(cron_expression), current_next_run_dt).get_prev(datetime).timestamp()
+
+    if interval := cron_spec.get("interval"):
+        return current_next_run - float(interval)
+
+    return current_next_run - 1
+
+
 def _force_cron_job_due(redis_backend: RedisBackend, job_id: str) -> float:
     redis_conn = _redis_conn(redis_backend)
-    due_timestamp = time.time() - 1
+    cron_spec, current_next_run = _assert_cron_registration(redis_backend, job_id)
+    due_timestamp = _previous_scheduled_timestamp(cron_spec, current_next_run)
     redis_conn.zadd(CRON_NEXT_KEY, {job_id: due_timestamp})
     return due_timestamp
 
@@ -306,6 +320,7 @@ def test_rq_osint_cron_update_immediately_refreshes_next_run(
     rq_harness: RqE2EHarness,
     rss_server: str,
 ) -> None:
+    # Core updates the Redis cron registration synchronously; no running cron scheduler is needed for this check.
     initial_cron = "0 0 1 1 *"
     updated_cron = "*/1 * * * *"
 
