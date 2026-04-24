@@ -296,6 +296,64 @@ def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
     assert removed == [("job-stale", False)]
 
 
+def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
+    qm = _make_queue_manager()
+    job_ids = iter(("presenter_task_product-1_101", "publisher_task_product-1_202"))
+    presenter_job = object()
+    publisher_job = object()
+    calls: list[dict[str, Any]] = []
+
+    monkeypatch.setattr(qm, "_build_unique_job_id", lambda _task_name, _worker_id: next(job_ids))
+
+    def fake_enqueue_task(queue_name: str, task_name: str, *args, **kwargs):
+        calls.append(
+            {
+                "queue_name": queue_name,
+                "task_name": task_name,
+                "args": args,
+                "kwargs": kwargs,
+            }
+        )
+        if task_name == "presenter_task":
+            return presenter_job
+        return publisher_job
+
+    monkeypatch.setattr(qm, "enqueue_task", fake_enqueue_task)
+
+    payload, status = qm.autopublish_product("product-1", "publisher-1")
+
+    assert status == 200
+    assert payload["presenter_job_id"] == "presenter_task_product-1_101"
+    assert payload["publisher_job_id"] == "publisher_task_product-1_202"
+    assert len(calls) == 2
+    assert calls[0] == {
+        "queue_name": "presenters",
+        "task_name": "presenter_task",
+        "args": ("product-1",),
+        "kwargs": {"job_id": "presenter_task_product-1_101"},
+    }
+    assert calls[1] == {
+        "queue_name": "publishers",
+        "task_name": "publisher_task",
+        "args": ("product-1", "publisher-1"),
+        "kwargs": {
+            "job_id": "publisher_task_product-1_202",
+            "depends_on": presenter_job,
+        },
+    }
+
+
+def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypatch):
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "_build_unique_job_id", lambda _task_name, _worker_id: "presenter_task_product-2_303")
+    monkeypatch.setattr(qm, "enqueue_task", lambda *args, **kwargs: False)
+
+    payload, status = qm.autopublish_product("product-2", "publisher-2")
+
+    assert status == 500
+    assert payload == {"error": "Could not schedule presenter job for product product-2"}
+
+
 def test_osint_schedule_entries_include_metadata(monkeypatch):
     class FakeTask:
         def __init__(self):

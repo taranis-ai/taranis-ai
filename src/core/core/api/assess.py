@@ -1,4 +1,4 @@
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
@@ -12,10 +12,10 @@ from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args, validate_json
 from core.managers.sse_manager import sse_manager
 from core.model import connector, news_item, news_item_tag, osint_source, story
-from core.model.revision import StoryRevision
 from core.model.story_conflict import StoryConflict
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.news_item import NewsItemService
+from core.service.simple_web_collector import get_simple_web_collector_url
 from core.service.story import StoryService
 
 
@@ -57,14 +57,27 @@ class NewsItems(MethodView):
 
 
 class NewsItemFetch(MethodView):
+    @staticmethod
+    def _is_supported_web_url(url: str) -> bool:
+        parsed_url = urlparse(url)
+        return parsed_url.scheme in {"http", "https"} and bool(parsed_url.netloc)
+
     @auth_required("ASSESS_CREATE")
     def post(self):
-        if parameters := request.get_json():
-            response, status = StoryService.fetch_and_create_story(parameters)
-            invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
-            return response, status
+        request_payload = request.get_json(silent=True)
+        if not isinstance(request_payload, dict):
+            return {"error": "Couldn't create News Item"}, 400
 
-        return {"error": "Couldn't create News Item"}, 400
+        parameters = request_payload
+        url = get_simple_web_collector_url(parameters)
+        if not self._is_supported_web_url(url):
+            return {"error": "A valid http or https URL is required"}, 400
+
+        response, status = StoryService.fetch_and_create_story(parameters)
+        if 200 <= status < 300:
+            sse_manager.news_items_updated()
+            invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
+        return response, status
 
 
 class NewsItem(MethodView):
@@ -146,6 +159,10 @@ class Stories(MethodView):
             return {"error": "No story ids provided"}, 400
         story_ids = data_json.get("story_ids")
         payload = data_json.get("payload")
+        if not isinstance(story_ids, list) or not story_ids:
+            return {"error": "No story ids provided"}, 400
+        if payload is not None and not isinstance(payload, dict):
+            return {"error": "Invalid payload provided"}, 400
         result_dict = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
         for s in [story.Story.get(sid) for sid in story_ids if sid]:
             if not s:
@@ -287,13 +304,17 @@ class BotActions(MethodView):
 class Connectors(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
     @extract_args("search", "page", "limit", "offset", "sort", "order", "fetch_all")
-    def get(self, filter_args: dict | None = None):
+    def get(self, connector_id: str | None = None, filter_args: dict | None = None):
+        if connector_id:
+            return connector.Connector.get_for_api(connector_id)
         return connector.Connector.get_all_for_user_api(filter_args, user=current_user)
 
     @auth_required("CONNECTOR_USER_ACCESS")
     @validate_json
-    def post(self, connector_id):
+    def post(self, connector_id: str | None = None):
         """Send stories to an external system."""
+        if not connector_id:
+            return {"error": "No connector_id provided"}, 400
         if not request.json:
             return {"error": "Invalid JSON payload"}, 400
 
@@ -326,61 +347,13 @@ class Proposals(MethodView):
 class StoryRevisions(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id: str):
-        """Get all revisions for a story"""
-        from core.managers.db_manager import db
-
-        access_response, access_status = story.Story.get_for_api(story_id, current_user)
-        if access_status != 200:
-            return access_response, access_status
-
-        revisions = (
-            db.session.execute(db.select(StoryRevision).filter(StoryRevision.story_id == story_id).order_by(StoryRevision.revision.desc()))
-            .scalars()
-            .all()
-        )
-
-        return {
-            "total_count": len(revisions),
-            "items": [
-                {
-                    "id": rev.id,
-                    "revision": rev.revision,
-                    "created_at": rev.created_at.isoformat() if rev.created_at else None,
-                    "created_by": rev.created_by.username if rev.created_by else None,
-                    "created_by_id": rev.created_by_id,
-                    "note": rev.note,
-                }
-                for rev in revisions
-            ],
-        }, 200
+        return StoryService.get_story_revisions(story_id)
 
 
 class StoryRevisionData(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id: str, revision_number: int):
-        """Get data for a specific revision"""
-        from core.managers.db_manager import db
-
-        access_response, access_status = story.Story.get_for_api(story_id, current_user)
-        if access_status != 200:
-            return access_response, access_status
-
-        revision = db.session.execute(
-            db.select(StoryRevision).filter(StoryRevision.story_id == story_id).filter(StoryRevision.revision == revision_number)
-        ).scalar_one_or_none()
-
-        if not revision:
-            return {"error": "Revision not found"}, 404
-
-        return {
-            "id": revision.id,
-            "revision": revision.revision,
-            "created_at": revision.created_at.isoformat() if revision.created_at else None,
-            "created_by": revision.created_by.username if revision.created_by else None,
-            "created_by_id": revision.created_by_id,
-            "note": revision.note,
-            "data": revision.data,
-        }, 200
+        return StoryService.get_story_revision_data(story_id, revision_number)
 
 
 class AssessImport(MethodView):
@@ -392,10 +365,6 @@ class AssessImport(MethodView):
 
         imported_stories = StoryService.import_stories(data_json, current_user)
         sse_manager.news_items_updated()
-        status = getattr(imported_stories, "status_code", None)
-        if status is None and isinstance(imported_stories, tuple) and len(imported_stories) > 1:
-            status = imported_stories[1]
-        invalidate_frontend_cache_on_success(int(status or 200), full=True)
         return imported_stories
 
 

@@ -35,12 +35,14 @@ class Task(MethodView):
         return TaskService.save_task_result(submission)
 
     @api_key_or_auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def delete(self, task_id: str):
+    def delete(self, task_id: str | None = None):
+        if not task_id:
+            return {"error": "No task_id provided"}, 400
         return TaskService.delete_task(task_id)
 
 
 def initialize(app: Flask):
     task_bp = Blueprint("tasks", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/tasks")
     task_bp.add_url_rule("", view_func=Task.as_view("tasks"))
-    task_bp.add_url_rule("/<string:task_id>", view_func=Task.as_view("task"))
+    task_bp.add_url_rule("/<string:task_id>", view_func=Task.as_view("task"), methods=["GET", "DELETE"])
     app.register_blueprint(task_bp)
