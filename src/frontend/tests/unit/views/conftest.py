@@ -1,4 +1,4 @@
-from typing import Any, get_origin
+from typing import get_origin
 
 import pytest
 import responses
@@ -40,30 +40,6 @@ def get_items_from_factory(view_name, model):
     return items
 
 
-def ensure_item_id(view_name: str, model, item: dict[str, Any], faker: Faker) -> dict[str, Any]:
-    field_info = model.model_fields.get("id")
-    if not field_info:
-        return item
-
-    current_id = item.get("id")
-    if current_id not in (None, ""):
-        return item
-
-    ann = field_info.annotation
-    if nested_origin := unwrap_annotation(ann):
-        ann = nested_origin[0]
-
-    if isinstance(ann, type) and issubclass(ann, int):
-        item["id"] = faker.pyint()
-    elif isinstance(ann, type) and issubclass(ann, str):
-        item["id"] = uuid7str()
-    else:
-        logger.warning(f"Unsupported type for ID field in {view_name}: {ann}")
-        item["id"] = "42"
-
-    return item
-
-
 @pytest.fixture(scope="class")
 def core_payloads():
     """
@@ -74,8 +50,6 @@ def core_payloads():
     """
     payloads: dict[str, dict] = {}
     url_items: dict[str, list[dict]] = {}
-    faker = Faker()
-
     for view_name, view_cls in BaseView._registry.items():
         model = getattr(view_cls, "model", None)
         endpoint = getattr(model, "_core_endpoint", None)
@@ -86,8 +60,6 @@ def core_payloads():
         if url not in url_items:
             url_items[url] = get_items_from_factory(view_name, model)
         items = url_items[url]
-        for item in items:
-            ensure_item_id(view_name, model, item, faker)
 
         expect_object = None
 
@@ -350,7 +322,18 @@ def mock_core_get_item_endpoint_data(core_payloads):
         if not model or not current_item:
             continue
 
-        ensure_item_id(view_name, model, current_item, faker)
+        if field_info := model.model_fields.get("id"):
+            ann = field_info.annotation
+            if nested_origin := unwrap_annotation(ann):
+                ann = nested_origin[0]
+
+            if isinstance(ann, type) and issubclass(ann, int):
+                current_item["id"] = faker.pyint()
+            elif isinstance(ann, type) and issubclass(ann, str):
+                current_item["id"] = uuid7str()
+            else:
+                logger.warning(f"Unsupported type for ID field in {view_name}: {ann}")
+                current_item["id"] = "42"
 
         payloads[view_name] = {"_url": url, **current_item}
     yield payloads
