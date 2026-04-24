@@ -7,7 +7,7 @@ from urllib.parse import quote
 
 import language_tags
 from bs4 import BeautifulSoup
-from pydantic import BeforeValidator, ValidationInfo, field_validator, model_validator
+from pydantic import BeforeValidator, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from models.base import TaranisBaseModel
 from models.types import CONNECTOR_TYPES
@@ -41,6 +41,13 @@ def validate_bcp47(value: str | None) -> str | None:
 
 
 BCP47 = Annotated[str | None, BeforeValidator(validate_bcp47)]
+
+
+class SimpleWebCollectorFetchParameters(TaranisBaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    WEB_URL: str = Field(min_length=1)
+    ADDITIONAL_HEADERS: str | None = None
 
 
 class NewsItem(TaranisBaseModel):

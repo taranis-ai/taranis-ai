@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 from flask import render_template_string, url_for
@@ -129,11 +130,22 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     tree = html.fromstring(response.text)
     form = tree.xpath('//form[@id="news-item-form"]')
     file_form = tree.xpath('//form[@hx-encoding="multipart/form-data"]')
+    url_form = tree.xpath('//form[@id="news-item-create-from-url-form"]')
+    url_parameters_dialog = tree.xpath('//dialog[@id="create_from_url_parameters_dialog"]')
 
     assert len(form) == 1
     assert form[0].get("hx-target-error") == "#notification-bar"
     assert len(file_form) == 1
     assert file_form[0].get("hx-target-error") == "#notification-bar"
+    assert len(url_form) == 1
+    assert url_form[0].get("hx-target-error") == "#notification-bar"
+    assert url_form[0].xpath('.//input[@name="fetch_url"]')
+    assert len(url_parameters_dialog) == 1
+    assert url_parameters_dialog[0].xpath('.//*[@name="parameters[XPATH]"]')
+    assert url_parameters_dialog[0].xpath('.//*[@name="parameters[BROWSER_MODE]"]')
+    additional_headers_input = url_parameters_dialog[0].xpath('.//input[@name="parameters[ADDITIONAL_HEADERS]"]')
+    assert len(additional_headers_input) == 1
+    assert not url_parameters_dialog[0].xpath('.//textarea[@name="parameters[ADDITIONAL_HEADERS]"]')
 
     source_input = form[0].xpath('.//input[@name="source"]')
     assert len(source_input) == 1
@@ -190,6 +202,42 @@ def test_omnisearch_dialog_form_uses_htmx_submit(authenticated_client):
 
     assert form.get("hx-trigger") == "input changed delay:500ms from:#omni_search, keyup[key=='Enter'] from:#omni_search"
     assert search_input.get("hx-trigger") is None
+
+
+def test_create_news_item_from_url_posts_simple_web_collector_payload(authenticated_client, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/fetch",
+        json={"story_ids": ["story-1"], "news_item_ids": ["news-1"], "message": "1 News items added successfully"},
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.create_news_item"),
+        data={
+            "fetch_url": "https://example.com/story",
+            "parameters[XPATH]": "//article",
+            "parameters[TLP_LEVEL]": "green",
+            "parameters[BROWSER_MODE]": "true",
+            "parameters[DIGEST_SPLITTING]": "false",
+            "parameters[DIGEST_SPLITTING_LIMIT]": "30",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["HX-Redirect"] == url_for("assess.story_edit", story_id="story-1")
+    assert responses_mock.calls[0].request.url == f"{Config.TARANIS_CORE_URL}/assess/news-items/fetch"
+    assert responses_mock.calls[0].request.body
+    assert json.loads(responses_mock.calls[0].request.body) == {
+        "id": "manual",
+        "type": "simple_web_collector",
+        "parameters": {
+            "WEB_URL": "https://example.com/story",
+            "XPATH": "//article",
+            "TLP_LEVEL": "green",
+            "BROWSER_MODE": "true",
+            "DIGEST_SPLITTING": "false",
+            "DIGEST_SPLITTING_LIMIT": "30",
+        },
+    }
 
 
 def test_story_sharing_dialog_loads_connectors_from_assess_endpoint(authenticated_client_basic, responses_mock):

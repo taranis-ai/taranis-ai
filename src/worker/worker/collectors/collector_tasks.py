@@ -205,9 +205,11 @@ def fetch_single_news_item(parameters: dict[str, Any]):
     job = get_current_job()
     collector = worker.collectors.SimpleWebCollector()
     worker_type = "simple_web_collector"
-    worker_id = str(parameters.get("url") or (job.id if job else "preview"))
+    collector_parameters = parameters["parameters"]
+    web_url = collector_parameters.get("WEB_URL")
+    worker_id = str(web_url or (job.id if job else "preview"))
     formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {job.id if job else 'preview'}")
-    task_description = f"Fetching news item wtih {parameters=} and {job.id if job else 'preview'}"
+    task_description = f"Fetching news item with {parameters=} and {job.id if job else 'preview'}"
     logger.info(f"Starting collector task: {task_description}")
     core_api = CoreApi()
     result_message = None
