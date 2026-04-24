@@ -112,6 +112,37 @@ class TestAssessNewsItems(BaseTest):
         story_response = self.assert_get_ok(client, f"story/{story_id}", auth_header)
         assert story_response.get_json()["relevance"] == 0
 
+    def test_post_news_item_fetch_uses_simple_web_collector_payload(self, client, auth_header, monkeypatch):
+        captured = {}
+
+        def fake_fetch_and_create_story(parameters):
+            captured["parameters"] = parameters
+            return {"story_ids": ["story-1"], "news_item_ids": ["news-1"], "message": "1 News items added successfully"}, 200
+
+        monkeypatch.setattr("core.api.assess.StoryService.fetch_and_create_story", fake_fetch_and_create_story)
+
+        payload = {
+            "id": "manual",
+            "type": "simple_web_collector",
+            "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
+        }
+
+        response = client.post(self.concat_url("news-items/fetch"), json=payload, headers=auth_header)
+
+        assert response.status_code == 200
+        assert response.get_json()["story_ids"] == ["story-1"]
+        assert captured["parameters"] == payload
+
+    def test_post_news_item_fetch_rejects_non_object_parameters(self, client, auth_header):
+        response = client.post(
+            self.concat_url("news-items/fetch"),
+            json={"id": "manual", "type": "simple_web_collector", "parameters": "not-an-object"},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "A valid http or https URL is required"
+
     def test_get_NewsItems(self, client, cleanup_news_item, auth_header):
         response = self.assert_get_ok(client, "news-items", auth_header)
         assert len(response.get_json()["items"]) == 1

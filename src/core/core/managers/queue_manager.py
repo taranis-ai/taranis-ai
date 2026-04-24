@@ -29,6 +29,7 @@ When a source/bot schedule is updated:
 """
 
 import contextlib
+import hashlib
 import json
 import time
 from datetime import datetime, timedelta, timezone
@@ -44,6 +45,7 @@ from rq.job import Job
 
 from core.config import Config
 from core.log import logger
+from core.service.simple_web_collector import get_simple_web_collector_url
 
 
 OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
@@ -610,22 +612,55 @@ class QueueManager:
             return {"message": f"Preview for source {source_id} scheduled", "id": job.id, "status": "STARTED"}, 201
         return {"error": "Could not reach Redis"}, 500
 
-    def fetch_single_news_item(self, parameters: dict[str, str]):
+    @classmethod
+    def _get_single_fetch_url(cls, parameters: dict[str, Any]) -> str:
+        return get_simple_web_collector_url(parameters)
+
+    @staticmethod
+    def _normalize_single_fetch_job_id_value(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                str(key): QueueManager._normalize_single_fetch_job_id_value(value[key]) for key in sorted(value, key=lambda item: str(item))
+            }
+        if isinstance(value, (list, tuple)):
+            return [QueueManager._normalize_single_fetch_job_id_value(item) for item in value]
+        if isinstance(value, set):
+            normalized_items = [QueueManager._normalize_single_fetch_job_id_value(item) for item in value]
+            return sorted(normalized_items, key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":")))
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
+
+    @classmethod
+    def _get_single_fetch_job_payload(cls, parameters: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "url": get_simple_web_collector_url(parameters),
+            "parameters": cls._normalize_single_fetch_job_id_value(parameters.get("parameters", {})),
+        }
+
+    @classmethod
+    def _get_single_fetch_job_id(cls, parameters: dict[str, Any]) -> str:
+        payload_json = json.dumps(cls._get_single_fetch_job_payload(parameters), sort_keys=True, separators=(",", ":"))
+        payload_hash = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        return f"fetch_single_news_item_{payload_hash}"
+
+    def fetch_single_news_item(self, parameters: dict[str, Any]):
+        url = get_simple_web_collector_url(parameters)
         job = self.enqueue_task(
             "collectors",
             "fetch_single_news_item",
             parameters,
-            job_id=f"fetch_single_news_item_{parameters.get('url')}",
+            job_id=self._get_single_fetch_job_id(parameters),
         )
         if not job:
             logger.error("Could not schedule fetch_single_news_item task")
             return {"error": "Could not reach Redis"}, 500
 
-        logger.info(f"Fetch for single news item {parameters.get('url')} scheduled")
+        logger.info(f"Fetch for single news item {url} scheduled")
         try:
             return self._await_job_result(job)
         except TimeoutError:
-            logger.error("Timed out waiting for fetch_single_news_item result for %s", parameters.get("url"))
+            logger.error("Timed out waiting for fetch_single_news_item result for %s", url)
         except Exception:
             logger.exception("Failed to fetch single news item")
         return {"error": "Failed to fetch single news item"}, 500
