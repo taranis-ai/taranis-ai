@@ -50,6 +50,7 @@ def core_payloads():
     """
     payloads: dict[str, dict] = {}
     url_items: dict[str, list[dict]] = {}
+
     for view_name, view_cls in BaseView._registry.items():
         model = getattr(view_cls, "model", None)
         endpoint = getattr(model, "_core_endpoint", None)
@@ -327,9 +328,9 @@ def mock_core_get_item_endpoint_data(core_payloads):
             if nested_origin := unwrap_annotation(ann):
                 ann = nested_origin[0]
 
-            if isinstance(ann, type) and issubclass(ann, int):
+            if isinstance(ann, int) or issubclass(ann, int):
                 current_item["id"] = faker.pyint()
-            elif isinstance(ann, type) and issubclass(ann, str):
+            elif isinstance(ann, str) or issubclass(ann, str):
                 current_item["id"] = uuid7str()
             else:
                 logger.warning(f"Unsupported type for ID field in {view_name}: {ann}")

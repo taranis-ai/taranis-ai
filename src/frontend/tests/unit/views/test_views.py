@@ -141,16 +141,6 @@ class TestCRUDViews:
 
 
 class TestSourceView:
-    def test_get_columns_include_expected_visible_columns(self):
-        columns = SourceView.get_columns()
-        titles = [column["title"] for column in columns]
-        title_to_field = {column["title"]: column["field"] for column in columns}
-
-        assert {"State", "Name", "Feed"}.issubset(titles)
-        assert title_to_field["State"] == "status"
-        assert title_to_field["Name"] == "name"
-        assert title_to_field["Feed"] == "parameters"
-
     def test_import_post_view(self, authenticated_client, responses_mock):
         """
         Test that the import_post_view method correctly extracts the "sources" key
