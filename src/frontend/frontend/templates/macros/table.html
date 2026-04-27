@@ -163,7 +163,7 @@
           hx-select="#{{ table_id }}"
           hx-target="#{{ table_id }}"
           hx-target-error="#notification-bar"
-          hx-trigger="input delay:500ms"
+          hx-trigger="input changed delay:500ms from:#{{ table_id }}-search, keyup[key=='Enter'] from:#{{ table_id }}-search"
           hx-on::after-swap="document.getElementById('{{ table_id }}-search').focus()">
       <label class="input w-full">
         {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
