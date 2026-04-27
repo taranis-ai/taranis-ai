@@ -28,7 +28,7 @@ class BaseE2ETest(PlaywrightHelpers):
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         expect(page.locator("#dashboard")).to_be_visible(timeout=10000)
 
-    def delete_table_row(self, page: Page, delete_button_test_id: str, confirm: bool = True, confirm_button_name: str = "OK"):
+    def delete_table_row(self, page: Page, delete_button_test_id: str, confirm: bool = True):
         """Delete row by explicit delete action test id."""
         assert delete_button_test_id, "delete_table_row requires delete_button_test_id"
         delete_button = page.get_by_test_id(delete_button_test_id)
@@ -36,7 +36,7 @@ class BaseE2ETest(PlaywrightHelpers):
         expect(delete_button).to_be_visible(timeout=10000)
         delete_button.click()
         if confirm:
-            page.get_by_role("button", name=confirm_button_name).click()
+            page.get_by_role("button", name="Delete").click()
 
     def get_table_row_id_by_link_text(self, page: Page, table_id: str, link_text: str) -> str:
         """Return the row id from the first matching link href inside a table."""
@@ -59,11 +59,10 @@ class BaseE2ETest(PlaywrightHelpers):
         table_id: str,
         link_text: str,
         confirm: bool = True,
-        confirm_button_name: str = "OK",
     ):
         """Delete a table item located by its link text and assert it is removed."""
         item_id = self.get_table_row_id_by_link_text(page, table_id, link_text)
-        self.delete_table_row(page, f"action-delete-{item_id}", confirm=confirm, confirm_button_name=confirm_button_name)
+        self.delete_table_row(page, f"action-delete-{item_id}", confirm=confirm)
         self.assert_item_not_in_table(page, table_id, link_text)
 
     # Navigation methods for workflow tests

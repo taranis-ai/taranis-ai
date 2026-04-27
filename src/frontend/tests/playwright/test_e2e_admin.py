@@ -255,7 +255,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             delete_button = page.get_by_test_id("delete-osint_source-button")
             expect(delete_button).to_contain_text("Delete 10 OSINT Source")
             self.highlight_element(delete_button).click()
-            page.get_by_role("button", name="OK").click()
+            page.get_by_role("button", name="Delete").click()
             dismiss_notifications(page)
             expect(page.get_by_role("button", name="Reset Filter")).to_be_visible(timeout=10000)
 
@@ -274,7 +274,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             assert original_content == downloaded_content, "Downloaded file content does not match uploaded file content"
             page.get_by_role("row", name="Icon State Name Feed Actions").get_by_role("checkbox").check()
             page.get_by_test_id("delete-osint_source-button").click()
-            page.get_by_role("button", name="OK").click()
+            page.get_by_role("button", name="Delete").click()
             dismiss_notifications(page)
 
         def add_osint_sources():
@@ -322,7 +322,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(osint_row.locator("img.icon")).to_have_count(0)
 
         def remove_osint_sources():
-            self.delete_item(page, "osint_source-table", osint_source_name, confirm_button_name="Delete")
+            self.delete_item(page, "osint_source-table", osint_source_name)
 
         load_osint_sources()
         load_and_search_default_sources()
@@ -449,7 +449,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             delete_button = page.get_by_test_id("delete-word_list-button")
             expect(delete_button).to_contain_text("Delete 9 Word List")
             self.highlight_element(delete_button).click()
-            page.get_by_role("button", name="OK").click()
+            page.get_by_role("button", name="Delete").click()
             dismiss_notifications(page)
 
         def add_word_list():
