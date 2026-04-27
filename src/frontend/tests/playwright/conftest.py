@@ -35,7 +35,7 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_inter
 
 @pytest.fixture(scope="session")
 def docker_compose_file():
-    return str(Path(__file__).parent / "docker-compose.e2e.yml")
+    return str(Path(__file__).parent / "compose.e2e.yml")
 
 
 @pytest.fixture(scope="session")
