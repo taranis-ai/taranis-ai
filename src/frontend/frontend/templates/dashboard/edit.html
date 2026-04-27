@@ -13,21 +13,21 @@
   </script>
 
   <div class="p-8 bg-base-100" id="edit_dashboard">
-    <div class="text-3xl font-bold mb-4">Edit Dashboard</div>
+    <div class="text-3xl font-bold mb-5">Edit Dashboard</div>
     <form hx-post="{{ url_for('base.dashboard') }}" hx-target="#edit_dashboard" hx-swap="outerHTML" method="post">
       <div class="mb-4">
         <div class="flex gap-2">
-          <fieldset class="fieldset bg-base-100 flex-none w-1/8">
+          <fieldset class="fieldset bg-base-100 flex-none w-1/4">
             <legend class="fieldset-legend">Days to look back for trending clusters</legend>
             {{ form_input_content(label="Trending Days", name="dashboard[trending_cluster_days]",
                         value=dashboard.trending_cluster_days , type='number') }}
           </fieldset>
 
-          {{ form_switch(label="Show Trending Clusters", name="dashboard[show_trending_clusters]", value=dashboard.show_trending_clusters, yes_val=true, no_val=false, required=False, width='w-1/8') }}
-          {{ form_switch(label="Show Charts in Dashboard", name="dashboard[show_charts]", value=dashboard.show_charts, yes_val=true, no_val=false, required=False, width='w-1/8') }}
+          {{ form_switch(label="Show Trending Clusters", name="dashboard[show_trending_clusters]", value=dashboard.show_trending_clusters, yes_val=true, no_val=false, required=False, width='w-1/4') }}
+          {{ form_switch(label="Show Charts in Dashboard", name="dashboard[show_charts]", value=dashboard.show_charts, yes_val=true, no_val=false, required=False, width='w-1/4') }}
         </div>
 
-        <div class="flex-none w-2/8">
+        <div class="flex-none w-1/4">
           <select name="dashboard[trending_cluster_filter][]" multiple id="trending-tag-filter-select">
             {% for cluster in clusters %}
               <option value="{{ cluster }}" {% if cluster in dashboard.trending_cluster_filter %}selected{% endif %}>{{ cluster }}</option>
