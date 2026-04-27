@@ -19,7 +19,6 @@ __all__ = [
     "get_var",
     "b64decode",
     "render_truncated",
-    "render_osint_source_name",
     "render_icon",
     "render_parameter",
     "render_count",
@@ -133,18 +132,14 @@ def render_source_parameter(item: OSINTSource) -> str:
     return source_parameter
 
 
-def render_truncated(item, field: str) -> str:
+def render_truncated(item, field: str, data_testid_prefix: str | None = None) -> str:
     if hasattr(item, field) and isinstance(getattr(item, field), str):
         value = getattr(item, field)
-        return Markup(f"<div class='truncate'>{value}</div>")
-    return Markup("<div class='truncate max-w-[50ch]'>N/A</div>")
-
-
-def render_osint_source_name(item: OSINTSource) -> str:
-    if hasattr(item, "name") and isinstance(item.name, str):
-        value = item.name
-        testid_suffix = slugify(value) or "unnamed"
-        return Markup(f"<div class='truncate' data-testid='osint-source-name-{testid_suffix}'>{escape(value)}</div>")
+        data_testid = ""
+        if data_testid_prefix:
+            testid_suffix = slugify(value) or "unnamed"
+            data_testid = f" data-testid='{data_testid_prefix}-{testid_suffix}'"
+        return Markup(f"<div class='truncate'{data_testid}>{escape(value)}</div>")
     return Markup("<div class='truncate max-w-[50ch]'>N/A</div>")
 
 
