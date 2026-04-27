@@ -85,30 +85,26 @@ class TestEndToEndAdmin(BaseE2ETest):
     def test_admin_organizations(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
         organization_name = f"test_org_{uuid.uuid4().hex[:6]}"
+        page.goto(url_for("admin.organizations", _external=True))
+        expect(page.get_by_test_id("organization-table")).to_be_visible(timeout=10000)
+        page.screenshot(path="./tests/playwright/screenshots/docs_organizations.png")
 
-        add_fields = {
-            "Name": organization_name,
-            "Description": "Test description of an organization",
-            "Street": "Test Street",
-            "City": "Test City",
-            "ZIP": "9999",
-            "Country": "Test Country",
-        }
-        submit_locator = "input[type='submit']"
-
-        self.navigate_to_list(page, "admin.organizations", "organization-table")
-        self.create_item(page, "new-organization-button", add_fields, submit_locator)
+        page.get_by_test_id("new-organization-button").click()
+        page.get_by_label("Name", exact=False).fill(organization_name)
+        page.get_by_label("Description", exact=False).fill("Test description of an organization")
+        page.get_by_label("Street", exact=False).fill("Test Street")
+        page.get_by_label("City", exact=False).fill("Test City")
+        page.get_by_label("ZIP", exact=False).fill("9999")
+        page.get_by_label("Country", exact=False).fill("Test Country")
+        self.highlight_element(page.locator("input[type='submit']")).click()
         self.assert_item_in_table(page, "organization-table", organization_name)
 
-        # Update organization
-        update_fields = {"Description": "Updated description of an organization"}
-        self.update_item(page, organization_name, update_fields, submit_locator)
+        page.get_by_role("link", name=organization_name).click()
+        page.get_by_label("Description", exact=False).fill("Updated description of an organization")
+        self.highlight_element(page.locator("input[type='submit']")).click()
         expect(page.get_by_role("row", name=organization_name)).to_contain_text("Updated description of an organization")
 
-        item_id = self.get_table_row_item_id(page, "organization-table", organization_name)
-        delete_button_test_id = f"action-delete-{item_id}"
-        self.delete_table_row(page, delete_button_test_id)
-        self.assert_item_not_in_table(page, "organization-table", organization_name)
+        self.delete_item(page, "organization-table", organization_name)
 
     def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors, test_user, test_user_list):
         page = logged_in_page
@@ -150,7 +146,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("link", name="Test User Updated")).to_be_visible(timeout=10000)
 
         def remove_user():
-            item_id = self.get_table_row_item_id(page, "user-table", username)
+            item_id = self.get_table_row_id_by_link_text(page, "user-table", username)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_test_id("user-table").get_by_role("link", name=username)).not_to_be_visible(timeout=10000)
@@ -168,11 +164,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
             assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
-            item_id = self.get_table_row_item_id(page, "user-table", "Jane Smith")
+            item_id = self.get_table_row_id_by_link_text(page, "user-table", "Jane Smith")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_test_id("user-table").get_by_role("link", name="Jane Smith")).not_to_be_visible(timeout=10000)
-            item_id = self.get_table_row_item_id(page, "user-table", "John Doe")
+            item_id = self.get_table_row_id_by_link_text(page, "user-table", "John Doe")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_test_id("user-table").get_by_role("link", name="John Doe")).not_to_be_visible(timeout=10000)
@@ -234,7 +230,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(template_row).to_contain_text("Invalid")
 
         def remove_template():
-            item_id = self.get_table_row_item_id(page, "template-table", template_name)
+            item_id = self.get_table_row_id_by_link_text(page, "template-table", template_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_test_id("template-table").get_by_role("link", name=template_name)).not_to_be_visible(timeout=10000)
@@ -338,7 +334,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(osint_row.locator("img.icon")).to_have_count(0)
 
         def remove_osint_sources():
-            item_id = self.get_table_row_item_id(page, "osint_source-table", osint_source_name)
+            item_id = self.get_table_row_id_by_link_text(page, "osint_source-table", osint_source_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id, confirm_button_name="Delete")
             expect(page.get_by_test_id("osint_source-table").get_by_role("link", name=osint_source_name)).not_to_be_visible(timeout=10000)
@@ -378,7 +374,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("row", name=osint_group_name)).to_contain_text("Updated description of an OSINT source group")
 
         def remove_osint_source_group():
-            item_id = self.get_table_row_item_id(page, "osint_source_group-table", osint_group_name)
+            item_id = self.get_table_row_id_by_link_text(page, "osint_source_group-table", osint_group_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_test_id("osint_source_group-table").get_by_role("link", name=osint_group_name)).not_to_be_visible(
@@ -448,7 +444,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("row", name=role_name)).to_contain_text("Updated description of a role")
 
         def remove_role():
-            item_id = self.get_table_row_item_id(page, "role-table", role_name)
+            item_id = self.get_table_row_id_by_link_text(page, "role-table", role_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_test_id("role-table").get_by_role("link", name=role_name)).not_to_be_visible(timeout=10000)
@@ -505,7 +501,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("link", name="Updated description of a word list")).to_be_visible(timeout=10000)
 
         def remove_word_list():
-            item_id = self.get_table_row_item_id(page, "word_list-table", word_list_name)
+            item_id = self.get_table_row_id_by_link_text(page, "word_list-table", word_list_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             # expect(page.get_by_test_id("word_list-table").get_by_role("link", name=word_list_name)).not_to_be_visible(timeout=10000) # TODO: Wordlist table not rendered afer last element is deleted
@@ -523,7 +519,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
             assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
-            item_id = self.get_table_row_item_id(page, "word_list-table", "Test wordlist")
+            item_id = self.get_table_row_id_by_link_text(page, "word_list-table", "Test wordlist")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_test_id("word_list-table").get_by_role("link", name="Test wordlist")).not_to_be_visible(timeout=10000)
@@ -599,7 +595,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         def test_acl_delete():
             acl_row = acl_table.locator("tbody tr", has=page.get_by_role("link", name="Test ACL updated", exact=True)).first
             expect(acl_row).to_be_visible(timeout=10000)
-            item_id = self.get_table_row_item_id(page, "acl-table", "Test ACL updated")
+            item_id = self.get_table_row_id_by_link_text(page, "acl-table", "Test ACL updated")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(acl_row).not_to_be_visible(timeout=10000)
@@ -740,10 +736,10 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("row", name="update attr use")).to_be_visible(timeout=10000)
             page.pause()
 
-            item_id = self.get_table_row_item_id(page, "report-table", "update attr use")
+            item_id = self.get_table_row_id_by_link_text(page, "report-table", "update attr use")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
-            item_id = self.get_table_row_item_id(page, "report-table", "number 5 in report")
+            item_id = self.get_table_row_id_by_link_text(page, "report-table", "number 5 in report")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
 
@@ -755,7 +751,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_test_id("admin-menu-Report Item Type").click()
             expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible(timeout=10000)
 
-            item_id = self.get_table_row_item_id(page, "report_item_type-table", "report item type test 5")
+            item_id = self.get_table_row_id_by_link_text(page, "report_item_type-table", "report item type test 5")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible(timeout=10000)
@@ -766,7 +762,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_text("›").click()
             expect(page.get_by_role("row", name="Rich Text Rich Text Rich Edit")).to_be_visible(timeout=10000)
 
-            item_id = self.get_table_row_item_id(page, "attribute-table", "attribute number 6")
+            item_id = self.get_table_row_id_by_link_text(page, "attribute-table", "attribute number 6")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
 
@@ -842,7 +838,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(row).to_contain_text("Updated description of a report item type")
 
         def remove_report_type():
-            item_id = self.get_table_row_item_id(page, "report_item_type-table", report_type_title)
+            item_id = self.get_table_row_id_by_link_text(page, "report_item_type-table", report_type_title)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_test_id("report_item_type-table").get_by_role("link", name=report_type_title)).not_to_be_visible(timeout=10000)
@@ -895,7 +891,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("row", name=product_type_name)).to_contain_text("Updated description of a product type")
 
         def remove_product_type():
-            item_id = self.get_table_row_item_id(page, "product_type-table", product_type_name)
+            item_id = self.get_table_row_id_by_link_text(page, "product_type-table", product_type_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_test_id("product_type-table").get_by_role("link", name=product_type_name)).not_to_be_visible(timeout=10000)
@@ -953,7 +949,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             bot_table = page.get_by_test_id("bot-table")
             all_rows = bot_table.locator("tbody tr")
             expect(all_rows).to_have_count(8)
-            item_id = self.get_table_row_item_id(page, "bot-table", "test bot updated")
+            item_id = self.get_table_row_id_by_link_text(page, "bot-table", "test bot updated")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             dismiss_notifications(page)
@@ -1013,7 +1009,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         def remove_connector():
             connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first
             expect(connector_row).to_be_visible(timeout=10000)
-            item_id = self.get_table_row_item_id(page, "connector-table", updated_connector_name)
+            item_id = self.get_table_row_id_by_link_text(page, "connector-table", updated_connector_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(connector_row).not_to_be_visible(timeout=10000)
@@ -1062,7 +1058,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             publisher_table = page.get_by_test_id("publisher_preset-table")
             all_rows = publisher_table.locator("tbody tr")
             expect(all_rows).to_have_count(1)
-            item_id = self.get_table_row_item_id(page, "publisher_preset-table", "publisher preset test updated")
+            item_id = self.get_table_row_id_by_link_text(page, "publisher_preset-table", "publisher preset test updated")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(publisher_table.get_by_role("link", name="publisher preset test updated")).not_to_be_visible(timeout=10000)

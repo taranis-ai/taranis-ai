@@ -482,7 +482,7 @@ class TestEndToEndUser(BaseE2ETest):
 
         def delete_test_report():
             page.get_by_role("link", name="Analyze").click()
-            item_id = self.get_table_row_item_id(page, "report-table", "test title")
+            item_id = self.get_table_row_id_by_link_text(page, "report-table", "test title")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
 
@@ -554,7 +554,7 @@ class TestEndToEndUser(BaseE2ETest):
                 assert clone_report_href is not None
                 cloned_report_uuid = clone_report_href.split("/")[-1]
                 assert self.is_uuid4(cloned_report_uuid), f"Expected a valid UUID4, got {cloned_report_uuid}"
-                item_id = self.get_table_row_item_id(page, "report-table", cloned_report_title)
+                item_id = self.get_table_row_id_by_link_text(page, "report-table", cloned_report_title)
                 delete_button_test_id = f"action-delete-{item_id}"
                 self.delete_table_row(page, delete_button_test_id)
                 page.get_by_role("link", name="Test report").click()
@@ -565,7 +565,7 @@ class TestEndToEndUser(BaseE2ETest):
 
             def cleanup_reports(report_uuid_2: str):
                 page.get_by_role("link", name="Analyze").click()
-                item_id = self.get_table_row_item_id(page, "report-table", "Test report")
+                item_id = self.get_table_row_id_by_link_text(page, "report-table", "Test report")
                 delete_button_test_id = f"action-delete-{item_id}"
                 self.delete_table_row(page, delete_button_test_id)
 
@@ -725,7 +725,7 @@ class TestEndToEndUser(BaseE2ETest):
 
             def delete_new_report():
                 page.get_by_role("link", name="Analyze").click()
-                item_id = self.get_table_row_item_id(page, "report-table", "all attr report")
+                item_id = self.get_table_row_id_by_link_text(page, "report-table", "all attr report")
                 delete_button_test_id = f"action-delete-{item_id}"
                 self.delete_table_row(page, delete_button_test_id)
                 dismiss_notifications(page)
@@ -824,7 +824,7 @@ class TestEndToEndUser(BaseE2ETest):
 
             def delete_new_report_required():
                 page.get_by_role("link", name="Analyze").click()
-                item_id = self.get_table_row_item_id(page, "report-table", "all attr report REQUIRED")
+                item_id = self.get_table_row_id_by_link_text(page, "report-table", "all attr report REQUIRED")
                 delete_button_test_id = f"action-delete-{item_id}"
                 self.delete_table_row(page, delete_button_test_id)
                 dismiss_notifications(page)

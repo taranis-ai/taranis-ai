@@ -30,20 +30,49 @@ class TestUserWorkflow(BaseE2ETest):
         stories_date_descending_not_important: list,
         stories_date_descending_important: list,
     ):
+        def mark_story_as_read(story_id: str):
+            story_card = page.get_by_test_id(f"story-card-{story_id}")
+            self.highlight_element(story_card.get_by_test_id("story-summary"))
+            expect(story_card.get_by_test_id("story-summary")).to_be_visible(timeout=10000)
+            self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
+            self.highlight_element(story_card.get_by_test_id("toggle-read")).click()
+
+        def toggle_story_summary(story_id: str):
+            story_card = page.get_by_test_id(f"story-card-{story_id}")
+            self.highlight_element(story_card.get_by_test_id("toggle-summary")).click()
+
+        def open_story_detail(story_id: str):
+            story_card = page.get_by_test_id(f"story-card-{story_id}")
+            self.highlight_element(story_card.get_by_test_id("toggle-summary")).click()
+            self.highlight_element(story_card.get_by_test_id("open-detail-view")).click()
+            expect(page.get_by_test_id("story-title")).to_be_visible(timeout=10000)
+
+        def set_story_filters(read: str | None = None, important: str | None = None):
+            if read is not None:
+                self.highlight_element(page.get_by_label("Read")).select_option(read)
+            if important is not None:
+                self.highlight_element(page.get_by_label("Important")).select_option(important)
+
+        def reset_story_filters():
+            self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
+
+        def assert_story_count(expected_count: str):
+            expect(page.get_by_test_id("assess_story_count").get_by_text(expected_count)).to_be_visible(timeout=10000)
+
         def go_to_assess():
             self.navigate_to_assess(page)
 
         def apply_filter():
             self.highlight_element(page.get_by_role("radio", name="Shift")).check()
-            self.set_story_filters(page, read="true")
-            self.set_story_filters(page, read="false")
-            self.set_story_filters(page, important="false")
-            self.set_story_filters(page, important="true")
-            self.reset_story_filters(page)
-            self.set_story_filters(page, important="true")
-            self.assert_story_count(page, "5")
-            self.reset_story_filters(page)
-            self.set_story_filters(page, read="false", important="false")
+            set_story_filters(read="true")
+            set_story_filters(read="false")
+            set_story_filters(important="false")
+            set_story_filters(important="true")
+            reset_story_filters()
+            set_story_filters(important="true")
+            assert_story_count("5")
+            reset_story_filters()
+            set_story_filters(read="false", important="false")
 
         def assess_workflow_1(non_important_story_ids):
             # Check summary and mark as read
@@ -53,16 +82,16 @@ class TestUserWorkflow(BaseE2ETest):
             story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[0]}")
             self.highlight_element(story_card.get_by_test_id("story-summary"), scroll=False)
             expect(story_card.get_by_test_id("story-summary")).to_be_visible()
-            self.mark_story_as_read(page, non_important_story_ids[0])
+            mark_story_as_read(non_important_story_ids[0])
 
             # next story
             story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[1]}")
             self.highlight_element(story_card.get_by_test_id("story-summary"), scroll=False)
             expect(story_card.get_by_test_id("story-summary")).to_be_visible()
-            self.mark_story_as_read(page, non_important_story_ids[1])
+            mark_story_as_read(non_important_story_ids[1])
 
             for i in range(2, 7):
-                self.mark_story_as_read(page, non_important_story_ids[i])
+                mark_story_as_read(non_important_story_ids[i])
 
             # select multiple, press mark as read once
             for i in range(7, 10):
@@ -76,25 +105,25 @@ class TestUserWorkflow(BaseE2ETest):
 
             # remaining stories
             for i in range(10, 20):
-                self.mark_story_as_read(page, non_important_story_ids[i])
+                mark_story_as_read(non_important_story_ids[i])
 
             # after all stories are marked as read in first page, last story is carried over -> mark it twice
-            self.mark_story_as_read(page, non_important_story_ids[19])
+            mark_story_as_read(non_important_story_ids[19])
 
             for i in range(20, 28):
                 print(f"Marking story {non_important_story_ids[i]} as read AND is {i}/28")
-                self.mark_story_as_read(page, non_important_story_ids[i])
+                mark_story_as_read(non_important_story_ids[i])
 
         def assess_workflow_2(important_story_ids):
-            self.set_story_filters(page, important="true")
+            set_story_filters(important="true")
 
             # Show/unshow details of all stories
             for story_id in important_story_ids[:5]:
-                self.toggle_story_summary(page, story_id)
-                self.toggle_story_summary(page, story_id)
+                toggle_story_summary(story_id)
+                toggle_story_summary(story_id)
 
             # Open specific story
-            self.open_story_detail(page, important_story_ids[0])
+            open_story_detail(important_story_ids[0])
 
             # Mark as read and remove important (using manual clicks since base method may not fit)
             self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
@@ -104,8 +133,8 @@ class TestUserWorkflow(BaseE2ETest):
             self.highlight_element(page.get_by_test_id("toggle-important")).click()
 
             go_to_assess()
-            self.reset_story_filters(page)
-            self.set_story_filters(page, read="false", important="true")
+            reset_story_filters()
+            set_story_filters(read="false", important="true")
 
             # Merge stories
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}")).click()
@@ -162,7 +191,7 @@ class TestUserWorkflow(BaseE2ETest):
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
             page.get_by_label("Select a report").select_option("CERT Report")
             self.short_sleep(0.5)
-            self.fill_form_field(page, "Title", "Test Report")
+            page.get_by_label("Title", exact=True).fill("Test Report")
             self.highlight_element(page.get_by_role("button", name="Create Report")).click()
             time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/report_item_add.png")
@@ -170,7 +199,7 @@ class TestUserWorkflow(BaseE2ETest):
         def report_2():
             self.highlight_element(page.get_by_role("button", name="New Report")).click()
             page.get_by_label("Select a report").select_option("Disinformation")
-            self.fill_form_field(page, "Title", "Test Disinformation Title")
+            page.get_by_label("Title", exact=True).fill("Test Disinformation Title")
             self.highlight_element(page.get_by_role("button", name="Create Report")).click()
 
         def add_stories_to_report_1():
