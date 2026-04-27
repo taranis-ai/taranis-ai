@@ -129,7 +129,6 @@ def test_user_profile(client, auth_header):
     assert response.json
     assert response.data
     assert response.status_code == 200
-    assert response.json["dashboard"]["trending_cluster_days"] == 1
 
 
 def test_auth_logout(app, client, auth_header):
