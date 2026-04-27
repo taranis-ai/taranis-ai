@@ -5,9 +5,11 @@ import uuid
 from datetime import date
 
 import pytest
+from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Error, Page, expect
-from playwright_helpers import PlaywrightHelpers
+
+from tests.playwright.notification_helpers import dismiss_notifications
 
 
 ASSESS_STORY_PAGE_SIZE = 20
@@ -15,8 +17,8 @@ ASSESS_STORY_PAGE_SIZE = 20
 
 @pytest.mark.e2e_user
 @pytest.mark.e2e_ci
-@pytest.mark.usefixtures("e2e_ci")
-class TestEndToEndUser(PlaywrightHelpers):
+@pytest.mark.usefixtures("e2e_ci", "ensure_basic_user_permissions")
+class TestEndToEndUser(BaseE2ETest):
     """End-to-end tests for the Taranis AI user interface."""
 
     @staticmethod
@@ -49,8 +51,8 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_user_dashboard(self, logged_in_page: Page, forward_console_and_page_errors, stories_function_wrapper):
-        page = logged_in_page
+    def test_user_dashboard(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper):
+        page = non_admin_logged_in_page
 
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
@@ -143,8 +145,8 @@ class TestEndToEndUser(PlaywrightHelpers):
         assert page.get_by_role("link", name="Administration").count() == 0
         assert page.get_by_test_id("attribute-table").count() == 0
 
-    def test_user_profile(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
-        page = logged_in_page
+    def test_user_profile(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories):
+        page = non_admin_logged_in_page
 
         def go_to_user_profile():
             page.goto(url_for("user.settings", _external=True))
@@ -168,23 +170,23 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def change_password_fail():
             # Wrong current password
-            page.get_by_role("textbox", name="Current password").fill("admin1")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("textbox", name="Current password").fill("wrong-password")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test")
+            page.get_by_role("textbox", name="Confirm new password").fill("test")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Old password is incorrect")
 
             # Mismatching new passwords
-            page.get_by_role("textbox", name="Current password").fill("admin")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin1")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("textbox", name="Current password").fill("test")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test1")
+            page.get_by_role("textbox", name="Confirm new password").fill("test")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("New password and confirm password do not match")
 
         def change_password():
-            page.get_by_role("textbox", name="Current password").fill("admin")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin1")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin1")
+            page.get_by_role("textbox", name="Current password").fill("test")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test1")
+            page.get_by_role("textbox", name="Confirm new password").fill("test1")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
@@ -213,9 +215,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_role("link", name="Logout").click()
             expect(page.get_by_role("img", name="Taranis Logo")).to_be_visible()
 
-            page.get_by_role("textbox", name="Username").fill("admin")
+            page.get_by_role("textbox", name="Username").fill("user")
             page.get_by_role("textbox", name="Username").press("Tab")
-            page.get_by_role("textbox", name="Password").fill("admin1")
+            page.get_by_role("textbox", name="Password").fill("test1")
             page.get_by_test_id("login-button").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
@@ -227,10 +229,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator(".collapse > input").check()
-            page.get_by_role("textbox", name="Current password").fill("admin1")
-            page.get_by_role("textbox", name="New password", exact=True).fill("admin")
+            page.get_by_role("textbox", name="Current password").fill("test1")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test")
             page.get_by_role("textbox", name="New password", exact=True).press("Tab")
-            page.get_by_role("textbox", name="Confirm new password").fill("admin")
+            page.get_by_role("textbox", name="Confirm new password").fill("test")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
@@ -242,8 +244,8 @@ class TestEndToEndUser(PlaywrightHelpers):
         relog_in()
         change_password_back()
 
-    def test_user_assess(self, logged_in_page: Page, forward_console_and_page_errors, pre_seed_stories):
-        page = logged_in_page
+    def test_user_assess(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories):
+        page = non_admin_logged_in_page
 
         def go_to_assess():
             page.goto(url_for("assess.assess", _external=True))
@@ -347,12 +349,12 @@ class TestEndToEndUser(PlaywrightHelpers):
 
     def test_story_export(
         self,
-        logged_in_page: Page,
-        forward_console_and_page_errors,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
         pre_seed_stories,
         news_items_list: list[dict],
     ):
-        page = logged_in_page
+        page = non_admin_logged_in_page
         expected_story = news_items_list[0]
         expected_title = expected_story["title"]
         possible_story_titles = {expected_title, f"{expected_title} edited title"}
@@ -369,8 +371,11 @@ class TestEndToEndUser(PlaywrightHelpers):
         story_title = story.get_by_test_id("story-title").inner_text()
         assert story_title in possible_story_titles
 
-        story.get_by_test_id("story-actions-menu").click()
-        story.get_by_test_id("share-story").click()
+        actions_menu = story.get_by_test_id("story-actions-menu")
+        share_story = story.get_by_test_id("share-story")
+        actions_menu.click()
+        expect(share_story).to_be_visible()
+        share_story.click()
 
         dialog = page.locator("#share_story_to_connector_dialog")
         expect(dialog).to_be_visible()
@@ -396,13 +401,13 @@ class TestEndToEndUser(PlaywrightHelpers):
 
     def test_user_analyze(
         self,
-        logged_in_page: Page,
-        forward_console_and_page_errors,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
         pre_seed_report_stories,
         pre_seed_report_type_all_attribute_types_optional,
         pre_seed_report_type_all_attribute_types_required,
     ):
-        page = logged_in_page
+        page = non_admin_logged_in_page
         report_story_one, report_story_two = pre_seed_report_stories
         story_search_term = " ".join(report_story_one["title"].split()[:2])
         story_search_term_lower = story_search_term.lower()
@@ -450,9 +455,9 @@ class TestEndToEndUser(PlaywrightHelpers):
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
             expect(page.get_by_test_id("report-type-select")).to_have_value("4")
             page.get_by_test_id("save-report").click()
-            expect(page.get_by_test_id("report-new-product")).to_be_visible(timeout=10000)
             expect(page.get_by_role("button", name="Completed")).to_be_visible()
             expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
+            expect(page.get_by_test_id("report-new-product")).to_be_visible()
             expect(page.get_by_placeholder("Date")).to_be_visible()
             expect(page.get_by_placeholder("Timeframe")).to_be_visible()
             expect(page.get_by_placeholder("Handler", exact=True)).to_be_visible()
@@ -464,23 +469,22 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_placeholder("Handler", exact=True).fill("me")
             page.get_by_placeholder("CO-Handler").fill("you")
             page.get_by_test_id("save-report").click()
-            expect(page.get_by_test_id("report-id")).to_have_text(re.compile(r"^ID: [0-9a-f-]{36}$"), timeout=10000)
-            expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated", timeout=10000)
+            expect(page.get_by_test_id("report-id")).to_have_text(re.compile(r"^ID: [0-9a-f-]{36}$"))
+            expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated")
             page.get_by_placeholder("Date").fill("yesterday")
             page.get_by_role("link", name="Stacked view").click()
             expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
             page.get_by_role("link", name="Split view").click()
             expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
-            expect(page.get_by_test_id("report-new-product")).to_be_visible()
             expect(page.get_by_role("button", name="Completed")).to_be_visible()
             expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
+            expect(page.get_by_test_id("report-new-product")).to_be_visible()
 
         def delete_test_report():
-            report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
             page.get_by_role("link", name="Analyze").click()
-            page.get_by_test_id(f"action-delete-{report_uuid}").click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-            page.get_by_role("button", name="OK").click()
+            item_id = self.get_table_row_id_by_link_text(page, "report-table", "test title")
+            delete_button_test_id = f"action-delete-{item_id}"
+            self.delete_table_row(page, delete_button_test_id)
 
         def create_report():
             new_report_button = page.get_by_role("button", name="New Report")
@@ -543,12 +547,14 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_test_id(f"action-clone-report-{report_uuid}").click()
                 cloned_report = page.get_by_role("link", name=f"Test Report ({date.today().isoformat()}", exact=False)
                 assert cloned_report is not None
+                cloned_report_title = cloned_report.inner_text().strip()
                 clone_report_href = cloned_report.get_attribute("href")
                 assert clone_report_href is not None
                 cloned_report_uuid = clone_report_href.split("/")[-1]
                 assert self.is_uuid4(cloned_report_uuid), f"Expected a valid UUID4, got {cloned_report_uuid}"
-                page.get_by_test_id(f"action-delete-{cloned_report_uuid}").click()
-                page.get_by_role("button", name="OK").click()
+                item_id = self.get_table_row_id_by_link_text(page, "report-table", cloned_report_title)
+                delete_button_test_id = f"action-delete-{item_id}"
+                self.delete_table_row(page, delete_button_test_id)
                 page.get_by_role("link", name="Test report").click()
                 expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
                 expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
@@ -557,8 +563,9 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             def cleanup_reports(report_uuid_2: str):
                 page.get_by_role("link", name="Analyze").click()
-                page.get_by_test_id(f"action-delete-{report_uuid_2}").click()
-                page.get_by_role("button", name="OK").click()
+                item_id = self.get_table_row_id_by_link_text(page, "report-table", "Test report")
+                delete_button_test_id = f"action-delete-{item_id}"
+                self.delete_table_row(page, delete_button_test_id)
 
             test_report_item_view()
             test_remove_story_from_report()
@@ -633,7 +640,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_role("textbox", name="Date", exact=True).fill("2026-02-05")
                 page.get_by_role("textbox", name="Time", exact=True).fill("111111-11-11")
                 page.get_by_role("textbox", name="Date Time").fill("111111-11-11")
-                page.get_by_label("TLP Level Clear Green Amber").select_option("red")
+                # page.get_by_label("TLP Level Clear Green Amber").select_option("red")
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field").fill("1")
@@ -715,13 +722,11 @@ class TestEndToEndUser(PlaywrightHelpers):
                     expect(page.get_by_text("Report item updated")).not_to_be_visible()
 
             def delete_new_report():
-                report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
                 page.get_by_role("link", name="Analyze").click()
-                expect(page.get_by_role("row", name="all attr report")).to_be_visible()
-                page.get_by_test_id(f"action-delete-{report_uuid}").click()
-                expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-                page.get_by_role("button", name="OK").click()
-                page.get_by_text("Successfully deleted report").click()
+                item_id = self.get_table_row_id_by_link_text(page, "report-table", "all attr report")
+                delete_button_test_id = f"action-delete-{item_id}"
+                self.delete_table_row(page, delete_button_test_id)
+                dismiss_notifications(page)
 
             def create_new_report_required():
                 page.get_by_test_id("new-report-button").click()
@@ -763,7 +768,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_role("link", name="Analyze").click()
                 expect(page.get_by_role("row", name="all attr report REQUIRED")).to_be_visible()
 
-                page.get_by_role("link", name="all attr report").click()
+                page.get_by_role("link", name="all attr report REQUIRED").click()
                 page.locator(".choices__inner").click()
                 page.get_by_role("option", name="Report Story 1 Add Story").click()
                 expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
@@ -782,7 +787,7 @@ class TestEndToEndUser(PlaywrightHelpers):
                 page.get_by_role("textbox", name="Date *", exact=True).fill("2026-02-05")
                 page.get_by_role("textbox", name="Time *", exact=True).fill("111111-11-11")
                 page.get_by_role("textbox", name="Date Time *").fill("111111-11-11")
-                page.get_by_label("TLP Level * Clear Green Amber").select_option("red")
+                page.get_by_label("TLP Level * Clear Green Amber").select_option("clear")
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field*").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field*").fill("1")
@@ -816,13 +821,11 @@ class TestEndToEndUser(PlaywrightHelpers):
                     expect(page.get_by_text("Report item updated")).not_to_be_visible()
 
             def delete_new_report_required():
-                report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
                 page.get_by_role("link", name="Analyze").click()
-                expect(page.get_by_role("row", name="all attr report")).to_be_visible()
-                page.get_by_test_id(f"action-delete-{report_uuid}").click()
-                expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-                page.get_by_role("button", name="OK").click()
-                page.get_by_text("Successfully deleted report").click()
+                item_id = self.get_table_row_id_by_link_text(page, "report-table", "all attr report REQUIRED")
+                delete_button_test_id = f"action-delete-{item_id}"
+                self.delete_table_row(page, delete_button_test_id)
+                dismiss_notifications(page)
 
             create_new_report()
             add_stories_to_new_report()
@@ -848,8 +851,77 @@ class TestEndToEndUser(PlaywrightHelpers):
         go_to_analyze()
         check_various_report_type_fields()
 
-    def test_publish(self, logged_in_page: Page, forward_console_and_page_errors, stories_session_wrapper):
-        page = logged_in_page
+    def test_user_report_vanishes_with_higher_tlp(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        pre_seed_report_type_all_attribute_types_optional,
+    ):
+        page = non_admin_logged_in_page
+        report_title = f"tlp_clear_report_{uuid.uuid4().hex[:8]}"
+
+        page.goto(url_for("analyze.analyze", _external=True))
+        expect(page.get_by_test_id("analyze")).to_be_visible()
+
+        page.get_by_test_id("new-report-button").click()
+        expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+        page.get_by_role("textbox", name="Title").fill(report_title)
+        page.get_by_test_id("report-type-select").select_option("6")
+        page.get_by_test_id("save-report").click()
+        page.get_by_text("Report item created").click()
+
+        page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
+        page.get_by_test_id("save-report").click()
+        page.get_by_text("Report item updated").click()
+
+        page.get_by_role("link", name="Analyze").click()
+        expect(page.get_by_role("link", name=report_title)).to_be_visible()
+
+        page.get_by_role("link", name=report_title).click()
+        page.get_by_label("TLP Level Clear Green Amber").select_option("green")
+        page.get_by_test_id("save-report").click()
+        page.get_by_text("Report item updated").click()
+
+        page.get_by_role("link", name="Analyze").click()
+        expect(page.get_by_test_id("analyze")).to_be_visible()
+        expect(page.get_by_role("link", name=report_title)).not_to_be_visible()
+
+    def test_user_report_detail_is_forbidden_after_higher_tlp(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        pre_seed_report_type_all_attribute_types_optional,
+    ):
+        page = non_admin_logged_in_page
+        report_title = f"tlp_clear_report_detail_{uuid.uuid4().hex[:8]}"
+
+        page.goto(url_for("analyze.analyze", _external=True))
+        expect(page.get_by_test_id("analyze")).to_be_visible()
+
+        page.get_by_test_id("new-report-button").click()
+        expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+        page.get_by_role("textbox", name="Title").fill(report_title)
+        page.get_by_test_id("report-type-select").select_option("6")
+        page.get_by_test_id("save-report").click()
+        page.get_by_text("Report item created").click()
+
+        page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
+        page.get_by_test_id("save-report").click()
+        page.get_by_text("Report item updated").click()
+
+        page.get_by_role("link", name="Analyze").click()
+        expect(page.get_by_role("link", name=report_title)).to_be_visible()
+        page.get_by_role("link", name=report_title).click()
+
+        page.get_by_label("TLP Level Clear Green Amber").select_option("green")
+        page.get_by_test_id("save-report").click()
+        page.get_by_text("Report item updated").click()
+        report_id = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+        page.goto(url_for("analyze.report", report_id=report_id, _external=True))
+        expect(page.get_by_text("403 - Access denied")).to_be_visible()
+
+    def test_publish(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_session_wrapper):
+        page = non_admin_logged_in_page
         product_title = f"test_product_{str(uuid.uuid4())[:8]}"
 
         def load_product_list():

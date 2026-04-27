@@ -2,89 +2,92 @@
 import time
 
 import pytest
-
-# from typing import Callable
-from flask import url_for
+from base_e2e_test import BaseE2ETest
 from playwright.sync_api import Page, expect
-from playwright_helpers import PlaywrightHelpers
 
 
 @pytest.mark.usefixtures("e2e_ci")
 @pytest.mark.e2e_user_workflow
-class TestUserWorkflow(PlaywrightHelpers):
+@pytest.mark.usefixtures("ensure_basic_user_permissions")
+class TestUserWorkflow(BaseE2ETest):
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
-        # page.set_default_timeout(0)
-        page.goto(url_for("base.login", _external=True))
+        self.login_with_credentials(page, username="user", password="test")
+        self.assert_dashboard_sections_visible(page, ["Assess", "Analyze", "Publish", "Connectors"])
+        assert page.get_by_role("link", name="Administration").count() == 0
 
-        self.add_keystroke_overlay(page)
+    def test_instance_setup(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, fake_source):
+        page = non_admin_logged_in_page
+        self.navigate_to_assess(page)
+        expect(page.get_by_test_id("assess")).to_be_visible()
+        assert page.get_by_role("link", name="Administration").count() == 0
+        expect(page.get_by_role("searchbox", name="Select sources")).to_be_visible()
 
-        expect(page).to_have_title("Taranis AI", timeout=5000)
+    def test_assess(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        stories_date_descending_not_important: list,
+        stories_date_descending_important: list,
+    ):
+        def mark_story_as_read(story_id: str):
+            story_card = page.get_by_test_id(f"story-card-{story_id}")
+            self.highlight_element(story_card.get_by_test_id("story-summary"))
+            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
+            self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
+            self.highlight_element(story_card.get_by_test_id("toggle-read")).click()
 
-        self.highlight_element(page.get_by_placeholder("Username"))
-        page.get_by_placeholder("Username").fill("admin")
-        self.highlight_element(page.get_by_placeholder("Password"))
-        page.get_by_placeholder("Password").fill("admin")
-        self.highlight_element(page.get_by_role("button", name="login")).click()
-        page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
-        expect(page.locator("#dashboard")).to_contain_text("Assess")
-        expect(page.locator("#dashboard")).to_contain_text("Analyze")
-        expect(page.locator("#dashboard")).to_contain_text("Publish")
-        expect(page.locator("#dashboard")).to_contain_text("Connectors")
+        def toggle_story_summary(story_id: str):
+            story_card = page.get_by_test_id(f"story-card-{story_id}")
+            self.highlight_element(story_card.get_by_test_id("toggle-summary")).click()
 
-    def test_instance_setup(self, taranis_frontend: Page):
-        page = taranis_frontend
-        self.highlight_element(page.get_by_role("link", name="Assess").first).click()
-        self.highlight_element(page.get_by_role("heading", name="No stories found."))
-        self.highlight_element(page.get_by_role("link", name="Administration")).click()
-        self.highlight_element(page.get_by_test_id("admin-menu-OSINT Source")).click()
-        self.highlight_element(page.get_by_role("button", name="Load default OSINT Source")).click()
-        page.wait_for_selector("tbody tr")
-        rows = page.locator("tbody tr").count()
-        assert rows == 10
+        def open_story_detail(story_id: str):
+            story_card = page.get_by_test_id(f"story-card-{story_id}")
+            self.highlight_element(story_card.get_by_test_id("toggle-summary")).click()
+            self.highlight_element(story_card.get_by_test_id("open-detail-view")).click()
+            expect(page.get_by_test_id("story-title")).to_be_visible()
 
-    def test_assess(self, taranis_frontend: Page, stories_date_descending_not_important: list, stories_date_descending_important: list):
+        def set_story_filters(read: str | None = None, important: str | None = None):
+            if read is not None:
+                self.highlight_element(page.get_by_label("Read")).select_option(read)
+            if important is not None:
+                self.highlight_element(page.get_by_label("Important")).select_option(important)
+
+        def reset_story_filters():
+            self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
+
+        def assert_story_count(expected_count: str):
+            expect(page.get_by_test_id("assess_story_count").get_by_text(expected_count)).to_be_visible()
+
         def go_to_assess():
-            self.highlight_element(page.get_by_role("link", name="Assess").first).click()
-            page.wait_for_url("**/assess**", wait_until="domcontentloaded")
+            self.navigate_to_assess(page)
 
         def apply_filter():
             self.highlight_element(page.get_by_role("radio", name="Shift")).check()
-            self.highlight_element(page.get_by_label("Read")).select_option("true")
-            self.highlight_element(page.get_by_label("Read")).select_option("false")
-            self.highlight_element(page.get_by_label("Important")).select_option("false")
-            self.highlight_element(page.get_by_label("Important")).select_option("true")
-            self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
-            self.highlight_element(page.get_by_label("Important")).select_option("true")
-            expect(page.get_by_test_id("assess_story_count").get_by_text("5")).to_be_visible()
-            self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
-            self.highlight_element(page.get_by_label("Read")).select_option("false")
-            self.highlight_element(page.get_by_label("Important")).select_option("false")
+            set_story_filters(read="true")
+            set_story_filters(read="false")
+            set_story_filters(important="false")
+            set_story_filters(important="true")
+            reset_story_filters()
+            set_story_filters(important="true")
+            assert_story_count("5")
+            reset_story_filters()
+            set_story_filters(read="false", important="false")
 
         def assess_workflow_1(non_important_story_ids):
-            def mark_story_as_read(story_id: str):
-                story_card = page.get_by_test_id(f"story-card-{story_id}")
-                self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
-                toggle_read = story_card.get_by_test_id("toggle-read")
-                expect(toggle_read).to_be_visible()
-                self.highlight_element(toggle_read, scroll=False).click()
-                expect(story_card.get_by_test_id("story-summary")).to_be_visible()
-
             # Check summary and mark as read
             assert len(non_important_story_ids) == 28
 
             # first story
-            self.highlight_element(
-                page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("story-summary"), scroll=False
-            )
-            expect(page.get_by_test_id(f"story-card-{non_important_story_ids[0]}").get_by_test_id("story-summary")).to_be_visible()
+            story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[0]}")
+            self.highlight_element(story_card.get_by_test_id("story-summary"), scroll=False)
+            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
             mark_story_as_read(non_important_story_ids[0])
 
             # next story
-            self.highlight_element(
-                page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("story-summary"), scroll=False
-            )
-            expect(page.get_by_test_id(f"story-card-{non_important_story_ids[1]}").get_by_test_id("story-summary")).to_be_visible()
+            story_card = page.get_by_test_id(f"story-card-{non_important_story_ids[1]}")
+            self.highlight_element(story_card.get_by_test_id("story-summary"), scroll=False)
+            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
             mark_story_as_read(non_important_story_ids[1])
 
             for i in range(2, 7):
@@ -112,26 +115,17 @@ class TestUserWorkflow(PlaywrightHelpers):
                 mark_story_as_read(non_important_story_ids[i])
 
         def assess_workflow_2(important_story_ids):
-            page.get_by_label("Important").select_option("true")
+            set_story_filters(important="true")
 
             # Show/unshow details of all stories
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}").get_by_test_id("toggle-summary")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}").get_by_test_id("toggle-summary")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[1]}").get_by_test_id("toggle-summary")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[1]}").get_by_test_id("toggle-summary")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}").get_by_test_id("toggle-summary")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}").get_by_test_id("toggle-summary")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}").get_by_test_id("toggle-summary")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[3]}").get_by_test_id("toggle-summary")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("toggle-summary")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[4]}").get_by_test_id("toggle-summary")).click()
+            for story_id in important_story_ids[:5]:
+                toggle_story_summary(story_id)
+                toggle_story_summary(story_id)
 
             # Open specific story
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}").get_by_test_id("toggle-summary")).click()
-            self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[0]}").get_by_test_id("open-detail-view")).click()
-            self.short_sleep(0.5)
+            open_story_detail(important_story_ids[0])
 
-            # Mark as read
+            # Mark as read and remove important (using manual clicks since base method may not fit)
             self.highlight_element(page.get_by_test_id("story-actions-menu")).click()
             self.highlight_element(page.get_by_test_id("toggle-read")).click()
             # Remove mark as important
@@ -139,9 +133,8 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_test_id("toggle-important")).click()
 
             go_to_assess()
-            page.get_by_role("link", name="Reset filters ctrl+esc").click()
-            page.get_by_label("Read").select_option("false")
-            page.get_by_label("Important").select_option("true")
+            reset_story_filters()
+            set_story_filters(read="false", important="true")
 
             # Merge stories
             self.highlight_element(page.get_by_test_id(f"story-card-{important_story_ids[2]}")).click()
@@ -179,7 +172,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         #           Run test
         # ============================
 
-        page = taranis_frontend
+        page = non_admin_logged_in_page
 
         go_to_assess()
         # test_hotkey_menu()
@@ -187,36 +180,26 @@ class TestUserWorkflow(PlaywrightHelpers):
         assess_workflow_1(stories_date_descending_not_important)
         assess_workflow_2(stories_date_descending_important)
 
-    def test_reports(self, taranis_frontend: Page, stories_date_descending: list):
+    def test_reports(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_date_descending: list):
         def go_to_analyze():
-            self.highlight_element(page.get_by_role("link", name="Analyze").first).click()
-            page.wait_for_url("**/analyze", wait_until="domcontentloaded")
-            # expect(page).to_have_title("Taranis AI | Analyze")
+            self.navigate_to_analyze(page)
 
         def go_to_assess():
-            self.highlight_element(page.get_by_role("link", name="Assess").first).click()
-            page.wait_for_url("**/assess**", wait_until="domcontentloaded")
-            # expect(page).to_have_title("Taranis AI | Assess")
+            self.navigate_to_assess(page)
 
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
-            # page.wait_for_url("**/report/", wait_until="domcontentloaded")
             page.get_by_label("Select a report").select_option("CERT Report")
-
+            self.short_sleep(0.5)
+            page.get_by_label("Title", exact=True).fill("Test Report")
+            self.highlight_element(page.get_by_role("button", name="Create Report")).click()
             time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/report_item_add.png")
 
-            # self.highlight_element(page.get_by_text("CERT Report")).click()
-            self.highlight_element(page.get_by_label("Title")).fill("Test Report")
-            self.highlight_element(page.get_by_role("button", name="Create Report")).click()
-
         def report_2():
             self.highlight_element(page.get_by_role("button", name="New Report")).click()
-            # self.highlight_element(page.get_by_role("combobox")).click()
-            # self.highlight_element(page.get_by_text("Disinformation")).click()
             page.get_by_label("Select a report").select_option("Disinformation")
-
-            self.highlight_element(page.get_by_label("Title")).fill("Test Disinformation Title")
+            page.get_by_label("Title", exact=True).fill("Test Disinformation Title")
             self.highlight_element(page.get_by_role("button", name="Create Report")).click()
 
         def add_stories_to_report_1():
@@ -297,7 +280,7 @@ class TestUserWorkflow(PlaywrightHelpers):
         #           Run test
         # ============================
 
-        page = taranis_frontend
+        page = non_admin_logged_in_page
 
         go_to_analyze()
         report_1()
@@ -318,8 +301,8 @@ class TestUserWorkflow(PlaywrightHelpers):
         # go_to_assess()
         # check_reports_items_by_tag()
 
-    def test_e2e_publish(self, taranis_frontend: Page):
-        page = taranis_frontend
+    def test_e2e_publish(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin):
+        page = non_admin_logged_in_page
 
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
         page.wait_for_url("**/publish", wait_until="domcontentloaded")
