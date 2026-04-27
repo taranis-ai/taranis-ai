@@ -708,7 +708,6 @@ class TestEndToEndAdmin(BaseE2ETest):
         def test_attribute_delete():
             page.get_by_role("link", name="Analyze").click()
             expect(page.get_by_role("row", name="update attr use")).to_be_visible(timeout=10000)
-            page.pause()
 
             item_id = self.get_table_row_id_by_link_text(page, "report-table", "update attr use")
             delete_button_test_id = f"action-delete-{item_id}"
