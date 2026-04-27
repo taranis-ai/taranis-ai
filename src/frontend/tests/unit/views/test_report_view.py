@@ -110,3 +110,80 @@ def test_create_report_route_renders_submitted_values(authenticated_client):
     html = response.get_data(as_text=True)
     assert 'value="draft title"' in html
     assert '<option value="4" selected>' in html
+
+
+def test_report_update_response_fetches_saved_report_when_core_response_only_contains_id(app, monkeypatch):
+    saved_report_id = "8124ae6f-3c85-49b4-93a1-9f3dc6516310"
+    saved_report = ReportItem.model_construct(id=saved_report_id, title="test title", report_item_type_id=4)
+
+    def mock_get_object(_self, model, object_id):
+        assert model is ReportItem
+        assert object_id == saved_report_id
+        return saved_report
+
+    def mock_get_objects(_self, model, *args, **kwargs):
+        assert model is ReportTypes
+        return [ReportTypes.model_construct(id=4, title="CERT Report")]
+
+    monkeypatch.setattr(
+        "frontend.views.base_view.BaseView.get_object_by_id", classmethod(lambda cls, object_id: mock_get_object(None, cls.model, object_id))
+    )
+    monkeypatch.setattr("frontend.views.report_views.DataPersistenceLayer.get_objects", mock_get_objects)
+
+    with app.test_request_context("/report/0?layout=split"):
+        persisted_object_id, model_instance, response_message = ReportItemView.resolve_update_response(
+            0, {"id": saved_report_id, "message": "Report item created"}
+        )
+        context = ReportItemView.get_update_context(
+            0,
+            model_instance=model_instance,
+            response_message=response_message,
+            form_action_object_id=persisted_object_id,
+        )
+
+    assert context["report"].id == saved_report_id
+    assert context["report"].title == "test title"
+    assert context["submit_text"] == "Update Report"
+    assert "hx-put=" in context["form_action"]
+
+
+def test_report_create_post_renders_saved_report_when_core_response_only_contains_id(
+    app, authenticated_client_basic, monkeypatch, responses_mock
+):
+    saved_report_id = "8124ae6f-3c85-49b4-93a1-9f3dc6516310"
+    saved_report = ReportItem.model_construct(id=saved_report_id, title="test title", report_item_type_id=4)
+
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items",
+        json={"id": saved_report_id, "message": "Report item created"},
+        status=200,
+        content_type="application/json",
+    )
+
+    def mock_get_object(_self, model, object_id):
+        assert model is ReportItem
+        assert object_id == saved_report_id
+        return saved_report
+
+    def mock_get_objects(_self, model, *args, **kwargs):
+        assert model is ReportTypes
+        return [ReportTypes.model_construct(id=4, title="CERT Report")]
+
+    monkeypatch.setattr(
+        "frontend.views.base_view.BaseView.get_object_by_id", classmethod(lambda cls, object_id: mock_get_object(None, cls.model, object_id))
+    )
+    monkeypatch.setattr("frontend.views.report_views.DataPersistenceLayer.get_objects", mock_get_objects)
+
+    with app.test_request_context():
+        response = authenticated_client_basic.post(
+            url_for("analyze.report", report_id="0"),
+            data={"title": "test title", "report_item_type_id": "4", "layout": "split"},
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["HX-Push-Url"].endswith(f"/report/{saved_report_id}")
+    html = response.get_data(as_text=True)
+    assert f"ID: {saved_report_id}" in html
+    assert 'value="test title"' in html
+    assert "New Product from Report" in html
