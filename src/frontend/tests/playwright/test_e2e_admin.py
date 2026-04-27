@@ -44,30 +44,30 @@ class TestEndToEndAdmin(BaseE2ETest):
         page = logged_in_page
 
         page.goto(url_for("admin.dashboard", _external=True))
-        expect(page.locator("#dashboard")).to_be_visible(timeout=10000)
+        expect(page.locator("#dashboard")).to_be_visible()
 
         health_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_text("System Health", exact=True)).first
-        expect(health_card).to_be_visible(timeout=10000)
-        expect(health_card.get_by_text("Healthy", exact=True)).to_be_visible(timeout=10000)
+        expect(health_card).to_be_visible()
+        expect(health_card.get_by_text("Healthy", exact=True)).to_be_visible()
         for service, status in DASHBOARD_HEALTH_SERVICES.items():
             row = health_card.locator("div.flex.items-center.justify-between").filter(has_text=service).first
-            expect(row).to_be_visible(timeout=10000)
+            expect(row).to_be_visible()
             expect(row).to_contain_text(status)
 
         queue_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_role("link", name="Queue")).first
-        expect(queue_card).to_be_visible(timeout=10000)
+        expect(queue_card).to_be_visible()
         expect(queue_card).to_contain_text(DASHBOARD_BASELINE_QUEUE_TEXT)
         queue_card.get_by_role("link", name="Queue").click()
 
         expect(page).to_have_url(url_for("admin.scheduler", _external=True))
-        expect(page.locator("#scheduler-dashboard")).to_be_visible(timeout=10000)
+        expect(page.locator("#scheduler-dashboard")).to_be_visible()
         expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(SCHEDULER_BASELINE_TOTAL_TEXT)
 
     def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
         page = logged_in_page
 
         page.goto(url_for("assess.get_news_item", news_item_id="0", _external=True))
-        expect(page.get_by_role("heading", name="Create manual news item")).to_be_visible(timeout=10000)
+        expect(page.get_by_role("heading", name="Create manual news item")).to_be_visible()
         create_news_item_url = url_for("assess.create_news_item", _external=True)
 
         page.get_by_role("textbox", name="Title *").fill("Invalid language test")
@@ -79,14 +79,14 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         assert response_info.value.status == 400, f"Expected 400 status, but got {response_info.value.status}"
         expect(page.locator("#notification-bar")).to_contain_text("Invalid BCP 47 language tag")
-        expect(page.locator("#news-item-form")).to_be_visible(timeout=10000)
+        expect(page.locator("#news-item-form")).to_be_visible()
         dismiss_notifications(page)
 
     def test_admin_organizations(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
         organization_name = f"test_org_{uuid.uuid4().hex[:6]}"
         page.goto(url_for("admin.organizations", _external=True))
-        expect(page.get_by_test_id("organization-table")).to_be_visible(timeout=10000)
+        expect(page.get_by_test_id("organization-table")).to_be_visible()
         page.screenshot(path="./tests/playwright/screenshots/docs_organizations.png")
 
         page.get_by_test_id("new-organization-button").click()
@@ -112,7 +112,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_user_list():
             page.goto(url_for("admin.users", _external=True))
-            expect(page.get_by_test_id("user-table")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("user-table")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_users.png")
 
         def add_user():
@@ -134,7 +134,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page).to_have_url(url_for("admin.users", _external=True))
-            expect(page.get_by_role("link", name=username)).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name=username)).to_be_visible()
 
         def update_user():
             page.get_by_role("link", name=username).click()
@@ -143,7 +143,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Name", exact=True).fill("Test User Updated")
             page.locator('input[type="submit"]').click()
             expect(page).to_have_url(url_for("admin.users", _external=True))
-            expect(page.get_by_role("link", name="Test User Updated")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Test User Updated")).to_be_visible()
 
         def remove_user():
             self.delete_item(page, "user-table", username)
@@ -198,7 +198,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_template_list():
             page.goto(url_for("admin.template_data", _external=True))
-            expect(page.get_by_test_id("template-table")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("template-table")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_templates.png")
 
         def add_template():
@@ -210,7 +210,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.screenshot(path="./tests/playwright/screenshots/docs_user_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page).to_have_url(url_for("admin.template_data", _external=True))
-            expect(page.get_by_text(template_name)).to_be_visible(timeout=10000)
+            expect(page.get_by_text(template_name)).to_be_visible()
 
         def update_template():
             page.get_by_role("link", name=template_name).click()
@@ -234,7 +234,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_osint_sources():
             page.goto(url_for("admin.osint_sources", _external=True))
-            expect(page.get_by_role("button", name="Load default OSINT Source")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("button", name="Load default OSINT Source")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources.png")
 
         def load_and_search_default_sources():
@@ -257,7 +257,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             self.highlight_element(delete_button).click()
             page.get_by_role("button", name="Delete").click()
             dismiss_notifications(page)
-            expect(page.get_by_role("button", name="Reset Filter")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
 
         def import_export_osint_sources():
             page.get_by_role("button", name="Import").click()
@@ -289,12 +289,12 @@ class TestEndToEndAdmin(BaseE2ETest):
             feed_url_input.fill("http://example.com/feed")
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.locator("#osint_source-form")).to_be_visible(timeout=10000)
+            expect(page.locator("#osint_source-form")).to_be_visible()
             expect(page.get_by_label("Name")).to_have_value(osint_source_name)
 
         def update_osint_sources():
             form = page.locator("#osint_source-form").first
-            expect(form).to_be_visible(timeout=10000)
+            expect(form).to_be_visible()
             expect(form.locator('input[name="rank"][value="4"]')).to_be_checked()
             form.locator('input[name="rank"][value="2"]').check()
             feed_url_input = form.locator('input[name="parameters[FEED_URL]"]')
@@ -304,20 +304,20 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             form.evaluate("form => { form.noValidate = true; }")
             self.highlight_element(form.locator('input[type="submit"]')).click()
-            expect(form).to_be_visible(timeout=10000)
-            expect(page.get_by_test_id("current-osint-icon")).to_be_visible(timeout=10000)
+            expect(form).to_be_visible()
+            expect(page.get_by_test_id("current-osint-icon")).to_be_visible()
 
             form = page.locator("#osint_source-form").first
-            expect(form).to_be_visible(timeout=10000)
+            expect(form).to_be_visible()
             expect(form.locator('input[name="rank"][value="2"]')).to_be_checked()
             page.get_by_test_id("delete-osint-icon-on-save").check()
 
             form.evaluate("form => { form.noValidate = true; }")
             self.highlight_element(form.locator('input[type="submit"]')).click()
-            expect(form).to_be_visible(timeout=10000)
+            expect(form).to_be_visible()
             expect(page.get_by_label("Name")).to_have_value(osint_source_name)
             page.goto(url_for("admin.osint_sources", _external=True))
-            expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible()
             osint_row = page.get_by_role("row", name=osint_source_name)
             expect(osint_row.locator("img.icon")).to_have_count(0)
 
@@ -337,7 +337,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_osint_source_groups():
             page.goto(url_for("admin.osint_source_groups", _external=True))
-            expect(page.get_by_test_id("osint_source_group-table")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("osint_source_group-table")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_source_groups.png")
 
         def add_osint_source_group():
@@ -348,7 +348,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_source_group_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page).to_have_url(url_for("admin.osint_source_groups", _external=True))
-            expect(page.get_by_role("link", name=osint_group_name)).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name=osint_group_name)).to_be_visible()
 
         def update_osint_source_group():
             page.get_by_role("link", name=osint_group_name).click()
@@ -366,12 +366,12 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.goto(url_for("admin.osint_source_groups", _external=True))
             page.get_by_test_id("new-osint_source_group-button").click()
             form = page.locator("#osint_source_group-form")
-            expect(form).to_be_visible(timeout=10000)
-            expect(form.locator("#osint_sources tbody input[type='checkbox'].checkbox-sm")).to_have_count(5, timeout=10000)
+            expect(form).to_be_visible()
+            expect(form.locator("#osint_sources tbody input[type='checkbox'].checkbox-sm")).to_have_count(5)
 
             form.get_by_role("textbox", name="Search...").first.fill(source_name)
             source_row = form.locator("#osint_sources tbody tr").filter(has_text=source_name).first
-            expect(source_row).to_be_visible(timeout=10000)
+            expect(source_row).to_be_visible()
             expect(source_row).to_contain_text(source_name)
             source_row.get_by_role("checkbox").check()
             expect(form.locator('input[type="hidden"][name="osint_sources[]"]')).to_have_count(1)
@@ -389,12 +389,12 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_role_list():
             page.goto(url_for("admin.roles", _external=True))
-            expect(page.get_by_test_id("role-table")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("role-table")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_roles.png")
 
         def add_role():
             page.get_by_test_id("new-role-button").click()
-            expect(page.locator("#role-form")).to_be_visible(timeout=10000)
+            expect(page.locator("#role-form")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name", exact=True).fill(role_name)
@@ -408,11 +408,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.screenshot(path="./tests/playwright/screenshots/docs_roles_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page).to_have_url(url_for("admin.roles", _external=True))
-            expect(page.get_by_role("link", name=role_name)).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name=role_name)).to_be_visible()
 
         def update_role():
             page.get_by_role("link", name=role_name).click()
-            expect(page.locator("#role-form")).to_be_visible(timeout=10000)
+            expect(page.locator("#role-form")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Description", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a role")
@@ -438,12 +438,12 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_word_list():
             page.goto(url_for("admin.word_lists", _external=True))
-            expect(page.locator("#word_list-table-container")).to_be_visible(timeout=10000)
+            expect(page.locator("#word_list-table-container")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_word_lists.png")
 
         def load_default_word_list():
             load_default_button = page.get_by_role("button", name="Load default Word List")
-            expect(load_default_button).to_be_visible(timeout=10000)
+            expect(load_default_button).to_be_visible()
             load_default_button.click()
             page.get_by_role("row", name="Name Description Words Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-word_list-button")
@@ -454,7 +454,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def add_word_list():
             page.get_by_test_id("new-word_list-button").click()
-            expect(page.locator("#word_list-form")).to_be_visible(timeout=10000)
+            expect(page.locator("#word_list-form")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name", exact=True).fill(word_list_name)
@@ -465,23 +465,23 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.screenshot(path="./tests/playwright/screenshots/docs_word_list_add.png")
             self.highlight_element(page.get_by_role("button", name="Create Word List")).click()
             dismiss_notifications(page)
-            expect(page.get_by_role("link", name=word_list_name)).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name=word_list_name)).to_be_visible()
 
         def update_word_list():
             page.get_by_role("link", name=word_list_name).click()
-            expect(page.locator("#word_list-form")).to_be_visible(timeout=10000)
+            expect(page.locator("#word_list-form")).to_be_visible()
 
             page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a word list")
             page.locator("input[name='usage[]'][value='TAGGING_BOT']").check()
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page.get_by_role("link", name="Updated description of a word list")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Updated description of a word list")).to_be_visible()
 
         def remove_word_list():
             item_id = self.get_table_row_id_by_link_text(page, "word_list-table", word_list_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
-            # expect(page.get_by_test_id("word_list-table").get_by_role("link", name=word_list_name)).not_to_be_visible(timeout=10000) # TODO: Wordlist table not rendered afer last element is deleted
+            # expect(page.get_by_test_id("word_list-table").get_by_role("link", name=word_list_name)).not_to_be_visible() # TODO: Wordlist table not rendered afer last element is deleted
 
         def import_export_word_lists():
             page.get_by_role("button", name="Import").click()
@@ -512,13 +512,13 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_acls():
             page.goto(url_for("admin.acls", _external=True))
-            expect(acl_table).to_be_visible(timeout=10000)
-            expect(page.get_by_test_id("new-acl-button")).to_be_visible(timeout=10000)
+            expect(acl_table).to_be_visible()
+            expect(page.get_by_test_id("new-acl-button")).to_be_visible()
 
         def test_acl_create():
             page.get_by_test_id("new-acl-button").click()
             acl_form = page.locator("#acl-form")
-            expect(acl_form).to_be_visible(timeout=10000)
+            expect(acl_form).to_be_visible()
 
             name_input = acl_form.locator('input[name="name"]')
             item_type_select = acl_form.locator('select[name="item_type"]')
@@ -552,7 +552,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         def test_acl_update():
             page.get_by_role("link", name="Test ACL").click()
             acl_form = page.locator("#acl-form")
-            expect(acl_form).to_be_visible(timeout=10000)
+            expect(acl_form).to_be_visible()
 
             roles_table = acl_form.locator("#roles-table")
             roles_widget = acl_form.locator("#dataTableDiv")
@@ -568,11 +568,11 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def test_acl_delete():
             acl_row = acl_table.locator("tbody tr", has=page.get_by_role("link", name="Test ACL updated", exact=True)).first
-            expect(acl_row).to_be_visible(timeout=10000)
+            expect(acl_row).to_be_visible()
             item_id = self.get_table_row_id_by_link_text(page, "acl-table", "Test ACL updated")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
-            expect(acl_row).not_to_be_visible(timeout=10000)
+            expect(acl_row).not_to_be_visible()
 
         load_acls()
         test_acl_create()
@@ -584,19 +584,19 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_attributes():
             page.goto(url_for("admin.attributes", _external=True))
-            expect(page.get_by_test_id("attribute-table")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("attribute-table")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_attributes.png")
 
         def test_attribute_create():
             page.get_by_role("link", name="Administration").click()
 
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.get_by_test_id("admin-menu-Attribute").click()
-            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
             page.get_by_test_id("new-attribute-button").click()
-            expect(page.get_by_role("heading", name="Create Attribute")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("heading", name="Create Attribute")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").click()
@@ -609,19 +609,19 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.locator('select[name="type"]')).to_have_attribute("required", "")
             page.get_by_label("Attribute Type Select an item").select_option("number")
             page.get_by_role("button", name="Create Attribute").click()
-            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
             page.get_by_test_id("new-attribute-button").click()
-            expect(page.get_by_role("heading", name="Create Attribute")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("heading", name="Create Attribute")).to_be_visible()
 
             page.locator("#attribute-list").get_by_role("link", name="Attribute").click()
-            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
             page.get_by_test_id("admin-menu-Report Item Type").click()
-            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
             page.get_by_test_id("new-report_item_type-button").click()
-            expect(page.get_by_role("heading", name="Create Report Item Type")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("heading", name="Create Report Item Type")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").click()
@@ -630,14 +630,14 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Description").click()
             page.get_by_role("textbox", name="Description").fill("atrr5")
             page.get_by_role("button", name="+ Add New Group").click()
-            expect(page.get_by_role("spinbutton", name="Group Index")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("spinbutton", name="Group Index")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Group Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Group Title").click()
             page.get_by_role("textbox", name="Group Title").fill("group1")
             page.get_by_role("textbox", name="Group Description").click()
             page.get_by_role("button", name="+ Add New Attribute").click()
-            expect(page.get_by_role("group", name="Required")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("group", name="Required")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Attribute Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Attribute Title").click()
@@ -649,36 +649,36 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Attribute Description").dblclick()
             page.get_by_role("textbox", name="Attribute Description").fill("number 5")
             page.get_by_role("button", name="Create Report Item Type").click()
-            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
             page.get_by_role("link", name="Analyze").click()
-            expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
 
             page.get_by_test_id("new-report-button").click()
-            expect(page.get_by_role("heading", name="Create Report")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.locator(".col-span-12 > .grid > div").first.click()
             expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").fill("number 5 in report")
             page.get_by_label("Report Type Select a report").select_option("6")
             page.get_by_test_id("save-report").click()
-            expect(page.get_by_role("heading", name="Update Report - number 5 in")).to_be_visible(timeout=10000)
-            expect(page.get_by_role("heading", name="group1")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("heading", name="Update Report - number 5 in")).to_be_visible()
+            expect(page.get_by_role("heading", name="group1")).to_be_visible()
             attr_field = page.get_by_role("spinbutton", name="attr title text")
             expect(attr_field).to_have_value("5")
 
         def test_attribute_update():
             page.get_by_role("link", name="Administration").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.get_by_test_id("admin-menu-Attribute").click()
-            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
             page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Rich Text Rich Text Rich Edit")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Rich Text Rich Text Rich Edit")).to_be_visible()
 
             page.get_by_role("link", name="attribute number").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").click()
@@ -689,13 +689,13 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Default Value").click()
             page.get_by_role("textbox", name="Default Value").fill("6")
             page.get_by_role("button", name="Update Attribute").click()
-            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
             page.get_by_role("link", name="Analyze").click()
-            expect(page.get_by_role("row", name="number 5 in report")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="number 5 in report")).to_be_visible()
 
             page.get_by_test_id("new-report-button").click()
-            expect(page.get_by_role("heading", name="Create Report")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.get_by_role("textbox", name="Title").click()
             expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
@@ -707,7 +707,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def test_attribute_delete():
             page.get_by_role("link", name="Analyze").click()
-            expect(page.get_by_role("row", name="update attr use")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="update attr use")).to_be_visible()
 
             item_id = self.get_table_row_id_by_link_text(page, "report-table", "update attr use")
             delete_button_test_id = f"action-delete-{item_id}"
@@ -716,24 +716,24 @@ class TestEndToEndAdmin(BaseE2ETest):
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
 
-            expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
 
             page.get_by_role("link", name="Administration").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.get_by_test_id("admin-menu-Report Item Type").click()
-            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
             item_id = self.get_table_row_id_by_link_text(page, "report_item_type-table", "report item type test 5")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
-            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
             page.get_by_test_id("admin-menu-Attribute").click()
-            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Attachment Attachment")).to_be_visible()
 
             page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Rich Text Rich Text Rich Edit")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Rich Text Rich Text Rich Edit")).to_be_visible()
 
             item_id = self.get_table_row_id_by_link_text(page, "attribute-table", "attribute number 6")
             delete_button_test_id = f"action-delete-{item_id}"
@@ -753,12 +753,12 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_report_types():
             page.goto(url_for("admin.report_item_types", _external=True))
-            expect(page.get_by_test_id("report_item_type-table")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("report_item_type-table")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_report_types.png")
 
         def add_report_type():
             page.get_by_test_id("new-report_item_type-button").click()
-            expect(page.locator("#report_item_type-form")).to_be_visible(timeout=10000)
+            expect(page.locator("#report_item_type-form")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title", exact=True).fill(report_type_title)
@@ -767,14 +767,14 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             page.get_by_role("button", name="+ Add New Group").click()
             group_container = page.locator("#attribute-group-0")
-            expect(group_container).to_be_visible(timeout=10000)
+            expect(group_container).to_be_visible()
             expect(group_container.locator("input[name$='[title]']").first).to_have_attribute("required", "")
             group_container.locator("input[name$='[title]']").first.fill(group_title)
             group_container.locator("textarea[name$='[description]']").first.fill("Group description")
 
             group_container.get_by_role("button", name="+ Add New Attribute").click()
             attribute_container = page.locator("#attribute-items-container-0")
-            expect(attribute_container.locator("input[name$='[title]']").first).to_be_visible(timeout=10000)
+            expect(attribute_container.locator("input[name$='[title]']").first).to_be_visible()
             expect(attribute_container.locator("input[name$='[title]']").first).to_have_attribute("required", "")
             attribute_container.locator("input[name$='[title]']").first.fill(attribute_title)
 
@@ -792,11 +792,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.screenshot(path="./tests/playwright/screenshots/docs_report_types_add.png")
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page).to_have_url(url_for("admin.report_item_types", _external=True))
-            expect(page.get_by_role("link", name=report_type_title)).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name=report_type_title)).to_be_visible()
 
         def update_report_type():
             page.get_by_role("link", name=report_type_title).click()
-            expect(page.locator("#report_item_type-form")).to_be_visible(timeout=10000)
+            expect(page.locator("#report_item_type-form")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Description", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a report item type")
@@ -825,12 +825,12 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_product_types():
             page.goto(url_for("admin.product_types", _external=True))
-            expect(page.get_by_test_id("product_type-table")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("product_type-table")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_product_types.png")
 
         def add_product_type():
             page.get_by_test_id("new-product_type-button").click()
-            expect(page.locator("#product_type-form")).to_be_visible(timeout=10000)
+            expect(page.locator("#product_type-form")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Title", exact=True)).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title", exact=True).fill(product_type_name)
@@ -848,11 +848,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("searchbox", name="Select report types").press("Escape")
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page).to_have_url(url_for("admin.product_types", _external=True))
-            expect(page.get_by_role("link", name=product_type_name)).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name=product_type_name)).to_be_visible()
 
         def update_product_type():
             page.get_by_role("link", name=product_type_name).click()
-            expect(page.locator("#product_type-form")).to_be_visible(timeout=10000)
+            expect(page.locator("#product_type-form")).to_be_visible()
 
             page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of a product type")
 
@@ -873,12 +873,12 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def test_load_bots():
             page.goto(url_for("admin.bots", _external=True))
-            expect(page.get_by_test_id("bot-table")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("bot-table")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_bots.png")
 
         def test_bot_create():
             page.get_by_test_id("new-bot-button").click()
-            expect(page.get_by_role("heading", name="Create Bot")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("heading", name="Create Bot")).to_be_visible()
             refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
@@ -899,7 +899,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def test_bot_update():
             page.get_by_role("link", name="test bot", exact=True).click()
-            expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible(timeout=10000)
+            expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("test bot updated")
@@ -908,7 +908,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("button", name="Update Bot").click()
 
             page.get_by_role("link", name="test bot updated").click()
-            expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible(timeout=10000)
+            expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
             page.get_by_role("button", name="Update Bot").click()
 
@@ -936,13 +936,13 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_connectors():
             page.goto(url_for("admin.connectors", _external=True))
-            expect(connector_table).to_be_visible(timeout=10000)
-            expect(page.get_by_test_id("new-connector-button")).to_be_visible(timeout=10000)
+            expect(connector_table).to_be_visible()
+            expect(page.get_by_test_id("new-connector-button")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_connectors.png")
 
         def add_connector():
             page.get_by_test_id("new-connector-button").click()
-            expect(page.get_by_test_id("connector-form")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("connector-form")).to_be_visible()
             refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
@@ -960,26 +960,26 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="SHARING_GROUP_ID").fill("0")
             page.get_by_test_id("connector-submit-button").click()
             expect(page.get_by_test_id("connector-form")).to_have_count(0)
-            expect(connector_table.get_by_role("link", name=connector_name, exact=True)).to_be_visible(timeout=10000)
+            expect(connector_table.get_by_role("link", name=connector_name, exact=True)).to_be_visible()
 
         def update_connector():
             page.get_by_role("link", name=connector_name).click()
-            expect(page.get_by_test_id("connector-form")).to_be_visible(timeout=10000)
-            expect(page.locator('input[name="parameters[SSL_CHECK]"][type="checkbox"]')).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("connector-form")).to_be_visible()
+            expect(page.locator('input[name="parameters[SSL_CHECK]"][type="checkbox"]')).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(updated_connector_name)
             page.get_by_test_id("connector-submit-button").click()
             expect(page.get_by_test_id("connector-form")).to_have_count(0)
-            expect(connector_table.get_by_role("link", name=updated_connector_name, exact=True)).to_be_visible(timeout=10000)
+            expect(connector_table.get_by_role("link", name=updated_connector_name, exact=True)).to_be_visible()
 
         def remove_connector():
             connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first
-            expect(connector_row).to_be_visible(timeout=10000)
+            expect(connector_row).to_be_visible()
             item_id = self.get_table_row_id_by_link_text(page, "connector-table", updated_connector_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
-            expect(connector_row).not_to_be_visible(timeout=10000)
+            expect(connector_row).not_to_be_visible()
 
         load_connectors()
         add_connector()
@@ -991,12 +991,12 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_publisher_presets():
             page.goto(url_for("admin.publisher_presets", _external=True))
-            expect(page.get_by_test_id("publisher_preset-table")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("publisher_preset-table")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_publisher_presets.png")
 
         def publisher_presets_create():
             page.get_by_test_id("new-publisher_preset-button").click()
-            expect(page.get_by_role("heading", name="Create Publisher Preset")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("heading", name="Create Publisher Preset")).to_be_visible()
             ftp_url_input = page.locator('input[name="parameters[FTP_URL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
@@ -1005,11 +1005,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(ftp_url_input).to_have_attribute("required", "")
             ftp_url_input.fill("testurl")
             page.get_by_role("button", name="Create Publisher Preset").click()
-            expect(page.get_by_role("row", name="publisher preset test Ftp")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="publisher preset test Ftp")).to_be_visible()
 
         def publisher_presets_update():
             page.get_by_role("link", name="publisher preset test").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
             ftp_url_input = page.locator('input[name="parameters[FTP_URL]"]')
 
             ftp_url_input.click()
@@ -1019,7 +1019,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test updated")
             page.get_by_role("button", name="Update Publisher Preset").click()
-            expect(page.get_by_role("row", name="publisher preset test updated")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="publisher preset test updated")).to_be_visible()
 
         def publisher_presets_delete():
             publisher_table = page.get_by_test_id("publisher_preset-table")
@@ -1028,7 +1028,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             item_id = self.get_table_row_id_by_link_text(page, "publisher_preset-table", "publisher preset test updated")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
-            expect(publisher_table.get_by_role("link", name="publisher preset test updated")).not_to_be_visible(timeout=10000)
+            expect(publisher_table.get_by_role("link", name="publisher preset test updated")).not_to_be_visible()
 
         load_publisher_presets()
         publisher_presets_create()
@@ -1049,7 +1049,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def go_to_admin_settings():
             page.goto(url_for("admin_settings.settings", _external=True))
-            expect(collector_interval_input).to_be_visible(timeout=10000)
+            expect(collector_interval_input).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_settings.png")
 
         def check_default_values():
@@ -1064,7 +1064,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(news_conflict_input).to_have_value("200")
 
         def change_default_values():
-            expect(collector_interval_input).to_be_visible(timeout=10000)
+            expect(collector_interval_input).to_be_visible()
             tlp_select.select_option("red")
             collector_proxy_input.fill("https://test")
             collector_interval_input.fill("0 */8 * * 1")
@@ -1076,7 +1076,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_test_id("settings-default-tlp-level").first).to_have_value("red")
 
         def check_new_values():
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             expect(page.get_by_test_id("settings-default-tlp-level").first).to_have_value("red")
             expect(collector_proxy_input).to_have_value("https://test/")
@@ -1091,7 +1091,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             # export all stories
             self.highlight_element(export_btn).click()
-            expect(export_dialog).to_be_visible(timeout=10000)
+            expect(export_dialog).to_be_visible()
             with page.expect_download() as dl_info:
                 self.highlight_element(export_all_btn).click()
             download = dl_info.value
@@ -1122,7 +1122,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             if export_dialog.is_visible():
                 page.keyboard.press("Escape")
-            expect(export_dialog).not_to_be_visible(timeout=10000)
+            expect(export_dialog).not_to_be_visible()
             return export_file
 
         def test_export_stories_metadata_time_filter(story_list):
@@ -1136,7 +1136,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             time_to = "2024-06-01T00:00"
 
             self.highlight_element(export_btn).click()
-            expect(export_dialog).to_be_visible(timeout=10000)
+            expect(export_dialog).to_be_visible()
             time_from_input.fill(time_from)
             time_to_input.fill(time_to)
 
@@ -1194,7 +1194,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             if export_dialog.is_visible():
                 page.keyboard.press("Escape")
-            expect(export_dialog).not_to_be_visible(timeout=10000)
+            expect(export_dialog).not_to_be_visible()
 
         def import_stories_from_json(export_file):
             with open(export_file, "r", encoding="utf-8") as f:
@@ -1222,17 +1222,17 @@ class TestEndToEndAdmin(BaseE2ETest):
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
 
             page.goto(url_for("assess.assess", _external=True))
-            expect(page.get_by_test_id("assess")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("assess")).to_be_visible()
             page.get_by_placeholder("Search stories").fill(imported_story_title)
             page.get_by_placeholder("Search stories").press("Enter")
             imported_story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=imported_story_title)).first
-            expect(imported_story).to_be_visible(timeout=10000)
+            expect(imported_story).to_be_visible()
 
         def revert_to_default_values():
             page.goto(url_for("admin_settings.settings", _external=True))
             tlp_select.select_option("clear")
             collector_proxy_input.fill("")
-            expect(collector_interval_input).to_be_visible(timeout=10000)
+            expect(collector_interval_input).to_be_visible()
             collector_interval_input.fill("0 */8 * * *")
             story_conflict_input.fill("200")
             news_conflict_input.fill("200")
@@ -1260,4 +1260,4 @@ class TestEndToEndAdmin(BaseE2ETest):
         with page.expect_popup() as openapi_info:
             self.highlight_element(page.get_by_role("link", name="OpenAPI")).click()
         openapi_page = openapi_info.value
-        expect(openapi_page.locator("iframe").content_frame.get_by_role("heading", name="Taranis AI 1.").first).to_be_visible(timeout=10000)
+        expect(openapi_page.locator("iframe").content_frame.get_by_role("heading", name="Taranis AI 1.").first).to_be_visible()

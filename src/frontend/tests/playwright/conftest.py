@@ -142,7 +142,7 @@ def setup_test_templates(core_request_client):
 @pytest.fixture(scope="class")
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
-    # Drop timeout from 30s to 10s
+    # Drop timeout from 30s to 5s
     timeout = int(request.config.getoption("--e2e-timeout"))
     context.set_default_timeout(timeout)
     if request.config.getoption("trace"):

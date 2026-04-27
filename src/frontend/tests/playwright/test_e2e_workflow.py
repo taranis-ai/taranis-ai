@@ -33,7 +33,7 @@ class TestUserWorkflow(BaseE2ETest):
         def mark_story_as_read(story_id: str):
             story_card = page.get_by_test_id(f"story-card-{story_id}")
             self.highlight_element(story_card.get_by_test_id("story-summary"))
-            expect(story_card.get_by_test_id("story-summary")).to_be_visible(timeout=10000)
+            expect(story_card.get_by_test_id("story-summary")).to_be_visible()
             self.highlight_element(story_card.get_by_test_id("story-actions-menu")).click()
             self.highlight_element(story_card.get_by_test_id("toggle-read")).click()
 
@@ -45,7 +45,7 @@ class TestUserWorkflow(BaseE2ETest):
             story_card = page.get_by_test_id(f"story-card-{story_id}")
             self.highlight_element(story_card.get_by_test_id("toggle-summary")).click()
             self.highlight_element(story_card.get_by_test_id("open-detail-view")).click()
-            expect(page.get_by_test_id("story-title")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("story-title")).to_be_visible()
 
         def set_story_filters(read: str | None = None, important: str | None = None):
             if read is not None:
@@ -57,7 +57,7 @@ class TestUserWorkflow(BaseE2ETest):
             self.highlight_element(page.get_by_role("link", name="Reset filters ctrl+esc")).click()
 
         def assert_story_count(expected_count: str):
-            expect(page.get_by_test_id("assess_story_count").get_by_text(expected_count)).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("assess_story_count").get_by_text(expected_count)).to_be_visible()
 
         def go_to_assess():
             self.navigate_to_assess(page)

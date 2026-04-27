@@ -23,17 +23,17 @@ class BaseE2ETest(PlaywrightHelpers):
         self.highlight_element(page.get_by_placeholder("Password"))
         page.get_by_placeholder("Password").fill(password)
         login_button = page.get_by_test_id("login-button")
-        expect(login_button).to_be_visible(timeout=10000)
+        expect(login_button).to_be_visible()
         self.highlight_element(login_button).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
-        expect(page.locator("#dashboard")).to_be_visible(timeout=10000)
+        expect(page.locator("#dashboard")).to_be_visible()
 
     def delete_table_row(self, page: Page, delete_button_test_id: str, confirm: bool = True):
         """Delete row by explicit delete action test id."""
         assert delete_button_test_id, "delete_table_row requires delete_button_test_id"
         delete_button = page.get_by_test_id(delete_button_test_id)
         assert delete_button.count() == 1, f"Expected exactly one delete button '{delete_button_test_id}', found {delete_button.count()}"
-        expect(delete_button).to_be_visible(timeout=10000)
+        expect(delete_button).to_be_visible()
         delete_button.click()
         if confirm:
             page.get_by_role("button", name="Delete").click()
@@ -47,11 +47,11 @@ class BaseE2ETest(PlaywrightHelpers):
 
     def assert_item_in_table(self, page: Page, table_id: str, link_text: str):
         """Assert that an item appears in a table."""
-        expect(page.get_by_test_id(table_id).get_by_role("link", name=link_text)).to_be_visible(timeout=10000)
+        expect(page.get_by_test_id(table_id).get_by_role("link", name=link_text)).to_be_visible()
 
     def assert_item_not_in_table(self, page: Page, table_id: str, link_text: str):
         """Assert that an item does not appear in a table."""
-        expect(page.get_by_test_id(table_id).get_by_role("link", name=link_text)).not_to_be_visible(timeout=10000)
+        expect(page.get_by_test_id(table_id).get_by_role("link", name=link_text)).not_to_be_visible()
 
     def delete_item(
         self,

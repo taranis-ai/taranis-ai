@@ -49,44 +49,44 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_placeholder("Password").fill("test")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.get_by_test_id("login-button")).click()
-        expect(page.locator("#dashboard")).to_be_visible(timeout=10000)
+        expect(page.locator("#dashboard")).to_be_visible()
 
     def test_user_dashboard(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper):
         page = non_admin_logged_in_page
 
         def test_dashboard_edit_settings(page: Page) -> None:
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
-            expect(page.get_by_test_id("assess_story_count")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             visible_count, total_count = self._get_assess_story_counts(page)
             assert total_count >= visible_count > 0
             assert visible_count == min(ASSESS_STORY_PAGE_SIZE, total_count)
             page.get_by_role("link", name="Dashboard").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator("#dashboard").get_by_role("link", name="Analyze").click()
             expect(page.get_by_test_id("new-report-button")).to_contain_text("New Report")
             page.get_by_role("link", name="Dashboard").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator("#dashboard").get_by_role("link", name="Publish").click()
             expect(page.get_by_test_id("new-product-button")).to_contain_text("New Product")
             page.get_by_role("link", name="Dashboard").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.get_by_role("link", name="Edit Dashboard").click()
-            expect(page.get_by_role("group", name="Days to look back for")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("group", name="Days to look back for")).to_be_visible()
             page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").uncheck()
             page.get_by_role("checkbox", name="dashboard[show_charts]").uncheck()
             page.get_by_role("button", name="Update Dashboard Settings").click()
-            expect(page.locator("#dashboard").get_by_text("Trending Tags (last 7 days)")).not_to_be_visible(timeout=10000)
-            expect(page.get_by_role("main")).to_be_visible(timeout=10000)
+            expect(page.locator("#dashboard").get_by_text("Trending Tags (last 7 days)")).not_to_be_visible()
+            expect(page.get_by_role("main")).to_be_visible()
             page.get_by_role("link", name="Edit Dashboard").click()
-            expect(page.get_by_role("group", name="Days to look back for")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("group", name="Days to look back for")).to_be_visible()
 
             page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").check()
-            expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_visible()
             page.get_by_role("checkbox", name="dashboard[show_charts]").check()
             page.get_by_role("button", name="Update Dashboard Settings").click()
             expect(page.locator("#dashboard")).to_contain_text("Trending Tags (last 7 days)")
@@ -98,22 +98,22 @@ class TestEndToEndUser(BaseE2ETest):
 
         def test_dashboard_entity_location_pagination(page: Page) -> None:
             page.get_by_role("link", name="Location").click()
-            expect(page.get_by_test_id("country-chart")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("country-chart")).to_be_visible()
             expect(page.locator("tbody")).to_contain_text("USA")
             expect(page.locator("tbody")).to_contain_text("6")
             expect(page.locator("tbody")).to_contain_text("Wärmestuben")
             expect(page.locator("tbody")).to_contain_text("1")
             expect(page.locator("tfoot")).to_contain_text("Page 1 of 7")
             page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Page 2")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Page 2")).to_be_visible()
             page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Page 3")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Page 3")).to_be_visible()
             page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Page 4")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Page 4")).to_be_visible()
             page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Page 5")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Page 5")).to_be_visible()
             page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Page 6")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("row", name="Page 6")).to_be_visible()
             page.get_by_text("›").click()
             expect(page.locator("tfoot")).to_contain_text("Page 7 of 7")
             expect(page.locator("tbody")).to_contain_text("Airport")
@@ -127,7 +127,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.locator("tfoot")).to_contain_text("Page 1 of 26")
 
         page.goto(url_for("base.dashboard", _external=True))
-        expect(page.locator("#dashboard")).to_be_visible(timeout=10000)
+        expect(page.locator("#dashboard")).to_be_visible()
         test_dashboard_edit_settings(page)
         test_dashboard_entity_location_pagination(page)
 
@@ -140,7 +140,7 @@ class TestEndToEndUser(BaseE2ETest):
 
         page.goto(url_for("admin.attributes", _external=True))
 
-        expect(page.get_by_text("403 - Access denied")).to_be_visible(timeout=10000)
+        expect(page.get_by_text("403 - Access denied")).to_be_visible()
 
         assert page.get_by_role("link", name="Administration").count() == 0
         assert page.get_by_test_id("attribute-table").count() == 0
@@ -150,7 +150,7 @@ class TestEndToEndUser(BaseE2ETest):
 
         def go_to_user_profile():
             page.goto(url_for("user.settings", _external=True))
-            expect(page.get_by_text("User", exact=True)).to_be_visible(timeout=10000)
+            expect(page.get_by_text("User", exact=True)).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/user_profile.png")
 
         def check_profile():
@@ -166,7 +166,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.locator("#user-password-form")).to_contain_text("Current password")
             expect(page.locator("#user-password-form")).to_contain_text("New password")
             expect(page.locator("#user-password-form")).to_contain_text("Confirm new password")
-            expect(page.get_by_role("button", name="Update password")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("button", name="Update password")).to_be_visible()
 
         def change_password_fail():
             # Wrong current password
@@ -201,7 +201,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("checkbox", name="Compact view").uncheck()
 
             page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="Profile")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="User Settings").click()
             page.get_by_role("checkbox", name="Infinite scroll Automatically").check()
@@ -210,23 +210,23 @@ class TestEndToEndUser(BaseE2ETest):
 
         def relog_in():
             page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="Profile")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="Logout").click()
-            expect(page.get_by_role("img", name="Taranis Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("img", name="Taranis Logo")).to_be_visible()
 
             page.get_by_role("textbox", name="Username").fill("user")
             page.get_by_role("textbox", name="Username").press("Tab")
             page.get_by_role("textbox", name="Password").fill("test1")
             page.get_by_test_id("login-button").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
         def change_password_back():
             page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="Profile")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="User Settings").click()
-            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator(".collapse > input").check()
             page.get_by_role("textbox", name="Current password").fill("test1")
@@ -249,7 +249,7 @@ class TestEndToEndUser(BaseE2ETest):
 
         def go_to_assess():
             page.goto(url_for("assess.assess", _external=True))
-            expect(page.get_by_test_id("assess")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("assess")).to_be_visible()
             expect(page.get_by_test_id("assess_story_count")).to_be_visible(timeout=30000)
             visible_count, total_count = self._get_assess_story_counts(page)
             assert total_count >= visible_count > 0
@@ -262,7 +262,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_placeholder("Search stories").press("Enter")
 
             story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=target_title)).first
-            expect(story).to_be_visible(timeout=10000)
+            expect(story).to_be_visible()
             story_id = story.get_attribute("data-story-id")
             assert story_id, "Expected story card to expose a story id"
 
@@ -271,7 +271,7 @@ class TestEndToEndUser(BaseE2ETest):
 
             menu = story_card().get_by_test_id("story-actions-menu")
             expect(menu).to_be_attached()
-            expect(menu).to_be_visible(timeout=10000)
+            expect(menu).to_be_visible()
             expect(menu).to_be_enabled()
             title = story_card().locator("h2[data-testid='story-title']").inner_text()
             edited_title = f"{title} edited title"
@@ -313,7 +313,7 @@ class TestEndToEndUser(BaseE2ETest):
         def infinite_scroll_all_items(expected_total: int):
             page.goto(url_for("assess.assess", _external=True))
 
-            expect(page.get_by_test_id("assess")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("assess")).to_be_visible()
             initial_visible_count, initial_total = self._get_assess_story_counts(page)
             assert initial_total == expected_total
             assert initial_visible_count > 0
@@ -333,7 +333,7 @@ class TestEndToEndUser(BaseE2ETest):
 
             caught_up_message = page.get_by_text("You're all caught up.")
             if caught_up_message.count():
-                expect(caught_up_message).to_be_visible(timeout=10000)
+                expect(caught_up_message).to_be_visible()
 
             expect(page.get_by_test_id("assess_story_selection_count")).to_be_hidden()
             page.get_by_role("button", name="Select all").click()
@@ -361,25 +361,25 @@ class TestEndToEndUser(BaseE2ETest):
         expected_news_item_title = expected_story["title"]
 
         page.goto(url_for("assess.assess", _external=True))
-        expect(page.get_by_test_id("assess")).to_be_visible(timeout=10000)
+        expect(page.get_by_test_id("assess")).to_be_visible()
 
         page.get_by_placeholder("Search stories").fill(expected_title)
         page.get_by_placeholder("Search stories").press("Enter")
 
         story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=expected_title)).first
-        expect(story).to_be_visible(timeout=10000)
+        expect(story).to_be_visible()
         story_title = story.get_by_test_id("story-title").inner_text()
         assert story_title in possible_story_titles
 
         actions_menu = story.get_by_test_id("story-actions-menu")
         share_story = story.get_by_test_id("share-story")
         actions_menu.click()
-        expect(share_story).to_be_visible(timeout=10000)
+        expect(share_story).to_be_visible()
         share_story.click()
 
         dialog = page.locator("#share_story_to_connector_dialog")
-        expect(dialog).to_be_visible(timeout=10000)
-        expect(dialog.get_by_role("link", name="Export to JSON")).to_be_visible(timeout=10000)
+        expect(dialog).to_be_visible()
+        expect(dialog.get_by_role("link", name="Export to JSON")).to_be_visible()
 
         with page.expect_download() as download_info:
             dialog.get_by_role("link", name="Export to JSON").click()
@@ -416,7 +416,7 @@ class TestEndToEndUser(BaseE2ETest):
 
         def go_to_analyze():
             page.goto(url_for("analyze.analyze", _external=True))
-            expect(page.get_by_test_id("analyze")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("analyze")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
 
         def open_assess_filtered(search_term: str):
@@ -430,8 +430,8 @@ class TestEndToEndUser(BaseE2ETest):
 
             first_story = page.get_by_test_id(f"story-card-{report_story_one['id']}")
             second_story = page.get_by_test_id(f"story-card-{report_story_two['id']}")
-            expect(first_story).to_be_visible(timeout=10000)
-            expect(second_story).to_be_visible(timeout=10000)
+            expect(first_story).to_be_visible()
+            expect(second_story).to_be_visible()
 
             first_story.click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("stories selected")
@@ -440,11 +440,11 @@ class TestEndToEndUser(BaseE2ETest):
             second_story.click()
             expect(page.get_by_test_id("assess_story_selection_count")).to_contain_text("stories selected")
             assert self._get_assess_selection_count(page) == 2
-            expect(page.get_by_role("button", name="Cluster")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("button", name="Cluster")).to_be_visible()
 
         def check_report_view_layout_changes():
             page.get_by_test_id("new-report-button").click()
-            expect(page.get_by_role("heading", name="Create Report")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.get_by_role("textbox", name="Title").fill("test title")
             page.get_by_test_id("report-type-select").select_option("4")
@@ -455,30 +455,30 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
             expect(page.get_by_test_id("report-type-select")).to_have_value("4")
             page.get_by_test_id("save-report").click()
-            expect(page.get_by_role("button", name="Completed")).to_be_visible(timeout=10000)
-            expect(page.get_by_role("button", name="Incomplete")).to_be_visible(timeout=10000)
-            expect(page.get_by_test_id("report-new-product")).to_be_visible(timeout=10000)
-            expect(page.get_by_placeholder("Date")).to_be_visible(timeout=10000)
-            expect(page.get_by_placeholder("Timeframe")).to_be_visible(timeout=10000)
-            expect(page.get_by_placeholder("Handler", exact=True)).to_be_visible(timeout=10000)
-            expect(page.get_by_placeholder("CO-Handler")).to_be_visible(timeout=10000)
-            expect(page.get_by_role("searchbox", name="news")).to_be_visible(timeout=10000)
-            expect(page.get_by_role("searchbox", name="vulnerabilities")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("button", name="Completed")).to_be_visible()
+            expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
+            expect(page.get_by_test_id("report-new-product")).to_be_visible()
+            expect(page.get_by_placeholder("Date")).to_be_visible()
+            expect(page.get_by_placeholder("Timeframe")).to_be_visible()
+            expect(page.get_by_placeholder("Handler", exact=True)).to_be_visible()
+            expect(page.get_by_placeholder("CO-Handler")).to_be_visible()
+            expect(page.get_by_role("searchbox", name="news")).to_be_visible()
+            expect(page.get_by_role("searchbox", name="vulnerabilities")).to_be_visible()
             page.get_by_placeholder("Date").fill("today")
             page.get_by_placeholder("Timeframe").fill("last week")
             page.get_by_placeholder("Handler", exact=True).fill("me")
             page.get_by_placeholder("CO-Handler").fill("you")
             page.get_by_test_id("save-report").click()
-            expect(page.get_by_test_id("report-id")).to_have_text(re.compile(r"^ID: [0-9a-f-]{36}$"), timeout=10000)
-            expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated", timeout=10000)
+            expect(page.get_by_test_id("report-id")).to_have_text(re.compile(r"^ID: [0-9a-f-]{36}$"))
+            expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated")
             page.get_by_placeholder("Date").fill("yesterday")
             page.get_by_role("link", name="Stacked view").click()
             expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
             page.get_by_role("link", name="Split view").click()
             expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
-            expect(page.get_by_role("button", name="Completed")).to_be_visible(timeout=10000)
-            expect(page.get_by_role("button", name="Incomplete")).to_be_visible(timeout=10000)
-            expect(page.get_by_test_id("report-new-product")).to_be_visible(timeout=10000)
+            expect(page.get_by_role("button", name="Completed")).to_be_visible()
+            expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
+            expect(page.get_by_test_id("report-new-product")).to_be_visible()
 
         def delete_test_report():
             page.get_by_role("link", name="Analyze").click()
@@ -488,7 +488,7 @@ class TestEndToEndUser(BaseE2ETest):
 
         def create_report():
             new_report_button = page.get_by_role("button", name="New Report")
-            expect(new_report_button).to_be_visible(timeout=10000)
+            expect(new_report_button).to_be_visible()
             new_report_button.click()
             page.get_by_role("textbox", name="Title").fill("Test report")
             page.get_by_label("Report Type Select a report").select_option("4")
@@ -515,8 +515,8 @@ class TestEndToEndUser(BaseE2ETest):
             popup.click()
             popup.get_by_text("Test report").click()
             page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
-            expect(page.get_by_text("In Reports").nth(1)).to_be_visible(timeout=10000)
-            expect(page.get_by_text("In Reports").nth(2)).to_be_visible(timeout=10000)
+            expect(page.get_by_text("In Reports").nth(1)).to_be_visible()
+            expect(page.get_by_text("In Reports").nth(2)).to_be_visible()
 
         def verify_report_actions(report_uuid: str):
             def test_report_item_view():
@@ -533,16 +533,14 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("link", name="Assess").click()
                 page.get_by_placeholder("Search stories").fill(story_search_term_lower)
                 page.get_by_placeholder("Search stories").press("Enter")
-                expect(page.get_by_test_id("assess").get_by_text("In Reports")).to_be_visible(
-                    timeout=10000
-                )  # only one should be in a report now
+                expect(page.get_by_test_id("assess").get_by_text("In Reports")).to_be_visible()  # only one should be in a report now
 
             def test_create_product_from_report():
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_test_id(f"action-edit-{report_uuid}").click()
                 page.get_by_test_id("report-new-product").click()
-                expect(page.get_by_role("heading", name="Create Product")).to_be_visible(timeout=10000)
-                expect(page.get_by_text("Create Product").first).to_be_visible(timeout=10000)
+                expect(page.get_by_role("heading", name="Create Product")).to_be_visible()
+                expect(page.get_by_text("Create Product").first).to_be_visible()
 
             def test_clone_and_delete_report():
                 page.get_by_role("link", name="Analyze").click()
@@ -558,7 +556,7 @@ class TestEndToEndUser(BaseE2ETest):
                 delete_button_test_id = f"action-delete-{item_id}"
                 self.delete_table_row(page, delete_button_test_id)
                 page.get_by_role("link", name="Test report").click()
-                expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible(timeout=10000)
+                expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
                 expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
                 report_uuid_2 = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
                 return report_uuid_2
@@ -579,31 +577,31 @@ class TestEndToEndUser(BaseE2ETest):
         def check_various_report_type_fields():
             def create_new_report():
                 page.get_by_test_id("new-report-button").click()
-                expect(page.get_by_role("heading", name="Create Report")).to_be_visible(timeout=10000)
+                expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report")
                 page.get_by_test_id("report-type-select").select_option("6")  # report type with all attribute types
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
 
-                expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible(timeout=10000)
-                expect(page.get_by_placeholder("STRING field")).to_be_visible(timeout=10000)
-                expect(page.get_by_placeholder("NUMBER field")).to_be_visible(timeout=10000)
-                expect(page.get_by_role("group", name="Boolean")).to_be_visible(timeout=10000)
-                expect(page.get_by_role("group", name="Confidentiality (Radio)")).to_be_visible(timeout=10000)
-                expect(page.get_by_text("Impact (Enum)")).to_be_visible(timeout=10000)
-                expect(page.get_by_role("heading", name="Narrative and Timing")).to_be_visible(timeout=10000)
-                expect(page.get_by_placeholder("TEXT field", exact=True)).to_be_visible(timeout=10000)
-                expect(page.get_by_placeholder("RICH_TEXT field")).to_be_visible(timeout=10000)
-                expect(page.get_by_role("textbox", name="Date", exact=True)).to_be_visible(timeout=10000)
-                expect(page.get_by_role("textbox", name="Time", exact=True)).to_be_visible(timeout=10000)
-                expect(page.get_by_role("textbox", name="Date Time")).to_be_visible(timeout=10000)
-                expect(page.get_by_label("TLP Level Clear Green Amber")).to_be_visible(timeout=10000)
-                expect(page.get_by_role("heading", name="Technical References and")).to_be_visible(timeout=10000)
-                expect(page.get_by_text('Unsupported attribute type "')).to_be_visible(timeout=10000)
-                expect(page.get_by_text("Attachment editing is not yet")).to_be_visible(timeout=10000)
-                expect(page.get_by_label("CPE Select an option")).to_be_visible(timeout=10000)
-                expect(page.get_by_placeholder("CVE field")).to_be_visible(timeout=10000)
-                expect(page.get_by_placeholder("CVSS field")).to_be_visible(timeout=10000)
+                expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible()
+                expect(page.get_by_placeholder("STRING field")).to_be_visible()
+                expect(page.get_by_placeholder("NUMBER field")).to_be_visible()
+                expect(page.get_by_role("group", name="Boolean")).to_be_visible()
+                expect(page.get_by_role("group", name="Confidentiality (Radio)")).to_be_visible()
+                expect(page.get_by_text("Impact (Enum)")).to_be_visible()
+                expect(page.get_by_role("heading", name="Narrative and Timing")).to_be_visible()
+                expect(page.get_by_placeholder("TEXT field", exact=True)).to_be_visible()
+                expect(page.get_by_placeholder("RICH_TEXT field")).to_be_visible()
+                expect(page.get_by_role("textbox", name="Date", exact=True)).to_be_visible()
+                expect(page.get_by_role("textbox", name="Time", exact=True)).to_be_visible()
+                expect(page.get_by_role("textbox", name="Date Time")).to_be_visible()
+                expect(page.get_by_label("TLP Level Clear Green Amber")).to_be_visible()
+                expect(page.get_by_role("heading", name="Technical References and")).to_be_visible()
+                expect(page.get_by_text('Unsupported attribute type "')).to_be_visible()
+                expect(page.get_by_text("Attachment editing is not yet")).to_be_visible()
+                expect(page.get_by_label("CPE Select an option")).to_be_visible()
+                expect(page.get_by_placeholder("CVE field")).to_be_visible()
+                expect(page.get_by_placeholder("CVSS field")).to_be_visible()
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item updated").click()
 
@@ -617,12 +615,12 @@ class TestEndToEndUser(BaseE2ETest):
 
             def set_report_fields():
                 page.get_by_role("link", name="Analyze").click()
-                expect(page.get_by_role("row", name="all attr report")).to_be_visible(timeout=10000)
+                expect(page.get_by_role("row", name="all attr report")).to_be_visible()
 
                 page.get_by_role("link", name="all attr report").click()
                 page.locator(".choices__inner").click()
                 page.get_by_role("option", name="Report Story 1 Add Story").click()
-                expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible(timeout=10000)
+                expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
                 page.locator(".choices__inner").click()
                 page.get_by_role("option", name="Report Story 2 Add Story").click()
                 page.keyboard.press("Escape")  # press esc  key to close the dropdown
@@ -631,7 +629,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("STRING field").fill("string")
                 page.get_by_placeholder("NUMBER field").click()
                 page.get_by_placeholder("NUMBER field").fill("111")
-                expect(page.locator("#attribute-4")).to_be_visible(timeout=10000)
+                expect(page.locator("#attribute-4")).to_be_visible()
                 page.locator("#attribute-4").check()
                 page.get_by_role("radio", name="UNRESTRICTED").check()
                 page.get_by_label("Impact (Enum) Select an").select_option("Malicious code execution affecting CIA of the system")
@@ -647,8 +645,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("CVE field").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field").fill("1")
                 page.get_by_test_id("save-report").click()
-                expect(page.get_by_text("Used in attributes").nth(0)).to_be_visible(timeout=10000)
-                expect(page.get_by_text("Used in attributes").nth(1)).to_be_visible(timeout=10000)
+                expect(page.get_by_text("Used in attributes").nth(0)).to_be_visible()
+                expect(page.get_by_text("Used in attributes").nth(1)).to_be_visible()
 
             def empty_report_fields():
                 page.get_by_text("Report item updated").click()
@@ -656,7 +654,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("option", name="Report Story 2 Remove item:").get_by_role("button").click()
                 page.get_by_placeholder("STRING field").fill("")
                 page.get_by_placeholder("NUMBER field").fill("")
-                expect(page.locator("#attribute-4")).to_be_visible(timeout=10000)
+                expect(page.locator("#attribute-4")).to_be_visible()
 
                 page.locator("#attribute-4").uncheck()
                 page.get_by_role("radio", name="CLASSIFIED").check()
@@ -674,11 +672,11 @@ class TestEndToEndUser(BaseE2ETest):
 
             def check_report_fields():
                 page.get_by_role("link", name="Analyze").click()
-                expect(page.get_by_role("row", name="all attr report")).to_be_visible(timeout=10000)
+                expect(page.get_by_role("row", name="all attr report")).to_be_visible()
 
                 page.get_by_role("link", name="all attr report").click()
                 expect(page.get_by_role("textbox", name="Title")).to_have_value("all attr report")
-                expect(page.get_by_role("option", name="Report Story 1 Remove item:")).not_to_be_visible(timeout=10000)
+                expect(page.get_by_role("option", name="Report Story 1 Remove item:")).not_to_be_visible()
                 expect(page.get_by_placeholder("STRING field")).to_be_empty()
                 expect(page.get_by_placeholder("NUMBER field")).to_be_empty()
                 expect(page.locator("#attribute-4")).not_to_be_checked()
@@ -703,25 +701,25 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("CVE field").fill("111")
 
                 page.get_by_test_id("save-report").click()
-                expect(page.get_by_text("Report item updated")).not_to_be_visible(timeout=10000)
+                expect(page.get_by_text("Report item updated")).not_to_be_visible()
                 page.get_by_placeholder("CVE field").fill("")
 
                 page.get_by_placeholder("CVSS field").fill("a")
                 page.get_by_test_id("save-report").click()
-                expect(page.get_by_text("Report item updated")).not_to_be_visible(timeout=10000)
+                expect(page.get_by_text("Report item updated")).not_to_be_visible()
                 page.get_by_placeholder("CVSS field").fill("")
                 with pytest.raises(Error, match=r"Malformed value"):
                     page.get_by_role("textbox", name="Date", exact=True).fill("xxxx-xx-xx")
                     page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible(timeout=10000)
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
 
                     page.get_by_role("textbox", name="Time", exact=True).fill("xxxx-xx-xx")
                     page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible(timeout=10000)
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
 
                     page.get_by_role("textbox", name="Date Time").fill("xxxx-xx-xx")
                     page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible(timeout=10000)
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
 
             def delete_new_report():
                 page.get_by_role("link", name="Analyze").click()
@@ -732,31 +730,31 @@ class TestEndToEndUser(BaseE2ETest):
 
             def create_new_report_required():
                 page.get_by_test_id("new-report-button").click()
-                expect(page.get_by_role("heading", name="Create Report")).to_be_visible(timeout=10000)
+                expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report REQUIRED")
                 page.get_by_label("Report Type Select a report").select_option("7")
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
-                expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible(timeout=10000)
-                expect(page.get_by_placeholder("STRING field*")).to_be_visible(timeout=10000)
-                expect(page.get_by_placeholder("NUMBER field*")).to_be_visible(timeout=10000)
-                expect(page.get_by_text("Boolean *")).to_be_visible(timeout=10000)
-                expect(page.get_by_text("Confidentiality (Radio) *")).to_be_visible(timeout=10000)
-                expect(page.get_by_text("Impact (Enum) *")).to_be_visible(timeout=10000)
-                expect(page.get_by_role("heading", name="Narrative and Timing")).to_be_visible(timeout=10000)
-                expect(page.get_by_placeholder("TEXT field*", exact=True)).to_be_visible(timeout=10000)
-                expect(page.get_by_placeholder("RICH_TEXT field*")).to_be_visible(timeout=10000)
-                expect(page.get_by_text("Date*")).to_be_visible(timeout=10000)
-                expect(page.get_by_text("Time*", exact=True)).to_be_visible(timeout=10000)
-                expect(page.get_by_text("Date Time*")).to_be_visible(timeout=10000)
-                expect(page.get_by_text("TLP Level *")).to_be_visible(timeout=10000)
-                expect(page.get_by_role("heading", name="Technical References and Artifacts")).to_be_visible(timeout=10000)
-                expect(page.get_by_text('Unsupported attribute type "LINK" is kept as read-only')).to_be_visible(timeout=10000)
+                expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible()
+                expect(page.get_by_placeholder("STRING field*")).to_be_visible()
+                expect(page.get_by_placeholder("NUMBER field*")).to_be_visible()
+                expect(page.get_by_text("Boolean *")).to_be_visible()
+                expect(page.get_by_text("Confidentiality (Radio) *")).to_be_visible()
+                expect(page.get_by_text("Impact (Enum) *")).to_be_visible()
+                expect(page.get_by_role("heading", name="Narrative and Timing")).to_be_visible()
+                expect(page.get_by_placeholder("TEXT field*", exact=True)).to_be_visible()
+                expect(page.get_by_placeholder("RICH_TEXT field*")).to_be_visible()
+                expect(page.get_by_text("Date*")).to_be_visible()
+                expect(page.get_by_text("Time*", exact=True)).to_be_visible()
+                expect(page.get_by_text("Date Time*")).to_be_visible()
+                expect(page.get_by_text("TLP Level *")).to_be_visible()
+                expect(page.get_by_role("heading", name="Technical References and Artifacts")).to_be_visible()
+                expect(page.get_by_text('Unsupported attribute type "LINK" is kept as read-only')).to_be_visible()
                 expect(
                     page.get_by_text("Attachment editing is not yet available in this view. Existing data will be preserved on save.")
-                ).to_be_visible(timeout=10000)
-                expect(page.get_by_role("textbox", name="CVE")).to_be_visible(timeout=10000)
-                expect(page.get_by_role("textbox", name="CVSS")).to_be_visible(timeout=10000)
+                ).to_be_visible()
+                expect(page.get_by_role("textbox", name="CVE")).to_be_visible()
+                expect(page.get_by_role("textbox", name="CVSS")).to_be_visible()
 
             def add_stories_to_new_report_required():
                 select_report_stories_from_assess(story_search_term)
@@ -768,19 +766,19 @@ class TestEndToEndUser(BaseE2ETest):
 
             def set_report_fields_required():
                 page.get_by_role("link", name="Analyze").click()
-                expect(page.get_by_role("row", name="all attr report REQUIRED")).to_be_visible(timeout=10000)
+                expect(page.get_by_role("row", name="all attr report REQUIRED")).to_be_visible()
 
                 page.get_by_role("link", name="all attr report REQUIRED").click()
                 page.locator(".choices__inner").click()
                 page.get_by_role("option", name="Report Story 1 Add Story").click()
-                expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible(timeout=10000)
+                expect(page.get_by_role("option", name="Report Story 1 Remove item:")).to_be_visible()
                 page.keyboard.press("Escape")  # press esc  key to close the dropdown
 
                 page.get_by_placeholder("STRING field*").click()
                 page.get_by_placeholder("STRING field*").fill("string")
                 page.get_by_placeholder("NUMBER field*").click()
                 page.get_by_placeholder("NUMBER field*").fill("111")
-                expect(page.locator("#attribute-4")).to_be_visible(timeout=10000)
+                expect(page.locator("#attribute-4")).to_be_visible()
                 page.locator("#attribute-4").check()
                 page.get_by_role("radio", name="UNRESTRICTED").check()
                 page.get_by_label("Impact (Enum) * Select an").select_option("Malicious code execution affecting CIA of the system")
@@ -802,25 +800,25 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("CVE field").fill("111")
 
                 page.get_by_test_id("save-report").click()
-                expect(page.get_by_text("Report item updated")).not_to_be_visible(timeout=10000)
+                expect(page.get_by_text("Report item updated")).not_to_be_visible()
                 page.get_by_placeholder("CVE field*").fill("")
 
                 page.get_by_placeholder("CVSS field*").fill("a")
                 page.get_by_test_id("save-report").click()
-                expect(page.get_by_text("Report item updated")).not_to_be_visible(timeout=10000)
+                expect(page.get_by_text("Report item updated")).not_to_be_visible()
                 page.get_by_placeholder("CVSS field*").fill("")
                 with pytest.raises(Error, match=r"Malformed value"):
                     page.get_by_role("textbox", name="Date *", exact=True).fill("xxxx-xx-xx")
                     page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible(timeout=10000)
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
 
                     page.get_by_role("textbox", name="Time *", exact=True).fill("xxxx-xx-xx")
                     page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible(timeout=10000)
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
 
                     page.get_by_role("textbox", name="Date Time *").fill("xxxx-xx-xx")
                     page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible(timeout=10000)
+                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
 
             def delete_new_report_required():
                 page.get_by_role("link", name="Analyze").click()
@@ -863,10 +861,10 @@ class TestEndToEndUser(BaseE2ETest):
         report_title = f"tlp_clear_report_{uuid.uuid4().hex[:8]}"
 
         page.goto(url_for("analyze.analyze", _external=True))
-        expect(page.get_by_test_id("analyze")).to_be_visible(timeout=10000)
+        expect(page.get_by_test_id("analyze")).to_be_visible()
 
         page.get_by_test_id("new-report-button").click()
-        expect(page.get_by_role("heading", name="Create Report")).to_be_visible(timeout=10000)
+        expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
         page.get_by_role("textbox", name="Title").fill(report_title)
         page.get_by_test_id("report-type-select").select_option("6")
         page.get_by_test_id("save-report").click()
@@ -877,7 +875,7 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_text("Report item updated").click()
 
         page.get_by_role("link", name="Analyze").click()
-        expect(page.get_by_role("link", name=report_title)).to_be_visible(timeout=10000)
+        expect(page.get_by_role("link", name=report_title)).to_be_visible()
 
         page.get_by_role("link", name=report_title).click()
         page.get_by_label("TLP Level Clear Green Amber").select_option("green")
@@ -885,8 +883,8 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_text("Report item updated").click()
 
         page.get_by_role("link", name="Analyze").click()
-        expect(page.get_by_test_id("analyze")).to_be_visible(timeout=10000)
-        expect(page.get_by_role("link", name=report_title)).not_to_be_visible(timeout=10000)
+        expect(page.get_by_test_id("analyze")).to_be_visible()
+        expect(page.get_by_role("link", name=report_title)).not_to_be_visible()
 
     def test_user_report_detail_is_forbidden_after_higher_tlp(
         self,
@@ -898,10 +896,10 @@ class TestEndToEndUser(BaseE2ETest):
         report_title = f"tlp_clear_report_detail_{uuid.uuid4().hex[:8]}"
 
         page.goto(url_for("analyze.analyze", _external=True))
-        expect(page.get_by_test_id("analyze")).to_be_visible(timeout=10000)
+        expect(page.get_by_test_id("analyze")).to_be_visible()
 
         page.get_by_test_id("new-report-button").click()
-        expect(page.get_by_role("heading", name="Create Report")).to_be_visible(timeout=10000)
+        expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
         page.get_by_role("textbox", name="Title").fill(report_title)
         page.get_by_test_id("report-type-select").select_option("6")
         page.get_by_test_id("save-report").click()
@@ -912,7 +910,7 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_text("Report item updated").click()
 
         page.get_by_role("link", name="Analyze").click()
-        expect(page.get_by_role("link", name=report_title)).to_be_visible(timeout=10000)
+        expect(page.get_by_role("link", name=report_title)).to_be_visible()
         page.get_by_role("link", name=report_title).click()
 
         page.get_by_label("TLP Level Clear Green Amber").select_option("green")
@@ -920,7 +918,7 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_text("Report item updated").click()
         report_id = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
         page.goto(url_for("analyze.report", report_id=report_id, _external=True))
-        expect(page.get_by_text("403 - Access denied")).to_be_visible(timeout=10000)
+        expect(page.get_by_text("403 - Access denied")).to_be_visible()
 
     def test_publish(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_session_wrapper):
         page = non_admin_logged_in_page
@@ -928,12 +926,12 @@ class TestEndToEndUser(BaseE2ETest):
 
         def load_product_list():
             page.goto(url_for("publish.publish", _external=True))
-            expect(page.get_by_test_id("product-table")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("product-table")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_products.png")
 
         def add_product():
             self.highlight_element(page.get_by_test_id("new-product-button")).click()
-            expect(page.get_by_test_id("product-form")).to_be_visible(timeout=10000)
+            expect(page.get_by_test_id("product-form")).to_be_visible()
             product_type_select = page.get_by_label("Product Type * Select an item")
             product_type_options = product_type_select.locator("option").evaluate_all(
                 """options => options
