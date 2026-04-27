@@ -80,7 +80,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").uncheck()
             page.get_by_role("checkbox", name="dashboard[show_charts]").uncheck()
             page.get_by_role("button", name="Update Dashboard Settings").click()
-            expect(page.locator("#dashboard").get_by_text("Trending Tags (last 1 days)")).not_to_be_visible(timeout=10000)
+            expect(page.locator("#dashboard").get_by_text("Trending Tags (last 7 days)")).not_to_be_visible(timeout=10000)
             expect(page.get_by_role("main")).to_be_visible(timeout=10000)
             page.get_by_role("link", name="Edit Dashboard").click()
             expect(page.get_by_role("group", name="Days to look back for")).to_be_visible(timeout=10000)
@@ -89,7 +89,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_visible(timeout=10000)
             page.get_by_role("checkbox", name="dashboard[show_charts]").check()
             page.get_by_role("button", name="Update Dashboard Settings").click()
-            expect(page.locator("#dashboard")).to_contain_text("Trending Tags (last 1 days)")
+            expect(page.locator("#dashboard")).to_contain_text("Trending Tags (last 7 days)")
             expect(page.locator("#dashboard")).to_contain_text("Location")
 
             expect(page.locator("#dashboard")).to_contain_text("Organization")
