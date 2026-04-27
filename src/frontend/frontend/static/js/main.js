@@ -20,6 +20,44 @@ function showConfirmDialog(opts) {
   return Swal.fire({ ...opts, showCancelButton: true });
 }
 
+function isBelowWxgaPlus(
+  width = window.innerWidth,
+  height = window.innerHeight,
+) {
+  return width < 1440 || height < 600;
+}
+
+function updateViewportWarningBar() {
+  const bar = document.getElementById("viewport-notification");
+  const visible = isBelowWxgaPlus();
+
+  document.documentElement.style.setProperty(
+    "--viewport-warning-height",
+    visible ? "2.5rem" : "0px",
+  );
+
+  if (!bar) {
+    return;
+  }
+
+  bar.classList.toggle("hidden", !visible);
+}
+
+function initViewportWarningBar() {
+  updateViewportWarningBar();
+  window.addEventListener("resize", updateViewportWarningBar, {
+    passive: true,
+  });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initViewportWarningBar, {
+    once: true,
+  });
+} else {
+  initViewportWarningBar();
+}
+
 document.body.addEventListener("htmx:confirm", function (evt) {
   if (!evt.target.hasAttribute("hx-confirm")) {
     return;
@@ -54,7 +92,10 @@ function initChoices(elementID, placeholder = "items", config = {}) {
     input: ["choices__input", "!bg-base-200"],
     inputCloned: ["choices__input--cloned", "!bg-base-200"],
     list: ["choices__list", "!bg-base-200"],
-    itemSelectable: ["choices__item--selectable", "choices-item-selectable-primary"],
+    itemSelectable: [
+      "choices__item--selectable",
+      "choices-item-selectable-primary",
+    ],
     itemChoice: ["choices__item--choice", "!bg-base-200"],
     selectedState: ["is-selected", "choices-selected-primary"],
   };

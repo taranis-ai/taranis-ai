@@ -79,9 +79,9 @@
 <!-- Selected tags displayed as DaisyUI badges -->
 <div id="selected-tags" class="mt-2 flex flex-wrap gap-2">
   <template x-for="tag in selectedTags" :key="tag">
-    <div class="badge badge-primary gap-2 items-center">
-      <span x-text="tag"></span>
-      <button type="button" class="btn btn-xs btn-circle btn-ghost ml-1" @click="removeTag(tag)" aria-label="Remove tag">✕</button>
+    <div class="badge badge-primary inline-flex max-w-full items-center gap-2 overflow-hidden">
+      <span class="min-w-0 truncate" x-text="tag"></span>
+      <button type="button" class="btn btn-xs btn-circle btn-ghost shrink-0 ml-1" @click="removeTag(tag)" aria-label="Remove tag">✕</button>
       <input type="hidden" name="tags" :value="tag">
     </div>
   </template>
