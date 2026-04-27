@@ -8,7 +8,15 @@ from flask import Response, abort, flash, json, make_response, redirect, render_
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from markupsafe import Markup, escape
-from models.assess import AssessSource, BulkAction, Connector, FilterLists, NewsItem, Story, StoryUpdatePayload
+from models.assess import (
+    AssessSource,
+    BulkAction,
+    Connector,
+    FilterLists,
+    NewsItem,
+    Story,
+    StoryUpdatePayload,
+)
 from models.report import ReportItem
 from pydantic import ValidationError
 from werkzeug.datastructures import FileStorage
@@ -523,7 +531,10 @@ class StoryView(BaseView):
         status_override: int | None = None,
     ) -> ResponseReturnValue:
         try:
-            story_id = core_response.json().get("story_id", "")
+            payload = core_response.json()
+            story_id = payload.get("story_id", "")
+            if not story_id and (story_ids := payload.get("story_ids")):
+                story_id = story_ids[0] if isinstance(story_ids, list) else story_ids
         except Exception:
             story_id = ""
 
@@ -547,7 +558,8 @@ class StoryView(BaseView):
     def create_news_item(cls):
         logger.debug(f"Creating news item with form fields: {[key for key in request.form.keys() if key != 'csrf_token']}")
         if url := request.form.get("fetch_url"):
-            return cls._create_news_item_from_url(url)
+            form_data = parse_formdata(request.form)
+            return cls._create_news_item_from_url(url, form_data.get("parameters", {}))
 
         if upload_file := request.files.get("file"):
             return cls._create_news_item_from_file(upload_file)
@@ -643,10 +655,21 @@ class StoryView(BaseView):
         response.headers["HX-Refresh"] = "true"
         return response
 
+    @staticmethod
+    def _build_simple_web_collector_payload(url: str, parameters: dict[str, Any] | None = None) -> dict[str, Any]:
+        collector_parameters = {key: value for key, value in (parameters or {}).items() if value not in ("", None) and key != "WEB_URL"}
+        collector_parameters["WEB_URL"] = url.strip()
+        return {
+            "id": "manual",
+            "type": "simple_web_collector",
+            "parameters": collector_parameters,
+        }
+
     @classmethod
-    def _create_news_item_from_url(cls, url: str):
+    def _create_news_item_from_url(cls, url: str, parameters: dict[str, Any] | None = None):
         try:
-            core_response = CoreApi().api_post("/assess/news-items/fetch", json_data={"url": url})
+            payload = cls._build_simple_web_collector_payload(url, parameters)
+            core_response = CoreApi().api_post("/assess/news-items/fetch", json_data=payload)
             return cls.news_item_edit_view(core_response)
         except HTTPException:
             raise

@@ -44,13 +44,17 @@ class Products(MethodView):
         return {"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict()}, 201
 
     @auth_required("PUBLISH_UPDATE")
-    def put(self, product_id: str):
+    def put(self, product_id: str | None = None):
+        if not product_id:
+            return {"error": "No product_id provided"}, 400
         response, status = product.Product.update(product_id, request.json)
         invalidate_frontend_cache_on_success(status, models=("product",), object_ids={"product": product_id})
         return response, status
 
     @auth_required("PUBLISH_DELETE")
-    def delete(self, product_id: str):
+    def delete(self, product_id: str | None = None):
+        if not product_id:
+            return {"error": "No product_id provided"}, 400
         response, status = product.Product.delete(product_id)
         invalidate_frontend_cache_on_success(status, models=("product",), object_ids={"product": product_id})
         return response, status
@@ -91,8 +95,8 @@ def initialize(app: Flask):
     publish_bp.add_url_rule(
         "/products/<string:product_id>/publishers/<string:publisher_id>", view_func=PublishProduct.as_view("publish_product")
     )
-    publish_bp.add_url_rule("/products", view_func=Products.as_view("products"))
-    publish_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("product"))
+    publish_bp.add_url_rule("/products", view_func=Products.as_view("products"), methods=["GET", "POST"])
+    publish_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("product"), methods=["GET", "PUT", "DELETE"])
     publish_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types"))
     publish_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
     publish_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))

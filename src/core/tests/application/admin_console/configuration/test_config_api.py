@@ -674,6 +674,19 @@ class TestBotConfigApi(BaseTest):
         assert response.json["message"] == f"Bot {cleanup_bot['name']} deleted"
 
 
+class TestConnectorConfigApi(BaseTest):
+    base_uri = "/api/config"
+
+    def test_patch_connector_state_persists(self, client, auth_header, cleanup_connector):
+        connector_id = cleanup_connector["id"]
+
+        response = self.assert_patch_ok(client, uri=f"connectors/{connector_id}", json_data={"state": 1}, auth_header=auth_header)
+        assert response.json["id"] == connector_id
+
+        connector_response = self.assert_get_ok(client, uri=f"connectors/{connector_id}", auth_header=auth_header)
+        assert connector_response.json["state"] == 1
+
+
 class TestReportTypeConfigApi(BaseTest):
     base_uri = "/api/config"
 

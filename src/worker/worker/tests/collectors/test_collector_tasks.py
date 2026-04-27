@@ -36,3 +36,27 @@ def test_collector_task_missing_source_is_skipped(current_job, requests_mock):
         "result": result,
         "status": "SUCCESS",
     }
+
+
+def test_fetch_single_news_item_accepts_simple_web_source_payload(current_job, monkeypatch):
+    captured_parameters = {}
+
+    class FakeSimpleWebCollector:
+        name = "Simple Web Collector"
+
+        def preview_collector(self, parameters):
+            captured_parameters.update(parameters)
+            return [{"title": "Fetched item", "content": "Fetched content", "osint_source_id": "manual"}]
+
+    monkeypatch.setattr(collector_tasks.worker.collectors, "SimpleWebCollector", FakeSimpleWebCollector)
+
+    result = collector_tasks.fetch_single_news_item(
+        {"id": "manual", "type": "simple_web_collector", "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"}}
+    )
+
+    assert result == [{"title": "Fetched item", "content": "Fetched content", "osint_source_id": "manual"}]
+    assert captured_parameters == {
+        "id": "manual",
+        "type": "simple_web_collector",
+        "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
+    }
