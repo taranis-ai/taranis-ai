@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="--app-header-height: 4rem; --viewport-warning-height: 0px;">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,16 +20,21 @@
   <body class="flex bg-base-300 min-h-screen"
         hx-ext="response-targets"
         x-data="{ sidebarOpen: {{ 'true' if _show_sidebar else 'false' }}, init() { if (window.self !== window.top) this.sidebarOpen = false } }">
+    {% include "partials/viewport_notice.html" %}
     <!-- Sidebar -->
     {% include "partials/sidebar.html" %}
 
     <!-- Navigation Bar -->
-    <header id="navbar" class="fixed top-0 left-0 right-0 h-16 bg-base-200 flex items-center justify-between px-4 z-30 navbar">
+    <header id="navbar"
+            class="fixed left-0 right-0 h-16 bg-base-200 flex items-center justify-between px-4 z-30 navbar"
+            style="top: var(--viewport-warning-height)">
       {% include "partials/navbar.html" %}
     </header>
 
     <!-- Main Content -->
-    <main x-bind:class="{ 'ml-64 max-w-[calc(100vw-16rem)]': sidebarOpen }" class="pt-16 transition-all w-full max-w-full min-w-0">
+    <main x-bind:class="{ 'ml-64 max-w-[calc(100vw-16rem)]': sidebarOpen }"
+          class="pt-16 transition-all w-full max-w-full min-w-0"
+          style="padding-top: calc(var(--app-header-height) + var(--viewport-warning-height))">
       <div class="container mx-auto w-full max-w-full">
         {% block content %}
         {% endblock content %}
