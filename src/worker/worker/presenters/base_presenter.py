@@ -33,4 +33,5 @@ class BasePresenter:
         tmpl = env.from_string(template)
         product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
 
+        logger.debug(f"[{self.name}] Rendering template with product data: {product} and parameters: {parameters}")
         return tmpl.render(data=product)

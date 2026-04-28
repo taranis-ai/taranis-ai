@@ -255,9 +255,6 @@ class ReportItem(BaseModel):
                 return None, ({"error": "stories must be a list of story ids"}, 400)
             sanitized["stories"] = normalized_stories
 
-        if "report_item_cpes" in data:
-            sanitized["report_item_cpes"] = data["report_item_cpes"]
-
         if raw_id := data.get("id"):
             if isinstance(raw_id, str) and raw_id.strip():
                 sanitized["id"] = raw_id.strip()

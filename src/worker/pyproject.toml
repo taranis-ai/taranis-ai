@@ -42,7 +42,7 @@ dependencies = [
     "ioc-finder",
     "ioc-fanger",
     "pypandoc-binary>=1.15",
-    "niquests[socks]>=3.18.6",
+    "niquests",
 ]
 dynamic = ["version"]
 
