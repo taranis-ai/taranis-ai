@@ -26,8 +26,7 @@
     "npm:highlight-search-term@^1.0.3": "1.0.3",
     "npm:htmx-ext-response-targets@*": "2.0.4",
     "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
-    "npm:htmx.org@*": "2.0.9",
-    "npm:htmx.org@^2.0.9": "2.0.9",
+    "npm:htmx.org@^2.0.10": "2.0.10",
     "npm:sortablejs@*": "1.15.7",
     "npm:sortablejs@^1.15.7": "1.15.7",
     "npm:sweetalert2@*": "11.26.24",
@@ -411,8 +410,8 @@
         "htmx.org"
       ]
     },
-    "htmx.org@2.0.9": {
-      "integrity": "sha512-Vd8ZlGSshz2W2ej+gNpMqxX2PM0dfOn4lRgkTXgCT+cqZE/GwBQoYm3zGvlqf+hHXYCMYmmgae33m4/RPdTS0Q=="
+    "htmx.org@2.0.10": {
+      "integrity": "sha512-kdeJe7ZVwaS6QMz/ebBIVtZdpwen6L0OQ5GOhPV9MKBb196TCZeZu4yA7ZIQsaLKv7EpXz+So7KSXNuHXhj7Cw=="
     },
     "is-extglob@2.1.1": {
       "integrity": "sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ=="
@@ -557,7 +556,7 @@
       "npm:fuse.js@^7.3.0",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",
-      "npm:htmx.org@^2.0.9",
+      "npm:htmx.org@^2.0.10",
       "npm:sortablejs@^1.15.7",
       "npm:sweetalert2@^11.26.24",
       "npm:tailwindcss@^4.2.4"
