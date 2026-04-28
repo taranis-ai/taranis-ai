@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 import requests
 import responses
-from flask import json
-from playwright.sync_api import Browser, BrowserContext, Page
+from flask import json, url_for
+from playwright.sync_api import Browser, BrowserContext, Page, expect
 
 from tests.playwright.e2e_harness import (
     docker_cleanup_commands,
@@ -139,10 +139,16 @@ def setup_test_templates(core_request_client):
             pass
 
 
+@pytest.fixture(scope="session", autouse=True)
+def configure_playwright_assertion_timeout(request):
+    timeout = int(request.config.getoption("--e2e-timeout"))
+    expect.set_options(timeout=timeout)
+
+
 @pytest.fixture(scope="class")
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
-    # Drop timeout from 30s to 10s
+    # Drop action timeout from 30s to 5s.
     timeout = int(request.config.getoption("--e2e-timeout"))
     context.set_default_timeout(timeout)
     if request.config.getoption("trace"):
@@ -201,6 +207,8 @@ def _new_authenticated_page(taranis_frontend: Page, e2e_server, token_response) 
     context = taranis_frontend.context
     base_url: str = e2e_server.url()
 
+    # Ensure we do not leak auth state across test segments (admin -> user).
+    context.clear_cookies()
     _add_auth_cookies(context, base_url, token_response)
 
     page = context.new_page()
@@ -209,13 +217,27 @@ def _new_authenticated_page(taranis_frontend: Page, e2e_server, token_response) 
 
 
 @pytest.fixture
-def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
-    """
-    Returns a Playwright Page whose browser context has the JWT cookies set,
-    so any navigation is already authenticated.
-    """
-    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response)
+def authenticated_page_factory(taranis_frontend: Page, e2e_server, access_token_response, access_token_response_basic):
+    """Factory fixture for creating authenticated pages with different user types."""
 
+    def _create(user_type="admin"):
+        if user_type == "admin":
+            token_response = access_token_response
+        elif user_type == "basic":
+            token_response = access_token_response_basic
+        else:
+            raise ValueError(f"Unknown user_type: {user_type}")
+
+        page = _new_authenticated_page(taranis_frontend, e2e_server, token_response)
+        return page
+
+    return _create
+
+
+@pytest.fixture
+def logged_in_page(authenticated_page_factory):
+    """Returns a Playwright Page with admin authentication."""
+    page = authenticated_page_factory("admin")
     try:
         yield page
     finally:
@@ -224,14 +246,26 @@ def logged_in_page(taranis_frontend: Page, e2e_server, access_token_response):
 
 
 @pytest.fixture
-def non_admin_logged_in_page(taranis_frontend: Page, e2e_server, access_token_response_basic):
-    page = _new_authenticated_page(taranis_frontend, e2e_server, access_token_response_basic)
-
+def non_admin_logged_in_page(authenticated_page_factory):
+    """Returns a Playwright Page with basic user authentication."""
+    page = authenticated_page_factory("basic")
     try:
         yield page
     finally:
         _dismiss_notifications(page)
         page.close()
+
+
+@pytest.fixture
+def ensure_basic_user_permissions(non_admin_logged_in_page):
+    """Fail fast when a user suite accidentally runs with admin privileges."""
+    page = non_admin_logged_in_page
+
+    page.goto(url_for("base.dashboard", _external=True))
+    assert page.get_by_role("link", name="Administration").count() == 0, "Basic user unexpectedly sees Administration menu"
+
+    page.goto(url_for("admin.attributes", _external=True))
+    expect(page.get_by_text("403 - Access denied")).to_be_visible()
 
 
 def _forward_console_and_page_errors(request, page: Page, extra_allow_patterns: list[str] | None = None):
@@ -305,6 +339,17 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         non_admin_logged_in_page,
         extra_allow_patterns=[
             r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+        ],
+    )
+
+
+@pytest.fixture
+def forward_console_and_page_errors_non_admin_report_forbidden(request, non_admin_logged_in_page):
+    yield from _forward_console_and_page_errors(
+        request,
+        non_admin_logged_in_page,
+        extra_allow_patterns=[
+            r"\[console\.error\].*/report/.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
         ],
     )
 

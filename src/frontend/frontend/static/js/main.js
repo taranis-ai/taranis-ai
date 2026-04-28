@@ -7,11 +7,12 @@ function getCSRFToken() {
 
 function getConfirmOptions(el, question) {
   const title = el.getAttribute("data-confirm-title") || question;
+  const confirmButtonText = el.getAttribute("data-confirm-confirm") || (el.hasAttribute("hx-delete") ? "Delete" : "OK");
   return {
     title,
     text: title === question ? "" : question,
     icon: el.getAttribute("data-confirm-icon") || "question",
-    confirmButtonText: el.getAttribute("data-confirm-confirm") || "OK",
+    confirmButtonText,
     cancelButtonText: el.getAttribute("data-confirm-cancel") || "Cancel",
   };
 }
