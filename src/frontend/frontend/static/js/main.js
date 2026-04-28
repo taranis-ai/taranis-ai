@@ -31,16 +31,20 @@ function updateViewportWarningBar() {
   const bar = document.getElementById("viewport-notification");
   const visible = isBelowWxgaPlus();
 
-  document.documentElement.style.setProperty(
-    "--viewport-warning-height",
-    visible ? "2.5rem" : "0px",
-  );
-
   if (!bar) {
+    document.documentElement.style.setProperty(
+      "--viewport-warning-height",
+      "0px",
+    );
     return;
   }
 
   bar.classList.toggle("hidden", !visible);
+
+  document.documentElement.style.setProperty(
+    "--viewport-warning-height",
+    visible ? `${bar.offsetHeight}px` : "0px",
+  );
 }
 
 function initViewportWarningBar() {

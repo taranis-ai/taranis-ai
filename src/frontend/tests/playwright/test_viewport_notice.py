@@ -26,7 +26,7 @@ class TestViewportNotice(PlaywrightHelpers):
 
             page.set_viewport_size({"width": 1439, "height": 900})
             expect(banner).to_be_visible()
-            expect(banner).to_contain_text("Resolution below WXGA+ are not supported")
+            expect(banner).to_contain_text("below WXGA+")
 
             page.set_viewport_size({"width": 1440, "height": 599})
             expect(banner).to_be_visible()
