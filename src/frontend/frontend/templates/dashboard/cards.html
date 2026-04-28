@@ -27,7 +27,7 @@
       <div class="flex-1 min-w-0">
         {% for tag in cluster.tags %}
           <div class="flex w-full min-w-0 items-center justify-between gap-3">
-            <a href="{{ url_for("assess.assess", tags=tag.name) }}" class="block flex-1 min-w-0 truncate underline">{{ tag.name }}</a>
+            <a href="{{ url_for('assess.assess', tags=tag.name) }}" class="block flex-1 min-w-0 truncate underline">{{ tag.name }}</a>
             <p class="shrink-0">{{ tag.size }}</p>
           </div>
         {% endfor %}

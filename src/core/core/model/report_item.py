@@ -555,9 +555,11 @@ class ReportItem(BaseModel):
 
         report = cls.get(report_id)
         if not report:
+            logger.warning(f"Attempted to delete Report Item {report_id} which does not exist")
             return {"error": "Report not found"}, 404
 
         if ProductReportItem.assigned(report_id):
+            logger.warning(f"Attempted to delete Report Item {report_id} which is still assigned to a Product")
             return {"error": "Report is used in a product"}, 409
 
         affected_stories = list(report.stories)
