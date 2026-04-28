@@ -1256,6 +1256,7 @@ class Story(BaseModel):
         data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
         if attributes := self.attributes:
             data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
+        del data["search_vector"]
 
         return data
 

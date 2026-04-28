@@ -22,6 +22,13 @@ def test_report_view_renders_access_denied_page_when_core_returns_403(app, authe
     assert "403 - Access denied" in html
 
 
+def test_report_delete_actions_target_notification_bar_on_error(app):
+    with app.test_request_context():
+        delete_action = next(action for action in ReportItemView.get_report_actions() if action["label"] == "Delete")
+
+    assert delete_action["hx_target_error"] == "#notification-bar"
+
+
 def test_story_view_renders_access_denied_page_when_core_returns_403(app, authenticated_client_basic, responses_mock):
     story_id = "12676a74-0850-4eef-971b-a4efd9d526e6"
     responses_mock.get(

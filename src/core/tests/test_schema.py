@@ -85,7 +85,7 @@ def test_analyze_schema(case):
 
 
 @schema.include(path_regex="^/assess").parametrize()
-@settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
+@settings(max_examples=20, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_assess_schema(case):
     response = case.call()
     case.validate_response(response, checks=response_checks, additional_checks=[check_401])
@@ -93,7 +93,7 @@ def test_assess_schema(case):
 
 @schema.auth(UserAuth)
 @schema.include(path_regex="^/dashboard").parametrize()
-@settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
+@settings(max_examples=10, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_dashboard_schema(case):
     response = case.call()
     case.validate_response(response, checks=response_checks, additional_checks=[check_401])

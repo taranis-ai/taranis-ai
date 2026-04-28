@@ -8,7 +8,6 @@ from sqlalchemy.sql.expression import Select
 from core.log import logger
 from core.managers.data_manager import (
     get_presenter_template_path,
-    get_presenter_templates,
     get_template_as_base64,
     validate_existing_presenter_template_id,
 )
@@ -99,8 +98,8 @@ class ProductType(BaseModel):
             return {"items": []}, 200
         if with_count:
             count = cls.get_filtered_count(query)
-            return {"total_count": count, "items": cls.to_list(items), "templates": get_presenter_templates()}, 200
-        return {"items": cls.to_list(items), "templates": get_presenter_templates()}, 200
+            return {"total_count": count, "items": cls.to_list(items)}, 200
+        return {"items": cls.to_list(items)}, 200
 
     @classmethod
     def update(cls, product_type_id: int, data, user=None) -> tuple[dict, int]:
