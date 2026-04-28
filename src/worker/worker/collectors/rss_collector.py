@@ -4,7 +4,7 @@ from urllib.parse import urljoin, urlparse
 
 import dateutil.parser as dateparser
 import feedparser
-import requests
+import niquests as requests
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
