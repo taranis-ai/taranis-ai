@@ -889,7 +889,7 @@ class TestEndToEndUser(BaseE2ETest):
     def test_user_report_detail_is_forbidden_after_higher_tlp(
         self,
         non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
+        forward_console_and_page_errors_non_admin_report_forbidden,
         pre_seed_report_type_all_attribute_types_optional,
     ):
         page = non_admin_logged_in_page
