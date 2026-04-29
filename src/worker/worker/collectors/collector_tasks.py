@@ -65,12 +65,21 @@ def _finalize_successful_non_run(
     if not job:
         return result_message
 
+    persisted_status = meta_status or "SUCCESS"
+
     if meta_status is not None:
         job.meta["status"] = meta_status
         job.meta["message"] = result_message
         job.save_meta()
 
-    core_api.save_task_result(job.id, "collector_task", result_message, "SUCCESS", worker_id=worker_id, worker_type=worker_type)
+    core_api.save_task_result(
+        job.id,
+        "collector_task",
+        result_message,
+        persisted_status,
+        worker_id=worker_id,
+        worker_type=worker_type,
+    )
     return result_message
 
 
@@ -231,7 +240,7 @@ def fetch_single_news_item(parameters: dict[str, Any]):
                     job.id,
                     "collector_task",
                     result_message,
-                    task_status,
+                    "NOT_MODIFIED",
                     worker_id=worker_id,
                     worker_type=worker_type,
                 )
