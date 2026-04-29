@@ -53,7 +53,7 @@ class Collector:
         raise ValueError(f"Source {source['id']} has no collector_type")
 
 
-def _finalize_successful_non_run(
+def _persist_and_return_result(
     job,
     core_api: CoreApi,
     result_message: str,
@@ -106,7 +106,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
     except LookupError as exc:
         result_message = f"Error: {exc}"
         logger.error(result_message)
-        return _finalize_successful_non_run(
+        return _persist_and_return_result(
             job,
             core_api,
             result_message,
@@ -134,7 +134,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             result_message = f"No changes: {e}"
-            return _finalize_successful_non_run(
+            return _persist_and_return_result(
                 job,
                 core_api,
                 result_message,
