@@ -160,11 +160,12 @@ def api_key_or_auth_required(permissions: list | str | None = None):
     def auth_required_wrap(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            if _has_valid_api_key(log_failures=True):
+            if _has_valid_api_key(log_failures=False):
                 g.authenticated_user = None
                 return fn(*args, **kwargs)
 
             if auth_error := _jwt_authorize(permissions_set):
+                _has_valid_api_key(log_failures=True)
                 return auth_error
 
             return fn(*args, **kwargs)

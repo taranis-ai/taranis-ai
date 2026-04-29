@@ -1,6 +1,7 @@
 import os
 
-from core.managers.auth_manager import api_key_required, auth_required
+from core.managers import auth_manager
+from core.managers.auth_manager import api_key_or_auth_required, api_key_required, auth_required
 
 
 @auth_required(permissions=["ADMIN_OPERATIONS"])
@@ -10,6 +11,11 @@ def admin_endpoint():
 
 @api_key_required
 def protected_endpoint():
+    return {"ok": True}, 200
+
+
+@api_key_or_auth_required(permissions=["ADMIN_OPERATIONS"])
+def protected_or_jwt_endpoint():
     return {"ok": True}, 200
 
 
@@ -58,3 +64,14 @@ class TestAuth:
         with app.test_request_context(headers={"Authorization": "Bearer wrong-key"}):
             response = protected_endpoint()
             assert response == ({"error": "not authorized"}, 401)
+
+    def test_api_key_or_auth_required_does_not_log_api_key_error_for_valid_jwt(self, app, access_token, monkeypatch):
+        logged_messages: list[str] = []
+
+        monkeypatch.setattr(auth_manager.logger, "store_auth_error_activity", logged_messages.append)
+
+        with app.test_request_context(headers={"Authorization": f"Bearer {access_token}"}):
+            response = protected_or_jwt_endpoint()
+
+        assert response == ({"ok": True}, 200)
+        assert logged_messages == []
