@@ -130,6 +130,25 @@ def test_annotate_jobs_pending_first_run(monkeypatch):
     assert annotated_job["next_run_display"] == "2025-12-12 16:00:00 UTC"
 
 
+def test_cron_run_missed_since_last_run_returns_false_when_last_run_is_missing():
+    job = {"schedule": "* * * * *"}
+
+    assert qm_module._cron_run_missed_since_last_run(job, datetime(2025, 12, 12, 8, 0, 0), None) is False
+
+
+def test_cron_run_missed_since_last_run_returns_false_for_invalid_schedule():
+    job = {"schedule": "not a cron"}
+
+    assert (
+        qm_module._cron_run_missed_since_last_run(
+            job,
+            datetime(2025, 12, 12, 8, 0, 0),
+            datetime(2025, 12, 12, 7, 0, 0),
+        )
+        is False
+    )
+
+
 def test_annotate_jobs_marks_minutely_cron_as_missed_when_many_runs_were_skipped(monkeypatch):
     fixed_now = datetime(2026, 4, 29, 10, 34, 4, tzinfo=timezone.utc)
 

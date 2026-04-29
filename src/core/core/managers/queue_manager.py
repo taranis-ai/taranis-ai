@@ -35,7 +35,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from croniter import croniter
+from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from flask import Flask
 from models.admin import CronSpec
 from redis import Redis
@@ -101,14 +101,14 @@ def _format_utc_timestamp(value: datetime | None) -> str | None:
     return f"{normalized.strftime('%Y-%m-%d %H:%M:%S')} UTC"
 
 
-def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run_dt: datetime) -> bool:
+def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run_dt: datetime | None) -> bool:
     schedule = job.get("schedule")
-    if not schedule:
+    if not schedule or last_run_dt is None:
         return False
 
     try:
         next_expected_run = croniter(schedule, last_run_dt).get_next(datetime)
-    except Exception:
+    except (CroniterBadCronError, CroniterBadDateError):
         return False
 
     return now > (next_expected_run + OVERDUE_GRACE_PERIOD)
