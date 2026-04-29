@@ -79,7 +79,7 @@ class TestAuth:
         assert auth_error_messages == ["Incorrect api key"]
         assert info_messages == ["Authenticated with JWT after failed API key attempt"]
 
-    def test_api_key_or_auth_required_logs_api_key_error_twice_for_invalid_jwt(self, app, monkeypatch):
+    def test_api_key_or_auth_required_logs_api_key_error_once_for_invalid_jwt(self, app, monkeypatch):
         logged_messages: list[str] = []
 
         monkeypatch.setattr(auth_manager.logger, "store_auth_error_activity", logged_messages.append)
@@ -88,4 +88,4 @@ class TestAuth:
             response = protected_or_jwt_endpoint()
 
         assert response == ({"error": "not authorized"}, 401)
-        assert logged_messages == ["Incorrect api key", "Incorrect api key"]
+        assert logged_messages == ["Incorrect api key"]

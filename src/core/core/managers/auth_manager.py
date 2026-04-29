@@ -165,7 +165,6 @@ def api_key_or_auth_required(permissions: list | str | None = None):
                 return fn(*args, **kwargs)
 
             elif auth_error := _jwt_authorize(permissions_set):
-                _has_valid_api_key(log_failures=True)
                 return auth_error
             else:
                 # log that second auth method succeeded after first failed
