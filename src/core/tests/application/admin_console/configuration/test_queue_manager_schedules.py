@@ -77,6 +77,8 @@ def test_annotate_jobs_uses_previous_run_for_overdue(monkeypatch):
 
     assert annotated_job["status_badge"]["variant"] == "error"
     assert annotated_job["status_badge"]["label"] == "Missed"
+    assert annotated_job["last_run_display"] == "2025-12-11 15:51:07 UTC"
+    assert annotated_job["next_run_display"] == "2025-12-12 16:00:00 UTC"
 
 
 def test_annotate_jobs_does_not_mark_future_slot(monkeypatch):
@@ -124,3 +126,30 @@ def test_annotate_jobs_pending_first_run(monkeypatch):
     assert annotated_job["status_badge"]["variant"] == "ghost"
     assert annotated_job["status_badge"]["label"] == "Pending first run"
     assert not annotated_job["is_overdue"]
+    assert annotated_job["last_run_display"] is None
+    assert annotated_job["next_run_display"] == "2025-12-12 16:00:00 UTC"
+
+
+def test_annotate_jobs_marks_minutely_cron_as_missed_when_many_runs_were_skipped(monkeypatch):
+    fixed_now = datetime(2026, 4, 29, 10, 34, 4, tzinfo=timezone.utc)
+
+    class _FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):  # pragma: no cover - helper for monkeypatch
+            return fixed_now if tz else fixed_now.replace(tzinfo=None)
+
+    monkeypatch.setattr(qm_module, "datetime", _FixedDateTime)
+
+    job = {
+        "type": "cron",
+        "schedule": "* * * * *",
+        "last_run": datetime(2026, 4, 29, 10, 23, 19),
+        "previous_run_time": datetime(2026, 4, 29, 10, 34, 0),
+        "next_run_time": datetime(2026, 4, 29, 10, 35, 0),
+    }
+
+    annotated_job = qm_module._annotate_jobs([job])[0]
+
+    assert annotated_job["status_badge"]["variant"] == "error"
+    assert annotated_job["status_badge"]["label"] == "Missed"
+    assert annotated_job["is_overdue"] is True
