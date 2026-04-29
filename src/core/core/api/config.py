@@ -36,7 +36,7 @@ from core.model import (
     worker,
 )
 from core.model.permission import Permission
-from core.service.cache_invalidation import cache_invalidation_service
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.template_service import build_template_response, build_templates_list, create_or_update_template, validate_template_content
 
 
@@ -66,9 +66,7 @@ def convert_integrity_error(error: IntegrityError) -> str:
 
 
 def _invalidate_admin_cache(status_code: int) -> int:
-    if 200 <= status_code < 300:
-        return cache_invalidation_service.invalidate_all()
-    return 0
+    return invalidate_frontend_cache_on_success(status_code, full=True)
 
 
 class DictionariesReload(MethodView):

@@ -110,6 +110,7 @@ cache_invalidation_service = FrontendCacheInvalidationService()
 def invalidate_frontend_cache_on_success(
     status_code: int,
     *,
+    full: bool = False,
     models: Iterable[str] = (),
     scopes: Iterable[str] = (),
     user_profiles: Iterable[str] = (),
@@ -119,6 +120,9 @@ def invalidate_frontend_cache_on_success(
         return 0
 
     deleted = 0
+    if full:
+        deleted += cache_invalidation_service.invalidate_all()
+
     for username in user_profiles:
         deleted += cache_invalidation_service.invalidate_user_profile(username)
 

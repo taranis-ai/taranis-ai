@@ -55,9 +55,9 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
+        cls._invalidate_task_result_cache(submission)
         if submission.status == "SUCCESS" and submission.result is not None:
             cls._handle_success_result(submission)
-        cls._invalidate_task_result_cache(submission)
         validated = TaskResponseModel.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), 200
 
@@ -82,6 +82,7 @@ class TaskService:
 
     @classmethod
     def _handle_success_result(cls, submission: TaskSubmission) -> None:
+        cache_invalidation_module.invalidate_frontend_cache_on_success(200, full=True)
         task_kind = cls._resolve_task_kind(submission.id, submission.task)
         if not task_kind:
             return
@@ -141,4 +142,8 @@ class TaskService:
 
     @classmethod
     def _invalidate_task_result_cache(cls, submission: TaskSubmission) -> None:
-        cache_invalidation_module.cache_invalidation_service.invalidate_all()
+        if cls._resolve_task_kind(submission.id, submission.task) != "collector_task":
+            return
+        if not submission.worker_id:
+            return
+        cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
