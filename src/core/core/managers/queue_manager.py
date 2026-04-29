@@ -86,10 +86,19 @@ def _format_relative_time(target: datetime | None, reference: datetime) -> str |
     return f"in {label}" if seconds > 0 else f"{label} ago"
 
 
-def _format_utc_timestamp(value: datetime | None) -> str | None:
+def _as_naive_utc(value: datetime | None) -> datetime | None:
     if not value:
         return None
-    return f"{value.strftime('%Y-%m-%d %H:%M:%S')} UTC"
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _format_utc_timestamp(value: datetime | None) -> str | None:
+    normalized = _as_naive_utc(value)
+    if not normalized:
+        return None
+    return f"{normalized.strftime('%Y-%m-%d %H:%M:%S')} UTC"
 
 
 def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run_dt: datetime) -> bool:
@@ -108,9 +117,13 @@ def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run
 def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     for job in jobs:
-        last_run_dt = job.get("last_run")
-        next_run_dt = job.get("next_run_time")
-        prev_run_dt = job.get("previous_run_time")
+        last_run_dt = _as_naive_utc(job.get("last_run"))
+        next_run_dt = _as_naive_utc(job.get("next_run_time"))
+        prev_run_dt = _as_naive_utc(job.get("previous_run_time"))
+
+        job["last_run"] = last_run_dt
+        job["next_run_time"] = next_run_dt
+        job["previous_run_time"] = prev_run_dt
 
         job["last_run_display"] = _format_utc_timestamp(last_run_dt)
         job["last_run_relative"] = f"{_format_duration(now - last_run_dt)} ago" if last_run_dt else None

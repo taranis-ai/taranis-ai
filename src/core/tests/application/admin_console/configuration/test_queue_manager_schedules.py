@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
@@ -153,3 +153,29 @@ def test_annotate_jobs_marks_minutely_cron_as_missed_when_many_runs_were_skipped
     assert annotated_job["status_badge"]["variant"] == "error"
     assert annotated_job["status_badge"]["label"] == "Missed"
     assert annotated_job["is_overdue"] is True
+
+
+def test_annotate_jobs_normalizes_aware_timestamps_to_utc(monkeypatch):
+    fixed_now = datetime(2025, 12, 12, 12, 40, tzinfo=timezone.utc)
+
+    class _FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):  # pragma: no cover - helper for monkeypatch
+            return fixed_now if tz else fixed_now.replace(tzinfo=None)
+
+    monkeypatch.setattr(qm_module, "datetime", _FixedDateTime)
+
+    plus_two = timezone(timedelta(hours=2))
+    job = {
+        "type": "scheduled",
+        "last_run": datetime(2025, 12, 12, 14, 30, 0, tzinfo=plus_two),
+        "next_run_time": datetime(2025, 12, 12, 14, 45, 0, tzinfo=plus_two),
+    }
+
+    annotated_job = qm_module._annotate_jobs([job])[0]
+
+    assert annotated_job["last_run"] == datetime(2025, 12, 12, 12, 30, 0)
+    assert annotated_job["next_run_time"] == datetime(2025, 12, 12, 12, 45, 0)
+    assert annotated_job["last_run_display"] == "2025-12-12 12:30:00 UTC"
+    assert annotated_job["next_run_display"] == "2025-12-12 12:45:00 UTC"
+    assert annotated_job["next_run_relative"] == "in 5m"
