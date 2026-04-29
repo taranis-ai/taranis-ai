@@ -35,7 +35,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from croniter import croniter
+from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from flask import Flask
 from models.admin import CronSpec
 from redis import Redis
@@ -86,16 +86,48 @@ def _format_relative_time(target: datetime | None, reference: datetime) -> str |
     return f"in {label}" if seconds > 0 else f"{label} ago"
 
 
+def _as_naive_utc(value: datetime | None) -> datetime | None:
+    if not value:
+        return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _format_utc_timestamp(value: datetime | None) -> str | None:
+    normalized = _as_naive_utc(value)
+    if not normalized:
+        return None
+    return f"{normalized.strftime('%Y-%m-%d %H:%M:%S')} UTC"
+
+
+def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run_dt: datetime | None) -> bool:
+    schedule = job.get("schedule")
+    if not schedule or last_run_dt is None:
+        return False
+
+    try:
+        next_expected_run = croniter(schedule, last_run_dt).get_next(datetime)
+    except (CroniterBadCronError, CroniterBadDateError):
+        return False
+
+    return now > (next_expected_run + OVERDUE_GRACE_PERIOD)
+
+
 def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     for job in jobs:
-        last_run_dt = job.get("last_run")
-        next_run_dt = job.get("next_run_time")
-        prev_run_dt = job.get("previous_run_time")
+        last_run_dt = _as_naive_utc(job.get("last_run"))
+        next_run_dt = _as_naive_utc(job.get("next_run_time"))
+        prev_run_dt = _as_naive_utc(job.get("previous_run_time"))
 
-        job["last_run_display"] = last_run_dt.strftime("%Y-%m-%d %H:%M:%S") if last_run_dt else None
+        job["last_run"] = last_run_dt
+        job["next_run_time"] = next_run_dt
+        job["previous_run_time"] = prev_run_dt
+
+        job["last_run_display"] = _format_utc_timestamp(last_run_dt)
         job["last_run_relative"] = f"{_format_duration(now - last_run_dt)} ago" if last_run_dt else None
-        job["next_run_display"] = next_run_dt.strftime("%Y-%m-%d %H:%M:%S") if next_run_dt else None
+        job["next_run_display"] = _format_utc_timestamp(next_run_dt)
         job["next_run_relative"] = _format_relative_time(next_run_dt, now)
 
         variant = "ghost"
@@ -108,6 +140,10 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 job["status_badge"] = {"variant": variant, "label": label}
                 job["is_overdue"] = False
                 continue
+            elif _cron_run_missed_since_last_run(job, now, last_run_dt):
+                label = "Missed"
+                variant = "error"
+                is_overdue = True
             elif prev_run_dt and last_run_dt >= prev_run_dt or not prev_run_dt:
                 label = "On schedule"
                 variant = "success"
