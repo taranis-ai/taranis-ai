@@ -158,23 +158,32 @@ class StoryView(BaseView):
         return FilterLists(tags=[], sources=[], groups=[])
 
     @classmethod
+    def default_share_story_link(cls) -> str:
+        return f"mailto:?{urlencode({'subject': 'sharing stories from taranis ai'}, quote_via=quote)}"
+
+    @classmethod
     @auth_required()
     def get_sharing_dialog(cls) -> str:
         story_ids = request.args.getlist("story_ids")
         if not story_ids and (story_id := request.args.get("story_id", "")):
             story_ids = [story_id]
 
-        mail_sharing_link = cls.share_story_link(story_ids)
+        connectors = []
+        mail_sharing_link = cls.default_share_story_link()
         try:
+            mail_sharing_link = cls.share_story_link(story_ids)
             connectors = DataPersistenceLayer().get_objects(Connector)
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Failed to fetch connectors for share dialog: {e}")
-            connectors = []
-        return render_template(
-            "assess/story_sharing_dialog.html", connectors=connectors, story_ids=story_ids, mail_sharing_link=mail_sharing_link
-        )
+        except HTTPException as exc:
+            logger.warning(f"Failed to enrich share dialog: {exc}")
+        except Exception as exc:
+            logger.warning(f"Failed to enrich share dialog: {exc}")
+        finally:
+            return render_template(
+                "assess/story_sharing_dialog.html",
+                connectors=connectors,
+                story_ids=story_ids,
+                mail_sharing_link=mail_sharing_link,
+            )
 
     @classmethod
     @auth_required()
@@ -203,7 +212,18 @@ class StoryView(BaseView):
 
     @classmethod
     def share_story_link(cls, story_ids: list[str]) -> str:
-        stories: list[Story] = [story for story_id in story_ids if (story := DataPersistenceLayer().get_object(Story, story_id)) is not None]
+        stories: list[Story] = []
+        for story_id in story_ids:
+            try:
+                story = DataPersistenceLayer().get_object(Story, story_id)
+            except HTTPException as exc:
+                logger.warning(f"Failed to load story {story_id} for sharing link: {exc}")
+                continue
+            except Exception as exc:
+                logger.warning(f"Failed to load story {story_id} for sharing link: {exc}")
+                continue
+            if story is not None:
+                stories.append(story)
 
         subject = "sharing stories from taranis ai"
         if len(stories) == 1:

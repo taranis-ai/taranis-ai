@@ -255,9 +255,6 @@ class ReportItem(BaseModel):
                 return None, ({"error": "stories must be a list of story ids"}, 400)
             sanitized["stories"] = normalized_stories
 
-        if "report_item_cpes" in data:
-            sanitized["report_item_cpes"] = data["report_item_cpes"]
-
         if raw_id := data.get("id"):
             if isinstance(raw_id, str) and raw_id.strip():
                 sanitized["id"] = raw_id.strip()
@@ -558,9 +555,11 @@ class ReportItem(BaseModel):
 
         report = cls.get(report_id)
         if not report:
+            logger.warning(f"Attempted to delete Report Item {report_id} which does not exist")
             return {"error": "Report not found"}, 404
 
         if ProductReportItem.assigned(report_id):
+            logger.warning(f"Attempted to delete Report Item {report_id} which is still assigned to a Product")
             return {"error": "Report is used in a product"}, 409
 
         affected_stories = list(report.stories)

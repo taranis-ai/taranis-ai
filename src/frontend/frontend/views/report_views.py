@@ -117,6 +117,7 @@ class ReportItemView(BaseView):
                 "class": "btn-error",
                 "method": "delete",
                 "url": url_for(cls.edit_route, report_id=""),
+                "hx_target_error": "#notification-bar",
                 "hx_target": f"#{cls.model_name()}-table-container",
                 "hx_swap": "outerHTML",
                 "type": "button",
@@ -171,16 +172,6 @@ class ReportItemView(BaseView):
         flask_response = make_response(response, 200)
         flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
         return flask_response
-
-    @classmethod
-    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
-        core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
-
-        response = cls.get_notification_from_response(core_response)
-        table, table_response = cls.render_list()
-        if table_response == 200:
-            response += table
-        return response, core_response.status_code or table_response
 
     @staticmethod
     def _parse_form_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
