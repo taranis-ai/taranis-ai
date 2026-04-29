@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -11,35 +10,12 @@ from core.model.product import Product
 from core.model.task import Task as TaskModel
 from core.model.token_blacklist import TokenBlacklist
 from core.model.word_list import WordList
-from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service import cache_invalidation as cache_invalidation_module
 from core.service.misp_story_sync import handle_misp_connector_result
 from core.service.news_item_tag import NewsItemTagService
 
 
 TAGGING_BOTS = {"WORDLIST_BOT", "IOC_BOT", "NLP_BOT", "TAGGING_BOT"}
-
-
-@dataclass(frozen=True, slots=True)
-class TaskCacheTarget:
-    models: tuple[str, ...] = ()
-    scopes: tuple[str, ...] = ()
-    worker_object_model: str | None = None
-
-
-EMPTY_TASK_CACHE_TARGET = TaskCacheTarget()
-
-TASK_CACHE_TARGETS: dict[str, TaskCacheTarget] = {
-    "collector_task": TaskCacheTarget(
-        models=("osint_source",),
-        scopes=("schedule_status",),
-        worker_object_model="osint_source",
-    ),
-    "bot_task": TaskCacheTarget(
-        models=("bot",),
-        scopes=("schedule_status",),
-        worker_object_model="bot",
-    ),
-}
 
 
 class TaskService:
@@ -165,20 +141,4 @@ class TaskService:
 
     @classmethod
     def _invalidate_task_result_cache(cls, submission: TaskSubmission) -> None:
-        full = submission.status == "SUCCESS" and submission.result is not None
-        if full:
-            invalidate_frontend_cache_on_success(200, full=True)
-            return
-
-        task_kind = cls._resolve_task_kind(submission.id, submission.task)
-        cache_target = TASK_CACHE_TARGETS.get(task_kind, EMPTY_TASK_CACHE_TARGET)
-
-        models = ["task", *cache_target.models]
-        scopes = list(cache_target.scopes)
-        object_ids: dict[str, str | int] = {"task": submission.id}
-
-        worker_object_model = cache_target.worker_object_model
-        if worker_object_model is not None and submission.worker_id:
-            object_ids[worker_object_model] = submission.worker_id
-
-        invalidate_frontend_cache_on_success(200, full=full, models=models, scopes=scopes, object_ids=object_ids)
+        cache_invalidation_module.cache_invalidation_service.invalidate_all()

@@ -16,7 +16,8 @@ class DeleteTags(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
         response, status = NewsItemTag.delete_all()
-        invalidate_frontend_cache_on_success(status, full=True)
+        if 200 <= status < 300:
+            cache_invalidation_service.invalidate_all()
         return response, status
 
 
@@ -24,7 +25,8 @@ class DeleteStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
         response, status = Story.delete_all()
-        invalidate_frontend_cache_on_success(status, full=True)
+        if 200 <= status < 300:
+            cache_invalidation_service.invalidate_all()
         return response, status
 
 

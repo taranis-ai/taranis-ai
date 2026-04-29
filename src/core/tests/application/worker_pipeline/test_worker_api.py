@@ -506,14 +506,7 @@ class TestWorkerTaskResults:
 
             assert response.status_code == 200
             assert response.get_json()["status"] == "NOT_MODIFIED"
-            assert set(redis_client.scan_iter(match="*")) == {
-                "taranis_frontend:user:alice:model:active_job:list:default",
-                "taranis_frontend:user:alice:model:failed_job:list:default",
-                "taranis_frontend:user:alice:model:osint_source:detail:other-source",
-                "taranis_frontend:user:alice:model:queue_status:list:default",
-                "taranis_frontend:user:alice:model:story:list:default",
-                "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
-            }
+            assert set(redis_client.scan_iter(match="*")) == set()
         finally:
             with app.app_context():
                 if Task.get(task_id):

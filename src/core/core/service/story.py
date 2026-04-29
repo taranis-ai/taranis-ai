@@ -13,7 +13,7 @@ from core.model.news_item import NewsItem
 from core.model.revision import StoryRevision
 from core.model.story import Story
 from core.model.user import User
-from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import cache_invalidation_service
 
 
 class StoryService:
@@ -178,7 +178,7 @@ class StoryService:
                 story.record_revision(user, note="created")
                 imported_stories.append(story)
             db.session.commit()
-            invalidate_frontend_cache_on_success(200, full=True)
+            cache_invalidation_service.invalidate_all()
         except Exception:
             db.session.rollback()
             logger.exception("Failed to import stories")
@@ -197,7 +197,7 @@ class StoryService:
                 db.session.add(news_item)
                 imported_news_items.append(news_item)
             db.session.commit()
-            invalidate_frontend_cache_on_success(200, full=True)
+            cache_invalidation_service.invalidate_all()
         except Exception:
             db.session.rollback()
             logger.exception("Failed to import news items")
