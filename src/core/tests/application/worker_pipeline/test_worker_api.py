@@ -519,6 +519,44 @@ class TestWorkerTaskResults:
                 if Task.get(task_id):
                     Task.delete(task_id)
 
+    def test_collector_not_modified_updates_last_success_and_task_statistics(self, client, api_header, app):
+        from core.model.task import Task
+
+        source_id = f"source-{uuid.uuid4().hex}"
+        task_id = f"collect_rss_collector_{source_id}"
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "rss_collector",
+            "result": "No changes: feed was not modified",
+            "status": "NOT_MODIFIED",
+        }
+
+        try:
+            response = client.post(self.base_uri.replace("/worker", "/tasks"), json=payload, headers=api_header)
+            assert response.status_code == 200
+
+            with app.app_context():
+                stored = Task.get(task_id)
+                assert stored is not None
+                assert stored.status == "NOT_MODIFIED"
+                assert stored.last_run is not None
+                assert stored.last_success is not None
+
+            history_response = client.get("/api/tasks", headers=api_header)
+            assert history_response.status_code == 200
+
+            history = history_response.get_json()
+            collector_stats = history["task_stats"]["rss_collector"]
+            assert collector_stats["successes"] >= 1
+            assert collector_stats["total"] >= collector_stats["successes"]
+            assert history["totals"]["successes"] >= 1
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
     def test_tasks_get_allows_jwt_auth(self, client, auth_header):
         response = client.get(self.base_uri, headers=auth_header)
         assert response.status_code == 200

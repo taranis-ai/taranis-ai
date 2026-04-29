@@ -12,7 +12,7 @@ def current_job(monkeypatch, mock_job):
     return mock_job
 
 
-def test_collector_task_missing_source_is_skipped(current_job, requests_mock):
+def test_collector_task_missing_source_is_recorded_as_failure(current_job, requests_mock):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-missing",
         status_code=404,
@@ -22,8 +22,8 @@ def test_collector_task_missing_source_is_skipped(current_job, requests_mock):
 
     result = collector_tasks.collector_task("source-missing", manual=False)
 
-    assert result == "Skipped collector task: Source with id source-missing not found"
-    assert current_job.meta["status"] == "SKIPPED"
+    assert result == "Error: Source with id source-missing not found"
+    assert current_job.meta["status"] == "FAILURE"
     assert current_job.meta["message"] == result
 
     put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
@@ -34,7 +34,7 @@ def test_collector_task_missing_source_is_skipped(current_job, requests_mock):
         "worker_id": "source-missing",
         "worker_type": "collector_task",
         "result": result,
-        "status": "SKIPPED",
+        "status": "FAILURE",
     }
 
 

@@ -104,15 +104,15 @@ def collector_task(osint_source_id: str, manual: bool = False):
     try:
         source = collector.get_source(osint_source_id)
     except LookupError as exc:
-        result_message = f"Skipped collector task: {exc}"
-        logger.warning(result_message)
+        result_message = f"Error: {exc}"
+        logger.error(result_message)
         return _finalize_successful_non_run(
             job,
             core_api,
             result_message,
             worker_id=osint_source_id,
             worker_type="collector_task",
-            meta_status="SKIPPED",
+            meta_status="FAILURE",
         )
 
     collector_impl = collector.get_collector(source)
