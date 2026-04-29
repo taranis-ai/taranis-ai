@@ -13,6 +13,54 @@ from models.base import TaranisBaseModel
 from models.types import CONNECTOR_TYPES
 
 
+NEWS_ITEM_IMPORT_FIELDS = frozenset(
+    {
+        "id",
+        "title",
+        "source",
+        "content",
+        "osint_source_id",
+        "review",
+        "author",
+        "link",
+        "language",
+        "hash",
+        "attributes",
+        "last_change",
+        "published",
+        "collected",
+        "story_id",
+    }
+)
+
+STORY_IMPORT_FIELDS = frozenset(
+    {
+        "id",
+        "title",
+        "description",
+        "created",
+        "likes",
+        "dislikes",
+        "relevance",
+        "relevance_override",
+        "read",
+        "important",
+        "summary",
+        "comments",
+        "revision",
+        "attributes",
+        "tags",
+        "news_items",
+        "last_change",
+    }
+)
+
+
+def _dump_core_fields(model: TaranisBaseModel, allowed_fields: frozenset[str]) -> dict[str, Any]:
+    data = model.model_dump(mode="json")
+    return {key: value for key, value in data.items() if key in allowed_fields}
+
+
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -132,7 +180,7 @@ class NewsItem(TaranisBaseModel):
         return cls.normalize_datetime(date, default_to_now=True) or _utcnow()
 
     def to_core_dict(self) -> dict[str, Any]:
-        return self.model_dump(exclude={"updated"})
+        return _dump_core_fields(self, NEWS_ITEM_IMPORT_FIELDS)
 
 
 class StoryTag(TaranisBaseModel):
@@ -176,6 +224,12 @@ class Story(TaranisBaseModel):
     @classmethod
     def sanitize_story_dates(cls, date: str | None | datetime) -> datetime | None:
         return cls.normalize_datetime(date)
+
+    def to_core_dict(self) -> dict[str, Any]:
+        data = _dump_core_fields(self, STORY_IMPORT_FIELDS)
+        if self.news_items is not None:
+            data["news_items"] = [news_item.to_core_dict() if isinstance(news_item, NewsItem) else news_item for news_item in self.news_items]
+        return data
 
 
 class AssessSource(TaranisBaseModel):

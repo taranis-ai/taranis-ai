@@ -202,6 +202,45 @@ def test_publish_schedule_cache_invalidation_notifies_scheduler_views(monkeypatc
     assert cache_invalidation_calls == ["schedule"]
 
 
+def test_get_task_returns_live_rq_status(monkeypatch):
+    class FakeJob:
+        is_finished = False
+        is_failed = False
+
+        @staticmethod
+        def get_status():
+            return "STARTED"
+
+    monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(lambda task_id, connection=None: FakeJob())}))
+
+    qm = _make_queue_manager()
+
+    response, status = qm.get_task("source_preview_123")
+
+    assert status == 202
+    assert response == {"id": "source_preview_123", "status": "STARTED"}
+
+
+def test_get_task_returns_success_payload(monkeypatch):
+    class FakeJob:
+        is_finished = True
+        is_failed = False
+        result = [{"title": "Preview item"}]
+
+        @staticmethod
+        def get_status():
+            return "FINISHED"
+
+    monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(lambda task_id, connection=None: FakeJob())}))
+
+    qm = _make_queue_manager()
+
+    response, status = qm.get_task("source_preview_123")
+
+    assert status == 200
+    assert response == {"id": "source_preview_123", "status": "SUCCESS", "result": [{"title": "Preview item"}]}
+
+
 def test_get_active_jobs_uses_registry(monkeypatch):
     class FakeJob:
         def __init__(self, job_id):

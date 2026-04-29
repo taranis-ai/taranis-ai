@@ -588,11 +588,15 @@ class QueueManager:
 
         try:
             job = Job.fetch(task_id, connection=self._redis)
+            response: dict[str, Any] = {"id": task_id}
             if job.is_finished:
-                return {"result": job.result}, 200
+                response.update({"status": "SUCCESS", "result": job.result})
+                return response, 200
             if job.is_failed:
-                return {"error": str(job.exc_info)}, 500
-            return {"status": job.get_status()}, 202
+                response.update({"status": "FAILURE", "error": str(job.exc_info)})
+                return response, 500
+            response["status"] = "STARTED"
+            return response, 202
         except Exception as e:
             logger.error(f"Failed to get task {task_id}: {e}")
             return {"error": "Task not found"}, 404

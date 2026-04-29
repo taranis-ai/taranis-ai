@@ -178,6 +178,7 @@ def collector_preview(osint_source_id: str):
         Preview data from the collector
     """
     job = get_current_job()
+    core_api = CoreApi()
     collector = Collector()
     source = collector.get_source(osint_source_id)
     collector_impl = collector.get_collector(source)
@@ -193,10 +194,13 @@ def collector_preview(osint_source_id: str):
             preview_result = collector_impl.preview_collector(source)
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
-            return f"'{source.get('name')}': {str(e)}"
+            preview_result = []
         except Exception as e:
             logger.error(f"Collector preview task failed: {task_description}")
             raise RuntimeError(e) from e
+
+    if job:
+        core_api.save_task_result(job.id, "", preview_result, "SUCCESS")
 
     return preview_result
 
