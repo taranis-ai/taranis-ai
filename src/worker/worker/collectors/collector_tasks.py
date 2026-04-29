@@ -222,7 +222,6 @@ def fetch_single_news_item(parameters: dict[str, Any]):
     logger.info(f"Starting collector task: {task_description}")
     core_api = CoreApi()
     result_message = None
-    task_status = "SUCCESS"
     with collector_log_fmt(logger, formatter):
         try:
             preview_result = collector.preview_collector(parameters)
