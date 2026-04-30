@@ -95,7 +95,11 @@ class OSINTSource(BaseModel):
 
     @property
     def status(self):
-        if task_result := TaskModel.get(self.task_id):
+        if task_result := TaskModel.get_latest_matching(
+            exact_ids={self.task_id},
+            prefixes=[self.cron_run_prefix],
+            task_name="collector_task",
+        ):
             return task_result.to_dict()
         return None
 

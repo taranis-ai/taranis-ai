@@ -311,6 +311,47 @@ class TestSourcesConfigApi(BaseTest):
                     if OSINTSource.get(source["id"]):
                         OSINTSource.delete(source["id"])
 
+    def test_get_source_uses_latest_cron_collector_status(self, client, auth_header, app):
+        from core.model.osint_source import OSINTSource
+        from core.model.task import Task
+
+        source_id = f"cron-status-{uuid.uuid4().hex}"
+        source = {
+            "id": source_id,
+            "name": f"Cron Status Source {source_id}",
+            "description": "Cron status source",
+            "parameters": {"FEED_URL": "https://example.invalid/cron-status.xml"},
+            "type": "rss_collector",
+        }
+        cron_task_id = f"cron_osint_source_{source_id}_1777459628"
+        task = {
+            "id": cron_task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "rss_collector",
+            "result": "No changes: feed was not modified",
+            "status": "NOT_MODIFIED",
+        }
+
+        with app.app_context():
+            OSINTSource.add(source)
+            Task.add(task)
+
+        try:
+            response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+            payload = response.get_json()
+
+            assert payload["id"] == source_id
+            assert payload["status"]["status"] == "NOT_MODIFIED"
+            assert payload["status"]["id"] == cron_task_id
+            assert payload["status"]["worker_id"] == source_id
+        finally:
+            with app.app_context():
+                if Task.get(cron_task_id):
+                    Task.delete(cron_task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
+
     def test_delete_source(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]
         response = self.assert_delete_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
@@ -659,6 +700,42 @@ class TestBotConfigApi(BaseTest):
         assert response.json["items"][0]["name"] == cleanup_bot["name"]
         assert response.json["items"][0]["description"] == "Boty McBotFace"
         assert response.json["items"][0]["id"] == bot_id
+
+    def test_get_bot_uses_latest_cron_bot_status(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+        from core.model.task import Task
+
+        bot_id = cleanup_bot["id"]
+        cron_task_id = f"cron_bot_{bot_id}_1777459628"
+        task = {
+            "id": cron_task_id,
+            "task": f"bot_{bot_id}",
+            "worker_id": bot_id,
+            "worker_type": cleanup_bot["type"].upper(),
+            "result": {"message": "Bot completed"},
+            "status": "SUCCESS",
+        }
+
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+            Bot.add(cleanup_bot)
+            Task.add(task)
+
+        try:
+            response = self.assert_get_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
+            payload = response.get_json()
+
+            assert payload["id"] == bot_id
+            assert payload["status"]["status"] == "SUCCESS"
+            assert payload["status"]["id"] == cron_task_id
+            assert payload["status"]["worker_id"] == bot_id
+        finally:
+            with app.app_context():
+                if Task.get(cron_task_id):
+                    Task.delete(cron_task_id)
+                if Bot.get(bot_id):
+                    Bot.delete(bot_id)
 
     def test_delete_bot(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot
