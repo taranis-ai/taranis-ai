@@ -649,7 +649,9 @@ class QueueManager:
 
     def preview_osint_source(self, source_id: str):
         """Preview OSINT source collection"""
-        if job := self.enqueue_task("collectors", "collector_preview", source_id, job_id=f"source_preview_{source_id}"):
+        task_id = f"source_preview_{source_id}"
+        self.purge_job_artifacts(exact_ids={task_id})
+        if job := self.enqueue_task("collectors", "collector_preview", source_id, job_id=task_id):
             logger.info(f"Preview for source {source_id} scheduled")
             return {"message": f"Preview for source {source_id} scheduled", "id": job.id, "status": "STARTED"}, 201
         return {"error": "Could not reach Redis"}, 500

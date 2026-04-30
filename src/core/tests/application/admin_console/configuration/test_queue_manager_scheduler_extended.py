@@ -241,6 +241,27 @@ def test_get_task_returns_success_payload(monkeypatch):
     assert response == {"id": "source_preview_123", "status": "SUCCESS", "result": [{"title": "Preview item"}]}
 
 
+def test_preview_osint_source_purges_existing_preview_artifacts(monkeypatch):
+    purged_calls: list[tuple[set[str], list[str]]] = []
+
+    class FakeJob:
+        id = "source_preview_123"
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(
+        qm,
+        "purge_job_artifacts",
+        lambda *, exact_ids=None, prefixes=None: purged_calls.append((exact_ids or set(), prefixes or [])) or (1, 1),
+    )
+    monkeypatch.setattr(qm, "enqueue_task", lambda *args, **kwargs: FakeJob())
+
+    response, status = qm.preview_osint_source("123")
+
+    assert purged_calls == [({"source_preview_123"}, [])]
+    assert status == 201
+    assert response == {"message": "Preview for source 123 scheduled", "id": "source_preview_123", "status": "STARTED"}
+
+
 def test_get_active_jobs_uses_registry(monkeypatch):
     class FakeJob:
         def __init__(self, job_id):
