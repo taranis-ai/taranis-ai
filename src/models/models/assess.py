@@ -3,7 +3,7 @@ import hashlib
 import re
 from datetime import datetime, timezone
 from typing import Annotated, Any, Literal, Self
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import language_tags
 from bs4 import BeautifulSoup
@@ -164,7 +164,7 @@ class NewsItem(TaranisBaseModel):
     @field_validator("link", mode="before")
     @classmethod
     def sanitize_url(cls, url: str, info: ValidationInfo) -> str:
-        return quote(url or "", safe="/:@?&=+$,;")
+        return quote(unquote(url or ""), safe="/:@?&=+$,;")
 
     @model_validator(mode="after")
     def ensure_hash(self) -> Self:
@@ -219,6 +219,18 @@ class Story(TaranisBaseModel):
     @classmethod
     def normalize_datetime(cls, date: str | datetime | None) -> datetime | None:
         return _normalize_datetime(date)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_story_payload(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        normalized = dict(value)
+        tags = normalized.get("tags")
+        if isinstance(tags, dict):
+            normalized["tags"] = list(tags.values())
+        return normalized
 
     @field_validator("created", "updated", mode="before")
     @classmethod

@@ -592,7 +592,7 @@ class Story(BaseModel):
         data = {
             "title": news_item.title,
             "created": news_item.published,
-            "news_items": [NewsItem.from_payload(news_item)],
+            "news_items": [news_item.to_core_dict()],
             "last_change": "internal" if news_item.osint_source_id == "manual" else "external",
         }
 
