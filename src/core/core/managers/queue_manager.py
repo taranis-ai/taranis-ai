@@ -631,7 +631,9 @@ class QueueManager:
             if job.is_failed:
                 response.update({"status": "FAILURE", "error": str(job.exc_info)})
                 return response, 500
-            response["status"] = "STARTED"
+            rq_status = job.get_status()
+            status_val = rq_status.value if hasattr(rq_status, "value") else str(rq_status)
+            response["status"] = status_val.upper()
             return response, 202
         except Exception as e:
             logger.error(f"Failed to get task {task_id}: {e}")

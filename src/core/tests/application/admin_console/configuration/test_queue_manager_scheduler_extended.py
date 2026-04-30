@@ -221,6 +221,25 @@ def test_get_task_returns_live_rq_status(monkeypatch):
     assert response == {"id": "source_preview_123", "status": "STARTED"}
 
 
+def test_get_task_returns_queued_status(monkeypatch):
+    class FakeQueuedJob:
+        is_finished = False
+        is_failed = False
+
+        @staticmethod
+        def get_status():
+            return "queued"
+
+    monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(lambda task_id, connection=None: FakeQueuedJob())}))
+
+    qm = _make_queue_manager()
+
+    response, status = qm.get_task("source_preview_123")
+
+    assert status == 202
+    assert response == {"id": "source_preview_123", "status": "QUEUED"}
+
+
 def test_get_task_returns_success_payload(monkeypatch):
     class FakeJob:
         is_finished = True

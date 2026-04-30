@@ -55,9 +55,10 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
-        cls._invalidate_task_result_cache(submission)
-        if submission.status == "SUCCESS" and submission.result is not None:
-            cls._handle_success_result(submission)
+        if submission.status != "PREVIEW":
+            cls._invalidate_task_result_cache(submission)
+            if submission.status == "SUCCESS" and submission.result is not None:
+                cls._handle_success_result(submission)
         validated = TaskResponseModel.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), 200
 

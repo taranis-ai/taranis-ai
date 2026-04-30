@@ -780,7 +780,7 @@ class OSINTSourcePreview(MethodView):
         if result := task.Task.get(task_id):
             return result.to_dict(), 200
         preview_result, status = queue_manager.queue_manager.get_task(task_id)
-        if status != 404:
+        if status == 202:
             return preview_result, status
         return queue_manager.queue_manager.preview_osint_source(source_id)
 
