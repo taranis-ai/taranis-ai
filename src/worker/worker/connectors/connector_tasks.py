@@ -7,6 +7,7 @@ import json
 import re
 from typing import Any
 
+from models.task_submission_meta import WorkerTaskPayload
 from rq import get_current_job
 
 from worker.connectors import MispConnector
@@ -14,7 +15,7 @@ from worker.core_api import CoreApi
 from worker.log import logger
 
 
-def connector_task(connector_id: str, story_ids: list[str]) -> dict[str, Any] | None:
+def connector_task(payload: WorkerTaskPayload) -> dict[str, Any] | None:
     """Push stories to an external connector system.
 
     Args:
@@ -28,6 +29,8 @@ def connector_task(connector_id: str, story_ids: list[str]) -> dict[str, Any] | 
         RuntimeError: If connector not found or execution fails
     """
     job = get_current_job()
+    connector_id = payload["worker_id"]
+    story_ids = payload.get("story_ids", "")
     core_api = CoreApi()
 
     logger.info(f"Running connector with id: {connector_id}, job id: {job.id if job else 'manual'}")

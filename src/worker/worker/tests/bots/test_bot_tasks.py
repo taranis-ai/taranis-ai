@@ -1,6 +1,7 @@
 """Tests for bot task execution and result handling."""
 
 import pytest
+from models.task_submission_meta import build_worker_task_payload
 
 import worker.bots
 from worker.bots.bot_tasks import bot_task
@@ -75,7 +76,7 @@ class TestBotTask:
         stub_bots._execute_impl = staticmethod(lambda params: bot_execution_result)
 
         # Execute
-        result = bot_task("bot-456", filter={"story_id": "123"})
+        result = bot_task(build_worker_task_payload("bot_bot-456", "bot-456", "BOT_TASK", {"filter": {"story_id": "123"}}))
 
         # Verify result dict (not message string) is saved
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
@@ -104,7 +105,7 @@ class TestBotTask:
 
         # Execute and expect exception
         with pytest.raises(ValueError, match="Bot with id bot-999 not found"):
-            bot_task("bot-999")
+            bot_task(build_worker_task_payload("bot_bot-999", "bot-999", "BOT_TASK"))
 
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
         assert len(put_calls) == 1
@@ -128,7 +129,7 @@ class TestBotTask:
 
         # Execute and expect exception
         with pytest.raises(RuntimeError, match="Bot execution crashed"):
-            bot_task("bot-456")
+            bot_task(build_worker_task_payload("bot_bot-456", "bot-456", "BOT_TASK"))
 
         # Verify error is wrapped in dict
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
@@ -148,7 +149,7 @@ class TestBotTask:
         stub_bots._execute_impl = staticmethod(lambda params: {"result": "success"})
 
         # Execute
-        bot_task("bot-789")
+        bot_task(build_worker_task_payload("bot_bot-789", "bot-789", "BOT_TASK"))
 
         # Verify fallback ID is used
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]

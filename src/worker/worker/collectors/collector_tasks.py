@@ -6,6 +6,7 @@ Functions for collecting news from OSINT sources.
 from contextlib import contextmanager
 from typing import Any
 
+from models.task_submission_meta import WorkerTaskPayload
 from rq import get_current_job
 
 import worker.collectors
@@ -83,7 +84,7 @@ def _persist_and_return_result(
     return result_message
 
 
-def collector_task(osint_source_id: str, manual: bool = False):
+def collector_task(payload: WorkerTaskPayload):
     """Collect news from an OSINT source.
 
     Args:
@@ -98,6 +99,8 @@ def collector_task(osint_source_id: str, manual: bool = False):
         RuntimeError: If collection fails
     """
     job = get_current_job()
+    osint_source_id = payload["worker_id"]
+    manual = bool(payload.get("manual", False))
     core_api = CoreApi()
     collector = Collector()
 
@@ -177,7 +180,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
     return result_message
 
 
-def collector_preview(osint_source_id: str):
+def collector_preview(payload: WorkerTaskPayload):
     """Preview collection from an OSINT source without saving.
 
     Args:
@@ -187,6 +190,7 @@ def collector_preview(osint_source_id: str):
         Preview data from the collector
     """
     job = get_current_job()
+    osint_source_id = payload["worker_id"]
     collector = Collector()
     source = collector.get_source(osint_source_id)
     collector_impl = collector.get_collector(source)
@@ -210,13 +214,12 @@ def collector_preview(osint_source_id: str):
     return preview_result
 
 
-def fetch_single_news_item(parameters: dict[str, Any]):
+def fetch_single_news_item(payload: WorkerTaskPayload):
     job = get_current_job()
     collector = worker.collectors.SimpleWebCollector()
-    worker_type = "simple_web_collector"
-    collector_parameters = parameters["parameters"]
-    web_url = collector_parameters.get("WEB_URL")
-    worker_id = str(web_url or (job.id if job else "preview"))
+    worker_type = payload["worker_type"]
+    parameters = {key: value for key, value in payload.items() if key not in {"task", "worker_id", "worker_type"}}
+    worker_id = payload["worker_id"]
     formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {job.id if job else 'preview'}")
     task_description = f"Fetching news item with {parameters=} and {job.id if job else 'preview'}"
     logger.info(f"Starting collector task: {task_description}")

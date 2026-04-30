@@ -4,6 +4,7 @@ Functions for publishing products to external systems.
 """
 
 from models.product import WorkerProduct as Product
+from models.task_submission_meta import WorkerTaskPayload
 from rq import get_current_job
 
 import worker.publishers
@@ -12,7 +13,7 @@ from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
 
 
-def publisher_task(product_id: str, publisher_id: str):
+def publisher_task(payload: WorkerTaskPayload):
     """Publish a product to an external system.
 
     Args:
@@ -27,6 +28,8 @@ def publisher_task(product_id: str, publisher_id: str):
         RuntimeError: If product or publisher lookup fails
     """
     job = get_current_job()
+    publisher_id = payload["worker_id"]
+    product_id = str(payload["product_id"])
     core_api = CoreApi()
     task_name = "publisher_task"
     task_id = job.id if job else f"{task_name}_{publisher_id}_{product_id}"

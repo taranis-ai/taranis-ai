@@ -1,4 +1,5 @@
 import pytest
+from models.task_submission_meta import build_worker_task_payload
 
 from worker.collectors import collector_tasks
 from worker.config import Config
@@ -20,7 +21,7 @@ def test_collector_task_missing_source_is_recorded_as_failure(current_job, reque
     )
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
-    result = collector_tasks.collector_task("source-missing", manual=False)
+    result = collector_tasks.collector_task(build_worker_task_payload("collector_task", "source-missing", fields={"manual": False}))
 
     assert result == "Error: Source with id source-missing not found"
     assert current_job.meta["status"] == "FAILURE"
@@ -51,7 +52,7 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
     monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
-    result = collector_tasks.collector_task("source-1", manual=False)
+    result = collector_tasks.collector_task(build_worker_task_payload("collector_task", "source-1", fields={"manual": False}))
 
     assert result == "No changes: feed was not modified"
     assert current_job.meta["status"] == "NOT_MODIFIED"
@@ -82,7 +83,16 @@ def test_fetch_single_news_item_accepts_simple_web_source_payload(current_job, m
     monkeypatch.setattr(collector_tasks.worker.collectors, "SimpleWebCollector", FakeSimpleWebCollector)
 
     result = collector_tasks.fetch_single_news_item(
-        {"id": "manual", "type": "simple_web_collector", "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"}}
+        build_worker_task_payload(
+            "fetch_single_news_item",
+            "https://example.com/story",
+            "simple_web_collector",
+            {
+                "id": "manual",
+                "type": "simple_web_collector",
+                "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
+            },
+        )
     )
 
     assert result == [{"title": "Fetched item", "content": "Fetched content", "osint_source_id": "manual"}]

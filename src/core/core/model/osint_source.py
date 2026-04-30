@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from models.admin import CronSpec, OSINTSourceUpdateModel
 from models.admin import OSINTSource as OSINTSourceModel
+from models.task_submission_meta import build_worker_task_payload
 from models.types import COLLECTOR_TYPES
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import String, and_, cast, func, literal
@@ -460,7 +461,7 @@ class OSINTSource(BaseModel):
             job_id=self.cron_job_id,
             cron=self.get_schedule_with_default(),
             func_path="collector_task",
-            args=[self.id, False],
+            args=[build_worker_task_payload("collector_task", self.id, fields={"manual": False})],
             queue_name="collectors",
         )
 

@@ -55,6 +55,18 @@ class FakeQueue:
         )
         return object()
 
+    def enqueue_call(self, task=None, args=None, kwargs=None, job_id=None, func=None, **job_options):
+        task = func or task
+        type(self).enqueued_calls.append(
+            {
+                "task": task,
+                "args": tuple(args or ()),
+                "job_id": job_id,
+                "kwargs": {**job_options, "kwargs": dict(kwargs or {})},
+            }
+        )
+        return object()
+
 
 @pytest.fixture(scope="session")
 def redis_config():

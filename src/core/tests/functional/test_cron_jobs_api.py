@@ -37,8 +37,10 @@ class TestCronJobsAPI:
         for job in collector_jobs:
             assert job["queue"] == "collectors"
             assert isinstance(job["args"], list)
-            assert len(job["args"]) == 2  # [source_id, False]
-            assert job["args"][1] is False  # manual=False
+            assert len(job["args"]) == 1
+            assert job["args"][0]["task"] == "collector_task"
+            assert job["args"][0]["worker_type"] == "collector_task"
+            assert job["args"][0]["manual"] is False
             assert job["cron"]  # Should have a cron schedule
             assert job["task_id"].startswith("collect_")
 
@@ -57,7 +59,8 @@ class TestCronJobsAPI:
         for job in bot_jobs:
             assert job["queue"] == "bots"
             assert isinstance(job["args"], list)
-            assert len(job["args"]) == 1  # [bot_id]
+            assert len(job["args"]) == 1
+            assert job["args"][0]["task"].startswith("bot_")
             assert job["cron"]  # Should have a cron schedule
             assert job["task_id"].startswith("bot_")
 
@@ -74,7 +77,13 @@ class TestCronJobsAPI:
 
         cleanup_job = housekeeping_jobs[0]
         assert cleanup_job["queue"] == "misc"
-        assert cleanup_job["args"] == []
+        assert cleanup_job["args"] == [
+            {
+                "task": "cleanup_token_blacklist",
+                "worker_id": "cleanup_token_blacklist",
+                "worker_type": "cleanup_token_blacklist",
+            }
+        ]
         assert cleanup_job["cron"] == "0 2 * * *"
         assert cleanup_job["task_id"] == "cleanup_token_blacklist"
         assert cleanup_job["name"] == "Cleanup Token Blacklist"
@@ -102,7 +111,7 @@ class TestCronJobsAPI:
         disabled_id = disabled_bot.id
 
         # Verify no job exists for the disabled bot
-        bot_jobs = [job for job in data["cron_jobs"] if job["task"] == "bot_task" and disabled_id in job["args"]]
+        bot_jobs = [job for job in data["cron_jobs"] if job["task"] == "bot_task" and disabled_id in str(job["args"])]
         assert len(bot_jobs) == 0
 
     def test_get_cron_jobs_includes_sources_with_default_schedule(self, client, auth_header, osint_source_no_schedule):

@@ -9,16 +9,16 @@ import pytest
 class TestWorkerApi:
     base_uri = "/api/worker"
 
-    def test_worker_task_results_persists_empty_dict(self, client, api_header, app):
+    def test_worker_task_results_persists_empty_dict(self, client, api_header, app, cleanup_product):
         from core.model.task import Task
 
         task_id = f"presenter-task-{uuid.uuid4().hex}"
-        product_id = f"product-{uuid.uuid4().hex}"
+        presenter_id = str(cleanup_product["product_type_id"])
 
         payload = {
             "id": task_id,
             "task": "presenter_task",
-            "worker_id": product_id,
+            "worker_id": presenter_id,
             "worker_type": "html_presenter",
             "result": {},
             "status": "SUCCESS",
@@ -29,7 +29,7 @@ class TestWorkerApi:
 
             assert response.status_code == 200
             assert response.get_json()["task"] == "presenter_task"
-            assert response.get_json()["worker_id"] == product_id
+            assert response.get_json()["worker_id"] == presenter_id
             assert response.get_json()["worker_type"] == "html_presenter"
             assert response.get_json()["result"] == {}
 
@@ -37,7 +37,7 @@ class TestWorkerApi:
                 stored = Task.get(task_id)
                 assert stored is not None
                 assert stored.to_dict()["result"] == {}
-                assert stored.to_dict()["worker_id"] == product_id
+                assert stored.to_dict()["worker_id"] == presenter_id
                 assert stored.to_dict()["worker_type"] == "html_presenter"
                 assert stored.task == "presenter_task"
         finally:
@@ -627,6 +627,59 @@ class TestWorkerTaskResults:
             with app.app_context():
                 if Task.get(task_id):
                     Task.delete(task_id)
+
+    def test_synthetic_cron_collector_failure_updates_source_status_last_run(self, client, api_header, app):
+        from core.model.osint_source import OSINTSource
+        from core.model.task import Task
+
+        source_id = f"cron-failure-{uuid.uuid4().hex}"
+        cron_task_id = f"cron_osint_source_{source_id}_1777459628"
+        source = {
+            "id": source_id,
+            "name": f"Cron Failure Source {source_id}",
+            "description": "Cron failure source",
+            "parameters": {"FEED_URL": "https://example.invalid/cron-failure.xml"},
+            "type": "rss_collector",
+        }
+        payload = {
+            "id": cron_task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "collector_task",
+            "result": {
+                "reason": "work_horse_killed",
+                "retpid": 456,
+                "ret_val": 9,
+            },
+            "status": "FAILURE",
+        }
+
+        with app.app_context():
+            OSINTSource.add(source)
+
+        try:
+            response = client.post(self.base_uri.replace("/worker", "/tasks"), json=payload, headers=api_header)
+            assert response.status_code == 200
+
+            with app.app_context():
+                stored = Task.get(cron_task_id)
+                assert stored is not None
+                assert stored.status == "FAILURE"
+                assert stored.last_run is not None
+                assert stored.last_success is None
+
+                refreshed_source = OSINTSource.get(source_id)
+                assert refreshed_source is not None
+                assert refreshed_source.status is not None
+                assert refreshed_source.status["id"] == cron_task_id
+                assert refreshed_source.status["status"] == "FAILURE"
+                assert refreshed_source.status["last_run"] is not None
+        finally:
+            with app.app_context():
+                if Task.get(cron_task_id):
+                    Task.delete(cron_task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
 
     def test_tasks_get_allows_jwt_auth(self, client, auth_header):
         response = client.get(self.base_uri, headers=auth_header)

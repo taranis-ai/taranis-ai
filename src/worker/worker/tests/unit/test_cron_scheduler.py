@@ -3,6 +3,7 @@ import json
 import fakeredis
 import pytest
 from models.task import CronTaskSpec
+from models.task_submission_meta import build_worker_task_payload
 from pydantic import ValidationError
 
 import worker.cron_scheduler as cron_scheduler
@@ -107,7 +108,7 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
             "queue_name": "collectors",
             "func_path": "collector_task",
             "cron": "*/5 * * * *",
-            "args": ["source-1", False],
+            "args": [build_worker_task_payload("collector_task", "source-1", fields={"manual": False})],
             "meta": {"name": "Collector: Source 1"},
         },
         now_ts=1000.0,
@@ -117,9 +118,19 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
     assert fake_queue.enqueued_calls == [
         {
             "task": "worker.collectors.collector_tasks.collector_task",
-            "args": ("source-1", False),
+            "args": (build_worker_task_payload("collector_task", "source-1", fields={"manual": False}),),
             "job_id": "cron_osint_source_source-1_1000",
-            "kwargs": {"meta": {"name": "Collector: Source 1"}},
+            "kwargs": {
+                "kwargs": {},
+                "meta": {
+                    "name": "Collector: Source 1",
+                    "task_submission": {
+                        "task": "collector_task",
+                        "worker_id": "source-1",
+                        "worker_type": "collector_task",
+                    },
+                },
+            },
         }
     ]
     assert redis_conn.zscore(NEXT_KEY, "osint_source_source-1") is not None

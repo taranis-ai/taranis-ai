@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any, Sequence
 
 from models.admin import CronSpec
+from models.task_submission_meta import build_worker_task_payload
 from models.types import BOT_TYPES
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
@@ -166,7 +167,7 @@ class Bot(BaseModel):
             job_id=self.cron_job_id,
             cron=self.get_schedule(),
             func_path="bot_task",
-            args=[self.id],
+            args=[build_worker_task_payload(f"bot_{self.id}", self.id, "BOT_TASK")],
             queue_name="bots",
         )
 

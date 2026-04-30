@@ -6,6 +6,7 @@ Miscellaneous worker tasks including cleanup and wordlist updates.
 from datetime import datetime, timezone
 
 from croniter import croniter
+from models.task_submission_meta import WorkerTaskPayload
 from rq import get_current_job
 
 from worker.core_api import CoreApi
@@ -13,7 +14,10 @@ from worker.log import logger
 from worker.misc.wordlist_update import update_wordlist
 
 
-def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
+TOKEN_CLEANUP_TASK_ID = "cleanup_token_blacklist"
+
+
+def cleanup_token_blacklist(payload: WorkerTaskPayload | None = None):
     """Clean up expired tokens from the blacklist.
 
     When executed by the RQ cron scheduler this task reports completion to
@@ -28,6 +32,7 @@ def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
         str: Status message describing the action.
     """
     logger.info("Running token blacklist cleanup")
+    reschedule = bool(payload and payload.get("reschedule", False))
 
     if reschedule:
         _reschedule_cleanup()
@@ -42,8 +47,8 @@ def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
             "cleanup_token_blacklist",
             message,
             "SUCCESS",
-            worker_id=job.id,
-            worker_type="cleanup_token_blacklist",
+            worker_id=payload["worker_id"] if payload else TOKEN_CLEANUP_TASK_ID,
+            worker_type=payload["worker_type"] if payload else TOKEN_CLEANUP_TASK_ID,
         )
 
     return message
@@ -83,7 +88,7 @@ def _reschedule_cleanup():
         logger.error(f"Failed to reschedule token cleanup: {e}")
 
 
-def gather_word_list(word_list_id: int):
+def gather_word_list(payload: WorkerTaskPayload):
     """Gather and update a word list.
 
     Args:
@@ -92,5 +97,6 @@ def gather_word_list(word_list_id: int):
     Returns:
         Result from wordlist update
     """
+    word_list_id = int(payload.get("word_list_id", payload["worker_id"]))
     logger.info(f"Gathering word list {word_list_id}")
     return update_wordlist(word_list_id)

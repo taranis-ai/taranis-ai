@@ -8,6 +8,7 @@ from typing import Any, TypeVar, cast
 
 from croniter import croniter
 from models.task import CronTaskSpec
+from models.task_submission_meta import build_task_submission_meta, is_worker_task_payload
 from pydantic import ValidationError
 from redis import Redis
 from rq import Queue
@@ -115,24 +116,28 @@ def _enqueue_due_job(
 ) -> str:
     queue_name = spec["queue_name"]
     queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
-    task = TASK_FUNCTION_MAP.get(spec["func_path"], spec["func_path"])
+    func_path = str(spec["func_path"])
+    task = TASK_FUNCTION_MAP[func_path] if func_path in TASK_FUNCTION_MAP else func_path
     job_options = dict(spec.get("job_options") or {})
     kwargs = dict(spec.get("kwargs") or {})
+    args = list(spec.get("args", []))
+    meta = dict(spec.get("meta") or {})
 
-    # Preserve scheduler dashboard labels where available.
-    if spec.get("meta") and "meta" not in job_options:
-        job_options["meta"] = spec["meta"]
-
+    if job_meta := job_options.get("meta"):
+        # Preserve scheduler dashboard labels where available.
+        meta.update(dict(job_meta))
+    if args and is_worker_task_payload(args[0]):
+        meta["task_submission"] = build_task_submission_meta(args[0])
     # Deterministic enough for queue dedupe while still carrying the logical cron job id.
     due_slot = int(now_ts)
     rq_job_id = f"cron_{job_id}_{due_slot}"
 
-    queue.enqueue(
-        task,
-        *spec.get("args", []),
+    queue.enqueue_call(
+        func=task,
+        args=args,
+        kwargs=kwargs,
         job_id=rq_job_id,
-        **kwargs,
-        **job_options,
+        meta=meta or None,
     )
 
     next_ts = compute_next(spec, now_ts)

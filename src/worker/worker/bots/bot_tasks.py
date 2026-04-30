@@ -3,6 +3,7 @@
 Functions for executing bots to process news items.
 """
 
+from models.task_submission_meta import WorkerTaskPayload
 from rq import get_current_job
 
 import worker.bots
@@ -10,7 +11,7 @@ from worker.core_api import CoreApi
 from worker.log import logger
 
 
-def bot_task(bot_id: str, filter: dict | None = None):
+def bot_task(payload: WorkerTaskPayload):
     """Execute a bot to process news items.
 
     Args:
@@ -24,8 +25,10 @@ def bot_task(bot_id: str, filter: dict | None = None):
         ValueError: If bot not found or misconfigured
     """
     job = get_current_job()
+    bot_id = payload["worker_id"]
+    filter = payload.get("filter")
     core_api = CoreApi()
-    task_name = f"bot_{bot_id}"
+    task_name = payload["task"]
     task_id = job.id if job else task_name
     worker_type = "BOT_TASK"
 
