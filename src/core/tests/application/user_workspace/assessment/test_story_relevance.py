@@ -197,3 +197,32 @@ def test_partial_ungroup_keeps_original_feedback_and_new_story_starts_clean(
     assert new_story.important is False
     assert new_story.relevance_override == 0
     assert new_story.relevance_feedback == 0
+
+
+@pytest.mark.usefixtures("app")
+def test_partial_ungroup_replaces_story_title_when_primary_news_item_is_removed(
+    session, story_relevance_news_item_payload_factory, story_relevance_story_payload_factory
+):
+    source = create_osint_source(rank=4)
+    primary_title = "Primary grouped item"
+    fallback_title = "Secondary grouped item"
+    story = create_story(
+        story_relevance_story_payload_factory(
+            [
+                story_relevance_news_item_payload_factory(source.id, title=primary_title),
+                story_relevance_news_item_payload_factory(source.id, title=fallback_title),
+            ],
+            title=primary_title,
+        )
+    )
+
+    admin = User.find_by_name("admin")
+    assert admin is not None
+
+    primary_news_item_id = story.news_items[0].id
+    response, status = Story.ungroup_news_items_from_story([primary_news_item_id], user=admin)
+    assert status == 200, response
+
+    updated_story = Story.get(story.id)
+    assert updated_story is not None
+    assert updated_story.title == fallback_title
