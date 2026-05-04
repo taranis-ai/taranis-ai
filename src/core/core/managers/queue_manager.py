@@ -626,10 +626,10 @@ class QueueManager:
             job = Job.fetch(task_id, connection=self._redis)
             response: dict[str, Any] = {"id": task_id}
             if job.is_finished:
-                response.update({"status": "SUCCESS", "result": job.result})
+                response |= {"status": "SUCCESS", "result": job.result}
                 return response, 200
             if job.is_failed:
-                response.update({"status": "FAILURE", "error": str(job.exc_info)})
+                response |= {"status": "FAILURE", "error": str(job.exc_info)}
                 return response, 500
             rq_status = job.get_status()
             status_val = rq_status.value if hasattr(rq_status, "value") else str(rq_status)
@@ -637,7 +637,7 @@ class QueueManager:
             return response, 202
         except Exception as e:
             logger.error(f"Failed to get task {task_id}: {e}")
-            return {"error": "Task not found"}, 404
+            return {"id": task_id, "status": "NOT_FOUND", "error": "Task not found"}, 404
 
     def collect_osint_source(self, source_id: str, task_id: str):
         """Trigger OSINT source collection"""
