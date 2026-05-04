@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import case, func, or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
@@ -115,49 +115,91 @@ class Task(BaseModel):
         cls,
         include_timestamps: bool = False,
     ) -> dict[str, dict[str, Any]]:
-        """Return per-task execution stats grouped by worker type."""
+        """Return per-task execution stats grouped by worker type.
+
+        Counts are based on the latest persisted result per worker identity so repeated
+        runs of the same bot or OSINT source do not inflate the totals.
+        """
 
         task_label = func.coalesce(cls.worker_type, cls.task)
+        worker_key = func.coalesce(cls.worker_id, cls.id)
         group_filter = or_(cls.worker_type.is_not(None), cls.task.is_not(None))
 
-        columns = [
-            task_label.label("task_type"),
-            func.count(case((cls.status.in_(cls.FAILURE_STATUSES), 1))).label("failures"),
-            func.count(case((cls.status.in_(cls.SUCCESS_STATUSES), 1))).label("successes"),
-        ]
-
-        columns.append(func.max(cls.worker_type).label("worker_type"))
-        columns.append(func.max(cls.worker_id).label("worker_id"))
-
-        if include_timestamps:
-            columns.append(func.max(cls.last_run).label("last_run"))
-            columns.append(func.max(cls.last_success).label("last_success"))
-
-        stmt = db.select(*columns).where(group_filter).group_by(task_label)
+        stmt = (
+            db.select(
+                task_label.label("task_type"),
+                worker_key.label("worker_key"),
+                cls.status.label("status"),
+                cls.worker_type.label("worker_type"),
+                cls.worker_id.label("worker_id"),
+                cls.last_run.label("last_run"),
+                cls.last_success.label("last_success"),
+            )
+            .where(group_filter)
+            .order_by(
+                task_label,
+                worker_key,
+                cls.last_run.desc(),
+                cls.last_success.desc(),
+                cls.id.desc(),
+            )
+        )
 
         results = db.session.execute(stmt).all()
 
         data: dict[str, dict[str, Any]] = {}
+        seen_workers: dict[str, set[str]] = {}
+
         for row in results:
-            failures = row.failures or 0
-            successes = row.successes or 0
-            total = failures + successes
-            success_pct = int((successes * 100) / total) if total else 0
-            entry: dict[str, Any] = {
-                "failures": failures,
-                "successes": successes,
-                "success_pct": success_pct,
-                "total": total,
-            }
+            task_type = row.task_type
+            worker_key_value = row.worker_key
+            if task_type not in data:
+                entry: dict[str, Any] = {
+                    "failures": 0,
+                    "successes": 0,
+                    "success_pct": 0,
+                    "total": 0,
+                    "worker_type": row.worker_type or task_type,
+                    "worker_id": row.worker_id,
+                }
+                if include_timestamps:
+                    entry["last_run"] = row.last_run
+                    entry["last_success"] = row.last_success
+                data[task_type] = entry
+                seen_workers[task_type] = set()
 
-            entry["worker_type"] = row.worker_type or row.task_type
-            entry["worker_id"] = row.worker_id
-
+            entry = data[task_type]
             if include_timestamps:
-                entry["last_run"] = row.last_run
-                entry["last_success"] = row.last_success
+                current_last_run = entry.get("last_run")
+                if row.last_run and (current_last_run is None or row.last_run > current_last_run):
+                    entry["last_run"] = row.last_run
 
-            data[row.task_type] = entry
+                current_last_success = entry.get("last_success")
+                if row.last_success and (current_last_success is None or row.last_success > current_last_success):
+                    entry["last_success"] = row.last_success
+
+            if worker_key_value in seen_workers[task_type]:
+                continue
+
+            seen_workers[task_type].add(worker_key_value)
+            if len(seen_workers[task_type]) == 1:
+                entry["worker_id"] = row.worker_id
+            elif entry.get("worker_id") != row.worker_id:
+                entry["worker_id"] = None
+
+            if row.status in cls.FAILURE_STATUSES:
+                entry["failures"] += 1
+            elif row.status in cls.SUCCESS_STATUSES:
+                entry["successes"] += 1
+
+        for entry in data.values():
+            failures = int(entry.get("failures") or 0)
+            successes = int(entry.get("successes") or 0)
+            total = failures + successes
+            entry["failures"] = failures
+            entry["successes"] = successes
+            entry["total"] = total
+            entry["success_pct"] = int((successes * 100) / total) if total else 0
         return data
 
     @staticmethod
