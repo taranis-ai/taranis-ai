@@ -771,10 +771,17 @@ class OSINTSourceCollect(MethodView):
 class OSINTSourcePreview(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def get(self, source_id: str):
+        return self.get_osint_source_preview_response(source_id)
+
+    @classmethod
+    def get_osint_source_preview_response(cls, source_id: str):
         task_id = f"source_preview_{source_id}"
 
         if result := task.Task.get(task_id):
             return result.to_dict(), 200
+        preview_result, status = queue_manager.queue_manager.get_task(task_id)
+        if status == 202:
+            return preview_result, status
         return queue_manager.queue_manager.preview_osint_source(source_id)
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")

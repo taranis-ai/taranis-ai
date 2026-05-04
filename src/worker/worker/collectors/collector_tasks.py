@@ -202,10 +202,15 @@ def collector_preview(osint_source_id: str):
             preview_result = collector_impl.preview_collector(source)
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
-            return f"'{source.get('name')}': {str(e)}"
+            preview_result = []
         except Exception as e:
             logger.error(f"Collector preview task failed: {task_description}")
+            if job:
+                collector.core_api.save_task_result(job.id, "collector_preview", str(e), "FAILURE")
             raise RuntimeError(e) from e
+
+    if job:
+        collector.core_api.save_task_result(job.id, "collector_preview", preview_result, "PREVIEW")
 
     return preview_result
 

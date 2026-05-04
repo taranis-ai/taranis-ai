@@ -101,6 +101,10 @@ class Story(BaseModel):
             self.tags = NewsItemTag.load_multiple(tags)
         self.recompute_relevance(in_reports_count=0)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Story":
+        return cls(**StoryPayload.model_validate(data).to_core_dict())
+
     def get_creation_date(self, created: datetime | str | None):
         payload = StoryPayload.model_validate({"created": created})
         return payload.created or self.utcnow()
@@ -588,7 +592,7 @@ class Story(BaseModel):
         data = {
             "title": news_item.title,
             "created": news_item.published,
-            "news_items": [NewsItem.from_payload(news_item)],
+            "news_items": [news_item.to_core_dict()],
             "last_change": "internal" if news_item.osint_source_id == "manual" else "external",
         }
 

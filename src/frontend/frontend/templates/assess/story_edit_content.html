@@ -54,12 +54,12 @@
       </div>
       <div class="flex flex-col gap-3">
         <div class="flex justify-end gap-2">
-          <button type="submit" form="story-edit-form" class="btn btn-sm btn-primary w-42" {% if has_rt_id %}disabled{% endif %}>
-            {{ heroicon_mini("check") }}
+          <button type="submit" form="story-edit-form" class="btn btn-sm btn-primary w-38" {% if has_rt_id %}disabled{% endif %}>
+            {{ heroicon_mini("check", class="h-4 w-4") }}
             <span>Save changes</span>
           </button>
-          <a href="{{ url_for('assess.story', story_id=story.id) }}" class="btn btn-sm btn-outline w-42">
-            {{ heroicon_mini("arrow-uturn-left") }}
+          <a href="{{ url_for('assess.story', story_id=story.id) }}" class="btn btn-sm btn-outline w-38">
+            {{ heroicon_mini("arrow-uturn-left", class="h-4 w-4") }}
             <span>Return to story</span>
           </a>
           <button type="button"
@@ -77,8 +77,8 @@
             </span>
           </button>
           <div class="join">
-            <a href="?layout=advanced" class="btn btn-sm join-item btn-outline {% if layout == 'advanced' %}btn-info btn-active{% endif %}">Advanced view</a>
-            <a href="?layout=simple" class="btn btn-sm join-item btn-outline {% if layout == 'simple' %}btn-info btn-active{% endif %}">Simple view</a>
+            <a href="?layout=advanced" class="btn btn-sm join-item btn-outline {% if layout == 'advanced' %}btn-info btn-active{% endif %}">Advanced</a>
+            <a href="?layout=simple" class="btn btn-sm join-item btn-outline {% if layout == 'simple' %}btn-info btn-active{% endif %}">Simple</a>
           </div>
           {{ story_edit_actions(story) }}
         </div>

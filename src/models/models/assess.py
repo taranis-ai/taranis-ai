@@ -3,7 +3,7 @@ import hashlib
 import re
 from datetime import datetime, timezone
 from typing import Annotated, Any, Literal, Self
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import language_tags
 from bs4 import BeautifulSoup
@@ -11,6 +11,54 @@ from pydantic import BeforeValidator, ConfigDict, Field, ValidationInfo, field_v
 
 from models.base import TaranisBaseModel
 from models.types import CONNECTOR_TYPES
+
+
+NEWS_ITEM_IMPORT_FIELDS = frozenset(
+    {
+        "id",
+        "title",
+        "source",
+        "content",
+        "osint_source_id",
+        "review",
+        "author",
+        "link",
+        "language",
+        "hash",
+        "attributes",
+        "last_change",
+        "published",
+        "collected",
+        "story_id",
+    }
+)
+
+STORY_IMPORT_FIELDS = frozenset(
+    {
+        "id",
+        "title",
+        "description",
+        "created",
+        "likes",
+        "dislikes",
+        "relevance",
+        "relevance_override",
+        "read",
+        "important",
+        "summary",
+        "comments",
+        "revision",
+        "attributes",
+        "tags",
+        "news_items",
+        "last_change",
+    }
+)
+
+
+def _dump_core_fields(model: TaranisBaseModel, allowed_fields: frozenset[str]) -> dict[str, Any]:
+    data = model.model_dump(mode="json")
+    return {key: value for key, value in data.items() if key in allowed_fields}
 
 
 def _utcnow() -> datetime:
@@ -116,7 +164,7 @@ class NewsItem(TaranisBaseModel):
     @field_validator("link", mode="before")
     @classmethod
     def sanitize_url(cls, url: str, info: ValidationInfo) -> str:
-        return quote(url or "", safe="/:@?&=+$,;")
+        return quote(unquote(url or ""), safe="/:@?&=+$,;")
 
     @model_validator(mode="after")
     def ensure_hash(self) -> Self:
@@ -132,7 +180,7 @@ class NewsItem(TaranisBaseModel):
         return cls.normalize_datetime(date, default_to_now=True) or _utcnow()
 
     def to_core_dict(self) -> dict[str, Any]:
-        return self.model_dump(exclude={"updated"})
+        return _dump_core_fields(self, NEWS_ITEM_IMPORT_FIELDS)
 
 
 class StoryTag(TaranisBaseModel):
@@ -172,10 +220,28 @@ class Story(TaranisBaseModel):
     def normalize_datetime(cls, date: str | datetime | None) -> datetime | None:
         return _normalize_datetime(date)
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_story_payload(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        normalized = dict(value)
+        tags = normalized.get("tags")
+        if isinstance(tags, dict):
+            normalized["tags"] = list(tags.values())
+        return normalized
+
     @field_validator("created", "updated", mode="before")
     @classmethod
     def sanitize_story_dates(cls, date: str | None | datetime) -> datetime | None:
         return cls.normalize_datetime(date)
+
+    def to_core_dict(self) -> dict[str, Any]:
+        data = _dump_core_fields(self, STORY_IMPORT_FIELDS)
+        if self.news_items is not None:
+            data["news_items"] = [news_item.to_core_dict() if isinstance(news_item, NewsItem) else news_item for news_item in self.news_items]
+        return data
 
 
 class AssessSource(TaranisBaseModel):

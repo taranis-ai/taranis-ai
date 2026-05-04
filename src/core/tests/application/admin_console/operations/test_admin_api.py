@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from tests.application.support.api_test_base import BaseTest
@@ -111,6 +112,40 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     # Attribute we set should be present
     # attrs = {a.get("key"): a.get("value") for a in data[0].get("attributes", [])}
     # assert attrs.get("status") == "updated"
+
+
+def test_import_stories_ignores_export_only_fields(client, auth_header):
+    story_id = str(uuid.uuid4())
+    news_item_id = str(uuid.uuid4())
+    payload = [
+        {
+            "id": story_id,
+            "title": "Imported Story",
+            "relevance_override": 7,
+            "links": ["https://example.com/story/export-only"],
+            "news_items": [
+                {
+                    "id": news_item_id,
+                    "title": "Imported Story News 1",
+                    "content": "content",
+                    "source": "https://example.com/source",
+                    "link": "https://example.com/news",
+                    "osint_source_id": "manual",
+                    "links": ["https://example.com/news/export-only"],
+                }
+            ],
+        }
+    ]
+
+    response = client.post("/api/assess/import", json=payload, headers=auth_header)
+
+    assert response.status_code == 200
+    imported_story = response.get_json()["imported_stories"][0]
+    assert imported_story["id"] == story_id
+    assert imported_story["relevance_override"] == 7
+    assert imported_story["links"] == ["https://example.com/news"]
+    assert imported_story["news_items"][0]["id"] == news_item_id
+    assert imported_story["news_items"][0]["link"] == "https://example.com/news"
 
 
 def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):

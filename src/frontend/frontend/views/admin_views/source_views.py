@@ -259,8 +259,15 @@ class SourceView(AdminMixin, BaseView):
         task_result = None
         if response := CoreApi().get_osint_source_preview(osint_source_id):
             task_result = Task(**response)
-        logger.debug(f"Task result for OSINT source preview: {task_result}")
-        return render_template("osint_source/osint_source_preview.html", task_result=task_result)
+        return render_template("osint_source/osint_source_preview.html", task_result=task_result, osint_source_id=osint_source_id)
+
+    @classmethod
+    @admin_required()
+    def retrigger_osint_source_preview_view(cls, osint_source_id: str):
+        task_result = None
+        if response := CoreApi().retrigger_osint_source_preview(osint_source_id):
+            task_result = Task(**response)
+        return render_template("osint_source/osint_source_preview.html", task_result=task_result, osint_source_id=osint_source_id)
 
     @classmethod
     def delete_view(cls, object_id: str | int) -> tuple[str, int]:
