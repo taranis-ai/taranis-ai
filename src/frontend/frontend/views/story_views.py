@@ -9,12 +9,8 @@ from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from markupsafe import Markup, escape
 from models.assess import (
-    NEWS_ITEM_IMPORT_FIELDS as _NEWS_ITEM_IMPORT_FIELDS,
-)
-from models.assess import (
-    STORY_IMPORT_FIELDS as _STORY_IMPORT_FIELDS,
-)
-from models.assess import (
+    NEWS_ITEM_IMPORT_FIELDS,
+    STORY_IMPORT_FIELDS,
     AssessSource,
     BulkAction,
     Connector,
@@ -41,14 +37,14 @@ from frontend.views.base_view import BaseView
 
 
 def _sanitize_news_item_import_payload(news_item_data: dict[str, Any], story_id: str | None = None) -> dict[str, Any]:
-    sanitized_payload = {key: value for key, value in news_item_data.items() if key in _NEWS_ITEM_IMPORT_FIELDS}
+    sanitized_payload = {key: value for key, value in news_item_data.items() if key in NEWS_ITEM_IMPORT_FIELDS}
     if story_id:
         sanitized_payload["story_id"] = story_id
     return sanitized_payload
 
 
 def _sanitize_story_import_payload(story_data: dict[str, Any]) -> dict[str, Any]:
-    sanitized_payload = {key: value for key, value in story_data.items() if key in _STORY_IMPORT_FIELDS}
+    sanitized_payload = {key: value for key, value in story_data.items() if key in STORY_IMPORT_FIELDS}
     if news_items := story_data.get("news_items"):
         sanitized_payload["news_items"] = [
             _sanitize_news_item_import_payload(news_item_data, sanitized_payload.get("id")) for news_item_data in news_items

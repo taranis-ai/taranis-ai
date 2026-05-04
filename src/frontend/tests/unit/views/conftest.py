@@ -719,10 +719,10 @@ def worker_parameter_data():
                         "rules": ["positive_int"],
                         "type": "text",
                     },
+                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
-                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
-                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
                 ],
             },
             {
@@ -745,7 +745,6 @@ def worker_parameter_data():
             {
                 "id": "story_bot",
                 "parameters": [
-                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
                     {
                         "label": "REQUESTS_TIMEOUT",
@@ -754,9 +753,10 @@ def worker_parameter_data():
                         "rules": ["positive_int"],
                         "type": "text",
                     },
-                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
-                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
                 ],
             },
             {
@@ -770,10 +770,10 @@ def worker_parameter_data():
                         "rules": ["positive_int"],
                         "type": "text",
                     },
+                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
-                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
-                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
                 ],
             },
             {
@@ -890,9 +890,9 @@ def worker_parameter_data():
                         "rules": ["positive_int"],
                         "type": "text",
                     },
-                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
-                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
                 ],
             },

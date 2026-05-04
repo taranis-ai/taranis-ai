@@ -61,6 +61,9 @@ class ReportItemView(BaseView):
             dpl = DataPersistenceLayer()
             report_types = dpl.get_objects(ReportTypes)
             base_context["report_types"] = report_types
+            base_context["current_search"] = request.args.get("search", "")
+            base_context["current_completed_filter"] = request.args.get("completed", "")
+            base_context["current_report_item_type_filter"] = request.args.get("report_item_type_id", "")
             layout = request.args.get("layout") or request.form.get("layout") or base_context.get("layout", "split")
             report = base_context.get("report")
             base_context["story_attributes"] = []

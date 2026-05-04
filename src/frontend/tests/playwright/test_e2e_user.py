@@ -508,6 +508,68 @@ class TestEndToEndUser(BaseE2ETest):
             assert self.is_uuid4(report_uuid), f"Expected a valid UUID4, got {report_uuid}"
             return report_uuid
 
+        def check_report_list_filters():
+            filter_prefix = f"filter-report-{uuid.uuid4().hex[:8]}"
+            completed_title = f"{filter_prefix}-complete"
+            incomplete_title = f"{filter_prefix}-incomplete"
+
+            def create_filter_report(title: str, report_type_id: str, completed: bool = False):
+                page.get_by_role("link", name="Analyze").click()
+                page.get_by_test_id("new-report-button").click()
+                expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+                page.get_by_role("textbox", name="Title").fill(title)
+                page.get_by_test_id("report-type-select").select_option(report_type_id)
+                page.get_by_test_id("save-report").click()
+                dismiss_notifications(page)
+                if completed:
+                    page.get_by_role("button", name="Completed").click()
+                    dismiss_notifications(page)
+
+            create_filter_report(completed_title, "4", completed=True)
+            create_filter_report(incomplete_title, "6")
+
+            page.get_by_role("link", name="Analyze").click()
+            search_input = page.get_by_test_id("report-search-input")
+            completed_filter = page.get_by_test_id("report-completed-filter")
+            report_type_filter = page.get_by_test_id("report-type-filter")
+            reset_button = page.get_by_test_id("reset-report-filters")
+
+            search_input.fill(filter_prefix)
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).to_be_visible()
+
+            completed_filter.select_option("false")
+            expect(page).to_have_url(
+                re.compile(rf"/analyze.*search={filter_prefix}.*completed=false|/analyze.*completed=false.*search={filter_prefix}")
+            )
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).not_to_be_visible()
+
+            completed_filter.select_option("true")
+            expect(page).to_have_url(re.compile(r"completed=true"))
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).not_to_be_visible()
+
+            completed_filter.select_option("")
+            report_type_filter.select_option("6")
+            expect(page).to_have_url(re.compile(r"report_item_type_id=6"))
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).not_to_be_visible()
+
+            reset_button.click()
+            expect(search_input).to_have_value("")
+            expect(completed_filter).to_have_value("")
+            expect(report_type_filter).to_have_value("")
+            expect(page).not_to_have_url(re.compile(r"(search=|completed=|report_item_type_id=)"))
+
+            search_input.fill(filter_prefix)
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).to_be_visible()
+            self.delete_item(page, "report-table", completed_title)
+            dismiss_notifications(page)
+            self.delete_item(page, "report-table", incomplete_title)
+            dismiss_notifications(page)
+
         def add_stories_to_report():
             select_report_stories_from_assess(story_search_term)
             page.get_by_role("button", name="Add to Report").click()
@@ -847,6 +909,8 @@ class TestEndToEndUser(BaseE2ETest):
         go_to_analyze()
         report_uuid = create_report()
         add_stories_to_report()
+        check_report_list_filters()
+        go_to_analyze()
         verify_report_actions(report_uuid)
         go_to_analyze()
         check_various_report_type_fields()
