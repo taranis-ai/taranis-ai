@@ -168,17 +168,22 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert response.status_code == 200
 
     tree = html.fromstring(response.text)
-    form = tree.xpath('//form[@id="assess-sidebar"]')[0]
+    search_form = tree.xpath('//form[@id="assess-search-form"]')[0]
+    filter_form = tree.xpath('//form[@id="assess-sidebar"]')[0]
     search_input = tree.xpath('//input[@id="story_search"]')[0]
 
-    assert (
-        form.get("hx-trigger")
-        == "change[event.target.id != 'story_search'] from:form, input changed delay:500ms from:#story_search, keyup[key=='Enter'] from:#story_search"
-    )
+    assert search_form.get("hx-trigger") == "keyup[key!='Enter'] changed delay:500ms from:#story_search, search from:#story_search"
+    assert search_form.get("hx-include") == "#assess-sidebar, #selected-tags"
+    assert search_form.get("hx-on:submit") == "event.preventDefault()"
+    assert filter_form.get("hx-trigger") == "change"
+    assert filter_form.get("hx-include") == "#selected-tags"
+    assert filter_form.get("hx-on:submit") == "event.preventDefault()"
+    assert search_input.get("hx-get") is None
+    assert search_input.get("hx-include") is None
     assert search_input.get("hx-trigger") is None
 
 
-def test_table_search_bar_uses_htmx_submit_without_input_level_trigger(app):
+def test_table_search_bar_uses_form_level_search_trigger(app):
     with app.test_request_context("/frontend/admin/osint-sources?search=alpha"):
         markup = render_template_string(
             '{% from "macros/table.html" import table_search_bar %}{{ table_search_bar("osint_table", "/frontend/admin/osint-sources") }}'
@@ -188,7 +193,7 @@ def test_table_search_bar_uses_htmx_submit_without_input_level_trigger(app):
     form = tree.xpath("//form")[0]
     search_input = tree.xpath('//input[@id="osint_table-search"]')[0]
 
-    assert form.get("hx-trigger") == "input changed delay:500ms from:#osint_table-search, keyup[key=='Enter'] from:#osint_table-search"
+    assert form.get("hx-trigger") == "keyup[key!='Enter'] changed delay:500ms from:#osint_table-search, search from:#osint_table-search"
     assert search_input.get("hx-trigger") is None
 
 
@@ -201,7 +206,7 @@ def test_omnisearch_dialog_form_uses_htmx_submit(authenticated_client):
     form = tree.xpath('//dialog[@id="assess_search_dialog"]//div[@class="modal-box"]/form')[0]
     search_input = tree.xpath('//input[@id="omni_search"]')[0]
 
-    assert form.get("hx-trigger") == "input changed delay:500ms from:#omni_search, keyup[key=='Enter'] from:#omni_search"
+    assert form.get("hx-trigger") == "keyup[key!='Enter'] changed delay:500ms from:#omni_search, search from:#omni_search"
     assert search_input.get("hx-trigger") is None
 
 

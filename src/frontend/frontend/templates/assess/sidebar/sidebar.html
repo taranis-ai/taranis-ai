@@ -84,24 +84,25 @@ document.addEventListener('htmx:afterSwap', function (event) {
 </script>
 
 <div class="p-4 space-y-4">
-  <form id="assess-sidebar"
-        hx-get="{{ base_url }}"
-        hx-target="#assess"
-        hx-swap="outerHTML"
-        hx-push-url="true"
-        hx-trigger="change[event.target.id != 'story_search'] from:form, input changed delay:500ms from:#story_search, keyup[key=='Enter'] from:#story_search">
-    <section class="space-y-3">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Search &amp; Scope</h3>
-        <a href="https://taranis.ai/docs/assess/#details"
-           target="_blank"
-           rel="noopener"
-           class="link link-hover text-xs text-base-content/60 inline-flex items-center">
-          help
-          {{ heroicon_outline('arrow-top-right-on-square', class='h-3 w-3') }}
-        </a>
-      </div>
-
+  <section class="space-y-3">
+    <div class="flex items-center justify-between">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Search &amp; Scope</h3>
+      <a href="https://taranis.ai/docs/assess/#details"
+         target="_blank"
+         rel="noopener"
+         class="link link-hover text-xs text-base-content/60 inline-flex items-center">
+        help
+        {{ heroicon_outline('arrow-top-right-on-square', class='h-3 w-3') }}
+      </a>
+    </div>
+    <form id="assess-search-form"
+          hx-get="{{ base_url }}"
+          hx-target="#assess"
+          hx-swap="outerHTML"
+          hx-push-url="true"
+          hx-include="#assess-sidebar, #selected-tags"
+          hx-trigger="keyup[key!='Enter'] changed delay:500ms from:#story_search, search from:#story_search"
+          hx-on:submit="event.preventDefault()">
       <label class="input input-bordered input-sm flex items-center gap-2">
         {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
         <input type="search"
@@ -117,10 +118,19 @@ document.addEventListener('htmx:afterSwap', function (event) {
           <kbd class="kbd kbd-xs text-base-content">ctrl+k</kbd>
         </span>
       </label>
-      {% include 'assess/sidebar/tags_select.html' %}
-    </section>
+    </form>
+    {% include "assess/sidebar/tags_select.html" %}
+  </section>
 
-    {% include 'assess/sidebar/source_select.html' %}
+  <form id="assess-sidebar"
+        hx-get="{{ base_url }}"
+        hx-target="#assess"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-include="#selected-tags"
+        hx-trigger="change"
+        hx-on:submit="event.preventDefault()">
+    {% include "assess/sidebar/source_select.html" %}
 
     <div class="divider text-xs">Filter</div>
     {# djlint: off #}
@@ -150,7 +160,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
             title="Clear time filters"
             hx-get="{{ base_url }}"
             hx-params="not timefrom,timeto,range"
-            hx-include="#assess-sidebar"
+            hx-include="#assess-sidebar, #selected-tags"
             hx-target="#assess"
             hx-swap="outerHTML"
             @click="clearTimeFilters()">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear time filters</button>

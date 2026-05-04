@@ -8,7 +8,7 @@
     <form hx-get="{{ url_for('base.omnisearch') }}"
           hx-target="#assess_search_dialog"
           hx-swap="outerHTML"
-          hx-trigger="input changed delay:500ms from:#omni_search, keyup[key=='Enter'] from:#omni_search">
+          hx-trigger="keyup[key!='Enter'] changed delay:500ms from:#omni_search, search from:#omni_search">
       <label class="input input-bordered input-sm flex items-center gap-2">
         {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
         <input type="search" id="omni_search" name="omni_search" value="{{ current_search }}" placeholder="Search" class="grow" autocomplete="off">
