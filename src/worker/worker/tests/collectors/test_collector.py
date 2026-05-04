@@ -1,5 +1,5 @@
+import niquests as requests
 import pytest
-import requests
 
 from worker.config import Config
 from worker.tests.testdata import news_items

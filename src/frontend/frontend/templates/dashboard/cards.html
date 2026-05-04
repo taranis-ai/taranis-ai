@@ -14,7 +14,7 @@
 {% endmacro %}
 
 {% macro trending_card(cluster) %}
-  <div class="bg-base-100 border p-4">
+  <div class="bg-base-100 border p-4 w-full min-w-0 overflow-hidden">
     <div class="justify-between flex items-center mb-1">
       <div class="join">
         {{ heroicon_solid("tag", size=24, class="mr-2 pt-1") }}
@@ -23,12 +23,12 @@
       <span class="caption">Cluster size: {{ cluster.size }}</span>
     </div>
     <div class="divider"></div>
-    <div class="flex gap-4">
-      <div class="flex-grow">
+    <div class="flex gap-4 min-w-0">
+      <div class="flex-1 min-w-0">
         {% for tag in cluster.tags %}
-          <div class="justify-between flex items-center">
-            <a href="{{ url_for("assess.assess") }}?tags={{ tag.name }}" class="underline">{{ tag.name }}</a>
-            <p>{{ tag.size }}</p>
+          <div class="flex w-full min-w-0 items-center justify-between gap-3">
+            <a href="{{ url_for('assess.assess', tags=tag.name) }}" class="block flex-1 min-w-0 truncate underline">{{ tag.name }}</a>
+            <p class="shrink-0">{{ tag.size }}</p>
           </div>
         {% endfor %}
       </div>

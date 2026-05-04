@@ -12,6 +12,9 @@ from core.model.base_model import BaseModel
 class Task(BaseModel):
     __tablename__ = "task"
 
+    SUCCESS_STATUSES = {"SUCCESS", "NOT_MODIFIED"}
+    FAILURE_STATUSES = {"FAILURE"}
+
     id: Mapped[str] = db.Column(db.String, primary_key=True)
     task: Mapped[str] = db.Column(db.String, nullable=True)
     worker_id: Mapped[str] = db.Column(db.String, nullable=True)
@@ -33,7 +36,7 @@ class Task(BaseModel):
         if worker_type is not None:
             self.worker_type = worker_type
         self.result = json.dumps(result) if result is not None else ""
-        if status == "SUCCESS":
+        if status in self.SUCCESS_STATUSES:
             self.last_success = datetime.now(timezone.utc)
         self.last_run = datetime.now(timezone.utc)
 
@@ -45,7 +48,7 @@ class Task(BaseModel):
             entry.task = entry_data.get("task", entry.task)
             entry.worker_id = entry_data.get("worker_id", entry.worker_id)
             entry.worker_type = entry_data.get("worker_type", entry.worker_type)
-            if entry.status == "SUCCESS":
+            if entry.status in cls.SUCCESS_STATUSES:
                 entry.last_success = datetime.now(timezone.utc)
             entry.last_run = datetime.now(timezone.utc)
             db.session.commit()
@@ -72,7 +75,7 @@ class Task(BaseModel):
 
     @classmethod
     def get_successful(cls, task_id: str) -> "Task | None":
-        return db.session.execute(db.select(cls).where(cls.id == task_id).where(cls.status == "SUCCESS")).scalar()
+        return db.session.execute(db.select(cls).where(cls.id == task_id).where(cls.status.in_(cls.SUCCESS_STATUSES))).scalar()
 
     @classmethod
     def get_latest_matching(
@@ -119,8 +122,8 @@ class Task(BaseModel):
 
         columns = [
             task_label.label("task_type"),
-            func.count(case((cls.status == "FAILURE", 1))).label("failures"),
-            func.count(case((cls.status == "SUCCESS", 1))).label("successes"),
+            func.count(case((cls.status.in_(cls.FAILURE_STATUSES), 1))).label("failures"),
+            func.count(case((cls.status.in_(cls.SUCCESS_STATUSES), 1))).label("successes"),
         ]
 
         columns.append(func.max(cls.worker_type).label("worker_type"))

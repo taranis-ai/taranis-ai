@@ -2,6 +2,7 @@
 {% block content %}
   <iframe src="{{ url_for('api_doc.swagger_blueprint_doc_handler') }}"
           loading="lazy"
-          class="w-full h-[calc(100vh-4rem)] border-none"
+          class="w-full border-none"
+          style="height: calc(100vh - var(--app-header-height) - var(--viewport-warning-height))"
           referrerpolicy="no-referrer"></iframe>
 {% endblock content %}
