@@ -108,7 +108,7 @@
     </a>
   {% endif %}
 
-  <div class="w-full">
+  <div class="dropdown dropdown-end w-full">
     <button type="button"
             class="btn btn-outline btn-xs w-full join-item justify-start gap-2"
             tabindex="0"
@@ -119,7 +119,7 @@
       {{ heroicon_mini("ellipsis-horizontal") }}
       {% if not compact_view %}<span>Actions</span>{% endif %}
     </button>
-    <div class="mt-2 w-full rounded-box bg-base-100 p-2 shadow" tabindex="0">
+    <div class="dropdown-content mt-2 w-48 rounded-box bg-base-100 p-2 shadow" tabindex="0">
       <div class="join join-vertical w-full">{{ actions | trim | safe }}</div>
     </div>
   </div>
@@ -128,9 +128,9 @@
 
 {% macro story_edit_actions(story) %}
   {% set actions = story_actions(story, size='sm') %}
-  <div class="w-full">
+  <div class="dropdown dropdown-end">
     <button type="button"
-            class="btn btn-outline btn-sm w-full join-item justify-start gap-2"
+            class="btn btn-outline btn-sm join-item justify-start gap-2"
             tabindex="0"
             role="button"
             aria-haspopup="true"
@@ -139,7 +139,7 @@
       {{ heroicon_mini("ellipsis-horizontal") }}
       {% if not compact_view %}<span>Actions</span>{% endif %}
     </button>
-    <div class="mt-2 w-full rounded-box bg-base-100 p-2 shadow" tabindex="0">
+    <div class="dropdown-content mt-2 w-48 rounded-box bg-base-100 p-2 shadow" tabindex="0">
       <div class="join join-vertical w-full">{{ actions | trim | safe }}</div>
     </div>
   </div>

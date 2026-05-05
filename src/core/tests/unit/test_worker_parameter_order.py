@@ -45,3 +45,14 @@ def test_order_parameters_keeps_unknown_parameters_stable_after_known_ones():
         "UNKNOWN_ONE",
         "UNKNOWN_TWO",
     ]
+
+
+def test_order_parameters_returns_unknown_worker_type_unchanged():
+    parameters = [
+        make_parameter("UNKNOWN_ONE"),
+        make_parameter("BOT_ENDPOINT"),
+    ]
+
+    ordered = Worker._order_parameters("unknown_bot_type", parameters)
+
+    assert ordered == parameters

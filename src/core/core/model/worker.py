@@ -146,7 +146,7 @@ class Worker(BaseModel):
 
     @classmethod
     def _order_parameters(cls, worker_type: str | WORKER_TYPES, parameters: list[ParameterValue]) -> list[ParameterValue]:
-        order_index = cls._parameter_order_by_worker_type().get(str(worker_type).lower())
+        order_index = cls._parameter_order_by_worker_type().get(cls._normalize_worker_type_key(worker_type))
         if not order_index:
             return parameters
 
@@ -155,6 +155,12 @@ class Worker(BaseModel):
             key=lambda entry: (order_index.get(entry[1].parameter, float("inf")), entry[0]),
         )
         return [parameter for _, parameter in ordered_parameters]
+
+    @staticmethod
+    def _normalize_worker_type_key(worker_type: str | WORKER_TYPES) -> str:
+        if isinstance(worker_type, WORKER_TYPES):
+            return worker_type.value.lower()
+        return str(worker_type).lower()
 
     @classmethod
     def _construct_parameter_data(cls, parameter):

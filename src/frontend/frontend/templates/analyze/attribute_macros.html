@@ -1,5 +1,5 @@
 {% from "macros/variables.html" import tlp_levels %}
-{% from "macros/forms.html" import form_input_content, form_textarea, form_switch %}
+{% from "macros/forms.html" import form_input_content, form_textarea %}
 
 {% macro attribute_field(attr, read_only=False, stories=[]) %}
   {% set base_name = 'attributes[' ~ attr.id ~ ']' %}
@@ -16,7 +16,27 @@
     {% elif attr.type == 'NUMBER' %}
       {{ form_input_content(label=label, name=base_name, value=value, type='number', placeholder=description, required=required, input_id=field_id, preserve=False) }}
     {% elif attr.type == 'BOOLEAN' %}
-      {{ form_switch(name=base_name, value=value, label=label, required=required, input_id=field_id) }}
+      <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5 w-full">
+        <legend class="fieldset-legend">
+          <span>
+            {{ label }}
+            {% if required %}<span aria-hidden="true" class="text-error">*</span>{% endif %}
+          </span>
+        </legend>
+        <label class="label">
+          <input type="hidden" name="{{ base_name }}" value="No" />
+          <input id="{{ field_id }}"
+                 name="{{ base_name }}"
+                 type="checkbox"
+                 value="Yes"
+                 class="toggle toggle-primary peer"
+                 data-testid="report-boolean-attribute-checkbox"
+                 {% if required %}required{% endif %}
+                 {% if value == "Yes" %}checked{% endif %} />
+          <span class="text-base-content peer-checked:hidden">No</span>
+          <span class="text-base-content hidden peer-checked:inline">Yes</span>
+        </label>
+      </fieldset>
     {% elif attr.type in ['ENUM', 'CPE'] %}
       <label class="select w-full">
         <span class="label justify-between">

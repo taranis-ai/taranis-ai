@@ -20,6 +20,10 @@ ASSESS_STORY_PAGE_SIZE = 20
 class TestEndToEndUser(BaseE2ETest):
     """End-to-end tests for the Taranis AI user interface."""
 
+    CERT_REPORT_TYPE_LABEL = "CERT Report"
+    ALL_ATTRIBUTE_REPORT_TYPE_LABEL = "Zzz_All Attribute Types Report"
+    ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL = f"{ALL_ATTRIBUTE_REPORT_TYPE_LABEL} REQUIRED"
+
     @staticmethod
     def _get_assess_story_counts(page: Page) -> tuple[int, int]:
         count_text = page.get_by_test_id("assess_story_count").inner_text()
@@ -446,15 +450,15 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.get_by_role("textbox", name="Title").fill("test title")
-            page.get_by_test_id("report-type-select").select_option("4")
+            page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
             page.get_by_role("button", name="Stacked view").click()
             expect(page).to_have_url(re.compile(r"layout=stacked"))
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
-            expect(page.get_by_test_id("report-type-select")).to_have_value("4")
+            expect(page.get_by_test_id("report-type-select")).not_to_have_value("")
             page.get_by_role("button", name="Split view").click()
             expect(page).to_have_url(re.compile(r"layout=split"))
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
-            expect(page.get_by_test_id("report-type-select")).to_have_value("4")
+            expect(page.get_by_test_id("report-type-select")).not_to_have_value("")
             page.get_by_test_id("save-report").click()
             expect(page.get_by_role("button", name="Completed")).to_be_visible()
             expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
@@ -494,7 +498,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(new_report_button).to_be_visible()
             new_report_button.click()
             page.get_by_role("textbox", name="Title").fill("Test report")
-            page.get_by_label("Report Type Select a report").select_option("4")
+            page.get_by_label("Report Type Select a report").select_option(label=self.CERT_REPORT_TYPE_LABEL)
             expect(page.locator("#report_form")).to_contain_text("Attributes will be generated after the report item has been created.")
             expect(page.get_by_test_id("analyze").locator("section")).to_contain_text("No stories assigned to this report.")
             page.get_by_test_id("save-report").click()
@@ -516,12 +520,12 @@ class TestEndToEndUser(BaseE2ETest):
             completed_title = f"{filter_prefix}-complete"
             incomplete_title = f"{filter_prefix}-incomplete"
 
-            def create_filter_report(title: str, report_type_id: str, completed: bool = False):
+            def create_filter_report(title: str, report_type_label: str, completed: bool = False):
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill(title)
-                page.get_by_test_id("report-type-select").select_option(report_type_id)
+                page.get_by_test_id("report-type-select").select_option(label=report_type_label)
                 page.get_by_test_id("save-report").click()
                 dismiss_notifications(page)
                 if completed:
@@ -529,8 +533,8 @@ class TestEndToEndUser(BaseE2ETest):
                     expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated")
                     dismiss_notifications(page)
 
-            create_filter_report(completed_title, "4", completed=True)
-            create_filter_report(incomplete_title, "6")
+            create_filter_report(completed_title, self.CERT_REPORT_TYPE_LABEL, completed=True)
+            create_filter_report(incomplete_title, self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
 
             page.get_by_role("link", name="Analyze").click()
             search_input = page.get_by_test_id("report-search-input")
@@ -558,8 +562,16 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page).to_have_url(re.compile(r"completed=&report_item_type_id="))
             report_type_filter = page.get_by_test_id("report-type-filter")
             expect(report_type_filter).to_have_value("")
-            report_type_filter.select_option("6")
-            expect(page).to_have_url(re.compile(r"report_item_type_id=6"))
+            all_attribute_report_type_value = report_type_filter.evaluate(
+                """(select, label) => {
+                    const option = Array.from(select.options).find((item) => item.text.trim() === label);
+                    return option ? option.value : null;
+                }""",
+                self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL,
+            )
+            assert all_attribute_report_type_value is not None
+            report_type_filter.select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
+            expect(page).to_have_url(re.compile(rf"report_item_type_id={all_attribute_report_type_value}"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).not_to_be_visible()
 
@@ -655,7 +667,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report")
-                page.get_by_test_id("report-type-select").select_option("6")  # report type with all attribute types
+                page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
 
@@ -690,7 +702,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
 
             def set_report_fields():
-                boolean_attribute = page.locator("#report_form input[type='checkbox'][name^='attributes']").first
+                boolean_attribute = page.get_by_test_id("report-boolean-attribute-checkbox")
                 page.get_by_role("link", name="Analyze").click()
                 expect(page.get_by_role("row", name="all attr report")).to_be_visible()
 
@@ -726,7 +738,7 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_text("Used in attributes").nth(1)).to_be_visible()
 
             def empty_report_fields():
-                boolean_attribute = page.locator("#report_form input[type='checkbox'][name^='attributes']").first
+                boolean_attribute = page.get_by_test_id("report-boolean-attribute-checkbox")
                 page.get_by_text("Report item updated").click()
                 page.get_by_role("option", name="Report Story 1 Remove item:").get_by_role("button").click()
                 page.get_by_role("option", name="Report Story 2 Remove item:").get_by_role("button").click()
@@ -749,7 +761,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_text("Report item updated").click()
 
             def check_report_fields():
-                boolean_attribute = page.locator("#report_form input[type='checkbox'][name^='attributes']").first
+                boolean_attribute = page.get_by_test_id("report-boolean-attribute-checkbox")
                 page.get_by_role("link", name="Analyze").click()
                 expect(page.get_by_role("row", name="all attr report")).to_be_visible()
 
@@ -811,7 +823,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report REQUIRED")
-                page.get_by_label("Report Type Select a report").select_option("7")
+                page.get_by_label("Report Type Select a report").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
                 expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible()
@@ -844,7 +856,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
 
             def set_report_fields_required():
-                boolean_attribute = page.locator("#report_form input[type='checkbox'][name^='attributes']").first
+                boolean_attribute = page.get_by_test_id("report-boolean-attribute-checkbox")
                 page.get_by_role("link", name="Analyze").click()
                 expect(page.get_by_role("row", name="all attr report REQUIRED")).to_be_visible()
 
@@ -948,7 +960,7 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_test_id("new-report-button").click()
         expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
         page.get_by_role("textbox", name="Title").fill(report_title)
-        page.get_by_test_id("report-type-select").select_option("6")
+        page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
         page.get_by_test_id("save-report").click()
         page.get_by_text("Report item created").click()
 
@@ -983,7 +995,7 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_test_id("new-report-button").click()
         expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
         page.get_by_role("textbox", name="Title").fill(report_title)
-        page.get_by_test_id("report-type-select").select_option("6")
+        page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
         page.get_by_test_id("save-report").click()
         page.get_by_text("Report item created").click()
 

@@ -66,40 +66,27 @@ class ReportItemView(BaseView):
         return story_attributes, list(dict.fromkeys(used_story_ids))
 
     @staticmethod
-    def _normalize_draft_attribute_value(value: Any) -> str:
+    def _normalize_attribute_value(value: Any) -> str:
         if isinstance(value, list):
-            return ",".join(item for item in value if item)
+            return ",".join(str(item) for item in value if item)
         return "" if value is None else str(value)
 
-    @classmethod
-    def _apply_draft_query_state(cls, report: ReportItem | None) -> ReportItem | None:
-        if report is None or request.method != "GET" or not request.args:
-            return report
+    @staticmethod
+    def _normalize_layout(layout: Any) -> str:
+        return layout if layout in {"split", "stacked"} else "split"
 
-        parsed_args = parse_formdata(request.args)
-        parsed_args.pop("layout", None)
-        parsed_args.pop("current_layout", None)
-        if not parsed_args:
-            return report
+    @staticmethod
+    def _strip_layout_keys(data: dict[str, Any]) -> dict[str, Any]:
+        data.pop("layout", None)
+        return data
 
-        draft_report = report.model_copy(deep=True)
-
-        if title := parsed_args.get("title"):
-            draft_report.title = str(title)
-
-        report_item_type_id = parsed_args.get("report_item_type_id")
-        if report_item_type_id not in (None, ""):
-            draft_report.report_item_type_id = str(report_item_type_id)
-
-        draft_attributes = parsed_args.get("attributes")
-        if isinstance(draft_attributes, dict) and draft_report.grouped_attributes:
-            for group in draft_report.grouped_attributes:
-                for attribute in group.attributes:
-                    draft_value = draft_attributes.get(str(attribute.id))
-                    if draft_value is not None:
-                        attribute.value = cls._normalize_draft_attribute_value(draft_value)
-
-        return draft_report
+    @staticmethod
+    def _parse_bool_flag(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.lower() in {"1", "true", "yes", "on"}
+        return bool(value)
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
@@ -110,9 +97,7 @@ class ReportItemView(BaseView):
             base_context["current_search"] = request.args.get("search", "")
             base_context["current_completed_filter"] = request.args.get("completed", "")
             base_context["current_report_item_type_filter"] = request.args.get("report_item_type_id", "")
-            layout = request.args.get("layout") or request.form.get("current_layout") or base_context.get("layout", "split")
-            report = cls._apply_draft_query_state(base_context.get("report"))
-            base_context["report"] = report
+            layout = cls._normalize_layout(request.args.get("layout") or request.form.get("layout") or base_context.get("layout"))
             base_context["story_attributes"] = []
             base_context["used_story_ids"] = []
 
@@ -193,9 +178,9 @@ class ReportItemView(BaseView):
             return abort(405)
         return self.update_view_table(object_id=object_id)
 
-    @staticmethod
-    def _parse_form_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
-        return {key: ",".join(id for id in value if id) if isinstance(value, list) else value for key, value in attributes.items()}
+    @classmethod
+    def _parse_form_attributes(cls, attributes: dict[str, Any]) -> dict[str, Any]:
+        return {key: cls._normalize_attribute_value(value) for key, value in attributes.items()}
 
     @staticmethod
     def _normalize_story_ids(stories: Any, remove_story_id: str | None = None, remove_all: bool = False) -> list[str]:
@@ -213,10 +198,9 @@ class ReportItemView(BaseView):
         try:
             form_data = parse_formdata(request.form)
             logger.debug(f"Parsed form data: {form_data}")
-            form_data.pop("layout", None)
-            form_data.pop("current_layout", None)
+            cls._strip_layout_keys(form_data)
             remove_story_id = form_data.pop("remove_story_id", None)
-            remove_all_stories = bool(form_data.pop("remove_all_stories", None))
+            remove_all_stories = cls._parse_bool_flag(form_data.pop("remove_all_stories", None))
             if "stories" in form_data or remove_story_id or remove_all_stories:
                 form_data["stories"] = cls._normalize_story_ids(form_data.get("stories"), remove_story_id, remove_all_stories)
             form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
@@ -271,7 +255,7 @@ class ReportItemView(BaseView):
                     return cls.get_base_route()
             except Forbidden:
                 return cls.get_base_route()
-        return cls.get_edit_route(report_id=response_object_id)
+        return cls.get_edit_route(report_id=response_object_id, layout=cls._normalize_layout(request.form.get("layout")))
 
     @staticmethod
     @auth_required()
