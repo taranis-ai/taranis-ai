@@ -135,7 +135,7 @@ def test_pool_options_applied_to_actual_engine(app):
         assert isinstance(db.engine.pool, StaticPool)
 
 
-def test_postgresql_fts_bootstrap_falls_back_without_extensions(app):
+def test_fts_bootstrap_falls_back_without_extensions(app):
     from core.managers.db_manager import db
 
     with app.app_context():

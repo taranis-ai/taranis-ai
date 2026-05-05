@@ -73,10 +73,16 @@ It is best to follow the [dev setup guide](../../dev/README.md)
 * [SQLAlchemy](https://www.sqlalchemy.org/)
 
 ### 1. Setup Database
-Set SQLAlchemy to use a temporary SQLite database.
+Set `SQLALCHEMY_DATABASE_URI` to the database you want to use for the core application.
 
 ```bash
 export SQLALCHEMY_DATABASE_URI="sqlite:////tmp/taranis.db"
+```
+
+For PostgreSQL, use a URI such as:
+
+```bash
+export SQLALCHEMY_DATABASE_URI="postgresql+psycopg://taranis:taranis@localhost/taranis"
 ```
 
 ### 2. Start Flask
@@ -95,7 +101,9 @@ This will start the Flask server and run the frontend service at `http://localho
 To run the unit tests just call:
 
 ```bash
-uv run --no-sync --frozen python -m pytest tests/unit
+uv run pytest
 ```
+
+Core tests use the PGlite-backed test harness from `tests/conftest.py`, so they do not require a separate local SQLite or PostgreSQL test database.
 
 Frontend-owned end-to-end tests now live in [../frontend/tests/playwright/README.md](../frontend/tests/playwright/README.md).
