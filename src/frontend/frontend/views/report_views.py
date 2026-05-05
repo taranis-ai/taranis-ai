@@ -29,14 +29,8 @@ class ReportItemView(BaseView):
     edit_route = "analyze.report"
 
     @classmethod
-    def submits_via_standard_form(cls) -> bool:
-        return True
-
-    @classmethod
     def get_form_action(cls, object_id: int | str = 0) -> str:
-        if str(object_id) == "0":
-            return cls.get_edit_route(report_id="0")
-        return cls.get_edit_route(report_id=object_id)
+        return cls.get_edit_route(report_id=str(object_id))
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -110,7 +104,6 @@ class ReportItemView(BaseView):
             base_context |= {
                 "layout": layout,
                 "actions": cls.get_report_actions(),
-                "standard_form_submit": cls.submits_via_standard_form(),
             }
         except HTTPException:
             raise

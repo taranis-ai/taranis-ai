@@ -62,9 +62,8 @@
     </div>
 
     <form id="report_form" class="w-full" method="post" action="{{ form_action }}">
-      <div class="hidden">
-        <input type="hidden" name="layout" value="{{ layout }}">
-      </div>
+      <input type="hidden" name="layout" value="{{ layout }}">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
 
       {% include "partials/admin_form_error.html" %}
 
