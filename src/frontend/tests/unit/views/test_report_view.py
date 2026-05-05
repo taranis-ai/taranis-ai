@@ -78,7 +78,7 @@ def test_report_update_response_fetches_saved_report_when_core_response_only_con
     assert context["report"].id == saved_report_id
     assert context["report"].title == "test title"
     assert context["submit_text"] == "Update Report"
-    assert "hx-put=" in context["form_action"]
+    assert context["form_action"].endswith(f"/report/{saved_report_id}")
 
 
 def test_report_create_post_renders_saved_report_when_core_response_only_contains_id(
@@ -115,9 +115,5 @@ def test_report_create_post_renders_saved_report_when_core_response_only_contain
             headers={"HX-Request": "true"},
         )
 
-    assert response.status_code == 200
-    assert response.headers["HX-Push-Url"].endswith(f"/report/{saved_report_id}")
-    html = response.get_data(as_text=True)
-    assert f"ID: {saved_report_id}" in html
-    assert 'value="test title"' in html
-    assert "New Product from Report" in html
+    assert response.status_code == 204
+    assert response.headers["HX-Redirect"].endswith(f"/report/{saved_report_id}")

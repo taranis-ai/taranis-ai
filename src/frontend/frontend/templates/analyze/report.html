@@ -10,101 +10,82 @@
 {% set layout = layout | default('split') %}
 {% set is_edit = report.id is not none and report.id != '0' %}
 {% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
-{% set form_target = '#report_form' if is_edit else '#report' %}
 
 <div class="p-4 card bg-base-100 shadow" id="report">
   <div class="card-body gap-4">
-    <div class="flex flex-wrap items-center gap-3">
-      <h2 class="card-title">
-        {{ submit_text }}
-        {% if is_edit and report.title %}- {{ report.title }}{% endif %}
-      </h2>
-      <div class="col-span-12 md:col-span-6 flex items-end text-sm text-base-content/60">
-        <span data-testid="report-id">ID: {{ report.id }}</span>
-      </div>
-      <div class="flex-1"></div>
-      {% if is_edit %}
-        {% if report.revision_count and report.revision_count > 0 %}
-          <a class="btn btn-outline btn-sm" href="{{ url_for('analyze.report_versions', report_id=report.id) }}" data-testid="report-versions">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            Version History ({{ report.revision_count }})
-          </a>
-        {% endif %}
-        <a class="btn btn-outline btn-sm"
-           href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
-           data-testid="report-new-product">New Product from Report</a>
-        <div class="join">
-          <button type="button"
-                  {{ form_action }}
-                  hx-vals='{"completed": true}'
-                  hx-target="#report"
-                  hx-target-error="#report"
-                  hx-swap="outerHTML"
-                  hx-select="#report"
-                  hx-include="#report_form [name=layout]"
-                  class="btn btn-sm btn-outline join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed
-          </button>
-          <button type="button"
-                  {{ form_action }}
-                  hx-vals='{"completed": false}'
-                  hx-target="#report"
-                  hx-target-error="#report"
-                  hx-swap="outerHTML"
-                  hx-select="#report"
-                  hx-include="#report_form [name=layout]"
-                  class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">Incomplete
-          </button>
+    <form id="report_form" class="w-full" method="post" action="{{ form_action }}">
+      <div class="flex flex-wrap items-center gap-3">
+        <h2 class="card-title">
+          {{ submit_text }}
+          {% if is_edit and report.title %}- {{ report.title }}{% endif %}
+        </h2>
+        <div class="col-span-12 md:col-span-6 flex items-end text-sm text-base-content/60">
+          <span data-testid="report-id">ID: {{ report.id }}</span>
         </div>
-      {% endif %}
-      <div class="join">
-        <a href="?layout=split"
-           hx-get="?layout=split"
-           hx-include="#report_form"
-           hx-target="#report"
-           hx-target-error="#report"
-           hx-swap="outerHTML"
-           hx-select="#report"
-           class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</a>
-        <a href="?layout=stacked"
-           hx-get="?layout=stacked"
-           hx-include="#report_form"
-           hx-target="#report"
-           hx-target-error="#report"
-           hx-swap="outerHTML"
-           hx-select="#report"
-           class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</a>
+        <div class="flex-1"></div>
+        {% if is_edit %}
+          {% if report.revision_count and report.revision_count > 0 %}
+            <a class="btn btn-outline btn-sm" href="{{ url_for('analyze.report_versions', report_id=report.id) }}" data-testid="report-versions">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              Version History ({{ report.revision_count }})
+            </a>
+          {% endif %}
+          <a class="btn btn-outline btn-sm"
+             href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
+             data-testid="report-new-product">New Product from Report</a>
+          <div class="join">
+            <button type="submit"
+                    name="completed"
+                    value="true"
+                    formnovalidate
+                    class="btn btn-sm btn-outline join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed</button>
+            <button type="submit"
+                    name="completed"
+                    value="false"
+                    formnovalidate
+                    class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">
+              Incomplete
+            </button>
+          </div>
+        {% endif %}
+        <div class="join">
+          <button type="submit"
+                  formmethod="get"
+                  formaction="{{ request.path }}"
+                  name="layout"
+                  value="split"
+                  class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</button>
+          <button type="submit"
+                  formmethod="get"
+                  formaction="{{ request.path }}"
+                  name="layout"
+                  value="stacked"
+                  class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</button>
+        </div>
       </div>
-    </div>
-
-    <form id="report_form"
-          class="w-full"
-          {{ form_action }}
-          hx-swap="outerHTML"
-          hx-target="{{ form_target }}"
-          hx-target-error="{{ form_target }}"
-          hx-select="{{ form_target }}">
-      <input type="hidden" name="layout" value="{{ layout }}">
+      <input type="hidden" name="current_layout" value="{{ layout }}">
 
       {% include "partials/admin_form_error.html" %}
 
       <div class="grid grid-cols-12 gap-4">
         <div class="col-span-12 {{ column_class }}">
           <div class="grid grid-cols-12 gap-4">
-            <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', report.title, form_error.title, input_id='report-title') }}</div>
+            <div class="col-span-12 md:col-span-6">
+              {{ form_input('Title', 'title', report.title, form_error.title, input_id='report-title', preserve=False) }}
+            </div>
             <div class="col-span-12 md:col-span-6">
               <label class="select w-full mb-5">
                 <span class="label">Report Type</span>
                 <select id="report_item_selector"
                         name="report_item_type_id"
                         data-testid="report-type-select"
-                        hx-preserve
                         class="select select-bordered w-full"
                         {% if is_edit %}disabled{% endif %}>
                   {% if not report.report_item_type_id %}<option value="" disabled selected>Select a report type</option>{% endif %}
                   {% for report_type in report_types %}
-                    <option value="{{ report_type.id }}" {% if report_type.id == report.report_item_type_id %}selected{% endif %}>
+                    <option value="{{ report_type.id }}" {% if report_type.id | string == report.report_item_type_id | string %}selected{% endif %}>
                       {{ report_type.title }}
                     </option>
                   {% endfor %}
@@ -137,15 +118,7 @@
             <header class="flex items-center justify-between">
               <h3 class="text-lg font-semibold">Stories</h3>
               <div>
-                <button type="button"
-                        class="btn btn-sm btn-outline"
-                        data-testid="remove-all-stories"
-                        {{ form_action }}
-                        hx-vals='{"stories[]": [""]}'
-                        hx-target="#report_form"
-                        hx-target-error="#report_form"
-                        hx-swap="outerHTML"
-                        hx-select="#report_form">
+                <button type="submit" class="btn btn-sm btn-outline" data-testid="remove-all-stories" name="remove_all_stories" value="1" formnovalidate>
                   Remove all
                 </button>
               </div>
@@ -154,9 +127,8 @@
             {% if stories %}
               <div class="space-y-3" data-testid="report-stories">
                 {% for story in stories %}
-                  {% if not is_edit %}<input type="hidden" name="stories[]" value="{{ story.id }}">{% endif %}
-                  {% set other_ids = (stories | rejectattr('id', 'equalto', story.id) | map(attribute='id') | list) or [''] %}
-                  {{ analyze_story_card(story, used_story_ids, form_action, other_ids) }}
+                  <input type="hidden" name="stories[]" value="{{ story.id }}">
+                  {{ analyze_story_card(story, used_story_ids) }}
                 {% endfor %}
               </div>
             {% else %}

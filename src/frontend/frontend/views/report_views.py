@@ -1,11 +1,11 @@
 from typing import Any
 
-from flask import Response, abort, make_response, render_template, request, url_for
+from flask import Response, abort, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.assess import Story
 from models.report import ReportItem, ReportItemAttributeGroup, ReportTypes
 from pydantic import ValidationError
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import Forbidden, HTTPException
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
@@ -27,6 +27,16 @@ class ReportItemView(BaseView):
 
     base_route = "analyze.analyze"
     edit_route = "analyze.report"
+
+    @classmethod
+    def submits_via_standard_form(cls) -> bool:
+        return True
+
+    @classmethod
+    def get_form_action(cls, object_id: int | str = 0) -> str:
+        if str(object_id) == "0":
+            return cls.get_edit_route(report_id="0")
+        return cls.get_edit_route(report_id=object_id)
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -55,6 +65,42 @@ class ReportItemView(BaseView):
                 used_story_ids.extend(story_id.strip() for story_id in str(attribute.value).split(",") if story_id and story_id.strip())
         return story_attributes, list(dict.fromkeys(used_story_ids))
 
+    @staticmethod
+    def _normalize_draft_attribute_value(value: Any) -> str:
+        if isinstance(value, list):
+            return ",".join(item for item in value if item)
+        return "" if value is None else str(value)
+
+    @classmethod
+    def _apply_draft_query_state(cls, report: ReportItem | None) -> ReportItem | None:
+        if report is None or request.method != "GET" or not request.args:
+            return report
+
+        parsed_args = parse_formdata(request.args)
+        parsed_args.pop("layout", None)
+        parsed_args.pop("current_layout", None)
+        if not parsed_args:
+            return report
+
+        draft_report = report.model_copy(deep=True)
+
+        if title := parsed_args.get("title"):
+            draft_report.title = str(title)
+
+        report_item_type_id = parsed_args.get("report_item_type_id")
+        if report_item_type_id not in (None, ""):
+            draft_report.report_item_type_id = str(report_item_type_id)
+
+        draft_attributes = parsed_args.get("attributes")
+        if isinstance(draft_attributes, dict) and draft_report.grouped_attributes:
+            for group in draft_report.grouped_attributes:
+                for attribute in group.attributes:
+                    draft_value = draft_attributes.get(str(attribute.id))
+                    if draft_value is not None:
+                        attribute.value = cls._normalize_draft_attribute_value(draft_value)
+
+        return draft_report
+
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -64,8 +110,9 @@ class ReportItemView(BaseView):
             base_context["current_search"] = request.args.get("search", "")
             base_context["current_completed_filter"] = request.args.get("completed", "")
             base_context["current_report_item_type_filter"] = request.args.get("report_item_type_id", "")
-            layout = request.args.get("layout") or request.form.get("layout") or base_context.get("layout", "split")
-            report = base_context.get("report")
+            layout = request.args.get("layout") or request.form.get("current_layout") or base_context.get("layout", "split")
+            report = cls._apply_draft_query_state(base_context.get("report"))
+            base_context["report"] = report
             base_context["story_attributes"] = []
             base_context["used_story_ids"] = []
 
@@ -78,6 +125,7 @@ class ReportItemView(BaseView):
             base_context |= {
                 "layout": layout,
                 "actions": cls.get_report_actions(),
+                "standard_form_submit": cls.submits_via_standard_form(),
             }
         except HTTPException:
             raise
@@ -137,48 +185,28 @@ class ReportItemView(BaseView):
         return ReportItemView.list_view()
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        return self.update_view(object_id=0)
+        return self.update_view_table(object_id=self._get_object_id(kwargs) or 0)
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return abort(405)
-        return self.update_view(object_id=object_id)
-
-    @classmethod
-    def update_view(cls, object_id: int | str = 0):
-        core_response, error = cls.process_form_data(object_id)
-        response_object_id, model_instance, response_message = cls.resolve_update_response(object_id, core_response)
-        if not core_response or error:
-            return render_template(
-                cls.get_update_template(),
-                **cls.get_update_context(
-                    object_id,
-                    error=error,
-                    model_instance=model_instance,
-                    response_message=response_message,
-                    form_action_object_id=response_object_id,
-                ),
-            ), 400
-
-        notification_response = cls.render_response_notification(core_response)
-        response = notification_response + render_template(
-            cls.get_update_template(),
-            **cls.get_update_context(
-                object_id,
-                error=error,
-                model_instance=model_instance,
-                response_message=response_message,
-                form_action_object_id=response_object_id,
-            ),
-        )
-        flask_response = make_response(response, 200)
-        flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
-        return flask_response
+        return self.update_view_table(object_id=object_id)
 
     @staticmethod
     def _parse_form_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
         return {key: ",".join(id for id in value if id) if isinstance(value, list) else value for key, value in attributes.items()}
+
+    @staticmethod
+    def _normalize_story_ids(stories: Any, remove_story_id: str | None = None, remove_all: bool = False) -> list[str]:
+        if remove_all:
+            return []
+
+        story_ids = stories if isinstance(stories, list) else ([stories] if stories else [])
+        normalized_story_ids = [str(story_id) for story_id in story_ids if story_id]
+        if remove_story_id:
+            normalized_story_ids = [story_id for story_id in normalized_story_ids if story_id != remove_story_id]
+        return normalized_story_ids
 
     @classmethod
     def process_form_data(cls, object_id: int | str):
@@ -186,6 +214,11 @@ class ReportItemView(BaseView):
             form_data = parse_formdata(request.form)
             logger.debug(f"Parsed form data: {form_data}")
             form_data.pop("layout", None)
+            form_data.pop("current_layout", None)
+            remove_story_id = form_data.pop("remove_story_id", None)
+            remove_all_stories = bool(form_data.pop("remove_all_stories", None))
+            if "stories" in form_data or remove_story_id or remove_all_stories:
+                form_data["stories"] = cls._normalize_story_ids(form_data.get("stories"), remove_story_id, remove_all_stories)
             form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
             return cls.store_form_data(form_data, object_id)
         except ValidationError as exc:
@@ -219,6 +252,26 @@ class ReportItemView(BaseView):
         }
 
         return render_template("analyze/report_versions.html", **context), 200
+
+    @classmethod
+    def handle_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
+        return cls.render_submitted_form_error(object_id, error=error, resp_obj=resp_obj)
+
+    @classmethod
+    def handle_submit_success(cls, object_id: int | str, core_response: dict[str, Any]) -> ResponseReturnValue:
+        cls.add_flash_notification(core_response)
+        return cls.redirect_htmx(cls.get_submit_redirect_target(object_id, core_response))
+
+    @classmethod
+    def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
+        response_object_id = core_response.get("id", object_id)
+        if not cls.is_create_object_id(object_id):
+            try:
+                if cls.get_object_by_id(response_object_id) is None:
+                    return cls.get_base_route()
+            except Forbidden:
+                return cls.get_base_route()
+        return cls.get_edit_route(report_id=response_object_id)
 
     @staticmethod
     @auth_required()

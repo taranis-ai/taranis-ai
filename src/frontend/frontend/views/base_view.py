@@ -138,12 +138,16 @@ class BaseView(MethodView):
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
 
+    @staticmethod
+    def is_create_object_id(object_id: int | str | None) -> bool:
+        return object_id in {0, "0", None, ""}
+
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
         try:
             obj = cls.model(**processed_data)
             dpl = DataPersistenceLayer()
-            result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
+            result = dpl.store_object(obj) if cls.is_create_object_id(object_id) else dpl.update_object(obj, object_id)
             return (result.json(), None) if result.ok else (None, result.json())
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
@@ -537,7 +541,7 @@ class BaseView(MethodView):
         cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None
     ) -> tuple[str, int]:
         submitted_model = cls._submitted_form_model(object_id)
-        if object_id == 0:
+        if cls.is_create_object_id(object_id):
             context = cls.get_create_context()
         else:
             persisted_object_id, model_instance, response_message = cls.resolve_update_response(object_id, resp_obj)
@@ -549,7 +553,7 @@ class BaseView(MethodView):
                 form_action_object_id=persisted_object_id,
             )
 
-        if object_id == 0:
+        if cls.is_create_object_id(object_id):
             if error:
                 context["notification"] = {"message": error, "error": True}
             if resp_obj and (message := resp_obj.get("message")):

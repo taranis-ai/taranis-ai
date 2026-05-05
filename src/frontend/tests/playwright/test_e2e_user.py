@@ -2,7 +2,6 @@
 import json
 import re
 import uuid
-from datetime import date
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -448,10 +447,12 @@ class TestEndToEndUser(BaseE2ETest):
 
             page.get_by_role("textbox", name="Title").fill("test title")
             page.get_by_test_id("report-type-select").select_option("4")
-            page.get_by_role("link", name="Stacked view").click()
+            page.get_by_role("button", name="Stacked view").click()
+            expect(page).to_have_url(re.compile(r"layout=stacked"))
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
             expect(page.get_by_test_id("report-type-select")).to_have_value("4")
-            page.get_by_role("link", name="Split view").click()
+            page.get_by_role("button", name="Split view").click()
+            expect(page).to_have_url(re.compile(r"layout=split"))
             expect(page.get_by_role("textbox", name="Title")).to_have_value("test title")
             expect(page.get_by_test_id("report-type-select")).to_have_value("4")
             page.get_by_test_id("save-report").click()
@@ -472,9 +473,11 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("report-id")).to_have_text(re.compile(r"^ID: [0-9a-f-]{36}$"))
             expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated")
             page.get_by_placeholder("Date").fill("yesterday")
-            page.get_by_role("link", name="Stacked view").click()
+            page.get_by_role("button", name="Stacked view").click()
+            expect(page).to_have_url(re.compile(r"layout=stacked"))
             expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
-            page.get_by_role("link", name="Split view").click()
+            page.get_by_role("button", name="Split view").click()
+            expect(page).to_have_url(re.compile(r"layout=split"))
             expect(page.get_by_placeholder("Date")).to_have_value("yesterday")
             expect(page.get_by_role("button", name="Completed")).to_be_visible()
             expect(page.get_by_role("button", name="Incomplete")).to_be_visible()
@@ -523,6 +526,7 @@ class TestEndToEndUser(BaseE2ETest):
                 dismiss_notifications(page)
                 if completed:
                     page.get_by_role("button", name="Completed").click()
+                    expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated")
                     dismiss_notifications(page)
 
             create_filter_report(completed_title, "4", completed=True)
@@ -551,6 +555,9 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).not_to_be_visible()
 
             completed_filter.select_option("")
+            expect(page).to_have_url(re.compile(r"completed=&report_item_type_id="))
+            report_type_filter = page.get_by_test_id("report-type-filter")
+            expect(report_type_filter).to_have_value("")
             report_type_filter.select_option("6")
             expect(page).to_have_url(re.compile(r"report_item_type_id=6"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).to_be_visible()
@@ -606,14 +613,21 @@ class TestEndToEndUser(BaseE2ETest):
 
             def test_clone_and_delete_report():
                 page.get_by_role("link", name="Analyze").click()
+                report_links = page.get_by_test_id("report-table").get_by_role("link", name=re.compile(r"^Test report"))
+                existing_report_count = report_links.count()
+                existing_report_hrefs = {
+                    href for href in report_links.evaluate_all("(links) => links.map((link) => link.getAttribute('href')).filter(Boolean)")
+                }
                 page.get_by_test_id(f"action-clone-report-{report_uuid}").click()
-                cloned_report = page.get_by_role("link", name=f"Test Report ({date.today().isoformat()}", exact=False)
-                assert cloned_report is not None
-                cloned_report_title = cloned_report.inner_text().strip()
-                clone_report_href = cloned_report.get_attribute("href")
-                assert clone_report_href is not None
+                expect(report_links).to_have_count(existing_report_count + 1)
+                current_hrefs = report_links.evaluate_all("(links) => links.map((link) => link.getAttribute('href')).filter(Boolean)")
+                new_hrefs = [href for href in current_hrefs if href not in existing_report_hrefs]
+                assert len(new_hrefs) == 1
+                clone_report_href = new_hrefs[0]
                 cloned_report_uuid = clone_report_href.split("/")[-1]
                 assert self.is_uuid4(cloned_report_uuid), f"Expected a valid UUID4, got {cloned_report_uuid}"
+                cloned_report = page.get_by_test_id("report-table").locator(f'a[href="{clone_report_href}"]').first
+                cloned_report_title = cloned_report.inner_text().strip()
                 item_id = self.get_table_row_id_by_link_text(page, "report-table", cloned_report_title)
                 delete_button_test_id = f"action-delete-{item_id}"
                 self.delete_table_row(page, delete_button_test_id)
@@ -676,6 +690,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
 
             def set_report_fields():
+                boolean_attribute = page.locator("#report_form input[type='checkbox'][name^='attributes']").first
                 page.get_by_role("link", name="Analyze").click()
                 expect(page.get_by_role("row", name="all attr report")).to_be_visible()
 
@@ -691,8 +706,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("STRING field").fill("string")
                 page.get_by_placeholder("NUMBER field").click()
                 page.get_by_placeholder("NUMBER field").fill("111")
-                expect(page.locator("#attribute-4")).to_be_visible()
-                page.locator("#attribute-4").check()
+                expect(boolean_attribute).to_be_visible()
+                boolean_attribute.check()
                 page.get_by_role("radio", name="UNRESTRICTED").check()
                 page.get_by_label("Impact (Enum) Select an").select_option("Malicious code execution affecting CIA of the system")
                 page.get_by_placeholder("TEXT field", exact=True).click()
@@ -711,14 +726,15 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_text("Used in attributes").nth(1)).to_be_visible()
 
             def empty_report_fields():
+                boolean_attribute = page.locator("#report_form input[type='checkbox'][name^='attributes']").first
                 page.get_by_text("Report item updated").click()
                 page.get_by_role("option", name="Report Story 1 Remove item:").get_by_role("button").click()
                 page.get_by_role("option", name="Report Story 2 Remove item:").get_by_role("button").click()
                 page.get_by_placeholder("STRING field").fill("")
                 page.get_by_placeholder("NUMBER field").fill("")
-                expect(page.locator("#attribute-4")).to_be_visible()
+                expect(boolean_attribute).to_be_visible()
 
-                page.locator("#attribute-4").uncheck()
+                boolean_attribute.uncheck()
                 page.get_by_role("radio", name="CLASSIFIED").check()
                 page.get_by_label("Impact (Enum) Malicious code").select_option("Privilege escalation")
                 page.get_by_placeholder("TEXT field", exact=True).fill("")
@@ -733,6 +749,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_text("Report item updated").click()
 
             def check_report_fields():
+                boolean_attribute = page.locator("#report_form input[type='checkbox'][name^='attributes']").first
                 page.get_by_role("link", name="Analyze").click()
                 expect(page.get_by_role("row", name="all attr report")).to_be_visible()
 
@@ -741,7 +758,7 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_role("option", name="Report Story 1 Remove item:")).not_to_be_visible()
                 expect(page.get_by_placeholder("STRING field")).to_be_empty()
                 expect(page.get_by_placeholder("NUMBER field")).to_be_empty()
-                expect(page.locator("#attribute-4")).not_to_be_checked()
+                expect(boolean_attribute).not_to_be_checked()
                 expect(page.get_by_role("radio", name="CLASSIFIED")).to_be_checked()
                 expect(page.get_by_role("radio", name="UNRESTRICTED")).not_to_be_checked()
                 expect(page.get_by_label("Impact (Enum) Malicious code")).to_have_value("Privilege escalation")
@@ -827,6 +844,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.locator("#share_story_to_report_dialog").get_by_role("button", name="Share").click()
 
             def set_report_fields_required():
+                boolean_attribute = page.locator("#report_form input[type='checkbox'][name^='attributes']").first
                 page.get_by_role("link", name="Analyze").click()
                 expect(page.get_by_role("row", name="all attr report REQUIRED")).to_be_visible()
 
@@ -840,8 +858,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("STRING field*").fill("string")
                 page.get_by_placeholder("NUMBER field*").click()
                 page.get_by_placeholder("NUMBER field*").fill("111")
-                expect(page.locator("#attribute-4")).to_be_visible()
-                page.locator("#attribute-4").check()
+                expect(boolean_attribute).to_be_visible()
+                boolean_attribute.check()
                 page.get_by_role("radio", name="UNRESTRICTED").check()
                 page.get_by_label("Impact (Enum) * Select an").select_option("Malicious code execution affecting CIA of the system")
                 page.get_by_placeholder("TEXT field*", exact=True).fill("text")
@@ -976,11 +994,12 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_role("link", name="Analyze").click()
         expect(page.get_by_role("link", name=report_title)).to_be_visible()
         page.get_by_role("link", name=report_title).click()
+        report_id = page.url.rstrip("/").split("/")[-1]
 
         page.get_by_label("TLP Level Clear Green Amber").select_option("green")
         page.get_by_test_id("save-report").click()
         page.get_by_text("Report item updated").click()
-        report_id = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+        expect(page.get_by_test_id("analyze")).to_be_visible()
         page.goto(url_for("analyze.report", report_id=report_id, _external=True))
         expect(page.get_by_text("403 - Access denied")).to_be_visible()
 

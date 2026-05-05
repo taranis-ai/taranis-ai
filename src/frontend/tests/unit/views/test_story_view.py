@@ -273,13 +273,13 @@ def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authent
     assert response.status_code == 200
     assert "Share Stories" in response.text
     assert "Shared Story" not in response.text
+    assert "Connector sharing is not available for your account" in response.text
+    assert "Share via email" in response.text
+    assert "Export to JSON" in response.text
 
     tree = html.fromstring(response.text)
     connector_select = tree.xpath('//select[@id="connector"]')
-    assert len(connector_select) == 1
-    options = connector_select[0].xpath("./option")
-    assert len(options) == 1
-    assert options[0].text == "Select a connector"
+    assert len(connector_select) == 0
 
 
 def test_story_sharing_dialog_still_renders_when_connector_loading_is_forbidden(authenticated_client_basic, monkeypatch, responses_mock):
@@ -299,13 +299,13 @@ def test_story_sharing_dialog_still_renders_when_connector_loading_is_forbidden(
 
     assert response.status_code == 200
     assert "Share Stories" in response.text
+    assert "Connector sharing is not available for your account" in response.text
+    assert "Share via email" in response.text
+    assert "Export to JSON" in response.text
 
     tree = html.fromstring(response.text)
     connector_select = tree.xpath('//select[@id="connector"]')
-    assert len(connector_select) == 1
-    options = connector_select[0].xpath("./option")
-    assert len(options) == 1
-    assert options[0].text == "Select a connector"
+    assert len(connector_select) == 0
 
 
 def test_handle_news_item_response_returns_notification_and_content(app, monkeypatch):
