@@ -1,23 +1,24 @@
 {% from "assess/sidebar/tri_state_filter.html" import tri_state_filter %}
 {% from "macros/htmx.html" import search_trigger %}
 {% set base_url = routes.base_route %}
-{% set selected_groups = request.args.getlist('group') %}
-{% set selected_sources = request.args.getlist('source') %}
-{% set selected_tags = request.args.getlist('tags') %}
-{% set current_search = request.args.get('search', '') %}
-{% set current_limit = request.args.get('limit', 20) %}
-{% set current_sort = request.args.get('sort', '') %}
-{% set current_preset = request.args.get('range', '') %}
-{% set time_from = request.args.get('timefrom', '') %}
-{% set time_to = request.args.get('timeto', '') %}
+{% set request_args = assess_request_args | default({}) %}
+{% set selected_groups = request_args.get('group', []) %}
+{% set selected_sources = request_args.get('source', []) %}
+{% set selected_tags = request_args.get('tags', []) %}
+{% set current_search = request_args.get('search', ['']) | first %}
+{% set current_limit = request_args.get('limit', [20]) | first %}
+{% set current_sort = request_args.get('sort', ['']) | first %}
+{% set current_preset = request_args.get('range', ['']) | first %}
+{% set time_from = request_args.get('timefrom', ['']) | first %}
+{% set time_to = request_args.get('timeto', ['']) | first %}
 {% set highlight = current_user.profile.highlight | default(false) %}
 {% set show_week_chart = current_user.profile.show_charts %}
 {% set compact_view = current_user.profile.compact_view %}
-{% set read_filter = request.args.get('read', '') %}
-{% set important_filter = request.args.get('important', '') %}
-{% set in_report_filter = request.args.get('in_report', '') %}
-{% set relevant_filter = request.args.get('relevant', '') %}
-{% set cybersecurity_filter = request.args.get('cybersecurity', '') %}
+{% set read_filter = request_args.get('read', ['']) | first %}
+{% set important_filter = request_args.get('important', ['']) | first %}
+{% set in_report_filter = request_args.get('in_report', ['']) | first %}
+{% set relevant_filter = request_args.get('relevant', ['']) | first %}
+{% set cybersecurity_filter = request_args.get('cybersecurity', ['']) | first %}
 {% set sort_choices = sort_choices | default([
   {'label': 'Newest first', 'value': 'date_desc'},
   {'label': 'Oldest first', 'value': 'date_asc'},
@@ -271,6 +272,12 @@ document.addEventListener('htmx:afterSwap', function (event) {
       <kbd class="kbd kbd-xs text-base-content">ctrl+esc</kbd>
     </span>
   </a>
+  <button type="button"
+          class="btn btn-secondary btn-sm w-full"
+          hx-post="{{ url_for('assess.save_default_filters') }}"
+          hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
+          hx-target="#notification-bar"
+          hx-target-error="#notification-bar">Save as default</button>
   <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.get_news_item', news_item_id='0') }}">
     {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
     Create new item

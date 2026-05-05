@@ -1,11 +1,14 @@
 import json
 from types import SimpleNamespace
+from urllib.parse import parse_qs, urlparse
 
 from flask import render_template_string, url_for
 from lxml import html
 from models.assess import Story
+from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import Forbidden
 
+from frontend.cache import add_user_to_cache
 from frontend.config import Config
 from frontend.views.story_views import StoryView, _calculate_story_diff, _normalize_story_import_payload
 
@@ -222,6 +225,132 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert search_input.get("hx-get") is None
     assert search_input.get("hx-include") is None
     assert search_input.get("hx-trigger") is None
+
+
+def test_assess_uses_saved_defaults_on_initial_load(authenticated_client, auth_user, responses_mock):
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.assess_default_filters = {
+        "source": ["source-1"],
+        "read": "true",
+        "sort": "date_desc",
+    }
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={
+            "tags": [],
+            "sources": [{"id": "source-1", "name": "Source 1"}],
+            "groups": [],
+        },
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [], "total_count": 0},
+    )
+
+    response = authenticated_client.get(url_for("assess.assess"))
+
+    assert response.status_code == 200
+
+    tree = html.fromstring(response.text)
+    read_select = tree.xpath('//select[@name="read"]')[0]
+    source_select = tree.xpath('//select[@id="source-filter"]')[0]
+    sort_select = tree.xpath('//select[@name="sort"]')[0]
+
+    assert read_select.xpath('./option[@value="true" and @selected]')
+    assert source_select.xpath('./optgroup[@label="OSINT Sources"]/option[@value="source-1" and @selected]')
+    assert sort_select.xpath('./option[@value="date_desc" and @selected]')
+
+    story_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories"))
+    parsed_query = parse_qs(urlparse(story_request.request.url).query)
+
+    assert parsed_query["source"] == ["source-1"]
+    assert parsed_query["read"] == ["true"]
+    assert parsed_query["sort"] == ["date_desc"]
+
+
+def test_assess_save_default_filters_posts_selected_filters_to_profile(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/users",
+        json={
+            "id": 1,
+            "username": "admin",
+            "name": "Arthur Dent",
+            "profile": {
+                "assess_default_filters": {
+                    "source": ["source-1"],
+                    "group": ["group-1"],
+                    "tags": ["alpha", "beta"],
+                    "read": "true",
+                    "important": "false",
+                    "sort": "date_desc",
+                    "range": "week",
+                    "timefrom": "2026-05-01T10:00",
+                    "timeto": "2026-05-02T11:00",
+                }
+            },
+            "permissions": ["ALL"],
+            "roles": [{"id": 1, "name": "Admin"}],
+        },
+    )
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/users/profile",
+        json={
+            "message": "Profile updated",
+            "id": 1,
+            "user_profile": {
+                "assess_default_filters": {
+                    "source": ["source-1"],
+                    "group": ["group-1"],
+                    "tags": ["alpha", "beta"],
+                    "read": "true",
+                    "important": "false",
+                    "sort": "date_desc",
+                    "range": "week",
+                    "timefrom": "2026-05-01T10:00",
+                    "timeto": "2026-05-02T11:00",
+                }
+            },
+        },
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.save_default_filters"),
+        data=MultiDict(
+            [
+                ("source", "source-1"),
+                ("group", "group-1"),
+                ("tags", "alpha"),
+                ("tags", "beta"),
+                ("read", "true"),
+                ("important", "false"),
+                ("sort", "date_desc"),
+                ("range", "week"),
+                ("timefrom", "2026-05-01T10:00"),
+                ("timeto", "2026-05-02T11:00"),
+            ]
+        ),
+    )
+
+    assert response.status_code == 200
+    assert "Assess defaults saved." in response.text
+
+    request_body = responses_mock.calls[0].request.body
+    payload = json.loads(request_body.decode() if isinstance(request_body, bytes) else request_body)
+    assert payload == {
+        "assess_default_filters": {
+            "source": ["source-1"],
+            "group": ["group-1"],
+            "tags": ["alpha", "beta"],
+            "read": "true",
+            "important": "false",
+            "sort": "date_desc",
+            "range": "week",
+            "timefrom": "2026-05-01T10:00",
+            "timeto": "2026-05-02T11:00",
+        }
+    }
 
 
 def test_table_search_bar_uses_form_level_search_trigger(app):
