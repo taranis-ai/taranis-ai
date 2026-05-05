@@ -9,6 +9,10 @@ from frontend.config import Config
 from frontend.views.story_views import StoryView, _calculate_story_diff, _normalize_story_import_payload
 
 
+def expected_search_trigger(input_id: str) -> str:
+    return f"input changed delay:500ms from:#{input_id}, search from:#{input_id}"
+
+
 def test_calculate_story_diff_ignores_empty_tag_changes():
     from_data = {
         "title": "Story title",
@@ -171,13 +175,15 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     search_form = tree.xpath('//form[@id="assess-search-form"]')[0]
     filter_form = tree.xpath('//form[@id="assess-sidebar"]')[0]
     search_input = tree.xpath('//input[@id="story_search"]')[0]
+    clear_button = tree.xpath("//button[@title='Clear time filters']")[0]
 
-    assert search_form.get("hx-trigger") == "input changed delay:500ms from:#story_search, search from:#story_search"
+    assert search_form.get("hx-trigger") == expected_search_trigger("story_search")
     assert search_form.get("hx-include") == "#assess-sidebar, #selected-tags"
     assert search_form.get("hx-on:submit") == "event.preventDefault()"
     assert filter_form.get("hx-trigger") == "change"
     assert filter_form.get("hx-include") == "#selected-tags"
     assert filter_form.get("hx-on:submit") == "event.preventDefault()"
+    assert clear_button.get("hx-include") == "#assess-sidebar, #assess-search-form, #selected-tags"
     assert search_input.get("hx-get") is None
     assert search_input.get("hx-include") is None
     assert search_input.get("hx-trigger") is None
@@ -193,7 +199,7 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
     form = tree.xpath("//form")[0]
     search_input = tree.xpath('//input[@id="osint_table-search"]')[0]
 
-    assert form.get("hx-trigger") == "input changed delay:500ms from:#osint_table-search, search from:#osint_table-search"
+    assert form.get("hx-trigger") == expected_search_trigger("osint_table-search")
     assert form.get("hx-on:submit") == "event.preventDefault()"
     assert search_input.get("hx-trigger") is None
 
@@ -207,7 +213,7 @@ def test_omnisearch_dialog_form_uses_htmx_submit(authenticated_client):
     form = tree.xpath('//dialog[@id="assess_search_dialog"]//div[@class="modal-box"]/form')[0]
     search_input = tree.xpath('//input[@id="omni_search"]')[0]
 
-    assert form.get("hx-trigger") == "input changed delay:500ms from:#omni_search, search from:#omni_search"
+    assert form.get("hx-trigger") == expected_search_trigger("omni_search")
     assert form.get("hx-on:submit") == "event.preventDefault()"
     assert search_input.get("hx-trigger") is None
 

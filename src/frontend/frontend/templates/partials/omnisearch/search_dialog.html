@@ -1,3 +1,5 @@
+{% from "macros/htmx.html" import search_trigger %}
+
 <dialog id="assess_search_dialog"
         class="modal modal-top"
         x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))">
@@ -8,7 +10,7 @@
     <form hx-get="{{ url_for('base.omnisearch') }}"
           hx-target="#assess_search_dialog"
           hx-swap="outerHTML"
-          hx-trigger="input changed delay:500ms from:#omni_search, search from:#omni_search"
+          hx-trigger="{{ search_trigger('omni_search') }}"
           hx-on:submit="event.preventDefault()">
       <label class="input input-bordered input-sm flex items-center gap-2">
         {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}

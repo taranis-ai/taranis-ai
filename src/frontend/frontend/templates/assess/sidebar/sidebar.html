@@ -1,4 +1,5 @@
-{% from 'assess/sidebar/tri_state_filter.html' import tri_state_filter %}
+{% from "assess/sidebar/tri_state_filter.html" import tri_state_filter %}
+{% from "macros/htmx.html" import search_trigger %}
 {% set base_url = routes.base_route %}
 {% set selected_groups = request.args.getlist('group') %}
 {% set selected_sources = request.args.getlist('source') %}
@@ -101,7 +102,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
           hx-swap="outerHTML"
           hx-push-url="true"
           hx-include="#assess-sidebar, #selected-tags"
-          hx-trigger="input changed delay:500ms from:#story_search, search from:#story_search"
+          hx-trigger="{{ search_trigger('story_search') }}"
           hx-on:submit="event.preventDefault()">
       <label class="input input-bordered input-sm flex items-center gap-2">
         {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
@@ -160,7 +161,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
             title="Clear time filters"
             hx-get="{{ base_url }}"
             hx-params="not timefrom,timeto,range"
-            hx-include="#assess-sidebar, #selected-tags"
+            hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
             hx-target="#assess"
             hx-swap="outerHTML"
             @click="clearTimeFilters()">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear time filters</button>

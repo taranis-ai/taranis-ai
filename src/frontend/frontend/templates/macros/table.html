@@ -157,6 +157,8 @@
   {% endif %}
 {% endmacro %}
 
+{% from "macros/htmx.html" import search_trigger %}
+
 {% macro table_search_bar(table_id, base_url) %}
   {% set current_search = request.args.get('search', '') %}
   <div class="grow">
@@ -165,7 +167,7 @@
           hx-select="#{{ table_id }}"
           hx-target="#{{ table_id }}"
           hx-target-error="#notification-bar"
-          hx-trigger="input changed delay:500ms from:#{{ table_id }}-search, search from:#{{ table_id }}-search"
+          hx-trigger="{{ search_trigger(table_id ~ '-search') }}"
           hx-on:submit="event.preventDefault()"
           hx-on::after-swap="document.getElementById('{{ table_id }}-search').focus()">
       <label class="input w-full">
