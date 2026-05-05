@@ -83,3 +83,58 @@ def test_get_task_statistics_includes_worker_metadata(monkeypatch):
     assert task_stats["worker_id"] == "bot-123"
     assert task_stats["last_run"] == last_run.isoformat()
     assert task_stats["last_success"] == last_success.isoformat()
+
+
+def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
+    from core.model.task import Task
+
+    task_ids = [
+        "collect_rss_collector_source-1-run-1",
+        "collect_rss_collector_source-2-run-1",
+        "collect_rss_collector_source-1-run-2",
+    ]
+
+    with app.app_context():
+        try:
+            Task.add(
+                {
+                    "id": task_ids[0],
+                    "task": "collector_task",
+                    "worker_id": "source-1",
+                    "worker_type": "rss_collector",
+                    "status": "SUCCESS",
+                    "result": {"message": "ok"},
+                }
+            )
+            Task.add(
+                {
+                    "id": task_ids[1],
+                    "task": "collector_task",
+                    "worker_id": "source-2",
+                    "worker_type": "rss_collector",
+                    "status": "SUCCESS",
+                    "result": {"message": "ok"},
+                }
+            )
+            Task.add(
+                {
+                    "id": task_ids[2],
+                    "task": "collector_task",
+                    "worker_id": "source-1",
+                    "worker_type": "rss_collector",
+                    "status": "FAILURE",
+                    "result": {"error": "boom"},
+                }
+            )
+
+            stats = Task.get_status_counts_by_task()
+            rss_stats = stats["rss_collector"]
+
+            assert rss_stats["successes"] == 1
+            assert rss_stats["failures"] == 1
+            assert rss_stats["total"] == 2
+            assert rss_stats["success_pct"] == 50
+        finally:
+            for task_id in task_ids:
+                if Task.get(task_id):
+                    Task.delete(task_id)
