@@ -2,8 +2,10 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
+import requests
 from dotenv import load_dotenv
 from models.user import UserProfile
 
@@ -45,6 +47,59 @@ for candidate in [repo_root / "src" / "models", repo_root / "src", repo_root]:
         sys.path.insert(0, candidate_str)
 
 
+def _normalize_and_validate_absolute_url(url: str, env_name: str) -> str:
+    normalized = url.strip().rstrip("/")
+    parsed = urlsplit(normalized)
+    if not parsed.scheme or not parsed.netloc:
+        raise RuntimeError(f"{env_name} must be an absolute URL, got: {url}")
+    return normalized
+
+
+def _external_frontend_base_url() -> str | None:
+    base_url = os.getenv("TARANIS_E2E_EXTERNAL_BASE_URL", "").strip()
+    if not base_url:
+        return None
+    return _normalize_and_validate_absolute_url(base_url, "TARANIS_E2E_EXTERNAL_BASE_URL")
+
+
+def _external_core_api_url() -> str | None:
+    core_url = os.getenv("TARANIS_E2E_EXTERNAL_CORE_URL", "").strip()
+    if not core_url:
+        return None
+    normalized = _normalize_and_validate_absolute_url(core_url, "TARANIS_E2E_EXTERNAL_CORE_URL")
+    return normalized if normalized.endswith("/api") else f"{normalized}/api"
+
+
+def _external_auth_credentials() -> tuple[str, str]:
+    username = os.getenv("TARANIS_E2E_EXTERNAL_AUTH_USERNAME", "admin")
+    password = os.getenv("TARANIS_E2E_EXTERNAL_AUTH_PASSWORD", "admin")
+    return username, password
+
+
+def _configure_external_frontend_environment() -> tuple[str, str, str] | None:
+    base_url = _external_frontend_base_url()
+    if not base_url:
+        return None
+
+    parsed = urlsplit(base_url)
+    application_root = parsed.path.rstrip("/") or "/"
+
+    os.environ["APPLICATION_ROOT"] = application_root
+    os.environ["JWT_COOKIE_SECURE"] = "False"
+
+    return parsed.netloc, application_root, parsed.scheme
+
+
+def _login_to_core(core_api_url: str, username: str, password: str):
+    response = requests.post(
+        f"{core_api_url}/auth/login",
+        json={"username": username, "password": password},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response
+
+
 def _create_access_token(app, user):
     from flask_jwt_extended import create_access_token
 
@@ -79,6 +134,8 @@ def _build_authenticated_client(app, access_token):
 def app():
     from frontend.__init__ import create_app
 
+    external_config = _configure_external_frontend_environment()
+
     app = create_app(
         {
             "TESTING": True,
@@ -86,6 +143,16 @@ def app():
             "SERVER_NAME": "localhost",
         }
     )
+
+    if external_config:
+        external_server_name, external_application_root, external_scheme = external_config
+        app.config.update(
+            {
+                "SERVER_NAME": external_server_name,
+                "APPLICATION_ROOT": external_application_root,
+                "PREFERRED_URL_SCHEME": external_scheme,
+            }
+        )
 
     yield app
 
@@ -122,6 +189,13 @@ def auth_user_basic():
 
 @pytest.fixture(scope="session")
 def access_token(app, auth_user):
+    if external_core_url := _external_core_api_url():
+        username, password = _external_auth_credentials()
+        token = _login_to_core(external_core_url, username, password).json().get("access_token")
+        if not token:
+            raise RuntimeError("External core login response does not contain 'access_token'")
+        yield token
+        return
     yield _create_access_token(app, auth_user)
 
 
@@ -132,9 +206,9 @@ def access_token_basic(app, auth_user_basic):
 
 @pytest.fixture(scope="session")
 def api_header():
-    api_key = os.getenv("API_KEY", "").strip()
+    api_key = os.getenv("TARANIS_E2E_EXTERNAL_API_KEY", "").strip() or os.getenv("API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError("Missing API_KEY for e2e tests")
+        raise RuntimeError("Missing API key for e2e tests")
     return {"Authorization": f"Bearer {api_key}", "Content-type": "application/json"}
 
 

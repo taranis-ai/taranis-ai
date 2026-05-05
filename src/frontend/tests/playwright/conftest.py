@@ -32,6 +32,64 @@ FAST_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.yml"
 LOCALHOST_PASSTHRU_PATTERN = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
 
 
+def _normalize_and_validate_absolute_url(url: str, env_name: str) -> str:
+    normalized = url.strip().rstrip("/")
+    parsed = urlsplit(normalized)
+    if not parsed.scheme or not parsed.netloc:
+        raise RuntimeError(f"{env_name} must be an absolute URL, got: {url}")
+    return normalized
+
+
+def _external_frontend_base_url() -> str | None:
+    base_url = os.getenv("TARANIS_E2E_EXTERNAL_BASE_URL", "").strip()
+    if not base_url:
+        return None
+    return _normalize_and_validate_absolute_url(base_url, "TARANIS_E2E_EXTERNAL_BASE_URL")
+
+
+def _external_core_api_url() -> str | None:
+    core_url = os.getenv("TARANIS_E2E_EXTERNAL_CORE_URL", "").strip()
+    if not core_url:
+        return None
+    normalized = _normalize_and_validate_absolute_url(core_url, "TARANIS_E2E_EXTERNAL_CORE_URL")
+    return normalized if normalized.endswith("/api") else f"{normalized}/api"
+
+
+def _external_auth_credentials() -> tuple[str, str]:
+    username = os.getenv("TARANIS_E2E_EXTERNAL_AUTH_USERNAME", "admin")
+    password = os.getenv("TARANIS_E2E_EXTERNAL_AUTH_PASSWORD", "admin")
+    return username, password
+
+
+def _external_basic_auth_credentials() -> tuple[str, str]:
+    username = os.getenv("TARANIS_E2E_EXTERNAL_BASIC_AUTH_USERNAME", "user")
+    password = os.getenv("TARANIS_E2E_EXTERNAL_BASIC_AUTH_PASSWORD", "user")
+    return username, password
+
+
+def _core_host_from_api_url(core_api_url: str) -> str:
+    parsed = urlsplit(core_api_url)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+class ExternalE2EServer:
+    def __init__(self, base_url: str):
+        self._base_url = base_url
+
+    def url(self) -> str:
+        return self._base_url
+
+
+def _login_to_core(core_api_url: str, username: str, password: str):
+    response = requests.post(
+        f"{core_api_url}/auth/login",
+        json={"username": username, "password": password},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response
+
+
 def _allow_requests_passthru(url: str | None = None) -> None:
     responses.add_passthru(LOCALHOST_PASSTHRU_PATTERN)
     if not url:
@@ -73,10 +131,20 @@ def docker_cleanup():
 
 
 @pytest.fixture(scope="session")
-def run_core(docker_services):
+def run_core(request):
     from frontend.config import Config
 
     taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
+
+    if external_core_url := _external_core_api_url():
+        Config.TARANIS_CORE_HOST = _core_host_from_api_url(external_core_url)
+        Config.TARANIS_CORE_URL = external_core_url
+        print(f"Using external Taranis Core for E2E tests: {external_core_url}")
+        _wait_for_server_to_be_alive(f"{external_core_url}/health", taranis_core_start_timeout)
+        yield external_core_url
+        return
+
+    docker_services = request.getfixturevalue("docker_services")
     core_port = docker_services.port_for("core", 8080)
     core_url = f"http://127.0.0.1:{core_port}/api"
 
@@ -113,7 +181,14 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(run_core, app, live_server, build_tailwindcss):
+def e2e_server(run_core, app, request):
+    if external_frontend_url := _external_frontend_base_url():
+        print(f"Using external Taranis Frontend for E2E tests: {external_frontend_url}")
+        yield ExternalE2EServer(external_frontend_url)
+        return
+
+    live_server = request.getfixturevalue("live_server")
+    request.getfixturevalue("build_tailwindcss")
     live_server.app = app
     live_server.start()
     yield live_server
@@ -255,12 +330,22 @@ def authenticated_page_factory(taranis_frontend: Page, e2e_server, access_token_
     """Factory fixture for creating authenticated pages with different user types."""
 
     def _create(user_type="admin"):
-        if user_type == "admin":
-            token_response = access_token_response
-        elif user_type == "basic":
-            token_response = access_token_response_basic
+        external_core_url = _external_core_api_url()
+        if external_core_url:
+            if user_type == "admin":
+                username, password = _external_auth_credentials()
+            elif user_type == "basic":
+                username, password = _external_basic_auth_credentials()
+            else:
+                raise ValueError(f"Unknown user_type: {user_type}")
+            token_response = _login_to_core(external_core_url, username, password)
         else:
-            raise ValueError(f"Unknown user_type: {user_type}")
+            if user_type == "admin":
+                token_response = access_token_response
+            elif user_type == "basic":
+                token_response = access_token_response_basic
+            else:
+                raise ValueError(f"Unknown user_type: {user_type}")
 
         page = _new_authenticated_page(taranis_frontend, e2e_server, token_response)
         return page
@@ -292,6 +377,9 @@ def non_admin_logged_in_page(authenticated_page_factory):
 
 @pytest.fixture
 def non_admin_auth_credentials():
+    if _external_core_api_url():
+        yield _external_basic_auth_credentials()
+        return
     yield "user", "test"
 
 

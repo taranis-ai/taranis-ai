@@ -1,4 +1,4 @@
-name: Smoke test docker compose
+name: E2E test docker compose
 on:
   workflow_dispatch:
   pull_request_review:
@@ -53,6 +53,45 @@ jobs:
           done
 
           echo "✅ All containers are healthy and running"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install frontend e2e dependencies
+        working-directory: src/frontend
+        run: uv sync --all-extras --dev --frozen
+
+      - name: Install Playwright dependencies
+        working-directory: src/frontend
+        run: uv run playwright install --with-deps --only-shell chromium
+
+      - name: Run frontend e2e tests against production compose stack
+        working-directory: src/frontend
+        env:
+          DEBUG: "false"
+          TARANIS_E2E_EXTERNAL_BASE_URL: "http://127.0.0.1:8080/frontend"
+          TARANIS_E2E_EXTERNAL_CORE_URL: "http://127.0.0.1:8080/api"
+          TARANIS_E2E_EXTERNAL_API_KEY: "supersecret"
+          TARANIS_E2E_EXTERNAL_AUTH_USERNAME: "admin"
+          TARANIS_E2E_EXTERNAL_AUTH_PASSWORD: "admin"
+          TARANIS_E2E_EXTERNAL_BASIC_AUTH_USERNAME: "user"
+          TARANIS_E2E_EXTERNAL_BASIC_AUTH_PASSWORD: "user"
+        run: uv run pytest --e2e-ci
+
+      - name: Show compose logs after e2e failure
+        if: failure()
+        working-directory: docker
+        run: |
+          echo "Container status:"
+          docker compose ps
+          echo ""
+          echo "Container logs:"
+          docker compose logs
 
       - name: Cleanup
         if: always()
