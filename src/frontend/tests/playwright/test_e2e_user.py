@@ -619,7 +619,9 @@ class TestEndToEndUser(BaseE2ETest):
             def test_create_product_from_report():
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_test_id(f"action-edit-{report_uuid}").click()
-                page.get_by_test_id("report-new-product").click()
+                page.get_by_test_id("report-publish-button").click()
+                expect(page.get_by_test_id("report-publish-dialog")).to_be_visible()
+                page.get_by_test_id("report-new-product-button").click()
                 expect(page.get_by_role("heading", name="Create Product")).to_be_visible()
                 expect(page.get_by_text("Create Product").first).to_be_visible()
 

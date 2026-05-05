@@ -3,6 +3,7 @@ from typing import Any
 from flask import Response, abort, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.assess import Story
+from models.product import Product, ProductType
 from models.report import ReportItem, ReportTypes
 from pydantic import ValidationError
 from werkzeug.exceptions import Forbidden, HTTPException
@@ -108,6 +109,20 @@ class ReportItemView(BaseView):
             base_context["current_completed_filter"] = request.args.get("completed", "")
             base_context["current_report_item_type_filter"] = request.args.get("report_item_type_id", "")
             layout = cls._normalize_layout(request.values.get("layout_switch") or request.values.get("layout") or base_context.get("layout"))
+
+            if report := base_context.get("report"):
+                product_types = {product_type.id: product_type.title for product_type in dpl.get_objects(ProductType)}
+                products = dpl.get_objects(Product)
+                base_context["existing_products"] = [
+                    {
+                        "id": product.id,
+                        "name": f"{product.title} ({product_types.get(product.product_type_id, 'Unknown')})",
+                    }
+                    for product in products
+                    if product.id
+                ]
+            else:
+                base_context["existing_products"] = []
 
             if report := base_context.get("report"):
                 report = cls._apply_request_values_to_report(report)
@@ -281,7 +296,10 @@ class ReportItemView(BaseView):
                     return cls.get_base_route()
             except Forbidden:
                 return cls.get_base_route()
-        return cls.get_edit_route(report_id=response_object_id)
+        target = cls.get_edit_route(report_id=response_object_id)
+        if cls.is_create_object_id(object_id) and (layout := request.values.get("layout")):
+            target = f"{target}?layout={layout}"
+        return target
 
     @staticmethod
     @auth_required()

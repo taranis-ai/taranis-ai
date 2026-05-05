@@ -31,9 +31,12 @@
             Version History ({{ report.revision_count }})
           </a>
         {% endif %}
-        <a class="btn btn-outline btn-sm"
-           href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
-           data-testid="report-new-product">New Product from Report</a>
+        <div data-testid="report-new-product" class="inline-flex">
+          <button type="button"
+                  class="btn btn-outline btn-sm"
+                  onclick="document.getElementById('report_publish_dialog').showModal()"
+                  data-testid="report-publish-button">Publish</button>
+        </div>
         <div class="join">
           <button type="submit"
                   form="report_form"
@@ -55,12 +58,14 @@
                 formnovalidate
                 name="layout_switch"
                 value="split"
+                formaction="{{ url_for('analyze.report', report_id=report.id) }}?layout=split"
                 class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</button>
         <button type="submit"
                 form="report_form"
                 formnovalidate
                 name="layout_switch"
                 value="stacked"
+                formaction="{{ url_for('analyze.report', report_id=report.id) }}?layout=stacked"
                 class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</button>
       </div>
     </div>
@@ -144,6 +149,8 @@
         <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
       </div>
     </form>
+
+    {% include "analyze/report_publish_dialog.html" %}
   </div>
 </div>
 <script type="text/javascript">
