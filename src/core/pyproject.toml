@@ -30,7 +30,7 @@ dependencies = [
     "granian",
     "psycopg",
     "requests",
-    "authlib",
+    "authlib>=1.7.1,<1.8",
     "setuptools",
     "taranis-models>=1.3.3.dev5",
     "sentry-sdk[flask]",
