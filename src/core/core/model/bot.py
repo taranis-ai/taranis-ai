@@ -42,7 +42,7 @@ class Bot(BaseModel):
         self.description = description
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
         self.index = index or Bot.get_highest_index() + 1
-        self.enabled = self.enabled
+        self.enabled = enabled
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @property

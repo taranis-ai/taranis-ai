@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input, form_switch %}
+{% from "macros/forms.html" import form_input %}
 {% from "analyze/attribute_macros.html" import attribute_field %}
 {% from "assess/simple_story_card.html" import analyze_story_card %}
 
@@ -10,7 +10,6 @@
 {% set layout = layout | default('split') %}
 {% set is_edit = report.id is not none and report.id != '0' %}
 {% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
-{% set form_target = '#report_form' if is_edit else '#report' %}
 
 <div class="p-4 card bg-base-100 shadow" id="report">
   <div class="card-body gap-4">
@@ -36,75 +35,56 @@
            href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
            data-testid="report-new-product">New Product from Report</a>
         <div class="join">
-          <button type="button"
-                  {{ form_action }}
-                  hx-vals='{"completed": true}'
-                  hx-target="#report"
-                  hx-target-error="#report"
-                  hx-swap="outerHTML"
-                  hx-select="#report"
-                  hx-include="#report_form [name=layout]"
-                  class="btn btn-sm btn-outline join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed
-          </button>
-          <button type="button"
-                  {{ form_action }}
-                  hx-vals='{"completed": false}'
-                  hx-target="#report"
-                  hx-target-error="#report"
-                  hx-swap="outerHTML"
-                  hx-select="#report"
-                  hx-include="#report_form [name=layout]"
-                  class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">Incomplete
-          </button>
+          <button type="submit"
+                  form="report_form"
+                  name="completed"
+                  value="true"
+                  formnovalidate
+                  class="btn btn-sm btn-outline join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed</button>
+          <button type="submit"
+                  form="report_form"
+                  name="completed"
+                  value="false"
+                  formnovalidate
+                  class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">Incomplete</button>
         </div>
       {% endif %}
-      <div class="join">
-        <a href="?layout=split"
-           hx-get="?layout=split"
-           hx-include="#report_form"
-           hx-target="#report"
-           hx-target-error="#report"
-           hx-swap="outerHTML"
-           hx-select="#report"
-           class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</a>
-        <a href="?layout=stacked"
-           hx-get="?layout=stacked"
-           hx-include="#report_form"
-           hx-target="#report"
-           hx-target-error="#report"
-           hx-swap="outerHTML"
-           hx-select="#report"
-           class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</a>
-      </div>
+      <form id="report_layout_form" class="join" method="get" action="{{ request.path }}" data-layout-form data-is-create="{{ (not is_edit) | tojson }}">
+        <div class="hidden" data-layout-story-ids></div>
+        <button type="submit" name="layout" value="split" class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">
+          Split view
+        </button>
+        <button type="submit"
+                name="layout"
+                value="stacked"
+                class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</button>
+      </form>
     </div>
 
-    <form id="report_form"
-          class="w-full"
-          {{ form_action }}
-          hx-swap="outerHTML"
-          hx-target="{{ form_target }}"
-          hx-target-error="{{ form_target }}"
-          hx-select="{{ form_target }}">
-      <input type="hidden" name="layout" value="{{ layout }}">
+    <form id="report_form" class="w-full" method="post" action="{{ form_action }}">
+      <div class="hidden">
+        <input type="hidden" name="layout" value="{{ layout }}">
+      </div>
 
       {% include "partials/admin_form_error.html" %}
 
       <div class="grid grid-cols-12 gap-4">
         <div class="col-span-12 {{ column_class }}">
           <div class="grid grid-cols-12 gap-4">
-            <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', report.title, form_error.title, input_id='report-title') }}</div>
+            <div class="col-span-12 md:col-span-6">
+              {{ form_input('Title', 'title', report.title, form_error.title, input_id='report-title', preserve=False) }}
+            </div>
             <div class="col-span-12 md:col-span-6">
               <label class="select w-full mb-5">
                 <span class="label">Report Type</span>
                 <select id="report_item_selector"
                         name="report_item_type_id"
                         data-testid="report-type-select"
-                        hx-preserve
                         class="select select-bordered w-full"
                         {% if is_edit %}disabled{% endif %}>
                   {% if not report.report_item_type_id %}<option value="" disabled selected>Select a report type</option>{% endif %}
                   {% for report_type in report_types %}
-                    <option value="{{ report_type.id }}" {% if report_type.id == report.report_item_type_id %}selected{% endif %}>
+                    <option value="{{ report_type.id }}" {% if report_type.id | string == report.report_item_type_id | string %}selected{% endif %}>
                       {{ report_type.title }}
                     </option>
                   {% endfor %}
@@ -137,15 +117,7 @@
             <header class="flex items-center justify-between">
               <h3 class="text-lg font-semibold">Stories</h3>
               <div>
-                <button type="button"
-                        class="btn btn-sm btn-outline"
-                        data-testid="remove-all-stories"
-                        {{ form_action }}
-                        hx-vals='{"stories[]": [""]}'
-                        hx-target="#report_form"
-                        hx-target-error="#report_form"
-                        hx-swap="outerHTML"
-                        hx-select="#report_form">
+                <button type="submit" class="btn btn-sm btn-outline" data-testid="remove-all-stories" name="remove_all_stories" value="1" formnovalidate>
                   Remove all
                 </button>
               </div>
@@ -154,9 +126,8 @@
             {% if stories %}
               <div class="space-y-3" data-testid="report-stories">
                 {% for story in stories %}
-                  {% if not is_edit %}<input type="hidden" name="stories[]" value="{{ story.id }}">{% endif %}
-                  {% set other_ids = (stories | rejectattr('id', 'equalto', story.id) | map(attribute='id') | list) or [''] %}
-                  {{ analyze_story_card(story, used_story_ids, form_action, other_ids) }}
+                  <input type="hidden" name="stories[]" value="{{ story.id }}">
+                  {{ analyze_story_card(story, used_story_ids) }}
                 {% endfor %}
               </div>
             {% else %}
@@ -169,6 +140,133 @@
       <div class="mt-8">
         <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
         <script type="text/javascript">
+          function restoreReportLayoutDraft() {
+            const reportForm = document.getElementById("report_form");
+            const layoutForm = document.getElementById("report_layout_form");
+
+            if (!reportForm || !layoutForm || typeof window === "undefined" || !window.sessionStorage) {
+              return;
+            }
+
+            const storageKey = `report-layout-draft:${window.location.pathname}`;
+            const pendingKey = `${storageKey}:pending`;
+
+            const restoreDraft = () => {
+              if (window.sessionStorage.getItem(pendingKey) !== "1") {
+                return;
+              }
+
+              const rawDraft = window.sessionStorage.getItem(storageKey);
+              window.sessionStorage.removeItem(storageKey);
+              window.sessionStorage.removeItem(pendingKey);
+              if (!rawDraft) {
+                return;
+              }
+
+              let draftEntries;
+              try {
+                draftEntries = JSON.parse(rawDraft);
+              } catch (error) {
+                return;
+              }
+
+              if (!Array.isArray(draftEntries)) {
+                return;
+              }
+
+              const valuesByName = new Map();
+              draftEntries.forEach(([name, value]) => {
+                if (!name) {
+                  return;
+                }
+                const values = valuesByName.get(name) || [];
+                values.push(String(value));
+                valuesByName.set(name, values);
+              });
+
+              reportForm.querySelectorAll("input, textarea, select").forEach((field) => {
+                if (!field.name || field.disabled || field.type === "hidden") {
+                  return;
+                }
+
+                if (field.type === "checkbox" || field.type === "radio") {
+                  field.checked = false;
+                  return;
+                }
+
+                if (field.tagName === "SELECT" && field.multiple) {
+                  Array.from(field.options).forEach((option) => {
+                    option.selected = false;
+                  });
+                  return;
+                }
+
+                field.value = "";
+              });
+
+              reportForm.querySelectorAll("input, textarea, select").forEach((field) => {
+                if (!field.name || field.disabled || field.type === "hidden") {
+                  return;
+                }
+
+                const values = valuesByName.get(field.name);
+                if (!values || values.length === 0) {
+                  return;
+                }
+
+                if (field.type === "checkbox" || field.type === "radio") {
+                  field.checked = values.includes(field.value);
+                  return;
+                }
+
+                if (field.tagName === "SELECT" && field.multiple) {
+                  Array.from(field.options).forEach((option) => {
+                    option.selected = values.includes(option.value);
+                  });
+                  return;
+                }
+
+                field.value = values[values.length - 1];
+              });
+            };
+
+            if (layoutForm.dataset.layoutDraftBound !== "true") {
+              layoutForm.addEventListener("submit", () => {
+                const draftEntries = [];
+                const formData = new FormData(reportForm);
+
+                for (const [name, value] of formData.entries()) {
+                  if (name === "layout") {
+                    continue;
+                  }
+                  draftEntries.push([name, value]);
+                }
+
+                window.sessionStorage.setItem(storageKey, JSON.stringify(draftEntries));
+                window.sessionStorage.setItem(pendingKey, "1");
+
+                const storyIdsContainer = layoutForm.querySelector("[data-layout-story-ids]");
+                if (storyIdsContainer && layoutForm.dataset.isCreate === "true") {
+                  storyIdsContainer.innerHTML = "";
+                  reportForm.querySelectorAll('input[name="stories[]"]').forEach((input) => {
+                    if (!input.value) {
+                      return;
+                    }
+
+                    const storyIdInput = document.createElement("input");
+                    storyIdInput.type = "hidden";
+                    storyIdInput.name = "story_ids";
+                    storyIdInput.value = input.value;
+                    storyIdsContainer.appendChild(storyIdInput);
+                  });
+                }
+              });
+              layoutForm.dataset.layoutDraftBound = "true";
+            }
+
+            restoreDraft();
+          }
+
           function initAttributeStoryChoices() {
             const story_attribute_ids = [{% for a in story_attributes %}{id: '{{ a.id }}', title: '{{ a.title }}'},{% endfor %}];
             story_attribute_ids.forEach(attr => {
@@ -177,13 +275,18 @@
             });
           }
 
+          function initializeReportForm() {
+            restoreReportLayoutDraft();
+            initAttributeStoryChoices();
+          }
+
           if (typeof htmx !== 'undefined' && htmx.onLoad) {
-            htmx.onLoad(function(elt) {
-              initAttributeStoryChoices();
+            htmx.onLoad(function() {
+              initializeReportForm();
             });
           } else {
             document.addEventListener('DOMContentLoaded', function() {
-              initAttributeStoryChoices();
+              initializeReportForm();
             });
           }
         </script>

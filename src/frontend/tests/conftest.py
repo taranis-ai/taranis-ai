@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -52,6 +53,28 @@ def _create_access_token(app, user):
         return create_access_token(identity=user)
 
 
+def _create_core_access_token(base_url: str, username: str = "admin", password: str = "admin", timeout_seconds: int = 30) -> str:
+    import requests
+
+    deadline = time.monotonic() + timeout_seconds
+    last_exc: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            response = requests.post(
+                f"{base_url}/auth/login",
+                json={"username": username, "password": password},
+                headers={"Content-type": "application/json"},
+                timeout=5,
+            )
+            response.raise_for_status()
+            if access_token := response.json().get("access_token"):
+                return access_token
+        except Exception as exc:  # pragma: no cover - readiness/auth retry
+            last_exc = exc
+        time.sleep(0.5)
+    raise RuntimeError(f"Unable to authenticate test user {username!r} against core at {base_url}: {last_exc}")
+
+
 def _build_access_token_response(app, user):
     from flask import jsonify
     from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
@@ -64,6 +87,19 @@ def _build_access_token_response(app, user):
         set_access_cookies(response, access_token)
         set_refresh_cookies(response, refresh_token)
         return response
+
+
+def _login_to_core(base_url: str, username: str, password: str):
+    import requests
+
+    response = requests.post(
+        f"{base_url}/auth/login",
+        json={"username": username, "password": password},
+        headers={"Content-type": "application/json"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response
 
 
 def _build_authenticated_client(app, access_token):
@@ -136,18 +172,18 @@ def api_header():
 
 
 @pytest.fixture(scope="session")
-def core_request_client(run_core, access_token):
-    return CoreRequestClient(base_url=run_core, access_token=access_token)
+def core_request_client(run_core):
+    return CoreRequestClient(base_url=run_core, access_token=_create_core_access_token(run_core))
 
 
 @pytest.fixture
-def access_token_response(app, auth_user, run_core):
-    yield _build_access_token_response(app, auth_user)
+def access_token_response(run_core):
+    yield _login_to_core(run_core, username="admin", password="admin")
 
 
 @pytest.fixture
-def access_token_response_basic(app, auth_user_basic, run_core):
-    yield _build_access_token_response(app, auth_user_basic)
+def access_token_response_basic(run_core):
+    yield _login_to_core(run_core, username="user", password="test")
 
 
 @pytest.fixture

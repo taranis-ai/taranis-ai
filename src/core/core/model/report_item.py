@@ -416,6 +416,15 @@ class ReportItem(BaseModel):
         if completed == "false":
             query = query.filter(ReportItem.completed == false())
 
+        report_item_type_id_raw = filter_args.get("report_item_type_id")
+        try:
+            report_item_type_id = int(report_item_type_id_raw) if report_item_type_id_raw is not None else None
+        except (TypeError, ValueError):
+            report_item_type_id = None
+
+        if report_item_type_id and report_item_type_id > 0:
+            query = query.filter(ReportItem.report_item_type_id == report_item_type_id)
+
         return query
 
     @classmethod

@@ -1,5 +1,5 @@
 {% from "macros/variables.html" import tlp_levels %}
-{% from "macros/forms.html" import form_input_content, form_textarea, form_switch %}
+{% from "macros/forms.html" import form_input_content, form_textarea %}
 
 {% macro attribute_field(attr, read_only=False, stories=[]) %}
   {% set base_name = 'attributes[' ~ attr.id ~ ']' %}
@@ -10,13 +10,33 @@
   {% set required = attr.required %}
   <div class="mb-5">
     {% if attr.type in ['TEXT', 'RICH_TEXT'] %}
-      {{ form_textarea(label=label, name=base_name, value=value, placeholder=description, required=required, input_id=field_id) }}
+      {{ form_textarea(label=label, name=base_name, value=value, placeholder=description, required=required, input_id=field_id, preserve=False) }}
     {% elif attr.type == 'STRING' %}
-      {{ form_input_content(label=label, name=base_name, value=value, placeholder=description, required=required, input_id=field_id) }}
+      {{ form_input_content(label=label, name=base_name, value=value, placeholder=description, required=required, input_id=field_id, preserve=False) }}
     {% elif attr.type == 'NUMBER' %}
-      {{ form_input_content(label=label, name=base_name, value=value, type='number', placeholder=description, required=required, input_id=field_id) }}
+      {{ form_input_content(label=label, name=base_name, value=value, type='number', placeholder=description, required=required, input_id=field_id, preserve=False) }}
     {% elif attr.type == 'BOOLEAN' %}
-      {{ form_switch(name=base_name, value=value, label=label, required=required, input_id=field_id) }}
+      <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2 mb-5 w-full">
+        <legend class="fieldset-legend">
+          <span>
+            {{ label }}
+            {% if required %}<span aria-hidden="true" class="text-error">*</span>{% endif %}
+          </span>
+        </legend>
+        <label class="label">
+          <input type="hidden" name="{{ base_name }}" value="No" />
+          <input id="{{ field_id }}"
+                 name="{{ base_name }}"
+                 type="checkbox"
+                 value="Yes"
+                 class="toggle toggle-primary peer"
+                 data-testid="report-boolean-attribute-checkbox"
+                 {% if required %}required{% endif %}
+                 {% if value == "Yes" %}checked{% endif %} />
+          <span class="text-base-content peer-checked:hidden">No</span>
+          <span class="text-base-content hidden peer-checked:inline">Yes</span>
+        </label>
+      </fieldset>
     {% elif attr.type in ['ENUM', 'CPE'] %}
       <label class="select w-full">
         <span class="label justify-between">
@@ -70,10 +90,10 @@
       </label>
 
     {% elif attr.type == 'CVE' %}
-      {{ form_input_content(label=label, name=base_name, value=value, pattern="^$|CVE-\\d{4}-\\d{4,7}$", invalid_msg="Please enter a valid CVE in the form CVE-YYYY-NNNN", placeholder=description or 'Enter CVE in the form CVE-YYYY-NNNN', required=required, read_only=read_only, input_id=field_id) }}
+      {{ form_input_content(label=label, name=base_name, value=value, pattern="^$|CVE-\\d{4}-\\d{4,7}$", invalid_msg="Please enter a valid CVE in the form CVE-YYYY-NNNN", placeholder=description or 'Enter CVE in the form CVE-YYYY-NNNN', required=required, read_only=read_only, input_id=field_id, preserve=False) }}
 
     {% elif attr.type == 'CVSS' %}
-      {{ form_input_content(label=label, name=base_name, value=value, pattern="^$|^(0(\\.\\d{1,2})?|[1-9](\\.\\d{1,2})?|10(\\.0{1,2})?)$", invalid_msg="Please enter a valid CVSS score between 0.0 and 10.0", placeholder=description or 'Enter CVSS score (0.0 - 10.0)', required=required, read_only=read_only, input_id=field_id) }}
+      {{ form_input_content(label=label, name=base_name, value=value, pattern="^$|^(0(\\.\\d{1,2})?|[1-9](\\.\\d{1,2})?|10(\\.0{1,2})?)$", invalid_msg="Please enter a valid CVSS score between 0.0 and 10.0", placeholder=description or 'Enter CVSS score (0.0 - 10.0)', required=required, read_only=read_only, input_id=field_id, preserve=False) }}
       <p class="text-xs text-base-content/60 mt-1">
         Use the <a href="https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator" target="_blank">NVD CVSS calculator</a> to determine the score.
       </p>

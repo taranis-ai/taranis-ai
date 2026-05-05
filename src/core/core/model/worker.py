@@ -1,4 +1,5 @@
 import uuid
+from functools import lru_cache
 from typing import Any
 
 from models.types import WORKER_CATEGORY, WORKER_TYPES
@@ -95,7 +96,7 @@ class Worker(BaseModel):
     @classmethod
     def get_parameters(cls, worker_type: str) -> list[ParameterValue]:
         if worker := cls.filter_by_type(worker_type):
-            return [parameter.get_copy() for parameter in worker.parameters]
+            return [parameter.get_copy() for parameter in cls._order_parameters(worker.type, list(worker.parameters))]
         return []
 
     @classmethod
@@ -130,7 +131,36 @@ class Worker(BaseModel):
 
     @classmethod
     def _generate_parameters_data(cls, worker):
-        return [cls._construct_parameter_data(parameter) for parameter in worker.parameters]
+        ordered_parameters = cls._order_parameters(worker.type, list(worker.parameters))
+        return [cls._construct_parameter_data(parameter) for parameter in ordered_parameters]
+
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def _parameter_order_by_worker_type() -> dict[str, dict[str, int]]:
+        from core.managers.pre_seed_data import workers
+
+        return {
+            worker["type"].lower(): {parameter["parameter"]: idx for idx, parameter in enumerate(worker.get("parameters", []))}
+            for worker in workers
+        }
+
+    @classmethod
+    def _order_parameters(cls, worker_type: str | WORKER_TYPES, parameters: list[ParameterValue]) -> list[ParameterValue]:
+        order_index = cls._parameter_order_by_worker_type().get(cls._normalize_worker_type_key(worker_type))
+        if not order_index:
+            return parameters
+
+        ordered_parameters = sorted(
+            enumerate(parameters),
+            key=lambda entry: (order_index.get(entry[1].parameter, float("inf")), entry[0]),
+        )
+        return [parameter for _, parameter in ordered_parameters]
+
+    @staticmethod
+    def _normalize_worker_type_key(worker_type: str | WORKER_TYPES) -> str:
+        if isinstance(worker_type, WORKER_TYPES):
+            return worker_type.value.lower()
+        return str(worker_type).lower()
 
     @classmethod
     def _construct_parameter_data(cls, parameter):

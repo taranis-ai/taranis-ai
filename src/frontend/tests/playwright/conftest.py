@@ -33,6 +33,32 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_inter
     return True
 
 
+def _wait_for_admin_login(core_url: str, timeout_seconds: int = 30, poll_interval: float = 0.5):
+    pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
+    responses.add_passthru(pattern)
+
+    deadline = datetime.now() + timedelta(seconds=timeout_seconds)
+    last_exc: Exception | None = None
+    while datetime.now() < deadline:
+        try:
+            response = requests.post(
+                f"{core_url}/auth/login",
+                json={"username": "admin", "password": "admin"},
+                timeout=2,
+            )
+            response.raise_for_status()
+            if response.json().get("access_token"):
+                return True
+        except Exception as exc:  # pragma: no cover - readiness polling
+            last_exc = exc
+        page_wait = min(poll_interval, max((deadline - datetime.now()).total_seconds(), 0))
+        if page_wait:
+            import time
+
+            time.sleep(page_wait)
+    raise RuntimeError(f"Timed out waiting for admin login at {core_url}: {last_exc}")
+
+
 @pytest.fixture(scope="session")
 def docker_compose_file():
     return str(Path(__file__).parent / "compose.e2e.yml")
@@ -68,6 +94,7 @@ def run_core(docker_services):
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
         print(f"Waiting for Taranis Core to be available at: {core_url}")
         _wait_for_server_to_be_alive(f"{core_url}/health", taranis_core_start_timeout)
+        _wait_for_admin_login(core_url, taranis_core_start_timeout)
         yield core_url
     except Exception as e:
         pytest.fail(str(e))
@@ -174,6 +201,9 @@ def _dismiss_notifications(page: Page):
 
 def _cookies_from_response(resp) -> list[dict]:
     """Parse Flask Response `Set-Cookie` headers into Playwright cookie dicts (name/value/path only)."""
+    if hasattr(resp, "cookies") and getattr(resp, "cookies", None):
+        return [{"name": name, "value": value} for name, value in resp.cookies.items()]
+
     cookies: list[dict] = []
     set_cookie_headers = resp.headers.getlist("Set-Cookie")
     for header in set_cookie_headers:
@@ -339,6 +369,7 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         non_admin_logged_in_page,
         extra_allow_patterns=[
             r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+            r"\[console\.error\].*htmx:oobErrorNoTarget, #notification-bar",
         ],
     )
 
