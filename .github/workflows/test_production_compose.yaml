@@ -58,3 +58,36 @@ jobs:
         if: always()
         working-directory: docker
         run: docker compose down
+
+  e2e_tests:
+    if: ${{ github.event.review.state == 'approved' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    needs: [test_docker_deployment]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+          cache: true
+
+      - name: Run e2e tests
+        id: run_e2e
+        run: |
+          chmod +x src/frontend/run_e2e_tests.sh
+          ./src/frontend/run_e2e_tests.sh
+
+      - name: Upload e2e test traces
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.run_e2e.outcome == 'failure' }}
+        with:
+          retention-days: 7
+          name: playwright-traces-${{ github.run_number }}
+          path: src/**/taranis_ai_*_trace.zip
