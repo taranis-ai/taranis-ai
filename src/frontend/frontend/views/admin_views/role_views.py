@@ -1,11 +1,13 @@
 from typing import Any
 
-from models.admin import Role, Permission
+from models.admin import Permission, Role
+from werkzeug.exceptions import HTTPException
+
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.views.base_view import BaseView
 from frontend.filters import render_count
 from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.base_view import BaseView
 
 
 class RoleView(AdminMixin, BaseView):
@@ -18,6 +20,8 @@ class RoleView(AdminMixin, BaseView):
         try:
             dpl = DataPersistenceLayer()
             base_context["permissions"] = [p.model_dump() for p in dpl.get_objects(Permission)]
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Error retrieving permissions")
         return base_context

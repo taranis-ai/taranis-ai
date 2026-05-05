@@ -12,13 +12,14 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-dev
 
 COPY ./src/core/. /app/
+COPY ./src/models/. /models/
 COPY ./.git /.git
 
 ENV UV_COMPILE_BYTECODE=1
 
 RUN uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
-    uv sync --frozen
+    uv sync --frozen --no-editable
 
 FROM python:3.13-slim
 

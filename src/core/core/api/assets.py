@@ -6,6 +6,7 @@ from core.config import Config
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args
 from core.model import asset
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 
 
 class AssetGroups(MethodView):
@@ -26,15 +27,24 @@ class AssetGroups(MethodView):
             return {"error": "No data provided"}, 400
         data["organization"] = current_user.organization
         asset_result = asset.AssetGroup.add(data)
+        invalidate_frontend_cache_on_success(201, models=("asset_group",))
         return {"message": "Asset Group added", "id": asset_result.id}, 201
 
     @auth_required("ASSETS_CONFIG")
-    def delete(self, group_id):
-        return asset.AssetGroup.delete(current_user.organization, group_id)
+    def delete(self, group_id: str | None = None):
+        if not group_id:
+            return {"error": "No group_id provided"}, 400
+        response, status = asset.AssetGroup.delete(current_user.organization, group_id)
+        invalidate_frontend_cache_on_success(status, models=("asset_group",))
+        return response, status
 
     @auth_required("ASSETS_CONFIG")
-    def put(self, group_id):
-        return asset.AssetGroup.update(current_user.organization, group_id, request.json)
+    def put(self, group_id: str | None = None):
+        if not group_id:
+            return {"error": "No group_id provided"}, 400
+        response, status = asset.AssetGroup.update(current_user.organization, group_id, request.json)
+        invalidate_frontend_cache_on_success(status, models=("asset_group",))
+        return response, status
 
 
 class Assets(MethodView):
@@ -51,15 +61,25 @@ class Assets(MethodView):
     def post(self):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
-        return asset.Asset.add(current_user.organization, data)
+        response, status = asset.Asset.add(current_user.organization, data)
+        invalidate_frontend_cache_on_success(status, models=("asset",))
+        return response, status
 
     @auth_required("ASSETS_CREATE")
-    def put(self, asset_id):
-        return asset.Asset.update(current_user.organization, asset_id, request.json)
+    def put(self, asset_id: int | None = None):
+        if asset_id is None:
+            return {"error": "No asset_id provided"}, 400
+        response, status = asset.Asset.update(current_user.organization, asset_id, request.json)
+        invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset_id})
+        return response, status
 
     @auth_required("ASSETS_CREATE")
-    def delete(self, asset_id):
-        return asset.Asset.delete(current_user.organization, asset_id)
+    def delete(self, asset_id: int | None = None):
+        if asset_id is None:
+            return {"error": "No asset_id provided"}, 400
+        response, status = asset.Asset.delete(current_user.organization, asset_id)
+        invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset_id})
+        return response, status
 
 
 class AssetVulnerability(MethodView):
@@ -68,16 +88,22 @@ class AssetVulnerability(MethodView):
         data = request.json
         if not data or "solved" not in data:
             return {"message": "Missing solved field"}, 400
-        return asset.Asset.solve_vulnerability(current_user.organization, asset_id, vulnerability_id, data["solved"])
+        response, status = asset.Asset.solve_vulnerability(current_user.organization, asset_id, vulnerability_id, data["solved"])
+        invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset_id})
+        return response, status
 
 
 def initialize(app: Flask):
     base_route = f"{Config.APPLICATION_ROOT}api"
     app.add_url_rule(f"{base_route}/assets", view_func=Assets.as_view("assets"))
-    app.add_url_rule(f"{base_route}/assets/<int:asset_id>", view_func=Assets.as_view("asset"))
+    app.add_url_rule(f"{base_route}/assets/<int:asset_id>", view_func=Assets.as_view("asset"), methods=["GET", "PUT", "DELETE"])
     app.add_url_rule(
         f"{base_route}/assets/<int:asset_id>/vulnerabilities/<int:vulnerability_id>",
         view_func=AssetVulnerability.as_view("asset_vulnerability"),
     )
     app.add_url_rule(f"{base_route}/asset-groups", view_func=AssetGroups.as_view("asset_groups"))
-    app.add_url_rule(f"{base_route}/asset-groups/<string:group_id>", view_func=AssetGroups.as_view("asset_group"))
+    app.add_url_rule(
+        f"{base_route}/asset-groups/<string:group_id>",
+        view_func=AssetGroups.as_view("asset_group"),
+        methods=["GET", "PUT", "DELETE"],
+    )

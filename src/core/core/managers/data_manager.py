@@ -86,16 +86,15 @@ def sync_presenter_templates_to_data() -> None:
         json.dump(template_hashes, f, indent=4)
 
 
-def get_template_content(template_id: str) -> str | None:
-    """Return the template content as a string, or None if not found."""
+def get_template_content(template_id: str) -> str | bytes | None:
+    """Return the template content, raw bytes for invalid UTF-8, or None if not found."""
     try:
         path = _resolve_presenter_template_path(template_id, must_exist=True)
         try:
-            content = path.read_text(encoding="utf-8")
+            return path.read_text(encoding="utf-8")
         except UnicodeDecodeError as e:
             logger.error(f"Template {path.name} is not valid UTF-8: {e}")
-            return "__INVALID_UTF8__"
-        return "__EMPTY__" if content.strip() == "" else content
+            return path.read_bytes()
     except Exception as e:
         logger.error(f"Error reading template {template_id}: {e}")
         return None

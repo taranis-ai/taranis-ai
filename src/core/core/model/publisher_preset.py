@@ -77,6 +77,35 @@ class PublisherPreset(BaseModel):
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
 
+    def to_user_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "type": self.type.value if self.type else None,
+        }
+
+    @classmethod
+    def get_for_publish_api(cls, preset_id: str) -> tuple[dict[str, Any], int]:
+        if preset := cls.get(preset_id):
+            return preset.to_user_dict(), 200
+        return {"error": f"{cls.__name__} {preset_id} not found"}, 404
+
+    @classmethod
+    def get_all_for_publish_api(cls, filter_args: dict[str, Any] | None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        logger.debug(f"Filtering {cls.__name__} for publish API with {filter_args}")
+
+        base_query = cls.get_filter_query(filter_args)
+        query = base_query
+        if not cls._should_fetch_all(filter_args):
+            query = cls._add_paging_to_query(filter_args, query)
+
+        query = cls._add_sorting_to_query(filter_args, query)
+        items = cls.get_filtered(query) or []
+        count = cls.get_filtered_count(base_query)
+        return {"total_count": count, "items": [item.to_user_dict() for item in items]}, 200
+
 
 class PublisherPresetParameterValue(BaseModel):
     publisher_preset_id = db.Column(db.String, db.ForeignKey("publisher_preset.id", ondelete="CASCADE"), primary_key=True)

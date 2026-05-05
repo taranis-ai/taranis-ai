@@ -1,5 +1,6 @@
 from flask import abort, render_template
 from models.dashboard import Dashboard
+from werkzeug.exceptions import HTTPException
 
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
@@ -28,6 +29,8 @@ class AdminDashboardView(AdminMixin, BaseView):
         data_persistence = DataPersistenceLayer()
         try:
             dashboard = data_persistence.get_first(Dashboard)
+        except HTTPException:
+            raise
         except Exception as exc:
             dashboard = None
             error = str(exc)
@@ -80,9 +83,26 @@ class AdminDashboardView(AdminMixin, BaseView):
     @staticmethod
     def get_dashboard_health(dashboard: Dashboard) -> dict[str, bool | dict[str, str]]:
         if health_status := dashboard.health_status:
-            return {"healthy": bool(health_status.healthy), "services": health_status.services.model_dump()}
+            services = health_status.services.model_dump()
+            return {
+                "healthy": bool(health_status.healthy),
+                "services": {
+                    "Database": services.get("database", "n/a"),
+                    "Pre-seeded": services.get("seed_data", "n/a"),
+                    "Redis": services.get("broker", "n/a"),
+                    "Workers": services.get("workers", "n/a"),
+                },
+            }
 
-        return {"healthy": False, "services": {"database": "n/a", "broker": "n/a", "workers": "n/a"}}
+        return {
+            "healthy": False,
+            "services": {
+                "Database": "n/a",
+                "Pre-seeded": "n/a",
+                "Redis": "n/a",
+                "Workers": "n/a",
+            },
+        }
 
     def get(self, **kwargs):
         return self.static_view()

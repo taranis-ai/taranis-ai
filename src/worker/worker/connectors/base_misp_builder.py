@@ -1,6 +1,7 @@
 import json
 
 from pymisp import MISPEvent
+
 from worker.connectors.definitions.misp_objects import BaseMispObject
 from worker.log import logger
 

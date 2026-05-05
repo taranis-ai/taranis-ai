@@ -1,6 +1,6 @@
 import base64
 
-import requests
+import niquests as requests
 
 from .base_publisher import BasePublisher
 

@@ -59,14 +59,14 @@ document.body.addEventListener('htmx:confirm', async (e) => {
 
   e.preventDefault();
 
+  const confirmOptions = getConfirmOptions(elt, e.detail.question);
+
   const { isConfirmed, value: accept } = await Swal.fire({
-    text: "Are you sure you want to delete this OSINT source?",
+    ...confirmOptions,
     input: "checkbox",
     inputValue: 0,
     inputPlaceholder: "Force Deletion of OSINT source and all its data. This action cannot be undone.",
-    icon: "question",
     showCancelButton: true,
-    confirmButtonText: "Delete"
   });
 
   if (!isConfirmed) return;

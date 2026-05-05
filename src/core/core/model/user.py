@@ -1,6 +1,7 @@
 import json
 import secrets
 from copy import deepcopy
+from datetime import datetime
 from typing import Any, Sequence
 
 from models.user import ProfileSettings, UserProfile
@@ -25,6 +26,7 @@ class User(BaseModel):
     username: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     password: Mapped[str] = db.Column(db.String(), nullable=True)
+    last_login: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
 
     organization_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("organization.id"))
     organization: Mapped["Organization"] = relationship("Organization")
@@ -72,11 +74,16 @@ class User(BaseModel):
             id=self.id,
             username=self.username,
             name=self.name,
+            last_login=self.last_login,
             organization=({"id": self.organization.id, "name": self.organization.name} if self.organization else None),
             roles=[{"id": r.id, "name": r.name} for r in self.roles if r],
             permissions=self.get_permissions(),
             profile=ProfileSettings.model_validate(self.profile or {}),
         )
+
+    def mark_last_login(self) -> None:
+        self.last_login = self.utcnow()
+        db.session.commit()
 
     @classmethod
     def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:

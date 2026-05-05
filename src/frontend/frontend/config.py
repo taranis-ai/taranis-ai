@@ -1,6 +1,12 @@
 from datetime import datetime
 from secrets import token_urlsafe
+from typing import Any
 
+from models.cache_contract import (
+    CACHE_DEFAULT_TIMEOUT_DEFAULT,
+    CACHE_ENABLED_DEFAULT,
+    CACHE_KEY_PREFIX_DEFAULT,
+)
 from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -39,9 +45,13 @@ class Settings(BaseSettings):
 
     # BABEL_DEFAULT_LOCALE: str = "en"
     # BABEL_DEFAULT_TIMEZONE: str = "UTC"
-    CACHE_TYPE: str = "SimpleCache"
-    CACHE_DEFAULT_TIMEOUT: int = 300
-    CACHE_KEY_PREFIX: str = "taranis_frontend"
+    CACHE_ENABLED: bool = CACHE_ENABLED_DEFAULT
+    CACHE_DEFAULT_TIMEOUT: int = CACHE_DEFAULT_TIMEOUT_DEFAULT
+    CACHE_KEY_PREFIX: str = CACHE_KEY_PREFIX_DEFAULT
+    CACHE_REDIS_URL: str | None = None
+    CACHE_REDIS_PASSWORD: SecretStr | None = None
+    REDIS_URL: str = "redis://localhost:6379"
+    REDIS_PASSWORD: str | None = None
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:
@@ -59,3 +69,10 @@ class Settings(BaseSettings):
 
 
 Config = Settings()
+
+
+def build_config_overrides(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
+    resolved_overrides = dict(overrides or {})
+    if resolved_overrides.get("TESTING") and "CACHE_ENABLED" not in resolved_overrides:
+        resolved_overrides["CACHE_ENABLED"] = False
+    return resolved_overrides

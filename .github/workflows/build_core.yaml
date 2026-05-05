@@ -4,6 +4,7 @@ on:
   push:
     paths:
     - 'src/core/**'
+    - 'src/models/**'
     - 'docker/Containerfile.core'
     - '.github/workflows/build_core.yaml'
     branches:
@@ -102,6 +103,8 @@ jobs:
             arch: arm64
             platform: linux/arm64
     steps:
+      - uses: actions/checkout@v6
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -128,6 +131,7 @@ jobs:
         uses: docker/build-push-action@v7
         id: build
         with:
+          context: .
           file: docker/Containerfile.core
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}

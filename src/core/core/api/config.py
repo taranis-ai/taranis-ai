@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError  # noqa: F401
 
 from core.config import Config
 from core.log import logger
-from core.managers import queue_manager, schedule_manager
+from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
     delete_template,
@@ -36,10 +36,8 @@ from core.model import (
     worker,
 )
 from core.model.permission import Permission
-from core.service.news_item import NewsItemService
-from core.service.template_crud import create_or_update_template
-from core.service.template_service import build_template_response, build_templates_list, invalidate_template_validation_cache
-from core.service.template_validation import validate_template_content
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.template_service import build_template_response, build_templates_list, create_or_update_template, validate_template_content
 
 
 def convert_integrity_error(error: IntegrityError) -> str:
@@ -67,6 +65,10 @@ def convert_integrity_error(error: IntegrityError) -> str:
     return str(error)
 
 
+def _invalidate_admin_cache(status_code: int) -> int:
+    return invalidate_frontend_cache_on_success(status_code, full=True)
+
+
 class DictionariesReload(MethodView):
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def post(self, dictionary_type: str):
@@ -85,15 +87,24 @@ class ACLEntries(MethodView):
     @auth_required("CONFIG_ACL_CREATE")
     def post(self):
         acl = role_based_access.RoleBasedAccess.add(request.json)
+        _invalidate_admin_cache(201)
         return {"message": "ACL created", "id": acl.id}, 201
 
     @auth_required("CONFIG_ACL_UPDATE")
-    def put(self, acl_id: int):
-        return role_based_access.RoleBasedAccess.update(acl_id, request.json)
+    def put(self, acl_id: int | None = None):
+        if acl_id is None:
+            return {"error": "No acl_id provided"}, 400
+        response, status = role_based_access.RoleBasedAccess.update(acl_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_ACL_DELETE")
-    def delete(self, acl_id: int):
-        return role_based_access.RoleBasedAccess.delete(acl_id)
+    def delete(self, acl_id: int | None = None):
+        if acl_id is None:
+            return {"error": "No acl_id provided"}, 400
+        response, status = role_based_access.RoleBasedAccess.delete(acl_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class Attributes(MethodView):
@@ -108,15 +119,24 @@ class Attributes(MethodView):
     @auth_required("CONFIG_ATTRIBUTE_CREATE")
     def post(self):
         attribute_result = attribute.Attribute.add(request.json)
+        _invalidate_admin_cache(201)
         return {"message": "Attribute added", "id": attribute_result.id}, 201
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def put(self, attribute_id: int):
-        return attribute.Attribute.update(attribute_id, request.json)
+    def put(self, attribute_id: int | None = None):
+        if attribute_id is None:
+            return {"error": "No attribute_id provided"}, 400
+        response, status = attribute.Attribute.update(attribute_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_ATTRIBUTE_DELETE")
-    def delete(self, attribute_id: int):
-        return attribute.Attribute.delete(attribute_id)
+    def delete(self, attribute_id: int | None = None):
+        if attribute_id is None:
+            return {"error": "No attribute_id provided"}, 400
+        response, status = attribute.Attribute.delete(attribute_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class ReportItemTypesImport(MethodView):
@@ -157,20 +177,28 @@ class ReportItemTypes(MethodView):
     def post(self):
         try:
             item = report_item_type.ReportItemType.add(request.json)
+            _invalidate_admin_cache(201)
             return {"message": f"ReportItemType {item.title} added", "id": item.id}, 201
         except Exception:
             logger.exception("Failed to add report item type")
             return {"error": "Failed to add report item type"}, 500
 
     @auth_required("CONFIG_REPORT_TYPE_UPDATE")
-    def put(self, type_id: int):
+    def put(self, type_id: int | None = None):
+        if type_id is None:
+            return {"error": "No type_id provided"}, 400
         if item := report_item_type.ReportItemType.update(type_id, request.json):
+            _invalidate_admin_cache(200)
             return {"message": f"Report item type {item.title} updated", "id": f"{item.id}"}, 200
         return {"error": f"Report item type with ID: {type_id} not found"}, 404
 
     @auth_required("CONFIG_REPORT_TYPE_DELETE")
-    def delete(self, type_id: int):
-        return report_item_type.ReportItemType.delete(type_id)
+    def delete(self, type_id: int | None = None):
+        if type_id is None:
+            return {"error": "No type_id provided"}, 400
+        response, status = report_item_type.ReportItemType.delete(type_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class ProductTypes(MethodView):
@@ -185,6 +213,7 @@ class ProductTypes(MethodView):
     def post(self):
         try:
             product = product_type.ProductType.add(request.json)
+            _invalidate_admin_cache(201)
             return {"message": "Product type created", "id": product.id}, 201
         except ValueError as e:
             return {"error": str(e)}, 400
@@ -195,9 +224,13 @@ class ProductTypes(MethodView):
             return {"error": "Failed to create product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
-    def put(self, type_id: int):
+    def put(self, type_id: int | None = None):
+        if type_id is None:
+            return {"error": "No type_id provided"}, 400
         try:
-            return product_type.ProductType.update(type_id, request.json, current_user)
+            response, status = product_type.ProductType.update(type_id, request.json, current_user)
+            _invalidate_admin_cache(status)
+            return response, status
         except ValueError as e:
             return {"error": str(e)}, 400
         except Exception as e:
@@ -205,9 +238,13 @@ class ProductTypes(MethodView):
             return {"error": "Failed to update product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
-    def delete(self, type_id: int):
+    def delete(self, type_id: int | None = None):
+        if type_id is None:
+            return {"error": "No type_id provided"}, 400
         try:
-            return product_type.ProductType.delete(type_id)
+            response, status = product_type.ProductType.delete(type_id)
+            _invalidate_admin_cache(status)
+            return response, status
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception as e:
@@ -247,20 +284,29 @@ class Roles(MethodView):
     @auth_required("CONFIG_ROLE_CREATE")
     def post(self):
         new_role = role.Role.add(request.json)
+        _invalidate_admin_cache(201)
         return {"message": "Role created", "id": new_role.id}, 201
 
     @auth_required("CONFIG_ROLE_UPDATE")
-    def put(self, role_id: int):
+    def put(self, role_id: int | None = None):
+        if role_id is None:
+            return {"error": "No role_id provided"}, 400
         if data := request.json:
-            return role.Role.update(role_id, data)
+            response, status = role.Role.update(role_id, data)
+            _invalidate_admin_cache(status)
+            return response, status
         return {"error": "No data provided"}, 400
 
     @auth_required("CONFIG_ROLE_DELETE")
-    def delete(self, role_id: int):
+    def delete(self, role_id: int | None = None):
+        if role_id is None:
+            return {"error": "No role_id provided"}, 400
         if user.UserRole.has_assigned_user(role_id):
             logger.warning(f"Role {role_id} cannot be deleted, it has assigned users")
             return {"error": f"Role {role_id} cannot be deleted, it has assigned users"}, 400
-        return role.Role.delete(role_id)
+        response, status = role.Role.delete(role_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class Templates(MethodView):
@@ -281,25 +327,32 @@ class Templates(MethodView):
             return {"error": "No data provided"}, 400
         template_id = request.json.get("id")
         base64_content = request.json.get("content")
-        return create_or_update_template(template_id, base64_content)
+        response, status = create_or_update_template(template_id, base64_content)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
-    def put(self, template_path: str):
+    def put(self, template_path: str | None = None):
+        if not template_path:
+            return {"error": "No template_path provided"}, 400
         # Use shared logic for create/update
         if not request.json:
             return {"error": "No data provided"}, 400
         base64_content = request.json.get("content")
-        invalidate_template_validation_cache(template_path)
-        return create_or_update_template(template_path, base64_content)
+        response, status = create_or_update_template(template_path, base64_content)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
-    def delete(self, template_path: str):
+    def delete(self, template_path: str | None = None):
+        if not template_path:
+            return {"error": "No template_path provided"}, 400
         try:
             validate_presenter_template_id(template_path)
         except ValueError as e:
             return {"error": str(e)}, 400
-        invalidate_template_validation_cache(template_path)
         if delete_template(template_path):
+            _invalidate_admin_cache(200)
             return {"message": "Template deleted", "path": template_path}, 200
         return {"error": "Could not delete template"}, 500
 
@@ -346,15 +399,24 @@ class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_CREATE")
     def post(self):
         org = organization.Organization.add(request.json)
+        _invalidate_admin_cache(201)
         return {"message": "Organization created", "id": org.id}, 201
 
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
-    def put(self, organization_id: int):
-        return organization.Organization.update(organization_id, request.json)
+    def put(self, organization_id: int | None = None):
+        if organization_id is None:
+            return {"error": "No organization_id provided"}, 400
+        response, status = organization.Organization.update(organization_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_ORGANIZATION_DELETE")
-    def delete(self, organization_id: int):
-        return organization.Organization.delete(organization_id)
+    def delete(self, organization_id: int | None = None):
+        if organization_id is None:
+            return {"error": "No organization_id provided"}, 400
+        response, status = organization.Organization.delete(organization_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class UsersImport(MethodView):
@@ -364,6 +426,7 @@ class UsersImport(MethodView):
         if not isinstance(user_list, list):
             return {"error": "Invalid data format"}, 400
         if users := user.User.import_users(user_list):
+            _invalidate_admin_cache(200)
             return {"users": users, "count": len(users), "message": "Successfully imported users"}
         return {"error": "Unable to import"}, 400
 
@@ -395,6 +458,7 @@ class Users(MethodView):
     def post(self):
         try:
             new_user = user.User.add(request.json)
+            _invalidate_admin_cache(201)
             return {"message": f"User {new_user.username} created", "id": new_user.id}, 201
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
@@ -403,9 +467,13 @@ class Users(MethodView):
             return {"error": "Could not create user"}, 400
 
     @auth_required("CONFIG_USER_UPDATE")
-    def put(self, user_id: int):
+    def put(self, user_id: int | None = None):
+        if user_id is None:
+            return {"error": "No user_id provided"}, 400
         try:
-            return user.User.update(user_id, request.json)
+            response, status = user.User.update(user_id, request.json)
+            _invalidate_admin_cache(status)
+            return response, status
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception:
@@ -413,9 +481,13 @@ class Users(MethodView):
             return {"error": "Could not update user"}, 400
 
     @auth_required("CONFIG_USER_DELETE")
-    def delete(self, user_id: int):
+    def delete(self, user_id: int | None = None):
+        if user_id is None:
+            return {"error": "No user_id provided"}, 400
         try:
-            return user.User.delete(user_id)
+            response, status = user.User.delete(user_id)
+            _invalidate_admin_cache(status)
+            return response, status
         except Exception:
             logger.exception()
             return {"error": "Could not delete user"}, 400
@@ -430,12 +502,15 @@ class Bots(MethodView):
         return bot.Bot.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_BOT_UPDATE")
-    def put(self, bot_id: str):
+    def put(self, bot_id: str | None = None):
+        if bot_id is None:
+            return {"error": "No bot_id provided"}, 400
         if not (update_data := request.json):
             return {"error": "No update data passed"}, 400
         try:
             if updated_bot := bot.Bot.update(bot_id, update_data):
                 logger.debug(f"Successfully updated {updated_bot}")
+                _invalidate_admin_cache(200)
                 return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
         except ValueError as e:
             return {"error": str(e)}, 400
@@ -444,11 +519,16 @@ class Bots(MethodView):
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):
         new_bot = bot.Bot.add(request.json)
+        _invalidate_admin_cache(201)
         return {"message": f"Bot {new_bot.name} created", "id": new_bot.id}, 201
 
     @auth_required("CONFIG_BOT_DELETE")
-    def delete(self, bot_id: str):
-        return bot.Bot.delete(bot_id)
+    def delete(self, bot_id: str | None = None):
+        if bot_id is None:
+            return {"error": "No bot_id provided"}, 400
+        response, status = bot.Bot.delete(bot_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class BotExecute(MethodView):
@@ -469,35 +549,76 @@ class QueueTasks(MethodView):
         return queue_manager.queue_manager.get_queued_tasks()
 
 
+class ActiveJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_active_jobs()
+
+
+class FailedJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_failed_jobs()
+
+
+class WorkerStats(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_worker_stats()
+
+
+class SchedulerDashboard(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        scheduled_jobs, scheduled_status = queue_manager.queue_manager.get_scheduled_jobs()
+        if scheduled_status != 200:
+            return scheduled_jobs, scheduled_status
+
+        queues, queue_status = queue_manager.queue_manager.get_queued_tasks()
+        if queue_status != 200:
+            return queues, queue_status
+
+        worker_stats, worker_stats_status = queue_manager.queue_manager.get_worker_stats()
+        if worker_stats_status != 200:
+            return worker_stats, worker_stats_status
+
+        active_jobs, active_status = queue_manager.queue_manager.get_active_jobs()
+        if active_status != 200:
+            return active_jobs, active_status
+
+        failed_jobs, failed_status = queue_manager.queue_manager.get_failed_jobs()
+        if failed_status != 200:
+            return failed_jobs, failed_status
+
+        return {
+            "scheduled_jobs": scheduled_jobs.get("items", []),
+            "scheduled_total_count": scheduled_jobs.get("total_count", 0),
+            "queues": queues if isinstance(queues, list) else [],
+            "worker_stats": worker_stats if isinstance(worker_stats, dict) else {},
+            "active_jobs": active_jobs.get("items", []),
+            "active_total_count": active_jobs.get("total_count", 0),
+            "failed_jobs": failed_jobs.get("items", []),
+            "failed_total_count": failed_jobs.get("total_count", 0),
+        }, 200
+
+
+class CronJobs(MethodView):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_cron_job_configs()
+
+
 class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self, task_id: str | None = None):
         try:
             if task_id:
-                if result := schedule_manager.schedule.get_periodic_task(task_id):
-                    return result, 200
-                return {"error": "Task not found"}, 404
-            if schedules := schedule_manager.schedule.get_periodic_tasks():
-                return schedules, 200
-            return {"error": "No schedules found"}, 404
+                return queue_manager.queue_manager.get_scheduled_job(task_id)
+
+            return queue_manager.queue_manager.get_scheduled_jobs()
         except Exception:
             logger.exception()
-
-
-class RefreshInterval(MethodView):
-    @auth_required("CONFIG_WORKER_ACCESS")
-    def post(self):
-        data = request.get_json()
-        cron_expr = data.get("cron")
-        if not cron_expr:
-            return jsonify({"error": "Missing cron expression"}), 400
-        try:
-            fire_times = schedule_manager.schedule.get_next_n_fire_times_from_cron(cron_expr, n=3)
-            formatted_times = [ft.isoformat(timespec="minutes") for ft in fire_times]
-            return jsonify(formatted_times), 200
-        except Exception as e:
-            logger.exception(e)
-            return jsonify({"error": "Failed to compute schedule"}), 500
+            return {"error": "Failed to get schedules"}, 500
 
 
 class Connectors(MethodView):
@@ -511,29 +632,50 @@ class Connectors(MethodView):
     @auth_required("CONFIG_CONNECTOR_CREATE")
     def post(self):
         if source := connector.Connector.add(request.json):
+            _invalidate_admin_cache(201)
             return {"id": source.id, "message": "Connector created successfully"}, 201
         return {"error": "Connector could not be created"}, 400
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
-    def put(self, connector_id: str):
+    def put(self, connector_id: str | None = None):
+        if connector_id is None:
+            return {"error": "No connector_id provided"}, 400
         if not (update_data := request.json):
             return {"error": "No update data passed"}, 400
         try:
             if source := connector.Connector.update(connector_id, update_data):
+                _invalidate_admin_cache(200)
                 return {"message": f"Connector {source.name} updated", "id": f"{connector_id}"}, 200
         except ValueError as e:
             return {"error": str(e)}, 500
         return {"error": f"Connector with ID: {connector_id} not found"}, 404
 
     @auth_required("CONFIG_CONNECTOR_DELETE")
-    def delete(self, connector_id: str):
+    def delete(self, connector_id: str | None = None):
+        if connector_id is None:
+            return {"error": "No connector_id provided"}, 400
         # TODO: Implement force delete logic if needed
-        return connector.Connector.delete(connector_id)
+        response, status = connector.Connector.delete(connector_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
-    def patch(self, connector_id: str):
-        # TODO: Implement toggle state logic if needed
-        pass
+    def patch(self, connector_id: str | None = None):
+        if connector_id is None:
+            return {"error": "No connector_id provided"}, 400
+        if not request.json:
+            return {"error": "No data provided"}, 400
+        if state := request.json.get("state"):
+            update_data = {"state": state}
+        else:
+            update_data = request.json
+        try:
+            if source := connector.Connector.update(connector_id, update_data):
+                _invalidate_admin_cache(200)
+                return {"message": f"Connector {source.name} updated", "id": f"{connector_id}"}, 200
+        except ValueError as e:
+            return {"error": str(e)}, 400
+        return {"error": f"Connector with ID: {connector_id} not found"}, 404
 
 
 class ConnectorsPull(MethodView):
@@ -560,6 +702,7 @@ class OSINTSources(MethodView):
     def post(self):
         try:
             if source := osint_source.OSINTSource.add(request.json):
+                _invalidate_admin_cache(201)
                 return {"id": source.id, "message": "OSINT source created successfully"}, 201
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
@@ -568,11 +711,14 @@ class OSINTSources(MethodView):
         return {"error": "OSINT source could not be created"}, 400
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def put(self, source_id: str):
+    def put(self, source_id: str | None = None):
+        if source_id is None:
+            return {"error": "No source_id provided"}, 400
         if not (update_data := request.json):
             return {"error": "No update data passed"}, 400
         try:
             if source := osint_source.OSINTSource.update(source_id, update_data):
+                _invalidate_admin_cache(200)
                 return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
@@ -581,24 +727,35 @@ class OSINTSources(MethodView):
         return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
-    def delete(self, source_id: str):
+    def delete(self, source_id: str | None = None):
+        if source_id is None:
+            return {"error": "No source_id provided"}, 400
         force = request.args.get("force", default=False, type=bool)
-        if not force and NewsItemService.has_related_news_items(source_id):
-            return {
-                "error": f"""OSINT Source with ID: {source_id} has related News Items.
-                To delete this item and all related News Items, set the 'force' flag."""
-            }, 409
+        if not force:
+            from core.service.news_item import NewsItemService as _NewsItemService
 
-        return osint_source.OSINTSource.delete(source_id, force=force)
+            if _NewsItemService.has_related_news_items(source_id):
+                return {
+                    "error": f"""OSINT Source with ID: {source_id} has related News Items.
+                To delete this item and all related News Items, set the 'force' flag."""
+                }, 409
+
+        response, status = osint_source.OSINTSource.delete(source_id, force=force)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def patch(self, source_id: str):
+    def patch(self, source_id: str | None = None):
+        if source_id is None:
+            return {"error": "No source_id provided"}, 400
         if request.json:
             state = request.json.get("state")
         else:
             state = request.args.get("state", default="enabled", type=str)
         logger.debug(f"Toggling OSINT source {source_id} to state {state}")
-        return osint_source.OSINTSource.toggle_state(source_id, state)
+        response, status = osint_source.OSINTSource.toggle_state(source_id, state)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class OSINTSourceCollect(MethodView):
@@ -614,10 +771,17 @@ class OSINTSourceCollect(MethodView):
 class OSINTSourcePreview(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def get(self, source_id: str):
+        return self.get_osint_source_preview_response(source_id)
+
+    @classmethod
+    def get_osint_source_preview_response(cls, source_id: str):
         task_id = f"source_preview_{source_id}"
 
         if result := task.Task.get(task_id):
             return result.to_dict(), 200
+        preview_result, status = queue_manager.queue_manager.get_task(task_id)
+        if status == 202:
+            return preview_result, status
         return queue_manager.queue_manager.preview_osint_source(source_id)
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
@@ -657,6 +821,7 @@ class OSINTSourcesImport(MethodView):
         if sources is None:
             logger.error("Failed to import OSINT sources")
             return {"error": "Unable to import"}, 400
+        _invalidate_admin_cache(200)
         return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
 
 
@@ -671,30 +836,26 @@ class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
         source_group = osint_source.OSINTSourceGroup.add(request.json)
+        _invalidate_admin_cache(200)
         return {"id": source_group.id, "message": "OSINT source group created successfully"}, 200
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_UPDATE")
-    def put(self, group_id: str):
+    def put(self, group_id: str | None = None):
+        if group_id is None:
+            return {"error": "No group_id provided"}, 400
         if not (data := request.json):
             return {"error": "No data provided"}, 400
-        return osint_source.OSINTSourceGroup.update(group_id, data, user=current_user)
+        response, status = osint_source.OSINTSourceGroup.update(group_id, data, user=current_user)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_DELETE")
-    def delete(self, group_id: str):
-        return osint_source.OSINTSourceGroup.delete(group_id)
-
-
-class TaskResults(MethodView):
-    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, task_id: str | None = None, filter_args: dict[str, Any] | None = None):
-        if task_id:
-            return task.Task.get_for_api(task_id)
-        return task.Task.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
-
-    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def delete(self, task_id: str):
-        return task.Task.delete(task_id)
+    def delete(self, group_id: str | None = None):
+        if group_id is None:
+            return {"error": "No group_id provided"}, 400
+        response, status = osint_source.OSINTSourceGroup.delete(group_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class Presenters(MethodView):
@@ -726,15 +887,24 @@ class PublisherPresets(MethodView):
     @auth_required("CONFIG_PUBLISHER_CREATE")
     def post(self):
         pub_result = publisher_preset.PublisherPreset.add(request.json)
+        _invalidate_admin_cache(200)
         return {"id": pub_result.id, "message": "Publisher preset created successfully"}, 200
 
     @auth_required("CONFIG_PUBLISHER_UPDATE")
-    def put(self, preset_id: str):
-        return publisher_preset.PublisherPreset.update(preset_id, request.json)
+    def put(self, preset_id: str | None = None):
+        if preset_id is None:
+            return {"error": "No preset_id provided"}, 400
+        response, status = publisher_preset.PublisherPreset.update(preset_id, request.json)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_PUBLISHER_DELETE")
-    def delete(self, preset_id: str):
-        return publisher_preset.PublisherPreset.delete(preset_id)
+    def delete(self, preset_id: str | None = None):
+        if preset_id is None:
+            return {"error": "No preset_id provided"}, 400
+        response, status = publisher_preset.PublisherPreset.delete(preset_id)
+        _invalidate_admin_cache(status)
+        return response, status
 
 
 class WordLists(MethodView):
@@ -748,12 +918,17 @@ class WordLists(MethodView):
     @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):
         wordlist = word_list.WordList.add(request.json)
+        _invalidate_admin_cache(200)
         return {"id": wordlist.id, "message": "Word list created successfully"}, 200
 
     @auth_required("CONFIG_WORD_LIST_DELETE")
-    def delete(self, word_list_id: int):
+    def delete(self, word_list_id: int | None = None):
+        if word_list_id is None:
+            return {"error": "No word_list_id provided"}, 400
         try:
-            return word_list.WordList.delete(word_list_id)
+            response, status = word_list.WordList.delete(word_list_id)
+            _invalidate_admin_cache(status)
+            return response, status
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception:
@@ -761,9 +936,13 @@ class WordLists(MethodView):
             return {"error": "Could not delete word list"}, 400
 
     @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def put(self, word_list_id: int):
+    def put(self, word_list_id: int | None = None):
+        if word_list_id is None:
+            return {"error": "No word_list_id provided"}, 400
         if data := request.json:
-            return word_list.WordList.update(word_list_id, data)
+            response, status = word_list.WordList.update(word_list_id, data)
+            _invalidate_admin_cache(status)
+            return response, status
         return {"error": "No data provided"}, 400
 
 
@@ -783,6 +962,7 @@ class WordListImport(MethodView):
             for wl in wls:
                 queue_manager.queue_manager.gather_word_list(wl.id)
 
+            _invalidate_admin_cache(200)
             return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
         except ValueError as exc:
             logger.warning(f"Invalid word list import payload: {exc}")
@@ -824,7 +1004,9 @@ class WorkerInstances(MethodView):
 class Workers(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     @extract_args("search", "category", "type", "exclude", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, filter_args: dict[str, Any] | None = None):
+    def get(self, worker_id: str | None = None, filter_args: dict[str, Any] | None = None):
+        if worker_id:
+            return worker.Worker.get_for_api(worker_id)
         if Config.DISABLE_PPN_COLLECTOR:
             if filter_args:
                 filter_args["exclude"] = "ppn"
@@ -833,7 +1015,9 @@ class Workers(MethodView):
         return worker.Worker.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_WORKER_ACCESS")
-    def patch(self, worker_id: str):
+    def patch(self, worker_id: str | None = None):
+        if worker_id is None:
+            return {"error": "No worker_id provided"}, 400
         if not request.json:
             return {"error": "No data provided"}, 400
         if update_worker := worker.Worker.get(worker_id):
@@ -841,72 +1025,101 @@ class Workers(MethodView):
         return {"error": "Worker not found"}, 404
 
 
+def build_config_blueprint(name: str) -> Blueprint:
+    config_bp = Blueprint(name, __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/{name}")
+    crud_methods = ["GET", "PUT", "DELETE"]
+    crud_patch_methods = ["GET", "PUT", "DELETE", "PATCH"]
+
+    config_bp.add_url_rule("/acls", view_func=ACLEntries.as_view(f"{name}_acls"))
+    config_bp.add_url_rule("/acls/<int:acl_id>", view_func=ACLEntries.as_view(f"{name}_acl"), methods=crud_methods)
+    config_bp.add_url_rule("/attributes", view_func=Attributes.as_view(f"{name}_attributes"))
+    config_bp.add_url_rule("/attributes/<int:attribute_id>", view_func=Attributes.as_view(f"{name}_attribute"), methods=crud_methods)
+    config_bp.add_url_rule("/bots", view_func=Bots.as_view(f"{name}_bots_config"))
+    config_bp.add_url_rule("/bots/<string:bot_id>", view_func=Bots.as_view(f"{name}_bot_config"), methods=crud_methods)
+    config_bp.add_url_rule("/bots/<string:bot_id>/execute", view_func=BotExecute.as_view(f"{name}_bot_execute"))
+    config_bp.add_url_rule(
+        "/dictionaries-reload/<string:dictionary_type>", view_func=DictionariesReload.as_view(f"{name}_dictionaries_reload")
+    )
+    config_bp.add_url_rule("/organizations", view_func=Organizations.as_view(f"{name}_organizations"))
+    config_bp.add_url_rule(
+        "/organizations/<int:organization_id>",
+        view_func=Organizations.as_view(f"{name}_organization"),
+        methods=crud_methods,
+    )
+    config_bp.add_url_rule("/osint-sources", view_func=OSINTSources.as_view(f"{name}_osint_sources"))
+    config_bp.add_url_rule("/sources", view_func=OSINTSources.as_view(f"{name}_sources"))
+    config_bp.add_url_rule(
+        "/osint-sources/<string:source_id>", view_func=OSINTSources.as_view(f"{name}_osint_source"), methods=crud_patch_methods
+    )
+    config_bp.add_url_rule("/sources/<string:source_id>", view_func=OSINTSources.as_view(f"{name}_source"), methods=crud_patch_methods)
+    config_bp.add_url_rule("/osint-sources/<string:source_id>/collect", view_func=OSINTSourceCollect.as_view(f"{name}_osint_source_collect"))
+    config_bp.add_url_rule("/osint-sources/collect", view_func=OSINTSourceCollect.as_view(f"{name}_osint_sources_collect"))
+    config_bp.add_url_rule("/osint-sources/<string:source_id>/preview", view_func=OSINTSourcePreview.as_view(f"{name}_osint_source_preview"))
+    config_bp.add_url_rule("/osint-source-groups", view_func=OSINTSourceGroups.as_view(f"{name}_osint_source_groups_config"))
+    config_bp.add_url_rule(
+        "/osint-source-groups/<string:group_id>", view_func=OSINTSourceGroups.as_view(f"{name}_osint_source_group"), methods=crud_methods
+    )
+    config_bp.add_url_rule("/export-osint-sources", view_func=OSINTSourcesExport.as_view(f"{name}_osint_sources_export"))
+    config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view(f"{name}_osint_sources_import"))
+    config_bp.add_url_rule("/parameters", view_func=Parameters.as_view(f"{name}_parameters"))
+    config_bp.add_url_rule("/worker-parameters", view_func=WorkerParameters.as_view(f"{name}_worker_parameters"))
+    config_bp.add_url_rule("/permissions", view_func=Permissions.as_view(f"{name}_permissions"))
+    config_bp.add_url_rule("/presenters", view_func=Presenters.as_view(f"{name}_presenters"))
+    config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view(f"{name}_product_types_config"))
+    config_bp.add_url_rule("/product-types/<int:type_id>", view_func=ProductTypes.as_view(f"{name}_product_type"), methods=crud_methods)
+    config_bp.add_url_rule("/templates", view_func=Templates.as_view(f"{name}_templates"))
+    config_bp.add_url_rule("/templates/<string:template_path>", view_func=Templates.as_view(f"{name}_template"))
+    config_bp.add_url_rule("/templates/validate", view_func=TemplateValidation.as_view(f"{name}_template_validation"))
+    config_bp.add_url_rule("/publishers", view_func=Publishers.as_view(f"{name}_publishers"))
+    config_bp.add_url_rule("/publishers-presets", view_func=PublisherPresets.as_view(f"{name}_publishers_presets"))
+    config_bp.add_url_rule(
+        "/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view(f"{name}_publishers_preset"), methods=crud_methods
+    )
+    config_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view(f"{name}_publisher_presets"))
+    config_bp.add_url_rule(
+        "/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view(f"{name}_publisher_preset"), methods=crud_methods
+    )
+    config_bp.add_url_rule("/report-item-types", view_func=ReportItemTypes.as_view(f"{name}_report_item_types"))
+    config_bp.add_url_rule(
+        "/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view(f"{name}_report_item_type"), methods=crud_methods
+    )
+    config_bp.add_url_rule("/export-report-item-types", view_func=ReportItemTypesExport.as_view(f"{name}_report_item_types_export"))
+    config_bp.add_url_rule("/import-report-item-types", view_func=ReportItemTypesImport.as_view(f"{name}_report_item_types_import"))
+    config_bp.add_url_rule("/roles", view_func=Roles.as_view(f"{name}_roles"))
+    config_bp.add_url_rule("/roles/<int:role_id>", view_func=Roles.as_view(f"{name}_role"), methods=crud_methods)
+    config_bp.add_url_rule("/users", view_func=Users.as_view(f"{name}_users"))
+    config_bp.add_url_rule("/users-import", view_func=UsersImport.as_view(f"{name}_users_import"))
+    config_bp.add_url_rule("/users-export", view_func=UsersExport.as_view(f"{name}_users_export"))
+    config_bp.add_url_rule("/users/<int:user_id>", view_func=Users.as_view(f"{name}_user"), methods=crud_methods)
+    config_bp.add_url_rule("/word-lists", view_func=WordLists.as_view(f"{name}_word_lists"))
+    config_bp.add_url_rule("/word-lists/<int:word_list_id>", view_func=WordLists.as_view(f"{name}_word_list"), methods=crud_methods)
+    config_bp.add_url_rule("/word-lists/gather/<int:word_list_id>", view_func=WordListGather.as_view(f"{name}_word_list_gather"))
+    config_bp.add_url_rule("/word-lists/gather", view_func=WordListGather.as_view(f"{name}_word_list_gather_all"))
+    config_bp.add_url_rule("/export-word-lists", view_func=WordListExport.as_view(f"{name}_word_list_export"))
+    config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view(f"{name}_word_list_import"))
+    config_bp.add_url_rule("/workers", view_func=WorkerInstances.as_view(f"{name}_workers"))
+    config_bp.add_url_rule("/workers/cron-jobs", view_func=CronJobs.as_view(f"{name}_cron_jobs"))
+    config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view(f"{name}_queue_schedule_config"))
+    config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view(f"{name}_queue_tasks"))
+    config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view(f"{name}_queue_status"))
+    config_bp.add_url_rule("/workers/active", view_func=ActiveJobs.as_view(f"{name}_active_jobs"))
+    config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view(f"{name}_failed_jobs"))
+    config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view(f"{name}_worker_stats"))
+    config_bp.add_url_rule("/workers/dashboard", view_func=SchedulerDashboard.as_view(f"{name}_scheduler_dashboard"))
+    config_bp.add_url_rule("/schedule", view_func=Schedule.as_view(f"{name}_queue_schedule"))
+    config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view(f"{name}_queue_schedule_task"))
+    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view(f"{name}_worker_types"))
+    config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view(f"{name}_worker_type_patch"))
+    config_bp.add_url_rule("/connectors", view_func=Connectors.as_view(f"{name}_connectors"))
+    config_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view(f"{name}_connector"), methods=crud_patch_methods)
+    config_bp.add_url_rule("/connectors/<string:connector_id>/pull", view_func=ConnectorsPull.as_view(f"{name}_connector_collect"))
+
+    return config_bp
+
+
 def initialize(app: Flask):
-    config_bp = Blueprint("config", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/config")
-
-    config_bp.add_url_rule("/acls", view_func=ACLEntries.as_view("acls"))
-    config_bp.add_url_rule("/acls/<int:acl_id>", view_func=ACLEntries.as_view("acl"))
-    config_bp.add_url_rule("/attributes", view_func=Attributes.as_view("attributes"))
-    config_bp.add_url_rule("/attributes/<int:attribute_id>", view_func=Attributes.as_view("attribute"))
-    config_bp.add_url_rule("/bots", view_func=Bots.as_view("bots_config"))
-    config_bp.add_url_rule("/bots/<string:bot_id>", view_func=Bots.as_view("bot_config"))
-    config_bp.add_url_rule("/bots/<string:bot_id>/execute", view_func=BotExecute.as_view("bot_execute"))
-    config_bp.add_url_rule("/dictionaries-reload/<string:dictionary_type>", view_func=DictionariesReload.as_view("dictionaries_reload"))
-    config_bp.add_url_rule("/organizations", view_func=Organizations.as_view("organizations"))
-    config_bp.add_url_rule("/organizations/<int:organization_id>", view_func=Organizations.as_view("organization"))
-    config_bp.add_url_rule("/osint-sources", view_func=OSINTSources.as_view("osint_sources"))
-    config_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=OSINTSources.as_view("osint_source"))
-    config_bp.add_url_rule("/osint-sources/<string:source_id>/collect", view_func=OSINTSourceCollect.as_view("osint_source_collect"))
-    config_bp.add_url_rule("/osint-sources/collect", view_func=OSINTSourceCollect.as_view("osint_sources_collect"))
-    config_bp.add_url_rule("/osint-sources/<string:source_id>/preview", view_func=OSINTSourcePreview.as_view("osint_source_preview"))
-    config_bp.add_url_rule("/osint-source-groups", view_func=OSINTSourceGroups.as_view("osint_source_groups_config"))
-    config_bp.add_url_rule("/osint-source-groups/<string:group_id>", view_func=OSINTSourceGroups.as_view("osint_source_group"))
-    config_bp.add_url_rule("/export-osint-sources", view_func=OSINTSourcesExport.as_view("osint_sources_export"))
-    config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view("osint_sources_import"))
-    config_bp.add_url_rule("/parameters", view_func=Parameters.as_view("parameters"))
-    config_bp.add_url_rule("/worker-parameters", view_func=WorkerParameters.as_view("worker_parameters"))
-    config_bp.add_url_rule("/permissions", view_func=Permissions.as_view("permissions"))
-    config_bp.add_url_rule("/presenters", view_func=Presenters.as_view("presenters"))
-    config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types_config"))
-    config_bp.add_url_rule("/product-types/<int:type_id>", view_func=ProductTypes.as_view("product_type"))
-    config_bp.add_url_rule("/templates", view_func=Templates.as_view("templates"))
-    config_bp.add_url_rule("/templates/<string:template_path>", view_func=Templates.as_view("template"))
-    config_bp.add_url_rule("/templates/validate", view_func=TemplateValidation.as_view("template_validation"))
-    config_bp.add_url_rule("/publishers", view_func=Publishers.as_view("publishers"))
-    config_bp.add_url_rule("/publishers-presets", view_func=PublisherPresets.as_view("publishers_presets"))
-    config_bp.add_url_rule("/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publishers_preset"))
-    config_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
-    config_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
-    config_bp.add_url_rule("/task-results", view_func=TaskResults.as_view("task_results"))
-    config_bp.add_url_rule("/task-results/<string:task_id>", view_func=TaskResults.as_view("task_result"))
-
-    config_bp.add_url_rule("/report-item-types", view_func=ReportItemTypes.as_view("report_item_types"))
-    config_bp.add_url_rule("/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view("report_item_type"))
-    config_bp.add_url_rule("/export-report-item-types", view_func=ReportItemTypesExport.as_view("report_item_types_export"))
-    config_bp.add_url_rule("/import-report-item-types", view_func=ReportItemTypesImport.as_view("report_item_types_import"))
-    config_bp.add_url_rule("/roles", view_func=Roles.as_view("roles"))
-    config_bp.add_url_rule("/roles/<int:role_id>", view_func=Roles.as_view("role"))
-    config_bp.add_url_rule("/users", view_func=Users.as_view("users"))
-    config_bp.add_url_rule("/users-import", view_func=UsersImport.as_view("users_import"))
-    config_bp.add_url_rule("/users-export", view_func=UsersExport.as_view("users_export"))
-    config_bp.add_url_rule("/users/<int:user_id>", view_func=Users.as_view("user"))
-    config_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists"))
-    config_bp.add_url_rule("/word-lists/<int:word_list_id>", view_func=WordLists.as_view("word_list"))
-    config_bp.add_url_rule("/word-lists/gather/<int:word_list_id>", view_func=WordListGather.as_view("word_list_gather"))
-    config_bp.add_url_rule("/word-lists/gather", view_func=WordListGather.as_view("word_list_gather_all"))
-    config_bp.add_url_rule("/export-word-lists", view_func=WordListExport.as_view("word_list_export"))
-    config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
-    config_bp.add_url_rule("/workers", view_func=WorkerInstances.as_view("workers"))
-    config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view("queue_schedule_config"))
-    config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
-    config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
-    config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
-    config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
-    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
-    config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
-    config_bp.add_url_rule("/refresh-interval", view_func=RefreshInterval.as_view("refresh_interval"))
-    config_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors"))
-    config_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connector"))
-    config_bp.add_url_rule("/connectors/<string:connector_id>/pull", view_func=ConnectorsPull.as_view("connector_collect"))
+    config_bp = build_config_blueprint("config")
+    admin_bp = build_config_blueprint("admin")
 
     app.register_blueprint(config_bp)
+    app.register_blueprint(admin_bp)

@@ -3,9 +3,9 @@ from typing import Any
 from flask import Response, abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.assess import Story
-from models.product import Product
 from models.report import ReportItem, ReportItemAttributeGroup, ReportTypes
 from pydantic import ValidationError
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
@@ -59,7 +59,6 @@ class ReportItemView(BaseView):
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         try:
             dpl = DataPersistenceLayer()
-            dpl.invalidate_cache_by_object(ReportTypes)
             report_types = dpl.get_objects(ReportTypes)
             base_context["report_types"] = report_types
             layout = request.args.get("layout") or request.form.get("layout") or base_context.get("layout", "split")
@@ -77,6 +76,8 @@ class ReportItemView(BaseView):
                 "layout": layout,
                 "actions": cls.get_report_actions(),
             }
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Error getting extra context for ReportItemView")
 
@@ -116,6 +117,7 @@ class ReportItemView(BaseView):
                 "class": "btn-error",
                 "method": "delete",
                 "url": url_for(cls.edit_route, report_id=""),
+                "hx_target_error": "#notification-bar",
                 "hx_target": f"#{cls.model_name()}-table-container",
                 "hx_swap": "outerHTML",
                 "type": "button",
@@ -129,9 +131,6 @@ class ReportItemView(BaseView):
         if not report_id:
             return abort(400, description="No report ID provided for cloning.")
         CoreApi().clone_report(report_id)
-        DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
-        DataPersistenceLayer().invalidate_cache_by_object(Product)
         return ReportItemView.list_view()
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
@@ -146,35 +145,33 @@ class ReportItemView(BaseView):
     @classmethod
     def update_view(cls, object_id: int | str = 0):
         core_response, error = cls.process_form_data(object_id)
+        response_object_id, model_instance, response_message = cls.resolve_update_response(object_id, core_response)
         if not core_response or error:
             return render_template(
                 cls.get_update_template(),
-                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+                **cls.get_update_context(
+                    object_id,
+                    error=error,
+                    model_instance=model_instance,
+                    response_message=response_message,
+                    form_action_object_id=response_object_id,
+                ),
             ), 400
-
-        DataPersistenceLayer().invalidate_cache_by_object(Product)
 
         notification_response = cls.render_response_notification(core_response)
         response = notification_response + render_template(
             cls.get_update_template(),
-            **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+            **cls.get_update_context(
+                object_id,
+                error=error,
+                model_instance=model_instance,
+                response_message=response_message,
+                form_action_object_id=response_object_id,
+            ),
         )
         flask_response = make_response(response, 200)
         flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
         return flask_response
-
-    @classmethod
-    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
-        core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
-        if core_response.ok:
-            DataPersistenceLayer().invalidate_cache_by_object(Story)
-            DataPersistenceLayer().invalidate_cache_by_object(Product)
-
-        response = cls.get_notification_from_response(core_response)
-        table, table_response = cls.render_list()
-        if table_response == 200:
-            response += table
-        return response, core_response.status_code or table_response
 
     @staticmethod
     def _parse_form_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
@@ -191,6 +188,8 @@ class ReportItemView(BaseView):
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)

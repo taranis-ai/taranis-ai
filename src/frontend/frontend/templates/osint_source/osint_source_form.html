@@ -8,11 +8,25 @@
   <div class="join gap-4 mb-5 w-3/4 ml-[10%]">
     <h1 class="text-3xl font-bold">{{ submit_text }}</h1>
     {% if not read_only %}
-      {% include "osint_source/state_button.html" %}
+      <div class="flex flex-wrap items-center gap-2">
+        {% include "osint_source/state_button.html" %}
+        {% if osint_id != "0" %}
+          <a class="btn btn-outline" href="{{ url_for('admin.osint_source_preview', osint_source_id=osint_id) }}">Preview</a>
+          <button type="button"
+                  class="btn btn-secondary"
+                  hx-post="{{ url_for('admin.collect_osint_source', osint_source_id=osint_id) }}"
+                  hx-target="#notification-bar"
+                  hx-target-error="#notification-bar"
+                  hx-swap="outerHTML">Collect</button>
+        {% endif %}
+      </div>
     {% endif %}
   </div>
 
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ osint_id }}</p>
+  {% if osint_id != "0" %}
+    <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">News items in database: {{ osint_source.news_items_count or 0 }}</p>
+  {% endif %}
   {% if read_only %}
     <div role="alert" class="alert alert-warning alert-horizontal w-3/4 mb-4 ml-[10%]">
       {{ heroicon_outline("exclamation-triangle") }}

@@ -1,5 +1,4 @@
 from core.api import (
-    admin,
     analyze,
     assess,
     assets,
@@ -11,6 +10,7 @@ from core.api import (
     health,
     isalive,
     publish,
+    settings,
     static,
     task,
     user,
@@ -19,7 +19,6 @@ from core.api import (
 
 
 __all__ = [
-    "admin",
     "analyze",
     "assess",
     "assets",
@@ -35,4 +34,5 @@ __all__ = [
     "worker",
     "static",
     "connectors",
+    "settings",
 ]

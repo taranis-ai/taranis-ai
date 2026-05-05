@@ -1,6 +1,6 @@
 from urllib.parse import urlencode
 
-import requests
+import niquests as requests
 
 from worker.config import Config
 from worker.log import logger

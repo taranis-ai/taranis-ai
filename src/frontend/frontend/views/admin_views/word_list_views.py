@@ -7,7 +7,6 @@ from models.admin import WordList
 from frontend.auth import admin_required
 from frontend.config import Config
 from frontend.core_api import CoreApi
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count
 from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
@@ -48,7 +47,6 @@ class WordListView(AdminMixin, BaseView):
 
             return Response(notification, status=200)
 
-        DataPersistenceLayer().invalidate_cache_by_object(WordList)
         return Response(status=200, headers={"HX-Refresh": "true"})
 
     @classmethod
@@ -75,7 +73,6 @@ class WordListView(AdminMixin, BaseView):
 
         response = cls.get_notification_from_response(core_response)
 
-        DataPersistenceLayer().invalidate_cache_by_object(WordList)
         table, table_response = cls.render_list()
         if table_response == 200:
             response += table
@@ -87,7 +84,6 @@ class WordListView(AdminMixin, BaseView):
         core_response = CoreApi().update_word_lists(word_list_id)
         response = cls.get_notification_from_response(core_response)
 
-        DataPersistenceLayer().invalidate_cache_by_object(WordList)
         table, table_response = cls.render_list()
         if table_response == 200:
             response += table

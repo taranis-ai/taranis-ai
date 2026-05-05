@@ -15,7 +15,6 @@ If updating something and wanting to test it in `frontend` or `core` you can use
 
 ```bash
 uv sync --all-extras --frozen --python 3.13
-uv pip install -e ../models
 
 export UV_NO_SYNC=true
 uv run pytest tests

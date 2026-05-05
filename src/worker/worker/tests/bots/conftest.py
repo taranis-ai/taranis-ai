@@ -1,7 +1,8 @@
-import os
-import pytest
-import re
 import json
+import os
+import re
+
+import pytest
 
 from worker.config import Config
 

@@ -1,8 +1,14 @@
 import os
 import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
+from models.user import UserProfile
+
+from tests.core_requests import CoreRequestClient
+from tests.support.cache_backend import InMemoryRedisClient
 
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +36,13 @@ if not current_path.endswith("src/frontend"):
         pytest.skip("Unable to locate git root to change into src/frontend")
 
 load_dotenv(dotenv_path=env_file, override=True)
+
+# Ensure local packages (models, frontend, etc.) are importable during tests
+repo_root = Path(base_dir).resolve().parents[2]
+for candidate in [repo_root / "src" / "models", repo_root / "src", repo_root]:
+    candidate_str = str(candidate)
+    if candidate.exists() and candidate_str not in sys.path:
+        sys.path.insert(0, candidate_str)
 
 
 def _create_access_token(app, user):
@@ -66,8 +79,7 @@ def _build_authenticated_client(app, access_token):
 def app():
     from frontend.__init__ import create_app
 
-    app = create_app()
-    app.config.update(
+    app = create_app(
         {
             "TESTING": True,
             "DEBUG": True,
@@ -80,36 +92,32 @@ def app():
 
 @pytest.fixture(scope="session")
 def auth_user():
-    from frontend.cache import add_user_to_cache
+    debug_user = UserProfile(
+        id=1,
+        username="admin",
+        name="Arthur Dent",
+        organization={"id": 1, "name": "Galactic Government"},
+        permissions=["ALL"],
+        profile={},
+        roles=[{"id": 1, "name": "Admin"}],
+    )
 
-    debug_user = {
-        "id": 1,
-        "username": "admin",
-        "name": "Arthur Dent",
-        "organization": {"id": 1, "name": "Galactic Government"},
-        "permissions": ["ALL"],
-        "profile": {},
-        "roles": [{"id": 1, "name": "Admin"}],
-    }
-
-    yield add_user_to_cache(debug_user)
+    yield debug_user
 
 
 @pytest.fixture(scope="session")
 def auth_user_basic():
-    from frontend.cache import add_user_to_cache
+    basic_user = UserProfile(
+        id=2,
+        username="user",
+        name="Ford Prefect",
+        organization={"id": 1, "name": "Galactic Government"},
+        permissions=["ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
+        profile={},
+        roles=[{"id": 2, "name": "User"}],
+    )
 
-    basic_user = {
-        "id": 2,
-        "username": "user",
-        "name": "Ford Prefect",
-        "organization": {"id": 1, "name": "Galactic Government"},
-        "permissions": ["ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
-        "profile": {},
-        "roles": [{"id": 2, "name": "User"}],
-    }
-
-    yield add_user_to_cache(basic_user)
+    yield basic_user
 
 
 @pytest.fixture(scope="session")
@@ -130,6 +138,11 @@ def api_header():
     return {"Authorization": f"Bearer {api_key}", "Content-type": "application/json"}
 
 
+@pytest.fixture(scope="session")
+def core_request_client(run_core, access_token):
+    return CoreRequestClient(base_url=run_core, access_token=access_token)
+
+
 @pytest.fixture
 def access_token_response(app, auth_user, run_core):
     yield _build_access_token_response(app, auth_user)
@@ -141,12 +154,39 @@ def access_token_response_basic(app, auth_user_basic, run_core):
 
 
 @pytest.fixture
-def authenticated_client(app, access_token):
+def test_cache_backend(app):
+    from frontend.cache import cache
+
+    backend = InMemoryRedisClient()
+    original_client = cache.client
+    original_prefix = cache.key_prefix
+    original_timeout = cache.default_timeout
+    cache.client = backend
+    cache.key_prefix = app.config["CACHE_KEY_PREFIX"]
+    cache.default_timeout = app.config["CACHE_DEFAULT_TIMEOUT"]
+    try:
+        yield backend
+    finally:
+        cache.client = original_client
+        cache.key_prefix = original_prefix
+        cache.default_timeout = original_timeout
+
+
+def _seed_authenticated_user_cache(user: UserProfile) -> None:
+    from frontend.cache import add_user_to_cache
+
+    add_user_to_cache(user.model_dump(mode="json"))
+
+
+@pytest.fixture
+def authenticated_client(app, access_token, auth_user, test_cache_backend):
+    _seed_authenticated_user_cache(auth_user)
     return _build_authenticated_client(app, access_token)
 
 
 @pytest.fixture
-def authenticated_client_basic(app, access_token_basic):
+def authenticated_client_basic(app, access_token_basic, auth_user_basic, test_cache_backend):
+    _seed_authenticated_user_cache(auth_user_basic)
     return _build_authenticated_client(app, access_token_basic)
 
 
@@ -163,7 +203,7 @@ def htmx_header():
 def pytest_addoption(parser):
     group = parser.getgroup("e2e")
     group.addoption("--e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
-    group.addoption("--e2e-timeout", action="store", default="10000", help="milliseconds to wait for e2e tests")
+    group.addoption("--e2e-timeout", action="store", default="5000", help="milliseconds to wait for e2e tests")
     group.addoption("--highlight-delay", action="store", default="0", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
     group.addoption("--e2e-admin", action="store_true", default=False, help="run e2e tests of admin interface")

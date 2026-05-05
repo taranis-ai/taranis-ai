@@ -4,6 +4,7 @@ from flask import render_template, request, url_for
 from models.admin import Bot
 from models.dashboard import Dashboard
 from models.types import BOT_TYPES
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import admin_required
 from frontend.core_api import CoreApi
@@ -69,6 +70,8 @@ class BotView(AdminMixin, BaseView):
             if dashboard := DataPersistenceLayer().get_first(Dashboard):
                 if worker_status := dashboard.worker_status:
                     return worker_status.get("bot_task", {}).get("failures", 0)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Error retrieving dashboard for bot admin menu badge")
 

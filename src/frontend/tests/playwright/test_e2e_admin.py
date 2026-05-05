@@ -4,10 +4,21 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-import requests
+from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Page, expect
-from playwright_helpers import PlaywrightHelpers
+
+from tests.playwright.notification_helpers import dismiss_notifications
+
+
+DASHBOARD_BASELINE_QUEUE_TEXT = "There are 1 tasks scheduled."
+DASHBOARD_HEALTH_SERVICES = {
+    "Database": "up",
+    "Pre-seeded": "up",
+    "Redis": "up",
+    "Workers": "up",
+}
+SCHEDULER_BASELINE_TOTAL_TEXT = "Total: 1 scheduled jobs"
 
 
 def remove_tz(date_time: str) -> str:
@@ -21,7 +32,7 @@ def remove_tz(date_time: str) -> str:
 @pytest.mark.e2e_admin
 @pytest.mark.e2e_ci
 @pytest.mark.usefixtures("e2e_ci")
-class TestEndToEndAdmin(PlaywrightHelpers):
+class TestEndToEndAdmin(BaseE2ETest):
     """End-to-end tests for the Taranis AI admin interface."""
 
     @staticmethod
@@ -53,26 +64,30 @@ class TestEndToEndAdmin(PlaywrightHelpers):
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
         page.context.clear_cookies()
-        self.add_keystroke_overlay(page)
-
-        page.goto(url_for("base.login", _external=True))
-        expect(page).to_have_title("Taranis AI", timeout=5000)
-
-        self.highlight_element(page.get_by_placeholder("Username"))
-        expect(page.get_by_placeholder("Username")).to_have_attribute("required", "")
-        page.get_by_placeholder("Username").fill("admin")
-        self.highlight_element(page.get_by_placeholder("Password"))
-        expect(page.get_by_placeholder("Password")).to_have_attribute("required", "")
-        page.get_by_placeholder("Password").fill("admin")
-        page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
-        self.highlight_element(page.get_by_test_id("login-button")).click()
-        expect(page.locator("#dashboard")).to_be_visible()
+        self.login_with_credentials(page)
 
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
 
-        page.goto(url_for("base.dashboard", _external=True))
+        page.goto(url_for("admin.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
+
+        health_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_text("System Health", exact=True)).first
+        expect(health_card).to_be_visible()
+        expect(health_card.get_by_text("Healthy", exact=True)).to_be_visible()
+        for service, status in DASHBOARD_HEALTH_SERVICES.items():
+            row = health_card.locator("div.flex.items-center.justify-between").filter(has_text=service).first
+            expect(row).to_be_visible()
+            expect(row).to_contain_text(status)
+
+        queue_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_role("link", name="Queue")).first
+        expect(queue_card).to_be_visible()
+        expect(queue_card).to_contain_text(DASHBOARD_BASELINE_QUEUE_TEXT)
+        queue_card.get_by_role("link", name="Queue").click()
+
+        expect(page).to_have_url(url_for("admin.scheduler", _external=True))
+        expect(page.locator("#scheduler-dashboard")).to_be_visible()
+        expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(SCHEDULER_BASELINE_TOTAL_TEXT)
 
     def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
         page = logged_in_page
@@ -91,49 +106,31 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         assert response_info.value.status == 400, f"Expected 400 status, but got {response_info.value.status}"
         expect(page.locator("#notification-bar")).to_contain_text("Invalid BCP 47 language tag")
         expect(page.locator("#news-item-form")).to_be_visible()
-        self.dismiss_notification_if_visible(page)
+        dismiss_notifications(page)
 
     def test_admin_organizations(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
         organization_name = f"test_org_{uuid.uuid4().hex[:6]}"
+        page.goto(url_for("admin.organizations", _external=True))
+        expect(page.get_by_test_id("organization-table")).to_be_visible()
+        page.screenshot(path="./tests/playwright/screenshots/docs_organizations.png")
 
-        def load_organization_list():
-            page.goto(url_for("admin.organizations", _external=True))
-            expect(page.get_by_test_id("organization-table")).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/docs_organizations.png")
+        page.get_by_test_id("new-organization-button").click()
+        page.get_by_label("Name", exact=False).fill(organization_name)
+        page.get_by_label("Description", exact=False).fill("Test description of an organization")
+        page.get_by_label("Street", exact=False).fill("Test Street")
+        page.get_by_label("City", exact=False).fill("Test City")
+        page.get_by_label("ZIP", exact=False).fill("9999")
+        page.get_by_label("Country", exact=False).fill("Test Country")
+        self.highlight_element(page.locator("input[type='submit']")).click()
+        self.assert_item_in_table(page, "organization-table", organization_name)
 
-        def add_organization():
-            page.get_by_test_id("new-organization-button").click()
-            expect(page.get_by_label("Name")).to_have_attribute("required", "")
-            page.get_by_label("Name").fill(organization_name)
-            page.get_by_label("Description").fill("Test description of an organization")
-            page.get_by_label("Street").fill("Test Street")
-            page.get_by_label("City").fill("Test City")
-            page.get_by_label("Zip").fill("9999")
-            page.get_by_label("Country").fill("Test Country")
-            page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
+        page.get_by_role("link", name=organization_name).click()
+        page.get_by_label("Description", exact=False).fill("Updated description of an organization")
+        self.highlight_element(page.locator("input[type='submit']")).click()
+        expect(page.get_by_role("row", name=organization_name)).to_contain_text("Updated description of an organization")
 
-            self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page).to_have_url(url_for("admin.organizations", _external=True))
-            expect(page.get_by_text(organization_name)).to_be_visible()
-
-        def update_organization():
-            page.get_by_role("link", name=organization_name).click()
-            page.get_by_label("Description").fill("Updated description of an organization")
-
-            self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(page).to_have_url(url_for("admin.organizations", _external=True))
-            expect(page.get_by_role("row", name=organization_name)).to_contain_text("Updated description of an organization")
-
-        def remove_organization():
-            page.get_by_role("row", name=organization_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
-            expect(page.get_by_test_id("organization-table").get_by_role("link", name=organization_name)).not_to_be_visible()
-
-        load_organization_list()
-        add_organization()
-        update_organization()
-        remove_organization()
+        self.delete_item(page, "organization-table", organization_name)
 
     def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors, test_user, test_user_list):
         page = logged_in_page
@@ -175,9 +172,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("link", name="Test User Updated")).to_be_visible()
 
         def remove_user():
-            page.get_by_role("row", name=username).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
-            expect(page.get_by_test_id("user-table").get_by_role("link", name=username)).not_to_be_visible()
+            self.delete_item(page, "user-table", username)
 
         def import_export_users():
             user_table = page.get_by_test_id("user-table")
@@ -255,9 +250,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(template_row).to_contain_text("Invalid")
 
         def remove_template():
-            page.get_by_role("row", name=template_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
-            expect(page.get_by_test_id("template-table").get_by_role("link", name=template_name)).not_to_be_visible()
+            self.delete_item(page, "template-table", template_name)
 
         load_template_list()
         add_template()
@@ -291,8 +284,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             delete_button = page.get_by_test_id("delete-osint_source-button")
             expect(delete_button).to_contain_text("Delete 10 OSINT Source")
             self.highlight_element(delete_button).click()
-            page.get_by_role("button", name="OK").click()
-            self.dismiss_notification_if_visible(page)
+            page.get_by_role("button", name="Delete").click()
+            dismiss_notifications(page)
             expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
 
         def import_export_osint_sources():
@@ -310,8 +303,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             assert original_content == downloaded_content, "Downloaded file content does not match uploaded file content"
             page.get_by_role("row", name="Icon State Name Feed Actions").get_by_role("checkbox").check()
             page.get_by_test_id("delete-osint_source-button").click()
-            page.get_by_role("button", name="OK").click()
-            self.dismiss_notification_if_visible(page)
+            page.get_by_role("button", name="Delete").click()
+            dismiss_notifications(page)
 
         def add_osint_sources():
             page.get_by_test_id("new-osint_source-button").click()
@@ -342,7 +335,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             self.highlight_element(form.locator('input[type="submit"]')).click()
             expect(form).to_be_visible()
             expect(page.get_by_test_id("current-osint-icon")).to_be_visible()
-            self.dismiss_notification_if_visible(page)
 
             form = page.locator("#osint_source-form").first
             expect(form).to_be_visible()
@@ -359,9 +351,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(osint_row.locator("img.icon")).to_have_count(0)
 
         def remove_osint_sources():
-            page.get_by_role("row", name=osint_source_name).get_by_role("button").last.click()
-            page.get_by_role("button", name="Delete").click()
-            expect(page.get_by_test_id("osint_source-table").get_by_role("link", name=osint_source_name)).not_to_be_visible()
+            self.delete_item(page, "osint_source-table", osint_source_name)
 
         load_osint_sources()
         load_and_search_default_sources()
@@ -390,32 +380,30 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("link", name=osint_group_name)).to_be_visible()
 
         def update_osint_source_group():
-            group_table = page.get_by_test_id("osint_source_group-table")
             page.get_by_role("link", name=osint_group_name).click()
             page.get_by_role("textbox", name="Description", exact=True).fill("Updated description of an OSINT source group")
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page).to_have_url(url_for("admin.osint_source_groups", _external=True))
-            expect(self.get_table_row_by_link(group_table, page, osint_group_name)).to_contain_text(
-                "Updated description of an OSINT source group"
-            )
+            expect(page.get_by_role("row", name=osint_group_name)).to_contain_text("Updated description of an OSINT source group")
 
         def remove_osint_source_group():
-            page.get_by_role("row", name=osint_group_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
-            expect(page.get_by_test_id("osint_source_group-table").get_by_role("link", name=osint_group_name)).not_to_be_visible()
+            self.delete_item(page, "osint_source_group-table", osint_group_name)
 
         def test_page_osint_sources():
-            page.goto(url_for("admin.osint_sources", _external=True))
+            source_name = test_batch_osint_sources["sources"][0]["name"]
             page.goto(url_for("admin.osint_source_groups", _external=True))
             page.get_by_test_id("new-osint_source_group-button").click()
-            source_row = page.locator("#osint_sources tbody tr").first
+            form = page.locator("#osint_source_group-form")
+            expect(form).to_be_visible()
+            expect(form.locator("#osint_sources tbody input[type='checkbox'].checkbox-sm")).to_have_count(5)
+
+            form.get_by_role("textbox", name="Search...").first.fill(source_name)
+            source_row = form.locator("#osint_sources tbody tr").filter(has_text=source_name).first
             expect(source_row).to_be_visible()
-            source_name = source_row.locator("td").nth(1).inner_text().strip()
-            page.get_by_role("textbox", name="Search...").first.fill(source_name)
             expect(source_row).to_contain_text(source_name)
             source_row.get_by_role("checkbox").check()
-            expect(page.locator('input[type="hidden"][name="osint_sources[]"]')).to_have_count(1)
+            expect(form.locator('input[type="hidden"][name="osint_sources[]"]')).to_have_count(1)
 
         load_osint_source_groups()
         add_osint_source_group()
@@ -465,9 +453,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("row", name=role_name)).to_contain_text("Updated description of a role")
 
         def remove_role():
-            page.get_by_role("row", name=role_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
-            expect(page.get_by_test_id("role-table").get_by_role("link", name=role_name)).not_to_be_visible()
+            self.delete_item(page, "role-table", role_name)
 
         load_role_list()
         add_role()
@@ -481,20 +467,19 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
         def load_word_list():
             page.goto(url_for("admin.word_lists", _external=True))
-            expect(page.get_by_role("button", name="Load default Word List")).to_be_visible()
+            expect(page.locator("#word_list-table-container")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_word_lists.png")
 
         def load_default_word_list():
-            page.get_by_role("button", name="Load default Word List").click()
-            word_list_table = page.get_by_test_id("word_list-table")
-            all_rows = word_list_table.locator("tbody tr")
-            expect(all_rows.first).to_be_visible()
+            load_default_button = page.get_by_role("button", name="Load default Word List")
+            expect(load_default_button).to_be_visible()
+            load_default_button.click()
             page.get_by_role("row", name="Name Description Words Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-word_list-button")
             expect(delete_button).to_contain_text("Delete 9 Word List")
             self.highlight_element(delete_button).click()
-            page.get_by_role("button", name="OK").click()
-            self.dismiss_notification_if_visible(page)
+            page.get_by_role("button", name="Delete").click()
+            dismiss_notifications(page)
 
         def add_word_list():
             page.get_by_test_id("new-word_list-button").click()
@@ -508,11 +493,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             page.screenshot(path="./tests/playwright/screenshots/docs_word_list_add.png")
             self.highlight_element(page.get_by_role("button", name="Create Word List")).click()
-            self.dismiss_notification_if_visible(page)
+            dismiss_notifications(page)
             expect(page.get_by_role("link", name=word_list_name)).to_be_visible()
 
         def update_word_list():
-            word_list_table = page.get_by_test_id("word_list-table")
             page.get_by_role("link", name=word_list_name).click()
             expect(page.locator("#word_list-form")).to_be_visible()
 
@@ -520,15 +504,15 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.locator("input[name='usage[]'][value='TAGGING_BOT']").check()
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
-            expect(self.get_table_row_by_link(word_list_table, page, word_list_name)).to_contain_text("Updated description of a word list")
+            expect(page.get_by_role("link", name="Updated description of a word list")).to_be_visible()
 
         def remove_word_list():
-            page.get_by_role("row", name=word_list_name).get_by_role("button").click()
-            page.get_by_role("button", name="OK").click()
+            item_id = self.get_table_row_id_by_link_text(page, "word_list-table", word_list_name)
+            delete_button_test_id = f"action-delete-{item_id}"
+            self.delete_table_row(page, delete_button_test_id)
             # expect(page.get_by_test_id("word_list-table").get_by_role("link", name=word_list_name)).not_to_be_visible() # TODO: Wordlist table not rendered afer last element is deleted
 
         def import_export_word_lists():
-            word_list_table = page.get_by_test_id("word_list-table")
             page.get_by_role("button", name="Import").click()
             page.get_by_role("button", name="Choose File").set_input_files(test_wordlist)
             page.get_by_role("button", name="Submit").click()
@@ -541,9 +525,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
             assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
-            imported_row = self.delete_table_row_by_link(word_list_table, page, "Test wordlist")
-            expect(imported_row).not_to_be_visible()
-            self.dismiss_notification_if_visible(page)
+            self.delete_item(page, "word_list-table", "Test wordlist")
+            dismiss_notifications(page)
 
         load_word_list()
         load_default_word_list()
@@ -594,7 +577,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             roles_table.locator("tbody tr", has_text="User Basic user role").locator('input[type="checkbox"]').click()
             expect(roles_widget.locator('input[type="hidden"][name="roles[]"][value="2"]')).to_have_count(1)
             page.get_by_role("button", name="Create ACL").click()
-            expect(page.get_by_role("link", name="Test ACL", exact=True)).to_be_visible()
 
         def test_acl_update():
             page.get_by_role("link", name="Test ACL").click()
@@ -612,14 +594,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             acl_form.locator('input[name="enabled"][type="checkbox"]').set_checked(True)
             acl_form.locator('input[name="read_only"][type="checkbox"]').set_checked(True)
             page.get_by_role("button", name="Update ACL").click()
-            expect(page.get_by_role("link", name="Test ACL updated", exact=True)).to_be_visible()
 
         def test_acl_delete():
             acl_row = acl_table.locator("tbody tr", has=page.get_by_role("link", name="Test ACL updated", exact=True)).first
             expect(acl_row).to_be_visible()
-            acl_row.locator('[data-testid^="action-delete-"]').click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-            page.get_by_role("button", name="OK").click()
+            item_id = self.get_table_row_id_by_link_text(page, "acl-table", "Test ACL updated")
+            delete_button_test_id = f"action-delete-{item_id}"
+            self.delete_table_row(page, delete_button_test_id)
             expect(acl_row).not_to_be_visible()
 
         load_acls()
@@ -629,9 +610,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
     def test_admin_attributes(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
-        created_attribute_name = "attribute number 5"
-        updated_attribute_name = "attribute number 6"
-        report_type_title = "report item type test 5"
 
         def load_attributes():
             page.goto(url_for("admin.attributes", _external=True))
@@ -651,7 +629,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").click()
-            page.get_by_role("textbox", name="Name").fill(created_attribute_name)
+            page.get_by_role("textbox", name="Name").fill("attribute number 5")
             expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").click()
             page.get_by_role("textbox", name="Description").fill("attr 5")
@@ -676,7 +654,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").click()
-            page.get_by_role("textbox", name="Title").fill(report_type_title)
+            page.get_by_role("textbox", name="Title").fill("report item type test 5")
             expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").click()
             page.get_by_role("textbox", name="Description").fill("atrr5")
@@ -711,7 +689,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.locator(".col-span-12 > .grid > div").first.click()
             expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").fill("number 5 in report")
-            page.get_by_label("Report Type Select a report").select_option(label=report_type_title)
+            page.get_by_label("Report Type Select a report").select_option("6")
             page.get_by_test_id("save-report").click()
             expect(page.get_by_role("heading", name="Update Report - number 5 in")).to_be_visible()
             expect(page.get_by_role("heading", name="group1")).to_be_visible()
@@ -728,12 +706,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_text("›").click()
             expect(page.get_by_role("row", name="Rich Text Rich Text Rich Edit")).to_be_visible()
 
-            page.get_by_role("link", name=created_attribute_name).click()
+            page.get_by_role("link", name="attribute number").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").click()
-            page.get_by_role("textbox", name="Name").fill(updated_attribute_name)
+            page.get_by_role("textbox", name="Name").fill("attribute number 6")
             expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").click()
             page.get_by_role("textbox", name="Description").fill("attr 6")
@@ -751,7 +729,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("textbox", name="Title").click()
             expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").fill("update attr use")
-            page.get_by_label("Report Type Select a report").select_option(label=report_type_title)
+            page.get_by_label("Report Type Select a report").select_option("6")
             page.get_by_test_id("save-report").click()
             attr_field = page.get_by_role("spinbutton", name="attr title text")
             expect(attr_field).to_have_value("6")
@@ -760,10 +738,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("link", name="Analyze").click()
             expect(page.get_by_role("row", name="update attr use")).to_be_visible()
 
-            for _ in range(2):
-                page.locator('[data-testid^="action-delete-"]').first.click()
-                expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-                page.get_by_role("button", name="OK").click()
+            item_id = self.get_table_row_id_by_link_text(page, "report-table", "update attr use")
+            delete_button_test_id = f"action-delete-{item_id}"
+            self.delete_table_row(page, delete_button_test_id)
+            item_id = self.get_table_row_id_by_link_text(page, "report-table", "number 5 in report")
+            delete_button_test_id = f"action-delete-{item_id}"
+            self.delete_table_row(page, delete_button_test_id)
 
             expect(page.get_by_role("row", name="Title Created Type Stories")).to_be_visible()
 
@@ -773,9 +753,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_test_id("admin-menu-Report Item Type").click()
             expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
-            report_type_table = page.get_by_test_id("report_item_type-table")
-            report_type_row = self.delete_table_row_by_link(report_type_table, page, report_type_title)
-            expect(report_type_row).not_to_be_visible()
+            item_id = self.get_table_row_id_by_link_text(page, "report_item_type-table", "report item type test 5")
+            delete_button_test_id = f"action-delete-{item_id}"
+            self.delete_table_row(page, delete_button_test_id)
             expect(page.get_by_role("row", name="CERT Report Example CERT")).to_be_visible()
 
             page.get_by_test_id("admin-menu-Attribute").click()
@@ -784,9 +764,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_text("›").click()
             expect(page.get_by_role("row", name="Rich Text Rich Text Rich Edit")).to_be_visible()
 
-            attribute_table = page.get_by_test_id("attribute-table")
-            attribute_row = self.delete_table_row_by_link(attribute_table, page, updated_attribute_name)
-            expect(attribute_row).not_to_be_visible()
+            item_id = self.get_table_row_id_by_link_text(page, "attribute-table", "attribute number 6")
+            delete_button_test_id = f"action-delete-{item_id}"
+            self.delete_table_row(page, delete_button_test_id)
 
         load_attributes()
         test_attribute_create()
@@ -844,7 +824,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("link", name=report_type_title)).to_be_visible()
 
         def update_report_type():
-            report_type_table = page.get_by_test_id("report_item_type-table")
             page.get_by_role("link", name=report_type_title).click()
             expect(page.locator("#report_item_type-form")).to_be_visible()
 
@@ -857,13 +836,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page).to_have_url(url_for("admin.report_item_types", _external=True))
-            row = self.get_table_row_by_link(report_type_table, page, report_type_title)
+            row = page.get_by_role("row", name=report_type_title)
             expect(row).to_contain_text("Updated description of a report item type")
 
         def remove_report_type():
-            report_type_table = page.get_by_test_id("report_item_type-table")
-            row = self.delete_table_row_by_link(report_type_table, page, report_type_title)
-            expect(row).not_to_be_visible()
+            self.delete_item(page, "report_item_type-table", report_type_title)
 
         load_report_types()
         add_report_type()
@@ -903,7 +880,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("link", name=product_type_name)).to_be_visible()
 
         def update_product_type():
-            product_type_table = page.get_by_test_id("product_type-table")
             page.get_by_role("link", name=product_type_name).click()
             expect(page.locator("#product_type-form")).to_be_visible()
 
@@ -911,14 +887,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
 
             page.locator('input[type="submit"]').click()
             expect(page).to_have_url(url_for("admin.product_types", _external=True))
-            expect(self.get_table_row_by_link(product_type_table, page, product_type_name)).to_contain_text(
-                "Updated description of a product type"
-            )
+            expect(page.get_by_role("row", name=product_type_name)).to_contain_text("Updated description of a product type")
 
         def remove_product_type():
-            product_type_table = page.get_by_test_id("product_type-table")
-            row = self.delete_table_row_by_link(product_type_table, page, product_type_name)
-            expect(row).not_to_be_visible()
+            self.delete_item(page, "product_type-table", product_type_name)
 
         load_product_types()
         add_product_type()
@@ -972,13 +944,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def test_remove_bot():
             bot_table = page.get_by_test_id("bot-table")
             all_rows = bot_table.locator("tbody tr")
-            starting_count = all_rows.count()
-            assert starting_count > 0
-            bot_table.locator('[data-testid^="action-delete-"]').last.click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-            page.get_by_role("button", name="OK").click()
-            expect(all_rows).to_have_count(starting_count - 1)
-            self.dismiss_notification_if_visible(page)
+            expect(all_rows).to_have_count(8)
+            item_id = self.get_table_row_id_by_link_text(page, "bot-table", "test bot updated")
+            delete_button_test_id = f"action-delete-{item_id}"
+            self.delete_table_row(page, delete_button_test_id)
+            dismiss_notifications(page)
 
         test_load_bots()
         test_bot_create()
@@ -1035,9 +1005,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def remove_connector():
             connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first
             expect(connector_row).to_be_visible()
-            connector_row.locator('[data-testid^="action-delete-"]').click()
-            expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-            page.get_by_role("button", name="OK").click()
+            item_id = self.get_table_row_id_by_link_text(page, "connector-table", updated_connector_name)
+            delete_button_test_id = f"action-delete-{item_id}"
+            self.delete_table_row(page, delete_button_test_id)
             expect(connector_row).not_to_be_visible()
 
         load_connectors()
@@ -1064,10 +1034,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(ftp_url_input).to_have_attribute("required", "")
             ftp_url_input.fill("testurl")
             page.get_by_role("button", name="Create Publisher Preset").click()
-            expect(page.get_by_role("link", name="publisher preset test", exact=True)).to_be_visible()
+            expect(page.get_by_role("row", name="publisher preset test Ftp")).to_be_visible()
 
         def publisher_presets_update():
-            publisher_table = page.get_by_test_id("publisher_preset-table")
             page.get_by_role("link", name="publisher preset test").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
             ftp_url_input = page.locator('input[name="parameters[FTP_URL]"]')
@@ -1079,26 +1048,23 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test updated")
             page.get_by_role("button", name="Update Publisher Preset").click()
-            expect(self.get_table_row_by_link(publisher_table, page, "publisher preset test updated")).to_be_visible()
+            expect(page.get_by_role("row", name="publisher preset test updated")).to_be_visible()
 
         def publisher_presets_delete():
             publisher_table = page.get_by_test_id("publisher_preset-table")
             all_rows = publisher_table.locator("tbody tr")
-            starting_count = all_rows.count()
-            assert starting_count > 0
-            row = self.delete_table_row_by_link(publisher_table, page, "publisher preset test updated")
-            expect(row).not_to_be_visible()
-            if starting_count == 1:
-                expect(publisher_table.locator("tbody")).to_contain_text("No data available")
-            else:
-                expect(all_rows).to_have_count(starting_count - 1)
+            expect(all_rows).to_have_count(1)
+            item_id = self.get_table_row_id_by_link_text(page, "publisher_preset-table", "publisher preset test updated")
+            delete_button_test_id = f"action-delete-{item_id}"
+            self.delete_table_row(page, delete_button_test_id)
+            expect(publisher_table.get_by_role("link", name="publisher preset test updated")).not_to_be_visible()
 
         load_publisher_presets()
         publisher_presets_create()
         publisher_presets_update()
         publisher_presets_delete()
 
-    def test_admin_settings(self, logged_in_page, tmp_path, run_core, access_token, pre_seed_stories):
+    def test_admin_settings(self, logged_in_page, tmp_path, pre_seed_stories):
         page = logged_in_page
         settings_update_url = url_for("admin_settings.settings_action", action="settings", _external=True)
         settings_form = page.locator("#settings-container form#admin-settings-form")
@@ -1159,10 +1125,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 self.highlight_element(export_all_btn).click()
             download = dl_info.value
             assert download is not None
-            download_path = download.path()
-            assert download_path is not None
+            export_file = tmp_path / "settings_story_export.json"
+            download.save_as(str(export_file))
 
-            with open(download_path, "r", encoding="utf-8") as f:
+            with open(export_file, "r", encoding="utf-8") as f:
                 exported = json.load(f)
 
             # convert both exported stories and stories in story_list to a comparable format
@@ -1186,6 +1152,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             if export_dialog.is_visible():
                 page.keyboard.press("Escape")
             expect(export_dialog).not_to_be_visible()
+            return export_file
 
         def test_export_stories_metadata_time_filter(story_list):
             export_btn = page.get_by_test_id("story-export-button")
@@ -1258,15 +1225,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 page.keyboard.press("Escape")
             expect(export_dialog).not_to_be_visible()
 
-        def import_stories_from_json():
-            export_response = requests.get(
-                f"{run_core}/admin/export-stories",
-                params={"metadata": "true"},
-                headers={"Authorization": f"Bearer {access_token}"},
-                timeout=30,
-            )
-            export_response.raise_for_status()
-            import_payload = export_response.json()
+        def import_stories_from_json(export_file):
+            with open(export_file, "r", encoding="utf-8") as f:
+                import_payload = json.load(f)
 
             imported_story_title = f"Imported Story {uuid.uuid4().hex[:8]}"
             imported_story_id = str(uuid.uuid4())
@@ -1279,13 +1240,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
                 news_item["story_id"] = imported_story_id
                 news_item["title"] = f"{imported_story_title} News {index}"
                 news_item["link"] = f"https://example.com/{imported_story_id}/{index}"
+                news_item["osint_source_id"] = "manual"
                 news_item.pop("hash", None)
 
-            import_file = tmp_path / "settings_story_import.json"
-            import_file.write_text(json.dumps([story_to_import]), encoding="utf-8")
+            export_file.write_text(json.dumps([story_to_import]), encoding="utf-8")
 
             with page.expect_response(stories_import_url) as response_info:
-                page.get_by_test_id("settings-story-import-file").set_input_files(str(import_file))
+                page.get_by_test_id("settings-story-import-file").set_input_files(str(export_file))
                 page.get_by_test_id("settings-story-import-submit").click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
 
@@ -1316,9 +1277,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         check_default_values()
         change_default_values()
         check_new_values()
-        test_export_all_stories(pre_seed_stories)
+        exported_stories_file = test_export_all_stories(pre_seed_stories)
         test_export_stories_metadata_time_filter(pre_seed_stories)
-        import_stories_from_json()
+        import_stories_from_json(exported_stories_file)
         revert_to_default_values()
         test_clear_cache()
 

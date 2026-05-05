@@ -5,6 +5,7 @@ from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.user import ProfileSettings, UserProfile
 from pydantic import ValidationError
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.core_api import CoreApi
@@ -85,6 +86,8 @@ class UserProfileView(BaseView):
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)

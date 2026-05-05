@@ -18,28 +18,43 @@ jobs:
           chmod +x docker/build_container.sh
           ./docker/build_container.sh
 
-      - name: Start docker compose for last commit
+      - name: Run docker compose for last commit
         working-directory: docker
-        env:
-          DEBUG: "false"
-          WORKER_TYPES: '["Presenters","Publishers"]'
         run: |
           cp env.sample .env
-          docker compose pull rabbitmq sse database
-          docker compose up ingress core frontend database collector workers sse rabbitmq --pull=never --wait-timeout=60 --wait
-          echo "Echo docker ps -a:"
-          docker ps -a
+          docker compose pull redis sse database
+          docker compose up ingress core frontend database redis collector workers cron sse --pull=never --wait-timeout=180 --wait
 
-      - name: Echo core logs
-        if: ${{ failure() }}
+      - name: Check container status
+        # Show status/logs only when a previous step failed (e.g. compose --wait)
+        if: failure()
         working-directory: docker
-        env:
-          DEBUG: "false"
-        run: docker compose logs core
+        run: |
+          echo "Container status:"
+          docker compose ps
+          echo ""
+          echo "Container logs:"
+          docker compose logs
 
-      - name: Stop docker compose
-        if: ${{ always() }}
+      - name: Verify all containers are healthy
+        # we could drop this step and rely on `--wait` above, but this gives more detailed output
+        if: success()
         working-directory: docker
-        env:
-          DEBUG: "false"
+        run: |
+          # Check that services with healthchecks are healthy
+          for service in core frontend collector workers cron database redis; do
+            HEALTH=$(docker compose ps $service --format json | jq -r '.Health')
+            if [ -n "$HEALTH" ] && [ "$HEALTH" != "healthy" ]; then
+              echo "❌ Service $service health check failed (health: $HEALTH)"
+              docker compose ps
+              docker compose logs $service
+              exit 1
+            fi
+          done
+
+          echo "✅ All containers are healthy and running"
+
+      - name: Cleanup
+        if: always()
+        working-directory: docker
         run: docker compose down

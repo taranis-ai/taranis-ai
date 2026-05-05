@@ -30,10 +30,9 @@ database:
   user: CHANGE_ME_DATABASE_USER
   password: CHANGE_ME_DATABASE_PASSWORD
 
-rabbitmq:
-  host: CHANGE_ME_RABBITMQ_HOSTNAME
-  user: CHANGE_ME_RABBITMQ_USER
-  password: CHANGE_ME_RABBITMQ_PASSWORD
+redis:
+  url: redis://CHANGE_ME_REDIS_HOSTNAME:6379/0
+  password: CHANGE_ME_REDIS_PASSWORD
 
 storage:
   core:
@@ -94,6 +93,7 @@ replicas:
   ingress: 1
   collector: 1
   worker: 1
+  cron: 1
   nlp: 1
   summary: 1
   story: 1
@@ -141,6 +141,13 @@ resources:
     requests:
       cpu: "1"
       memory: 512Mi
+  cron:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
   nlp:
     limits:
       cpu: "4"

@@ -2,8 +2,8 @@ from typing import Any
 
 from flask import abort, render_template, request
 from flask.typing import ResponseReturnValue
-from models.admin import ProductType, PublisherPreset
-from models.product import Product
+from models.product import Product, ProductType, PublisherPreset
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
@@ -41,7 +41,7 @@ class ProductView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
-        product_types = DataPersistenceLayer().get_objects_by_endpoint(ProductType, "/publish/product-types")
+        product_types = DataPersistenceLayer().get_objects(ProductType)
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
         publishers = DataPersistenceLayer().get_objects(PublisherPreset)
         base_context["publishers"] = [{"id": p.id, "name": p.name} for p in publishers]
@@ -71,6 +71,8 @@ class ProductView(BaseView):
                 error = error_payload.get("error", "Unknown error")
 
             logger.error(f"Download product failed with status {core_resp.status_code}: {error}")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Download product failed: {str(e)}")
             error = f"Failed to download product - {str(e)}"
@@ -87,8 +89,9 @@ class ProductView(BaseView):
                 error = core_resp.json().get("error", "Unknown error")
 
             message = core_resp.json().get("message", "Unknown error")
-            DataPersistenceLayer().invalidate_cache_by_object_id(Product, product_id)
             return render_template("notification/index.html", notification={"message": message, "error": False}), 200
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Render product failed: {str(e)}")
             error = f"Failed to render product - {str(e)}"
@@ -106,6 +109,8 @@ class ProductView(BaseView):
 
             message = core_resp.json().get("message", "Unknown error")
             return render_template("notification/index.html", notification={"message": message, "error": False}), 200
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Publish product failed: {str(e)}")
             error = f"Failed to publish product - {str(e)}"

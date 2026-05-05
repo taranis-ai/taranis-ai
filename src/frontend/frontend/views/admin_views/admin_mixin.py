@@ -3,8 +3,10 @@ from typing import cast
 from flask import current_app
 from flask.typing import ResponseReturnValue
 from jinja2 import TemplateNotFound
+from models.admin import WorkerParameter, WorkerParameterValue
 
 from frontend.auth import admin_required
+from frontend.data_persistence import DataPersistenceLayer
 
 
 class AdminMixin:
@@ -56,6 +58,13 @@ class AdminMixin:
         if str(object_id) == "0":
             return cls.get_base_route()
         return cls.get_edit_route(**{cls._get_object_key(): object_id})
+
+    @classmethod
+    def get_worker_parameters(cls, worker_type: str) -> list[WorkerParameterValue]:
+        dpl = DataPersistenceLayer()
+        all_parameters = dpl.get_objects(WorkerParameter)
+        match = next((wp for wp in all_parameters if wp.id == worker_type), None)
+        return match.parameters if match else []
 
     @classmethod
     def handle_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict | None = None) -> tuple[str, int]:

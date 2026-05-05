@@ -8,11 +8,25 @@ from flask import Response, abort, flash, json, make_response, redirect, render_
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from markupsafe import Markup, escape
-from models.admin import Connector
-from models.assess import AssessSource, BulkAction, FilterLists, NewsItem, Story, StoryUpdatePayload
+from models.assess import (
+    NEWS_ITEM_IMPORT_FIELDS as _NEWS_ITEM_IMPORT_FIELDS,
+)
+from models.assess import (
+    STORY_IMPORT_FIELDS as _STORY_IMPORT_FIELDS,
+)
+from models.assess import (
+    AssessSource,
+    BulkAction,
+    Connector,
+    FilterLists,
+    NewsItem,
+    Story,
+    StoryUpdatePayload,
+)
 from models.report import ReportItem
 from pydantic import ValidationError
 from werkzeug.datastructures import FileStorage
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
 from frontend.cache import add_model_to_cache, get_model_from_cache
@@ -24,44 +38,6 @@ from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.router_helpers import parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
-
-
-_STORY_IMPORT_FIELDS = {
-    "id",
-    "title",
-    "description",
-    "created",
-    "likes",
-    "dislikes",
-    "relevance",
-    "read",
-    "important",
-    "summary",
-    "comments",
-    "revision",
-    "attributes",
-    "tags",
-    "news_items",
-    "last_change",
-}
-
-_NEWS_ITEM_IMPORT_FIELDS = {
-    "id",
-    "title",
-    "source",
-    "content",
-    "osint_source_id",
-    "review",
-    "author",
-    "link",
-    "language",
-    "hash",
-    "attributes",
-    "last_change",
-    "published",
-    "collected",
-    "story_id",
-}
 
 
 def _sanitize_news_item_import_payload(news_item_data: dict[str, Any], story_id: str | None = None) -> dict[str, Any]:
@@ -140,13 +116,18 @@ class StoryView(BaseView):
 
     @staticmethod
     def _get_filter_lists() -> FilterLists:
-        if filter_lists := get_model_from_cache(FilterLists._model_name, "", current_user.id):
-            return filter_lists
+        username = getattr(current_user, "username", getattr(current_user, "id", "anonymous"))
+        if filter_lists := get_model_from_cache(FilterLists._model_name, "", username):
+            return FilterLists(**filter_lists)
         if filter_lists_content := CoreApi().get_filter_lists():
             filter_lists = FilterLists(**filter_lists_content)
-            add_model_to_cache(filter_lists, "", current_user.id)
+            add_model_to_cache(filter_lists, "", username)
             return filter_lists
         return FilterLists(tags=[], sources=[], groups=[])
+
+    @classmethod
+    def default_share_story_link(cls) -> str:
+        return f"mailto:?{urlencode({'subject': 'sharing stories from taranis ai'}, quote_via=quote)}"
 
     @classmethod
     @auth_required()
@@ -155,11 +136,22 @@ class StoryView(BaseView):
         if not story_ids and (story_id := request.args.get("story_id", "")):
             story_ids = [story_id]
 
-        mail_sharing_link = cls.share_story_link(story_ids)
-        connectors = DataPersistenceLayer().get_objects(Connector)
-        return render_template(
-            "assess/story_sharing_dialog.html", connectors=connectors, story_ids=story_ids, mail_sharing_link=mail_sharing_link
-        )
+        connectors = []
+        mail_sharing_link = cls.default_share_story_link()
+        try:
+            mail_sharing_link = cls.share_story_link(story_ids)
+            connectors = DataPersistenceLayer().get_objects(Connector)
+        except HTTPException as exc:
+            logger.warning(f"Failed to enrich share dialog: {exc}")
+        except Exception as exc:
+            logger.warning(f"Failed to enrich share dialog: {exc}")
+        finally:
+            return render_template(
+                "assess/story_sharing_dialog.html",
+                connectors=connectors,
+                story_ids=story_ids,
+                mail_sharing_link=mail_sharing_link,
+            )
 
     @classmethod
     @auth_required()
@@ -177,6 +169,8 @@ class StoryView(BaseView):
             core_response = CoreApi().api_post(f"/assess/story/{connector_id}/share", json_data={"story_ids": story_ids})
             notification_html = cls.get_notification_from_response(core_response)
             status_code = getattr(core_response, "status_code", 500) or 500
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to share stories with connector.")
             notification_html = cls.render_response_notification({"error": "Failed to share stories with connector."})
@@ -186,7 +180,18 @@ class StoryView(BaseView):
 
     @classmethod
     def share_story_link(cls, story_ids: list[str]) -> str:
-        stories: list[Story] = [story for story_id in story_ids if (story := DataPersistenceLayer().get_object(Story, story_id)) is not None]
+        stories: list[Story] = []
+        for story_id in story_ids:
+            try:
+                story = DataPersistenceLayer().get_object(Story, story_id)
+            except HTTPException as exc:
+                logger.warning(f"Failed to load story {story_id} for sharing link: {exc}")
+                continue
+            except Exception as exc:
+                logger.warning(f"Failed to load story {story_id} for sharing link: {exc}")
+                continue
+            if story is not None:
+                stories.append(story)
 
         subject = "sharing stories from taranis ai"
         if len(stories) == 1:
@@ -224,8 +229,6 @@ class StoryView(BaseView):
         story_ids = request.form.getlist("story_ids")
         report_id = request.form.get("report", "")
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
-        DataPersistenceLayer().invalidate_cache_by_object(ReportItem)
         notification_html = cls.get_notification_from_response(response)
         if StoryView._get_current_url_path() == url_for("assess.assess"):
             return cls.rerender_list(notification=notification_html)
@@ -252,7 +255,6 @@ class StoryView(BaseView):
             )
         logger.debug(f"Clustering {story_ids[1:]} into {story_ids[0]}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
         notification_html = cls.get_notification_from_response(response)
 
         if open_primary_story and getattr(response, "ok", False):
@@ -274,7 +276,6 @@ class StoryView(BaseView):
         story_ids = request.form.getlist("story_ids")
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
         response = CoreApi().api_post("/assess/stories/group", json_data=story_ids)
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
@@ -288,14 +289,12 @@ class StoryView(BaseView):
             logger.debug("No story IDs supplied for bulk update. Returning current story list.")
             return cls.rerender_list(notification=cls.render_response_notification({"error": "No stories selected for bulk action."}))
         response = CoreApi().api_post("/assess/stories/bulk_action", json_data=bulk_action.model_dump(mode="json"))
-
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
         return cls.rerender_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
     def _build_pagination_context(
         cls,
-        stories: CacheObject[Story] | None,
+        stories: CacheObject | None,
         paging: PagingData,
         request_params: dict[str, list[str]],
     ) -> dict[str, Any]:
@@ -352,12 +351,14 @@ class StoryView(BaseView):
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, cls.model))
             items, error = None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"Error retrieving {cls.model_name()} items")
             items, error = None, str(exc)
 
         context = cls.get_view_context(items, error)
-        context["pagination"] = cls._build_pagination_context(items or None, paging_data, request_params)
+        context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
 
         return render_template(cls.get_list_template(), **context), 200
 
@@ -441,29 +442,6 @@ class StoryView(BaseView):
     def story_view(cls, story_id: str):
         return render_template("assess/story_view.html", **cls.get_item_context(story_id)), 200
 
-    @staticmethod
-    def _extract_report_ids_from_story_data(story_data: Any) -> list[str]:
-        tags = story_data.get("tags") if isinstance(story_data, dict) else None
-        report_ids: list[str] = []
-        for tag in tags or []:
-            tag_type = tag.get("tag_type")
-            if isinstance(tag_type, str) and tag_type.startswith("report_"):
-                if report_id := tag_type.split("report_", 1)[1]:
-                    report_ids.append(report_id)
-
-        return report_ids
-
-    @classmethod
-    def _invalidate_related_report_caches(cls, core_response: Any) -> None:
-        story_data = None
-        if isinstance(core_response, dict):
-            story_data = core_response.get("story")
-        report_ids = cls._extract_report_ids_from_story_data(story_data)
-        if not report_ids:
-            return
-        for report_id in report_ids:
-            DataPersistenceLayer().invalidate_cache_by_object_id(ReportItem, report_id)
-
     @classmethod
     @auth_required()
     def trigger_bot_action(cls, story_id: str):
@@ -476,13 +454,13 @@ class StoryView(BaseView):
         try:
             response = api.api_post("/assess/stories/botactions", json_data={"story_id": story_id, "bot_id": bot_id})
             payload = response.json()
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to decode bot action response.")
             notification = {"message": "Failed to decode bot action response", "error": True}
             notification_html = render_template("notification/index.html", notification=notification)
             return make_response(notification_html, 400)
-
-        DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
 
         notification_html = render_template(
             "notification/index.html",
@@ -498,6 +476,8 @@ class StoryView(BaseView):
         api = CoreApi()
         try:
             tags = api.api_get(f"/assess/taglist?search={query}")
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to fetch tag suggestions.")
             tags = []
@@ -519,14 +499,12 @@ class StoryView(BaseView):
         status_override: int | None = None,
     ) -> ResponseReturnValue:
         try:
-            story_id = core_response.json().get("story_id", "")
+            payload = core_response.json()
+            story_id = payload.get("story_id", "")
+            if not story_id and (story_ids := payload.get("story_ids")):
+                story_id = story_ids[0] if isinstance(story_ids, list) else story_ids
         except Exception:
             story_id = ""
-
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
-        DataPersistenceLayer().invalidate_cache_by_object(NewsItem)
-        if story_id:
-            DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
 
         notification = cls.get_notification_from_response(core_response)
         status = status_override if status_override is not None else 200 if getattr(core_response, "ok", False) else 400
@@ -548,7 +526,8 @@ class StoryView(BaseView):
     def create_news_item(cls):
         logger.debug(f"Creating news item with form fields: {[key for key in request.form.keys() if key != 'csrf_token']}")
         if url := request.form.get("fetch_url"):
-            return cls._create_news_item_from_url(url)
+            form_data = parse_formdata(request.form)
+            return cls._create_news_item_from_url(url, form_data.get("parameters", {}))
 
         if upload_file := request.files.get("file"):
             return cls._create_news_item_from_file(upload_file)
@@ -562,7 +541,7 @@ class StoryView(BaseView):
             notification = {"message": format_pydantic_errors(e, NewsItem), "error": True}
             notification_html = render_template("notification/index.html", notification=notification)
             return make_response(notification_html, 400)
-        core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
+        core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.to_core_dict())
         return cls.news_item_edit_view(core_response)
 
     @classmethod
@@ -577,7 +556,7 @@ class StoryView(BaseView):
             notification_html = render_template("notification/index.html", notification=notification)
             return make_response(notification_html, 400)
 
-        core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
+        core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.to_core_dict())
 
         return cls._handle_news_item_response(
             core_response,
@@ -599,6 +578,8 @@ class StoryView(BaseView):
             core_response = CoreApi().api_post("/assess/import", json_data=json_data)
             cls.add_flash_notification(core_response)
             return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id=core_response.json().get("id", "0")))
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to create news item from file.")
             flash("Failed to create news item from file", "error")
@@ -621,6 +602,8 @@ class StoryView(BaseView):
         except JSONDecodeError:
             logger.warning("Failed to decode story import JSON payload.")
             return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to import stories.")
             return make_response(cls.render_response_notification({"error": "Failed to import stories."}), 500)
@@ -635,17 +618,29 @@ class StoryView(BaseView):
 
         imported_count = len(core_response.json().get("imported_stories", []))
         flash(f"Imported {imported_count} stor{'y' if imported_count == 1 else 'ies'} successfully", "success")
-        DataPersistenceLayer().invalidate_cache(None)
 
         response = make_response("", 204)
         response.headers["HX-Refresh"] = "true"
         return response
 
+    @staticmethod
+    def _build_simple_web_collector_payload(url: str, parameters: dict[str, Any] | None = None) -> dict[str, Any]:
+        collector_parameters = {key: value for key, value in (parameters or {}).items() if value not in ("", None) and key != "WEB_URL"}
+        collector_parameters["WEB_URL"] = url.strip()
+        return {
+            "id": "manual",
+            "type": "simple_web_collector",
+            "parameters": collector_parameters,
+        }
+
     @classmethod
-    def _create_news_item_from_url(cls, url: str):
+    def _create_news_item_from_url(cls, url: str, parameters: dict[str, Any] | None = None):
         try:
-            core_response = CoreApi().api_post("/assess/news-items/fetch", json_data={"url": url})
+            payload = cls._build_simple_web_collector_payload(url, parameters)
+            core_response = CoreApi().api_post("/assess/news-items/fetch", json_data=payload)
             return cls.news_item_edit_view(core_response)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to create news item from URL.")
             return cls.render_response_notification({"error": "Failed to create news item from URL."})
@@ -655,6 +650,8 @@ class StoryView(BaseView):
     def delete_news_item(cls, news_item_id: str):
         try:
             core_response = CoreApi().api_delete(f"/assess/news-items/{news_item_id}")
+        except HTTPException:
+            raise
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete news item"})
 
@@ -669,11 +666,12 @@ class StoryView(BaseView):
     def delete_story(cls, story_id: str):
         try:
             core_response = CoreApi().api_delete(f"/assess/story/{story_id}")
+        except HTTPException:
+            raise
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete story"})
 
         cls.add_flash_notification(core_response)
-        DataPersistenceLayer().invalidate_cache_by_object(Story)
         return cls.redirect_htmx(url_for("assess.assess"))
 
     @staticmethod
@@ -718,19 +716,21 @@ class StoryView(BaseView):
         if news_item_ids := request.form.getlist("news_item_ids[]"):
             try:
                 response = CoreApi().api_put("/assess/news-items/ungroup", json_data=news_item_ids)
-                DataPersistenceLayer().invalidate_cache_by_object(Story)
                 notification_html = cls.get_notification_from_response(response)
                 content = cls._get_action_response_content(story_id)
                 return make_response(notification_html + content, 200)
+            except HTTPException:
+                raise
             except Exception:
                 logger.exception("Failed to ungroup news item.")
                 return cls.render_response_notification({"error": "Failed to ungroup news item."})
         else:
             try:
                 core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
-                DataPersistenceLayer().invalidate_cache_by_object(Story)
                 cls.add_flash_notification(core_response)
                 return cls.redirect_htmx(url_for("assess.assess"))
+            except HTTPException:
+                raise
             except Exception:
                 logger.exception("Failed to ungroup story.")
                 return cls.render_response_notification({"error": "Failed to ungroup story."})
@@ -746,7 +746,7 @@ class StoryView(BaseView):
         try:
             paging_data = PagingData(query_params={"story_ids": story_ids}, limit=len(story_ids))
             stories = DataPersistenceLayer().get_objects(Story, paging_data)
-            export_data = [story.model_dump(mode="json") for story in stories.items]
+            export_data = [story.to_core_dict() for story in stories.items]
 
             response_data = json.dumps({"total_count": len(export_data), "items": export_data}, indent=2)
             flask_response = make_response(response_data, 200)
@@ -755,6 +755,8 @@ class StoryView(BaseView):
                 f'attachment; filename="stories_export_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
             )
             return flask_response
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to export stories.")
             return cls.render_response_notification({"error": "Failed to export stories."}), 500
@@ -774,9 +776,6 @@ class StoryView(BaseView):
         response = CoreApi().api_patch(f"/assess/stories/{story_id}", json_data=story_update.model_dump(mode="json"))
         notification_html = cls.get_notification_from_response(response)
 
-        DataPersistenceLayer().invalidate_cache_by_object_id(Story, story_id)
-        cls._invalidate_related_report_caches(response.json())
-
         content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 
@@ -784,7 +783,6 @@ class StoryView(BaseView):
         object_id = kwargs.get("story_id")
         if object_id is None:
             if request.args.get("reset"):
-                DataPersistenceLayer().invalidate_cache_by_object(Story)
                 logger.debug("Droping cache & resitting filters")
                 return redirect(url_for("assess.assess"))  # type: ignore
             return self.list_view()

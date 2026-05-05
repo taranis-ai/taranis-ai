@@ -13,7 +13,7 @@ def initialize(app):
     app.register_error_handler(401, handle_unauthorized)
     app.register_error_handler(404, handle_not_found)
 
-    core_api.admin.initialize(app)
+    core_api.settings.initialize(app)
     core_api.analyze.initialize(app)
     core_api.assess.initialize(app)
     core_api.assets.initialize(app)

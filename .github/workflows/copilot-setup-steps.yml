@@ -1,0 +1,64 @@
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/copilot-instructions.md
+      - .github/workflows/copilot-setup-steps.yml
+      - dev/**
+      - src/core/**
+      - src/frontend/**
+      - src/models/**
+      - src/worker/**
+      - README.md
+  pull_request:
+    paths:
+      - .github/copilot-instructions.md
+      - .github/workflows/copilot-setup-steps.yml
+      - dev/**
+      - src/core/**
+      - src/frontend/**
+      - src/models/**
+      - src/worker/**
+      - README.md
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Sync core dependencies
+        working-directory: src/core
+        run: uv sync --all-extras --frozen
+
+      - name: Sync frontend dependencies
+        working-directory: src/frontend
+        run: uv sync --all-extras --frozen
+
+      - name: Sync models dependencies
+        working-directory: src/models
+        run: uv sync --dev --frozen
+
+      - name: Sync worker dependencies
+        working-directory: src/worker
+        run: uv sync --all-extras --frozen
+
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x

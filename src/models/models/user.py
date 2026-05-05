@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from pydantic import Field
@@ -36,6 +37,7 @@ class UserProfile(TaranisBaseModel):
     id: int | None = None
     username: str = ""
     name: str
+    last_login: datetime | None = None
     organization: dict[str, Any] | None = None
     profile: ProfileSettings = Field(default_factory=ProfileSettings)
     permissions: list[str] | None = Field(default_factory=list)

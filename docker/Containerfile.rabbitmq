@@ -1,3 +1,0 @@
-FROM docker.io/library/rabbitmq:4-management-alpine
-
-RUN echo "consumer_timeout = 36000000" >> /etc/rabbitmq/rabbitmq.conf

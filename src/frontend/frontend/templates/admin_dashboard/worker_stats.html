@@ -1,7 +1,6 @@
 {% if data.worker_status %}
   {% for worker, stats in data.worker_status.items() %}
-    {% set card_title = worker.split('_')[0] | capitalize %}
-    {% call dashboard_card(card_title ~ ' Tasks', None) %}
+    {% call dashboard_card(worker, None) %}
       <div class="flex flex-col gap-1 text-sm">
         <div>
           <span class="badge badge-success">{{ stats.successes }}</span>

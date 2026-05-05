@@ -1,8 +1,9 @@
-import re
 import datetime
+import re
+
+from worker.log import logger
 
 from .base_bot import BaseBot
-from worker.log import logger
 
 
 class AnalystBot(BaseBot):

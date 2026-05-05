@@ -2,15 +2,13 @@
 
 Core could be called the "backend" of Taranis AI.
 
-It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLAlchemy) and schedules tasks via Celery.
-
-Furthermore it acts as celery scheduler backend.
+It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLAlchemy) and schedules tasks via RQ (Redis Queue).
 
 ## Requirements
 
 * Python version 3.12 or greater.
 * SQLite or PostgreSQL
-* [Optional] RabbitMQ
+* Redis
 
 
 ## Installation
@@ -29,14 +27,31 @@ Source venv and install dependencies
 
 ```bash
 source .venv/bin/activate
-uv sync --frozen
+uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv pip install -e ../models
 ```
+
+This local-development setup intentionally uses the checked-out `../models` package.
+Release/container builds still use the packaged `taranis-models` from the lockfile via `uv sync --frozen`.
 
 ## Usage
 
 ```bash
 taranis-ai
 ```
+
+## Frontend Cache Invalidation
+
+Core owns frontend cache invalidation for write operations.
+
+- `src/models/models/cache_contract.py` holds the shared cache defaults and key helpers used by both core and frontend
+- `CACHE_ENABLED=true|false` toggles frontend-cache invalidation support in core
+- `CACHE_REDIS_URL` optionally overrides the Redis URL used for frontend cache invalidation
+- `CACHE_REDIS_PASSWORD` optionally overrides the Redis password used for frontend cache invalidation
+- when the cache-specific settings are unset, core falls back to `REDIS_URL` and `REDIS_PASSWORD`
+- unit tests keep cache disabled by default through `build_config_overrides`
+- admin configuration writes under `/api/config/*` currently invalidate the full frontend cache by design
+- the manual invalidation endpoint is `POST /api/admin/cache/invalidate`
 
 ## Health Endpoints
 
@@ -80,7 +95,7 @@ This will start the Flask server and run the frontend service at `http://localho
 To run the unit tests just call:
 
 ```bash
-pytest
+uv run --no-sync --frozen python -m pytest tests/unit
 ```
 
-There are [e2e tests](./tests/playwright/README.md) using Playwright
+Frontend-owned end-to-end tests now live in [../frontend/tests/playwright/README.md](../frontend/tests/playwright/README.md).

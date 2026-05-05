@@ -94,6 +94,19 @@ def test_login_flow_rejects_unknown_internal_next_redirect(app):
     assert response.headers["Location"] == url_for("base.dashboard")
 
 
+def test_login_flow_rejects_login_next_redirect(app):
+    core_response = Mock()
+    core_response.ok = True
+    core_response.raw.headers.getlist.return_value = []
+
+    view = AuthView()
+    with app.test_request_context("/login", query_string={"next": url_for("base.login")}):
+        response = view.login_flow(core_response)
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == url_for("base.dashboard")
+
+
 def test_login_flow_rejects_network_path_variants(app):
     core_response = Mock()
     core_response.ok = True

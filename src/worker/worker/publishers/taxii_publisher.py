@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from models.product import WorkerProduct as Product
-from requests.auth import AuthBase
+from niquests.auth import AuthBase
 
 from .base_publisher import BasePublisher
 

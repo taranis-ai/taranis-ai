@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="--app-header-height: 4rem; --viewport-warning-height: 0px;">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,7 +18,8 @@
   </head>
 
   <body>
-    <main class="min-h-screen flex flex-col">
+    {% include "partials/viewport_notice.html" %}
+    <main class="min-h-screen flex flex-col" style="padding-top: var(--viewport-warning-height);">
       {% include "notification/index.html" %}
       {% include "login/login.html" %}
       {% if notification %}

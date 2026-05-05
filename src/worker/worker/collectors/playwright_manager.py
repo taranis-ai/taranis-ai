@@ -7,9 +7,20 @@ from worker.log import logger
 
 class PlaywrightManager:
     def __init__(self, proxies: dict | None = None, headers: dict | None = None) -> None:
+        self.proxies = proxies
+        self.headers = headers
+        self.playwright = None
+        self.browser = None
+        self.context = None
+        self.page = None
+
+    def _ensure_started(self) -> None:
+        if self.playwright and self.browser and self.context and self.page:
+            return
+
         self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(proxy=self.parse_proxies(proxies))  # type: ignore
-        self.context = self.setup_context(headers)
+        self.browser = self.playwright.chromium.launch(proxy=self.parse_proxies(self.proxies))  # type: ignore
+        self.context = self.setup_context(self.headers)
         self.page = self.context.new_page()
 
     def setup_context(self, headers: dict | None = None) -> BrowserContext:
@@ -48,6 +59,7 @@ class PlaywrightManager:
 
     def fetch_content_with_js(self, url: str, xpath: str = "") -> str:
         logger.debug(f"Getting web content with JS for {url} - {xpath=}")
+        self._ensure_started()
         try:
             self.page.goto(url)
 

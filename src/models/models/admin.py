@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import AnyUrl, Field, PastDatetime, SecretStr, field_serializer, field_validator, model_validator
 
 from models.base import TaranisBaseModel
+from models.task import CronTaskSpec, Task
 from models.types import (
     BOT_TYPES,
     COLLECTOR_TYPES,
@@ -54,6 +55,7 @@ class ExportStoriesQuery(TaranisBaseModel):
 
 class Job(TaranisBaseModel):
     _core_endpoint = "/config/schedule"
+    _cache_timeout = 1
     _model_name = "job"
     _pretty_name = "Scheduler"
 
@@ -62,28 +64,72 @@ class Job(TaranisBaseModel):
     trigger: str | None = None
     kwargs: str | None = None
     next_run_time: str | None = None
-
-
-class TaskResult(TaranisBaseModel):
-    _core_endpoint = "/config/task-results"
-    _model_name = "task_result"
-    _pretty_name = "Task Result"
-
-    id: str | None = None
-    result: Any | None = None
+    queue: str | None = None
+    type: Literal["scheduled", "cron"] | None = None
+    schedule: str | None = None
     status: str | None = None
-    last_change: datetime | None = None
-    last_success: datetime | None = None
+    started_at: str | None = None
+    failed_at: str | None = None
+    error: str | None = None
+    previous_run_time: str | None = None
+    last_run: str | None = None
+    last_success: str | None = None
+    last_run_display: str | None = None
+    last_run_relative: str | None = None
+    status_badge: dict[str, str] | None = None
+    is_overdue: bool | None = None
 
-    def __eq__(self, other: object) -> bool:
-        return self.status == (other.status if isinstance(other, TaskResult) else other)
 
-    def __lt__(self, other: object) -> bool:
-        other_status = other.status if isinstance(other, TaskResult) else other
+class ActiveJob(Job):
+    _core_endpoint = "/config/workers/active"
+    _cache_timeout = 1
+    _model_name = "active_job"
 
-        if self.status is None:
-            return other_status is not None
-        return False if other_status is None else str(self.status) < str(other_status)
+
+class FailedJob(Job):
+    _core_endpoint = "/config/workers/failed"
+    _cache_timeout = 1
+    _model_name = "failed_job"
+
+
+class QueueStatus(TaranisBaseModel):
+    _core_endpoint = "/config/workers/tasks"
+    _cache_timeout = 1
+    _model_name = "queue_status"
+
+    name: str
+    messages: int = 0
+
+
+class WorkerStats(TaranisBaseModel):
+    _core_endpoint = "/config/workers/stats"
+    _cache_timeout = 1
+    _model_name = "worker_stats"
+    _pretty_name = "Worker Stats"
+
+    total_workers: int = 0
+    busy_workers: int = 0
+    idle_workers: int = 0
+
+
+class SchedulerDashboardData(TaranisBaseModel):
+    _core_endpoint = "/config/workers/dashboard"
+    _cache_timeout = 1
+    _model_name = "scheduler_dashboard"
+    _pretty_name = "Scheduler Dashboard"
+
+    scheduled_jobs: list[Job] = Field(default_factory=list)
+    scheduled_total_count: int = 0
+    queues: list[QueueStatus] = Field(default_factory=list)
+    worker_stats: WorkerStats | None = None
+    active_jobs: list[ActiveJob] = Field(default_factory=list)
+    active_total_count: int = 0
+    failed_jobs: list[FailedJob] = Field(default_factory=list)
+    failed_total_count: int = 0
+
+
+class CronSpec(CronTaskSpec):
+    job_id: str
 
 
 class Address(TaranisBaseModel):
@@ -173,6 +219,7 @@ class User(TaranisBaseModel):
     roles: list[int] | list[dict] = Field(default_factory=list)
     username: str = ""
     password: SecretStr | None = None
+    last_login: datetime | None = None
 
     @field_serializer("password", when_used="json")
     def dump_secret(self, v):
@@ -190,7 +237,7 @@ class TaranisConfig(TaranisBaseModel):
 
 
 class Settings(TaranisBaseModel):
-    _core_endpoint = "/admin/settings"
+    _core_endpoint = "/settings/settings"
     _model_name = "settings"
     _pretty_name = "Settings"
     _cache_timeout = 30
@@ -231,7 +278,8 @@ class OSINTSource(TaranisBaseModel):
 
     icon: str | None = None
     enabled: bool | None = True
-    status: TaskResult | None = None
+    news_items_count: int | None = None
+    status: Task | None = None
 
 
 class OSINTSourceUpdateModel(TaranisBaseModel):
@@ -271,7 +319,7 @@ class ProductType(TaranisBaseModel):
     type: PRESENTER_TYPES
     parameters: ProductParameterValue = Field(default_factory=ProductParameterValue)
     report_types: list[int] = Field(default_factory=list)
-    status: TaskResult | None = None
+    status: Task | None = None
 
 
 class PublisherPreset(TaranisBaseModel):
@@ -284,7 +332,7 @@ class PublisherPreset(TaranisBaseModel):
     type: PUBLISHER_TYPES
     description: str | None = ""
     parameters: dict[str, str] | None = Field(default_factory=dict)
-    status: TaskResult | None = None
+    status: Task | None = None
 
 
 class ReportItemAttribute(TaranisBaseModel):
@@ -363,7 +411,7 @@ class Bot(TaranisBaseModel):
     index: int | None = None
     enabled: bool = True
     parameters: dict[str, str] | None = Field(default_factory=dict)
-    status: TaskResult | None = None
+    status: Task | None = None
 
 
 class Connector(TaranisBaseModel):
@@ -378,7 +426,7 @@ class Connector(TaranisBaseModel):
     index: int | None = None
     parameters: dict[str, str] | None = Field(default_factory=dict)
     icon: str | None = None
-    status: TaskResult | None = None
+    status: Task | None = None
 
 
 class WorkerParameterValue(TaranisBaseModel):

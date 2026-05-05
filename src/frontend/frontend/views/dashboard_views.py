@@ -7,9 +7,9 @@ from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.dashboard import Cluster, Dashboard, NewsItemConflict, StoryConflict, TrendingCluster
 from models.user import ProfileSettingsDashboard
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required, update_current_user_cache
-from frontend.cache import cache
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
@@ -35,6 +35,8 @@ class DashboardView(BaseView):
                 dashboard = dashboard_items[0]
             else:
                 return render_template("errors/404.html", error="No Dashboard items found"), 404
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.error(f"Error retrieving {cls.model_name()} items: {exc}")
             return render_template("errors/404.html", error="No Dashboard items found"), 404
@@ -42,6 +44,8 @@ class DashboardView(BaseView):
         try:
             trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
             dashboard_config = current_user.profile.dashboard
+        except HTTPException:
+            raise
         except Exception:
             trending_clusters = []
             dashboard_config = ProfileSettingsDashboard()
@@ -69,6 +73,8 @@ class DashboardView(BaseView):
         except ValueError:
             logger.exception(f"No cluster found for type: {cluster_name}")
             cluster = None
+        except HTTPException:
+            raise
         except Exception:
             logger.exception(f"Error fetching cluster for type: {cluster_name}")
             cluster = None
@@ -104,6 +110,8 @@ class DashboardView(BaseView):
             trending_clusters = CoreApi().api_get("/dashboard/cluster-names")
             if trending_clusters:
                 trending_clusters = trending_clusters.get("items", [])
+        except HTTPException:
+            raise
         except Exception:
             trending_clusters = []
 
@@ -147,6 +155,8 @@ class DashboardView(BaseView):
                 remaining_stories=remaining_stories,
                 story_summaries=story_summaries,
             )
+        except HTTPException:
+            raise
         except Exception as error:
             logger.exception(f"Failed to render News Item Conflict View: {error}")
             return render_template("errors/404.html", error="No news item conflicts found"), 404
@@ -156,15 +166,8 @@ class DashboardView(BaseView):
         internal_story_summaries: dict[str, dict] = {}
         for story_id in story_ids:
             summary_endpoint = f"/connectors/story-summary/{story_id}"
-            summary_cache_key = persistence_layer.make_user_key(summary_endpoint)
-
-            if cached_summary := cache.get(summary_cache_key):
-                internal_story_summaries[story_id] = cached_summary
-                continue
-
             if summary_response := persistence_layer.api.api_get(summary_endpoint):
                 internal_story_summaries[story_id] = summary_response
-                cache.set(summary_cache_key, summary_response)
         return internal_story_summaries
 
     @staticmethod
@@ -248,6 +251,8 @@ class DashboardView(BaseView):
             for conflict in conflict_cache_object.items:
                 if conflict.incoming_story_id == incoming_story_id:
                     return conflict.incoming_story
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"Failed loading incoming story snapshot for {incoming_story_id}: {exc}")
         return None
@@ -411,6 +416,8 @@ class DashboardView(BaseView):
 
             return cls.news_item_conflict_view()
 
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"Failed POST add-unique-items: {exc}")
             return make_response("Internal error adding unique news items", 500)
@@ -438,6 +445,8 @@ class DashboardView(BaseView):
 
             return cls.news_item_conflict_view()
 
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"Failed PUT news-item conflict resolve: {exc}")
             return make_response("Internal error resolving conflict", 500)
@@ -461,7 +470,6 @@ class DashboardView(BaseView):
         form_data = {"dashboard": form_data.get("dashboard", {})}
         core_response = CoreApi().update_user_profile(form_data)
         update_current_user_cache()
-        DataPersistenceLayer().invalidate_cache_by_object(TrendingCluster)
 
         if not core_response:
             html = render_template(

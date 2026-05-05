@@ -1,33 +1,34 @@
 #!/usr/bin/env python3
 
-import time
 import subprocess
-from watchdog.observers import Observer
+import time
+
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 
-class CeleryRestartHandler(FileSystemEventHandler):
+class RQRestartHandler(FileSystemEventHandler):
     def __init__(self):
-        self.celery_process = None
-        self.restart_celery()
+        self.rq_process = None
+        self.restart_rq()
 
-    def restart_celery(self):
-        if self.celery_process:
-            self.celery_process.terminate()
-            self.celery_process.wait()
+    def restart_rq(self):
+        if self.rq_process:
+            self.rq_process.terminate()
+            self.rq_process.wait()
 
-        self.celery_process = subprocess.Popen(["celery", "-A", "worker", "worker"])
+        self.rq_process = subprocess.Popen(["python", "-m", "worker"])
 
     def on_modified(self, event):
         if event.is_directory:
             return
-        self.restart_celery()
+        self.restart_rq()
 
 
 if __name__ == "__main__":
-    print("Starting Celery in dev mode watching current directory for changes...")
+    print("Starting RQ worker in dev mode watching current directory for changes...")
     path = "."  # Watch the current directory, modify if necessary
-    event_handler = CeleryRestartHandler()
+    event_handler = RQRestartHandler()
     observer = Observer()
     observer.schedule(event_handler, path, recursive=True)
     observer.start()
@@ -37,7 +38,7 @@ if __name__ == "__main__":
             time.sleep(1)
     except KeyboardInterrupt:
         observer.stop()
-        event_handler.celery_process.terminate()
-        event_handler.celery_process.wait()
+        event_handler.rq_process.terminate()
+        event_handler.rq_process.wait()
 
     observer.join()
