@@ -5335,7 +5335,10 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              type: array
+              minItems: 1
+              items:
+                type: string
       responses:
         "200":
           description: success

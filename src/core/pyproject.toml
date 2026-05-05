@@ -63,6 +63,7 @@ dev = [
     "pytest",
     "pytest-flask",
     "pytest-docker",
+    "py-pglite[sqlalchemy]",
     "fakeredis",
     "schemathesis >=4,<5",
     "build",

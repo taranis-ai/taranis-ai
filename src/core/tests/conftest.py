@@ -1,11 +1,19 @@
 import contextlib
 import os
 import sys
-from urllib.parse import urlparse
 
 import pytest
 from dotenv import load_dotenv
+from fakeredis import FakeRedis
+from redis import Redis
 from sqlalchemy.orm import scoped_session, sessionmaker
+
+from tests.support.pglite import (
+    apply_pglite_engine_options,
+    configure_pglite_environment,
+    patch_flask_sqlalchemy_engine_creation,
+    start_pglite_manager,
+)
 
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,15 +24,49 @@ if not current_path.endswith("src/core"):
     sys.exit("Tests must be run from within src/core")
 
 load_dotenv(dotenv_path=env_file, override=True)
+PGLITE_MANAGER = start_pglite_manager()
+PGLITE_URI = configure_pglite_environment(PGLITE_MANAGER)
+patch_flask_sqlalchemy_engine_creation(PGLITE_MANAGER, PGLITE_URI)
+FAKE_REDIS = FakeRedis(decode_responses=False)
+
+
+def _fake_redis_from_url(*args, **kwargs):
+    return FAKE_REDIS
+
+
+Redis.from_url = staticmethod(_fake_redis_from_url)
+
+
+def _configure_test_database() -> None:
+    import core.config
+
+    os.environ["SQLALCHEMY_DATABASE_URI"] = PGLITE_URI
+    core.config.Config.SQLALCHEMY_DATABASE_URI = PGLITE_URI
+    core.config.Config.SQLALCHEMY_DATABASE_URI_MASK = core.config.mask_db_uri(PGLITE_URI)
+    apply_pglite_engine_options(core.config.Config)
+
+
+_configure_test_database()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def pglite_manager():
+    try:
+        yield PGLITE_MANAGER
+    finally:
+        PGLITE_MANAGER.stop()
 
 
 @pytest.fixture(scope="session")
-def app():
+def pglite_database_uri(pglite_manager):
+    yield PGLITE_URI
+
+
+@pytest.fixture(scope="session")
+def app(pglite_manager):
     from core.__init__ import create_app
 
-    with contextlib.suppress(Exception):
-        parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
-        os.remove(f"{parsed_uri.path}")
+    _configure_test_database()
 
     app = create_app()
     app.config.update(
@@ -36,10 +78,6 @@ def app():
     )
 
     yield app
-
-    with contextlib.suppress(Exception):
-        parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
-        # os.remove(f"{parsed_uri.path}")
 
 
 @pytest.fixture(scope="session")

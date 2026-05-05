@@ -19,6 +19,9 @@ def extract_args(*keys):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             filter_args = {k: request.args[k] for k in keys if k in request.args}
+            for key, value in filter_args.items():
+                if key == "search" and isinstance(value, str) and "\x00" in value:
+                    return {"error": f"Invalid value for {key}"}, 400
             kwargs["filter_args"] = filter_args
             return f(*args, **kwargs)
 

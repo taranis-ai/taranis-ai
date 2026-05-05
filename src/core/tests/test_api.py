@@ -1,19 +1,4 @@
-import importlib
 import os
-
-
-def _reload_external_auth_modules():
-    import core
-    import core.api.auth
-    import core.auth.external_authenticator
-    import core.config
-    import core.managers.auth_manager
-
-    importlib.reload(core.config)
-    importlib.reload(core.auth.external_authenticator)
-    importlib.reload(core.managers.auth_manager)
-    importlib.reload(core.api.auth)
-    importlib.reload(core)
 
 
 def test_is_alive(client):
@@ -52,38 +37,38 @@ def test_auth_login_updates_last_login(client, app):
             assert user.last_login >= previous_last_login
 
 
-def test_auth_login_external_authenticator(tmp_path, monkeypatch):
-    db_path = tmp_path / "external-auth.sqlite"
-    env_vars = {
-        "API_KEY": "test_key",
-        "JWT_SECRET_KEY": "test_key_for_tests_only_do_not_use",
-        "DEBUG": "true",
-        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
-        "QUEUE_BROKER_URL": "memory://localhost",
-        "PRE_SEED_PASSWORD_USER": "test",
-        "DISABLE_SSE": "True",
-        "SERVER_NAME": "localhost",
-        "TARANIS_CORE_SENTRY_DSN": "",
-        "FLASK_RUN_PORT": "5000",
-        "DISABLE_SCHEDULER": "True",
-        "TARANIS_AUTHENTICATOR": "external",
-        "EXTERNAL_AUTH_USER": "X-EXTERNAL-USER",
-        "EXTERNAL_AUTH_ROLES": "X-EXTERNAL-ROLES",
-        "EXTERNAL_AUTH_NAME": "X-EXTERNAL-NAME",
-        "EXTERNAL_AUTH_ORGANIZATION": "X-EXTERNAL-ORGANIZATION",
-    }
+def test_auth_login_external_authenticator(app, client):
+    from core.auth.database_authenticator import DatabaseAuthenticator
+    from core.auth.external_authenticator import ExternalAuthenticator
+    from core.config import Config
+    from core.managers import auth_manager
+    from core.model.user import User
 
-    for key, value in env_vars.items():
-        monkeypatch.setenv(key, value)
+    original_authenticator = Config.TARANIS_AUTHENTICATOR
+    original_current_authenticator = auth_manager.current_authenticator
+    original_headers = (
+        Config.EXTERNAL_AUTH_USER,
+        Config.EXTERNAL_AUTH_ROLES,
+        Config.EXTERNAL_AUTH_NAME,
+        Config.EXTERNAL_AUTH_ORGANIZATION,
+    )
 
     try:
-        _reload_external_auth_modules()
-
-        from core import create_app
-        from core.model.user import User
-
-        app = create_app()
-        client = app.test_client()
+        Config.TARANIS_AUTHENTICATOR = "external"
+        Config.EXTERNAL_AUTH_USER = "X-EXTERNAL-USER"
+        Config.EXTERNAL_AUTH_ROLES = "X-EXTERNAL-ROLES"
+        Config.EXTERNAL_AUTH_NAME = "X-EXTERNAL-NAME"
+        Config.EXTERNAL_AUTH_ORGANIZATION = "X-EXTERNAL-ORGANIZATION"
+        app.config.update(
+            {
+                "TARANIS_AUTHENTICATOR": Config.TARANIS_AUTHENTICATOR,
+                "EXTERNAL_AUTH_USER": Config.EXTERNAL_AUTH_USER,
+                "EXTERNAL_AUTH_ROLES": Config.EXTERNAL_AUTH_ROLES,
+                "EXTERNAL_AUTH_NAME": Config.EXTERNAL_AUTH_NAME,
+                "EXTERNAL_AUTH_ORGANIZATION": Config.EXTERNAL_AUTH_ORGANIZATION,
+            }
+        )
+        auth_manager.current_authenticator = ExternalAuthenticator()
 
         response = client.post(
             "/api/auth/login",
@@ -116,8 +101,25 @@ def test_auth_login_external_authenticator(tmp_path, monkeypatch):
             assert user.organization.name == "External Org"
             assert any(role.name == "User" for role in user.roles)
     finally:
-        monkeypatch.undo()
-        _reload_external_auth_modules()
+        Config.TARANIS_AUTHENTICATOR = original_authenticator
+        (
+            Config.EXTERNAL_AUTH_USER,
+            Config.EXTERNAL_AUTH_ROLES,
+            Config.EXTERNAL_AUTH_NAME,
+            Config.EXTERNAL_AUTH_ORGANIZATION,
+        ) = original_headers
+        app.config.update(
+            {
+                "TARANIS_AUTHENTICATOR": Config.TARANIS_AUTHENTICATOR,
+                "EXTERNAL_AUTH_USER": Config.EXTERNAL_AUTH_USER,
+                "EXTERNAL_AUTH_ROLES": Config.EXTERNAL_AUTH_ROLES,
+                "EXTERNAL_AUTH_NAME": Config.EXTERNAL_AUTH_NAME,
+                "EXTERNAL_AUTH_ORGANIZATION": Config.EXTERNAL_AUTH_ORGANIZATION,
+            }
+        )
+        auth_manager.current_authenticator = (
+            original_current_authenticator if original_authenticator != "database" else DatabaseAuthenticator()
+        )
 
 
 def test_access_token(access_token):

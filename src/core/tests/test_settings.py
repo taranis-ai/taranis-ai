@@ -1,5 +1,7 @@
 import pytest
 from pydantic import SecretStr
+from sqlalchemy import text
+from sqlalchemy.pool import StaticPool
 
 from core.config import Settings
 
@@ -130,15 +132,21 @@ def test_pool_options_applied_to_actual_engine(app):
     with app.app_context():
         assert db.engine is not None
         assert db.engine.pool is not None
+        assert isinstance(db.engine.pool, StaticPool)
 
-        assert db.engine.pool.size() == 20  # type: ignore
+
+def test_postgresql_fts_bootstrap_falls_back_without_extensions(app):
+    from core.managers.db_manager import db
+
+    with app.app_context():
+        with db.engine.connect() as connection:
+            assert connection.execute(text("SELECT unaccent('hello world')")).scalar() == "hello world"
+            assert connection.execute(text("SELECT websearch_to_tsquery('simple', unaccent('hello world'))")).scalar() is not None
 
 
-def test_pool_options_with_custom_values_applied_to_engine(monkeypatch, clear_pool_env_vars):
-    """Integration test: verify custom pool timeout and recycle values are applied to the engine via app context."""
-    import os
-
-    monkeypatch.setenv("SQLALCHEMY_DATABASE_URI", os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:////tmp/taranis_ai_test.db"))
+def test_pool_options_with_custom_values_applied_to_engine(monkeypatch, clear_pool_env_vars, pglite_database_uri):
+    """Custom pool settings should survive parsing, then be replaced by PGLite-safe engine options."""
+    monkeypatch.setenv("SQLALCHEMY_DATABASE_URI", pglite_database_uri)
     monkeypatch.setenv("SQLALCHEMY_POOL_TIMEOUT", "25")
     monkeypatch.setenv("SQLALCHEMY_POOL_RECYCLE", "7200")
 
@@ -148,20 +156,19 @@ def test_pool_options_with_custom_values_applied_to_engine(monkeypatch, clear_po
 
     reload(core.config)
 
-    from core import create_app
     from core.config import Config
-    from core.managers.db_manager import db
+    from tests.support.pglite import apply_pglite_engine_options
 
-    app = create_app()
+    assert Config.SQLALCHEMY_POOL_TIMEOUT == 25
+    assert Config.SQLALCHEMY_POOL_RECYCLE == 7200
+    assert Config.SQLALCHEMY_ENGINE_OPTIONS["pool_timeout"] == 25
+    assert Config.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == 7200
 
-    with app.app_context():
-        assert Config.SQLALCHEMY_POOL_TIMEOUT == 25
-        assert Config.SQLALCHEMY_POOL_RECYCLE == 7200
-        assert Config.SQLALCHEMY_ENGINE_OPTIONS["pool_timeout"] == 25
-        assert Config.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == 7200
+    apply_pglite_engine_options(Config)
 
-        assert db.engine is not None
-        assert db.engine.pool is not None
+    assert "pool_timeout" not in Config.SQLALCHEMY_ENGINE_OPTIONS
+    assert "pool_recycle" not in Config.SQLALCHEMY_ENGINE_OPTIONS
+    assert Config.SQLALCHEMY_ENGINE_OPTIONS["poolclass"] is StaticPool
 
 
 def test_sqlalchemy_pool_timeout_validation_rejects_zero(clear_pool_env_vars):

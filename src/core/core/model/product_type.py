@@ -2,6 +2,7 @@ import os
 from typing import Any
 
 from models.types import PRESENTER_TYPES
+from sqlalchemy import String, cast
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.expression import Select
 
@@ -60,7 +61,7 @@ class ProductType(BaseModel):
                 db.or_(
                     cls.title.ilike(f"%{search}%"),
                     cls.description.ilike(f"%{search}%"),
-                    cls.type.ilike(f"%{search}%"),
+                    cast(cls.type, String).ilike(f"%{search}%"),
                 )
             )
 

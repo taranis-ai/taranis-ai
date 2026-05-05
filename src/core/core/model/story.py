@@ -9,7 +9,7 @@ from models.assess import Story as StoryPayload
 from pydantic import ValidationError
 from sqlalchemy import func, inspect, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, aliased, relationship
 from sqlalchemy.sql import Select
@@ -971,6 +971,28 @@ class Story(BaseModel):
         return next((tag for tag in self.tags if tag.name == name), None)
 
     @classmethod
+    def _validate_identifier_list(
+        cls, identifiers: Any, *, minimum_count: int = 1, resource_name: str = "ids"
+    ) -> tuple[list[str] | None, tuple[dict[str, str], int] | None]:
+        if not isinstance(identifiers, list):
+            return None, ({"error": f"{resource_name} must be a list"}, 400)
+
+        if len(identifiers) < minimum_count:
+            if minimum_count == 1:
+                return None, ({"error": f"No valid {resource_name} provided"}, 400)
+            return None, ({"error": f"at least {minimum_count} valid Story ids needed"}, 400)
+
+        normalized_identifiers: list[str] = []
+        for identifier in identifiers:
+            if not isinstance(identifier, str) or not identifier or "\x00" in identifier:
+                if minimum_count == 1:
+                    return None, ({"error": f"No valid {resource_name} provided"}, 400)
+                return None, ({"error": f"at least {minimum_count} valid Story ids needed"}, 400)
+            normalized_identifiers.append(identifier)
+
+        return normalized_identifiers, None
+
+    @classmethod
     def group_multiple_stories(cls, story_mappings: list[list[str]]):
         results = [cls.group_stories(story_ids) for story_ids in story_mappings]
         if any(result[1] == 500 for result in results):
@@ -997,14 +1019,17 @@ class Story(BaseModel):
 
     @classmethod
     def group_stories(cls, story_ids: list[str], user: User | None = None):
+        normalized_story_ids, validation_error = cls._validate_identifier_list(story_ids, minimum_count=2, resource_name="Story ids")
+        if validation_error:
+            return validation_error
+
+        if normalized_story_ids is None:
+            # Defensive: should not happen if _validate_identifier_list is consistent,
+            # but keeps both runtime and type checker happy.
+            return {"error": "No valid Story ids provided"}, 400
+
         try:
-            if not isinstance(story_ids, list):
-                return {"error": "story_ids must be a list"}, 400
-
-            if len(story_ids) < 2 or any(not isinstance(a_id, str) or len(a_id) == 0 for a_id in story_ids):
-                return {"error": "at least two valid Story ids needed"}, 404
-
-            ordered_story_ids = [story_id for story_id in story_ids]
+            ordered_story_ids = list(normalized_story_ids)
             first_story = cls.get(ordered_story_ids[0])
             if not first_story:
                 return {"error": "Story not found"}, 404
@@ -1023,7 +1048,12 @@ class Story(BaseModel):
                 story.record_revision(user, note="group_stories")
             db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
+        except DataError as e:
+            db.session.rollback()
+            logger.warning(f"Invalid story ids for grouping: {e}")
+            return {"error": "at least two valid Story ids needed"}, 400
         except Exception as e:
+            db.session.rollback()
             logger.exception(f"Grouping Stories Failed - {str(e)}")
             return {"error": f"Grouping Stories Failed - {str(e)}"}, 500
 
@@ -1060,11 +1090,17 @@ class Story(BaseModel):
 
     @classmethod
     def ungroup_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
+        normalized_newsitem_ids, validation_error = cls._validate_identifier_list(
+            newsitem_ids, minimum_count=1, resource_name="news item ids"
+        )
+        if validation_error:
+            return validation_error
+
         try:
             processed_stories = set()
             new_stories_ids = []
             removed_titles_by_story: dict[Story, set[str]] = {}
-            for item in newsitem_ids:
+            for item in normalized_newsitem_ids:
                 news_item = NewsItem.get(item)
                 if not news_item or not user:
                     continue
@@ -1084,8 +1120,16 @@ class Story(BaseModel):
             for story in processed_stories:
                 story.record_revision(user, note="ungroup_news_items")
             db.session.commit()
-            return {"message": f"Successfully ungrouped {len(newsitem_ids)} items from their story", "new_stories_ids": new_stories_ids}, 200
+            return {
+                "message": f"Successfully ungrouped {len(normalized_newsitem_ids)} items from their story",
+                "new_stories_ids": new_stories_ids,
+            }, 200
+        except DataError as e:
+            db.session.rollback()
+            logger.warning(f"Invalid news item ids for ungrouping: {e}")
+            return {"error": "No valid news item ids provided"}, 400
         except Exception:
+            db.session.rollback()
             logger.exception("Ungrouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500
 
