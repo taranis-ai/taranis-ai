@@ -101,7 +101,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
           hx-swap="outerHTML"
           hx-push-url="true"
           hx-include="#assess-sidebar, #selected-tags"
-          hx-trigger="keyup[key!='Enter'] changed delay:500ms from:#story_search, search from:#story_search"
+          hx-trigger="input changed delay:500ms from:#story_search, search from:#story_search"
           hx-on:submit="event.preventDefault()">
       <label class="input input-bordered input-sm flex items-center gap-2">
         {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
