@@ -39,6 +39,7 @@ FILTER_CASES = [
     pytest.param({"story_ids": ("grouped_flagged", "manual_important")}, {"grouped_flagged", "manual_important"}, id="story-ids"),
     pytest.param({"search": "Story Filter Extra Source Story"}, {"source_only"}, id="search-extra-title"),
     pytest.param({"search": "Anonymous News Item"}, {"manual_important"}, id="search-anonymous-title"),
+    pytest.param({"changed_by": "me"}, {"grouped_flagged"}, id="changed-by-me"),
 ]
 
 

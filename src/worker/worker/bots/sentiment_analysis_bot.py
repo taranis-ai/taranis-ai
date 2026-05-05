@@ -70,7 +70,7 @@ class SentimentAnalysisBot(BaseBot):
                 {"key": "sentiment_category", "value": sentiment_data.get("category", "N/A")},
             ]
 
-            if self.core_api.update_news_item_attributes(news_item_id, attributes):
+            if self.core_api.update_news_item_attributes(news_item_id, attributes, change_actor=self.change_actor()):
                 logger.debug(f"Successfully updated news item {news_item_id} with sentiment attributes.")
             else:
                 logger.error(f"Failed to update news item {news_item_id} with sentiment attributes.")

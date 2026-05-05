@@ -50,7 +50,7 @@ class NewsItems(MethodView):
             return {"error": "No NewsItems in JSON Body"}, 422
 
         data_json["osint_source_id"] = "manual"
-        result, status = story.Story.add_single_news_item(data_json)
+        result, status = story.Story.add_single_news_item(data_json, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
         return result, status
@@ -112,7 +112,9 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self, news_item_id: str):
-        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json)
+        response, status = news_item.NewsItem.update_attributes(
+            news_item_id, request.json, change_actor=story.Story.last_change_for_user(current_user)
+        )
         invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
         return response, status
 
@@ -129,6 +131,7 @@ class Stories(MethodView):
                 "cybersecurity",
                 "relevant",
                 "in_report",
+                "changed_by",
                 "range",
                 "sort",
                 "timefrom",

@@ -48,7 +48,7 @@ class CyberSecClassifierBot(BaseBot):
                     story_cybersecurity_status = status_map.get(status_set, "none")
 
             attributes = [{"key": "cybersecurity", "value": story_cybersecurity_status}, {"key": self.type, "value": 1}]
-            self.core_api.update_story_attributes(story.get("id", ""), attributes)
+            self.core_api.update_story_attributes(story.get("id", ""), attributes, change_actor=self.change_actor())
 
         return {"message": f"Classified {num_news_items} news items"}
 
@@ -81,6 +81,7 @@ class CyberSecClassifierBot(BaseBot):
                 {"key": "cybersecurity_bot", "value": status},
                 {"key": "cybersecurity_bot_score", "value": str(class_result.get("cybersecurity", "N/A"))},
             ],
+            change_actor=self.change_actor(),
         ):
             logger.debug(f"Successfully updated news item {news_item_id} with cybersecurity attributes.")
         else:

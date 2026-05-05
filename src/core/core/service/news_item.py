@@ -13,7 +13,7 @@ class NewsItemService:
             return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
         if not news_item.allowed_with_acl(user, require_write_access=True):
             return {"error": "User does not have write access to this news item"}, 403
-        response, status = news_item.update_item(data)
+        response, status = news_item.update_item(data, change_actor=Story.last_change_for_user(user))
         if status != 200:
             db.session.rollback()
             return response, status

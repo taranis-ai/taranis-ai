@@ -14,6 +14,8 @@ class BaseBot:
         self.language = None
         self.model = None
         self.bot_api = None
+        self.worker_id = None
+        self.worker_type = None
 
     def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
@@ -60,3 +62,10 @@ class BaseBot:
     def refresh(self):
         logger.info(f"Refreshing Bot: {self.type} ...")
         self.execute()
+
+    def change_actor(self) -> str | None:
+        if self.worker_type and self.worker_id:
+            return f"bot_{str(self.worker_type).lower()}_{self.worker_id}"
+        if self.worker_id:
+            return f"bot_{self.worker_id}"
+        return None
