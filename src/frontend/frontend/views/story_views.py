@@ -655,6 +655,18 @@ class StoryView(BaseView):
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete news item"})
 
+        payload = core_response.json()
+        story_id = payload.get("story_id") or payload.get("story_ids", [""])[0]
+
+        current_url_path = cls._get_current_url_path()
+        if story_id and current_url_path in {
+            url_for("assess.story", story_id=story_id),
+            url_for("assess.story_edit", story_id=story_id),
+        }:
+            if CoreApi().api_get(f"/assess/stories/{story_id}") is None:
+                cls.add_flash_notification(core_response)
+                return cls.redirect_htmx(url_for("assess.assess"))
+
         return cls._handle_news_item_response(
             core_response,
             content_builder=cls._get_action_response_content,
@@ -670,6 +682,10 @@ class StoryView(BaseView):
             raise
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete story"})
+
+        if cls._get_current_url_path() == url_for("assess.assess"):
+            notification_html = cls.get_notification_from_response(core_response)
+            return cls.rerender_list(notification=notification_html)
 
         cls.add_flash_notification(core_response)
         return cls.redirect_htmx(url_for("assess.assess"))

@@ -199,6 +199,34 @@ def test_news_item_attribute_update_creates_story_revisions():
 
 
 @pytest.mark.usefixtures("session")
+def test_delete_primary_news_item_promotes_story_title_to_remaining_item(admin_user):
+    first_item = _news_item_payload(source="manual")
+    first_item["title"] = "Primary title"
+    second_item = _news_item_payload(source="manual")
+    second_item["title"] = "Fallback title"
+
+    result, status = Story.add(
+        {
+            "title": "Primary title",
+            "description": "initial desc",
+            "news_items": [first_item, second_item],
+        }
+    )
+    assert status == 200
+
+    story = Story.get(result["story_id"])
+    assert story is not None
+
+    response, status = NewsItemService.delete(story.news_items[0].id, admin_user)
+
+    assert status == 200
+    assert response["story_id"] == story.id
+
+    db.session.refresh(story)
+    assert story.title == "Fallback title"
+
+
+@pytest.mark.usefixtures("session")
 def test_story_creation_creates_created_revision():
     story = _create_story()
 
