@@ -7472,6 +7472,26 @@ paths:
           description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
+  /config/admin-menu-badges:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get admin menu badges
+      operationId: config.config_admin_menu_badges.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /config/workers/tasks:
     get:
       security:

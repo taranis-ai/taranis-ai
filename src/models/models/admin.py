@@ -128,6 +128,16 @@ class SchedulerDashboardData(TaranisBaseModel):
     failed_total_count: int = 0
 
 
+class AdminMenuBadges(TaranisBaseModel):
+    _core_endpoint = "/config/admin-menu-badges"
+    _cache_timeout = 300
+    _model_name = "admin_menu_badges"
+    _pretty_name = "Admin Menu Badges"
+
+    osint_source: int = 0
+    bot: int = 0
+
+
 class CronSpec(CronTaskSpec):
     job_id: str
 

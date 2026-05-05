@@ -10,18 +10,6 @@ from core.service.health import get_health_response
 
 
 class DashboardService:
-    @staticmethod
-    def _format_worker_status(worker_status: dict[str, dict[str, int | str | None]]) -> dict[str, dict[str, int]]:
-        return {
-            worker: {
-                "successes": int(stats.get("successes") or 0),
-                "failures": int(stats.get("failures") or 0),
-                "success_pct": int(stats.get("success_pct") or 0),
-                "total": int(stats.get("total") or 0),
-            }
-            for worker, stats in worker_status.items()
-        }
-
     @classmethod
     def get_dashboard_data(cls) -> dict:
         total_news_items = NewsItem.get_count()
@@ -34,7 +22,7 @@ class DashboardService:
         schedule_length = schedules.get("total_count", 0) if isinstance(schedules, dict) else 0
         conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         health_status, _ = get_health_response()
-        worker_status = cls._format_worker_status(Task.get_status_counts_by_task())
+        task_status_totals = Task.get_status_totals()
         return {
             "items": [
                 {
@@ -47,7 +35,7 @@ class DashboardService:
                     "schedule_length": schedule_length,
                     "conflict_count": conflict_count,
                     "health_status": health_status,
-                    "worker_status": worker_status,
+                    "task_status_totals": task_status_totals,
                 }
             ]
         }

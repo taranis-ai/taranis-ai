@@ -567,6 +567,15 @@ class WorkerStats(MethodView):
         return queue_manager.queue_manager.get_worker_stats()
 
 
+class AdminMenuBadges(MethodView):
+    @auth_required("CONFIG_ACCESS")
+    def get(self):
+        response = jsonify(task.Task.get_admin_menu_badges())
+        response.cache_control.private = True
+        response.cache_control.max_age = 300
+        return response
+
+
 class SchedulerDashboard(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
@@ -1098,6 +1107,7 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/workers/active", view_func=ActiveJobs.as_view(f"{name}_active_jobs"))
     config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view(f"{name}_failed_jobs"))
     config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view(f"{name}_worker_stats"))
+    config_bp.add_url_rule("/admin-menu-badges", view_func=AdminMenuBadges.as_view(f"{name}_admin_menu_badges"))
     config_bp.add_url_rule("/workers/dashboard", view_func=SchedulerDashboard.as_view(f"{name}_scheduler_dashboard"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view(f"{name}_queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view(f"{name}_queue_schedule_task"))

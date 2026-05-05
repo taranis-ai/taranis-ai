@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
@@ -111,6 +111,40 @@ class Task(BaseModel):
         return db.session.execute(stmt).scalar_one()
 
     @classmethod
+    def get_status_totals(cls) -> dict[str, int]:
+        """Return overall success and failure counts across all persisted tasks."""
+        stmt = db.select(
+            func.coalesce(func.sum(case((cls.status.in_(cls.SUCCESS_STATUSES), 1), else_=0)), 0).label("successes"),
+            func.coalesce(func.sum(case((cls.status.in_(cls.FAILURE_STATUSES), 1), else_=0)), 0).label("failures"),
+        )
+
+        row = db.session.execute(stmt).one()
+        successes = int(row.successes or 0)
+        failures = int(row.failures or 0)
+        total = successes + failures
+        success_pct = int((successes * 100) / total) if total else 0
+
+        return {
+            "successes": successes,
+            "failures": failures,
+            "total": total,
+            "success_pct": success_pct,
+        }
+
+    @classmethod
+    def get_admin_menu_badges(cls) -> dict[str, int]:
+        """Return the failure counts needed for the admin sidebar badges."""
+        task_stats = cls.get_status_counts_by_task()
+
+        def sum_failures(task_name_filter: str) -> int:
+            return sum(int(stats.get("failures", 0) or 0) for task_name, stats in task_stats.items() if task_name_filter in task_name.lower())
+
+        return {
+            "osint_source": sum_failures("collector"),
+            "bot": sum_failures("bot"),
+        }
+
+    @classmethod
     def get_status_counts_by_task(
         cls,
         include_timestamps: bool = False,
@@ -124,26 +158,44 @@ class Task(BaseModel):
         task_label = func.coalesce(cls.worker_type, cls.task)
         worker_key = func.coalesce(cls.worker_id, cls.id)
         group_filter = or_(cls.worker_type.is_not(None), cls.task.is_not(None))
-
-        stmt = (
-            db.select(
-                task_label.label("task_type"),
-                worker_key.label("worker_key"),
-                cls.status.label("status"),
-                cls.worker_type.label("worker_type"),
-                cls.worker_id.label("worker_id"),
-                cls.last_run.label("last_run"),
-                cls.last_success.label("last_success"),
+        row_number = (
+            func.row_number()
+            .over(
+                partition_by=(task_label, worker_key),
+                order_by=(cls.last_run.desc(), cls.last_success.desc(), cls.id.desc()),
             )
-            .where(group_filter)
-            .order_by(
-                task_label,
-                worker_key,
-                cls.last_run.desc(),
-                cls.last_success.desc(),
-                cls.id.desc(),
-            )
+            .label("row_number")
         )
+
+        columns = [
+            task_label.label("task_type"),
+            worker_key.label("worker_key"),
+            cls.status.label("status"),
+            cls.worker_type.label("worker_type"),
+            cls.worker_id.label("worker_id"),
+            row_number,
+        ]
+        if include_timestamps:
+            columns.extend(
+                [
+                    cls.last_run.label("last_run"),
+                    cls.last_success.label("last_success"),
+                ]
+            )
+
+        latest_rows = db.select(*columns).where(group_filter).subquery()
+
+        stmt_columns = [
+            latest_rows.c.task_type,
+            latest_rows.c.worker_key,
+            latest_rows.c.status,
+            latest_rows.c.worker_type,
+            latest_rows.c.worker_id,
+        ]
+        if include_timestamps:
+            stmt_columns.extend([latest_rows.c.last_run, latest_rows.c.last_success])
+
+        stmt = db.select(*stmt_columns).where(latest_rows.c.row_number == 1).order_by(latest_rows.c.task_type, latest_rows.c.worker_key)
 
         results = db.session.execute(stmt).all()
 

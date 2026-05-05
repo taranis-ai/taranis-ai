@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 from flask import render_template, url_for
 from lxml import html
@@ -70,6 +72,16 @@ def test_reorder_bot_parameters_returns_original_order_for_unknown_bot_type():
         "A",
         "C",
     ]
+
+
+def test_bot_menu_badge_uses_task_failure_count(monkeypatch):
+    fake_badges = SimpleNamespace(bot=7)
+    monkeypatch.setattr(
+        "frontend.views.admin_views.bot_views.DataPersistenceLayer",
+        lambda: SimpleNamespace(get_object=lambda model: fake_badges),
+    )
+
+    assert BotView.get_admin_menu_badge() == 7
 
 
 def test_bot_form_renders_enabled_switch(app):

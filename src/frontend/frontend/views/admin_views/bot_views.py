@@ -1,8 +1,7 @@
 from typing import Any
 
 from flask import render_template, request, url_for
-from models.admin import Bot
-from models.dashboard import Dashboard
+from models.admin import AdminMenuBadges, Bot
 from models.types import BOT_TYPES
 from werkzeug.exceptions import HTTPException
 
@@ -67,13 +66,15 @@ class BotView(AdminMixin, BaseView):
     @classmethod
     def get_admin_menu_badge(cls) -> int:
         try:
-            if dashboard := DataPersistenceLayer().get_first(Dashboard):
-                if worker_status := dashboard.worker_status:
-                    return worker_status.get("bot_task", {}).get("failures", 0)
+            badges = DataPersistenceLayer().get_object(AdminMenuBadges)
+            if not badges:
+                return 0
+
+            return int(getattr(badges, "bot", 0) or 0)
         except HTTPException:
             raise
         except Exception:
-            logger.exception("Error retrieving dashboard for bot admin menu badge")
+            logger.exception("Error retrieving bot admin menu badge")
 
         return 0
 
