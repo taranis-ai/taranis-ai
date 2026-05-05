@@ -49,16 +49,20 @@
                   class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">Incomplete</button>
         </div>
       {% endif %}
-      <form id="report_layout_form" class="join" method="get" action="{{ request.path }}" data-layout-form data-is-create="{{ (not is_edit) | tojson }}">
-        <div class="hidden" data-layout-story-ids></div>
-        <button type="submit" name="layout" value="split" class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">
-          Split view
-        </button>
+      <div class="join">
         <button type="submit"
-                name="layout"
+                form="report_form"
+                formnovalidate
+                name="layout_switch"
+                value="split"
+                class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</button>
+        <button type="submit"
+                form="report_form"
+                formnovalidate
+                name="layout_switch"
                 value="stacked"
                 class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</button>
-      </form>
+      </div>
     </div>
 
     <form id="report_form" class="w-full" method="post" action="{{ form_action }}">
@@ -126,7 +130,7 @@
               <div class="space-y-3" data-testid="report-stories">
                 {% for story in stories %}
                   <input type="hidden" name="stories[]" value="{{ story.id }}">
-                  {{ analyze_story_card(story, used_story_ids) }}
+                  {{ analyze_story_card(story, report.used_story_ids | default([]) ) }}
                 {% endfor %}
               </div>
             {% else %}
@@ -138,158 +142,33 @@
 
       <div class="mt-8">
         <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
-        <script type="text/javascript">
-          function restoreReportLayoutDraft() {
-            const reportForm = document.getElementById("report_form");
-            const layoutForm = document.getElementById("report_layout_form");
-
-            if (!reportForm || !layoutForm || typeof window === "undefined" || !window.sessionStorage) {
-              return;
-            }
-
-            const storageKey = `report-layout-draft:${window.location.pathname}`;
-            const pendingKey = `${storageKey}:pending`;
-
-            const restoreDraft = () => {
-              if (window.sessionStorage.getItem(pendingKey) !== "1") {
-                return;
-              }
-
-              const rawDraft = window.sessionStorage.getItem(storageKey);
-              window.sessionStorage.removeItem(storageKey);
-              window.sessionStorage.removeItem(pendingKey);
-              if (!rawDraft) {
-                return;
-              }
-
-              let draftEntries;
-              try {
-                draftEntries = JSON.parse(rawDraft);
-              } catch (error) {
-                return;
-              }
-
-              if (!Array.isArray(draftEntries)) {
-                return;
-              }
-
-              const valuesByName = new Map();
-              draftEntries.forEach(([name, value]) => {
-                if (!name) {
-                  return;
-                }
-                const values = valuesByName.get(name) || [];
-                values.push(String(value));
-                valuesByName.set(name, values);
-              });
-
-              reportForm.querySelectorAll("input, textarea, select").forEach((field) => {
-                if (!field.name || field.disabled || field.type === "hidden") {
-                  return;
-                }
-
-                if (field.type === "checkbox" || field.type === "radio") {
-                  field.checked = false;
-                  return;
-                }
-
-                if (field.tagName === "SELECT" && field.multiple) {
-                  Array.from(field.options).forEach((option) => {
-                    option.selected = false;
-                  });
-                  return;
-                }
-
-                field.value = "";
-              });
-
-              reportForm.querySelectorAll("input, textarea, select").forEach((field) => {
-                if (!field.name || field.disabled || field.type === "hidden") {
-                  return;
-                }
-
-                const values = valuesByName.get(field.name);
-                if (!values || values.length === 0) {
-                  return;
-                }
-
-                if (field.type === "checkbox" || field.type === "radio") {
-                  field.checked = values.includes(field.value);
-                  return;
-                }
-
-                if (field.tagName === "SELECT" && field.multiple) {
-                  Array.from(field.options).forEach((option) => {
-                    option.selected = values.includes(option.value);
-                  });
-                  return;
-                }
-
-                field.value = values[values.length - 1];
-              });
-            };
-
-            if (layoutForm.dataset.layoutDraftBound !== "true") {
-              layoutForm.addEventListener("submit", () => {
-                const draftEntries = [];
-                const formData = new FormData(reportForm);
-
-                for (const [name, value] of formData.entries()) {
-                  if (name === "layout") {
-                    continue;
-                  }
-                  draftEntries.push([name, value]);
-                }
-
-                window.sessionStorage.setItem(storageKey, JSON.stringify(draftEntries));
-                window.sessionStorage.setItem(pendingKey, "1");
-
-                const storyIdsContainer = layoutForm.querySelector("[data-layout-story-ids]");
-                if (storyIdsContainer && layoutForm.dataset.isCreate === "true") {
-                  storyIdsContainer.innerHTML = "";
-                  reportForm.querySelectorAll('input[name="stories[]"]').forEach((input) => {
-                    if (!input.value) {
-                      return;
-                    }
-
-                    const storyIdInput = document.createElement("input");
-                    storyIdInput.type = "hidden";
-                    storyIdInput.name = "story_ids";
-                    storyIdInput.value = input.value;
-                    storyIdsContainer.appendChild(storyIdInput);
-                  });
-                }
-              });
-              layoutForm.dataset.layoutDraftBound = "true";
-            }
-
-            restoreDraft();
-          }
-
-          function initAttributeStoryChoices() {
-            const story_attribute_ids = [{% for a in story_attributes %}{id: '{{ a.id }}', title: '{{ a.title }}'},{% endfor %}];
-            story_attribute_ids.forEach(attr => {
-              const field_id = `attribute_story_${attr.id}`;
-              const choices = initChoices(field_id, 'story', {itemSelectText: "Add Story", placeholderValue: attr.title});
-            });
-          }
-
-          function initializeReportForm() {
-            restoreReportLayoutDraft();
-            initAttributeStoryChoices();
-          }
-
-          if (typeof htmx !== 'undefined' && htmx.onLoad) {
-            htmx.onLoad(function() {
-              initializeReportForm();
-            });
-          } else {
-            document.addEventListener('DOMContentLoaded', function() {
-              initializeReportForm();
-            });
-          }
-        </script>
       </div>
     </form>
   </div>
 </div>
+<script type="text/javascript">
+  function initMarkedChoices(root = document) {
+    root.querySelectorAll("select[data-choice-type]").forEach((select) => {
+      if (!select.id || select.dataset.choicesInitialized === "true") {
+        return;
+      }
+
+      const placeholder = select.dataset.choicePlaceholder || select.dataset.choiceType || "items";
+      const itemSelectText = select.dataset.choiceItemText || `Add ${placeholder}`;
+      initChoices(select.id, placeholder, { itemSelectText, placeholderValue: placeholder });
+      select.dataset.choicesInitialized = "true";
+    });
+  }
+
+  if (typeof htmx !== "undefined" && htmx.onLoad) {
+    htmx.onLoad(function (elt) {
+      initMarkedChoices(elt);
+    });
+  } else if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      initMarkedChoices(document);
+    }, { once: true });
+  } else {
+    initMarkedChoices(document);
+  }
+</script>

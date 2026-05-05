@@ -3,7 +3,7 @@ from typing import Any
 from flask import Response, abort, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.assess import Story
-from models.report import ReportItem, ReportItemAttributeGroup, ReportTypes
+from models.report import ReportItem, ReportTypes
 from pydantic import ValidationError
 from werkzeug.exceptions import Forbidden, HTTPException
 
@@ -48,18 +48,6 @@ class ReportItemView(BaseView):
         ]
 
     @staticmethod
-    def _get_story_attributes(grouped_attributes: list[ReportItemAttributeGroup]):
-        story_attributes = []
-        used_story_ids = []
-        for ag in grouped_attributes:
-            for attribute in ag.attributes:
-                if not attribute.type or attribute.type != "STORY":
-                    continue
-                story_attributes.append(attribute)
-                used_story_ids.extend(story_id.strip() for story_id in str(attribute.value).split(",") if story_id and story_id.strip())
-        return story_attributes, list(dict.fromkeys(used_story_ids))
-
-    @staticmethod
     def _normalize_attribute_value(value: Any) -> str:
         if isinstance(value, list):
             return ",".join(str(item) for item in value if item)
@@ -72,7 +60,35 @@ class ReportItemView(BaseView):
     @staticmethod
     def _strip_layout_keys(data: dict[str, Any]) -> dict[str, Any]:
         data.pop("layout", None)
+        data.pop("layout_switch", None)
         return data
+
+    @classmethod
+    def _apply_request_values_to_report(cls, report: ReportItem) -> ReportItem:
+        if not request.values.get("layout_switch"):
+            return report
+
+        form_data = parse_formdata(request.values)
+        cls._strip_layout_keys(form_data)
+
+        if title := form_data.get("title"):
+            report.title = title
+        if report_item_type_id := form_data.get("report_item_type_id"):
+            report.report_item_type_id = report_item_type_id
+
+        if "stories" in form_data:
+            story_ids = cls._normalize_story_ids(form_data.get("stories"))
+            story_id_set = {str(story_id) for story_id in story_ids}
+            report.stories = [story for story in DataPersistenceLayer().get_objects(Story) if str(story.id) in story_id_set]
+
+        attributes = cls._parse_form_attributes(form_data.get("attributes", {}))
+        if attributes and report.grouped_attributes:
+            for group in report.grouped_attributes:
+                for attribute in group.attributes:
+                    if str(attribute.id) in attributes:
+                        attribute.value = attributes[str(attribute.id)]
+
+        return report
 
     @staticmethod
     def _parse_bool_flag(value: Any) -> bool:
@@ -91,15 +107,11 @@ class ReportItemView(BaseView):
             base_context["current_search"] = request.args.get("search", "")
             base_context["current_completed_filter"] = request.args.get("completed", "")
             base_context["current_report_item_type_filter"] = request.args.get("report_item_type_id", "")
-            layout = cls._normalize_layout(request.args.get("layout") or request.form.get("layout") or base_context.get("layout"))
-            base_context["story_attributes"] = []
-            base_context["used_story_ids"] = []
+            layout = cls._normalize_layout(request.values.get("layout_switch") or request.values.get("layout") or base_context.get("layout"))
 
             if report := base_context.get("report"):
-                if report.grouped_attributes:
-                    base_context["story_attributes"], base_context["used_story_ids"] = ReportItemView._get_story_attributes(
-                        report.grouped_attributes
-                    )
+                report = cls._apply_request_values_to_report(report)
+                base_context["report"] = report
 
             base_context |= {
                 "layout": layout,
@@ -122,11 +134,29 @@ class ReportItemView(BaseView):
             report.title = title
         if report_item_type_id := request.values.get("report_item_type_id"):
             report.report_item_type_id = report_item_type_id
-        if story_ids := request.args.getlist("story_ids"):
-            report.stories = [s for s in DataPersistenceLayer().get_objects(Story) if s.id in story_ids]
+        story_ids = request.values.getlist("stories[]") or request.values.getlist("story_ids")
+        if story_ids:
+            report.stories = [s for s in DataPersistenceLayer().get_objects(Story) if str(s.id) in {str(story_id) for story_id in story_ids}]
             context["report"] = report
 
         return context
+
+    @classmethod
+    def _render_layout_switch_view(cls, object_id: int | str = 0) -> tuple[str, int]:
+        if cls.is_create_object_id(object_id):
+            return render_template(cls.get_update_template(), **cls.get_create_context()), 200
+
+        report = cls.get_object_by_id(object_id)
+        if not report:
+            return abort(404)
+
+        return (
+            render_template(
+                cls.get_update_template(),
+                **cls.get_update_context(object_id, model_instance=report, form_action_object_id=object_id),
+            ),
+            200,
+        )
 
     @classmethod
     def get_report_actions(cls) -> list[dict[str, Any]]:
@@ -163,7 +193,10 @@ class ReportItemView(BaseView):
         return ReportItemView.list_view()
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        return self.update_view_table(object_id=self._get_object_id(kwargs) or 0)
+        object_id = self._get_object_id(kwargs) or 0
+        if request.form.get("layout_switch"):
+            return self._render_layout_switch_view(object_id)
+        return self.update_view_table(object_id=object_id)
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)
@@ -248,7 +281,7 @@ class ReportItemView(BaseView):
                     return cls.get_base_route()
             except Forbidden:
                 return cls.get_base_route()
-        return cls.get_edit_route(report_id=response_object_id, layout=cls._normalize_layout(request.form.get("layout")))
+        return cls.get_edit_route(report_id=response_object_id)
 
     @staticmethod
     @auth_required()

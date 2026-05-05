@@ -100,11 +100,17 @@
 
     {% elif attr.type == 'STORY' %}
       {% set selected_values = value.split(',') if value else [] %}
+      {% set story_choices = attr.render_data.story_choices | default([]) %}
       <div class="w-full">
         <input type="hidden" name="{{ base_name }}[]" value="">
-        <select id="attribute_story_{{ attr.id }}" name="{{ base_name }}[]" multiple>
-          {% for story in stories %}
-            <option value="{{ story.id }}" {% if story.id in selected_values %}selected{% endif %}>{{ story.title }}</option>
+        <select id="attribute_story_{{ attr.id }}"
+                name="{{ base_name }}[]"
+                multiple
+                data-choice-type="story"
+                data-choice-placeholder="{{ label }}"
+                data-choice-item-text="Add Story">
+          {% for story in story_choices %}
+            <option value="{{ story.id }}" {% if story.id in selected_values %}selected{% endif %}>{{ story.title or story.id }}</option>
           {% endfor %}
         </select>
       </div>

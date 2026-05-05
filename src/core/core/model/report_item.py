@@ -124,7 +124,27 @@ class ReportItem(BaseModel):
         return response, status_code
 
     def get_attribute_dict(self) -> list[dict[str, Any]]:
-        return [attribute.to_report_dict() for attribute in self.attributes]
+        story_choices = [{"id": story.id, "title": story.title or story.id} for story in self.stories if story and story.id]
+
+        attributes = []
+        for attribute in self.attributes:
+            attr = attribute.to_report_dict()
+            render_data = dict(attr.get("render_data") or {})
+            if attribute.attribute_type == AttributeType.STORY:
+                render_data["story_choices"] = story_choices
+            attr["render_data"] = render_data
+            attributes.append(attr)
+
+        return attributes
+
+    @staticmethod
+    def _get_used_story_ids(attributes: list["ReportItemAttribute"]) -> list[str]:
+        used_story_ids: list[str] = []
+        for attribute in attributes:
+            if attribute.attribute_type != AttributeType.STORY:
+                continue
+            used_story_ids.extend(story_id.strip() for story_id in str(attribute.value).split(",") if story_id and story_id.strip())
+        return list(dict.fromkeys(used_story_ids))
 
     def get_grouped_attributes(self, attributes: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         attribute_dicts = attributes if attributes is not None else self.get_attribute_dict()
@@ -143,6 +163,7 @@ class ReportItem(BaseModel):
         attributes = self.get_attribute_dict()
         data["grouped_attributes"] = self.get_grouped_attributes(attributes)
         data["stories"] = [story.to_dict() for story in self.stories if story]
+        data["used_story_ids"] = self._get_used_story_ids(self.attributes or [])
         data["revision_count"] = self.get_revision_count()
         return data
 

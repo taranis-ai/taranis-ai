@@ -150,10 +150,11 @@ def test_report_process_form_data_keeps_stories_when_remove_all_flag_is_false(ap
     }
 
 
-def test_report_submit_redirect_target_preserves_layout_query(app, monkeypatch):
+def test_report_submit_redirect_target_uses_clean_edit_route(app, monkeypatch):
     monkeypatch.setattr(ReportItemView, "get_object_by_id", classmethod(lambda cls, object_id: ReportItem.model_construct(id=object_id)))
 
     with app.test_request_context("/report/test-report", method="POST", data={"layout": "stacked"}):
         redirect_target = ReportItemView.get_submit_redirect_target("test-report", {"id": "test-report"})
 
-    assert redirect_target.endswith("/report/test-report?layout=stacked")
+    assert redirect_target.endswith("/report/test-report")
+    assert "layout=" not in redirect_target
