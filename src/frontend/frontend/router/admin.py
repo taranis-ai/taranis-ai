@@ -186,6 +186,12 @@ def init(app: Flask):
         methods=["GET"],
         endpoint="osint_source_preview",
     )
+    admin_bp.add_url_rule(
+        "/source_preview/<string:osint_source_id>",
+        view_func=SourceView.retrigger_osint_source_preview_view,
+        methods=["POST"],
+        endpoint="osint_source_preview_retrigger",
+    )
     admin_bp.add_url_rule("/source_collect", view_func=OSINTSourceCollect.as_view("collect_osint_source_all"))
     admin_bp.add_url_rule("/source_collect/<string:osint_source_id>", view_func=OSINTSourceCollect.as_view("collect_osint_source"))
 

@@ -55,9 +55,11 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
-        cls._invalidate_task_result_cache(submission)
+        task_kind = cls._resolve_task_kind(submission.id, submission.task)
         if submission.status == "SUCCESS" and submission.result is not None:
             cls._handle_success_result(submission)
+        elif task_kind == "collector_task":
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
         validated = TaskResponseModel.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), 200
 
@@ -94,6 +96,7 @@ class TaskService:
 
         if task_kind == "collector_task":
             logger.info(f"Collector task {submission.id} completed with result: {submission.result}")
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
             return
 
         if task_kind == "connector_task":
@@ -139,11 +142,3 @@ class TaskService:
             NewsItemTagService.set_found_bot_tags(bot_result, change_by_bot=True)
 
         NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
-
-    @classmethod
-    def _invalidate_task_result_cache(cls, submission: TaskSubmission) -> None:
-        if cls._resolve_task_kind(submission.id, submission.task) != "collector_task":
-            return
-        if not submission.worker_id:
-            return
-        cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)

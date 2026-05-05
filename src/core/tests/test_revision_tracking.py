@@ -146,6 +146,22 @@ def test_story_add_single_news_item_detects_duplicates_by_title_and_link():
 
 
 @pytest.mark.usefixtures("session")
+def test_story_from_dict_accepts_tag_mapping():
+    story_payload = {
+        "title": f"Story {uuid.uuid4()}",
+        "tags": {
+            "Example": {"name": "Example", "tag_type": "Organization"},
+        },
+        "news_items": [_news_item_payload(source="manual")],
+    }
+
+    story = Story.from_dict(story_payload)
+
+    assert len(story.tags) == 1
+    assert story.tags[0].name == "Example"
+
+
+@pytest.mark.usefixtures("session")
 def test_news_item_service_update_rejects_duplicate_title_and_link_hash(admin_user):
     first_story = _create_story()
     second_story = _create_story()

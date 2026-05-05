@@ -16,6 +16,7 @@ from sqlalchemy.sql import Select
 
 from core.config import Config
 from core.log import logger
+from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
@@ -365,6 +366,10 @@ class OSINTSource(BaseModel):
         if "parameters" in update_fields and validated_update.parameters is not None:
             osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
         db.session.commit()
+
+        if "parameters" in update_fields and validated_update.parameters is not None:
+            queue_manager.queue_manager.purge_job_artifacts(exact_ids={f"source_preview_{osint_source_id}"})
+
         osint_source.schedule_osint_source()
         return osint_source
 

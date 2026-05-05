@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from flask import render_template_string, url_for
 from lxml import html
+from models.assess import Story
 from werkzeug.exceptions import Forbidden
 
 from frontend.config import Config
@@ -91,6 +92,9 @@ def test_normalize_story_import_payload_strips_export_only_fields():
             {
                 "id": "story-1",
                 "title": "Imported Story",
+                "relevance_override": 7,
+                "user_vote": "like",
+                "in_reports_count": 3,
                 "updated": "2026-03-12T10:00:00",
                 "links": ["https://example.com/story"],
                 "news_items": [
@@ -113,6 +117,7 @@ def test_normalize_story_import_payload_strips_export_only_fields():
         {
             "id": "story-1",
             "title": "Imported Story",
+            "relevance_override": 7,
             "news_items": [
                 {
                     "id": "news-1",
@@ -125,6 +130,36 @@ def test_normalize_story_import_payload_strips_export_only_fields():
             ],
         }
     ]
+
+
+def test_story_to_core_dict_strips_export_only_fields():
+    story = Story.model_validate(
+        {
+            "id": "story-1",
+            "title": "Imported Story",
+            "updated": "2026-03-12T10:00:00",
+            "links": ["https://example.com/story"],
+            "relevance_override": 7,
+            "user_vote": "like",
+            "in_reports_count": 3,
+            "news_items": [
+                {
+                    "osint_source_id": "manual",
+                    "title": "Imported Story News 1",
+                    "links": ["https://example.com/news"],
+                }
+            ],
+        }
+    )
+
+    normalized = story.to_core_dict()
+
+    assert normalized["relevance_override"] == 7
+    assert "updated" not in normalized
+    assert "links" not in normalized
+    assert "user_vote" not in normalized
+    assert "in_reports_count" not in normalized
+    assert "links" not in normalized["news_items"][0]
 
 
 def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authenticated_client):

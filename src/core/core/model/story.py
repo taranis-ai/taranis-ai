@@ -101,6 +101,10 @@ class Story(BaseModel):
             self.tags = NewsItemTag.load_multiple(tags)
         self.recompute_relevance(in_reports_count=0)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Story":
+        return cls(**StoryPayload.model_validate(data).to_core_dict())
+
     def get_creation_date(self, created: datetime | str | None):
         payload = StoryPayload.model_validate({"created": created})
         return payload.created or self.utcnow()
@@ -588,7 +592,7 @@ class Story(BaseModel):
         data = {
             "title": news_item.title,
             "created": news_item.published,
-            "news_items": [NewsItem.from_payload(news_item)],
+            "news_items": [news_item.to_core_dict()],
             "last_change": "internal" if news_item.osint_source_id == "manual" else "external",
         }
 
@@ -1059,6 +1063,7 @@ class Story(BaseModel):
         try:
             processed_stories = set()
             new_stories_ids = []
+            removed_titles_by_story: dict[Story, set[str]] = {}
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
                 if not news_item or not user:
@@ -1068,10 +1073,13 @@ class Story(BaseModel):
                 story = Story.get(news_item.story_id)
                 if not story:
                     continue
+                removed_titles_by_story.setdefault(story, set()).add(news_item.title)
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
                 new_stories_ids.append(cls.create_from_item(news_item, commit=False))
             for story in processed_stories:
+                if story.news_items and story.title in removed_titles_by_story.get(story, set()):
+                    story.title = story.news_items[0].title
                 story.update_status()
             for story in processed_stories:
                 story.record_revision(user, note="ungroup_news_items")

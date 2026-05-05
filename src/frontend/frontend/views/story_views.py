@@ -9,6 +9,12 @@ from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from markupsafe import Markup, escape
 from models.assess import (
+    NEWS_ITEM_IMPORT_FIELDS as _NEWS_ITEM_IMPORT_FIELDS,
+)
+from models.assess import (
+    STORY_IMPORT_FIELDS as _STORY_IMPORT_FIELDS,
+)
+from models.assess import (
     AssessSource,
     BulkAction,
     Connector,
@@ -32,44 +38,6 @@ from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.router_helpers import parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
-
-
-_STORY_IMPORT_FIELDS = {
-    "id",
-    "title",
-    "description",
-    "created",
-    "likes",
-    "dislikes",
-    "relevance",
-    "read",
-    "important",
-    "summary",
-    "comments",
-    "revision",
-    "attributes",
-    "tags",
-    "news_items",
-    "last_change",
-}
-
-_NEWS_ITEM_IMPORT_FIELDS = {
-    "id",
-    "title",
-    "source",
-    "content",
-    "osint_source_id",
-    "review",
-    "author",
-    "link",
-    "language",
-    "hash",
-    "attributes",
-    "last_change",
-    "published",
-    "collected",
-    "story_id",
-}
 
 
 def _sanitize_news_item_import_payload(news_item_data: dict[str, Any], story_id: str | None = None) -> dict[str, Any]:
@@ -573,7 +541,7 @@ class StoryView(BaseView):
             notification = {"message": format_pydantic_errors(e, NewsItem), "error": True}
             notification_html = render_template("notification/index.html", notification=notification)
             return make_response(notification_html, 400)
-        core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
+        core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.to_core_dict())
         return cls.news_item_edit_view(core_response)
 
     @classmethod
@@ -588,7 +556,7 @@ class StoryView(BaseView):
             notification_html = render_template("notification/index.html", notification=notification)
             return make_response(notification_html, 400)
 
-        core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
+        core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.to_core_dict())
 
         return cls._handle_news_item_response(
             core_response,
@@ -778,7 +746,7 @@ class StoryView(BaseView):
         try:
             paging_data = PagingData(query_params={"story_ids": story_ids}, limit=len(story_ids))
             stories = DataPersistenceLayer().get_objects(Story, paging_data)
-            export_data = [story.model_dump(mode="json") for story in stories.items]
+            export_data = [story.to_core_dict() for story in stories.items]
 
             response_data = json.dumps({"total_count": len(export_data), "items": export_data}, indent=2)
             flask_response = make_response(response_data, 200)
