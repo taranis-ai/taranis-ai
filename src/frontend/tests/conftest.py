@@ -335,16 +335,6 @@ def skip_tests(items, keyword, reason):
             item.add_marker(skip_marker)
 
 
-def _skip_external_stack_incompatible_tests(items):
-    if not (os.getenv("TARANIS_E2E_EXTERNAL_CORE_URL") or os.getenv("TARANIS_E2E_EXTERNAL_BASE_URL")):
-        return
-
-    skip_marker = pytest.mark.skip(reason="RQ docker-backed e2e suite is skipped when targeting an external deployment")
-    for item in items:
-        if item.fspath.basename == "test_e2e_rq_tasks.py":
-            item.add_marker(skip_marker)
-
-
 def pytest_collection_modifyitems(config, items):
     config.option.start_live_server = False
 
@@ -361,8 +351,6 @@ def pytest_collection_modifyitems(config, items):
     }
 
     config.option.headed = True
-    _skip_external_stack_incompatible_tests(items)
-
     for option, (keyword, reason) in options.items():
         if config.getoption(option):
             if option == "--e2e-ci":

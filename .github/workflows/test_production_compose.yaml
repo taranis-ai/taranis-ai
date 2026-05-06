@@ -70,7 +70,7 @@ jobs:
 
       - name: Install Playwright dependencies
         working-directory: src/frontend
-        run: uv run playwright install --with-deps --only-shell chromium
+        run: uv run playwright install --with-deps chromium
 
       - name: Run frontend e2e tests against production compose stack
         working-directory: src/frontend
@@ -83,7 +83,13 @@ jobs:
           TARANIS_E2E_EXTERNAL_AUTH_PASSWORD: "admin"
           TARANIS_E2E_EXTERNAL_BASIC_AUTH_USERNAME: "user"
           TARANIS_E2E_EXTERNAL_BASIC_AUTH_PASSWORD: "test"
-        run: uv run pytest --e2e-ci
+        run: |
+          uv run pytest \
+            tests/playwright/test_e2e_admin.py \
+            tests/playwright/test_e2e_user.py \
+            tests/playwright/test_viewport_notice.py \
+            --e2e-ci \
+            -ra
 
       - name: Show compose logs after e2e failure
         if: failure()
