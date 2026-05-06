@@ -7,66 +7,126 @@ from models.assess import Story
 from werkzeug.exceptions import Forbidden
 
 from frontend.config import Config
-from frontend.views.story_views import StoryView, _calculate_story_diff, _normalize_story_import_payload
+from frontend.views.story_views import StoryView, _normalize_story_import_payload
 
 
 def expected_search_trigger(input_id: str) -> str:
     return f"input changed delay:500ms from:#{input_id}, search from:#{input_id}"
 
 
-def test_calculate_story_diff_ignores_empty_tag_changes():
-    from_data = {
-        "title": "Story title",
-        "tags": [{"name": None}],
-    }
-    to_data = {
-        "title": "Story title",
-        "tags": [{"name": ""}, {"name": "   "}],
-    }
+def test_story_diff_view_renders_compare_payload(app, authenticated_client, responses_mock):
+    story_id = "story-1"
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/1",
+        json={
+            "id": 1,
+            "revision": 1,
+            "created_at": "2026-03-12T10:00:00",
+            "created_by": "alice",
+            "created_by_id": 1,
+            "note": "created",
+            "data": {
+                "title": "Kill Chain im Krieg verkurzt",
+                "description": "First draft",
+                "summary": "Summary A",
+                "comments": "Comment A",
+                "tags": [{"name": "old-tag"}],
+                "news_items": [{"id": "news-1", "title": "Old news"}],
+                "attributes": [{"key": "TLP", "value": "clear"}],
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/2",
+        json={
+            "id": 2,
+            "revision": 2,
+            "created_at": "2026-03-12T11:00:00",
+            "created_by": "bob",
+            "created_by_id": 2,
+            "note": "update",
+            "data": {
+                "title": "Kill Chain im Krieg deutlich verkurzt",
+                "description": "First draft",
+                "summary": "Summary B",
+                "comments": "Comment A",
+                "tags": [{"name": "new-tag"}],
+                "news_items": [{"id": "news-2", "title": "New news"}],
+                "attributes": [{"key": "TLP", "value": "amber"}],
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
 
-    changes = _calculate_story_diff(from_data, to_data)
+    with app.test_request_context():
+        response = authenticated_client.get(url_for("assess.story_diff", story_id=story_id, from_rev=1, to_rev=2))
 
-    assert changes == []
-
-
-def test_calculate_story_diff_keeps_real_tag_changes():
-    from_data = {
-        "title": "Story title",
-        "tags": [{"name": None}, {"name": "existing"}],
-    }
-    to_data = {
-        "title": "Story title",
-        "tags": [{"name": ""}, {"name": "existing"}, {"name": "new-tag"}],
-    }
-
-    changes = _calculate_story_diff(from_data, to_data)
-
-    assert {"field": "Tags Added", "old_value": None, "new_value": "new-tag"} in changes
+    assert response.status_code == 200
+    html_doc = response.get_data(as_text=True)
+    assert "Changes:" in html_doc
+    assert "Kill Chain im Krieg deutlich verkurzt" in html_doc
+    assert "old_segments" not in html_doc
+    assert "deutlich " in html_doc
+    assert "bg-success/20 text-success" in html_doc
+    assert "bg-error/20 text-error" in html_doc
 
 
-def test_calculate_story_diff_uses_inline_markup_for_text_changes():
-    from_data = {"title": "Kill Chain im Krieg verkurzt"}
-    to_data = {"title": "Kill Chain im Krieg deutlich verkurzt"}
+def test_story_diff_view_shows_no_changes_state(app, authenticated_client, responses_mock):
+    story_id = "story-1"
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/1",
+        json={
+            "id": 1,
+            "revision": 1,
+            "created_at": "2026-03-12T10:00:00",
+            "created_by": "alice",
+            "created_by_id": 1,
+            "note": "created",
+            "data": {
+                "title": "Story title",
+                "tags": [],
+                "news_items": [],
+                "attributes": [],
+                "description": "",
+                "summary": "",
+                "comments": "",
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/2",
+        json={
+            "id": 2,
+            "revision": 2,
+            "created_at": "2026-03-12T11:00:00",
+            "created_by": "bob",
+            "created_by_id": 2,
+            "note": "update",
+            "data": {
+                "title": "Story title",
+                "tags": [],
+                "news_items": [],
+                "attributes": [],
+                "description": "",
+                "summary": "",
+                "comments": "",
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
 
-    changes = _calculate_story_diff(from_data, to_data)
+    with app.test_request_context():
+        response = authenticated_client.get(url_for("assess.story_diff", story_id=story_id, from_rev=1, to_rev=2))
 
-    assert len(changes) == 1
-    assert changes[0]["field"] == "Title"
-    assert changes[0]["inline_diff"] is True
-    assert "bg-success/20" in str(changes[0]["new_value_diff"])
-    assert "deutlich " in str(changes[0]["new_value_diff"])
-    assert "deutlich " not in str(changes[0]["old_value_diff"])
-
-
-def test_calculate_story_diff_escapes_inline_markup_text():
-    from_data = {"title": "A <script>alert(1)</script> title"}
-    to_data = {"title": "A <script>alert(1)</script> new title"}
-
-    changes = _calculate_story_diff(from_data, to_data)
-
-    assert len(changes) == 1
-    assert "&lt;script&gt;" in str(changes[0]["new_value_diff"])
-    assert "<script>" not in str(changes[0]["new_value_diff"])
+    assert response.status_code == 200
+    html_doc = response.get_data(as_text=True)
+    assert "No changes detected between these revisions." in html_doc
 
 
 def test_normalize_story_import_payload_unwraps_export_items():
