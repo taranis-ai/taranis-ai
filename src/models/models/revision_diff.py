@@ -151,6 +151,8 @@ def build_story_revision_diff_payload(
     _append_change(changes, "Description", from_data.get("description"), to_data.get("description"))
     _append_change(changes, "Summary", from_data.get("summary"), to_data.get("summary"))
     _append_change(changes, "Comments", from_data.get("comments"), to_data.get("comments"))
+    _append_change(changes, "Likes", from_data.get("likes", 0), to_data.get("likes", 0))
+    _append_change(changes, "Dislikes", from_data.get("dislikes", 0), to_data.get("dislikes", 0))
 
     from_tags = _normalized_tag_names(from_data)
     to_tags = _normalized_tag_names(to_data)

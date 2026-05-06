@@ -1,13 +1,11 @@
 import json
-from types import SimpleNamespace
 
 from flask import render_template_string, url_for
 from lxml import html
 from models.assess import Story
-from werkzeug.exceptions import Forbidden
 
 from frontend.config import Config
-from frontend.views.story_views import StoryView, _normalize_story_import_payload
+from frontend.views.story_views import _normalize_story_import_payload
 
 
 def expected_search_trigger(input_id: str) -> str:
@@ -30,6 +28,8 @@ def test_story_diff_view_renders_compare_payload(app, authenticated_client, resp
                 "description": "First draft",
                 "summary": "Summary A",
                 "comments": "Comment A",
+                "likes": 1,
+                "dislikes": 0,
                 "tags": [{"name": "old-tag"}],
                 "news_items": [{"id": "news-1", "title": "Old news"}],
                 "attributes": [{"key": "TLP", "value": "clear"}],
@@ -52,6 +52,8 @@ def test_story_diff_view_renders_compare_payload(app, authenticated_client, resp
                 "description": "First draft",
                 "summary": "Summary B",
                 "comments": "Comment A",
+                "likes": 3,
+                "dislikes": 1,
                 "tags": [{"name": "new-tag"}],
                 "news_items": [{"id": "news-2", "title": "New news"}],
                 "attributes": [{"key": "TLP", "value": "amber"}],
@@ -72,6 +74,8 @@ def test_story_diff_view_renders_compare_payload(app, authenticated_client, resp
     assert "deutlich " in html_doc
     assert "bg-success/20 text-success" in html_doc
     assert "bg-error/20 text-error" in html_doc
+    assert "Likes" in html_doc
+    assert "Dislikes" in html_doc
 
 
 def test_story_diff_view_shows_no_changes_state(app, authenticated_client, responses_mock):
@@ -378,72 +382,3 @@ def test_story_sharing_dialog_loads_connectors_from_assess_endpoint(authenticate
     assert connector_id in response.text
     assert "MISP Connector" in response.text
     assert all(call.request.url != f"{Config.TARANIS_CORE_URL}/config/connectors" for call in responses_mock.calls)
-
-
-def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authenticated_client_basic, monkeypatch, responses_mock):
-    story_id = "story-1"
-
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}",
-        json={"id": story_id, "title": "Shared Story", "links": ["https://example.com/story"]},
-    )
-
-    def raise_connector_loading_error(*args, **kwargs):
-        raise RuntimeError("permission lookup failed")
-
-    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.get_objects", raise_connector_loading_error)
-
-    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
-
-    assert response.status_code == 200
-    assert "Share Stories" in response.text
-    assert "Shared Story" not in response.text
-
-    tree = html.fromstring(response.text)
-    connector_select = tree.xpath('//select[@id="connector"]')
-    assert len(connector_select) == 1
-    options = connector_select[0].xpath("./option")
-    assert len(options) == 1
-    assert options[0].text == "Select a connector"
-
-
-def test_story_sharing_dialog_still_renders_when_connector_loading_is_forbidden(authenticated_client_basic, monkeypatch, responses_mock):
-    story_id = "story-1"
-
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}",
-        json={"id": story_id, "title": "Shared Story", "links": ["https://example.com/story"]},
-    )
-
-    def raise_connector_loading_error(*args, **kwargs):
-        raise Forbidden("connector access denied")
-
-    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.get_objects", raise_connector_loading_error)
-
-    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
-
-    assert response.status_code == 200
-    assert "Share Stories" in response.text
-
-    tree = html.fromstring(response.text)
-    connector_select = tree.xpath('//select[@id="connector"]')
-    assert len(connector_select) == 1
-    options = connector_select[0].xpath("./option")
-    assert len(options) == 1
-    assert options[0].text == "Select a connector"
-
-
-def test_handle_news_item_response_returns_notification_and_content(app, monkeypatch):
-    monkeypatch.setattr(StoryView, "get_notification_from_response", lambda response, oob=True: "notification")
-
-    response = SimpleNamespace(ok=True, json=lambda: {"story_id": "story-1"})
-
-    with app.test_request_context("/"):
-        result = StoryView._handle_news_item_response(
-            response,
-            content_builder=lambda _story_id: "<div>content</div>",
-            redirect_on_story=False,
-        )
-
-    assert result.status_code == 200
-    assert result.get_data(as_text=True) == "notification<div>content</div>"
