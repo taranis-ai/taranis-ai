@@ -28,6 +28,8 @@
                   data-testid="delete-newsitem-{{ news_item.id }}"
                   hx-delete="{{ url_for('assess.delete_news_item', news_item_id=news_item.id) }}"
                   hx-confirm="Are you sure you want to delete this news item?"
+                  hx-select="#story-{{ news_item.story_id }}"
+                  hx-swap="outerHTML"
                   hx-target="#story-{{ news_item.story_id }}">{{ heroicon_mini("trash") }}</button>
         </div>
 

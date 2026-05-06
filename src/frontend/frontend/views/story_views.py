@@ -1,5 +1,4 @@
 import datetime
-from difflib import SequenceMatcher
 from json import JSONDecodeError
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
@@ -7,7 +6,6 @@ from urllib.parse import parse_qs, quote, urlencode, urlparse
 from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
-from markupsafe import Markup, escape
 from models.assess import (
     NEWS_ITEM_IMPORT_FIELDS as _NEWS_ITEM_IMPORT_FIELDS,
 )
@@ -24,6 +22,7 @@ from models.assess import (
     StoryUpdatePayload,
 )
 from models.report import ReportItem
+from models.revision_diff import build_story_revision_diff_payload
 from pydantic import ValidationError
 from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import HTTPException
@@ -784,6 +783,18 @@ class StoryView(BaseView):
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete news item"})
 
+        payload = core_response.json()
+        story_id = payload.get("story_id") or payload.get("story_ids", [""])[0]
+
+        current_url_path = cls._get_current_url_path()
+        if story_id and current_url_path in {
+            url_for("assess.story", story_id=story_id),
+            url_for("assess.story_edit", story_id=story_id),
+        }:
+            if CoreApi().api_get(f"/assess/stories/{story_id}") is None:
+                cls.add_flash_notification(core_response)
+                return cls.redirect_htmx(url_for("assess.assess"))
+
         return cls._handle_news_item_response(
             core_response,
             content_builder=cls._get_action_response_content,
@@ -799,6 +810,10 @@ class StoryView(BaseView):
             raise
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete story"})
+
+        if cls._get_current_url_path() == url_for("assess.assess"):
+            notification_html = cls.get_notification_from_response(core_response)
+            return cls.rerender_list(notification=notification_html)
 
         cls.add_flash_notification(core_response)
         return cls.redirect_htmx(url_for("assess.assess"))
@@ -958,176 +973,20 @@ class StoryView(BaseView):
         if not story_id:
             return abort(400, description="No story ID provided.")
 
-        # Get story data
-        story = DataPersistenceLayer().get_object(Story, story_id)
-        if not story:
-            return abort(404, description="Story not found.")
-
-        # Get revision data from core API
-        from_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions/{from_rev}")
-        to_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions/{to_rev}")
-
-        if not from_data or not to_data:
+        core_api = CoreApi()
+        from_revision = core_api.api_get(f"/assess/stories/{story_id}/revisions/{from_rev}")
+        to_revision = core_api.api_get(f"/assess/stories/{story_id}/revisions/{to_rev}")
+        if not from_revision or not to_revision:
             return abort(404, description="Revision not found.")
 
-        # Calculate diff
-        from_revision_data = from_data.get("data", {})
-        to_revision_data = to_data.get("data", {})
-
-        # Prepare diff data
-        diff_data = {
-            "from_revision": from_data,
-            "to_revision": to_data,
-            "changes": _calculate_story_diff(from_revision_data, to_revision_data),
-        }
+        story_title = to_revision.get("data", {}).get("title") or from_revision.get("data", {}).get("title")
+        diff = build_story_revision_diff_payload(story_id, story_title, from_revision, to_revision)
 
         context = {
-            "story": story,
-            "diff": diff_data,
+            "diff": diff,
             "from_rev": from_rev,
             "to_rev": to_rev,
+            "story_id": story_id,
         }
 
         return render_template("assess/story_diff.html", **context), 200
-
-
-def _calculate_story_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
-    """Calculate differences between two story data dictionaries"""
-    changes = []
-
-    def _inline_text_diff(old_text: str, new_text: str) -> tuple[Markup, Markup]:
-        old_parts: list[str] = []
-        new_parts: list[str] = []
-        matcher = SequenceMatcher(a=old_text, b=new_text)
-
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            old_segment = escape(old_text[i1:i2])
-            new_segment = escape(new_text[j1:j2])
-
-            if tag == "equal":
-                old_parts.append(str(old_segment))
-                new_parts.append(str(new_segment))
-                continue
-
-            if tag in {"delete", "replace"} and i1 != i2:
-                old_parts.append(f'<span class="line-through bg-error/20 text-error rounded px-0.5">{old_segment}</span>')
-
-            if tag in {"insert", "replace"} and j1 != j2:
-                new_parts.append(f'<span class="bg-success/20 text-success rounded px-0.5">{new_segment}</span>')
-
-        return Markup("".join(old_parts)), Markup("".join(new_parts))
-
-    def _append_text_change(field: str, old_value: Any, new_value: Any) -> None:
-        if old_value == new_value:
-            return
-
-        change: dict[str, Any] = {
-            "field": field,
-            "old_value": old_value,
-            "new_value": new_value,
-        }
-
-        if isinstance(old_value, str) and isinstance(new_value, str):
-            old_value_diff, new_value_diff = _inline_text_diff(old_value, new_value)
-            change["old_value_diff"] = old_value_diff
-            change["new_value_diff"] = new_value_diff
-            change["inline_diff"] = True
-
-        changes.append(change)
-
-    def _normalized_tag_names(data: dict) -> set[str]:
-        tag_names = set()
-        for tag in data.get("tags") or []:
-            if not isinstance(tag, dict):
-                continue
-            name = tag.get("name")
-            if not isinstance(name, str):
-                continue
-            normalized_name = name.strip()
-            if normalized_name:
-                tag_names.add(normalized_name)
-        return tag_names
-
-    # Compare title
-    _append_text_change("Title", from_data.get("title"), to_data.get("title"))
-
-    # Compare description
-    _append_text_change("Description", from_data.get("description"), to_data.get("description"))
-
-    # Compare summary
-    _append_text_change("Summary", from_data.get("summary"), to_data.get("summary"))
-
-    # Compare comments
-    _append_text_change("Comments", from_data.get("comments"), to_data.get("comments"))
-
-    # Compare tags
-    from_tags = _normalized_tag_names(from_data)
-    to_tags = _normalized_tag_names(to_data)
-
-    added_tags = to_tags - from_tags
-    removed_tags = from_tags - to_tags
-
-    if added_tags:
-        changes.append(
-            {
-                "field": "Tags Added",
-                "old_value": None,
-                "new_value": ", ".join(sorted(added_tags)),
-            }
-        )
-
-    if removed_tags:
-        changes.append(
-            {
-                "field": "Tags Removed",
-                "old_value": ", ".join(sorted(removed_tags)),
-                "new_value": None,
-            }
-        )
-
-    # Compare news items
-    from_news_items = {item.get("id") for item in from_data.get("news_items", [])}
-    to_news_items = {item.get("id") for item in to_data.get("news_items", [])}
-
-    added_items = to_news_items - from_news_items
-    removed_items = from_news_items - to_news_items
-
-    if added_items:
-        item_titles = [item.get("title", item.get("id")) for item in to_data.get("news_items", []) if item.get("id") in added_items]
-        changes.append(
-            {
-                "field": "News Items Added",
-                "old_value": None,
-                "new_value": ", ".join(item_titles[:5]) + (f" and {len(item_titles) - 5} more" if len(item_titles) > 5 else ""),
-            }
-        )
-
-    if removed_items:
-        item_titles = [item.get("title", item.get("id")) for item in from_data.get("news_items", []) if item.get("id") in removed_items]
-        changes.append(
-            {
-                "field": "News Items Removed",
-                "old_value": ", ".join(item_titles[:5]) + (f" and {len(item_titles) - 5} more" if len(item_titles) > 5 else ""),
-                "new_value": None,
-            }
-        )
-
-    # Compare attributes
-    from_attrs = {attr.get("key"): attr.get("value") for attr in from_data.get("attributes", [])}
-    to_attrs = {attr.get("key"): attr.get("value") for attr in to_data.get("attributes", [])}
-
-    # Find changed, added, and removed attributes
-    all_keys = set(from_attrs.keys()) | set(to_attrs.keys())
-    for key in sorted(all_keys):
-        from_val = from_attrs.get(key)
-        to_val = to_attrs.get(key)
-        if from_val != to_val:
-            changes.append(
-                {
-                    "field": f"Attribute: {key}",
-                    "old_value": from_val,
-                    "new_value": to_val,
-                }
-            )
-
-    return changes
