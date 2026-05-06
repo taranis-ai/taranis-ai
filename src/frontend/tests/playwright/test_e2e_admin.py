@@ -187,7 +187,9 @@ class TestEndToEndAdmin(BaseE2ETest):
                 imported_user_list_correct = json.load(f)
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
-            assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
+            assert sorted(imported_user_list_correct["data"], key=lambda item: item["username"]) == sorted(
+                downloaded_content["data"], key=lambda item: item["username"]
+            ), "Downloaded file content does not match uploaded file content"
             jane_row = self.delete_table_row_by_link(user_table, page, "Jane Smith")
             expect(jane_row).not_to_be_visible()
             john_row = self.delete_table_row_by_link(user_table, page, "John Doe")

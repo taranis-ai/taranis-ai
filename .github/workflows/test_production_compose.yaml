@@ -20,6 +20,8 @@ jobs:
 
       - name: Run docker compose for last commit
         working-directory: docker
+        env:
+          PRE_SEED_PASSWORD_USER: test
         run: |
           cp env.sample .env
           docker compose pull redis sse database
@@ -80,7 +82,7 @@ jobs:
           TARANIS_E2E_EXTERNAL_AUTH_USERNAME: "admin"
           TARANIS_E2E_EXTERNAL_AUTH_PASSWORD: "admin"
           TARANIS_E2E_EXTERNAL_BASIC_AUTH_USERNAME: "user"
-          TARANIS_E2E_EXTERNAL_BASIC_AUTH_PASSWORD: "user"
+          TARANIS_E2E_EXTERNAL_BASIC_AUTH_PASSWORD: "test"
         run: uv run pytest --e2e-ci
 
       - name: Show compose logs after e2e failure

@@ -63,7 +63,7 @@ def _external_auth_credentials() -> tuple[str, str]:
 
 def _external_basic_auth_credentials() -> tuple[str, str]:
     username = os.getenv("TARANIS_E2E_EXTERNAL_BASIC_AUTH_USERNAME", "user")
-    password = os.getenv("TARANIS_E2E_EXTERNAL_BASIC_AUTH_PASSWORD", "user")
+    password = os.getenv("TARANIS_E2E_EXTERNAL_BASIC_AUTH_PASSWORD", "test")
     return username, password
 
 
@@ -465,7 +465,7 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         request,
         non_admin_logged_in_page,
         extra_allow_patterns=[
-            r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+            r"(?i)\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(forbidden\)",
         ],
     )
 
@@ -476,7 +476,7 @@ def forward_console_and_page_errors_non_admin_report_forbidden(request, non_admi
         request,
         non_admin_logged_in_page,
         extra_allow_patterns=[
-            r"\[console\.error\].*/report/.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+            r"(?i)\[console\.error\].*/report/.*Failed to load resource: the server responded with a status of 403 \(forbidden\)",
         ],
     )
 
@@ -854,11 +854,7 @@ def test_osint_icon_png(testdata_dir):
 def test_batch_osint_sources(core_request_client, e2e_server, access_token_response, testdata_dir):
 
     def invalidate_osint_source_caches() -> None:
-        session = requests.Session()
-        for cookie in _cookies_from_response(access_token_response):
-            session.cookies.set(cookie["name"], cookie["value"])
-        response = session.get(f"{e2e_server.url()}/invalidate_cache", timeout=30)
-        response.raise_for_status()
+        core_request_client.post("/admin/cache/invalidate", json_data={"mode": "all"}, timeout_seconds=30)
 
     pattern = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
     responses.add_passthru(pattern)

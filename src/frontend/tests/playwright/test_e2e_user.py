@@ -249,7 +249,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("checkbox", name="Compact view").uncheck()
 
             page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="Profile")).to_be_visible()
+            expect(page.get_by_role("link", name="User Settings")).to_be_visible()
 
             page.get_by_role("link", name="User Settings").click()
             page.get_by_role("checkbox", name="Infinite scroll Automatically").check()
@@ -258,7 +258,7 @@ class TestEndToEndUser(BaseE2ETest):
 
         def relog_in():
             page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="Profile")).to_be_visible()
+            expect(page.get_by_role("link", name="User Settings")).to_be_visible()
 
             page.get_by_role("link", name="Logout").click()
             expect(page.get_by_role("img", name="Taranis Logo")).to_be_visible()
@@ -271,7 +271,7 @@ class TestEndToEndUser(BaseE2ETest):
 
         def change_password_back():
             page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="Profile")).to_be_visible()
+            expect(page.get_by_role("link", name="User Settings")).to_be_visible()
 
             page.get_by_role("link", name="User Settings").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
