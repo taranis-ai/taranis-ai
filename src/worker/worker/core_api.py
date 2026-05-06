@@ -250,34 +250,26 @@ class CoreApi:
         except Exception:
             return None
 
-    def update_news_item(self, news_id: str, data, change_actor: str | None = None) -> dict | None:
+    def update_news_item(self, news_id: str, data) -> dict | None:
         try:
-            payload = dict(data)
-            if change_actor:
-                payload["change_actor"] = change_actor
-            return self.api_put(url=f"/bots/news-item/{news_id}", json_data=payload)
+            return self.api_put(url=f"/bots/news-item/{news_id}", json_data=dict(data))
         except Exception:
             return None
 
-    def update_story_summary(self, story_id, summary: str, change_actor: str | None = None) -> dict | None:
+    def update_story_summary(self, story_id, summary: str) -> dict | None:
         try:
-            data = {"summary": summary}
-            if change_actor:
-                data["change_actor"] = change_actor
-            return self.api_put(url=f"/bots/story/{story_id}", json_data=data)
+            return self.api_put(url=f"/bots/story/{story_id}", json_data={"summary": summary})
         except Exception:
             return None
 
-    def update_news_item_attributes(self, news_id: str, attributes, change_actor: str | None = None) -> dict | None:
+    def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
             payload = dict(attributes=attributes) if not isinstance(attributes, dict) else dict(attributes)
-            if change_actor:
-                payload["change_actor"] = change_actor
             return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=payload)
         except Exception:
             return None
 
-    def update_story_attributes(self, story_id: str, attributes: list[dict], change_actor: str | None = None) -> dict | None:
+    def update_story_attributes(self, story_id: str, attributes: list[dict]) -> dict | None:
         """Patch story attributes
 
         Example:
@@ -286,10 +278,7 @@ class CoreApi:
 
         """
         try:
-            payload = {"attributes": attributes}
-            if change_actor:
-                payload["change_actor"] = change_actor
-            return self.api_patch(url=f"/bots/story/{story_id}/attributes", json_data=payload)
+            return self.api_patch(url=f"/bots/story/{story_id}/attributes", json_data={"attributes": attributes})
         except Exception:
             return None
 
@@ -309,14 +298,11 @@ class CoreApi:
         except Exception:
             return None
 
-    def news_items_grouping(self, data, change_actor: str | None = None):
+    def news_items_grouping(self, data):
         try:
-            payload = data
-            if change_actor:
-                payload = {"story_ids": data, "change_actor": change_actor}
             response = requests.put(
                 f"{self.api_url}/bots/stories/group",
-                json=payload,
+                json=data,
                 headers=self.headers,
                 timeout=self.timeout,
             )
@@ -324,14 +310,11 @@ class CoreApi:
         except Exception:
             return None
 
-    def news_items_grouping_multiple(self, data, change_actor: str | None = None):
+    def news_items_grouping_multiple(self, data):
         try:
-            payload = data
-            if change_actor:
-                payload = {"story_ids": data, "change_actor": change_actor}
             response = requests.put(
                 f"{self.api_url}/bots/stories/group-multiple",
-                json=payload,
+                json=data,
                 headers=self.headers,
                 timeout=self.timeout,
             )
@@ -339,29 +322,22 @@ class CoreApi:
         except Exception:
             return None
 
-    def add_news_items(self, news_items, change_actor: str | None = None) -> dict | None:
+    def add_news_items(self, news_items) -> dict | None:
         try:
-            payload = news_items
-            if change_actor:
-                payload = {"news_items": news_items, "change_actor": change_actor}
-            return self.api_post(url="/worker/news-items", json_data=payload)
+            return self.api_post(url="/worker/news-items", json_data=news_items)
         except Exception:
             logger.exception("Cannot add Newsitem")
             return None
 
-    def add_or_update_story(self, story: dict, change_actor: str | None = None):
+    def add_or_update_story(self, story: dict):
         """
         Add or update a story.
         If a story has a conflict flag, you might route it to a separate endpoint.
         """
         try:
-            payload = story
-            if change_actor:
-                payload = dict(story)
-                payload["change_actor"] = change_actor
             return self.api_post(
                 url="/worker/stories",
-                json_data=payload,
+                json_data=story,
             )
         except Exception:
             logger.exception("Cannot add or update story.")

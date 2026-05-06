@@ -56,5 +56,4 @@ class AnalystBot(BaseBot):
                         self.core_api.update_news_item_attributes(
                             news_item_id,
                             attributes,
-                            change_actor=self.change_actor(),
                         )

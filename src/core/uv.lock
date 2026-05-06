@@ -1438,7 +1438,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "authlib", specifier = ">=1.7.1,<1.8" },
+    { name = "authlib" },
     { name = "build", marker = "extra == 'dev'" },
     { name = "click" },
     { name = "croniter", specifier = ">=6.0.0" },

@@ -42,6 +42,6 @@ class GroupingBot(BaseBot):
         for group, ids in findings.items():
             if len(ids) > 1:
                 logger.debug(f"Grouping: {group} with: {ids}")
-                self.core_api.news_items_grouping(ids, change_actor=self.change_actor())
+                self.core_api.news_items_grouping(ids)
 
         return {"message": f"Grouped {len(findings)} groups"}

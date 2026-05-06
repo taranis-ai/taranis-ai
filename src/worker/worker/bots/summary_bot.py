@@ -31,11 +31,10 @@ class SummaryBot(BaseBot):
             logger.debug(f"Summarizing {story['id']} with {len(content_to_summarize)} characters")
             try:
                 if summary := self.predict_summary(content_to_summarize):
-                    self.core_api.update_story_summary(story["id"], summary, change_actor=self.change_actor())
+                    self.core_api.update_story_summary(story["id"], summary)
                 self.core_api.update_story_attributes(
                     story["id"],
                     [{"key": self.type, "value": 1 if summary else 0}],
-                    change_actor=self.change_actor(),
                 )
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")

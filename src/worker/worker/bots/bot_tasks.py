@@ -82,9 +82,6 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str
     bot = bots.get(bot_type)
     if not bot:
         raise ValueError(f"Bot type '{bot_type}' not implemented")
-    bot.worker_id = bot_id
-    bot.worker_type = bot_type
-
     bot_params = bot_config.get("parameters")
     if not bot_params:
         raise ValueError("Bot has no parameters")

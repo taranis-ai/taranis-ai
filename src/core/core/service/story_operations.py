@@ -154,7 +154,7 @@ class StoryOperationsService:
         cls,
         target_story: "Story",
         source_stories: list["Story"],
-        change_actor: str | None = None,
+        actor: str | None = None,
     ) -> set["Story"]:
         processed_stories = {target_story, *source_stories}
         absorbed_story_ids: list[str] = []
@@ -167,5 +167,5 @@ class StoryOperationsService:
 
         target_story.relevance_override = max(absorbed_overrides)
         cls.merge_votes_into_story(target_story, absorbed_story_ids)
-        type(target_story).update_stories(processed_stories, change_actor=change_actor)
+        type(target_story).update_stories(processed_stories, actor=actor)
         return processed_stories
