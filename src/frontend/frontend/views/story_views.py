@@ -3,7 +3,7 @@ from json import JSONDecodeError
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import Response, abort, flash, json, make_response, redirect, render_template, request, url_for
+from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.assess import (
@@ -27,14 +27,14 @@ from pydantic import ValidationError
 from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import HTTPException
 
-from frontend.auth import auth_required
+from frontend.auth import auth_required, update_current_user_cache
 from frontend.cache import add_model_to_cache, get_model_from_cache
 from frontend.cache_models import CacheObject, PagingData
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.utils.router_helpers import parse_paging_data
+from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
@@ -65,6 +65,27 @@ def _normalize_story_import_payload(json_data: dict[str, Any] | list[dict[str, A
     return json_data
 
 
+ASSESS_DEFAULT_FILTER_KEYS = frozenset(
+    {
+        "search",
+        "source",
+        "group",
+        "tags",
+        "read",
+        "important",
+        "in_report",
+        "relevant",
+        "cybersecurity",
+        "range",
+        "sort",
+        "timefrom",
+        "timeto",
+    }
+)
+ASSESS_DEFAULT_FILTER_MULTI_KEYS = frozenset({"source", "group", "tags"})
+ASSESS_DEFAULT_FILTER_SESSION_KEY = "assess_default_filters_active"
+
+
 class StoryView(BaseView):
     model = Story
     icon = "newspaper"
@@ -80,6 +101,8 @@ class StoryView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         base_context["filter_lists"] = cls._get_filter_lists()
+        if request.endpoint == "assess.assess":
+            base_context["assess_request_args"] = cls._get_assess_request_params()
         if stories := base_context.get("stories"):
             enhanced_stories = cls._get_enhanced_stories(stories, list(base_context["filter_lists"].sources))
             base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
@@ -123,6 +146,79 @@ class StoryView(BaseView):
             add_model_to_cache(filter_lists, "", username)
             return filter_lists
         return FilterLists(tags=[], sources=[], groups=[])
+
+    @staticmethod
+    def _normalize_assess_filter_values(values: Any) -> list[str]:
+        if values in (None, ""):
+            return []
+        if isinstance(values, (list, tuple, set)):
+            return [str(value) for value in values if value not in (None, "")]
+        return [str(values)]
+
+    @classmethod
+    def _get_saved_assess_default_filters(cls) -> dict[str, list[str]]:
+        profile = getattr(current_user, "profile", None)
+        raw_defaults = getattr(profile, "assess_default_filters", None) if profile is not None else None
+        if not isinstance(raw_defaults, dict):
+            return {}
+
+        normalized: dict[str, list[str]] = {}
+        for key, values in raw_defaults.items():
+            if key not in ASSESS_DEFAULT_FILTER_KEYS:
+                continue
+            normalized_values = cls._normalize_assess_filter_values(values)
+            if normalized_values:
+                normalized[key] = normalized_values
+        return normalized
+
+    @classmethod
+    def _get_assess_request_params(cls, request_params: dict[str, list[str]] | None = None) -> dict[str, list[str]]:
+        params = {
+            key: [value for value in values if value not in (None, "")]
+            for key, values in (request_params or request.args.to_dict(flat=False)).items()
+        }
+        has_reset = "reset" in params
+        params.pop("reset", None)
+        if has_reset:
+            session.pop(ASSESS_DEFAULT_FILTER_SESSION_KEY, None)
+            return {}
+
+        if not params:
+            saved_defaults = cls._get_saved_assess_default_filters()
+            if saved_defaults and not is_htmx_request():
+                session[ASSESS_DEFAULT_FILTER_SESSION_KEY] = True
+                return {key: values[:] for key, values in saved_defaults.items()}
+
+            if request.method == "GET" and is_htmx_request():
+                session.pop(ASSESS_DEFAULT_FILTER_SESSION_KEY, None)
+            elif request.method == "POST" and session.get(ASSESS_DEFAULT_FILTER_SESSION_KEY) and saved_defaults:
+                return {key: values[:] for key, values in saved_defaults.items()}
+            return {}
+
+        if request.method == "GET" and is_htmx_request() and not set(params).intersection(ASSESS_DEFAULT_FILTER_KEYS):
+            session.pop(ASSESS_DEFAULT_FILTER_SESSION_KEY, None)
+            return params
+
+        return params
+
+    @classmethod
+    def _extract_assess_default_filters_from_request(cls) -> dict[str, Any]:
+        default_filters: dict[str, Any] = {}
+        for key in ASSESS_DEFAULT_FILTER_MULTI_KEYS:
+            values = [value for value in request.form.getlist(key) if value not in (None, "")]
+            if values:
+                default_filters[key] = values
+        for key in ASSESS_DEFAULT_FILTER_KEYS - ASSESS_DEFAULT_FILTER_MULTI_KEYS:
+            value = request.form.get(key, "")
+            if value not in ("", None):
+                default_filters[key] = value
+        return default_filters
+
+    @classmethod
+    def _build_assess_filters_url(cls, request_params: dict[str, list[str]]) -> str:
+        query_string = urlencode(request_params, doseq=True)
+        base_url = cls.get_base_route()
+        return f"{base_url}?{query_string}" if query_string else base_url
 
     @classmethod
     def default_share_story_link(cls) -> str:
@@ -271,6 +367,25 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
+    def save_default_filters(cls):
+        try:
+            default_filters = cls._extract_assess_default_filters_from_request()
+            response = CoreApi().update_user_profile({"assess_default_filters": default_filters})
+            if getattr(response, "ok", False):
+                session[ASSESS_DEFAULT_FILTER_SESSION_KEY] = bool(default_filters)
+                update_current_user_cache()
+                message = "Assess defaults saved." if default_filters else "Assess defaults cleared."
+                return render_template("notification/index.html", notification={"message": message}), 200
+
+            return make_response(cls.get_notification_from_response(response), getattr(response, "status_code", 500) or 500)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to save assess default filters.")
+            return render_template("notification/index.html", notification={"message": "Failed to save assess defaults.", "error": True}), 500
+
+    @classmethod
+    @auth_required()
     def submit_search_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
@@ -371,6 +486,7 @@ class StoryView(BaseView):
             parsed_url = urlparse(url)
             request_params = parse_qs(parsed_url.query)
 
+        request_params = cls._get_assess_request_params(request_params)
         paging_data = parse_paging_data(request_params)
         table, status = cls._render_story_list(paging_data, request_params)
         if notification:
@@ -379,7 +495,20 @@ class StoryView(BaseView):
 
     @classmethod
     def list_view(cls):
-        request_params = request.args.to_dict(flat=False)
+        raw_request_params = request.args.to_dict(flat=False)
+        if not is_htmx_request():
+            filtered_request_params = {
+                key: [value for value in values if value not in (None, "")] for key, values in raw_request_params.items()
+            }
+            has_reset = "reset" in filtered_request_params
+            filtered_request_params.pop("reset", None)
+            if not has_reset and not filtered_request_params:
+                saved_defaults = cls._get_saved_assess_default_filters()
+                if saved_defaults:
+                    session[ASSESS_DEFAULT_FILTER_SESSION_KEY] = True
+                    return redirect(cls._build_assess_filters_url(saved_defaults))
+
+        request_params = cls._get_assess_request_params(raw_request_params)
         paging_data = parse_paging_data(request_params)
         return cls._render_story_list(paging_data, request_params)
 
@@ -797,9 +926,6 @@ class StoryView(BaseView):
     def get(self, **kwargs) -> tuple[str, int]:
         object_id = kwargs.get("story_id")
         if object_id is None:
-            if request.args.get("reset"):
-                logger.debug("Droping cache & resitting filters")
-                return redirect(url_for("assess.assess"))  # type: ignore
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
