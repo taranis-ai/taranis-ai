@@ -166,6 +166,23 @@ class Story(BaseModel):
             return cls.last_change_for_source(source)
         return None
 
+    @classmethod
+    def _determine_actor_for_update(
+        cls,
+        *,
+        story: "Story",
+        user: User | None = None,
+        external: bool = False,
+        actor: str | None = None,
+    ) -> str | None:
+        if user is not None:
+            return cls.last_change_for_user(user)
+        if external and not cls._is_actor_change(actor):
+            return story.last_change if cls._is_actor_change(story.last_change) else "external"
+        if not cls._is_actor_change(actor) and cls._is_actor_change(story.last_change):
+            return story.last_change
+        return actor
+
     @staticmethod
     def _first_news_item_source(news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None) -> OSINTSource | None:
         if not news_items:
@@ -817,12 +834,7 @@ class Story(BaseModel):
         elif "relevance" in data:
             story.relevance_override = data["relevance"] or 0
 
-        if user is not None:
-            actor = cls.last_change_for_user(user)
-        elif external and not cls._is_actor_change(actor):
-            actor = story.last_change if cls._is_actor_change(story.last_change) else "external"
-        elif not cls._is_actor_change(actor) and cls._is_actor_change(story.last_change):
-            actor = story.last_change
+        actor = cls._determine_actor_for_update(story=story, user=user, external=external, actor=actor)
 
         if actor is not None:
             story.last_change = actor
