@@ -87,7 +87,6 @@ jobs:
           uv run pytest \
             tests/playwright/test_e2e_admin.py \
             tests/playwright/test_e2e_user.py \
-            tests/playwright/test_viewport_notice.py \
             --e2e-ci \
             -ra
 

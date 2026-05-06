@@ -1,4 +1,3 @@
-import os
 import re
 import time
 from collections.abc import Generator
@@ -28,12 +27,6 @@ def _allow_local_http_passthrough() -> None:
 @pytest.fixture(autouse=True)
 def allow_local_http_passthrough() -> None:
     _allow_local_http_passthrough()
-
-
-@pytest.fixture(autouse=True)
-def skip_when_running_against_external_stack() -> None:
-    if os.getenv("TARANIS_E2E_EXTERNAL_CORE_URL") or os.getenv("TARANIS_E2E_EXTERNAL_BASE_URL"):
-        pytest.skip("RQ docker-backed e2e suite is skipped when targeting an external deployment")
 
 
 def _wait_for_admin_login(core_url: str, timeout_seconds: int = 30, poll_interval: float = 0.5) -> None:
