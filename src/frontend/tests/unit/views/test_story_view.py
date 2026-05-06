@@ -227,7 +227,7 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert search_input.get("hx-trigger") is None
 
 
-def test_assess_uses_saved_defaults_on_initial_load(authenticated_client, auth_user, responses_mock):
+def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, auth_user, responses_mock):
     saved_user = auth_user.model_copy(deep=True)
     saved_user.profile.assess_default_filters = {
         "source": ["source-1"],
@@ -249,11 +249,23 @@ def test_assess_uses_saved_defaults_on_initial_load(authenticated_client, auth_u
         json={"items": [], "total_count": 0},
     )
 
-    response = authenticated_client.get(url_for("assess.assess"))
+    response = authenticated_client.get(url_for("assess.assess"), follow_redirects=False)
 
-    assert response.status_code == 200
+    assert response.status_code == 302
 
-    tree = html.fromstring(response.text)
+    location = urlparse(response.headers["Location"])
+    assert location.path == url_for("assess.assess")
+    assert parse_qs(location.query) == {
+        "source": ["source-1"],
+        "read": ["true"],
+        "sort": ["date_desc"],
+    }
+
+    followup = authenticated_client.get(url_for("assess.assess"), follow_redirects=True)
+
+    assert followup.status_code == 200
+
+    tree = html.fromstring(followup.text)
     read_select = tree.xpath('//select[@name="read"]')[0]
     source_select = tree.xpath('//select[@id="source-filter"]')[0]
     sort_select = tree.xpath('//select[@name="sort"]')[0]

@@ -4,7 +4,7 @@ from json import JSONDecodeError
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import Response, abort, flash, json, make_response, render_template, request, session, url_for
+from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from markupsafe import Markup, escape
@@ -214,6 +214,12 @@ class StoryView(BaseView):
             if value not in ("", None):
                 default_filters[key] = value
         return default_filters
+
+    @classmethod
+    def _build_assess_filters_url(cls, request_params: dict[str, list[str]]) -> str:
+        query_string = urlencode(request_params, doseq=True)
+        base_url = cls.get_base_route()
+        return f"{base_url}?{query_string}" if query_string else base_url
 
     @classmethod
     def default_share_story_link(cls) -> str:
@@ -490,7 +496,20 @@ class StoryView(BaseView):
 
     @classmethod
     def list_view(cls):
-        request_params = cls._get_assess_request_params()
+        raw_request_params = request.args.to_dict(flat=False)
+        if not is_htmx_request():
+            filtered_request_params = {
+                key: [value for value in values if value not in (None, "")] for key, values in raw_request_params.items()
+            }
+            has_reset = "reset" in filtered_request_params
+            filtered_request_params.pop("reset", None)
+            if not has_reset and not filtered_request_params:
+                saved_defaults = cls._get_saved_assess_default_filters()
+                if saved_defaults:
+                    session[ASSESS_DEFAULT_FILTER_SESSION_KEY] = True
+                    return redirect(cls._build_assess_filters_url(saved_defaults))
+
+        request_params = cls._get_assess_request_params(raw_request_params)
         paging_data = parse_paging_data(request_params)
         return cls._render_story_list(paging_data, request_params)
 
