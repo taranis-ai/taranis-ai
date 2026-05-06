@@ -8914,6 +8914,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/hotkey"
+        assess_default_filters:
+          type: object
+          additionalProperties: true
 
     permission:
       type: object
