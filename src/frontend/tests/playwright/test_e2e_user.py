@@ -5,8 +5,6 @@ import uuid
 from datetime import date
 
 import pytest
-import requests
-import responses
 from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Error, Page, expect
@@ -24,19 +22,6 @@ class TestEndToEndUser(BaseE2ETest):
     """End-to-end tests for the Taranis AI user interface."""
 
     @staticmethod
-    def dismiss_notifications(page: Page) -> None:
-        if page.is_closed():
-            return
-
-        notifications = page.locator("#notification-bar [role='alert']")
-        while notifications.count():
-            try:
-                notifications.first.click(timeout=500)
-                page.wait_for_timeout(100)
-            except Exception:
-                break
-
-    @staticmethod
     def _get_assess_story_counts(page: Page) -> tuple[int, int]:
         count_text = page.get_by_test_id("assess_story_count").inner_text()
         match = re.search(r"(\d+)\s*/\s*(\d+)", count_text)
@@ -50,20 +35,8 @@ class TestEndToEndUser(BaseE2ETest):
         assert match, f"Unable to parse assess story selection count from: {count_text!r}"
         return int(match.group(1))
 
-    @staticmethod
-    def _get_assess_story_total(run_core: str, access_token: str) -> int:
-        responses.add_passthru(re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"))
-        response = requests.get(
-            f"{run_core}/assess/stories",
-            headers={"Authorization": f"Bearer {access_token}"},
-            timeout=30,
-        )
-        response.raise_for_status()
-        return response.json()["counts"]["total_count"]
-
-    def test_login(self, taranis_frontend: Page, non_admin_auth_credentials):
+    def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
-        username, password = non_admin_auth_credentials
         page.context.clear_cookies()
         self.add_keystroke_overlay(page)
 
@@ -71,29 +44,24 @@ class TestEndToEndUser(BaseE2ETest):
         expect(page).to_have_title("Taranis AI", timeout=5000)
 
         self.highlight_element(page.get_by_placeholder("Username"))
-        page.get_by_placeholder("Username").fill(username)
+        page.get_by_placeholder("Username").fill("user")
         self.highlight_element(page.get_by_placeholder("Password"))
-        page.get_by_placeholder("Password").fill(password)
+        page.get_by_placeholder("Password").fill("test")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def test_user_dashboard(
-        self,
-        non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
-        stories_function_wrapper,
-        run_core,
-        access_token,
-    ):
+    def test_user_dashboard(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper):
         page = non_admin_logged_in_page
-        expected_total = self._get_assess_story_total(run_core, access_token)
 
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
-            expect(page.get_by_test_id("assess_story_count")).to_contain_text(f"20 / {expected_total}")
+            expect(page.get_by_test_id("assess_story_count")).to_be_visible()
+            visible_count, total_count = self._get_assess_story_counts(page)
+            assert total_count >= visible_count > 0
+            assert visible_count == min(ASSESS_STORY_PAGE_SIZE, total_count)
             page.get_by_role("link", name="Dashboard").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
@@ -121,31 +89,21 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_visible()
             page.get_by_role("checkbox", name="dashboard[show_charts]").check()
             page.get_by_role("button", name="Update Dashboard Settings").click()
-            dashboard = page.locator("#dashboard")
-            expect(dashboard).to_be_visible()
-            if dashboard.get_by_text("Trending Tags (last 7 days)").count():
-                expect(dashboard).to_contain_text("Trending Tags (last 7 days)")
-                expect(dashboard).to_contain_text("Location")
-                expect(dashboard).to_contain_text("Organization")
-                expect(dashboard).to_contain_text("Product")
-                expect(dashboard).to_contain_text("Person")
-            page.get_by_role("link", name="Edit Dashboard").click()
-            expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_checked()
-            expect(page.get_by_role("checkbox", name="dashboard[show_charts]")).to_be_checked()
-            page.get_by_role("link", name="Dashboard").click()
+            expect(page.locator("#dashboard")).to_contain_text("Trending Tags (last 7 days)")
+            expect(page.locator("#dashboard")).to_contain_text("Location")
+
+            expect(page.locator("#dashboard")).to_contain_text("Organization")
+            expect(page.locator("#dashboard")).to_contain_text("Product")
+            expect(page.locator("#dashboard")).to_contain_text("Person")
 
         def test_dashboard_entity_location_pagination(page: Page) -> None:
-            location_link = page.get_by_role("link", name="Location")
-            if location_link.count() == 0:
-                return
-            location_link.click()
-            cluster_table = page.get_by_test_id("cluster-table")
-            cluster_body = cluster_table.locator("tbody")
-            cluster_footer = cluster_table.locator("tfoot")
-            expect(page.locator("div").filter(has_text="plotly-logomark").nth(5)).to_be_visible()
-            expect(cluster_body).to_contain_text("USA")
-            expect(cluster_body).to_contain_text("6")
-            expect(cluster_footer).to_contain_text("Page 1 of 7")
+            page.get_by_role("link", name="Location").click()
+            expect(page.get_by_test_id("country-chart")).to_be_visible()
+            expect(page.locator("tbody")).to_contain_text("USA")
+            expect(page.locator("tbody")).to_contain_text("6")
+            expect(page.locator("tbody")).to_contain_text("Wärmestuben")
+            expect(page.locator("tbody")).to_contain_text("1")
+            expect(page.locator("tfoot")).to_contain_text("Page 1 of 7")
             page.get_by_text("›").click()
             expect(page.get_by_role("row", name="Page 2")).to_be_visible()
             page.get_by_text("›").click()
@@ -157,14 +115,16 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_text("›").click()
             expect(page.get_by_role("row", name="Page 6")).to_be_visible()
             page.get_by_text("›").click()
-            expect(cluster_footer).to_contain_text("Page 7 of 7")
+            expect(page.locator("tfoot")).to_contain_text("Page 7 of 7")
+            expect(page.locator("tbody")).to_contain_text("Airport")
             page.get_by_text("«").click()
-            expect(cluster_body).to_contain_text("USA")
+            expect(page.locator("tbody")).to_contain_text("USA")  # Wait for first page to load again
             page.get_by_role("combobox").click()
             page.get_by_role("combobox").select_option("5")
+            cluster_table = page.get_by_test_id("cluster-table")
             all_rows = cluster_table.locator("tbody tr")
             expect(all_rows).to_have_count(5)
-            expect(cluster_footer).to_contain_text("Page 1 of 26")
+            expect(page.locator("tfoot")).to_contain_text("Page 1 of 26")
 
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
@@ -185,16 +145,8 @@ class TestEndToEndUser(BaseE2ETest):
         assert page.get_by_role("link", name="Administration").count() == 0
         assert page.get_by_test_id("attribute-table").count() == 0
 
-    def test_user_profile(
-        self,
-        non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
-        non_admin_auth_credentials,
-        pre_seed_stories,
-    ):
+    def test_user_profile(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, pre_seed_stories):
         page = non_admin_logged_in_page
-        username, initial_password = non_admin_auth_credentials
-        updated_password = f"{initial_password}1"
 
         def go_to_user_profile():
             page.goto(url_for("user.settings", _external=True))
@@ -218,23 +170,23 @@ class TestEndToEndUser(BaseE2ETest):
 
         def change_password_fail():
             # Wrong current password
-            page.get_by_role("textbox", name="Current password").fill(f"{updated_password}-wrong")
-            page.get_by_role("textbox", name="New password", exact=True).fill(initial_password)
-            page.get_by_role("textbox", name="Confirm new password").fill(initial_password)
+            page.get_by_role("textbox", name="Current password").fill("wrong-password")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test")
+            page.get_by_role("textbox", name="Confirm new password").fill("test")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Old password is incorrect")
 
             # Mismatching new passwords
-            page.get_by_role("textbox", name="Current password").fill(initial_password)
-            page.get_by_role("textbox", name="New password", exact=True).fill(updated_password)
-            page.get_by_role("textbox", name="Confirm new password").fill(initial_password)
+            page.get_by_role("textbox", name="Current password").fill("test")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test1")
+            page.get_by_role("textbox", name="Confirm new password").fill("test")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("New password and confirm password do not match")
 
         def change_password():
-            page.get_by_role("textbox", name="Current password").fill(initial_password)
-            page.get_by_role("textbox", name="New password", exact=True).fill(updated_password)
-            page.get_by_role("textbox", name="Confirm new password").fill(updated_password)
+            page.get_by_role("textbox", name="Current password").fill("test")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test1")
+            page.get_by_role("textbox", name="Confirm new password").fill("test1")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
@@ -249,7 +201,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("checkbox", name="Compact view").uncheck()
 
             page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="User Settings")).to_be_visible()
+            expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="User Settings").click()
             page.get_by_role("checkbox", name="Infinite scroll Automatically").check()
@@ -258,29 +210,29 @@ class TestEndToEndUser(BaseE2ETest):
 
         def relog_in():
             page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="User Settings")).to_be_visible()
+            expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="Logout").click()
             expect(page.get_by_role("img", name="Taranis Logo")).to_be_visible()
 
-            page.get_by_role("textbox", name="Username").fill(username)
+            page.get_by_role("textbox", name="Username").fill("user")
             page.get_by_role("textbox", name="Username").press("Tab")
-            page.get_by_role("textbox", name="Password").fill(updated_password)
+            page.get_by_role("textbox", name="Password").fill("test1")
             page.get_by_test_id("login-button").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
         def change_password_back():
             page.get_by_role("list").get_by_role("button").click()
-            expect(page.get_by_role("link", name="User Settings")).to_be_visible()
+            expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="User Settings").click()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.locator(".collapse > input").check()
-            page.get_by_role("textbox", name="Current password").fill(updated_password)
-            page.get_by_role("textbox", name="New password", exact=True).fill(initial_password)
+            page.get_by_role("textbox", name="Current password").fill("test1")
+            page.get_by_role("textbox", name="New password", exact=True).fill("test")
             page.get_by_role("textbox", name="New password", exact=True).press("Tab")
-            page.get_by_role("textbox", name="Confirm new password").fill(initial_password)
+            page.get_by_role("textbox", name="Confirm new password").fill("test")
             page.get_by_role("button", name="Update password").click()
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 

@@ -28,7 +28,7 @@ from tests.playwright.fixtures.test_story_list_enriched import story_list_enrich
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
-FAST_CORE_COMPOSE_FILE = Path(__file__).parent / "docker-compose.e2e.yml"
+FRONTEND_E2E_COMPOSE_FILE = Path(__file__).parent / "compose.e2e.yml"
 LOCALHOST_PASSTHRU_PATTERN = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
 
 
@@ -108,7 +108,7 @@ def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_inter
 
 @pytest.fixture(scope="session")
 def docker_compose_file():
-    return str(FAST_CORE_COMPOSE_FILE)
+    return str(FRONTEND_E2E_COMPOSE_FILE)
 
 
 @pytest.fixture(scope="session")
@@ -373,14 +373,6 @@ def non_admin_logged_in_page(authenticated_page_factory):
     finally:
         _dismiss_notifications(page)
         page.close()
-
-
-@pytest.fixture
-def non_admin_auth_credentials():
-    if _external_core_api_url():
-        yield _external_basic_auth_credentials()
-        return
-    yield "user", "test"
 
 
 @pytest.fixture

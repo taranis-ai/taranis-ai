@@ -35,32 +35,6 @@ def remove_tz(date_time: str) -> str:
 class TestEndToEndAdmin(BaseE2ETest):
     """End-to-end tests for the Taranis AI admin interface."""
 
-    @staticmethod
-    def dismiss_notification_if_visible(page: Page):
-        if page.is_closed():
-            return
-
-        notifications = page.locator("#notification-bar [role='alert']")
-        while notifications.count():
-            try:
-                notifications.first.click(timeout=500)
-                page.wait_for_timeout(100)
-            except Exception:
-                break
-
-    @staticmethod
-    def get_table_row_by_link(table, page: Page, link_name: str, exact: bool = True):
-        return table.locator("tbody tr", has=page.get_by_role("link", name=link_name, exact=exact)).first
-
-    @classmethod
-    def delete_table_row_by_link(cls, table, page: Page, link_name: str, exact: bool = True):
-        row = cls.get_table_row_by_link(table, page, link_name, exact=exact)
-        expect(row).to_be_visible()
-        row.locator('[data-testid^="action-delete-"]').click()
-        expect(page.get_by_role("dialog", name="Are you sure you want to")).to_be_visible()
-        page.get_by_role("button", name="OK").click()
-        return row
-
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
         page.context.clear_cookies()
@@ -175,7 +149,6 @@ class TestEndToEndAdmin(BaseE2ETest):
             self.delete_item(page, "user-table", username)
 
         def import_export_users():
-            user_table = page.get_by_test_id("user-table")
             page.get_by_role("button", name="Import").click()
             page.get_by_role("button", name="Choose File").set_input_files(test_user)
             page.get_by_role("button", name="Submit").click()
@@ -187,14 +160,10 @@ class TestEndToEndAdmin(BaseE2ETest):
                 imported_user_list_correct = json.load(f)
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
-            assert sorted(imported_user_list_correct["data"], key=lambda item: item["username"]) == sorted(
-                downloaded_content["data"], key=lambda item: item["username"]
-            ), "Downloaded file content does not match uploaded file content"
-            jane_row = self.delete_table_row_by_link(user_table, page, "Jane Smith")
-            expect(jane_row).not_to_be_visible()
-            john_row = self.delete_table_row_by_link(user_table, page, "John Doe")
-            expect(john_row).not_to_be_visible()
-            self.dismiss_notification_if_visible(page)
+            assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
+            self.delete_item(page, "user-table", "Jane Smith")
+            self.delete_item(page, "user-table", "John Doe")
+            dismiss_notifications(page)
 
         load_user_list()
         add_user()
