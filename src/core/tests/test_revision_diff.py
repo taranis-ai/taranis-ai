@@ -17,6 +17,8 @@ def test_build_story_revision_diff_payload_formats_inline_and_collection_changes
                 "description": "First draft",
                 "summary": "Summary A",
                 "comments": "Comment A",
+                "likes": 1,
+                "dislikes": 0,
                 "tags": [{"name": "old-tag"}],
                 "news_items": [{"id": "news-1", "title": "Old news"}],
                 "attributes": [{"key": "TLP", "value": "clear"}],
@@ -34,6 +36,8 @@ def test_build_story_revision_diff_payload_formats_inline_and_collection_changes
                 "description": "First draft",
                 "summary": "Summary B",
                 "comments": "Comment A",
+                "likes": 3,
+                "dislikes": 1,
                 "tags": [{"name": "new-tag"}],
                 "news_items": [{"id": "news-2", "title": "New news"}],
                 "attributes": [{"key": "TLP", "value": "amber"}],
@@ -50,6 +54,8 @@ def test_build_story_revision_diff_payload_formats_inline_and_collection_changes
     assert title_change.old_segments
     assert any(change.field == "Tags Added" and change.new_value == "new-tag" for change in payload.changes)
     assert any(change.field == "News Items Added" and change.new_value == "New news" for change in payload.changes)
+    assert any(change.field == "Likes" and change.old_value == 1 and change.new_value == 3 for change in payload.changes)
+    assert any(change.field == "Dislikes" and change.old_value == 0 and change.new_value == 1 for change in payload.changes)
     assert any(change.field == "TLP" and change.old_value == "clear" and change.new_value == "amber" for change in payload.changes)
 
 
