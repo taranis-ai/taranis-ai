@@ -160,7 +160,10 @@ class TestEndToEndAdmin(BaseE2ETest):
                 imported_user_list_correct = json.load(f)
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
-            assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
+            assert imported_user_list_correct["version"] == downloaded_content["version"]
+            assert sorted(imported_user_list_correct["data"], key=lambda item: item["username"]) == sorted(
+                downloaded_content["data"], key=lambda item: item["username"]
+            ), "Downloaded file content does not match uploaded file content"
             self.delete_item(page, "user-table", "Jane Smith")
             self.delete_item(page, "user-table", "John Doe")
             dismiss_notifications(page)

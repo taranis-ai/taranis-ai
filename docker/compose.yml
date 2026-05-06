@@ -195,7 +195,7 @@ services:
       BOT_API_KEY: "${BOT_API_KEY}"
       REDIS_URL: "redis://redis:6379/0"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
-      WORKER_TYPES: '["Presenters", "Publishers", "Bots", "Connectors", "Misc"]'
+      WORKER_TYPES: '${WORKER_TYPES:-["Presenters", "Publishers", "Bots", "Connectors", "Misc"]}'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
       test: ["CMD", "taranis-worker-healthcheck", "--mode", "worker"]
