@@ -56,7 +56,33 @@
               <button type="submit" class="btn btn-outline">Create from file</button>
             </div>
           </form>
+
+          <form id="news-item-create-from-url-form"
+                class="card border border-base-200 bg-base-100 shadow-sm"
+                hx-post="{{ url_for('assess.create_news_item') }}"
+                hx-target="main"
+                hx-target-error="#notification-bar"
+                hx-swap="outerHTML">
+            <div class="card-body space-y-3">
+              <div class="space-y-1">
+                <h2 class="text-lg font-semibold">Create from URL</h2>
+                <p class="text-xs text-base-content/60">Fetch an article with the Simple Web Collector and create a news item.</p>
+              </div>
+              <label class="input w-full">
+                <span class="label-text font-semibold">URL <span class="text-error">*</span></span>
+                <input id="create-from-url" type="url" name="fetch_url" placeholder="https://example.com/story" class="input input-bordered w-full" required>
+              </label>
+              <div class="flex flex-col gap-2 sm:flex-row">
+                <button type="button" class="btn btn-outline sm:flex-1" onclick="document.getElementById('create_from_url_parameters_dialog').showModal()">
+                  Parameters
+                </button>
+                <button type="submit" class="btn btn-outline sm:flex-1">Create from URL</button>
+              </div>
+            </div>
+          </form>
         </div>
+
+        {% include "assess/news_item_create_url_parameters_dialog.html" %}
       {% endif %}
 
       <form id="news-item-form"
@@ -103,7 +129,7 @@
             <span class="label-text font-semibold">Link</span>
             <input type="url"
                    name="link"
-                   value="{{ news_item.link }}"
+                   value="{{ news_item.link or '' }}"
                    placeholder="https://example.com/story"
                    class="input input-bordered w-full"
                    {% if read_only %}readonly{% endif %}>

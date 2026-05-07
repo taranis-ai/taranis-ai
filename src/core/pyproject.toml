@@ -64,7 +64,7 @@ dev = [
     "pytest-flask",
     "pytest-docker",
     "fakeredis",
-    "schemathesis < 4",
+    "schemathesis >=4,<5",
     "build",
     "wheel",
     "setuptools_scm",

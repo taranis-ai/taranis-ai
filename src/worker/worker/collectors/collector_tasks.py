@@ -53,7 +53,7 @@ class Collector:
         raise ValueError(f"Source {source['id']} has no collector_type")
 
 
-def _finalize_successful_non_run(
+def _persist_and_return_result(
     job,
     core_api: CoreApi,
     result_message: str,
@@ -65,12 +65,21 @@ def _finalize_successful_non_run(
     if not job:
         return result_message
 
+    persisted_status = meta_status or "SUCCESS"
+
     if meta_status is not None:
         job.meta["status"] = meta_status
         job.meta["message"] = result_message
         job.save_meta()
 
-    core_api.save_task_result(job.id, "collector_task", result_message, "SUCCESS", worker_id=worker_id, worker_type=worker_type)
+    core_api.save_task_result(
+        job.id,
+        "collector_task",
+        result_message,
+        persisted_status,
+        worker_id=worker_id,
+        worker_type=worker_type,
+    )
     return result_message
 
 
@@ -95,15 +104,15 @@ def collector_task(osint_source_id: str, manual: bool = False):
     try:
         source = collector.get_source(osint_source_id)
     except LookupError as exc:
-        result_message = f"Skipped collector task: {exc}"
-        logger.warning(result_message)
-        return _finalize_successful_non_run(
+        result_message = f"Error: {exc}"
+        logger.error(result_message)
+        return _persist_and_return_result(
             job,
             core_api,
             result_message,
             worker_id=osint_source_id,
             worker_type="collector_task",
-            meta_status="SKIPPED",
+            meta_status="FAILURE",
         )
 
     collector_impl = collector.get_collector(source)
@@ -125,7 +134,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             result_message = f"No changes: {e}"
-            return _finalize_successful_non_run(
+            return _persist_and_return_result(
                 job,
                 core_api,
                 result_message,
@@ -193,10 +202,15 @@ def collector_preview(osint_source_id: str):
             preview_result = collector_impl.preview_collector(source)
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
-            return f"'{source.get('name')}': {str(e)}"
+            preview_result = []
         except Exception as e:
             logger.error(f"Collector preview task failed: {task_description}")
+            if job:
+                collector.core_api.save_task_result(job.id, "collector_preview", str(e), "FAILURE")
             raise RuntimeError(e) from e
+
+    if job:
+        collector.core_api.save_task_result(job.id, "collector_preview", preview_result, "PREVIEW")
 
     return preview_result
 
@@ -205,13 +219,14 @@ def fetch_single_news_item(parameters: dict[str, Any]):
     job = get_current_job()
     collector = worker.collectors.SimpleWebCollector()
     worker_type = "simple_web_collector"
-    worker_id = str(parameters.get("url") or (job.id if job else "preview"))
+    collector_parameters = parameters["parameters"]
+    web_url = collector_parameters.get("WEB_URL")
+    worker_id = str(web_url or (job.id if job else "preview"))
     formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {job.id if job else 'preview'}")
-    task_description = f"Fetching news item wtih {parameters=} and {job.id if job else 'preview'}"
+    task_description = f"Fetching news item with {parameters=} and {job.id if job else 'preview'}"
     logger.info(f"Starting collector task: {task_description}")
     core_api = CoreApi()
     result_message = None
-    task_status = "SUCCESS"
     with collector_log_fmt(logger, formatter):
         try:
             preview_result = collector.preview_collector(parameters)
@@ -229,7 +244,7 @@ def fetch_single_news_item(parameters: dict[str, Any]):
                     job.id,
                     "collector_task",
                     result_message,
-                    task_status,
+                    "NOT_MODIFIED",
                     worker_id=worker_id,
                     worker_type=worker_type,
                 )

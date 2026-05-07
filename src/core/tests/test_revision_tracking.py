@@ -146,6 +146,22 @@ def test_story_add_single_news_item_detects_duplicates_by_title_and_link():
 
 
 @pytest.mark.usefixtures("session")
+def test_story_from_dict_accepts_tag_mapping():
+    story_payload = {
+        "title": f"Story {uuid.uuid4()}",
+        "tags": {
+            "Example": {"name": "Example", "tag_type": "Organization"},
+        },
+        "news_items": [_news_item_payload(source="manual")],
+    }
+
+    story = Story.from_dict(story_payload)
+
+    assert len(story.tags) == 1
+    assert story.tags[0].name == "Example"
+
+
+@pytest.mark.usefixtures("session")
 def test_news_item_service_update_rejects_duplicate_title_and_link_hash(admin_user):
     first_story = _create_story()
     second_story = _create_story()
@@ -180,6 +196,34 @@ def test_news_item_attribute_update_creates_story_revisions():
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 2
     assert [revision.note for revision in revisions] == ["created", "update_news_item_attributes"]
+
+
+@pytest.mark.usefixtures("session")
+def test_delete_primary_news_item_promotes_story_title_to_remaining_item(admin_user):
+    first_item = _news_item_payload(source="manual")
+    first_item["title"] = "Primary title"
+    second_item = _news_item_payload(source="manual")
+    second_item["title"] = "Fallback title"
+
+    result, status = Story.add(
+        {
+            "title": "Primary title",
+            "description": "initial desc",
+            "news_items": [first_item, second_item],
+        }
+    )
+    assert status == 200
+
+    story = Story.get(result["story_id"])
+    assert story is not None
+
+    response, status = NewsItemService.delete(story.news_items[0].id, admin_user)
+
+    assert status == 200
+    assert response["story_id"] == story.id
+
+    db.session.refresh(story)
+    assert story.title == "Fallback title"
 
 
 @pytest.mark.usefixtures("session")

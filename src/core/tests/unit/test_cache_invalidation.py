@@ -65,3 +65,29 @@ def test_invalidate_scope_schedule_clears_scheduler_related_models(monkeypatch):
 
     assert deleted == 3
     assert set(service._client.scan_iter(match="*")) == {"taranis_frontend:user:alice:model:story:list:one"}
+
+
+def test_invalidate_scope_schedule_status_keeps_queue_runtime_models(monkeypatch):
+    monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_ENABLED", True)
+    monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_KEY_PREFIX", "taranis_frontend")
+    service = _build_service(
+        [
+            "taranis_frontend:user:alice:model:job:list:one",
+            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
+            "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
+            "taranis_frontend:user:alice:model:active_job:list:one",
+            "taranis_frontend:user:alice:model:failed_job:list:one",
+            "taranis_frontend:user:alice:model:queue_status:list:one",
+            "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
+        ]
+    )
+
+    deleted = service.invalidate_scope("schedule_status")
+
+    assert deleted == 3
+    assert set(service._client.scan_iter(match="*")) == {
+        "taranis_frontend:user:alice:model:active_job:list:one",
+        "taranis_frontend:user:alice:model:failed_job:list:one",
+        "taranis_frontend:user:alice:model:queue_status:list:one",
+        "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
+    }

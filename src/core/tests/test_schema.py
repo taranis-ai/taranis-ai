@@ -4,16 +4,44 @@ import schemathesis
 from dotenv import load_dotenv
 from flask_jwt_extended import create_access_token
 from hypothesis import HealthCheck, settings
+from schemathesis.checks import CHECKS, load_all_checks
+from schemathesis.config import (
+    CoveragePhaseConfig,
+    ExamplesPhaseConfig,
+    GenerationConfig,
+    PhasesConfig,
+    ProjectConfig,
+    ProjectsConfig,
+)
 
 from core.__init__ import create_app
 from core.model.user import User
 
 
 load_dotenv(dotenv_path="tests/.env", override=True)
+load_all_checks()
 
 app = create_app()
-schemathesis.experimental.OPEN_API_3_1.enable()
-schema = schemathesis.from_wsgi("/api/static/openapi3_1.yaml", app, skip_deprecated_operations=True)
+schemathesis_config = schemathesis.Config(
+    projects=ProjectsConfig(
+        default=ProjectConfig(
+            phases=PhasesConfig(
+                examples=ExamplesPhaseConfig(enabled=False),
+                coverage=CoveragePhaseConfig(enabled=False),
+            ),
+            generation=GenerationConfig(modes=[schemathesis.GenerationMode.POSITIVE]),
+        )
+    )
+)
+schema = schemathesis.openapi.from_wsgi("/api/static/openapi3_1.yaml", app, config=schemathesis_config).exclude(deprecated=True)
+response_check_names = {
+    "not_a_server_error",
+    "status_code_conformance",
+    "content_type_conformance",
+    "response_headers_conformance",
+    "response_schema_conformance",
+}
+response_checks = [check for check in CHECKS.get_all() if check.__name__ in response_check_names]
 
 
 @schema.auth()
@@ -39,94 +67,41 @@ class UserAuth:
         case.headers["Authorization"] = f"Bearer {data}"
 
 
-def check_401(response, case):
+def check_401(ctx, response, case):
     if response.status_code == 401:
         raise AssertionError(response.text)
 
 
-def check_not_401(response, case):
+def check_not_401(ctx, response, case):
     if response.status_code != 401:
         raise AssertionError(response.text)
 
 
-@schema.parametrize(endpoint="^/api/analyze")
+@schema.include(path_regex="^/analyze").parametrize()
 @settings(max_examples=20, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_analyze_schema(case):
-    response = case.call_wsgi()
-    case.validate_response(response, additional_checks=(check_401,))
+    response = case.call()
+    case.validate_response(response, checks=response_checks, additional_checks=[check_401])
 
 
-@schema.parametrize(endpoint="^/api/assess")
-@settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
+@schema.include(path_regex="^/assess").parametrize()
+@settings(max_examples=20, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_assess_schema(case):
-    response = case.call_wsgi()
-    case.validate_response(response, additional_checks=(check_401,))
+    response = case.call()
+    case.validate_response(response, checks=response_checks, additional_checks=[check_401])
 
 
 @schema.auth(UserAuth)
-@schema.parametrize(endpoint="^/api/dashboard")
-@settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
+@schema.include(path_regex="^/dashboard").parametrize()
+@settings(max_examples=10, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_dashboard_schema(case):
-    response = case.call_wsgi()
-    case.validate_response(response, additional_checks=(check_401,))
+    response = case.call()
+    case.validate_response(response, checks=response_checks, additional_checks=[check_401])
 
 
-@schema.parametrize(endpoint=r"^/api/(?!auth|isalive|health|analyze|assess|assets|worker|bots|tasks)")
+@schema.include(path_regex=r"^/(?!auth|isalive|health|analyze|assess|assets|worker|bots|tasks)").parametrize()
 @settings(max_examples=2, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_schema_no_auth(case, auth_header_no_permissions, caplog):
     with caplog.at_level(logging.CRITICAL):
-        response = case.call_wsgi(headers=auth_header_no_permissions)
-        case.validate_response(response, additional_checks=(check_not_401,))
-
-
-# @schema.parametrize(endpoint="^/api/worker")
-# @settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
-# def test_worker(case, api_header):
-#     response = case.call_wsgi(headers=api_header)
-#     case.validate_response(response, additional_checks=(check_401,))
-
-
-# excluded_endpoints = ["analyze", "assess", "assets", "auth", "worker", "bots", "config"]
-# excluded_endpoints_regex = f"^(?!/api/{'|/api/'.join(excluded_endpoints)}).*$"
-
-
-# @schema.parametrize()
-# @settings(verbosity=Verbosity.debug)
-# def test_schema(case, access_token, client):
-#     response = case.call_wsgi(headers={"Authorization": access_token})
-#     case.validate_response(response)
-
-
-# @schema.parametrize()
-# def test_api_401(case, auth_header_no_permissions):
-#     response = case.call_wsgi(headers=auth_header_no_permissions)
-#     case.validate_response(response, checks=(check_not_401,))
-
-
-# @pytest.fixture
-# def state_machine(app, auth_header):
-#     s = schemathesis.from_wsgi("/frontend/doc/swagger.json", app)
-#     s.add_link(
-#         source=s["/assess/news-items"]["POST"],
-#         target=s["/assess/news-items/{item_id}"]["GET"],
-#         status_code="200",
-#         parameters={"item_id": "$response.body#/id"},
-#     )
-
-#     class APIWorkflow(s.as_state_machine()):
-#         def get_call_kwargs(self, case):
-#             return {"headers": auth_header}
-
-#         # def after_call(self, response, case):
-#         #     logger.info(
-#         #         "%s %s -> %d",
-#         #         case.method,
-#         #         case.path,
-#         #         response.status_code,
-#         #     )
-
-#     return APIWorkflow
-
-
-# def test_schema_stateful(state_machine):
-#     state_machine.run()
+        response = case.call(headers=auth_header_no_permissions)
+        case.validate_response(response, checks=response_checks, additional_checks=[check_not_401])

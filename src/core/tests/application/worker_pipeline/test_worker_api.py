@@ -460,6 +460,174 @@ class TestWorkerTaskResults:
                 if Task.get(task_id):
                     Task.delete(task_id)
 
+    @pytest.mark.parametrize(
+        ("status", "result_message"),
+        [
+            ("NOT_MODIFIED", "No changes: feed was not modified"),
+            ("FAILURE", "Error: feed retrieval failed"),
+        ],
+    )
+    def test_collector_non_success_result_invalidates_only_osint_source_cache(
+        self,
+        client,
+        api_header,
+        app,
+        monkeypatch,
+        status,
+        result_message,
+    ):
+        import fakeredis
+
+        from core.model.task import Task
+        from core.service import cache_invalidation as cache_invalidation_module
+
+        source_id = f"source-{uuid.uuid4().hex}"
+        task_id = f"collect_rss_collector_{source_id}"
+        redis_client = fakeredis.FakeRedis(decode_responses=True)
+        cached_keys = {
+            "taranis_frontend:user:alice:model:osint_source:list:default",
+            f"taranis_frontend:user:alice:model:osint_source:detail:{source_id}",
+            "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+            f"taranis_frontend:user:alice:model:task:detail:{task_id}",
+            "taranis_frontend:user:alice:model:job:list:default",
+            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
+            "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
+            "taranis_frontend:user:alice:model:active_job:list:default",
+            "taranis_frontend:user:alice:model:failed_job:list:default",
+            "taranis_frontend:user:alice:model:queue_status:list:default",
+            "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
+            "taranis_frontend:user:alice:model:story:list:default",
+        }
+        for key in cached_keys:
+            redis_client.set(key, "1")
+
+        service = cache_invalidation_module.FrontendCacheInvalidationService()
+        service._client = redis_client
+        monkeypatch.setattr(cache_invalidation_module, "cache_invalidation_service", service)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_ENABLED", True)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_KEY_PREFIX", "taranis_frontend")
+
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "rss_collector",
+            "result": result_message,
+            "status": status,
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            assert response.get_json()["status"] == status
+            assert set(redis_client.scan_iter(match="*")) == {
+                "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+                f"taranis_frontend:user:alice:model:task:detail:{task_id}",
+                "taranis_frontend:user:alice:model:job:list:default",
+                "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
+                "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
+                "taranis_frontend:user:alice:model:active_job:list:default",
+                "taranis_frontend:user:alice:model:failed_job:list:default",
+                "taranis_frontend:user:alice:model:queue_status:list:default",
+                "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
+                "taranis_frontend:user:alice:model:story:list:default",
+            }
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_collector_success_result_restores_full_cache_invalidation(self, client, api_header, app, monkeypatch):
+        import fakeredis
+
+        from core.model.task import Task
+        from core.service import cache_invalidation as cache_invalidation_module
+
+        source_id = f"source-{uuid.uuid4().hex}"
+        task_id = f"collect_rss_collector_{source_id}"
+        redis_client = fakeredis.FakeRedis(decode_responses=True)
+        cached_keys = {
+            "taranis_frontend:user:alice:model:osint_source:list:default",
+            f"taranis_frontend:user:alice:model:osint_source:detail:{source_id}",
+            "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+            f"taranis_frontend:user:alice:model:task:detail:{task_id}",
+            "taranis_frontend:user:alice:model:job:list:default",
+            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
+            "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
+            "taranis_frontend:user:alice:model:active_job:list:default",
+            "taranis_frontend:user:alice:model:failed_job:list:default",
+            "taranis_frontend:user:alice:model:queue_status:list:default",
+            "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
+            "taranis_frontend:user:alice:model:story:list:default",
+        }
+        for key in cached_keys:
+            redis_client.set(key, "1")
+
+        service = cache_invalidation_module.FrontendCacheInvalidationService()
+        service._client = redis_client
+        monkeypatch.setattr(cache_invalidation_module, "cache_invalidation_service", service)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_ENABLED", True)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_KEY_PREFIX", "taranis_frontend")
+
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "rss_collector",
+            "result": "Collected 3 new items",
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            assert response.get_json()["status"] == "SUCCESS"
+            assert set(redis_client.scan_iter(match="*")) == set()
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_collector_not_modified_updates_last_success_and_task_statistics(self, client, api_header, app):
+        from core.model.task import Task
+
+        source_id = f"source-{uuid.uuid4().hex}"
+        task_id = f"collect_rss_collector_{source_id}"
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "rss_collector",
+            "result": "No changes: feed was not modified",
+            "status": "NOT_MODIFIED",
+        }
+
+        try:
+            response = client.post(self.base_uri.replace("/worker", "/tasks"), json=payload, headers=api_header)
+            assert response.status_code == 200
+
+            with app.app_context():
+                stored = Task.get(task_id)
+                assert stored is not None
+                assert stored.status == "NOT_MODIFIED"
+                assert stored.last_run is not None
+                assert stored.last_success is not None
+
+            history_response = client.get("/api/tasks", headers=api_header)
+            assert history_response.status_code == 200
+
+            history = history_response.get_json()
+            collector_stats = history["task_stats"]["rss_collector"]
+            assert collector_stats["successes"] >= 1
+            assert collector_stats["total"] >= collector_stats["successes"]
+            assert history["totals"]["successes"] >= 1
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
     def test_tasks_get_allows_jwt_auth(self, client, auth_header):
         response = client.get(self.base_uri, headers=auth_header)
         assert response.status_code == 200

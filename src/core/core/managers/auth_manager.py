@@ -164,8 +164,11 @@ def api_key_or_auth_required(permissions: list | str | None = None):
                 g.authenticated_user = None
                 return fn(*args, **kwargs)
 
-            if auth_error := _jwt_authorize(permissions_set):
+            elif auth_error := _jwt_authorize(permissions_set):
                 return auth_error
+            else:
+                # log that second auth method succeeded after first failed
+                logger.info("Authenticated with JWT after failed API key attempt")
 
             return fn(*args, **kwargs)
 

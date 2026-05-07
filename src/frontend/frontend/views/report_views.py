@@ -4,6 +4,7 @@ from flask import Response, abort, make_response, render_template, request, url_
 from flask.typing import ResponseReturnValue
 from models.assess import Story
 from models.report import ReportItem, ReportItemAttributeGroup, ReportTypes
+from models.revision_diff import build_report_revision_diff_payload
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 
@@ -156,6 +157,7 @@ class ReportItemView(BaseView):
                 "class": "btn-error",
                 "method": "delete",
                 "url": url_for(cls.edit_route, report_id=""),
+                "hx_target_error": "#notification-bar",
                 "hx_target": f"#{cls.model_name()}-table-container",
                 "hx_swap": "outerHTML",
                 "type": "button",
@@ -211,16 +213,6 @@ class ReportItemView(BaseView):
         flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
         return flask_response
 
-    @classmethod
-    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
-        core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
-
-        response = cls.get_notification_from_response(core_response)
-        table, table_response = cls.render_list()
-        if table_response == 200:
-            response += table
-        return response, core_response.status_code or table_response
-
     @staticmethod
     def _parse_form_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
         return {key: ",".join(id for id in value if id) if isinstance(value, list) else value for key, value in attributes.items()}
@@ -272,139 +264,20 @@ class ReportItemView(BaseView):
         if not report_id:
             return abort(400, description="No report ID provided.")
 
-        # Get report data
-        report = DataPersistenceLayer().get_object(ReportItem, report_id)
-        if not report:
-            return abort(404, description="Report not found.")
-
-        # Get revision data from core API
-        from_data = CoreApi().api_get(f"/analyze/report-items/{report_id}/revisions/{from_rev}")
-        to_data = CoreApi().api_get(f"/analyze/report-items/{report_id}/revisions/{to_rev}")
-
-        if not from_data or not to_data:
+        core_api = CoreApi()
+        from_revision = core_api.api_get(f"/analyze/report-items/{report_id}/revisions/{from_rev}")
+        to_revision = core_api.api_get(f"/analyze/report-items/{report_id}/revisions/{to_rev}")
+        if not from_revision or not to_revision:
             return abort(404, description="Revision not found.")
 
-        # Calculate diff
-        from_revision_data = from_data.get("data", {})
-        to_revision_data = to_data.get("data", {})
-
-        # Prepare diff data
-        diff_data = {
-            "from_revision": from_data,
-            "to_revision": to_data,
-            "changes": _calculate_diff(from_revision_data, to_revision_data),
-        }
+        report_title = to_revision.get("data", {}).get("title") or from_revision.get("data", {}).get("title")
+        diff = build_report_revision_diff_payload(report_id, report_title, from_revision, to_revision)
 
         context = {
-            "report": report,
-            "diff": diff_data,
+            "diff": diff,
             "from_rev": from_rev,
             "to_rev": to_rev,
+            "report_id": report_id,
         }
 
         return render_template("analyze/report_diff.html", **context), 200
-
-
-# TODO: Enhance diff calculation to handle more complex attribute types and nested structures, and to provide better formatting of changes in the UI.
-def _calculate_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
-    """Calculate differences between two report data dictionaries"""
-    changes = []
-
-    # Compare title
-    if from_data.get("title") != to_data.get("title"):
-        changes.append(
-            {
-                "field": "Title",
-                "old_value": from_data.get("title"),
-                "new_value": to_data.get("title"),
-            }
-        )
-
-    # Compare completed status
-    if from_data.get("completed") != to_data.get("completed"):
-        changes.append(
-            {
-                "field": "Completed",
-                "old_value": from_data.get("completed"),
-                "new_value": to_data.get("completed"),
-            }
-        )
-
-    # Build story ID to title mapping for resolving STORY attribute values
-    story_map = {}
-    for story in from_data.get("stories", []) + to_data.get("stories", []):
-        if story.get("id"):
-            story_map[story["id"]] = story.get("title", story["id"])
-
-    # Compare attributes
-    from_attrs = from_data.get("grouped_attributes", [])
-    to_attrs = to_data.get("grouped_attributes", [])
-
-    # Create flattened attribute dictionaries for comparison, with type info
-    from_attr_dict = {}
-    from_attr_types = {}
-    for group in from_attrs:
-        for attr in group.get("attributes", []):
-            key = f"{group.get('title', '')}.{attr.get('title', '')}"
-            from_attr_dict[key] = attr.get("value")
-            from_attr_types[key] = attr.get("type")
-
-    to_attr_dict = {}
-    to_attr_types = {}
-    for group in to_attrs:
-        for attr in group.get("attributes", []):
-            key = f"{group.get('title', '')}.{attr.get('title', '')}"
-            to_attr_dict[key] = attr.get("value")
-            to_attr_types[key] = attr.get("type")
-
-    # Find changed and new attributes
-    for key in sorted(set(from_attr_dict.keys()) | set(to_attr_dict.keys())):
-        from_val = from_attr_dict.get(key)
-        to_val = to_attr_dict.get(key)
-
-        if from_val != to_val:
-            # Resolve STORY attribute values to titles
-            attr_type = from_attr_types.get(key) or to_attr_types.get(key)
-            if attr_type == "STORY":
-                from_display = story_map.get(from_val, from_val) if from_val else None
-                to_display = story_map.get(to_val, to_val) if to_val else None
-            else:
-                from_display = from_val
-                to_display = to_val
-
-            changes.append(
-                {
-                    "field": key,
-                    "old_value": from_display,
-                    "new_value": to_display,
-                }
-            )
-
-    # Compare stories
-    from_story_ids = {s.get("id") for s in from_data.get("stories", [])}
-    to_story_ids = {s.get("id") for s in to_data.get("stories", [])}
-
-    added_stories = to_story_ids - from_story_ids
-    removed_stories = from_story_ids - to_story_ids
-
-    if added_stories:
-        story_titles = [s.get("title", s.get("id")) for s in to_data.get("stories", []) if s.get("id") in added_stories]
-        changes.append(
-            {
-                "field": "Stories Added",
-                "old_value": None,
-                "new_value": ", ".join(story_titles),
-            }
-        )
-
-    if removed_stories:
-        story_titles = [s.get("title", s.get("id")) for s in from_data.get("stories", []) if s.get("id") in removed_stories]
-        changes.append(
-            {
-                "field": "Stories Removed",
-                "old_value": ", ".join(story_titles),
-                "new_value": None,
-            }
-        )
-
-    return changes

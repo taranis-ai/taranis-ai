@@ -25,6 +25,115 @@ def test_report_view_renders_access_denied_page_when_core_returns_403(app, authe
     assert "403 - Access denied" in html
 
 
+def test_report_diff_view_renders_compare_payload(app, authenticated_client_basic, responses_mock):
+    report_id = "report-1"
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/1",
+        json={
+            "id": 1,
+            "revision": 1,
+            "created_at": "2026-03-12T10:00:00",
+            "created_by": "alice",
+            "created_by_id": 1,
+            "note": "created",
+            "data": {
+                "title": "Report Draft",
+                "completed": False,
+                "stories": [{"id": "story-1", "title": "Story One"}],
+                "grouped_attributes": [
+                    {
+                        "title": "Summary",
+                        "attributes": [{"title": "Threat", "type": "STORY", "value": "story-1"}],
+                    }
+                ],
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/2",
+        json={
+            "id": 2,
+            "revision": 2,
+            "created_at": "2026-03-12T11:00:00",
+            "created_by": "bob",
+            "created_by_id": 2,
+            "note": "update",
+            "data": {
+                "title": "Report Final",
+                "completed": True,
+                "stories": [{"id": "story-2", "title": "Story Two"}],
+                "grouped_attributes": [
+                    {
+                        "title": "Summary",
+                        "attributes": [{"title": "Threat", "type": "STORY", "value": "story-2"}],
+                    }
+                ],
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
+
+    with app.test_request_context():
+        response = authenticated_client_basic.get(url_for("analyze.report_diff", report_id=report_id, from_rev=1, to_rev=2))
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Changes:" in html
+    assert "Report Final" in html
+    assert "Summary" in html
+    assert "bg-success/20 text-success" in html
+    assert "bg-error/20 text-error" in html
+
+
+def test_report_diff_view_shows_no_changes_state(app, authenticated_client_basic, responses_mock):
+    report_id = "report-1"
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/1",
+        json={
+            "id": 1,
+            "revision": 1,
+            "created_at": "2026-03-12T10:00:00",
+            "created_by": "alice",
+            "created_by_id": 1,
+            "note": "created",
+            "data": {"title": "Report title", "completed": False, "stories": [], "grouped_attributes": []},
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/2",
+        json={
+            "id": 2,
+            "revision": 2,
+            "created_at": "2026-03-12T11:00:00",
+            "created_by": "bob",
+            "created_by_id": 2,
+            "note": "update",
+            "data": {"title": "Report title", "completed": False, "stories": [], "grouped_attributes": []},
+        },
+        status=200,
+        content_type="application/json",
+    )
+
+    with app.test_request_context():
+        response = authenticated_client_basic.get(url_for("analyze.report_diff", report_id=report_id, from_rev=1, to_rev=2))
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "No changes detected between these revisions." in html
+
+
+def test_report_delete_actions_target_notification_bar_on_error(app):
+    with app.test_request_context():
+        delete_action = next(action for action in ReportItemView.get_report_actions() if action["label"] == "Delete")
+
+    assert delete_action["hx_target_error"] == "#notification-bar"
+
+
 def test_story_view_renders_access_denied_page_when_core_returns_403(app, authenticated_client_basic, responses_mock):
     story_id = "12676a74-0850-4eef-971b-a4efd9d526e6"
     responses_mock.get(

@@ -291,6 +291,7 @@ class BaseView(MethodView):
                 "class": "btn-error",
                 "method": "delete",
                 "url": cls.get_base_route(),
+                "hx_target_error": "#notification-bar",
                 "hx_target": f"#{cls.model_name()}-table-container",
                 "hx_swap": "outerHTML",
                 "type": "button",
@@ -472,6 +473,9 @@ class BaseView(MethodView):
         core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
 
         response = cls.get_notification_from_response(core_response)
+        if not core_response.ok:
+            return response, core_response.status_code or 500
+
         table, table_response = cls.render_list()
         if table_response == 200:
             response += table
@@ -481,15 +485,17 @@ class BaseView(MethodView):
     def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
         results = []
         results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
-        response, status_code = cls.render_list()
-        if all(r.ok for r in results):
-            response += render_template(
-                "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
+        if not all(r.ok for r in results):
+            return (
+                render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True}),
+                500,
             )
-            return response, status_code
 
-        response += render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True})
-        return response, 500
+        response, status_code = cls.render_list()
+        response += render_template(
+            "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
+        )
+        return response, status_code
 
     @classmethod
     def _get_object_key(cls) -> str:

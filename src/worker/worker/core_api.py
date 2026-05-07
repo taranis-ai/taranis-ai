@@ -1,7 +1,7 @@
 from typing import Any
 from urllib.parse import urlencode
 
-import requests
+import niquests as requests
 from models.product import WorkerProduct as Product
 from models.task import TaskSubmission
 from pydantic import ValidationError

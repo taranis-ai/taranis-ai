@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import pytest
 from flask import render_template
 from models.admin import OSINTSource
+from models.task import Task
 from models.types import COLLECTOR_TYPES
 
 from frontend.cache import add_user_to_cache, cache
@@ -289,6 +290,23 @@ class TestSourceView:
         processed_data = mock_store.call_args.args[0]
         assert processed_data["icon"] == ""
 
+    def test_osint_source_preview_shows_failure_and_retrigger_action(self, app):
+        task_result = Task(id="source_preview_42", status="FAILURE", result="Connection refused")
+
+        with app.test_request_context("/"):
+            rendered = render_template(
+                "osint_source/osint_source_preview.html",
+                task_result=task_result,
+                osint_source_id="42",
+            )
+
+        assert "OSINT source preview failed." in rendered
+        assert "Connection refused" in rendered
+        assert "hx-post=" in rendered
+        assert "source_preview/42" in rendered
+        assert 'hx-target="#source_preview"' in rendered
+        assert "Retrigger preview" in rendered
+
 
 def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
     with app.test_request_context(
@@ -350,6 +368,10 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
     assert 'value="3"' in html
     assert 'aria-label="3 stars"' in html
     assert "News items in database: 7" in html
+    assert "source_preview/source-with-icon" in html
+    assert "source_collect/source-with-icon" in html
+    assert "Preview" in html
+    assert "Collect" in html
     assert "checked" in html
 
 
@@ -387,6 +409,8 @@ def test_osint_source_form_disables_rank_for_manual_source(app):
     assert "News items in database: 13" in html
     assert html.count('name="rank"') == 7
     assert html.count("disabled") >= 6
+    assert "source_preview/manual" not in html
+    assert "source_collect/manual" not in html
 
 
 def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, responses_mock, monkeypatch):
