@@ -112,6 +112,20 @@ class Story(BaseModel):
         return f"user_{user.username}_{user.id}"
 
     @classmethod
+    def user_for_actor(cls, actor: str | None) -> User | None:
+        if not isinstance(actor, str) or not actor.startswith("user_"):
+            return None
+
+        _, _, user_id = actor.rpartition("_")
+        if not user_id.isdigit():
+            return None
+
+        if not (user := User.get(int(user_id))):
+            return None
+
+        return user if cls.last_change_for_user(user) == actor else None
+
+    @classmethod
     def last_change_for_connector(cls, connector_id: str | None) -> str | None:
         if not connector_id:
             return None
@@ -1049,27 +1063,29 @@ class Story(BaseModel):
     def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
         return list(NewsItemTag.parse_tags(incoming_tags).values())
 
-    def set_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
+    def set_tags(self, incoming_tags: list | dict, *, actor: str | None = None) -> tuple[dict, int]:
         try:
-            return self._update_tags(incoming_tags, change_by_bot=change_by_bot)
+            return self._update_tags(incoming_tags, actor=actor)
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
             return {"error": str(e)}, 500
 
-    def _update_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
+    def _update_tags(self, incoming_tags: list | dict, *, actor: str | None = None) -> tuple[dict, int]:
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400
 
-        if change_by_bot:
-            self.patch_tags(parsed_tags)
-        else:
-            tags_to_remove = self.get_tags_to_remove(parsed_tags)
-            self.patch_tags(parsed_tags)
-            self.remove_tags(tags_to_remove)
+        tags_to_remove = self.get_tags_to_remove(parsed_tags)
+        self.patch_tags(parsed_tags)
+        self.remove_tags(tags_to_remove)
 
-        self.record_revision(note="set_tags")
+        if actor is not None:
+            self.update_status(change=actor)
+        else:
+            self.update_status()
+
+        self.record_revision(self.user_for_actor(actor), note="set_tags")
         db.session.commit()
         return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
 
