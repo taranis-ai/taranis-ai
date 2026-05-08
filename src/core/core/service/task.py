@@ -56,6 +56,8 @@ class TaskService:
 
         result, _ = TaskModel.add_or_update(payload)
         task_kind = cls._resolve_task_kind(submission.id, submission.task)
+        if submission.status in TaskModel.FAILURE_STATUSES:
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
         if submission.status == "SUCCESS" and submission.result is not None:
             cls._handle_success_result(submission)
         elif task_kind == "collector_task":

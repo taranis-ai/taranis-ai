@@ -3,6 +3,7 @@ from typing import Any
 from flask import abort, render_template, request
 from flask.typing import ResponseReturnValue
 from models.product import Product, ProductType, PublisherPreset
+from models.report import ReportItem
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
@@ -52,6 +53,24 @@ class ProductView(BaseView):
             if is_edit:
                 base_context["submit_text"] = f"Update {cls.pretty_name()} - {product.title}"
             base_context["is_edit"] = is_edit
+
+            selected_report_items = [
+                str(report_item_id) for report_item_id in (getattr(product, "report_items", None) or []) if report_item_id
+            ]
+            supported_reports = list(getattr(product, "supported_reports", None) or [])
+
+            if report_id := request.args.get("report_id"):
+                report = DataPersistenceLayer().get_object(ReportItem, report_id)
+                if report:
+                    if report.id and report.id not in selected_report_items:
+                        selected_report_items.append(report.id)
+
+                    report_payload = report.model_dump(mode="json")
+                    if report.id and not any(str(item.get("id")) == str(report.id) for item in supported_reports if isinstance(item, dict)):
+                        supported_reports.append(report_payload)
+
+            base_context["selected_report_items"] = selected_report_items
+            base_context["supported_reports"] = supported_reports
 
         return base_context
 

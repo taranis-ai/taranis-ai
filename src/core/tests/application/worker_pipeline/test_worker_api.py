@@ -461,10 +461,10 @@ class TestWorkerTaskResults:
                     Task.delete(task_id)
 
     @pytest.mark.parametrize(
-        ("status", "result_message"),
+        ("status", "result_message", "keeps_admin_badges_cache"),
         [
-            ("NOT_MODIFIED", "No changes: feed was not modified"),
-            ("FAILURE", "Error: feed retrieval failed"),
+            ("NOT_MODIFIED", "No changes: feed was not modified", True),
+            ("FAILURE", "Error: feed retrieval failed", False),
         ],
     )
     def test_collector_non_success_result_invalidates_only_osint_source_cache(
@@ -475,6 +475,7 @@ class TestWorkerTaskResults:
         monkeypatch,
         status,
         result_message,
+        keeps_admin_badges_cache,
     ):
         import fakeredis
 
@@ -492,6 +493,7 @@ class TestWorkerTaskResults:
             "taranis_frontend:user:alice:model:job:list:default",
             "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
             "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
+            "taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton",
             "taranis_frontend:user:alice:model:active_job:list:default",
             "taranis_frontend:user:alice:model:failed_job:list:default",
             "taranis_frontend:user:alice:model:queue_status:list:default",
@@ -521,7 +523,7 @@ class TestWorkerTaskResults:
 
             assert response.status_code == 200
             assert response.get_json()["status"] == status
-            assert set(redis_client.scan_iter(match="*")) == {
+            expected_keys = {
                 "taranis_frontend:user:alice:model:osint_source:detail:other-source",
                 f"taranis_frontend:user:alice:model:task:detail:{task_id}",
                 "taranis_frontend:user:alice:model:job:list:default",
@@ -533,6 +535,9 @@ class TestWorkerTaskResults:
                 "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
                 "taranis_frontend:user:alice:model:story:list:default",
             }
+            if keeps_admin_badges_cache:
+                expected_keys.add("taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton")
+            assert set(redis_client.scan_iter(match="*")) == expected_keys
         finally:
             with app.app_context():
                 if Task.get(task_id):

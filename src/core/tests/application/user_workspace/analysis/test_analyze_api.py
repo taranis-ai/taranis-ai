@@ -143,6 +143,125 @@ class TestAnalyzeApi(BaseTest):
                     if ReportItem.get(report_id):
                         ReportItem.delete(report_id)
 
+    def test_get_reports_filters_by_report_item_type_id(self, client, auth_header, app):
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+
+        unique_suffix = uuid4().hex
+        created_report_ids: list[str] = []
+
+        with app.app_context():
+            report_types = ReportItemType.get_all_for_collector()
+            assert len(report_types) >= 2, "Expected at least two report types for filter testing"
+            primary_type_id = report_types[0].id
+            secondary_type_id = report_types[1].id
+
+            payloads = [
+                {
+                    "id": f"primary-a-{unique_suffix}",
+                    "title": f"Type Filter Report {unique_suffix}",
+                    "completed": False,
+                    "report_item_type_id": primary_type_id,
+                    "stories": [],
+                },
+                {
+                    "id": f"primary-b-{unique_suffix}",
+                    "title": f"Type Filter Report {unique_suffix}",
+                    "completed": True,
+                    "report_item_type_id": primary_type_id,
+                    "stories": [],
+                },
+                {
+                    "id": f"secondary-{unique_suffix}",
+                    "title": f"Type Filter Report {unique_suffix}",
+                    "completed": False,
+                    "report_item_type_id": secondary_type_id,
+                    "stories": [],
+                },
+            ]
+
+            for payload in payloads:
+                report_item, status = ReportItem.add(payload)
+                assert status == 200
+                created_report_ids.append(report_item.id)
+
+        try:
+            response = self.assert_get_ok(
+                client,
+                f"report-items?search={unique_suffix}&report_item_type_id={primary_type_id}",
+                auth_header,
+            )
+            payload = response.get_json()
+
+            assert payload["total_count"] == 2
+            assert {item["id"] for item in payload["items"]} == {f"primary-a-{unique_suffix}", f"primary-b-{unique_suffix}"}
+            assert {item["report_item_type_id"] for item in payload["items"]} == {primary_type_id}
+        finally:
+            with app.app_context():
+                for report_id in created_report_ids:
+                    if ReportItem.get(report_id):
+                        ReportItem.delete(report_id)
+
+    def test_get_reports_filters_by_report_item_type_id_and_completed(self, client, auth_header, app):
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+
+        unique_suffix = uuid4().hex
+        created_report_ids: list[str] = []
+
+        with app.app_context():
+            report_types = ReportItemType.get_all_for_collector()
+            assert len(report_types) >= 2, "Expected at least two report types for combined filter testing"
+            primary_type_id = report_types[0].id
+            secondary_type_id = report_types[1].id
+
+            payloads = [
+                {
+                    "id": f"incomplete-primary-{unique_suffix}",
+                    "title": f"Combined Filter Report {unique_suffix}",
+                    "completed": False,
+                    "report_item_type_id": primary_type_id,
+                    "stories": [],
+                },
+                {
+                    "id": f"complete-primary-{unique_suffix}",
+                    "title": f"Combined Filter Report {unique_suffix}",
+                    "completed": True,
+                    "report_item_type_id": primary_type_id,
+                    "stories": [],
+                },
+                {
+                    "id": f"incomplete-secondary-{unique_suffix}",
+                    "title": f"Combined Filter Report {unique_suffix}",
+                    "completed": False,
+                    "report_item_type_id": secondary_type_id,
+                    "stories": [],
+                },
+            ]
+
+            for payload in payloads:
+                report_item, status = ReportItem.add(payload)
+                assert status == 200
+                created_report_ids.append(report_item.id)
+
+        try:
+            response = self.assert_get_ok(
+                client,
+                f"report-items?search={unique_suffix}&report_item_type_id={primary_type_id}&completed=false",
+                auth_header,
+            )
+            payload = response.get_json()
+
+            assert payload["total_count"] == 1
+            assert [item["id"] for item in payload["items"]] == [f"incomplete-primary-{unique_suffix}"]
+            assert payload["items"][0]["report_item_type_id"] == primary_type_id
+            assert payload["items"][0]["completed"] is False
+        finally:
+            with app.app_context():
+                for report_id in created_report_ids:
+                    if ReportItem.get(report_id):
+                        ReportItem.delete(report_id)
+
     def test_update_report(self, client, auth_header, cleanup_report_item):
         """
         PUT to /api/analyze/report-items/<report_id> endpoint to update an existing report

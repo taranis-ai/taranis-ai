@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import case, func, or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
@@ -112,15 +112,10 @@ class Task(BaseModel):
 
     @classmethod
     def get_status_totals(cls) -> dict[str, int]:
-        """Return overall success and failure counts across all persisted tasks."""
-        stmt = db.select(
-            func.coalesce(func.sum(case((cls.status.in_(cls.SUCCESS_STATUSES), 1), else_=0)), 0).label("successes"),
-            func.coalesce(func.sum(case((cls.status.in_(cls.FAILURE_STATUSES), 1), else_=0)), 0).label("failures"),
-        )
-
-        row = db.session.execute(stmt).one()
-        successes = int(row.successes or 0)
-        failures = int(row.failures or 0)
+        """Return overall success and failure counts for current worker status."""
+        task_stats = cls.get_status_counts_by_task()
+        successes = sum(int(stats.get("successes", 0) or 0) for stats in task_stats.values())
+        failures = sum(int(stats.get("failures", 0) or 0) for stats in task_stats.values())
         total = successes + failures
         success_pct = int((successes * 100) / total) if total else 0
 

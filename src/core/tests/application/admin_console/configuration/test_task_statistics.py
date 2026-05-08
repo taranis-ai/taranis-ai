@@ -120,9 +120,10 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     Task.delete(task_id)
 
 
-def test_get_status_totals_counts_successes_and_failures(app):
+def test_get_status_totals_counts_latest_worker_statuses(app):
     task_ids = [
         "task-status-success-1",
+        "task-status-success-2",
         "task-status-failure-1",
         "task-status-ignored-1",
     ]
@@ -145,13 +146,23 @@ def test_get_status_totals_counts_successes_and_failures(app):
                     "task": "bot_task",
                     "worker_id": "bot-1",
                     "worker_type": "WORDLIST_BOT",
+                    "status": "SUCCESS",
+                    "result": {"message": "ok"},
+                }
+            )
+            Task.add(
+                {
+                    "id": task_ids[2],
+                    "task": "bot_task",
+                    "worker_id": "bot-1",
+                    "worker_type": "WORDLIST_BOT",
                     "status": "FAILURE",
                     "result": {"error": "boom"},
                 }
             )
             Task.add(
                 {
-                    "id": task_ids[2],
+                    "id": task_ids[3],
                     "task": "bot_task",
                     "worker_id": "bot-2",
                     "worker_type": "WORDLIST_BOT",
