@@ -299,7 +299,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_test_id("tag-name-input").nth(1).fill("tag 2")
             page.get_by_test_id("tag-value-input").nth(1).fill("value2")
             page.get_by_role("button", name="Save changes").click()
-            page.get_by_role("link", name="Advanced view").click()
+            page.get_by_role("link", name="Advanced").click()
             expect(page.get_by_role("complementary")).to_contain_text("Story status")
             page.get_by_text("Cybersecurity · Not Classified").click()
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity · Not Classified")

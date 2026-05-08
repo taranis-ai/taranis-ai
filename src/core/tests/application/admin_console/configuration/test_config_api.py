@@ -160,10 +160,16 @@ class TestSourcesConfigApi(BaseTest):
         assert "Validation failed for model 'OSINTSource':" in response.json["error"]
         assert "Field 'rank': Input should be less than or equal to 5" in response.json["error"]
 
-    def test_modify_source(self, client, auth_header, cleanup_sources):
+    def test_modify_source(self, client, auth_header, cleanup_sources, monkeypatch):
+        purged_calls: list[tuple[set[str], list[str]]] = []
+        monkeypatch.setattr(
+            "core.managers.queue_manager.queue_manager.purge_job_artifacts",
+            lambda *, exact_ids=None, prefixes=None: purged_calls.append((exact_ids or set(), prefixes or [])) or (1, 1),
+        )
         source_data = {
             "description": "Sourcy McSourceFace",
             "rank": 5,
+            "parameters": {"FEED_URL": "https://example.com/updated.xml"},
         }
         source_id = cleanup_sources["id"]
         response = self.assert_put_ok(client, uri=f"osint-sources/{source_id}", json_data=source_data, auth_header=auth_header)
@@ -172,6 +178,8 @@ class TestSourcesConfigApi(BaseTest):
         source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
         assert source_response.json["description"] == "Sourcy McSourceFace"
         assert source_response.json["rank"] == 5
+        assert source_response.json["parameters"]["FEED_URL"] == "https://example.com/updated.xml"
+        assert purged_calls == [({f"source_preview_{source_id}"}, [])]
 
     def test_modify_source_can_store_rank_zero(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]

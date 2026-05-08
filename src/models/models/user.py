@@ -27,6 +27,7 @@ class ProfileSettings(TaranisBaseModel):
     split_view: bool = False
     end_of_shift: str | None = None
     highlight: bool = False
+    assess_default_filters: dict[str, Any] = Field(default_factory=dict)
     dashboard: ProfileSettingsDashboard = Field(default_factory=ProfileSettingsDashboard)
 
 

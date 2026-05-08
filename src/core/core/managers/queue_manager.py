@@ -624,14 +624,20 @@ class QueueManager:
 
         try:
             job = Job.fetch(task_id, connection=self._redis)
+            response: dict[str, Any] = {"id": task_id}
             if job.is_finished:
-                return {"result": job.result}, 200
+                response |= {"status": "SUCCESS", "result": job.result}
+                return response, 200
             if job.is_failed:
-                return {"error": str(job.exc_info)}, 500
-            return {"status": job.get_status()}, 202
+                response |= {"status": "FAILURE", "error": str(job.exc_info)}
+                return response, 500
+            rq_status = job.get_status()
+            status_val = rq_status.value if hasattr(rq_status, "value") else str(rq_status)
+            response["status"] = status_val.upper()
+            return response, 202
         except Exception as e:
             logger.error(f"Failed to get task {task_id}: {e}")
-            return {"error": "Task not found"}, 404
+            return {"id": task_id, "status": "NOT_FOUND", "error": "Task not found"}, 404
 
     def collect_osint_source(self, source_id: str, task_id: str):
         """Trigger OSINT source collection"""
@@ -643,7 +649,9 @@ class QueueManager:
 
     def preview_osint_source(self, source_id: str):
         """Preview OSINT source collection"""
-        if job := self.enqueue_task("collectors", "collector_preview", source_id, job_id=f"source_preview_{source_id}"):
+        task_id = f"source_preview_{source_id}"
+        self.purge_job_artifacts(exact_ids={task_id})
+        if job := self.enqueue_task("collectors", "collector_preview", source_id, job_id=task_id):
             logger.info(f"Preview for source {source_id} scheduled")
             return {"message": f"Preview for source {source_id} scheduled", "id": job.id, "status": "STARTED"}, 201
         return {"error": "Could not reach Redis"}, 500

@@ -89,7 +89,8 @@ class NewsItem(BaseModel):
             with db.session.no_autoflush:
                 self.osint_source = osint_source
         else:
-            raise ValueError(f"OSINT Source {osint_source_id} not found")
+            logger.warning(f"OSINT Source {osint_source_id} not found. Setting osint_source_id to manual.")
+            self.osint_source_id = "manual"
         self.source = source
         self.link = link
         self.author = author
@@ -106,8 +107,12 @@ class NewsItem(BaseModel):
         return cls.from_payload(AssessNewsItem.from_input(data))
 
     @classmethod
+    def _sanitize_import_payload(cls, payload: AssessNewsItem) -> dict[str, Any]:
+        return payload.to_core_dict()
+
+    @classmethod
     def from_payload(cls, payload: AssessNewsItem) -> "NewsItem":
-        return cls(**payload.to_core_dict())
+        return cls(**cls._sanitize_import_payload(payload))
 
     @staticmethod
     def get_date_field(date_field: str | datetime | None) -> datetime:

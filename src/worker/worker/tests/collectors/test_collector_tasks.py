@@ -91,3 +91,53 @@ def test_fetch_single_news_item_accepts_simple_web_source_payload(current_job, m
         "type": "simple_web_collector",
         "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
     }
+
+
+def test_collector_preview_persists_with_preview_status(current_job, requests_mock, monkeypatch):
+    source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {}}
+    preview_items = [{"title": "Item 1"}, {"title": "Item 2"}]
+
+    class FakeCollector:
+        name = "RSS Collector"
+
+        def preview_collector(self, source_data):
+            return preview_items
+
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    result = collector_tasks.collector_preview("source-1")
+
+    assert result == preview_items
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    assert post_calls[0].json() == {
+        "id": "test-job-123",
+        "task": "collector_preview",
+        "result": preview_items,
+        "status": "PREVIEW",
+    }
+
+
+def test_collector_preview_persists_failure_on_exception(current_job, requests_mock, monkeypatch):
+    source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {}}
+
+    class FakeCollector:
+        name = "RSS Collector"
+
+        def preview_collector(self, source_data):
+            raise ValueError("connection refused")
+
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    with pytest.raises(RuntimeError):
+        collector_tasks.collector_preview("source-1")
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    assert post_calls[0].json()["status"] == "FAILURE"
+    assert post_calls[0].json()["task"] == "collector_preview"
