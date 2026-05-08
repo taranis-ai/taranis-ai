@@ -8,6 +8,7 @@
       <div class="flex items-center gap-3" x-show="selectedItems.length" x-transition.opacity x-cloak data-testid="assess_story_selection_count">
         <span class="badge badge-primary badge-lg" x-text="selectedItems.length"></span>
         <span class="font-medium">stories selected</span>
+        <span class="text-base-content/60" x-show="selectedItems.length === 1">Select one more to cluster</span>
       </div>
       <div class="flex flex-wrap items-center gap-3">
         <div class="flex items-center gap-2" data-testid="assess_story_count">
@@ -18,20 +19,17 @@
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess">
-        <span class="tooltip" :data-tip="selectedItems.length > 1 ? 'Select only one story to edit' : 'Edit selected story'">
-          <button type="button"
-                  class="btn btn-outline btn-sm"
-                  :disabled="selectedItems.length > 1"
-                  :aria-disabled="selectedItems.length > 1"
-                  @click="openStoryEdit()"
-                  @keyup.shift.e.prevent.window="selectedItems.length == 1 && openStoryEdit()">
-            {{ heroicon_mini("pencil") }}
-            <span class="text-sm">Edit</span>
-            <span class="text-xs opacity-80" x-show="showHints">
-              <kbd class="kbd kbd-xs text-base-content">Shift+E</kbd>
-            </span>
-          </button>
-        </span>
+        <button type="button"
+                class="btn btn-outline btn-sm"
+                x-show="selectedItems.length === 1"
+                @click="openStoryEdit()"
+                @keyup.shift.e.prevent.window="selectedItems.length === 1 && openStoryEdit()">
+          {{ heroicon_mini("pencil") }}
+          <span class="text-sm">Edit</span>
+          <span class="text-xs opacity-80" x-show="showHints">
+            <kbd class="kbd kbd-xs text-base-content">Shift+E</kbd>
+          </span>
+        </button>
 
         <button type="button"
                 class="btn btn-outline btn-sm tooltip"
@@ -48,21 +46,22 @@
           </span>
         </button>
 
-        <span class="tooltip" :data-tip="selectedItems.length < 2 ? 'Select at least two stories to cluster' : 'Cluster selected stories'">
-          <button type="button"
-                  class="btn btn-outline btn-sm"
-                  hx-trigger="click, keyup[shiftKey && key == 'G'] from:body"
-                  :disabled="selectedItems.length < 2"
-                  :aria-disabled="selectedItems.length < 2"
-                  hx-get="{{ url_for('assess.cluster_story') }}"
-                  hx-target="body"
-                  hx-swap="beforeend"
-                  :hx-vals='action_vals()'>
-            {{ heroicon_mini("rectangle-group") }}
-            <span class="text-sm">Cluster</span>
-            <span class="text-xs opacity-80" x-show="showHints"></span>
-          </button>
-        </span>
+        <button type="button"
+                x-ref="clusterButton"
+                class="btn btn-outline btn-sm"
+                x-show="selectedItems.length >= 2"
+                hx-trigger="click"
+                @keyup.shift.g.prevent.window="selectedItems.length >= 2 && $refs.clusterButton.click()"
+                hx-get="{{ url_for('assess.cluster_story') }}"
+                hx-target="body"
+                hx-swap="beforeend"
+                :hx-vals='action_vals()'>
+          {{ heroicon_mini("rectangle-group") }}
+          <span class="text-sm">Cluster</span>
+          <span class="text-xs opacity-80" x-show="showHints">
+            <kbd class="kbd kbd-xs">Shift+G</kbd>
+          </span>
+        </button>
 
         <div class="dropdown dropdown-end">
           <button type="button" class="btn btn-outline btn-sm" role="button" aria-haspopup="true" aria-label="Additional Story actions">
