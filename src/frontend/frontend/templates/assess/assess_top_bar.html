@@ -18,24 +18,28 @@
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess">
-        <button type="button"
-                class="btn btn-outline"
-                x-show="selectedItems.length == 1"
-                @click="openStoryEdit()"
-                @keyup.shift.e.prevent.window="openStoryEdit()">
-          {{ heroicon_mini("pencil") }}
-          <span class="text-sm">Edit</span>
-          <span class="text-xs opacity-80" x-show="showHints">
-            <kbd class="kbd kbd-xs text-base-content">Shift+E</kbd>
-          </span>
-        </button>
+        <span class="tooltip" :data-tip="selectedItems.length > 1 ? 'Select only one story to edit' : 'Edit selected story'">
+          <button type="button"
+                  class="btn btn-outline btn-sm"
+                  :disabled="selectedItems.length > 1"
+                  :aria-disabled="selectedItems.length > 1"
+                  @click="openStoryEdit()"
+                  @keyup.shift.e.prevent.window="selectedItems.length == 1 && openStoryEdit()">
+            {{ heroicon_mini("pencil") }}
+            <span class="text-sm">Edit</span>
+            <span class="text-xs opacity-80" x-show="showHints">
+              <kbd class="kbd kbd-xs text-base-content">Shift+E</kbd>
+            </span>
+          </button>
+        </span>
 
         <button type="button"
-                class="btn btn-outline"
+                class="btn btn-outline btn-sm tooltip"
                 hx-trigger="click, keyup[shiftKey && key == 'R'] from:body"
                 hx-get="{{ url_for('assess.report_story') }}"
                 hx-target="body"
                 hx-swap="beforeend"
+                :data-tip="selectedItems.length > 1 ? 'Add selected stories to report' : 'Add selected story to report'"
                 :hx-vals='action_vals()'>
           {{ heroicon_mini("document-chart-bar") }}
           <span class="text-sm">Add to Report</span>
@@ -44,44 +48,56 @@
           </span>
         </button>
 
-        <button type="button"
-                class="btn btn-outline"
-                hx-trigger="click, keyup[shiftKey && code == 'Space'] from:body"
-                hx-post="{{ url_for('assess.bulk_action') }}"
-                :hx-vals='action_vals("read", !selectedItemsAreRead())'>
-          {{ heroicon_mini("eye") }}
-          <span class="text-sm" x-text="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"></span>
-          <span class="text-xs opacity-80" x-show="showHints">
-            <kbd class="kbd kbd-xs">Shift+Space</kbd>
-          </span>
-        </button>
+        <span class="tooltip" :data-tip="selectedItems.length < 2 ? 'Select at least two stories to cluster' : 'Cluster selected stories'">
+          <button type="button"
+                  class="btn btn-outline btn-sm"
+                  hx-trigger="click, keyup[shiftKey && key == 'G'] from:body"
+                  :disabled="selectedItems.length < 2"
+                  :aria-disabled="selectedItems.length < 2"
+                  hx-get="{{ url_for('assess.cluster_story') }}"
+                  hx-target="body"
+                  hx-swap="beforeend"
+                  :hx-vals='action_vals()'>
+            {{ heroicon_mini("rectangle-group") }}
+            <span class="text-sm">Cluster</span>
+            <span class="text-xs opacity-80" x-show="showHints"></span>
+          </button>
+        </span>
 
-        <button type="button"
-                class="btn btn-outline"
-                hx-trigger="click, keyup[shiftKey && key == 'I'] from:body"
-                hx-post="{{ url_for('assess.bulk_action') }}"
-                :hx-vals='action_vals("important", !selectedItemsAreImportant())'>
-          {{ heroicon_mini("star") }}
-          <span class="text-sm" x-text="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"></span>
-          <span class="text-xs" x-show="showHints">
-            <kbd class="kbd kbd-xs">Shift+I</kbd>
-          </span>
-        </button>
+        <div class="dropdown dropdown-end">
+          <button type="button" class="btn btn-outline btn-sm" role="button" aria-haspopup="true" aria-label="Additional Story actions">
+            {{ heroicon_mini("ellipsis-horizontal") }}
+            <span>Actions</span>
+          </button>
+          <div class="dropdown-content mt-2 w-48 rounded-box bg-base-100 p-2 shadow" tabindex="0">
+            <div class="join join-vertical w-full">
+              <button type="button"
+                      class="btn btn-outline btn-sm"
+                      hx-trigger="click, keyup[shiftKey && code == 'Space'] from:body"
+                      hx-post="{{ url_for('assess.bulk_action') }}"
+                      :hx-vals='action_vals("read", !selectedItemsAreRead())'>
+                {{ heroicon_mini("eye") }}
+                <span class="text-sm" x-text="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"></span>
+                <span class="text-xs opacity-80" x-show="showHints">
+                  <kbd class="kbd kbd-xs">Shift+Space</kbd>
+                </span>
+              </button>
 
-        <button type="button"
-                class="btn btn-outline"
-                x-show="selectedItems.length > 1"
-                hx-trigger="click, keyup[shiftKey && key == 'G'] from:body"
-                hx-get="{{ url_for('assess.cluster_story') }}"
-                hx-target="body"
-                hx-swap="beforeend"
-                :hx-vals='action_vals()'>
-          {{ heroicon_mini("rectangle-group") }}
-          <span class="text-sm">Cluster</span>
-          <span class="text-xs opacity-80" x-show="showHints">
-            <kbd class="kbd kbd-xs">Shift+G</kbd>
-          </span>
-        </button>
+              <button type="button"
+                      class="btn btn-outline btn-sm"
+                      hx-trigger="click, keyup[shiftKey && key == 'I'] from:body"
+                      hx-post="{{ url_for('assess.bulk_action') }}"
+                      :hx-vals='action_vals("important", !selectedItemsAreImportant())'>
+                {{ heroicon_mini("star") }}
+                <span class="text-sm" x-text="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"></span>
+                <span class="text-xs" x-show="showHints">
+                  <kbd class="kbd kbd-xs">Shift+I</kbd>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
       <div class="flex flex-wrap items-center gap-2" x-show="!selectedItems.length" x-cloak>
         {% if story_ids %}
