@@ -185,7 +185,8 @@ class Tags(MethodView):
             if not story:
                 errors[story_id] = "Story not found"
                 continue
-            _, status = story.set_tags(tags)
+            actor = Story.resolve_actor(actor=story.last_change)
+            _, status = story.set_tags(tags, actor=actor)
             if status != 200:
                 errors[story_id] = status
         if errors:

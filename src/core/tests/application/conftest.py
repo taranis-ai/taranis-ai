@@ -228,6 +228,7 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
         from core.model.osint_source import OSINTSource, OSINTSourceGroup
         from core.model.report_item import ReportItem
         from core.model.story import Story, StoryNewsItemAttribute
+        from core.model.user import User
 
         extra_source = OSINTSource(
             id="story-filter-source-extra",
@@ -294,6 +295,11 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
         source_only.relevance = 5
         db.session.commit()
 
+        admin_user = User.find_by_name("admin")
+        assert admin_user is not None
+        admin_actor = Story.last_change_for_user(admin_user)
+        grouped_flagged.last_change = admin_actor
+
         assert grouped_flagged.set_tags(["filter-alpha"])[1] == 200
         assert grouped_plain.set_tags(["filter-beta"])[1] == 200
         assert manual_important.set_tags(["filter-gamma"])[1] == 200
@@ -326,6 +332,9 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
                 "beta": "filter-beta",
                 "gamma": "filter-gamma",
                 "delta": "filter-delta",
+            },
+            "actors": {
+                "admin": admin_actor,
             },
         }
 

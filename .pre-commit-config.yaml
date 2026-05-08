@@ -16,6 +16,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+      - id: check-merge-conflict
 
   - repo: local
     hooks:
