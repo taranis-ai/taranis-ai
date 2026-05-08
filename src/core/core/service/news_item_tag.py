@@ -112,7 +112,7 @@ class NewsItemTagService:
             if not story:
                 errors[story_id] = "Story not found"
                 continue
-            story.set_tags(tags, actor=actor)
+            story.set_tags(tags, actor=actor, replace=False)
 
     @staticmethod
     def set_worker_execution_attribute(*, worker_type: str, worker_id: str, found_tags: dict[str, Any]):

@@ -130,7 +130,7 @@ def test_set_found_bot_tags_marks_story_as_bot_actor():
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 3
     assert story.last_change == "bot"
-    assert [tag.name for tag in story.tags] == ["apt29"]
+    assert sorted(tag.name for tag in story.tags) == ["apt29", "existing-tag"]
     assert [revision.note for revision in revisions] == ["created", "set_tags", "set_tags"]
     assert revisions[-1].data["last_change"] == "bot"
 
