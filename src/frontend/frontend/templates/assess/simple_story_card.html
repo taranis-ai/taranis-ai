@@ -8,7 +8,7 @@
   </div>
 {% endmacro %}
 
-{% macro analyze_story_card(story, used_story_ids, form_action, other_ids) %}
+{% macro analyze_story_card(story, used_story_ids) %}
   {% set is_used = story.id in used_story_ids %}
   {% set card_classes = ["card", "card-bordered", "bg-base-200", "mx-4", "my-2", "shadow-sm", "transition-shadow", "duration-200", "hover:shadow-lg"] %}
   {% if is_used %}
@@ -37,15 +37,12 @@
             <span>{{ story.links[0] }}</span>
           </a>
         {% endif %}
-        <button type="button"
+        <button type="submit"
                 class="btn btn-sm btn-outline ml-auto"
                 data-testid="remove-story-{{ story.id }}"
-                {{ form_action }}
-                hx-vals='{"stories[]": {{ other_ids | tojson }} }'
-                hx-target="#report"
-                hx-target-error="#report">
-          Remove from report
-        </button>
+                name="remove_story_id"
+                value="{{ story.id }}"
+                formnovalidate>Remove from report</button>
       </div>
 
       {% if story.summary %}

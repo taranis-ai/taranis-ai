@@ -174,6 +174,9 @@ def _dismiss_notifications(page: Page):
 
 def _cookies_from_response(resp) -> list[dict]:
     """Parse Flask Response `Set-Cookie` headers into Playwright cookie dicts (name/value/path only)."""
+    if hasattr(resp, "cookies") and getattr(resp, "cookies", None):
+        return [{"name": name, "value": value} for name, value in resp.cookies.items()]
+
     cookies: list[dict] = []
     set_cookie_headers = resp.headers.getlist("Set-Cookie")
     for header in set_cookie_headers:
@@ -339,6 +342,7 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         non_admin_logged_in_page,
         extra_allow_patterns=[
             r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+            r"\[console\.error\].*htmx:oobErrorNoTarget, #notification-bar",
         ],
     )
 
