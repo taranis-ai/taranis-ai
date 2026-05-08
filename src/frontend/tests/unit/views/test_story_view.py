@@ -293,6 +293,20 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert search_input.get("hx-trigger") is None
 
 
+def test_assess_selection_key_ignores_paging_params():
+    selection_key = StoryView._build_assess_selection_key(
+        {
+            "offset": ["40"],
+            "page": ["2"],
+            "search": ["incident"],
+            "sort": ["date_desc"],
+            "tags": ["one", "two"],
+        }
+    )
+
+    assert selection_key == "search=incident&sort=date_desc&tags=one&tags=two"
+
+
 def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, auth_user, responses_mock):
     saved_user = auth_user.model_copy(deep=True)
     saved_user.profile.assess_default_filters = {

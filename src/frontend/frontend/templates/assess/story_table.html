@@ -6,6 +6,7 @@
   <div
     id="assess-container"
     class="p-4"
+    data-selection-key="{{ assess_selection_key | default('') }}"
     @keyup.escape.window="clearSelection()"
     {# djlint:off #}
     x-data='{
@@ -15,6 +16,7 @@
       storyReadMap: {},
       showHints: false,
       init() {
+        this.restoreSelection();
         this.refreshStoryMeta();
         const storyList = this.$refs.storyList || document.querySelector("#story-list");
         if (storyList) {
@@ -23,9 +25,28 @@
           });
           observer.observe(storyList, { childList: true, subtree: true });
         }
-        this.$watch("storyIds", ids => {
-          this.selectedItems = this.selectedItems.filter(id => ids.includes(id));
-        });
+        this.$watch("selectedItems", () => this.persistSelection());
+      },
+      selectionKey() {
+        return this.$root.dataset.selectionKey || "";
+      },
+      restoreSelection() {
+        const state = window.assessSelectionState || {};
+        if (state.key !== this.selectionKey()) {
+          window.assessSelectionState = { key: this.selectionKey(), selectedItems: [], storyImportantMap: {}, storyReadMap: {} };
+          return;
+        }
+        this.selectedItems = Array.isArray(state.selectedItems) ? [...new Set(state.selectedItems)] : [];
+        this.storyImportantMap = state.storyImportantMap || {};
+        this.storyReadMap = state.storyReadMap || {};
+      },
+      persistSelection() {
+        window.assessSelectionState = {
+          key: this.selectionKey(),
+          selectedItems: [...new Set(this.selectedItems)],
+          storyImportantMap: this.storyImportantMap,
+          storyReadMap: this.storyReadMap,
+        };
       },
       toggleSelection(id) {
         if (this.selectedItems.includes(id)) {
@@ -61,8 +82,9 @@
           readMap[id] = node.dataset.storyRead === "true";
         });
         this.storyIds = Array.from(new Set(ids));
-        this.storyImportantMap = importantMap;
-        this.storyReadMap = readMap;
+        this.storyImportantMap = { ...this.storyImportantMap, ...importantMap };
+        this.storyReadMap = { ...this.storyReadMap, ...readMap };
+        this.persistSelection();
       },
       selectAll() {
         this.refreshStoryMeta();
