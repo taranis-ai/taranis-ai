@@ -9,24 +9,31 @@
     <h3 class="font-bold text-lg mt-1 mb-2">Share Stories</h3>
     {% set sharing_ids = story_ids if story_ids is defined and story_ids else ([story.id] if story else []) %}
     <form id="share-story-form">
-      <label class="select w-full mb-5">
-        <span class="label">Connector</span>
-        <select id="connector" name="connector" required class="validator select w-full">
-          <option selected disabled>Select a connector</option>
-          {% for option in connectors -%}
-            <option value="{{ option.id }}">{{ option.name }}</option>
-          {% endfor -%}
-        </select>
-      </label>
       {% for story_id in sharing_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
-      <div class="flex flex-row gap-2">
-        <button type="button"
-                class="btn btn-outline w-1/2"
-                hx-post="{{ url_for('assess.submit_share_story') }}"
-                hx-target="#notification-bar"
-                hx-on::after-request="document.getElementById('share_story_to_connector_dialog').close()">Share</button>
-        <a type="button" class="btn btn-outline w-1/2" href="{{ mail_sharing_link }}">Share via email</a>
-      </div>
+      {% if connectors %}
+        <label class="select w-full mb-5">
+          <span class="label">Connector</span>
+          <select id="connector" name="connector" required class="validator select w-full">
+            <option selected disabled>Select a connector</option>
+            {% for option in connectors -%}
+              <option value="{{ option.id }}">{{ option.name }}</option>
+            {% endfor -%}
+          </select>
+        </label>
+        <div class="flex flex-row gap-2">
+          <button type="button"
+                  class="btn btn-outline w-1/2"
+                  hx-post="{{ url_for('assess.submit_share_story') }}"
+                  hx-target="#notification-bar"
+                  hx-on::after-request="document.getElementById('share_story_to_connector_dialog').close()">Share</button>
+          <a type="button" class="btn btn-outline w-1/2" href="{{ mail_sharing_link }}">Share via email</a>
+        </div>
+      {% else %}
+        <div class="alert alert-info mb-4">Connector sharing is not available for your account. Email and JSON export are still available.</div>
+        <div class="flex flex-row gap-2">
+          <a type="button" class="btn btn-outline w-full" href="{{ mail_sharing_link }}">Share via email</a>
+        </div>
+      {% endif %}
       <div class="flex flex-row mt-4">
         <a class="btn btn-outline btn-info btn-wide" href="{{ url_for('assess.export_stories', story_ids=sharing_ids) }}" download>
           {{ heroicon_outline("document-arrow-down", class="h-5 w-5") }}
