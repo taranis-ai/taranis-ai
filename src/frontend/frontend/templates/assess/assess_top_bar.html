@@ -8,7 +8,6 @@
       <div class="flex items-center gap-3" x-show="selectedItems.length" x-transition.opacity x-cloak data-testid="assess_story_selection_count">
         <span class="badge badge-primary badge-lg" x-text="selectedItems.length"></span>
         <span class="font-medium">stories selected</span>
-        <span class="text-base-content/60" x-show="selectedItems.length === 1">Select one more to cluster</span>
       </div>
       <div class="flex flex-wrap items-center gap-3">
         <div class="flex items-center gap-2" data-testid="assess_story_count">
@@ -16,6 +15,10 @@
           <span class="font-medium text-base-content">Stories</span>
         </div>
       </div>
+      <span class="inline-block min-w-[11rem] text-base-content/60"
+            x-show="selectedItems.length"
+            :class="{ 'invisible': selectedItems.length !== 1 }"
+            :aria-hidden="(selectedItems.length !== 1).toString()">Select one more to cluster</span>
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess">
@@ -28,21 +31,6 @@
           <span class="text-sm">Edit</span>
           <span class="text-xs opacity-80" x-show="showHints">
             <kbd class="kbd kbd-xs text-base-content">Shift+E</kbd>
-          </span>
-        </button>
-
-        <button type="button"
-                class="btn btn-outline btn-sm tooltip"
-                hx-trigger="click, keyup[shiftKey && key == 'R'] from:body"
-                hx-get="{{ url_for('assess.report_story') }}"
-                hx-target="body"
-                hx-swap="beforeend"
-                :data-tip="selectedItems.length > 1 ? 'Add selected stories to report' : 'Add selected story to report'"
-                :hx-vals='action_vals()'>
-          {{ heroicon_mini("document-chart-bar") }}
-          <span class="text-sm">Add to Report</span>
-          <span class="text-xs opacity-80" x-show="showHints">
-            <kbd class="kbd kbd-xs">Shift+R</kbd>
           </span>
         </button>
 
@@ -60,6 +48,21 @@
           <span class="text-sm">Cluster</span>
           <span class="text-xs opacity-80" x-show="showHints">
             <kbd class="kbd kbd-xs">Shift+G</kbd>
+          </span>
+        </button>
+
+        <button type="button"
+                class="btn btn-outline btn-sm tooltip"
+                hx-trigger="click, keyup[shiftKey && key == 'R'] from:body"
+                hx-get="{{ url_for('assess.report_story') }}"
+                hx-target="body"
+                hx-swap="beforeend"
+                :data-tip="selectedItems.length > 1 ? 'Add selected stories to report' : 'Add selected story to report'"
+                :hx-vals='action_vals()'>
+          {{ heroicon_mini("document-chart-bar") }}
+          <span class="text-sm">Add to Report</span>
+          <span class="text-xs opacity-80" x-show="showHints">
+            <kbd class="kbd kbd-xs">Shift+R</kbd>
           </span>
         </button>
 
