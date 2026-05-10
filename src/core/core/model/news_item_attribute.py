@@ -1,6 +1,5 @@
 import base64
 import contextlib
-import uuid
 from datetime import datetime
 from typing import Any
 
@@ -8,14 +7,14 @@ from sqlalchemy.orm import Mapped, deferred
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.role import TLPLevel
 
 
 class NewsItemAttribute(BaseModel):
     __tablename__ = "news_item_attribute"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     key: Mapped[str] = db.Column(db.String(), nullable=False, index=True)
     value: Mapped[str] = db.Column(db.String(), nullable=False)
     binary_mime_type: Mapped[str] = db.Column(db.String())
@@ -23,7 +22,7 @@ class NewsItemAttribute(BaseModel):
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
 
     def __init__(self, key, value, binary_mime_type=None, binary_value=None, id=None):
-        self.id = id or str(uuid.uuid4())
+        self.id = self.normalize_uuid_id(id)
         self.key = key
         self.value = value
         if binary_mime_type:

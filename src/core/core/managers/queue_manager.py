@@ -108,7 +108,7 @@ def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run
 
     try:
         next_expected_run = croniter(schedule, last_run_dt).get_next(datetime)
-    except (CroniterBadCronError, CroniterBadDateError):
+    except CroniterBadCronError, CroniterBadDateError:
         return False
 
     return now > (next_expected_run + OVERDUE_GRACE_PERIOD)
@@ -736,7 +736,7 @@ class QueueManager:
             return {"message": f"Connector with id: {connector_id} scheduled"}, 200
         return {"error": "Could not reach Redis"}, 500
 
-    def gather_word_list(self, word_list_id: int):
+    def gather_word_list(self, word_list_id: str):
         """Gather word list"""
         if self.enqueue_task("misc", "gather_word_list", word_list_id, job_id=f"gather_word_list_{word_list_id}"):
             logger.info(f"Gathering for WordList {word_list_id} scheduled")

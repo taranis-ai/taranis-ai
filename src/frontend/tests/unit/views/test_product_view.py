@@ -71,7 +71,7 @@ def test_product_view_uses_publish_product_types_endpoint():
         context = ProductView.get_extra_context({})
 
     assert persistence.get_objects.call_args_list == [call(ProductType), call(PublisherPreset)]
-    assert context["product_types"] == [{"id": 7, "name": "CERT Daily Report"}]
+    assert context["product_types"] == [{"id": "7", "name": "CERT Daily Report"}]
     assert context["publishers"] == [{"id": "publisher-1", "name": "FTP Publisher"}]
 
 

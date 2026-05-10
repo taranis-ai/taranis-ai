@@ -1,5 +1,4 @@
 import hashlib
-import uuid
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -13,7 +12,7 @@ from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.osint_source import OSINTSource
 from core.model.role import TLPLevel
@@ -29,7 +28,7 @@ if TYPE_CHECKING:
 class NewsItem(BaseModel):
     __tablename__ = "news_item"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     hash: Mapped[str] = db.Column(db.String(), index=True, unique=True, nullable=False)
 
     title: Mapped[str] = db.Column(db.String())
@@ -57,10 +56,10 @@ class NewsItem(BaseModel):
         "NewsItemAttribute", secondary="news_item_news_item_attribute", cascade="all, delete"
     )
 
-    osint_source_id: Mapped[str] = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True, index=True)
+    osint_source_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source.id"), nullable=True, index=True)
     osint_source: Mapped["OSINTSource"] = relationship("OSINTSource", back_populates="news_items")
 
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="SET NULL"), nullable=True, index=True)
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="SET NULL"), nullable=True, index=True)
     story: Mapped["Story"] = relationship("Story", back_populates="news_items")
 
     def __init__(
@@ -81,16 +80,16 @@ class NewsItem(BaseModel):
         collected: datetime | str | None = None,
         story_id: str = "",
     ):
-        self.id = id or str(uuid.uuid4())
+        self.id = self.normalize_uuid_id(id)
         self.title = title
         self.review = review
         self.content = content
-        if osint_source := OSINTSource.get(osint_source_id):
+        if osint_source := OSINTSource.get_by_key(osint_source_id) or OSINTSource.get(osint_source_id):
             with db.session.no_autoflush:
                 self.osint_source = osint_source
         else:
             logger.warning(f"OSINT Source {osint_source_id} not found. Setting osint_source_id to manual.")
-            self.osint_source_id = "manual"
+            self.osint_source = OSINTSource.get_by_key("manual")
         self.source = source
         self.link = link
         self.author = author
@@ -160,6 +159,8 @@ class NewsItem(BaseModel):
 
     def to_detail_dict(self) -> dict[str, Any]:
         data = self.to_dict()
+        if self.osint_source and self.osint_source.key:
+            data["osint_source_key"] = self.osint_source.key
         if attributes := self.attributes:
             data["attributes"] = [attribute.to_small_dict() for attribute in attributes]
         return data
@@ -260,7 +261,7 @@ class NewsItem(BaseModel):
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
 
     def update_item(self, data, actor: str | None = None) -> tuple[dict, int]:
-        if self.osint_source_id != "manual":
+        if not self.osint_source or self.osint_source.key != "manual":
             return {"error": "Only manual news items can be updated"}, 400
 
         try:
@@ -367,5 +368,7 @@ class NewsItem(BaseModel):
 
 
 class NewsItemNewsItemAttribute(BaseModel):
-    news_item_id: Mapped[str] = db.Column(db.String, db.ForeignKey("news_item.id", ondelete="CASCADE"), primary_key=True)
-    news_item_attribute_id: Mapped[str] = db.Column(db.String, db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True)
+    news_item_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("news_item.id", ondelete="CASCADE"), primary_key=True)
+    news_item_attribute_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
+    )

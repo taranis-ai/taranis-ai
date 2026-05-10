@@ -54,10 +54,10 @@ class UserView(AdminMixin, BaseView):
 
     @classmethod
     def import_post_view(cls):
-        roles = [int(role) for role in request.form.getlist("roles[]")]
-        organization = int(request.form.get("organization", "0"))
+        roles = request.form.getlist("roles[]")
+        organization = request.form.get("organization", "0")
         users = request.files.get("file")
-        if not users or organization == 0:
+        if not users or organization in {"0", ""}:
             return cls.import_view("No file or organization provided")
         data = users.read()
         data = json.loads(data)

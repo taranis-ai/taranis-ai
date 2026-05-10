@@ -312,14 +312,14 @@ def convert_interval_to_cron(interval: int) -> str:
 def pre_seed_source_groups():
     from core.model.osint_source import OSINTSourceGroup
 
-    if not OSINTSourceGroup.get("default"):
+    if not OSINTSourceGroup.get_by_key("default"):
         OSINTSourceGroup.add({"id": "default", "name": "Default", "description": "Default group for uncategorized sources", "default": True})
 
 
 def pre_seed_manual_source():
     from core.model.osint_source import OSINTSource
 
-    if not OSINTSource.get("manual"):
+    if not OSINTSource.get_by_key("manual"):
         OSINTSource.add(
             {
                 "id": "manual",
@@ -448,7 +448,7 @@ def pre_seed_default_user():
     if user_count > 0:
         return
 
-    admin_organization = Organization.get(1)
+    admin_organization = Organization.find_by_name("The Earth")
     if not admin_organization:
         Organization.add(
             {
@@ -457,6 +457,7 @@ def pre_seed_default_user():
                 "address": {"street": "29 Arlington Avenue", "city": "Islington, London", "zip": "N1 7BE", "country": "United Kingdom"},
             }
         )
+        admin_organization = Organization.find_by_name("The Earth")
 
     if not User.find_by_name(username="admin") and not User.find_by_role_name(role_name="Admin"):
         if admin_role := Role.filter_by_name("Admin"):
@@ -465,12 +466,12 @@ def pre_seed_default_user():
                     "username": "admin",
                     "name": "Arthur Dent",
                     "roles": [admin_role.id],
-                    "organization": {"id": 1},
+                    "organization": {"id": admin_organization.id},
                     "password": Config.PRE_SEED_PASSWORD_ADMIN,
                 }
             )
 
-    if not Organization.get(2):
+    if not Organization.find_by_name("The Clacks"):
         Organization.add(
             {
                 "name": "The Clacks",
@@ -486,12 +487,13 @@ def pre_seed_default_user():
 
     if not User.find_by_name(username="user"):
         user_role = Role.filter_by_name("User").id  # type: ignore
+        user_organization = Organization.find_by_name("The Clacks")
         User.add(
             {
                 "username": "user",
                 "name": "Terry Pratchett",
                 "roles": [user_role],
-                "organization": {"id": 2},
+                "organization": {"id": user_organization.id if user_organization else None},
                 "password": Config.PRE_SEED_PASSWORD_USER,
             }
         )

@@ -6,7 +6,7 @@ from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
 
 class Task(BaseModel):
@@ -15,7 +15,8 @@ class Task(BaseModel):
     SUCCESS_STATUSES = {"SUCCESS", "NOT_MODIFIED"}
     FAILURE_STATUSES = {"FAILURE"}
 
-    id: Mapped[str] = db.Column(db.String, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    job_id: Mapped[str] = db.Column(db.String, unique=True, nullable=False)
     task: Mapped[str] = db.Column(db.String, nullable=True)
     worker_id: Mapped[str] = db.Column(db.String, nullable=True)
     worker_type: Mapped[str] = db.Column(db.String, nullable=True)
@@ -26,7 +27,15 @@ class Task(BaseModel):
 
     def __init__(self, result=None, status=None, id=None, task=None, worker_id=None, worker_type=None):
         if id:
-            self.id = id
+            try:
+                self.id = self.normalize_uuid_id(id)
+                self.job_id = id
+            except ValueError:
+                self.id = self.uuid7_str()
+                self.job_id = str(id)
+        else:
+            self.id = self.uuid7_str()
+            self.job_id = self.id
         if status:
             self.status = status
         if task:
@@ -42,7 +51,7 @@ class Task(BaseModel):
 
     @classmethod
     def add_or_update(cls, entry_data):
-        if entry := cls.get(entry_data["id"]):
+        if entry := cls.get_by_job_id(entry_data["id"]):
             entry.result = json.dumps(entry_data["result"]) if entry_data["result"] is not None else ""
             entry.status = entry_data.get("status")
             entry.task = entry_data.get("task", entry.task)
@@ -60,6 +69,7 @@ class Task(BaseModel):
         result = json.loads(self.result) if self.result else None
         return {
             "id": self.id,
+            "job_id": self.job_id,
             "result": result,
             "task": self.task,
             "worker_id": self.worker_id,
@@ -71,11 +81,24 @@ class Task(BaseModel):
 
     @classmethod
     def get_failed(cls, task_id: str) -> "Task | None":
-        return db.session.execute(db.select(cls).where(cls.id == task_id).where(cls.status == "FAILURE")).scalar()
+        return db.session.execute(db.select(cls).where(cls.job_id == task_id).where(cls.status == "FAILURE")).scalar()
 
     @classmethod
     def get_successful(cls, task_id: str) -> "Task | None":
-        return db.session.execute(db.select(cls).where(cls.id == task_id).where(cls.status.in_(cls.SUCCESS_STATUSES))).scalar()
+        return db.session.execute(db.select(cls).where(cls.job_id == task_id).where(cls.status.in_(cls.SUCCESS_STATUSES))).scalar()
+
+    @classmethod
+    def get(cls, item_id: str) -> "Task | None":
+        if item_id is None:
+            return None
+        try:
+            return super().get(cls.normalize_uuid_id(item_id))
+        except TypeError, ValueError:
+            return cls.get_by_job_id(str(item_id))
+
+    @classmethod
+    def get_by_job_id(cls, job_id: str) -> "Task | None":
+        return cls.get_first(db.select(cls).where(cls.job_id == job_id))
 
     @classmethod
     def get_latest_matching(
@@ -91,8 +114,8 @@ class Task(BaseModel):
         prefixes = [prefix for prefix in (prefixes or []) if prefix]
 
         if exact_ids:
-            conditions.append(cls.id.in_(exact_ids))
-        conditions.extend(cls.id.like(f"{prefix}%") for prefix in prefixes)
+            conditions.append(cls.job_id.in_(exact_ids))
+        conditions.extend(cls.job_id.like(f"{prefix}%") for prefix in prefixes)
 
         if not conditions:
             return None
@@ -101,7 +124,7 @@ class Task(BaseModel):
         if task_name is not None:
             stmt = stmt.where(cls.task == task_name)
 
-        stmt = stmt.order_by(cls.last_run.desc(), cls.last_success.desc(), cls.id.desc()).limit(1)
+        stmt = stmt.order_by(cls.last_run.desc(), cls.last_success.desc(), cls.job_id.desc()).limit(1)
         return db.session.execute(stmt).scalars().first()
 
     @classmethod

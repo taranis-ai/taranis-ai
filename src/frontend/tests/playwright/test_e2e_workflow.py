@@ -310,7 +310,7 @@ class TestUserWorkflow(BaseE2ETest):
 
         self.highlight_element(page.get_by_role("button", name="New Product").first).click()
         self.highlight_element(page.get_by_label("Product Type * Select an item")).click()
-        page.get_by_label("Product Type * Select an item").select_option("5")
+        page.get_by_label("Product Type * Select an item").select_option(label="CERT Daily Report")
 
         self.highlight_element(page.get_by_role("textbox", name="Title")).fill("Test Product Title")
         self.highlight_element(page.get_by_role("textbox", name="Description")).click()

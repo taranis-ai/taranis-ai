@@ -521,7 +521,7 @@ class BaseView(MethodView):
         if not form_data:
             return None
 
-        form_data["id"] = object_id or 0
+        form_data["id"] = str(object_id or "0")
 
         try:
             return cls.model(**form_data)

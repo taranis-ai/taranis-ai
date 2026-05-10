@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, relationship
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
 
 if TYPE_CHECKING:
@@ -15,13 +15,14 @@ if TYPE_CHECKING:
 class NewsItemTag(BaseModel):
     __tablename__ = "news_item_tag"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(255))
     tag_type: Mapped[str] = db.Column(db.String(255))
-    story_id: Mapped[str] = db.Column(db.ForeignKey("story.id", ondelete="CASCADE"))
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"))
     story: Mapped["Story"] = relationship("Story", back_populates="tags")
 
     def __init__(self, name: str, tag_type: str = "misc"):
+        self.id = self.uuid7_str()
         if not isinstance(name, str):
             raise TypeError(f"Tag name must be a string, got {type(name)}")
         self.name = name

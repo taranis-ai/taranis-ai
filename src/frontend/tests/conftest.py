@@ -93,13 +93,13 @@ def app():
 @pytest.fixture(scope="session")
 def auth_user():
     debug_user = UserProfile(
-        id=1,
+        id="1",
         username="admin",
         name="Arthur Dent",
-        organization={"id": 1, "name": "Galactic Government"},
+        organization={"id": "1", "name": "Galactic Government"},
         permissions=["ALL"],
         profile={},
-        roles=[{"id": 1, "name": "Admin"}],
+        roles=[{"id": "1", "name": "Admin"}],
     )
 
     yield debug_user
@@ -108,13 +108,13 @@ def auth_user():
 @pytest.fixture(scope="session")
 def auth_user_basic():
     basic_user = UserProfile(
-        id=2,
+        id="2",
         username="user",
         name="Ford Prefect",
-        organization={"id": 1, "name": "Galactic Government"},
+        organization={"id": "1", "name": "Galactic Government"},
         permissions=["ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
         profile={},
-        roles=[{"id": 2, "name": "User"}],
+        roles=[{"id": "2", "name": "User"}],
     )
 
     yield basic_user

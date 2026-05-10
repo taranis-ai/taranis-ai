@@ -807,7 +807,7 @@ def fake_source(core_request_client):
     responses.add_passthru(pattern)
 
     source_data = {
-        "id": "99",
+        "id": "019b678a-3c63-736a-8c81-59c737fc4f53",
         "description": "This is a test source",
         "name": "Test Source",
         "parameters": {"FEED_URL": "https://url/feed.xml"},
@@ -842,7 +842,7 @@ def story_item_list(fake_source):
                     "link": "https://url/",
                     "language": None,
                     "osint_source_id": fake_source,
-                    "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebq",
+                    "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608eba",
                     "story_id": "78049551-dcef-45bd-a5cd-4fe842c4d5e3",
                     "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c82",
                     "title": "Test News Item 13",

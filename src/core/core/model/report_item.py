@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Any, Literal, Optional
@@ -13,7 +12,7 @@ from sqlalchemy.sql.expression import false
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.attribute import AttributeEnum, AttributeType
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.report_item_type import AttributeGroup, AttributeGroupItem, ReportItemType
 from core.model.revision import ReportRevision
 from core.model.role_based_access import ItemType, RoleBasedAccess
@@ -26,7 +25,7 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 class ReportItem(BaseModel):
     __tablename__ = "report_item"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
 
     title: Mapped[str] = db.Column(db.String())
 
@@ -35,10 +34,10 @@ class ReportItem(BaseModel):
     completed: Mapped[bool] = db.Column(db.Boolean, default=False)
     revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
-    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id"), nullable=True)
     user: Mapped["User"] = relationship("User")
 
-    report_item_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), nullable=True)
+    report_item_type_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item_type.id"), nullable=True)
     report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
 
     stories: Mapped[list["Story"]] = relationship(
@@ -68,7 +67,7 @@ class ReportItem(BaseModel):
         report_item_cpes=None,
         id=None,
     ):
-        self.id = id or str(uuid.uuid4())
+        self.id = self.normalize_uuid_id(id)
         self.title = title
         self.report_item_type_id = report_item_type_id
         self.attributes = attributes or []
@@ -251,12 +250,8 @@ class ReportItem(BaseModel):
         report_item_type_id_raw = data.get("report_item_type_id")
         if report_item_type_id_raw is None:
             return None, ({"error": "report_item_type_id is required"}, 400)
-        try:
-            report_item_type_id = int(report_item_type_id_raw)
-        except (TypeError, ValueError):
-            return None, ({"error": "report_item_type_id must be an integer"}, 400)
-
-        if report_item_type_id <= 0 or not ReportItemType.get(report_item_type_id):
+        report_item_type_id = str(report_item_type_id_raw)
+        if not ReportItemType.get(report_item_type_id):
             return None, ({"error": "Invalid report item type"}, 400)
 
         sanitized: dict[str, Any] = {
@@ -438,12 +433,8 @@ class ReportItem(BaseModel):
             query = query.filter(ReportItem.completed == false())
 
         report_item_type_id_raw = filter_args.get("report_item_type_id")
-        try:
-            report_item_type_id = int(report_item_type_id_raw) if report_item_type_id_raw is not None else None
-        except (TypeError, ValueError):
-            report_item_type_id = None
-
-        if report_item_type_id and report_item_type_id > 0:
+        report_item_type_id = str(report_item_type_id_raw) if report_item_type_id_raw is not None else None
+        if report_item_type_id:
             query = query.filter(ReportItem.report_item_type_id == report_item_type_id)
 
         return query
@@ -616,7 +607,7 @@ class ReportItem(BaseModel):
 class ReportItemAttribute(BaseModel):
     __tablename__ = "report_item_attribute"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     value: Mapped[str] = db.Column(db.String())
 
     title: Mapped[str] = db.Column(db.String())
@@ -628,7 +619,7 @@ class ReportItemAttribute(BaseModel):
     group_title: Mapped[str] = db.Column(db.String())
     render_data = db.Column(db.JSON)
 
-    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
+    report_item_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
     report_item = relationship("ReportItem")
 
     def __init__(
@@ -643,8 +634,7 @@ class ReportItemAttribute(BaseModel):
         render_data=None,
         id=None,
     ):
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
         self.value = value or ""
         self.title = title or ""
         self.description = description or ""
@@ -698,11 +688,12 @@ class ReportItemAttribute(BaseModel):
 
 
 class ReportItemCpe(BaseModel):
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     value: Mapped[str] = db.Column(db.String())
 
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
+    report_item_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item.id", ondelete="CASCADE"))
     report_item: Mapped["ReportItem"] = relationship("ReportItem")
 
     def __init__(self, value):
+        self.id = self.uuid7_str()
         self.value = value

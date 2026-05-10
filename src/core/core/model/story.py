@@ -1,5 +1,4 @@
 import re
-import uuid
 from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any
@@ -17,7 +16,7 @@ from sqlalchemy.sql.expression import false, null, true
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_conflict import NewsItemConflict
@@ -35,7 +34,7 @@ from core.service.story_operations import StoryOperationsService
 class Story(BaseModel):
     __tablename__ = "story"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
     created: Mapped[datetime] = db.Column(db.DateTime)
@@ -80,7 +79,7 @@ class Story(BaseModel):
         news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None = None,
         last_change: str | None = None,
     ):
-        self.id = id or str(uuid.uuid4())
+        self.id = self.normalize_uuid_id(id)
         self.likes = likes
         self.dislikes = dislikes
         self.relevance = 0
@@ -117,10 +116,7 @@ class Story(BaseModel):
             return None
 
         _, _, user_id = actor.rpartition("_")
-        if not user_id.isdigit():
-            return None
-
-        if not (user := User.get(int(user_id))):
+        if not (user := User.get(user_id)):
             return None
 
         return user if cls.last_change_for_user(user) == actor else None
@@ -513,7 +509,7 @@ class Story(BaseModel):
         return RoleBasedAccessService.filter_query_with_tlp(query, user)
 
     @classmethod
-    def enhance_with_user_votes(cls, query: Select, user_id: int) -> Select:
+    def enhance_with_user_votes(cls, query: Select, user_id: str) -> Select:
         vote_subquery = (
             db.select(NewsItemVote.item_id, NewsItemVote.user_vote_expr.label("user_vote")).filter(NewsItemVote.user_id == user_id).subquery()
         )
@@ -1466,11 +1462,11 @@ class Story(BaseModel):
 class NewsItemVote(BaseModel):
     __tablename__ = "news_item_vote"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     like: Mapped[bool] = db.Column(db.Boolean, default=False)
     dislike: Mapped[bool] = db.Column(db.Boolean, default=False)
-    item_id: Mapped[str] = db.Column(db.String(64))
-    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
+    item_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH))
+    user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
 
     @hybrid_property
     def user_vote(self):
@@ -1489,17 +1485,18 @@ class NewsItemVote(BaseModel):
         )
 
     def __init__(self, item_id, user_id, like=False, dislike=False):
+        self.id = self.uuid7_str()
         self.item_id = item_id
         self.user_id = user_id
         self.like = like
         self.dislike = dislike
 
     @classmethod
-    def get_by_filter(cls, item_id: str, user_id: int):
+    def get_by_filter(cls, item_id: str, user_id: str):
         return cls.get_first(db.select(cls).filter_by(item_id=item_id, user_id=user_id))
 
     @classmethod
-    def get_user_vote(cls, item_id: str, user_id: int):
+    def get_user_vote(cls, item_id: str, user_id: str):
         if vote := cls.get_by_filter(item_id, user_id):
             return {"like": vote.like, "dislike": vote.dislike}
         return {"like": False, "dislike": False}
@@ -1508,17 +1505,17 @@ class NewsItemVote(BaseModel):
 class StoryNewsItemAttribute(BaseModel):
     __tablename__ = "story_news_item_attribute"
 
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
     news_item_attribute_id: Mapped[str] = db.Column(
-        db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
+        db.String(UUID_STR_LENGTH), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
     )
 
 
 class ReportItemStory(BaseModel):
     __tablename__ = "report_item_story"
 
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
+    report_item_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
     def is_assigned(cls, story_id: str) -> bool:

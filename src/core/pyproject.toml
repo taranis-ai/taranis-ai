@@ -8,12 +8,11 @@ maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Framework :: Flask",
     "Topic :: Security",
 ]
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.14"
 dependencies = [
     "Flask",
     "Flask-Cors",
@@ -77,7 +76,7 @@ dev = [
 
 [tool.ruff]
 line-length = 142
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
