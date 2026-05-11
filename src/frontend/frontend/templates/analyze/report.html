@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input, form_switch %}
+{% from "macros/forms.html" import form_input %}
 {% from "analyze/attribute_macros.html" import attribute_field %}
 {% from "assess/simple_story_card.html" import analyze_story_card %}
 
@@ -10,7 +10,6 @@
 {% set layout = layout | default('split') %}
 {% set is_edit = report.id is not none and report.id != '0' %}
 {% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
-{% set form_target = '#report_form' if is_edit else '#report' %}
 
 <div class="p-4 card bg-base-100 shadow" id="report">
   <div class="card-body gap-4">
@@ -32,60 +31,48 @@
             Version History ({{ report.revision_count }})
           </a>
         {% endif %}
-        <a class="btn btn-outline btn-sm"
-           href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
-           data-testid="report-new-product">New Product from Report</a>
+        <div data-testid="report-new-product" class="inline-flex">
+          <button type="button"
+                  class="btn btn-outline btn-sm"
+                  onclick="document.getElementById('report_publish_dialog').showModal()"
+                  data-testid="report-publish-button">Publish</button>
+        </div>
         <div class="join">
-          <button type="button"
-                  {{ form_action }}
-                  hx-vals='{"completed": true}'
-                  hx-target="#report"
-                  hx-target-error="#report"
-                  hx-swap="outerHTML"
-                  hx-select="#report"
-                  hx-include="#report_form [name=layout]"
-                  class="btn btn-sm btn-outline join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed
-          </button>
-          <button type="button"
-                  {{ form_action }}
-                  hx-vals='{"completed": false}'
-                  hx-target="#report"
-                  hx-target-error="#report"
-                  hx-swap="outerHTML"
-                  hx-select="#report"
-                  hx-include="#report_form [name=layout]"
-                  class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">Incomplete
-          </button>
+          <button type="submit"
+                  form="report_form"
+                  name="completed"
+                  value="true"
+                  formnovalidate
+                  class="btn btn-sm btn-outline join-item {% if report.completed %}btn-active btn-success{% endif %}">Completed</button>
+          <button type="submit"
+                  form="report_form"
+                  name="completed"
+                  value="false"
+                  formnovalidate
+                  class="btn btn-sm btn-outline join-item {% if not report.completed %}btn-active btn-warning{% endif %}">Incomplete</button>
         </div>
       {% endif %}
       <div class="join">
-        <a href="?layout=split"
-           hx-get="?layout=split"
-           hx-include="#report_form"
-           hx-target="#report"
-           hx-target-error="#report"
-           hx-swap="outerHTML"
-           hx-select="#report"
-           class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</a>
-        <a href="?layout=stacked"
-           hx-get="?layout=stacked"
-           hx-include="#report_form"
-           hx-target="#report"
-           hx-target-error="#report"
-           hx-swap="outerHTML"
-           hx-select="#report"
-           class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</a>
+        <button type="submit"
+                form="report_form"
+                formnovalidate
+                name="layout_switch"
+                value="split"
+                formaction="{{ url_for('analyze.report', report_id=report.id) }}?layout=split"
+                class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</button>
+        <button type="submit"
+                form="report_form"
+                formnovalidate
+                name="layout_switch"
+                value="stacked"
+                formaction="{{ url_for('analyze.report', report_id=report.id) }}?layout=stacked"
+                class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</button>
       </div>
     </div>
 
-    <form id="report_form"
-          class="w-full"
-          {{ form_action }}
-          hx-swap="outerHTML"
-          hx-target="{{ form_target }}"
-          hx-target-error="{{ form_target }}"
-          hx-select="{{ form_target }}">
+    <form id="report_form" class="w-full" method="post" action="{{ form_action }}">
       <input type="hidden" name="layout" value="{{ layout }}">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
 
       {% include "partials/admin_form_error.html" %}
 
@@ -105,7 +92,7 @@
                         {% if is_edit %}disabled{% endif %}>
                   {% if not report.report_item_type_id %}<option value="" disabled selected>Select a report type</option>{% endif %}
                   {% for report_type in report_types %}
-                    <option value="{{ report_type.id }}" {% if report_type.id == report.report_item_type_id %}selected{% endif %}>
+                    <option value="{{ report_type.id }}" {% if report_type.id | string == report.report_item_type_id | string %}selected{% endif %}>
                       {{ report_type.title }}
                     </option>
                   {% endfor %}
@@ -138,15 +125,7 @@
             <header class="flex items-center justify-between">
               <h3 class="text-lg font-semibold">Stories</h3>
               <div>
-                <button type="button"
-                        class="btn btn-sm btn-outline"
-                        data-testid="remove-all-stories"
-                        {{ form_action }}
-                        hx-vals='{"stories[]": [""]}'
-                        hx-target="#report_form"
-                        hx-target-error="#report_form"
-                        hx-swap="outerHTML"
-                        hx-select="#report_form">
+                <button type="submit" class="btn btn-sm btn-outline" data-testid="remove-all-stories" name="remove_all_stories" value="1" formnovalidate>
                   Remove all
                 </button>
               </div>
@@ -155,9 +134,8 @@
             {% if stories %}
               <div class="space-y-3" data-testid="report-stories">
                 {% for story in stories %}
-                  {% if not is_edit %}<input type="hidden" name="stories[]" value="{{ story.id }}">{% endif %}
-                  {% set other_ids = (stories | rejectattr('id', 'equalto', story.id) | map(attribute='id') | list) or [''] %}
-                  {{ analyze_story_card(story, used_story_ids, form_action, other_ids) }}
+                  <input type="hidden" name="stories[]" value="{{ story.id }}">
+                  {{ analyze_story_card(story, report.used_story_ids | default([]) ) }}
                 {% endfor %}
               </div>
             {% else %}
@@ -169,26 +147,35 @@
 
       <div class="mt-8">
         <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
-        <script type="text/javascript">
-          function initAttributeStoryChoices() {
-            const story_attribute_ids = [{% for a in story_attributes %}{id: '{{ a.id }}', title: '{{ a.title }}'},{% endfor %}];
-            story_attribute_ids.forEach(attr => {
-              const field_id = `attribute_story_${attr.id}`;
-              const choices = initChoices(field_id, 'story', {itemSelectText: "Add Story", placeholderValue: attr.title});
-            });
-          }
-
-          if (typeof htmx !== 'undefined' && htmx.onLoad) {
-            htmx.onLoad(function(elt) {
-              initAttributeStoryChoices();
-            });
-          } else {
-            document.addEventListener('DOMContentLoaded', function() {
-              initAttributeStoryChoices();
-            });
-          }
-        </script>
       </div>
     </form>
+
+    {% include "analyze/report_publish_dialog.html" %}
   </div>
 </div>
+<script type="text/javascript">
+  function initMarkedChoices(root = document) {
+    root.querySelectorAll("select[data-choice-type]").forEach((select) => {
+      if (!select.id || select.dataset.choicesInitialized === "true") {
+        return;
+      }
+
+      const placeholder = select.dataset.choicePlaceholder || select.dataset.choiceType || "items";
+      const itemSelectText = select.dataset.choiceItemText || `Add ${placeholder}`;
+      initChoices(select.id, placeholder, { itemSelectText, placeholderValue: placeholder });
+      select.dataset.choicesInitialized = "true";
+    });
+  }
+
+  if (typeof htmx !== "undefined" && htmx.onLoad) {
+    htmx.onLoad(function (elt) {
+      initMarkedChoices(elt);
+    });
+  } else if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      initMarkedChoices(document);
+    }, { once: true });
+  } else {
+    initMarkedChoices(document);
+  }
+</script>

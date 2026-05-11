@@ -252,20 +252,20 @@ class CoreApi:
 
     def update_news_item(self, news_id: str, data) -> dict | None:
         try:
-            return self.api_put(url=f"/bots/news-item/{news_id}", json_data=data)
+            return self.api_put(url=f"/bots/news-item/{news_id}", json_data=dict(data))
         except Exception:
             return None
 
     def update_story_summary(self, story_id, summary: str) -> dict | None:
         try:
-            data = {"summary": summary}
-            return self.api_put(url=f"/bots/story/{story_id}", json_data=data)
+            return self.api_put(url=f"/bots/story/{story_id}", json_data={"summary": summary})
         except Exception:
             return None
 
     def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
-            return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=attributes)
+            payload = dict(attributes=attributes) if not isinstance(attributes, dict) else dict(attributes)
+            return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=payload)
         except Exception:
             return None
 
@@ -278,7 +278,7 @@ class CoreApi:
 
         """
         try:
-            return self.api_patch(url=f"/bots/story/{story_id}/attributes", json_data=attributes)
+            return self.api_patch(url=f"/bots/story/{story_id}/attributes", json_data={"attributes": attributes})
         except Exception:
             return None
 

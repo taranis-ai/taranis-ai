@@ -1,14 +1,16 @@
 import json
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 from flask import render_template_string, url_for
 from lxml import html
 from models.assess import Story
 from werkzeug.datastructures import MultiDict
+from werkzeug.exceptions import Forbidden
 
 from frontend.cache import add_user_to_cache
 from frontend.config import Config
-from frontend.views.story_views import _normalize_story_import_payload
+from frontend.views.story_views import StoryView, _normalize_story_import_payload
 
 
 def expected_search_trigger(input_id: str) -> str:
@@ -278,6 +280,7 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     filter_form = tree.xpath('//form[@id="assess-sidebar"]')[0]
     search_input = tree.xpath('//input[@id="story_search"]')[0]
     clear_button = tree.xpath("//button[@title='Clear time filters']")[0]
+    changed_by_select = filter_form.xpath('.//label[.//span[text()="Changed by"]]/select')[0]
 
     assert search_form.get("hx-trigger") == expected_search_trigger("story_search")
     assert search_form.get("hx-include") == "#assess-sidebar, #selected-tags"
@@ -286,9 +289,24 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert filter_form.get("hx-include") == "#selected-tags"
     assert filter_form.get("hx-on:submit") == "event.preventDefault()"
     assert clear_button.get("hx-include") == "#assess-sidebar, #assess-search-form, #selected-tags"
+    assert [option.text for option in changed_by_select.xpath("./option")] == ["Any", "Me"]
     assert search_input.get("hx-get") is None
     assert search_input.get("hx-include") is None
     assert search_input.get("hx-trigger") is None
+
+
+def test_assess_selection_key_ignores_paging_params():
+    selection_key = StoryView._build_assess_selection_key(
+        {
+            "offset": ["40"],
+            "page": ["2"],
+            "search": ["incident"],
+            "sort": ["date_desc"],
+            "tags": ["one", "two"],
+        }
+    )
+
+    assert selection_key == "search=incident&sort=date_desc&tags=one&tags=two"
 
 
 def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, auth_user, responses_mock):
@@ -552,3 +570,72 @@ def test_story_sharing_dialog_loads_connectors_from_assess_endpoint(authenticate
     assert connector_id in response.text
     assert "MISP Connector" in response.text
     assert all(call.request.url != f"{Config.TARANIS_CORE_URL}/config/connectors" for call in responses_mock.calls)
+
+
+def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authenticated_client_basic, monkeypatch, responses_mock):
+    story_id = "story-1"
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}",
+        json={"id": story_id, "title": "Shared Story", "links": ["https://example.com/story"]},
+    )
+
+    def raise_connector_loading_error(*args, **kwargs):
+        raise RuntimeError("permission lookup failed")
+
+    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.get_objects", raise_connector_loading_error)
+
+    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
+
+    assert response.status_code == 200
+    assert "Share Stories" in response.text
+    assert "Shared Story" not in response.text
+    assert "Connector sharing is not available for your account" in response.text
+    assert "Share via email" in response.text
+    assert "Export to JSON" in response.text
+
+    tree = html.fromstring(response.text)
+    connector_select = tree.xpath('//select[@id="connector"]')
+    assert len(connector_select) == 0
+
+
+def test_story_sharing_dialog_still_renders_when_connector_loading_is_forbidden(authenticated_client_basic, monkeypatch, responses_mock):
+    story_id = "story-1"
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}",
+        json={"id": story_id, "title": "Shared Story", "links": ["https://example.com/story"]},
+    )
+
+    def raise_connector_loading_error(*args, **kwargs):
+        raise Forbidden("connector access denied")
+
+    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.get_objects", raise_connector_loading_error)
+
+    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
+
+    assert response.status_code == 200
+    assert "Share Stories" in response.text
+    assert "Connector sharing is not available for your account" in response.text
+    assert "Share via email" in response.text
+    assert "Export to JSON" in response.text
+
+    tree = html.fromstring(response.text)
+    connector_select = tree.xpath('//select[@id="connector"]')
+    assert len(connector_select) == 0
+
+
+def test_handle_news_item_response_returns_notification_and_content(app, monkeypatch):
+    monkeypatch.setattr(StoryView, "get_notification_from_response", lambda response, oob=True: "notification")
+
+    response = SimpleNamespace(ok=True, json=lambda: {"story_id": "story-1"})
+
+    with app.test_request_context("/"):
+        result = StoryView._handle_news_item_response(
+            response,
+            content_builder=lambda _story_id: "<div>content</div>",
+            redirect_on_story=False,
+        )
+
+    assert result.status_code == 200
+    assert result.get_data(as_text=True) == "notification<div>content</div>"

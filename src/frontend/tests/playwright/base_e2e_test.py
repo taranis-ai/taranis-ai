@@ -1,3 +1,5 @@
+import re
+
 from flask import url_for
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
@@ -9,7 +11,8 @@ class BaseE2ETest(PlaywrightHelpers):
     def _get_table_link_locator(self, page: Page, table_id: str, link_text: str):
         """Return the first table cell anchor matched via shared table macro test ids."""
         table = page.get_by_test_id(table_id)
-        return table.locator(f"[data-testid^='{table_id}_']").filter(has_text=link_text).first
+        exact_link_text = re.compile(rf"^\s*{re.escape(link_text)}\s*$")
+        return table.locator(f"[data-testid^='{table_id}_']").filter(has_text=exact_link_text).first
 
     def login_with_credentials(
         self,
