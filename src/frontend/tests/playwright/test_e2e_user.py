@@ -525,6 +525,16 @@ class TestEndToEndUser(BaseE2ETest):
             completed_title = f"{filter_prefix}-complete"
             incomplete_title = f"{filter_prefix}-incomplete"
 
+            def delete_filtered_report(title: str):
+                item_id = self.get_table_row_id_by_link_text(page, "report-table", title)
+                self.delete_table_row(page, f"action-delete-{item_id}")
+                dismiss_notifications(page)
+
+                page.get_by_role("link", name="Analyze").click()
+                refreshed_search = page.get_by_test_id("report-search-input")
+                refreshed_search.fill(filter_prefix)
+                expect(page.get_by_test_id("report-table").get_by_role("link", name=title, exact=True)).not_to_be_visible()
+
             def create_filter_report(title: str, report_type_label: str, completed: bool = False):
                 page.get_by_role("link", name="Analyze").click()
                 page.get_by_test_id("new-report-button").click()
@@ -548,20 +558,20 @@ class TestEndToEndUser(BaseE2ETest):
             reset_button = page.get_by_test_id("reset-report-filters")
 
             search_input.fill(filter_prefix)
-            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).to_be_visible()
-            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
 
             completed_filter.select_option("false")
             expect(page).to_have_url(
                 re.compile(rf"/analyze.*search={filter_prefix}.*completed=false|/analyze.*completed=false.*search={filter_prefix}")
             )
-            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).to_be_visible()
-            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).not_to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).not_to_be_visible()
 
             completed_filter.select_option("true")
             expect(page).to_have_url(re.compile(r"completed=true"))
-            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).to_be_visible()
-            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).not_to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).not_to_be_visible()
 
             completed_filter.select_option("")
             expect(page).to_have_url(re.compile(r"completed=&report_item_type_id="))
@@ -577,8 +587,8 @@ class TestEndToEndUser(BaseE2ETest):
             assert all_attribute_report_type_value is not None
             report_type_filter.select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
             expect(page).to_have_url(re.compile(rf"report_item_type_id={all_attribute_report_type_value}"))
-            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).to_be_visible()
-            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).not_to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).not_to_be_visible()
 
             reset_button.click()
             expect(search_input).to_have_value("")
@@ -587,12 +597,10 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page).not_to_have_url(re.compile(r"(search=|completed=|report_item_type_id=)"))
 
             search_input.fill(filter_prefix)
-            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title)).to_be_visible()
-            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title)).to_be_visible()
-            self.delete_item(page, "report-table", completed_title)
-            dismiss_notifications(page)
-            self.delete_item(page, "report-table", incomplete_title)
-            dismiss_notifications(page)
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
+            expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
+            delete_filtered_report(completed_title)
+            delete_filtered_report(incomplete_title)
 
         def add_stories_to_report():
             select_report_stories_from_assess(story_search_term)

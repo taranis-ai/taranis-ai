@@ -44,7 +44,10 @@ class BaseE2ETest(PlaywrightHelpers):
         expect(delete_button).to_be_visible()
         delete_button.click()
         if confirm:
-            page.get_by_role("button", name="Delete").click()
+            confirm_button = page.locator(".swal2-container .swal2-confirm")
+            expect(confirm_button).to_be_visible()
+            with page.expect_response(lambda response: response.request.method == "DELETE", timeout=10000):
+                confirm_button.click(force=True)
 
     def get_table_row_id_by_link_text(self, page: Page, table_id: str, link_text: str) -> str:
         """Return the row id from the first matching link href inside a table."""
