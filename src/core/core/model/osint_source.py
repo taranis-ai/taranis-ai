@@ -169,6 +169,7 @@ class OSINTSource(BaseModel):
     @classmethod
     def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = dict(filter_args or {})
+        filter_args["filter_manual"] = cls._filter_manual_enabled(filter_args.get("filter_manual", True))
 
         response, status_code = super().get_all_for_api(filter_args=filter_args, with_count=with_count, user=user)
         items = response.get("items", [])
@@ -205,7 +206,7 @@ class OSINTSource(BaseModel):
         if enabled := filter_args.get("enabled"):
             query = query.where(cls.enabled.is_(enabled))
 
-        if cls._filter_manual_enabled(filter_args.get("filter_manual", True)):
+        if filter_args.get("filter_manual"):
             query = query.where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
 
         return query
