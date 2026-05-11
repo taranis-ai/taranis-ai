@@ -99,7 +99,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         self.highlight_element(page.locator("input[type='submit']")).click()
         self.assert_item_in_table(page, "organization-table", organization_name)
 
-        page.get_by_role("link", name=organization_name).click()
+        self.open_table_item(page, "organization-table", organization_name)
         page.get_by_label("Description", exact=False).fill("Updated description of an organization")
         self.highlight_element(page.locator("input[type='submit']")).click()
         expect(page.get_by_role("row", name=organization_name)).to_contain_text("Updated description of an organization")

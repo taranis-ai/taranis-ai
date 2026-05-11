@@ -880,16 +880,16 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_text("Report item updated").click()
 
         page.get_by_role("link", name="Analyze").click()
-        expect(page.get_by_role("link", name=report_title)).to_be_visible()
+        self.assert_item_in_table(page, "report-table", report_title)
 
-        page.get_by_role("link", name=report_title).click()
+        self.open_table_item(page, "report-table", report_title)
         page.get_by_label("TLP Level Clear Green Amber").select_option("green")
         page.get_by_test_id("save-report").click()
         page.get_by_text("Report item updated").click()
 
         page.get_by_role("link", name="Analyze").click()
         expect(page.get_by_test_id("analyze")).to_be_visible()
-        expect(page.get_by_role("link", name=report_title)).not_to_be_visible()
+        self.assert_item_not_in_table(page, "report-table", report_title)
 
     def test_user_report_detail_is_forbidden_after_higher_tlp(
         self,
@@ -915,8 +915,8 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_text("Report item updated").click()
 
         page.get_by_role("link", name="Analyze").click()
-        expect(page.get_by_role("link", name=report_title)).to_be_visible()
-        page.get_by_role("link", name=report_title).click()
+        self.assert_item_in_table(page, "report-table", report_title)
+        self.open_table_item(page, "report-table", report_title)
 
         page.get_by_label("TLP Level Clear Green Amber").select_option("green")
         page.get_by_test_id("save-report").click()

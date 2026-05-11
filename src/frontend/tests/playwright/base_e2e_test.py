@@ -6,6 +6,11 @@ from playwright_helpers import PlaywrightHelpers
 class BaseE2ETest(PlaywrightHelpers):
     """Base class for shared E2E workflow and table interaction helpers."""
 
+    def _get_table_link_locator(self, page: Page, table_id: str, link_text: str):
+        """Return the first table cell anchor matched via shared table macro test ids."""
+        table = page.get_by_test_id(table_id)
+        return table.locator(f"[data-testid^='{table_id}_']").filter(has_text=link_text).first
+
     def login_with_credentials(
         self,
         page: Page,
@@ -40,18 +45,22 @@ class BaseE2ETest(PlaywrightHelpers):
 
     def get_table_row_id_by_link_text(self, page: Page, table_id: str, link_text: str) -> str:
         """Return the row id from the first matching link href inside a table."""
-        item_href = page.get_by_test_id(table_id).get_by_role("link", name=link_text).first.get_attribute("href") or ""
+        item_href = self._get_table_link_locator(page, table_id, link_text).get_attribute("href") or ""
         item_id = item_href.rstrip("/").split("/")[-1]
         assert item_id, f"Expected item id for '{link_text}' in table '{table_id}'"
         return item_id
 
     def assert_item_in_table(self, page: Page, table_id: str, link_text: str):
         """Assert that an item appears in a table."""
-        expect(page.get_by_test_id(table_id).get_by_role("link", name=link_text)).to_be_visible()
+        expect(self._get_table_link_locator(page, table_id, link_text)).to_be_visible()
 
     def assert_item_not_in_table(self, page: Page, table_id: str, link_text: str):
         """Assert that an item does not appear in a table."""
-        expect(page.get_by_test_id(table_id).get_by_role("link", name=link_text)).not_to_be_visible()
+        expect(self._get_table_link_locator(page, table_id, link_text)).not_to_be_visible()
+
+    def open_table_item(self, page: Page, table_id: str, link_text: str):
+        """Open a table item via the shared table macro anchor selector."""
+        self._get_table_link_locator(page, table_id, link_text).click()
 
     def delete_item(
         self,
