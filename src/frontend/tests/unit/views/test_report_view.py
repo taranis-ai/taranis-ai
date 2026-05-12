@@ -22,6 +22,108 @@ def test_report_view_renders_access_denied_page_when_core_returns_403(app, authe
     assert "403 - Access denied" in html
 
 
+def test_report_diff_view_renders_compare_payload(app, authenticated_client_basic, responses_mock):
+    report_id = "report-1"
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/1",
+        json={
+            "id": 1,
+            "revision": 1,
+            "created_at": "2026-03-12T10:00:00",
+            "created_by": "alice",
+            "created_by_id": 1,
+            "note": "created",
+            "data": {
+                "title": "Report Draft",
+                "completed": False,
+                "stories": [{"id": "story-1", "title": "Story One"}],
+                "grouped_attributes": [
+                    {
+                        "title": "Summary",
+                        "attributes": [{"title": "Threat", "type": "STORY", "value": "story-1"}],
+                    }
+                ],
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/2",
+        json={
+            "id": 2,
+            "revision": 2,
+            "created_at": "2026-03-12T11:00:00",
+            "created_by": "bob",
+            "created_by_id": 2,
+            "note": "update",
+            "data": {
+                "title": "Report Final",
+                "completed": True,
+                "stories": [{"id": "story-2", "title": "Story Two"}],
+                "grouped_attributes": [
+                    {
+                        "title": "Summary",
+                        "attributes": [{"title": "Threat", "type": "STORY", "value": "story-2"}],
+                    }
+                ],
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
+
+    with app.test_request_context():
+        response = authenticated_client_basic.get(url_for("analyze.report_diff", report_id=report_id, from_rev=1, to_rev=2))
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Changes:" in html
+    assert "Report Final" in html
+    assert "Summary" in html
+    assert "bg-success/20 text-success" in html
+    assert "bg-error/20 text-error" in html
+
+
+def test_report_diff_view_shows_no_changes_state(app, authenticated_client_basic, responses_mock):
+    report_id = "report-1"
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/1",
+        json={
+            "id": 1,
+            "revision": 1,
+            "created_at": "2026-03-12T10:00:00",
+            "created_by": "alice",
+            "created_by_id": 1,
+            "note": "created",
+            "data": {"title": "Report title", "completed": False, "stories": [], "grouped_attributes": []},
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/2",
+        json={
+            "id": 2,
+            "revision": 2,
+            "created_at": "2026-03-12T11:00:00",
+            "created_by": "bob",
+            "created_by_id": 2,
+            "note": "update",
+            "data": {"title": "Report title", "completed": False, "stories": [], "grouped_attributes": []},
+        },
+        status=200,
+        content_type="application/json",
+    )
+
+    with app.test_request_context():
+        response = authenticated_client_basic.get(url_for("analyze.report_diff", report_id=report_id, from_rev=1, to_rev=2))
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "No changes detected between these revisions." in html
+
+
 def test_report_delete_actions_target_notification_bar_on_error(app):
     with app.test_request_context():
         delete_action = next(action for action in ReportItemView.get_report_actions() if action["label"] == "Delete")
@@ -78,7 +180,7 @@ def test_report_update_response_fetches_saved_report_when_core_response_only_con
     assert context["report"].id == saved_report_id
     assert context["report"].title == "test title"
     assert context["submit_text"] == "Update Report"
-    assert "hx-put=" in context["form_action"]
+    assert context["form_action"].endswith(f"/report/{saved_report_id}")
 
 
 def test_report_create_post_renders_saved_report_when_core_response_only_contains_id(
@@ -115,9 +217,46 @@ def test_report_create_post_renders_saved_report_when_core_response_only_contain
             headers={"HX-Request": "true"},
         )
 
-    assert response.status_code == 200
-    assert response.headers["HX-Push-Url"].endswith(f"/report/{saved_report_id}")
-    html = response.get_data(as_text=True)
-    assert f"ID: {saved_report_id}" in html
-    assert 'value="test title"' in html
-    assert "New Product from Report" in html
+    assert response.status_code == 204
+    assert response.headers["HX-Redirect"].endswith(f"/report/{saved_report_id}?layout=split")
+
+
+def test_report_process_form_data_keeps_stories_when_remove_all_flag_is_false(app, monkeypatch):
+    captured: dict[str, object] = {}
+
+    def mock_store_form_data(cls, form_data, object_id):
+        captured["form_data"] = form_data
+        captured["object_id"] = object_id
+        return {"id": object_id}, None
+
+    monkeypatch.setattr(ReportItemView, "store_form_data", classmethod(mock_store_form_data))
+
+    with app.test_request_context(
+        "/report/test-report",
+        method="POST",
+        data={
+            "layout": "stacked",
+            "remove_all_stories": "0",
+            "stories[]": ["story-1", "story-2"],
+            "attributes[1][]": ["alpha", "beta"],
+        },
+    ):
+        core_response, error = ReportItemView.process_form_data("test-report")
+
+    assert error is None
+    assert core_response == {"id": "test-report"}
+    assert captured["object_id"] == "test-report"
+    assert captured["form_data"] == {
+        "stories": ["story-1", "story-2"],
+        "attributes": {"1": "alpha,beta"},
+    }
+
+
+def test_report_submit_redirect_target_uses_clean_edit_route(app, monkeypatch):
+    monkeypatch.setattr(ReportItemView, "get_object_by_id", classmethod(lambda cls, object_id: ReportItem.model_construct(id=object_id)))
+
+    with app.test_request_context("/report/test-report", method="POST", data={"layout": "stacked"}):
+        redirect_target = ReportItemView.get_submit_redirect_target("test-report", {"id": "test-report"})
+
+    assert redirect_target.endswith("/report/test-report")
+    assert "layout=" not in redirect_target

@@ -91,6 +91,8 @@ def pre_seed_update(db_engine: Engine):
     for b in bots:
         bot = Bot.filter_by_type(b["type"])
         if not bot:
+            b["enabled"] = False
+            logger.debug(f"Adding new bot type '{b['type']}' in disabled state")
             Bot.add(b)
 
     for r in report_types:

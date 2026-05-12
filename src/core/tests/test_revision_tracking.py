@@ -84,17 +84,55 @@ def test_story_revisions_are_created_on_updates(admin_user):
 
 
 @pytest.mark.usefixtures("session")
-def test_story_set_tags_creates_created_and_update_revisions():
+def test_story_set_tags_creates_created_and_update_revisions(admin_user):
     story = _create_story()
+    expected_actor = Story.resolve_actor(user=admin_user)
 
-    response, status = story.set_tags(["apt29"])
+    response, status = story.set_tags(["apt29"], actor=expected_actor)
 
     assert status == 200
     assert response["message"].startswith("Successfully updated story")
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 2
+    assert story.last_change == expected_actor
     assert [revision.note for revision in revisions] == ["created", "set_tags"]
+    assert revisions[-1].created_by_id == admin_user.id
+    assert revisions[-1].data["last_change"] == expected_actor
+
+
+@pytest.mark.usefixtures("session")
+def test_story_set_tags_preserves_worker_actor():
+    story = _create_story()
+    story.last_change = "collector_rss_collector_99"
+    db.session.commit()
+
+    response, status = story.set_tags(["apt29"], actor=story.last_change)
+
+    assert status == 200
+    assert response["message"].startswith("Successfully updated story")
+    db.session.refresh(story)
+    revisions = _fetch_story_revisions(story.id)
+    assert story.revision == 2
+    assert story.last_change == "collector_rss_collector_99"
+    assert [revision.note for revision in revisions] == ["created", "set_tags"]
+    assert revisions[-1].data["last_change"] == "collector_rss_collector_99"
+
+
+@pytest.mark.usefixtures("session")
+def test_set_found_bot_tags_marks_story_as_bot_actor():
+    story = _create_story()
+    assert story.set_tags(["existing-tag"], actor="bot")[1] == 200
+
+    NewsItemTagService.set_found_bot_tags({story.id: ["apt29"]}, actor="bot")
+
+    db.session.refresh(story)
+    revisions = _fetch_story_revisions(story.id)
+    assert story.revision == 3
+    assert story.last_change == "bot"
+    assert sorted(tag.name for tag in story.tags) == ["apt29", "existing-tag"]
+    assert [revision.note for revision in revisions] == ["created", "set_tags", "set_tags"]
+    assert revisions[-1].data["last_change"] == "bot"
 
 
 @pytest.mark.usefixtures("session")
@@ -196,6 +234,34 @@ def test_news_item_attribute_update_creates_story_revisions():
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 2
     assert [revision.note for revision in revisions] == ["created", "update_news_item_attributes"]
+
+
+@pytest.mark.usefixtures("session")
+def test_delete_primary_news_item_promotes_story_title_to_remaining_item(admin_user):
+    first_item = _news_item_payload(source="manual")
+    first_item["title"] = "Primary title"
+    second_item = _news_item_payload(source="manual")
+    second_item["title"] = "Fallback title"
+
+    result, status = Story.add(
+        {
+            "title": "Primary title",
+            "description": "initial desc",
+            "news_items": [first_item, second_item],
+        }
+    )
+    assert status == 200
+
+    story = Story.get(result["story_id"])
+    assert story is not None
+
+    response, status = NewsItemService.delete(story.news_items[0].id, admin_user)
+
+    assert status == 200
+    assert response["story_id"] == story.id
+
+    db.session.refresh(story)
+    assert story.title == "Fallback title"
 
 
 @pytest.mark.usefixtures("session")

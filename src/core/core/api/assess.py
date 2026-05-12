@@ -50,7 +50,7 @@ class NewsItems(MethodView):
             return {"error": "No NewsItems in JSON Body"}, 422
 
         data_json["osint_source_id"] = "manual"
-        result, status = story.Story.add_single_news_item(data_json)
+        result, status = story.Story.add_single_news_item(data_json, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
         return result, status
@@ -112,7 +112,8 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self, news_item_id: str):
-        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json)
+        actor = story.Story.last_change_for_user(current_user)
+        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=actor)
         invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
         return response, status
 
@@ -129,6 +130,7 @@ class Stories(MethodView):
                 "cybersecurity",
                 "relevant",
                 "in_report",
+                "changed_by",
                 "range",
                 "sort",
                 "timefrom",
@@ -243,7 +245,8 @@ class UnGroupNewsItem(MethodView):
     def put(self):
         if not (newsitem_ids := request.json):
             return {"error": "No news item ids provided"}, 400
-        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user)
+        actor = story.Story.last_change_for_user(current_user)
+        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
@@ -267,7 +270,8 @@ class GroupAction(MethodView):
     def put(self):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
-        response, code = story.Story.group_stories(story_ids, current_user)
+        actor = story.Story.last_change_for_user(current_user)
+        response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
@@ -277,7 +281,8 @@ class GroupAction(MethodView):
     def post(self):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
-        response, code = story.Story.group_stories(story_ids, current_user)
+        actor = story.Story.last_change_for_user(current_user)
+        response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
