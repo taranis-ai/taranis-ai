@@ -1,5 +1,6 @@
 import logging
 from functools import lru_cache
+from pathlib import Path
 
 import schemathesis
 from dotenv import load_dotenv
@@ -28,6 +29,8 @@ def _get_app():
 
 
 class _LazyWSGIApp:
+    """Defer Flask app creation until schemathesis performs the first WSGI call."""
+
     def __call__(self, environ, start_response):
         return _get_app()(environ, start_response)
 
@@ -43,7 +46,8 @@ schemathesis_config = schemathesis.Config(
         )
     )
 )
-schema = schemathesis.openapi.from_path("core/static/openapi3_1.yaml", config=schemathesis_config)
+OPENAPI_PATH = Path(__file__).resolve().parent.parent / "core" / "static" / "openapi3_1.yaml"
+schema = schemathesis.openapi.from_path(str(OPENAPI_PATH), config=schemathesis_config)
 schema.app = _LazyWSGIApp()
 schema = schema.exclude(deprecated=True)
 response_check_names = {
