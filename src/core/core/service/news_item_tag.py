@@ -103,7 +103,7 @@ class NewsItemTagService:
         story.tags = story_tags
 
     @staticmethod
-    def set_found_bot_tags(found_tags: dict[str, Any], change_by_bot: bool = False):
+    def set_found_bot_tags(found_tags: dict[str, Any], *, actor: str | None = None):
         errors = {}
         for story_id, tags in found_tags.items():
             if not tags:
@@ -112,7 +112,7 @@ class NewsItemTagService:
             if not story:
                 errors[story_id] = "Story not found"
                 continue
-            story.set_tags(tags, change_by_bot=change_by_bot)
+            story.set_tags(tags, actor=actor, replace=False)
 
     @staticmethod
     def set_worker_execution_attribute(*, worker_type: str, worker_id: str, found_tags: dict[str, Any]):

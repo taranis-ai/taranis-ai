@@ -19,6 +19,7 @@
 {% set in_report_filter = request_args.get('in_report', ['']) | first %}
 {% set relevant_filter = request_args.get('relevant', ['']) | first %}
 {% set cybersecurity_filter = request_args.get('cybersecurity', ['']) | first %}
+{% set changed_by_filter = request_args.get('changed_by', ['']) | first %}
 {% set sort_choices = sort_choices | default([
   {'label': 'Newest first', 'value': 'date_desc'},
   {'label': 'Oldest first', 'value': 'date_asc'},
@@ -208,6 +209,16 @@ document.addEventListener('htmx:afterSwap', function (event) {
   <div class="divider text-xs">Status</div>
   <section class="space-y-3">
     {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
+    <label class="select w-full">
+      <span class="label">Changed by</span>
+      <select {% if changed_by_filter %}name="changed_by"{% endif %}
+              onchange="this.name = this.value ? 'changed_by' : ''"
+              class="select select-bordered select-sm"
+              hx-trigger="change">
+        <option value="" {% if changed_by_filter in ['', None] %}selected{% endif %}>Any</option>
+        <option value="me" {% if changed_by_filter == 'me' %}selected{% endif %}>Me</option>
+      </select>
+    </label>
     <label class="select w-full">
       <span class="label">Cybersecurity</span>
       <select {% if cybersecurity_filter %}name="cybersecurity"{% endif %}

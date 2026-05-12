@@ -217,6 +217,11 @@ class StoryView(BaseView):
         return f"{base_url}?{query_string}" if query_string else base_url
 
     @classmethod
+    def _build_assess_selection_key(cls, request_params: dict[str, list[str]]) -> str:
+        selection_params = {key: values[:] for key, values in sorted(request_params.items()) if key not in {"offset", "page"} and values}
+        return urlencode(selection_params, doseq=True)
+
+    @classmethod
     def default_share_story_link(cls) -> str:
         return f"mailto:?{urlencode({'subject': 'sharing stories from taranis ai'}, quote_via=quote)}"
 
@@ -469,6 +474,7 @@ class StoryView(BaseView):
 
         context = cls.get_view_context(items, error)
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
+        context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
 
         return render_template(cls.get_list_template(), **context), 200
 

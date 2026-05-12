@@ -141,6 +141,6 @@ class TaskService:
             return
 
         if worker_type in TAGGING_BOTS:
-            NewsItemTagService.set_found_bot_tags(bot_result, change_by_bot=True)
+            NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
 
         NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)

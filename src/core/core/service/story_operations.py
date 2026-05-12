@@ -150,7 +150,12 @@ class StoryOperationsService:
         target_story.news_items.append(news_item)
 
     @classmethod
-    def finalize_story_merge(cls, target_story: "Story", source_stories: list["Story"]) -> set["Story"]:
+    def finalize_story_merge(
+        cls,
+        target_story: "Story",
+        source_stories: list["Story"],
+        actor: str | None = None,
+    ) -> set["Story"]:
         processed_stories = {target_story, *source_stories}
         absorbed_story_ids: list[str] = []
         absorbed_overrides = [target_story.relevance_override or 0]
@@ -162,5 +167,5 @@ class StoryOperationsService:
 
         target_story.relevance_override = max(absorbed_overrides)
         cls.merge_votes_into_story(target_story, absorbed_story_ids)
-        type(target_story).update_stories(processed_stories)
+        type(target_story).update_stories(processed_stories, actor=actor)
         return processed_stories
