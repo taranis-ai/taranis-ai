@@ -16,7 +16,8 @@ def start_pglite_manager() -> SQLAlchemyPGliteManager:
     if work_dir and not (work_dir / "node_modules").exists():
         raise RuntimeError(
             f"PGlite dependencies are missing in '{work_dir}'. "
-            "Preinstall them before running tests (see CI setup step)."
+            "Preinstall them before running tests (see '.github/workflows/linting.yaml' step "
+            "'Preinstall PGlite dependencies')."
         )
 
     manager = SQLAlchemyPGliteManager(
