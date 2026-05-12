@@ -199,6 +199,7 @@ class SourceView(AdminMixin, BaseView):
 
     @classmethod
     def load_default_osint_sources(cls):
+        dpl = DataPersistenceLayer()
         response = CoreApi().load_default_osint_sources()
         if not response:
             logger.error("Failed to load default OSINT sources")
@@ -212,7 +213,9 @@ class SourceView(AdminMixin, BaseView):
             logger.error(error_message)
             return render_template("notification/index.html", notification={"message": error_message, "error": True})
 
-        items = DataPersistenceLayer().get_objects(cls.model)
+        dpl.invalidate_cache_by_object(cls.model)
+        dpl.invalidate_model_cache_locally(cls.model)
+        items = dpl.get_objects(cls.model)
         return render_template(cls.get_list_template(), **cls.get_view_context(items))
 
     @classmethod
@@ -270,10 +273,23 @@ class SourceView(AdminMixin, BaseView):
 
     @classmethod
     def delete_view(cls, object_id: str | int) -> tuple[str, int]:
-        if request.args.get("force") == "true":
-            logger.warning(f"Force deleting OSINT source {object_id}")
-            return super().delete_view(f"{object_id}{'?force=true'}")
-        return super().delete_view(object_id)
+        force = str(request.values.get("force", "")).lower() in {"1", "true", "yes", "on"}
+        dpl = DataPersistenceLayer()
+        params = {"force": "true"} if force else None
+        core_response = dpl.delete_object(cls.model, object_id, params=params)
+
+        response = cls.get_notification_from_response(core_response)
+        if not core_response.ok:
+            return response, core_response.status_code or 500
+
+        cls._invalidate_model_cache(object_id)
+        if force:
+            logger.debug(f"Force deleted OSINT source {object_id}")
+
+        table, table_response = cls.render_list()
+        if table_response == 200:
+            response += table
+        return response, core_response.status_code or table_response
 
     @classmethod
     @admin_required()

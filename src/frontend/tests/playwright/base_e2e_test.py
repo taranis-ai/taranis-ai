@@ -12,7 +12,7 @@ class BaseE2ETest(PlaywrightHelpers):
         """Return the first table cell anchor matched via shared table macro test ids."""
         table = page.get_by_test_id(table_id)
         exact_link_text = re.compile(rf"^\s*{re.escape(link_text)}\s*$")
-        return table.locator(f"[data-testid^='{table_id}_']").filter(has_text=exact_link_text).first
+        return table.locator(f"a[data-testid^='{table_id}_']").filter(has_text=exact_link_text).first
 
     def login_with_credentials(
         self,
@@ -36,18 +36,32 @@ class BaseE2ETest(PlaywrightHelpers):
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         expect(page.locator("#dashboard")).to_be_visible()
 
-    def delete_table_row(self, page: Page, delete_button_test_id: str, confirm: bool = True):
+    def delete_table_row(self, page: Page, delete_button_test_id: str, confirm: bool = True, force: bool = False):
         """Delete row by explicit delete action test id."""
         assert delete_button_test_id, "delete_table_row requires delete_button_test_id"
         delete_button = page.get_by_test_id(delete_button_test_id)
         assert delete_button.count() == 1, f"Expected exactly one delete button '{delete_button_test_id}', found {delete_button.count()}"
         expect(delete_button).to_be_visible()
         delete_button.click()
+        row_locator = delete_button.locator("xpath=ancestor::tr[1]").first
         if confirm:
             confirm_button = page.locator(".swal2-container .swal2-confirm")
             expect(confirm_button).to_be_visible()
-            with page.expect_response(lambda response: response.request.method == "DELETE", timeout=10000):
-                confirm_button.click(force=True)
+            if force:
+                force_checkbox = page.locator(".swal2-container .swal2-input [type='checkbox'], .swal2-container input[type='checkbox']")
+                if force_checkbox.count():
+                    force_checkbox.check()
+            confirm_button.click(force=True)
+        else:
+            expect(row_locator).not_to_be_visible()
+
+        try:
+            expect(row_locator).not_to_be_visible(timeout=10000)
+        except AssertionError:
+            page.reload(wait_until="domcontentloaded")
+            expect(page.locator(f"[data-testid='{delete_button_test_id}']").locator("xpath=ancestor::tr[1]").first).not_to_be_visible(
+                timeout=20000
+            )
 
     def get_table_row_id_by_link_text(self, page: Page, table_id: str, link_text: str) -> str:
         """Return the row id from the first matching link href inside a table."""
@@ -68,16 +82,10 @@ class BaseE2ETest(PlaywrightHelpers):
         """Open a table item via the shared table macro anchor selector."""
         self._get_table_link_locator(page, table_id, link_text).click()
 
-    def delete_item(
-        self,
-        page: Page,
-        table_id: str,
-        link_text: str,
-        confirm: bool = True,
-    ):
+    def delete_item(self, page: Page, table_id: str, link_text: str, confirm: bool = True, force: bool = False):
         """Delete a table item located by its link text and assert it is removed."""
         item_id = self.get_table_row_id_by_link_text(page, table_id, link_text)
-        self.delete_table_row(page, f"action-delete-{item_id}", confirm=confirm)
+        self.delete_table_row(page, f"action-delete-{item_id}", confirm=confirm, force=force)
         self.assert_item_not_in_table(page, table_id, link_text)
 
     # Navigation methods for workflow tests

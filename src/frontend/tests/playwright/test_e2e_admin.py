@@ -243,8 +243,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             all_rows = osint_table.locator("tbody tr")
             expect(all_rows).to_have_count(10)
 
-            # search by an actual default source name instead of a stale hardcoded term
-            first_source_name = osint_table.locator("[data-testid^='osint-source-name-']").first.inner_text().strip()
+            first_source_name = osint_table.locator("[data-testid='osint_source-table_name']").first.inner_text().strip()
             page.get_by_placeholder("Search...").fill(first_source_name)
             expect(all_rows).to_have_count(1)
             expect(all_rows.first).to_contain_text(first_source_name)
@@ -325,7 +324,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         def remove_osint_sources():
             page.goto(url_for("admin.osint_sources", _external=True))
             expect(page.get_by_role("link", name="http://example.com/updated-feed-url")).to_be_visible()
-            self.delete_item(page, "osint_source-table", osint_source_name)
+            self.delete_item(page, "osint_source-table", osint_source_name, force=True)
 
         load_osint_sources()
         load_and_search_default_sources()
