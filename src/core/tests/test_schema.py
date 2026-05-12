@@ -46,8 +46,8 @@ schemathesis_config = schemathesis.Config(
         )
     )
 )
-OPENAPI_PATH = Path(__file__).resolve().parent.parent / "core" / "static" / "openapi3_1.yaml"
-schema = schemathesis.openapi.from_path(str(OPENAPI_PATH), config=schemathesis_config)
+openapi_path = Path(__file__).resolve().parent.parent / "core" / "static" / "openapi3_1.yaml"
+schema = schemathesis.openapi.from_path(str(openapi_path), config=schemathesis_config)
 schema.app = _LazyWSGIApp()
 schema = schema.exclude(deprecated=True)
 response_check_names = {
