@@ -1109,6 +1109,47 @@ class Story(BaseModel):
     def find_tag_by_name(self, name: str) -> NewsItemTag | None:
         return next((tag for tag in self.tags if tag.name == name), None)
 
+    class IdentifierValidationError(Exception):
+        """Internal validation error used for identifier normalization."""
+
+        def __init__(self, message: str, status: int = 400):
+            self.message = message
+            self.status = status
+            super().__init__(message)
+
+    @classmethod
+    def _normalize_identifier_list(
+        cls,
+        identifiers: Any,
+        *,
+        minimum_count: int = 1,
+        resource_name: str = "ids",
+    ) -> list[str]:
+        """
+        Normalize and validate a list of identifiers.
+
+        Raises:
+            IdentifierValidationError: if the identifiers are invalid or insufficient.
+        """
+        if not isinstance(identifiers, list):
+            raise cls.IdentifierValidationError(f"{resource_name} must be a list", 400)
+
+        if minimum_count == 1:
+            insufficient_msg = f"No valid {resource_name} provided"
+        else:
+            insufficient_msg = f"at least {minimum_count} valid {resource_name} needed"
+
+        if len(identifiers) < minimum_count:
+            raise cls.IdentifierValidationError(insufficient_msg, 400)
+
+        normalized_identifiers: list[str] = []
+        for identifier in identifiers:
+            if not isinstance(identifier, str) or not identifier or "\x00" in identifier:
+                raise cls.IdentifierValidationError(insufficient_msg, 400)
+            normalized_identifiers.append(identifier)
+
+        return normalized_identifiers
+
     @classmethod
     def _validate_identifier_list(
         cls, identifiers: Any, *, minimum_count: int = 1, resource_name: str = "ids"
@@ -1119,14 +1160,14 @@ class Story(BaseModel):
         if len(identifiers) < minimum_count:
             if minimum_count == 1:
                 return None, ({"error": f"No valid {resource_name} provided"}, 400)
-            return None, ({"error": f"at least {minimum_count} valid Story ids needed"}, 400)
+            return None, ({"error": f"at least {minimum_count} valid {resource_name} needed"}, 400)
 
         normalized_identifiers: list[str] = []
         for identifier in identifiers:
             if not isinstance(identifier, str) or not identifier or "\x00" in identifier:
                 if minimum_count == 1:
                     return None, ({"error": f"No valid {resource_name} provided"}, 400)
-                return None, ({"error": f"at least {minimum_count} valid Story ids needed"}, 400)
+                return None, ({"error": f"at least {minimum_count} valid {resource_name} needed"}, 400)
             normalized_identifiers.append(identifier)
 
         return normalized_identifiers, None
@@ -1170,16 +1211,13 @@ class Story(BaseModel):
     @classmethod
     def group_stories(cls, story_ids: list[str], user: User | None = None, actor: str | None = None):
         actor = cls.resolve_actor(user=user, actor=actor)
-        normalized_story_ids, validation_error = cls._validate_identifier_list(story_ids, minimum_count=2, resource_name="Story ids")
-        if validation_error:
-            return validation_error
-
-        if normalized_story_ids is None:
-            # Defensive: should not happen if _validate_identifier_list is consistent,
-            # but keeps both runtime and type checker happy.
-            return {"error": "No valid Story ids provided"}, 400
         try:
-            ordered_story_ids = list(normalized_story_ids)
+            ordered_story_ids = cls._normalize_identifier_list(
+                story_ids,
+                minimum_count=2,
+                resource_name="Story ids",
+            )
+
             first_story = cls.get(ordered_story_ids[0])
             if not first_story:
                 return {"error": "Story not found"}, 404
@@ -1202,6 +1240,8 @@ class Story(BaseModel):
                 story.record_revision(user, note="group_stories")
             db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
+        except cls.IdentifierValidationError as exc:
+            return {"error": exc.message}, exc.status
         except DataError as e:
             db.session.rollback()
             logger.warning(f"Invalid story ids for grouping: {e}")
@@ -1251,12 +1291,13 @@ class Story(BaseModel):
         actor: str | None = None,
     ):
         actor = cls.resolve_actor(user=user, actor=actor)
-        normalized_newsitem_ids, validation_error = cls._validate_identifier_list(
-            newsitem_ids, minimum_count=1, resource_name="news item ids"
-        )
-        if validation_error:
-            return validation_error
         try:
+            normalized_newsitem_ids = cls._normalize_identifier_list(
+                newsitem_ids,
+                minimum_count=1,
+                resource_name="news item ids",
+            )
+
             processed_stories = set()
             new_stories_ids = []
             removed_titles_by_story: dict[Story, set[str]] = {}
@@ -1284,6 +1325,8 @@ class Story(BaseModel):
                 "message": f"Successfully ungrouped {len(normalized_newsitem_ids)} items from their story",
                 "new_stories_ids": new_stories_ids,
             }, 200
+        except cls.IdentifierValidationError as exc:
+            return {"error": exc.message}, exc.status
         except DataError as e:
             db.session.rollback()
             logger.warning(f"Invalid news item ids for ungrouping: {e}")

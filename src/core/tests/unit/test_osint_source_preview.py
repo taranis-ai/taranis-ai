@@ -22,7 +22,6 @@ def test_preview_response_uses_live_rq_status_without_requeue(monkeypatch):
     assert status == 202
     assert response == {"id": task_id, "status": "STARTED"}
 
-    task_id = "source_preview_123"
     scheduled_response = {"message": "Preview for source 123 scheduled", "id": task_id, "status": "STARTED"}
 
     monkeypatch.setattr(config.task.Task, "get", lambda preview_task_id: None)
