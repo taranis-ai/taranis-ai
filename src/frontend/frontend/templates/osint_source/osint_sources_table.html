@@ -9,6 +9,7 @@
 {% set data = model_plural_name | get_var %}
 {% set table_container = model_name + '-table-container' %}
 {% set actions = actions | default([]) %}
+{% set filter_manual = request.args.get("filter_manual", "true") %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [], exportUrl: '{{ url_for("admin.export_osint_sources") }}' }">
   {% call table_decoration(name, model_name, table_container, routes=routes) %}
@@ -26,6 +27,36 @@
           Export
         </a>
       </div>
+    </div>
+    <div class="grow-0">
+      <form class="inline-flex flex-col items-center gap-1"
+            hx-get="{{ routes.base_route }}"
+            hx-target="#{{ table_container }}"
+            hx-swap="outerHTML"
+            hx-push-url="true"
+            hx-trigger="change">
+        {% for key in request.args %}
+          {% for value in request.args.getlist(key) %}
+            {% if key != "filter_manual" %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}
+          {% endfor %}
+        {% endfor %}
+        <div class="join" role="radiogroup" aria-label="Manual sources">
+          <input class="join-item btn btn-sm"
+                 type="radio"
+                 name="filter_manual"
+                 value="false"
+                 aria-label="Show"
+                 {% if filter_manual == "false" %}checked{% endif %} />
+          <input class="join-item btn btn-sm"
+                 type="radio"
+                 name="filter_manual"
+                 value="true"
+                 aria-label="Hide"
+                 {% if filter_manual != "false" %}checked{% endif %} />
+        </div>
+        <span class="label-text text-sm">Manual sources</span>
+
+      </form>
     </div>
   {% endcall %}
   {% if data and data | length > 0 %}
