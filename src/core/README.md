@@ -101,7 +101,7 @@ This will start the Flask server and run the frontend service at `http://localho
 To run the unit tests just call:
 
 ```bash
-uv run pytest
+uv run --no-sync --frozen pytest
 ```
 
 Core tests use the PGlite-backed test harness from `tests/conftest.py`, so they do not require a separate local SQLite or PostgreSQL test database.
