@@ -172,11 +172,22 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
             )
 
             totals = Task.get_status_totals()
+            stats = Task.get_status_counts_by_task()
 
             assert totals["successes"] == 1
             assert totals["failures"] == 1
             assert totals["total"] == 2
             assert totals["success_pct"] == 50
+            assert stats["rss_collector"]["successes"] == 1
+            assert stats["rss_collector"]["failures"] == 0
+            assert stats["WORDLIST_BOT"]["successes"] == 0
+            assert stats["WORDLIST_BOT"]["failures"] == 1
+            assert totals == {
+                "successes": sum(task_stats["successes"] for task_stats in stats.values()),
+                "failures": sum(task_stats["failures"] for task_stats in stats.values()),
+                "total": sum(task_stats["total"] for task_stats in stats.values()),
+                "success_pct": 50,
+            }
         finally:
             for task_id in task_ids:
                 if Task.get(task_id):

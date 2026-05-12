@@ -110,21 +110,23 @@ class Task(BaseModel):
         stmt = db.select(func.count()).select_from(cls).where(cls.task.like(f"%{task_type}%")).where(cls.status == "FAILURE")
         return db.session.execute(stmt).scalar_one()
 
-    @classmethod
-    def get_status_totals(cls) -> dict[str, int]:
-        """Return overall success and failure counts for current worker status."""
-        task_stats = cls.get_status_counts_by_task()
+    @staticmethod
+    def _sum_status_counts(task_stats: dict[str, dict[str, Any]]) -> dict[str, int]:
         successes = sum(int(stats.get("successes", 0) or 0) for stats in task_stats.values())
         failures = sum(int(stats.get("failures", 0) or 0) for stats in task_stats.values())
         total = successes + failures
-        success_pct = int((successes * 100) / total) if total else 0
 
         return {
             "successes": successes,
             "failures": failures,
             "total": total,
-            "success_pct": success_pct,
+            "success_pct": int((successes * 100) / total) if total else 0,
         }
+
+    @classmethod
+    def get_status_totals(cls) -> dict[str, int]:
+        """Return overall success and failure counts for current worker status."""
+        return cls._sum_status_counts(cls.get_status_counts_by_task())
 
     @classmethod
     def get_admin_menu_badges(cls) -> dict[str, int]:
@@ -294,16 +296,13 @@ class Task(BaseModel):
 
         raw_task_stats = cls.get_status_counts_by_task(include_timestamps=True)
         task_stats = cls._format_task_stats(raw_task_stats)
-        total_successes = sum(stat.get("successes", 0) for stat in raw_task_stats.values())
-        total_failures = sum(stat.get("failures", 0) for stat in raw_task_stats.values())
-        overall_total = total_successes + total_failures
-        overall_success_rate = int((total_successes * 100) / overall_total) if overall_total else 0
+        totals = cls._sum_status_counts(raw_task_stats)
 
         return {
             "task_stats": task_stats,
             "totals": {
-                "successes": total_successes,
-                "failures": total_failures,
-                "overall_success_rate": overall_success_rate,
+                "successes": totals["successes"],
+                "failures": totals["failures"],
+                "overall_success_rate": totals["success_pct"],
             },
         }
