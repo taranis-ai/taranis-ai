@@ -380,7 +380,7 @@ paths:
                     items:
                       $ref: "#/components/schemas/report_item"
         "400":
-          description: invalid search value
+          description: invalid search parameter format or value
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
@@ -1322,7 +1322,7 @@ paths:
                     items:
                       $ref: "#/components/schemas/connector.user"
         "400":
-          description: invalid search value
+          description: invalid search parameter format or value
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "404":
