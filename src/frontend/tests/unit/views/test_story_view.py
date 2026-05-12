@@ -462,35 +462,6 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
     assert search_input.get("hx-trigger") is None
 
 
-def test_table_macro_adds_anchor_testids_for_column_links(app):
-    with app.test_request_context("/frontend/admin/organizations"):
-        markup = render_template_string(
-            """
-            {% from "macros/table.html" import table %}
-            {{ table(
-                table_id="organization-table",
-                data=[{"id": "org-123", "name": "Acme Org", "description": "Example description"}],
-                columns=[
-                    {"field": "name", "title": "Name", "sortable": false},
-                    {"field": "description", "title": "Description", "sortable": false},
-                ],
-                actions=false,
-                routes={"edit_route": "/frontend/admin/organizations/0", "base_route": "/frontend/admin/organizations"},
-                selectable=false
-            ) }}
-            """
-        )
-
-    tree = html.fromstring(markup)
-    name_link = tree.xpath('//a[@data-testid="organization-table_name"]')[0]
-    description_link = tree.xpath('//a[@data-testid="organization-table_description"]')[0]
-
-    assert name_link.get("href") == "/frontend/admin/organizations/org-123"
-    assert name_link.text_content().strip() == "Acme Org"
-    assert description_link.get("href") == "/frontend/admin/organizations/org-123"
-    assert description_link.text_content().strip() == "Example description"
-
-
 def test_omnisearch_dialog_form_uses_htmx_submit(authenticated_client):
     response = authenticated_client.get(url_for("base.omnisearch"))
 

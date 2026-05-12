@@ -9,7 +9,6 @@ from jinja2 import pass_context
 from markupsafe import Markup, escape
 from models.admin import OSINTSource
 from models.assess import Story
-from slugify import slugify
 
 
 __all__ = [
@@ -132,14 +131,10 @@ def render_source_parameter(item: OSINTSource) -> str:
     return source_parameter
 
 
-def render_truncated(item, field: str, data_testid_prefix: str | None = None) -> str:
+def render_truncated(item, field: str) -> str:
     if hasattr(item, field) and isinstance(getattr(item, field), str):
         value = getattr(item, field)
-        data_testid = ""
-        if data_testid_prefix:
-            testid_suffix = slugify(value) or "unnamed"
-            data_testid = f" data-testid='{data_testid_prefix}-{testid_suffix}'"
-        return Markup(f"<div class='truncate'{data_testid}>{escape(value)}</div>")
+        return Markup(f"<div class='truncate'>{value}</div>")
     return Markup("<div class='truncate max-w-[50ch]'>N/A</div>")
 
 
