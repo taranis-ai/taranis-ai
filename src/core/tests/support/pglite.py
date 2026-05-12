@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import flask_sqlalchemy.extension
 from py_pglite import PGliteConfig
@@ -7,11 +8,22 @@ from sqlalchemy.pool import StaticPool
 
 
 def start_pglite_manager() -> SQLAlchemyPGliteManager:
+    configured_work_dir = os.getenv("TARANIS_PGLITE_WORK_DIR")
+    work_dir = Path(configured_work_dir) if configured_work_dir else None
+    auto_install_deps = work_dir is None
+
+    if work_dir and not (work_dir / "node_modules").exists():
+        raise RuntimeError(
+            f"PGlite dependencies are missing in '{work_dir}'. "
+            "Preinstall them before running tests (see CI setup step)."
+        )
+
     manager = SQLAlchemyPGliteManager(
         PGliteConfig(
-            auto_install_deps=True,
+            auto_install_deps=auto_install_deps,
             cleanup_on_exit=True,
             timeout=60,
+            work_dir=work_dir,
         )
     )
     manager.start()
@@ -47,7 +59,7 @@ def apply_pglite_engine_options(config) -> None:
     config.SQLALCHEMY_ENGINE_OPTIONS = engine_options
 
 
-def patch_flask_sqlalchemy_engine_creation(manager: SQLAlchemyPGliteManager, uri: str) -> None:
+def patch_flask_sqlalchemy_engine_creation(manager: SQLAlchemyPGliteManager, uri: str):
     original_make_engine = flask_sqlalchemy.extension.SQLAlchemy._make_engine
 
     def _make_engine(self, bind_key, options, app):
@@ -56,3 +68,8 @@ def patch_flask_sqlalchemy_engine_creation(manager: SQLAlchemyPGliteManager, uri
         return original_make_engine(self, bind_key, options, app)
 
     flask_sqlalchemy.extension.SQLAlchemy._make_engine = _make_engine
+
+    def _restore_make_engine() -> None:
+        flask_sqlalchemy.extension.SQLAlchemy._make_engine = original_make_engine
+
+    return _restore_make_engine

@@ -4,7 +4,7 @@ import sys
 
 import pytest
 from dotenv import load_dotenv
-from fakeredis import FakeRedis
+from fakeredis import FakeRedis, FakeServer
 from redis import Redis
 from sqlalchemy.orm import scoped_session, sessionmaker
 
@@ -24,49 +24,61 @@ if not current_path.endswith("src/core"):
     sys.exit("Tests must be run from within src/core")
 
 load_dotenv(dotenv_path=env_file, override=True)
-PGLITE_MANAGER = start_pglite_manager()
-PGLITE_URI = configure_pglite_environment(PGLITE_MANAGER)
-patch_flask_sqlalchemy_engine_creation(PGLITE_MANAGER, PGLITE_URI)
-FAKE_REDIS = FakeRedis(decode_responses=False)
 
 
-def _fake_redis_from_url(*args, **kwargs):
-    return FAKE_REDIS
-
-
-Redis.from_url = staticmethod(_fake_redis_from_url)
-
-
-def _configure_test_database() -> None:
+def _configure_test_database(uri: str) -> None:
     import core.config
 
-    os.environ["SQLALCHEMY_DATABASE_URI"] = PGLITE_URI
-    core.config.Config.SQLALCHEMY_DATABASE_URI = PGLITE_URI
-    core.config.Config.SQLALCHEMY_DATABASE_URI_MASK = core.config.mask_db_uri(PGLITE_URI)
+    os.environ["SQLALCHEMY_DATABASE_URI"] = uri
+    core.config.Config.SQLALCHEMY_DATABASE_URI = uri
+    core.config.Config.SQLALCHEMY_DATABASE_URI_MASK = core.config.mask_db_uri(uri)
     apply_pglite_engine_options(core.config.Config)
 
 
-_configure_test_database()
-
-
 @pytest.fixture(scope="session", autouse=True)
-def pglite_manager():
+def pglite_runtime():
+    manager = start_pglite_manager()
+    uri = configure_pglite_environment(manager)
+    restore_engine_creation = patch_flask_sqlalchemy_engine_creation(manager, uri)
+
+    fake_server = FakeServer()
+    fake_redis_clients: dict[bool, FakeRedis] = {}
+    original_from_url = Redis.from_url
+
+    def _fake_redis_from_url(*args, **kwargs):
+        decode_responses = bool(kwargs.get("decode_responses", False))
+        client = fake_redis_clients.get(decode_responses)
+        if client is None:
+            client = FakeRedis(server=fake_server, decode_responses=decode_responses)
+            fake_redis_clients[decode_responses] = client
+        return client
+
+    Redis.from_url = staticmethod(_fake_redis_from_url)
+    _configure_test_database(uri)
+
     try:
-        yield PGLITE_MANAGER
+        yield {"manager": manager, "uri": uri}
     finally:
-        PGLITE_MANAGER.stop()
+        Redis.from_url = original_from_url
+        restore_engine_creation()
+        manager.stop()
 
 
 @pytest.fixture(scope="session")
-def pglite_database_uri(pglite_manager):
-    yield PGLITE_URI
+def pglite_manager(pglite_runtime):
+    yield pglite_runtime["manager"]
 
 
 @pytest.fixture(scope="session")
-def app(pglite_manager):
+def pglite_database_uri(pglite_runtime):
+    yield pglite_runtime["uri"]
+
+
+@pytest.fixture(scope="session")
+def app(pglite_runtime):
     from core.__init__ import create_app
 
-    _configure_test_database()
+    _configure_test_database(pglite_runtime["uri"])
 
     app = create_app()
     app.config.update(

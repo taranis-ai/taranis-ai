@@ -61,6 +61,8 @@ jobs:
       run:
         working-directory: src/core
     runs-on: ubuntu-latest
+    env:
+      TARANIS_PGLITE_WORK_DIR: ${{ runner.temp }}/taranis-pglite
     steps:
       - uses: actions/checkout@v6
 
@@ -79,6 +81,30 @@ jobs:
 
       - name: Install the project
         run: uv sync --all-extras
+
+      - name: Preinstall PGlite dependencies
+        run: |
+          uv run python - <<'PY'
+          import os
+          from pathlib import Path
+
+          from py_pglite import PGliteConfig
+          from py_pglite.sqlalchemy import SQLAlchemyPGliteManager
+
+          work_dir = Path(os.environ["TARANIS_PGLITE_WORK_DIR"])
+          manager = SQLAlchemyPGliteManager(
+              PGliteConfig(
+                  work_dir=work_dir,
+                  auto_install_deps=True,
+                  cleanup_on_exit=False,
+                  timeout=60,
+              )
+          )
+          manager.start()
+          manager.wait_for_ready()
+          manager.stop()
+          print(f"Prepared PGlite dependencies in {work_dir}")
+          PY
 
       - name: Lint with ruff
         run: uv run ruff check --output-format=github .
