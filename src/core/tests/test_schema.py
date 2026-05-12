@@ -1,4 +1,5 @@
 import logging
+from functools import lru_cache
 
 import schemathesis
 from dotenv import load_dotenv
@@ -21,14 +22,9 @@ from core.model.user import User
 load_dotenv(dotenv_path="tests/.env", override=True)
 load_all_checks()
 
-app = None
-
-
+@lru_cache(maxsize=1)
 def _get_app():
-    global app  # noqa: PLW0603
-    if app is None:
-        app = create_app()
-    return app
+    return create_app()
 
 
 class _LazyWSGIApp:
