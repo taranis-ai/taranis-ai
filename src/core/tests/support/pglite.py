@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Callable
 
 import flask_sqlalchemy.extension
 from py_pglite import PGliteConfig
@@ -59,7 +60,9 @@ def apply_pglite_engine_options(config) -> None:
     config.SQLALCHEMY_ENGINE_OPTIONS = engine_options
 
 
-def patch_flask_sqlalchemy_engine_creation(manager: SQLAlchemyPGliteManager, uri: str):
+def patch_flask_sqlalchemy_engine_creation(
+    manager: SQLAlchemyPGliteManager, uri: str
+) -> Callable[[], None]:
     original_make_engine = flask_sqlalchemy.extension.SQLAlchemy._make_engine
 
     def _make_engine(self, bind_key, options, app):

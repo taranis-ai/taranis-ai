@@ -45,7 +45,7 @@ def pglite_runtime():
     fake_redis_clients: dict[bool, FakeRedis] = {}
     original_from_url = Redis.from_url
 
-    def _fake_redis_from_url(*args, **kwargs):
+    def _fake_redis_from_url(url, **kwargs):
         decode_responses = bool(kwargs.get("decode_responses", False))
         client = fake_redis_clients.get(decode_responses)
         if client is None:
