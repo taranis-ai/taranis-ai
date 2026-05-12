@@ -63,20 +63,6 @@ class ReportItemView(BaseView):
         data.pop("layout_switch", None)
         return data
 
-    @staticmethod
-    def _parse_bool_flag(value: Any) -> bool:
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
-            return value.lower() in {"1", "true", "yes", "on"}
-        return bool(value)
-
-    @staticmethod
-    def _coerce_report_type_id(value: Any) -> Any:
-        if isinstance(value, str) and value.isdigit():
-            return int(value)
-        return value
-
     @classmethod
     def _parse_form_attributes(cls, attributes: dict[str, Any]) -> dict[str, Any]:
         return {key: cls._normalize_attribute_value(value) for key, value in attributes.items()}
@@ -101,17 +87,14 @@ class ReportItemView(BaseView):
             form_data.setdefault("stories", story_ids)
 
         remove_story_id = form_data.pop("remove_story_id", None)
-        remove_all_stories = cls._parse_bool_flag(form_data.pop("remove_all_stories", None))
+        remove_all_stories = form_data.pop("remove_all_stories", None) == "1"
         if "stories" in form_data or remove_story_id or remove_all_stories:
             form_data["stories"] = cls._normalize_story_ids(form_data.get("stories"), remove_story_id, remove_all_stories)
 
         attributes = form_data.get("attributes", {})
         form_data["attributes"] = cls._parse_form_attributes(attributes if isinstance(attributes, dict) else {})
 
-        if report_item_type_id := form_data.get("report_item_type_id"):
-            form_data["report_item_type_id"] = cls._coerce_report_type_id(report_item_type_id)
-
-        return form_data
+        return cls.model.model_validate(form_data).model_dump(exclude_unset=True)
 
     @classmethod
     def _get_normalized_form_data_from(cls, submitted_data: Any) -> dict[str, Any]:
