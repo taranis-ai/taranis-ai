@@ -21,7 +21,21 @@ from core.model.user import User
 load_dotenv(dotenv_path="tests/.env", override=True)
 load_all_checks()
 
-app = create_app()
+app = None
+
+
+def _get_app():
+    global app  # noqa: PLW0603
+    if app is None:
+        app = create_app()
+    return app
+
+
+class _LazyWSGIApp:
+    def __call__(self, environ, start_response):
+        return _get_app()(environ, start_response)
+
+
 schemathesis_config = schemathesis.Config(
     projects=ProjectsConfig(
         default=ProjectConfig(
@@ -33,7 +47,9 @@ schemathesis_config = schemathesis.Config(
         )
     )
 )
-schema = schemathesis.openapi.from_wsgi("/api/static/openapi3_1.yaml", app, config=schemathesis_config).exclude(deprecated=True)
+schema = schemathesis.openapi.from_path("core/static/openapi3_1.yaml", config=schemathesis_config)
+schema.app = _LazyWSGIApp()
+schema = schema.exclude(deprecated=True)
 response_check_names = {
     "not_a_server_error",
     "status_code_conformance",
@@ -47,7 +63,7 @@ response_checks = [check for check in CHECKS.get_all() if check.__name__ in resp
 @schema.auth()
 class UserAuth:
     def get(self, case, context):
-        with context.app.app_context():
+        with _get_app().app_context():
             user = User.find_by_name("admin")
             if not user:
                 raise AssertionError("Admin user not found")
