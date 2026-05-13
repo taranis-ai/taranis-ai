@@ -226,6 +226,7 @@ def mixed_timezone_story_payload():
 
     return {
         "expected_created": datetime.fromisoformat("2023-12-31T22:30:00"),
+        "expected_updated": datetime.fromisoformat("2024-01-01T00:00:00"),
         "payload": {
             "title": f"Story {uuid.uuid4()}",
             "news_items": [
