@@ -1,5 +1,4 @@
 import logging
-from functools import lru_cache
 from pathlib import Path
 
 import schemathesis
@@ -23,13 +22,18 @@ from core.model.user import User
 load_dotenv(dotenv_path="tests/.env", override=True)
 load_all_checks()
 
-@lru_cache(maxsize=1)
+_app = None
+
+
 def _get_app():
-    return create_app()
+    global _app
+    if _app is None:
+        _app = create_app()
+    return _app
 
 
 class _LazyWSGIApp:
-    """Defer Flask app creation until schemathesis performs the first WSGI call."""
+    """Create the Flask app on first use so import and collection stay lightweight."""
 
     def __call__(self, environ, start_response):
         return _get_app()(environ, start_response)

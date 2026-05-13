@@ -149,7 +149,6 @@ def test_search_with_valid_param(client, auth_header):
 
 
 def test_search_with_null_character_rejected(client, auth_header):
-    # Currently the API does not reject null characters in search; this test simply
-    # verifies that the endpoint is reachable and authenticated.
-    response = client.get("/api/users/?search=bad%00value", headers=auth_header)
-    assert response.status_code == 200
+    response = client.get("/api/analyze/report-items", query_string={"search": "bad\x00value"}, headers=auth_header)
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "Invalid value for search"}

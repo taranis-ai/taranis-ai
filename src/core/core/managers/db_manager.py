@@ -62,6 +62,8 @@ def setup_fts(engine: Engine):
     if db.engine.dialect.name != "postgresql":
         return
     with engine.begin() as conn:
+        # Extension setup stays in Python so startup can catch DBAPIError, install the
+        # unaccent fallback function when needed, and still run the main FTS SQL script.
         _ensure_unaccent(conn)
         _ensure_pg_trgm(conn)
         with open("core/sql/fulltext_search.sql", "r") as sql_file:

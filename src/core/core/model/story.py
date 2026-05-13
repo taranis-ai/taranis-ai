@@ -1151,28 +1151,6 @@ class Story(BaseModel):
         return normalized_identifiers
 
     @classmethod
-    def _validate_identifier_list(
-        cls, identifiers: Any, *, minimum_count: int = 1, resource_name: str = "ids"
-    ) -> tuple[list[str] | None, tuple[dict[str, str], int] | None]:
-        if not isinstance(identifiers, list):
-            return None, ({"error": f"{resource_name} must be a list"}, 400)
-
-        if len(identifiers) < minimum_count:
-            if minimum_count == 1:
-                return None, ({"error": f"No valid {resource_name} provided"}, 400)
-            return None, ({"error": f"at least {minimum_count} valid {resource_name} needed"}, 400)
-
-        normalized_identifiers: list[str] = []
-        for identifier in identifiers:
-            if not isinstance(identifier, str) or not identifier or "\x00" in identifier:
-                if minimum_count == 1:
-                    return None, ({"error": f"No valid {resource_name} provided"}, 400)
-                return None, ({"error": f"at least {minimum_count} valid {resource_name} needed"}, 400)
-            normalized_identifiers.append(identifier)
-
-        return normalized_identifiers, None
-
-    @classmethod
     def group_multiple_stories(cls, story_mappings: list[list[str]], user: User | None = None, actor: str | None = None):
         results = [cls.group_stories(story_ids, user=user, actor=actor) for story_ids in story_mappings]
         if any(result[1] == 500 for result in results):
