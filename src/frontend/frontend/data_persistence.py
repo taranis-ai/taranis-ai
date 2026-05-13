@@ -5,7 +5,7 @@ from typing import Any, Type
 from flask import request
 from flask_jwt_extended import get_jwt_identity
 from models.base import T, TaranisBaseModel
-from models.cache_contract import CACHE_DEFAULT_LIST_SUFFIX
+from models.cache_contract import CACHE_DEFAULT_LIST_SUFFIX, build_model_pattern
 from requests import Response
 
 from frontend.cache import cache
@@ -158,6 +158,15 @@ class DataPersistenceLayer:
             object_id=str(object_id),
         )
 
+    def invalidate_model_cache_locally(
+        self, object_model: TaranisBaseModel | Type[TaranisBaseModel], _object_id: int | str | None = None
+    ) -> int:
+        pattern = build_model_pattern(Config.CACHE_KEY_PREFIX, object_model._model_name)
+        deleted = 0
+        for key in cache.scan_keys(pattern):
+            deleted += cache.delete(key)
+        return deleted
+
     def get_objects_by_endpoint(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> CacheObject[T]:
         cache_key = self.make_list_cache_key(object_model, endpoint, paging_data)
         cached_payload = self._load_cached_object(cache_key, object_model, paging_data, collection=True)
@@ -212,9 +221,9 @@ class DataPersistenceLayer:
         store_object = object.model_dump(mode="json")
         return self.api.api_post(object._core_endpoint, json_data=store_object)
 
-    def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str) -> Response:
+    def delete_object(self, object_model: Type[TaranisBaseModel], object_id: int | str, params: dict[str, Any] | None = None) -> Response:
         endpoint = self.get_endpoint(object_model)
-        return self.api.api_delete(f"{endpoint}/{object_id}")
+        return self.api.api_delete(f"{endpoint}/{object_id}", params=params)
 
     def update_object(self, object: TaranisBaseModel, object_id: int | str) -> Response:
         endpoint = self.get_endpoint(object)
