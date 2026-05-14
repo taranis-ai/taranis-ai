@@ -269,10 +269,6 @@ class NewsItem(BaseModel):
         existing_tag_names = {tag.name for tag in self.tags}
         return existing_tag_names - incoming_tag_names
 
-    @classmethod
-    def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
-        return list(NewsItemTag.parse_tags(incoming_tags).values())
-
     def set_tags(
         self,
         incoming_tags: list | dict,
@@ -298,9 +294,10 @@ class NewsItem(BaseModel):
     ) -> tuple[dict, int]:
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
-            return {"error": "No valid tags provided"}, 400
-
-        if change_by_bot or not replace:
+            if not replace:
+                return {"error": "No valid tags provided"}, 400
+            self.remove_tags({tag.name for tag in self.tags})
+        elif change_by_bot or not replace:
             self.patch_tags(parsed_tags)
         else:
             tags_to_remove = self.get_tags_to_remove(parsed_tags)

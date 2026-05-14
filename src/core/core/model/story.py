@@ -1082,10 +1082,6 @@ class Story(BaseModel):
     def is_assigned_to_report(cls, story_ids: list) -> bool:
         return any(ReportItemStory.is_assigned(story_id) for story_id in story_ids)
 
-    @classmethod
-    def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
-        return list(NewsItemTag.parse_tags(incoming_tags).values())
-
     @staticmethod
     def _clone_tags(tags: dict[str, NewsItemTag]) -> dict[str, NewsItemTag]:
         return {name: NewsItemTag(name=tag.name, tag_type=tag.tag_type) for name, tag in tags.items()}
@@ -1099,45 +1095,6 @@ class Story(BaseModel):
             tags_to_remove = news_item.get_tags_to_remove(cloned_tags)
             news_item.patch_tags(cloned_tags)
             news_item.remove_tags(tags_to_remove)
-
-    def set_tags(
-        self,
-        incoming_tags: list | dict,
-        change_by_bot: bool = False,
-        user: User | None = None,
-        actor: str | None = None,
-        replace: bool = True,
-    ) -> tuple[dict, int]:
-        try:
-            return self._update_tags(incoming_tags, change_by_bot=change_by_bot, user=user, actor=actor, replace=replace)
-        except Exception as e:
-            logger.exception("Update News Item Tags Failed")
-            db.session.rollback()
-            return {"error": str(e)}, 500
-
-    def _update_tags(
-        self,
-        incoming_tags: list | dict,
-        change_by_bot: bool = False,
-        user: User | None = None,
-        actor: str | None = None,
-        replace: bool = True,
-    ) -> tuple[dict, int]:
-        parsed_tags = NewsItemTag.parse_tags(incoming_tags)
-        if not parsed_tags:
-            return {"error": "No valid tags provided"}, 400
-
-        self.apply_tags_to_news_items(parsed_tags, change_by_bot=change_by_bot, replace=replace)
-
-        actor = self.resolve_actor(user=user, actor=actor)
-        if actor is not None:
-            self.update_status(change=actor)
-        else:
-            self.update_status()
-
-        self.record_revision(user or self.user_for_actor(actor), note="set_tags")
-        db.session.commit()
-        return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
 
     @classmethod
     def group_multiple_stories(cls, story_mappings: list[list[str]], user: User | None = None, actor: str | None = None):

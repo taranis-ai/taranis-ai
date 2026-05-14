@@ -112,7 +112,13 @@ def auth_user_basic():
         username="user",
         name="Ford Prefect",
         organization={"id": 1, "name": "Galactic Government"},
-        permissions=["ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
+        permissions=[
+            "ASSESS_ACCESS",
+            "ANALYZE_ACCESS",
+            "ANALYZE_DELETE",
+            "PUBLISH_ACCESS",
+            "ASSETS_ACCESS",
+        ],
         profile={},
         roles=[{"id": 2, "name": "User"}],
     )

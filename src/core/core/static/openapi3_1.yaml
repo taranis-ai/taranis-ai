@@ -9647,6 +9647,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/news_item_attribute"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/news_item_tag"
       anyOf:
         - required: [title]
         - required: [content]

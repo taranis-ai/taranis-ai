@@ -26,6 +26,7 @@ NEWS_ITEM_IMPORT_FIELDS = frozenset(
         "language",
         "hash",
         "attributes",
+        "tags",
         "last_change",
         "published",
         "collected",
@@ -274,6 +275,8 @@ class FilterLists(TaranisBaseModel):
 
 
 class StoryUpdatePayload(TaranisBaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     vote: Literal["like", "dislike", ""] | None = None
     important: bool | None = None
     read: bool | None = None
@@ -281,7 +284,6 @@ class StoryUpdatePayload(TaranisBaseModel):
     description: str | None = None
     comments: str | None = None
     summary: str | None = None
-    tags: list[dict[str, Any]] | None = None
     attributes: list[dict[str, Any]] | None = None
 
 

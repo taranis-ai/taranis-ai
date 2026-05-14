@@ -25,6 +25,9 @@ class AddNewsItems(MethodView):
     @api_key_required
     def post(self):
         json_data = request.json
+
+        logger.debug(f"Received news items data: {json_data}")
+
         if not isinstance(json_data, list):
             return {"error": "Expected a list of news items"}, 400
         result, status = Story.add_news_items(json_data)
@@ -182,6 +185,22 @@ class Tags(MethodView):
         if not isinstance(data, dict):
             return {"error": "Expected a dict for tags"}, 400
         for news_item_id, tags in data.items():
+            if not isinstance(tags, list | dict):
+                errors[news_item_id] = f"Invalid tags for news item {news_item_id}"
+                continue
+            if not tags:
+                errors[news_item_id] = f"Invalid tags for news item {news_item_id}"
+                continue
+
+            try:
+                parsed_tags = NewsItemTag.parse_tags(tags)
+            except (ValueError, TypeError) as exc:
+                errors[news_item_id] = str(exc)
+                continue
+            if not parsed_tags:
+                errors[news_item_id] = f"Invalid tags for news item {news_item_id}"
+                continue
+
             news_item = NewsItem.get(news_item_id)
             if not news_item:
                 errors[news_item_id] = "News item not found"

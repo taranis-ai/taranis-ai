@@ -177,6 +177,16 @@ class TestAssessNewsItems(BaseTest):
         story_tags = {tag["name"]: tag["tag_type"] for tag in story_response.get_json()["tags"]}
         assert story_tags[tag_name] == "endpoint"
 
+        clear_response = self.assert_put_ok(client, f"news-items/{item_id}/tags", [], auth_header)
+        assert clear_response.get_json()["message"].startswith("Successfully updated news item")
+
+        item_response = self.assert_get_ok(client, f"news-items/{item_id}", auth_header)
+        assert item_response.get_json()["tags"] == []
+
+        story_response = self.assert_get_ok(client, f"story/{story_id}", auth_header)
+        story_tags = {tag["name"]: tag["tag_type"] for tag in story_response.get_json()["tags"]}
+        assert tag_name not in story_tags
+
     def test_put_NewsItem(self, client, cleanup_news_item, auth_header):
         from core.model.news_item import NewsItem
 
@@ -315,11 +325,11 @@ class TestAssessStories(BaseTest):
         bar_tag = f"{tag_prefix}-bar"
         baz_tag = f"{tag_prefix}-baz"
 
-        response = nia1.set_tags([foo_tag, bar_tag, baz_tag])
+        response = nia1.news_items[0].set_tags([foo_tag, bar_tag, baz_tag])
         assert response[1] == 200
-        response = nia2.set_tags({foo_tag: {"tag_type": "misc"}, bar_tag: {"tag_type": "misc"}})
+        response = nia2.news_items[0].set_tags({foo_tag: {"tag_type": "misc"}, bar_tag: {"tag_type": "misc"}})
         assert response[1] == 200
-        response = nia2.set_tags(
+        response = nia2.news_items[0].set_tags(
             {f"{tag_prefix}-new": {"tag_type": "misc"}, "falling_back": ["this_is_malformed_format_and_should_be_rejected"]}
         )
         assert response[1] == 500

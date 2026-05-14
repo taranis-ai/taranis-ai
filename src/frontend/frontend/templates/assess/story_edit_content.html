@@ -1,4 +1,3 @@
-{% set story_tags_list = story.tags.values() if story.tags is mapping else (story.tags or []) %}
 {% set story_attributes = story.attributes or [] %}
 {% set news_count = story.news_items | length %}
 {% set read_badge = 'badge badge-success badge-sm' if story.read else 'badge badge-primary badge-sm' %}
@@ -131,6 +130,9 @@
             <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">News items</p>
             <p class="text-sm font-medium">{{ news_count }}</p>
           </div>
+          {% with oob=false %}
+            {% include "assess/story_readonly_tags.html" %}
+          {% endwith %}
           {% set languages = (story.news_items or []) | map(attribute='language') | select('string') | select | unique | list %}
           {% if languages %}
             <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">
@@ -181,24 +183,6 @@
               <textarea name="comments" class="textarea textarea-bordered w-full" placeholder="Capture notes, caveats, or next steps">{{ story.comments }}</textarea>
             </label>
             {# djlint:off #}
-            <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 h-full"
-                     x-data='{ tags: {{ story_tags_list | list | tojson }}, init() { if (!Array.isArray(this.tags)) { this.tags = Object.values(this.tags || {}); } if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } }, addTag() { this.tags.push({ "name": "", "tag_type": "" }); }, removeTag(index) { this.tags.splice(index, 1); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } } }'>
-              <div class="flex items-center justify-between gap-4">
-                <h3 class="text-lg font-semibold">Tags</h3>
-                <button type="button" class="btn btn-outline btn-sm" @click="addTag()">Add tag</button>
-              </div>
-              <p class="text-xs text-base-content/60 mt-1">Tags are saved with their type; leave a field blank to remove it on save.</p>
-              <div class="mt-4 flex flex-col gap-3">
-                <template x-for="(tag, index) in tags" :key="index">
-                  <div class="flex gap-3">
-                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="tag.name" name="tags[][name]" data-testid="tag-name-input" placeholder="Tag name">
-                    <input class="input input-bordered input-sm flex-grow" type="text" x-model="tag.tag_type" name="tags[][tag_type]" data-testid="tag-value-input" placeholder="Tag type (e.g. misc, location, actor)">
-                    <button type="button" class="btn btn-ghost btn-xs text-error flex-shrink" @click="removeTag(index)">Remove</button>
-                  </div>
-                </template>
-              </div>
-            </section>
-
             <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 h-full"
                      x-data='{ attributes: {{ story_attributes | tojson }}, init() { if (!Array.isArray(this.attributes)) { this.attributes = Object.values(this.attributes || {}); } if (this.attributes.length === 0) { this.attributes.push({ "key": "", "value": "" }); } }, addAttribute() { this.attributes.push({ "key": "", "value": "" }); }, removeAttribute(index) { this.attributes.splice(index, 1); if (this.attributes.length === 0) { this.attributes.push({ "key": "", "value": "" }); } } }'>
               <div class="flex items-center justify-between gap-4">
@@ -284,7 +268,7 @@
 
       {% if story.news_items %}
         <div class="space-y-4">
-          {% for item in story.news_items %}{{ news_item_card(item, story) }}{% endfor %}
+          {% for item in story.news_items %}{{ news_item_card(item, story, edit_tags=(not has_rt_id) ) }}{% endfor %}
         </div>
       {% else %}
         <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>

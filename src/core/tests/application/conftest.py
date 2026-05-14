@@ -278,10 +278,10 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
         assert manual_important is not None
         assert source_only is not None
 
-        assert grouped_flagged.set_tags(["filter-alpha"])[1] == 200
-        assert grouped_plain.set_tags(["filter-beta"])[1] == 200
-        assert manual_important.set_tags(["filter-gamma"])[1] == 200
-        assert source_only.set_tags(["filter-delta"])[1] == 200
+        assert grouped_flagged.news_items[0].set_tags(["filter-alpha"])[1] == 200
+        assert grouped_plain.news_items[0].set_tags(["filter-beta"])[1] == 200
+        assert manual_important.news_items[0].set_tags(["filter-gamma"])[1] == 200
+        assert source_only.news_items[0].set_tags(["filter-delta"])[1] == 200
 
         grouped_flagged.read = True
         grouped_flagged.important = True
