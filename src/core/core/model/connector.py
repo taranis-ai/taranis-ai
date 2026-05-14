@@ -94,6 +94,8 @@ class Connector(BaseModel):
         if name := data.get("name"):
             connector.name = name
         connector.description = data.get("description", "")
+        if "state" in data and data["state"] is not None:
+            connector.state = data["state"]
         icon_str = data.get("icon")
         if icon_str is not None and (icon := connector.is_valid_base64(icon_str)):
             connector.icon = icon

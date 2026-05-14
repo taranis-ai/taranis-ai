@@ -448,7 +448,7 @@ def users_get_mock(responses_mock, organizations_get_mock, roles_get_mock):
             {
                 "id": 6,
                 "name": "ccc",
-                "organization": 2,
+                "organization": 1,
                 "permissions": [
                     "PUBLISH_DELETE",
                     "ASSESS_UPDATE",
@@ -482,24 +482,13 @@ def organizations_get_mock(responses_mock):
     mock_data = {
         "items": [
             {
-                "address": {
-                    "city": "Beaconsfield, Buckinghamshire",
-                    "country": "United Kingdom",
-                    "street": "Cherry Tree Rd",
-                    "zip": "HP9 1BH",
-                },
-                "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
-                "id": 2,
-                "name": "The Clacks",
-            },
-            {
-                "address": {"city": "Islington, London", "country": "United Kingdom", "street": "29 Arlington Avenue", "zip": "N1 7BE"},
-                "description": "Earth is the third planet from the Sun and the only astronomical object known to harbor life.",
+                "address": {},
+                "description": "Default organization for initial users.",
                 "id": 1,
-                "name": "The Earth",
+                "name": "Default Organization",
             },
         ],
-        "total_count": 2,
+        "total_count": 1,
     }
 
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/organizations", json=mock_data)
@@ -719,10 +708,10 @@ def worker_parameter_data():
                         "rules": ["positive_int"],
                         "type": "text",
                     },
+                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
-                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
-                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
                 ],
             },
             {
@@ -745,7 +734,6 @@ def worker_parameter_data():
             {
                 "id": "story_bot",
                 "parameters": [
-                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "ITEM_FILTER", "name": "ITEM_FILTER", "parent": "parameters", "rules": [], "type": "text"},
                     {
                         "label": "REQUESTS_TIMEOUT",
@@ -754,9 +742,10 @@ def worker_parameter_data():
                         "rules": ["positive_int"],
                         "type": "text",
                     },
-                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
-                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
+                    {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
                 ],
             },
             {
@@ -770,10 +759,10 @@ def worker_parameter_data():
                         "rules": ["positive_int"],
                         "type": "text",
                     },
+                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
-                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
-                    {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
                 ],
             },
             {
@@ -890,9 +879,9 @@ def worker_parameter_data():
                         "rules": ["positive_int"],
                         "type": "text",
                     },
-                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
-                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
                 ],
             },

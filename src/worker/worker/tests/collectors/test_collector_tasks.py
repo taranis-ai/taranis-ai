@@ -12,7 +12,7 @@ def current_job(monkeypatch, mock_job):
     return mock_job
 
 
-def test_collector_task_missing_source_is_skipped(current_job, requests_mock):
+def test_collector_task_missing_source_is_recorded_as_failure(current_job, requests_mock):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/osint-sources/source-missing",
         status_code=404,
@@ -22,8 +22,8 @@ def test_collector_task_missing_source_is_skipped(current_job, requests_mock):
 
     result = collector_tasks.collector_task("source-missing", manual=False)
 
-    assert result == "Skipped collector task: Source with id source-missing not found"
-    assert current_job.meta["status"] == "SKIPPED"
+    assert result == "Error: Source with id source-missing not found"
+    assert current_job.meta["status"] == "FAILURE"
     assert current_job.meta["message"] == result
 
     put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
@@ -34,5 +34,110 @@ def test_collector_task_missing_source_is_skipped(current_job, requests_mock):
         "worker_id": "source-missing",
         "worker_type": "collector_task",
         "result": result,
-        "status": "SUCCESS",
+        "status": "FAILURE",
     }
+
+
+def test_collector_task_no_change_persists_not_modified_status(current_job, requests_mock, monkeypatch):
+    source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {"FEED_URL": "https://example.com/feed"}}
+
+    class FakeCollector:
+        name = "RSS Collector"
+
+        def collect(self, source_data, manual):
+            raise collector_tasks.NoChangeError("feed was not modified")
+
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    result = collector_tasks.collector_task("source-1", manual=False)
+
+    assert result == "No changes: feed was not modified"
+    assert current_job.meta["status"] == "NOT_MODIFIED"
+    assert current_job.meta["message"] == result
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    assert post_calls[0].json() == {
+        "id": "test-job-123",
+        "task": "collector_task",
+        "worker_id": "source-1",
+        "worker_type": "rss_collector",
+        "result": result,
+        "status": "NOT_MODIFIED",
+    }
+
+
+def test_fetch_single_news_item_accepts_simple_web_source_payload(current_job, monkeypatch):
+    captured_parameters = {}
+
+    class FakeSimpleWebCollector:
+        name = "Simple Web Collector"
+
+        def preview_collector(self, parameters):
+            captured_parameters.update(parameters)
+            return [{"title": "Fetched item", "content": "Fetched content", "osint_source_id": "manual"}]
+
+    monkeypatch.setattr(collector_tasks.worker.collectors, "SimpleWebCollector", FakeSimpleWebCollector)
+
+    result = collector_tasks.fetch_single_news_item(
+        {"id": "manual", "type": "simple_web_collector", "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"}}
+    )
+
+    assert result == [{"title": "Fetched item", "content": "Fetched content", "osint_source_id": "manual"}]
+    assert captured_parameters == {
+        "id": "manual",
+        "type": "simple_web_collector",
+        "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
+    }
+
+
+def test_collector_preview_persists_with_preview_status(current_job, requests_mock, monkeypatch):
+    source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {}}
+    preview_items = [{"title": "Item 1"}, {"title": "Item 2"}]
+
+    class FakeCollector:
+        name = "RSS Collector"
+
+        def preview_collector(self, source_data):
+            return preview_items
+
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    result = collector_tasks.collector_preview("source-1")
+
+    assert result == preview_items
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    assert post_calls[0].json() == {
+        "id": "test-job-123",
+        "task": "collector_preview",
+        "result": preview_items,
+        "status": "PREVIEW",
+    }
+
+
+def test_collector_preview_persists_failure_on_exception(current_job, requests_mock, monkeypatch):
+    source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {}}
+
+    class FakeCollector:
+        name = "RSS Collector"
+
+        def preview_collector(self, source_data):
+            raise ValueError("connection refused")
+
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    with pytest.raises(RuntimeError):
+        collector_tasks.collector_preview("source-1")
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    assert post_calls[0].json()["status"] == "FAILURE"
+    assert post_calls[0].json()["task"] == "collector_preview"

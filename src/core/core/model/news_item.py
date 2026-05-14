@@ -92,7 +92,8 @@ class NewsItem(BaseModel):
             with db.session.no_autoflush:
                 self.osint_source = osint_source
         else:
-            raise ValueError(f"OSINT Source {osint_source_id} not found")
+            logger.warning(f"OSINT Source {osint_source_id} not found. Setting osint_source_id to manual.")
+            self.osint_source_id = "manual"
         self.source = source
         self.link = link
         self.author = author
@@ -110,8 +111,12 @@ class NewsItem(BaseModel):
         return cls.from_payload(AssessNewsItem.from_input(data))
 
     @classmethod
+    def _sanitize_import_payload(cls, payload: AssessNewsItem) -> dict[str, Any]:
+        return payload.to_core_dict()
+
+    @classmethod
     def from_payload(cls, payload: AssessNewsItem) -> "NewsItem":
-        return cls(**payload.to_core_dict())
+        return cls(**cls._sanitize_import_payload(payload))
 
     @staticmethod
     def get_date_field(date_field: str | datetime | None) -> datetime:
@@ -210,25 +215,29 @@ class NewsItem(BaseModel):
 
     def _update_status(self, change: str = "internal"):
         self.last_change = change
-        self.story.update_status(change=change)
+        if self.story:
+            self.story.update_status(change=change)
 
     @classmethod
-    def update_news_item_lang(cls, news_item_id, lang):
+    def update_news_item_lang(cls, news_item_id, lang, actor: str | None = None):
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
         news_item.language = lang
-        news_item._update_status()
+        news_item._update_status(actor or "internal")
         if story := news_item.story:
             story.record_revision(note="update_news_item_lang")
         db.session.commit()
         return {"message": "Language updated"}, 200
 
     @classmethod
-    def update_attributes(cls, news_item_id, attributes) -> tuple[dict, int]:
+    def update_attributes(cls, news_item_id, attributes, actor: str | None = None) -> tuple[dict, int]:
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
+
+        if isinstance(attributes, dict):
+            attributes = attributes.get("attributes", attributes)
 
         attributes = NewsItemAttribute.load_multiple(attributes)
         if attributes is None:
@@ -236,7 +245,7 @@ class NewsItem(BaseModel):
 
         for attribute in attributes:
             news_item.upsert_attribute(attribute)
-        news_item._update_status()
+        news_item._update_status(actor or "internal")
         if story := news_item.story:
             story.record_revision(note="update_news_item_attributes")
         db.session.commit()
@@ -264,20 +273,34 @@ class NewsItem(BaseModel):
     def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
         return list(NewsItemTag.parse_tags(incoming_tags).values())
 
-    def set_tags(self, incoming_tags: list | dict, change_by_bot: bool = False, user: User | None = None) -> tuple[dict, int]:
+    def set_tags(
+        self,
+        incoming_tags: list | dict,
+        change_by_bot: bool = False,
+        user: User | None = None,
+        actor: str | None = None,
+        replace: bool = True,
+    ) -> tuple[dict, int]:
         try:
-            return self._update_tags(incoming_tags, change_by_bot=change_by_bot, user=user)
+            return self._update_tags(incoming_tags, change_by_bot=change_by_bot, user=user, actor=actor, replace=replace)
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
             return {"error": str(e)}, 500
 
-    def _update_tags(self, incoming_tags: list | dict, change_by_bot: bool = False, user: User | None = None) -> tuple[dict, int]:
+    def _update_tags(
+        self,
+        incoming_tags: list | dict,
+        change_by_bot: bool = False,
+        user: User | None = None,
+        actor: str | None = None,
+        replace: bool = True,
+    ) -> tuple[dict, int]:
         parsed_tags = NewsItemTag.parse_tags(incoming_tags)
         if not parsed_tags:
             return {"error": "No valid tags provided"}, 400
 
-        if change_by_bot:
+        if change_by_bot or not replace:
             self.patch_tags(parsed_tags)
         else:
             tags_to_remove = self.get_tags_to_remove(parsed_tags)
@@ -285,8 +308,14 @@ class NewsItem(BaseModel):
             self.remove_tags(tags_to_remove)
 
         if story := self.story:
-            story.update_status()
-            story.record_revision(user, note="set_news_item_tags")
+            from core.model.story import Story
+
+            actor = Story.resolve_actor(user=user, actor=actor)
+            if actor is not None:
+                story.update_status(change=actor)
+            else:
+                story.update_status()
+            story.record_revision(user or Story.user_for_actor(actor), note="set_news_item_tags")
         db.session.commit()
         return {"message": f"Successfully updated news item: {self.id}, with {len(self.tags)} tags"}, 200
 
@@ -313,7 +342,7 @@ class NewsItem(BaseModel):
     def tlp_level(self) -> TLPLevel:
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
 
-    def update_item(self, data) -> tuple[dict, int]:
+    def update_item(self, data, actor: str | None = None) -> tuple[dict, int]:
         if self.osint_source_id != "manual":
             return {"error": "Only manual news items can be updated"}, 400
 
@@ -339,7 +368,7 @@ class NewsItem(BaseModel):
         self.published = payload.published or self.published
         self.hash = payload.hash or self.hash
 
-        self._update_status("internal")
+        self._update_status(actor or "internal")
 
         self.updated = self.utcnow()
 

@@ -13,13 +13,18 @@ from core.model import bot, news_item, story
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 
 
+def _bot_actor() -> str:
+    return "bot"
+
+
 class BotGroupAction(MethodView):
     @api_key_required
     def put(self):
-        story_ids = request.json
+        payload = request.json
+        story_ids = payload.get("story_ids") if isinstance(payload, dict) else payload
         if not story_ids:
             return {"error": "No story ids provided"}, 400
-        response, code = story.Story.group_stories(story_ids)
+        response, code = story.Story.group_stories(story_ids, actor=_bot_actor())
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
@@ -28,10 +33,11 @@ class BotGroupAction(MethodView):
 class BotGroupMultipleAction(MethodView):
     @api_key_required
     def put(self):
-        story_ids = request.json
+        payload = request.json
+        story_ids = payload.get("story_ids") if isinstance(payload, dict) else payload
         if not story_ids:
             return {"error": "No stories provided"}, 400
-        response, code = story.Story.group_multiple_stories(story_ids)
+        response, code = story.Story.group_multiple_stories(story_ids, actor=_bot_actor())
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
@@ -40,10 +46,11 @@ class BotGroupMultipleAction(MethodView):
 class BotUnGroupAction(MethodView):
     @api_key_required
     def put(self):
-        newsitem_ids = request.json
+        payload = request.json
+        newsitem_ids = payload.get("newsitem_ids") if isinstance(payload, dict) else payload
         if not newsitem_ids:
             return {"error": "No news items provided"}, 400
-        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids)
+        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, actor=_bot_actor())
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
@@ -67,7 +74,7 @@ class NewsItem(MethodView):
             if not request.json:
                 return {"Not update data provided"}
             if language := request.json.get("language"):
-                response, status = news_item.NewsItem.update_news_item_lang(news_item_id, language)
+                response, status = news_item.NewsItem.update_news_item_lang(news_item_id, language, actor=_bot_actor())
                 invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
                 return response, status
             return {"Not implemented"}
@@ -79,7 +86,7 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @api_key_required
     def put(self, news_item_id):
-        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json)
+        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=_bot_actor())
         invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
         return response, status
 
@@ -95,11 +102,14 @@ class StoryAttributes(MethodView):
     def patch(self, story_id):
         if current_story := story.Story.get(story_id):
             if input_data := request.json:
+                if isinstance(input_data, dict):
+                    input_data = input_data.get("attributes", input_data)
                 current_story.patch_attributes(input_data)
                 sse_manager.news_items_updated()
             else:
                 return {"error": "No data provided"}, 400
             current_story.updated = current_story.utcnow()
+            current_story.update_status(change=_bot_actor())
             current_story.record_revision(note="update_story_attributes")
             db.session.commit()
             invalidate_frontend_cache_on_success(200, models=("story", "report_item"), object_ids={"story": story_id})
@@ -114,7 +124,7 @@ class UpdateStory(MethodView):
 
     @api_key_required
     def put(self, story_id: str):
-        result = story.Story.update(story_id, request.json)
+        result = story.Story.update(story_id, request.json, actor=_bot_actor())
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(result[1], models=("story", "report_item"), object_ids={"story": story_id})
         return result

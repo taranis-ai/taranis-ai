@@ -247,8 +247,8 @@ class TestConnectorTaskResults(BaseTest):
 
         attr_by_key = {attr["key"]: attr["value"] for attr in updated_story["attributes"]}
         assert attr_by_key["misp_event_uuid"] == misp_event_uuid
-        assert updated_story["last_change"] == "external"
-        assert updated_story["news_items"][0]["last_change"] == "external"
+        assert updated_story["last_change"] == "connector_74981521-4ba7-4216-b9ca-ebc00ffec29c"
+        assert updated_story["news_items"][0]["last_change"] == "connector_74981521-4ba7-4216-b9ca-ebc00ffec29c"
         assert updated_story["revision_count"] == original_story["revision_count"] + 1
 
     def test_misp_connector_result_is_idempotent(self, client, stories, auth_header, api_header):

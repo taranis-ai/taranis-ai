@@ -1,3 +1,4 @@
+import uuid
 from contextlib import suppress
 
 import pytest
@@ -29,6 +30,29 @@ def cleanup_sources(app):
         with suppress(SQLAlchemyError):
             if OSINTSource.get(source_data["id"]):
                 OSINTSource.delete(source_data["id"])
+
+
+@pytest.fixture(scope="session")
+def cleanup_connector(app):
+    with app.app_context():
+        from core.model.connector import Connector
+
+        connector_data = {
+            "id": str(uuid.uuid4()),
+            "name": f"Test Connector {uuid.uuid4().hex[:8]}",
+            "description": "Test connector",
+            "type": "misp_connector",
+            "parameters": {"API_KEY": "super-secret-api-key"},
+        }
+
+        if not Connector.get(connector_data["id"]):
+            Connector.add(connector_data)
+
+        yield connector_data
+
+        with suppress(SQLAlchemyError):
+            if Connector.get(connector_data["id"]):
+                Connector.delete(connector_data["id"])
 
 
 @pytest.fixture(scope="session")

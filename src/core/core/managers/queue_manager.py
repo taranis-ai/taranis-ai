@@ -29,12 +29,13 @@ When a source/bot schedule is updated:
 """
 
 import contextlib
+import hashlib
 import json
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from croniter import croniter
+from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from flask import Flask
 from models.admin import CronSpec
 from redis import Redis
@@ -44,6 +45,7 @@ from rq.job import Job
 
 from core.config import Config
 from core.log import logger
+from core.service.simple_web_collector import get_simple_web_collector_url
 
 
 OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
@@ -84,16 +86,48 @@ def _format_relative_time(target: datetime | None, reference: datetime) -> str |
     return f"in {label}" if seconds > 0 else f"{label} ago"
 
 
+def _as_naive_utc(value: datetime | None) -> datetime | None:
+    if not value:
+        return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _format_utc_timestamp(value: datetime | None) -> str | None:
+    normalized = _as_naive_utc(value)
+    if not normalized:
+        return None
+    return f"{normalized.strftime('%Y-%m-%d %H:%M:%S')} UTC"
+
+
+def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run_dt: datetime | None) -> bool:
+    schedule = job.get("schedule")
+    if not schedule or last_run_dt is None:
+        return False
+
+    try:
+        next_expected_run = croniter(schedule, last_run_dt).get_next(datetime)
+    except (CroniterBadCronError, CroniterBadDateError):
+        return False
+
+    return now > (next_expected_run + OVERDUE_GRACE_PERIOD)
+
+
 def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     for job in jobs:
-        last_run_dt = job.get("last_run")
-        next_run_dt = job.get("next_run_time")
-        prev_run_dt = job.get("previous_run_time")
+        last_run_dt = _as_naive_utc(job.get("last_run"))
+        next_run_dt = _as_naive_utc(job.get("next_run_time"))
+        prev_run_dt = _as_naive_utc(job.get("previous_run_time"))
 
-        job["last_run_display"] = last_run_dt.strftime("%Y-%m-%d %H:%M:%S") if last_run_dt else None
+        job["last_run"] = last_run_dt
+        job["next_run_time"] = next_run_dt
+        job["previous_run_time"] = prev_run_dt
+
+        job["last_run_display"] = _format_utc_timestamp(last_run_dt)
         job["last_run_relative"] = f"{_format_duration(now - last_run_dt)} ago" if last_run_dt else None
-        job["next_run_display"] = next_run_dt.strftime("%Y-%m-%d %H:%M:%S") if next_run_dt else None
+        job["next_run_display"] = _format_utc_timestamp(next_run_dt)
         job["next_run_relative"] = _format_relative_time(next_run_dt, now)
 
         variant = "ghost"
@@ -106,6 +140,10 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 job["status_badge"] = {"variant": variant, "label": label}
                 job["is_overdue"] = False
                 continue
+            elif _cron_run_missed_since_last_run(job, now, last_run_dt):
+                label = "Missed"
+                variant = "error"
+                is_overdue = True
             elif prev_run_dt and last_run_dt >= prev_run_dt or not prev_run_dt:
                 label = "On schedule"
                 variant = "success"
@@ -422,7 +460,7 @@ class QueueManager:
         if self.error:
             return {"error": "QueueManager not initialized"}, 500
 
-        word_lists = WordList.get_all_for_collector() or []
+        word_lists = WordList.get_all_for_gathering() or []
         for word_list in word_lists:
             self.enqueue_task("misc", "gather_word_list", word_list.id, job_id=f"gather_word_list_{word_list.id}")
         return {"message": "Gathering for all WordLists scheduled"}, 200
@@ -586,14 +624,20 @@ class QueueManager:
 
         try:
             job = Job.fetch(task_id, connection=self._redis)
+            response: dict[str, Any] = {"id": task_id}
             if job.is_finished:
-                return {"result": job.result}, 200
+                response |= {"status": "SUCCESS", "result": job.result}
+                return response, 200
             if job.is_failed:
-                return {"error": str(job.exc_info)}, 500
-            return {"status": job.get_status()}, 202
+                response |= {"status": "FAILURE", "error": str(job.exc_info)}
+                return response, 500
+            rq_status = job.get_status()
+            status_val = rq_status.value if hasattr(rq_status, "value") else str(rq_status)
+            response["status"] = status_val.upper()
+            return response, 202
         except Exception as e:
             logger.error(f"Failed to get task {task_id}: {e}")
-            return {"error": "Task not found"}, 404
+            return {"id": task_id, "status": "NOT_FOUND", "error": "Task not found"}, 404
 
     def collect_osint_source(self, source_id: str, task_id: str):
         """Trigger OSINT source collection"""
@@ -605,27 +649,62 @@ class QueueManager:
 
     def preview_osint_source(self, source_id: str):
         """Preview OSINT source collection"""
-        if job := self.enqueue_task("collectors", "collector_preview", source_id, job_id=f"source_preview_{source_id}"):
+        task_id = f"source_preview_{source_id}"
+        self.purge_job_artifacts(exact_ids={task_id})
+        if job := self.enqueue_task("collectors", "collector_preview", source_id, job_id=task_id):
             logger.info(f"Preview for source {source_id} scheduled")
             return {"message": f"Preview for source {source_id} scheduled", "id": job.id, "status": "STARTED"}, 201
         return {"error": "Could not reach Redis"}, 500
 
-    def fetch_single_news_item(self, parameters: dict[str, str]):
+    @classmethod
+    def _get_single_fetch_url(cls, parameters: dict[str, Any]) -> str:
+        return get_simple_web_collector_url(parameters)
+
+    @staticmethod
+    def _normalize_single_fetch_job_id_value(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                str(key): QueueManager._normalize_single_fetch_job_id_value(value[key]) for key in sorted(value, key=lambda item: str(item))
+            }
+        if isinstance(value, (list, tuple)):
+            return [QueueManager._normalize_single_fetch_job_id_value(item) for item in value]
+        if isinstance(value, set):
+            normalized_items = [QueueManager._normalize_single_fetch_job_id_value(item) for item in value]
+            return sorted(normalized_items, key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":")))
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
+
+    @classmethod
+    def _get_single_fetch_job_payload(cls, parameters: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "url": get_simple_web_collector_url(parameters),
+            "parameters": cls._normalize_single_fetch_job_id_value(parameters.get("parameters", {})),
+        }
+
+    @classmethod
+    def _get_single_fetch_job_id(cls, parameters: dict[str, Any]) -> str:
+        payload_json = json.dumps(cls._get_single_fetch_job_payload(parameters), sort_keys=True, separators=(",", ":"))
+        payload_hash = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        return f"fetch_single_news_item_{payload_hash}"
+
+    def fetch_single_news_item(self, parameters: dict[str, Any]):
+        url = get_simple_web_collector_url(parameters)
         job = self.enqueue_task(
             "collectors",
             "fetch_single_news_item",
             parameters,
-            job_id=f"fetch_single_news_item_{parameters.get('url')}",
+            job_id=self._get_single_fetch_job_id(parameters),
         )
         if not job:
             logger.error("Could not schedule fetch_single_news_item task")
             return {"error": "Could not reach Redis"}, 500
 
-        logger.info(f"Fetch for single news item {parameters.get('url')} scheduled")
+        logger.info(f"Fetch for single news item {url} scheduled")
         try:
             return self._await_job_result(job)
         except TimeoutError:
-            logger.error("Timed out waiting for fetch_single_news_item result for %s", parameters.get("url"))
+            logger.error("Timed out waiting for fetch_single_news_item result for %s", url)
         except Exception:
             logger.exception("Failed to fetch single news item")
         return {"error": "Failed to fetch single news item"}, 500
@@ -1100,27 +1179,24 @@ class QueueManager:
             logger.exception(f"Failed to get worker stats: {e}")
             return {"error": f"Failed to get worker stats: {str(e)}"}, 500
 
-    def autopublish_product(self, product_id: str, auto_publisher_id: str) -> bool:
+    @staticmethod
+    def _build_unique_job_id(task_name: str, product_id: str) -> str:
+        return f"{task_name}_{product_id}_{time.time_ns()}"
+
+    def autopublish_product(self, product_id: str, auto_publisher_id: str) -> tuple[dict[str, Any], int]:
         """Render a product and publish it once rendering finishes."""
         if self.error or not self._redis:
             logger.error("QueueManager not initialized, cannot autopublish product %s", product_id)
-            return False
+            return {"error": "QueueManager not initialized"}, 500
 
-        presenter_job_id = f"presenter_task_{product_id}"
+        presenter_job_id = self._build_unique_job_id("presenter_task", product_id)
         presenter_job = self.enqueue_task("presenters", "presenter_task", product_id, job_id=presenter_job_id)
 
         if not presenter_job:
-            try:
-                presenter_job = Job.fetch(presenter_job_id, connection=self._redis)
-                logger.debug("Reusing existing presenter job %s for product %s", presenter_job_id, product_id)
-            except NoSuchJobError:
-                logger.error("Presenter job %s could not be enqueued and no existing job was found", presenter_job_id)
-                return False
-            except Exception as exc:  # pragma: no cover - defensive catch for Redis errors
-                logger.error("Could not schedule presenter job %s: %s", presenter_job_id, exc)
-                return False
+            logger.error("Could not schedule presenter job %s for product %s", presenter_job_id, product_id)
+            return {"error": f"Could not schedule presenter job for product {product_id}"}, 500
 
-        publisher_job_id = f"publisher_task_{product_id}"
+        publisher_job_id = self._build_unique_job_id("publisher_task", product_id)
         publisher_job = self.enqueue_task(
             "publishers",
             "publisher_task",
@@ -1132,15 +1208,20 @@ class QueueManager:
 
         if not publisher_job:
             logger.error("Could not schedule publisher job %s for product %s", publisher_job_id, product_id)
-            return False
+            return {"error": f"Could not schedule publisher job for product {product_id}"}, 500
 
+        message = f"Autopublishing Product: {product_id} with publisher: {auto_publisher_id} scheduled"
         logger.info(
             "Autopublish scheduled: presenter job %s -> publisher job %s for product %s",
             presenter_job_id,
             publisher_job_id,
             product_id,
         )
-        return True
+        return {
+            "message": message,
+            "presenter_job_id": presenter_job_id,
+            "publisher_job_id": publisher_job_id,
+        }, 200
 
 
 def initialize(app: Flask, initial_setup: bool = True):

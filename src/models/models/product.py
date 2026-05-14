@@ -31,7 +31,7 @@ class ProductType(TaranisBaseModel):
 
     id: int | None = None
     title: str
-    description: str = ""
+    description: str | None = ""
     type: PRESENTER_TYPES
     parameters: ProductParameterValue = Field(default_factory=ProductParameterValue)
     report_types: list[int] = Field(default_factory=list)

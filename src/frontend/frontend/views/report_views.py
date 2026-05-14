@@ -1,11 +1,12 @@
 from typing import Any
 
-from flask import Response, abort, make_response, render_template, request, url_for
+from flask import Response, abort, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.assess import Story
-from models.report import ReportItem, ReportItemAttributeGroup, ReportTypes
-from pydantic import ValidationError
-from werkzeug.exceptions import HTTPException
+from models.product import Product, ProductType
+from models.report import ReportItem, ReportTypes
+from models.revision_diff import build_report_revision_diff_payload
+from werkzeug.exceptions import Forbidden, HTTPException
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
@@ -13,7 +14,6 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count, render_datetime
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
 
@@ -27,6 +27,10 @@ class ReportItemView(BaseView):
 
     base_route = "analyze.analyze"
     edit_route = "analyze.report"
+
+    @classmethod
+    def get_form_action(cls, object_id: int | str = 0) -> str:
+        return cls.get_edit_route(report_id=str(object_id))
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -44,16 +48,92 @@ class ReportItemView(BaseView):
         ]
 
     @staticmethod
-    def _get_story_attributes(grouped_attributes: list[ReportItemAttributeGroup]):
-        story_attributes = []
-        used_story_ids = []
-        for ag in grouped_attributes:
-            for attribute in ag.attributes:
-                if not attribute.type or attribute.type != "STORY":
-                    continue
-                story_attributes.append(attribute)
-                used_story_ids.extend(story_id.strip() for story_id in str(attribute.value).split(",") if story_id and story_id.strip())
-        return story_attributes, list(dict.fromkeys(used_story_ids))
+    def _normalize_attribute_value(value: Any) -> str:
+        if isinstance(value, list):
+            return ",".join(str(item) for item in value if item)
+        return "" if value is None else str(value)
+
+    @staticmethod
+    def _normalize_layout(layout: Any) -> str:
+        return layout if layout in {"split", "stacked"} else "split"
+
+    @staticmethod
+    def _strip_layout_keys(data: dict[str, Any]) -> dict[str, Any]:
+        data.pop("layout", None)
+        data.pop("layout_switch", None)
+        return data
+
+    @classmethod
+    def _parse_form_attributes(cls, attributes: dict[str, Any]) -> dict[str, Any]:
+        return {key: cls._normalize_attribute_value(value) for key, value in attributes.items()}
+
+    @staticmethod
+    def _normalize_story_ids(stories: Any, remove_story_id: str | None = None, remove_all: bool = False) -> list[str]:
+        if remove_all:
+            return []
+
+        story_ids = stories if isinstance(stories, list) else ([stories] if stories else [])
+        normalized_story_ids = [str(story_id) for story_id in story_ids if story_id]
+        if remove_story_id:
+            normalized_story_ids = [story_id for story_id in normalized_story_ids if story_id != remove_story_id]
+        return normalized_story_ids
+
+    @classmethod
+    def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
+        form_data = dict(form_data)
+        cls._strip_layout_keys(form_data)
+
+        if story_ids := form_data.pop("story_ids", None):
+            form_data.setdefault("stories", story_ids)
+
+        remove_story_id = form_data.pop("remove_story_id", None)
+        remove_all_stories = form_data.pop("remove_all_stories", None) == "1"
+        if "stories" in form_data or remove_story_id or remove_all_stories:
+            form_data["stories"] = cls._normalize_story_ids(form_data.get("stories"), remove_story_id, remove_all_stories)
+
+        attributes = form_data.get("attributes", {})
+        form_data["attributes"] = cls._parse_form_attributes(attributes if isinstance(attributes, dict) else {})
+
+        return cls.model.model_validate(form_data).model_dump(exclude_unset=True)
+
+    @classmethod
+    def _get_normalized_form_data_from(cls, submitted_data: Any) -> dict[str, Any]:
+        form_data = parse_formdata(submitted_data)
+        if story_ids := submitted_data.getlist("story_ids"):
+            form_data["story_ids"] = story_ids
+        return cls._normalize_form_data(form_data)
+
+    @classmethod
+    def _get_normalized_form_data(cls) -> dict[str, Any]:
+        return cls._get_normalized_form_data_from(request.form)
+
+    @classmethod
+    def _get_normalized_request_values(cls) -> dict[str, Any]:
+        return cls._get_normalized_form_data_from(request.values)
+
+    @classmethod
+    def _apply_form_data_to_report(cls, report: ReportItem, form_data: dict[str, Any]) -> ReportItem:
+        if "title" in form_data:
+            report.title = form_data["title"]
+        if "report_item_type_id" in form_data:
+            report.report_item_type_id = form_data["report_item_type_id"]
+
+        if isinstance(form_data.get("attributes"), dict):
+            for group in report.grouped_attributes or []:
+                for attribute in group.attributes:
+                    if attribute.id is None:
+                        continue
+                    attribute_key = str(attribute.id)
+                    if attribute_key not in form_data["attributes"]:
+                        continue
+                    attribute.value = form_data["attributes"][attribute_key]
+
+        return report
+
+    @classmethod
+    def _apply_story_ids_to_report(cls, report: ReportItem, story_ids: Any) -> None:
+        normalized_story_ids = set(cls._normalize_story_ids(story_ids))
+        report.stories = [story for story in DataPersistenceLayer().get_objects(Story) if str(story.id) in normalized_story_ids]
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
@@ -61,16 +141,33 @@ class ReportItemView(BaseView):
             dpl = DataPersistenceLayer()
             report_types = dpl.get_objects(ReportTypes)
             base_context["report_types"] = report_types
-            layout = request.args.get("layout") or request.form.get("layout") or base_context.get("layout", "split")
-            report = base_context.get("report")
-            base_context["story_attributes"] = []
-            base_context["used_story_ids"] = []
+            base_context["current_search"] = request.args.get("search", "")
+            base_context["current_completed_filter"] = request.args.get("completed", "")
+            base_context["current_report_item_type_filter"] = request.args.get("report_item_type_id", "")
+            layout = cls._normalize_layout(request.values.get("layout_switch") or request.values.get("layout") or base_context.get("layout"))
 
-            if report := base_context.get("report"):
-                if report.grouped_attributes:
-                    base_context["story_attributes"], base_context["used_story_ids"] = ReportItemView._get_story_attributes(
-                        report.grouped_attributes
-                    )
+            report = base_context.get("report")
+            if report:
+                if cls.is_create_object_id(report.id):
+                    base_context["existing_products"] = []
+                else:
+                    product_types = {product_type.id: product_type.title for product_type in dpl.get_objects(ProductType)}
+                    products = dpl.get_objects(Product)
+                    base_context["existing_products"] = [
+                        {
+                            "id": product.id,
+                            "name": f"{product.title} ({product_types.get(product.product_type_id, 'Unknown')})",
+                        }
+                        for product in products
+                        if product.id
+                    ]
+                submitted_data = cls._get_normalized_request_values()
+                report = cls._apply_form_data_to_report(report, submitted_data)
+                if cls.is_create_object_id(report.id) and (story_ids := submitted_data.get("stories")):
+                    cls._apply_story_ids_to_report(report, story_ids)
+                base_context["report"] = report
+            else:
+                base_context["existing_products"] = []
 
             base_context |= {
                 "layout": layout,
@@ -84,20 +181,21 @@ class ReportItemView(BaseView):
         return base_context
 
     @classmethod
-    def get_create_context(cls) -> dict[str, Any]:
-        context = super().get_create_context()
-        report = context.get("report")
-        if not report:
-            return context
-        if title := request.values.get("title"):
-            report.title = title
-        if report_item_type_id := request.values.get("report_item_type_id"):
-            report.report_item_type_id = report_item_type_id
-        if story_ids := request.args.getlist("story_ids"):
-            report.stories = [s for s in DataPersistenceLayer().get_objects(Story) if s.id in story_ids]
-            context["report"] = report
+    def _render_layout_switch_view(cls, object_id: int | str = 0) -> tuple[str, int]:
+        if cls.is_create_object_id(object_id):
+            return render_template(cls.get_update_template(), **cls.get_create_context()), 200
 
-        return context
+        report = cls.get_object_by_id(object_id)
+        if not report:
+            return abort(404)
+
+        return (
+            render_template(
+                cls.get_update_template(),
+                **cls.get_update_context(object_id, model_instance=report, form_action_object_id=object_id),
+            ),
+            200,
+        )
 
     @classmethod
     def get_report_actions(cls) -> list[dict[str, Any]]:
@@ -117,6 +215,7 @@ class ReportItemView(BaseView):
                 "class": "btn-error",
                 "method": "delete",
                 "url": url_for(cls.edit_route, report_id=""),
+                "hx_target_error": "#notification-bar",
                 "hx_target": f"#{cls.model_name()}-table-container",
                 "hx_swap": "outerHTML",
                 "type": "button",
@@ -133,62 +232,16 @@ class ReportItemView(BaseView):
         return ReportItemView.list_view()
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        return self.update_view(object_id=0)
+        object_id = self._get_object_id(kwargs) or 0
+        if request.form.get("layout_switch"):
+            return self._render_layout_switch_view(object_id)
+        return self.update_view_table(object_id=object_id)
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return abort(405)
-        return self.update_view(object_id=object_id)
-
-    @classmethod
-    def update_view(cls, object_id: int | str = 0):
-        core_response, error = cls.process_form_data(object_id)
-        if not core_response or error:
-            return render_template(
-                cls.get_update_template(),
-                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
-            ), 400
-
-        notification_response = cls.render_response_notification(core_response)
-        response = notification_response + render_template(
-            cls.get_update_template(),
-            **cls.get_update_context(object_id, error=error, resp_obj=core_response),
-        )
-        flask_response = make_response(response, 200)
-        flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
-        return flask_response
-
-    @classmethod
-    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
-        core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
-
-        response = cls.get_notification_from_response(core_response)
-        table, table_response = cls.render_list()
-        if table_response == 200:
-            response += table
-        return response, core_response.status_code or table_response
-
-    @staticmethod
-    def _parse_form_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
-        return {key: ",".join(id for id in value if id) if isinstance(value, list) else value for key, value in attributes.items()}
-
-    @classmethod
-    def process_form_data(cls, object_id: int | str):
-        try:
-            form_data = parse_formdata(request.form)
-            logger.debug(f"Parsed form data: {form_data}")
-            form_data.pop("layout", None)
-            form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
-            return cls.store_form_data(form_data, object_id)
-        except ValidationError as exc:
-            logger.error(format_pydantic_errors(exc, cls.model))
-            return None, format_pydantic_errors(exc, cls.model)
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.error(f"Error storing form data: {str(exc)}")
-            return None, str(exc)
+        return self.update_view_table(object_id=object_id)
 
     @staticmethod
     @auth_required()
@@ -213,6 +266,29 @@ class ReportItemView(BaseView):
 
         return render_template("analyze/report_versions.html", **context), 200
 
+    @classmethod
+    def handle_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
+        return cls.render_submitted_form_error(object_id, error=error, resp_obj=resp_obj)
+
+    @classmethod
+    def handle_submit_success(cls, object_id: int | str, core_response: dict[str, Any]) -> ResponseReturnValue:
+        cls.add_flash_notification(core_response)
+        return cls.redirect_htmx(cls.get_submit_redirect_target(object_id, core_response))
+
+    @classmethod
+    def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
+        response_object_id = core_response.get("id", object_id)
+        if not cls.is_create_object_id(object_id):
+            try:
+                if cls.get_object_by_id(response_object_id) is None:
+                    return cls.get_base_route()
+            except Forbidden:
+                return cls.get_base_route()
+        target = cls.get_edit_route(report_id=response_object_id)
+        if cls.is_create_object_id(object_id) and (layout := request.values.get("layout")):
+            target = f"{target}?layout={layout}"
+        return target
+
     @staticmethod
     @auth_required()
     def diff_view(report_id: str, from_rev: int, to_rev: int) -> tuple[str, int] | Response:
@@ -220,139 +296,20 @@ class ReportItemView(BaseView):
         if not report_id:
             return abort(400, description="No report ID provided.")
 
-        # Get report data
-        report = DataPersistenceLayer().get_object(ReportItem, report_id)
-        if not report:
-            return abort(404, description="Report not found.")
-
-        # Get revision data from core API
-        from_data = CoreApi().api_get(f"/analyze/report-items/{report_id}/revisions/{from_rev}")
-        to_data = CoreApi().api_get(f"/analyze/report-items/{report_id}/revisions/{to_rev}")
-
-        if not from_data or not to_data:
+        core_api = CoreApi()
+        from_revision = core_api.api_get(f"/analyze/report-items/{report_id}/revisions/{from_rev}")
+        to_revision = core_api.api_get(f"/analyze/report-items/{report_id}/revisions/{to_rev}")
+        if not from_revision or not to_revision:
             return abort(404, description="Revision not found.")
 
-        # Calculate diff
-        from_revision_data = from_data.get("data", {})
-        to_revision_data = to_data.get("data", {})
-
-        # Prepare diff data
-        diff_data = {
-            "from_revision": from_data,
-            "to_revision": to_data,
-            "changes": _calculate_diff(from_revision_data, to_revision_data),
-        }
+        report_title = to_revision.get("data", {}).get("title") or from_revision.get("data", {}).get("title")
+        diff = build_report_revision_diff_payload(report_id, report_title, from_revision, to_revision)
 
         context = {
-            "report": report,
-            "diff": diff_data,
+            "diff": diff,
             "from_rev": from_rev,
             "to_rev": to_rev,
+            "report_id": report_id,
         }
 
         return render_template("analyze/report_diff.html", **context), 200
-
-
-# TODO: Enhance diff calculation to handle more complex attribute types and nested structures, and to provide better formatting of changes in the UI.
-def _calculate_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
-    """Calculate differences between two report data dictionaries"""
-    changes = []
-
-    # Compare title
-    if from_data.get("title") != to_data.get("title"):
-        changes.append(
-            {
-                "field": "Title",
-                "old_value": from_data.get("title"),
-                "new_value": to_data.get("title"),
-            }
-        )
-
-    # Compare completed status
-    if from_data.get("completed") != to_data.get("completed"):
-        changes.append(
-            {
-                "field": "Completed",
-                "old_value": from_data.get("completed"),
-                "new_value": to_data.get("completed"),
-            }
-        )
-
-    # Build story ID to title mapping for resolving STORY attribute values
-    story_map = {}
-    for story in from_data.get("stories", []) + to_data.get("stories", []):
-        if story.get("id"):
-            story_map[story["id"]] = story.get("title", story["id"])
-
-    # Compare attributes
-    from_attrs = from_data.get("grouped_attributes", [])
-    to_attrs = to_data.get("grouped_attributes", [])
-
-    # Create flattened attribute dictionaries for comparison, with type info
-    from_attr_dict = {}
-    from_attr_types = {}
-    for group in from_attrs:
-        for attr in group.get("attributes", []):
-            key = f"{group.get('title', '')}.{attr.get('title', '')}"
-            from_attr_dict[key] = attr.get("value")
-            from_attr_types[key] = attr.get("type")
-
-    to_attr_dict = {}
-    to_attr_types = {}
-    for group in to_attrs:
-        for attr in group.get("attributes", []):
-            key = f"{group.get('title', '')}.{attr.get('title', '')}"
-            to_attr_dict[key] = attr.get("value")
-            to_attr_types[key] = attr.get("type")
-
-    # Find changed and new attributes
-    for key in sorted(set(from_attr_dict.keys()) | set(to_attr_dict.keys())):
-        from_val = from_attr_dict.get(key)
-        to_val = to_attr_dict.get(key)
-
-        if from_val != to_val:
-            # Resolve STORY attribute values to titles
-            attr_type = from_attr_types.get(key) or to_attr_types.get(key)
-            if attr_type == "STORY":
-                from_display = story_map.get(from_val, from_val) if from_val else None
-                to_display = story_map.get(to_val, to_val) if to_val else None
-            else:
-                from_display = from_val
-                to_display = to_val
-
-            changes.append(
-                {
-                    "field": key,
-                    "old_value": from_display,
-                    "new_value": to_display,
-                }
-            )
-
-    # Compare stories
-    from_story_ids = {s.get("id") for s in from_data.get("stories", [])}
-    to_story_ids = {s.get("id") for s in to_data.get("stories", [])}
-
-    added_stories = to_story_ids - from_story_ids
-    removed_stories = from_story_ids - to_story_ids
-
-    if added_stories:
-        story_titles = [s.get("title", s.get("id")) for s in to_data.get("stories", []) if s.get("id") in added_stories]
-        changes.append(
-            {
-                "field": "Stories Added",
-                "old_value": None,
-                "new_value": ", ".join(story_titles),
-            }
-        )
-
-    if removed_stories:
-        story_titles = [s.get("title", s.get("id")) for s in from_data.get("stories", []) if s.get("id") in removed_stories]
-        changes.append(
-            {
-                "field": "Stories Removed",
-                "old_value": ", ".join(story_titles),
-                "new_value": None,
-            }
-        )
-
-    return changes

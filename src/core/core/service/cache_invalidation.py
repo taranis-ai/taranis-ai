@@ -25,6 +25,11 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
         "scheduler_dashboard",
         "task_history_response",
     ),
+    "schedule_status": (
+        "job",
+        "scheduler_dashboard",
+        "task_history_response",
+    ),
     "trending_clusters": ("trending_clusters",),
 }
 

@@ -1,0 +1,40 @@
+<dialog id="report_publish_dialog" class="modal" data-testid="report-publish-dialog">
+  <div class="modal-box" x-data="{ selectedProductId: '' }">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+    </form>
+    <h3 class="font-bold text-lg mt-1 mb-2">Publish Report</h3>
+    {% set existing_products = existing_products | default([]) %}
+    <div class="space-y-4">
+      {% if existing_products %}
+        <label class="select w-full">
+          <span class="label">Existing Product</span>
+          <select id="existing_product"
+                  name="product"
+                  required
+                  class="validator select w-full"
+                  x-model="selectedProductId"
+                  data-testid="report-publish-existing-product-select">
+            <option selected disabled value="">Select a product</option>
+            {% for option in existing_products %}<option value="{{ option.id }}">{{ option.name }}</option>{% endfor %}
+          </select>
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button"
+                  class="btn btn-outline flex-1"
+                  :disabled="!selectedProductId"
+                  @click="window.location.href = '{{ url_for("publish.publish") }}' + '/' + selectedProductId + '?report_id={{ report.id }}'"
+                  data-testid="report-open-existing-product-button">Open Product</button>
+          <a class="btn btn-outline flex-1"
+             href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
+             data-testid="report-new-product-button">New Product</a>
+        </div>
+      {% else %}
+        <div class="alert alert-info">No existing products available.</div>
+        <a class="btn btn-outline btn-wide"
+           href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"
+           data-testid="report-new-product-button">New Product</a>
+      {% endif %}
+    </div>
+  </div>
+</dialog>

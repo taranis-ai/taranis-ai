@@ -138,12 +138,16 @@ class BaseView(MethodView):
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
 
+    @staticmethod
+    def is_create_object_id(object_id: int | str | None) -> bool:
+        return object_id in {0, "0", None, ""}
+
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
         try:
             obj = cls.model(**processed_data)
             dpl = DataPersistenceLayer()
-            result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
+            result = dpl.store_object(obj) if cls.is_create_object_id(object_id) else dpl.update_object(obj, object_id)
             return (result.json(), None) if result.ok else (None, result.json())
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
@@ -213,7 +217,7 @@ class BaseView(MethodView):
             }
         )
 
-        context[cls.model_name()] = DataPersistenceLayer().get_object(cls.model, object_id)
+        context[cls.model_name()] = cls.get_object_by_id(object_id)
         return cls.get_extra_context(context)
 
     @classmethod
@@ -238,31 +242,48 @@ class BaseView(MethodView):
         object_id: int | str,
         error: str | None = None,
         form_error: str | None = None,
-        resp_obj: dict[str, Any] | None = None,
+        model_instance: TaranisBaseModel | None = None,
+        response_message: str | None = None,
+        form_action_object_id: int | str | None = None,
     ) -> dict[str, Any]:
-        submit = f"Update {cls.pretty_name()}"
+        model_context_key = cls.model_name()
 
-        context = cls._common_context(object_id=object_id)
-        context.update(
-            {
-                "error": error,
-                "form_error": form_error,
-                "form_action": cls.get_form_action(object_id),
-                "submit_text": submit,
-            }
-        )
+        context = {
+            **cls._common_context(object_id=object_id),
+            "error": error,
+            "form_error": form_error,
+            "form_action": cls.get_form_action(form_action_object_id if form_action_object_id is not None else object_id),
+            "submit_text": f"Update {cls.pretty_name()}",
+        }
 
-        if resp_obj:
-            if model_instance := resp_obj.get(cls.model_name()):
-                context[cls.model_name()] = cls.model(**model_instance)
-            if msg := resp_obj.get("message"):
-                context["message"] = msg
-            if new_id := resp_obj.get("id"):
-                context["form_action"] = cls.get_form_action(new_id)
-        else:
-            context[cls.model_name()] = cls.model.model_construct(id="0")
+        context[model_context_key] = model_instance if model_instance is not None else cls.model.model_construct(id="0")
+
+        if response_message:
+            context["message"] = response_message
 
         return cls.get_extra_context(base_context=context)
+
+    @classmethod
+    def get_object_by_id(cls, object_id: int | str) -> TaranisBaseModel | None:
+        return DataPersistenceLayer().get_object(cls.model, object_id)
+
+    @classmethod
+    def resolve_update_response(
+        cls, object_id: int | str, resp_obj: dict[str, Any] | None
+    ) -> tuple[int | str | None, TaranisBaseModel | None, str | None]:
+        if not resp_obj:
+            return None if object_id in {0, "0", None, ""} else object_id, None, None
+
+        response_object_id = resp_obj.get("id", object_id)
+        persisted_object_id = None if response_object_id in {0, "0", None, ""} else response_object_id
+        model_instance = None
+
+        if model_payload := resp_obj.get(cls.model_name()):
+            model_instance = cls.model(**model_payload)
+        elif persisted_object_id is not None:
+            model_instance = cls.get_object_by_id(persisted_object_id)
+
+        return persisted_object_id, model_instance, resp_obj.get("message")
 
     @classmethod
     def get_default_actions(cls) -> list[dict[str, Any]]:
@@ -274,6 +295,7 @@ class BaseView(MethodView):
                 "class": "btn-error",
                 "method": "delete",
                 "url": cls.get_base_route(),
+                "hx_target_error": "#notification-bar",
                 "hx_target": f"#{cls.model_name()}-table-container",
                 "hx_swap": "outerHTML",
                 "type": "button",
@@ -304,16 +326,29 @@ class BaseView(MethodView):
     @classmethod
     def update_view(cls, object_id: int | str = 0):
         core_response, error = cls.process_form_data(object_id)
+        persisted_object_id, model_instance, response_message = cls.resolve_update_response(object_id, core_response)
         if not core_response or error:
             return render_template(
                 cls.get_update_template(),
-                **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+                **cls.get_update_context(
+                    object_id,
+                    error=error,
+                    model_instance=model_instance,
+                    response_message=response_message,
+                    form_action_object_id=persisted_object_id,
+                ),
             ), 400
 
         notification_response = cls.render_response_notification(core_response)
         response = notification_response + render_template(
             cls.get_update_template(),
-            **cls.get_update_context(object_id, error=error, resp_obj=core_response),
+            **cls.get_update_context(
+                object_id,
+                error=error,
+                model_instance=model_instance,
+                response_message=response_message,
+                form_action_object_id=persisted_object_id,
+            ),
         )
         flask_response = make_response(response, 200)
         flask_response.headers["HX-Push-Url"] = cls.get_edit_route(**{cls._get_object_key(): core_response.get("id", object_id)})
@@ -360,6 +395,22 @@ class BaseView(MethodView):
             status_code = 500
 
         return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), status_code
+
+    @classmethod
+    def _invalidate_model_cache(cls, object_id: int | str | None = None) -> None:
+        if cls.is_create_object_id(object_id):
+            object_id = None
+
+        try:
+            dpl = DataPersistenceLayer()
+            dpl.invalidate_model_cache_locally(cls.model, object_id)
+            dpl.invalidate_cache_by_object(cls.model)
+            if object_id is not None:
+                dpl.invalidate_cache_by_object_id(cls.model, object_id)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception(f"Failed to invalidate cache for model {cls.model_name()}")
 
     @classmethod
     def static_view(cls):
@@ -442,6 +493,11 @@ class BaseView(MethodView):
         core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
 
         response = cls.get_notification_from_response(core_response)
+        if not core_response.ok:
+            return response, core_response.status_code or 500
+
+        cls._invalidate_model_cache(object_id)
+
         table, table_response = cls.render_list()
         if table_response == 200:
             response += table
@@ -451,15 +507,19 @@ class BaseView(MethodView):
     def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
         results = []
         results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
-        response, status_code = cls.render_list()
-        if all(r.ok for r in results):
-            response += render_template(
-                "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
+        if not all(r.ok for r in results):
+            return (
+                render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True}),
+                500,
             )
-            return response, status_code
 
-        response += render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True})
-        return response, 500
+        cls._invalidate_model_cache()
+
+        response, status_code = cls.render_list()
+        response += render_template(
+            "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
+        )
+        return response, status_code
 
     @classmethod
     def _get_object_key(cls) -> str:
@@ -501,9 +561,19 @@ class BaseView(MethodView):
         cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None
     ) -> tuple[str, int]:
         submitted_model = cls._submitted_form_model(object_id)
-        context = cls.get_create_context() if object_id == 0 else cls.get_update_context(object_id, error=error, resp_obj=resp_obj)
+        if cls.is_create_object_id(object_id):
+            context = cls.get_create_context()
+        else:
+            persisted_object_id, model_instance, response_message = cls.resolve_update_response(object_id, resp_obj)
+            context = cls.get_update_context(
+                object_id,
+                error=error,
+                model_instance=model_instance,
+                response_message=response_message,
+                form_action_object_id=persisted_object_id,
+            )
 
-        if object_id == 0:
+        if cls.is_create_object_id(object_id):
             if error:
                 context["notification"] = {"message": error, "error": True}
             if resp_obj and (message := resp_obj.get("message")):
@@ -519,13 +589,25 @@ class BaseView(MethodView):
 
     @classmethod
     def handle_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
+        persisted_object_id, model_instance, response_message = cls.resolve_update_response(object_id, resp_obj)
         return render_template(
             cls.get_update_template(),
-            **cls.get_update_context(object_id, error=error, resp_obj=resp_obj),
+            **cls.get_update_context(
+                object_id,
+                error=error,
+                model_instance=model_instance,
+                response_message=response_message,
+                form_action_object_id=persisted_object_id,
+            ),
         ), 400
 
     @classmethod
     def handle_submit_success(cls, object_id: int | str, core_response: dict[str, Any]) -> ResponseReturnValue:
+        resolved_object_id = object_id
+        if (response_object_id := core_response.get("id")) and not cls.is_create_object_id(response_object_id):
+            resolved_object_id = response_object_id
+        cls._invalidate_model_cache(resolved_object_id)
+
         notification_response = cls.render_response_notification(core_response)
         table_response, table_status = cls.list_view()
         response = notification_response + table_response

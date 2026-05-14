@@ -5,7 +5,7 @@ from urllib.parse import urljoin, urlparse
 
 import dateutil.parser as dateparser
 import lxml.html
-import requests
+import niquests as requests
 from bs4 import BeautifulSoup, Tag
 from models.assess import NewsItem
 from trafilatura import extract, extract_metadata

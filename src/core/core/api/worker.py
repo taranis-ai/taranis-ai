@@ -186,7 +186,8 @@ class Tags(MethodView):
             if not news_item:
                 errors[news_item_id] = "News item not found"
                 continue
-            _, status = news_item.set_tags(tags)
+            actor = Story.resolve_actor(actor=news_item.story.last_change) if news_item.story else None
+            _, status = news_item.set_tags(tags, actor=actor)
             if status != 200:
                 errors[news_item_id] = status
         if errors:

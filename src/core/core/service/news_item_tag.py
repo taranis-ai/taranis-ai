@@ -105,7 +105,7 @@ class NewsItemTagService:
         story.upsert_attribute(NewsItemAttribute(key=f"report_{report.id}", value=report.title))
 
     @staticmethod
-    def set_found_bot_tags(found_tags: dict[str, Any], change_by_bot: bool = False):
+    def set_found_bot_tags(found_tags: dict[str, Any], *, actor: str | None = None):
         errors = {}
         for news_item_id, tags in found_tags.items():
             if not tags:
@@ -114,7 +114,7 @@ class NewsItemTagService:
             if not news_item:
                 errors[news_item_id] = "News item not found"
                 continue
-            news_item.set_tags(tags, change_by_bot=change_by_bot)
+            news_item.set_tags(tags, actor=actor, replace=False)
 
     @staticmethod
     def set_worker_execution_attribute(*, worker_type: str, worker_id: str, found_tags: dict[str, Any]):

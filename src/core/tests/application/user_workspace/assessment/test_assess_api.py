@@ -112,6 +112,37 @@ class TestAssessNewsItems(BaseTest):
         story_response = self.assert_get_ok(client, f"story/{story_id}", auth_header)
         assert story_response.get_json()["relevance"] == 0
 
+    def test_post_news_item_fetch_uses_simple_web_collector_payload(self, client, auth_header, monkeypatch):
+        captured = {}
+
+        def fake_fetch_and_create_story(parameters):
+            captured["parameters"] = parameters
+            return {"story_ids": ["story-1"], "news_item_ids": ["news-1"], "message": "1 News items added successfully"}, 200
+
+        monkeypatch.setattr("core.api.assess.StoryService.fetch_and_create_story", fake_fetch_and_create_story)
+
+        payload = {
+            "id": "manual",
+            "type": "simple_web_collector",
+            "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
+        }
+
+        response = client.post(self.concat_url("news-items/fetch"), json=payload, headers=auth_header)
+
+        assert response.status_code == 200
+        assert response.get_json()["story_ids"] == ["story-1"]
+        assert captured["parameters"] == payload
+
+    def test_post_news_item_fetch_rejects_non_object_parameters(self, client, auth_header):
+        response = client.post(
+            self.concat_url("news-items/fetch"),
+            json={"id": "manual", "type": "simple_web_collector", "parameters": "not-an-object"},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "A valid http or https URL is required"
+
     def test_get_NewsItems(self, client, cleanup_news_item, auth_header):
         response = self.assert_get_ok(client, "news-items", auth_header)
         assert len(response.get_json()["items"]) == 1
@@ -218,7 +249,7 @@ class TestAssessStories(BaseTest):
         assert first_story["id"] == stories[0]
         assert first_story["title"] == "Mobile World Congress 2023"
         assert first_story["attributes"] == [{"key": "TLP", "value": "clear"}]
-        assert first_story["last_change"] == "external"
+        assert first_story["last_change"] == "collector_rss_collector_99"
 
     def test_get_stories(self, client, stories, auth_header):
         """
@@ -331,15 +362,19 @@ class TestAssessStories(BaseTest):
 class TestAssessStoriesGrouping(BaseTest):
     base_uri = "/api/assess"
 
-    def test_group_stories(self, client, stories, auth_header):
+    def test_group_stories(self, client, stories, auth_header, admin_user):
         """
         This test groups the stories authenticated.
         """
+        from core.model.story import Story
+
+        admin_actor = Story.last_change_for_user(admin_user)
+
         # Check initial state
         response = self.assert_get_ok(client, f"/story/{stories[0]}", auth_header)
         response_json = response.get_json()
         assert response_json["id"] == stories[0]
-        assert response_json["last_change"] == "external"
+        assert response_json["last_change"] == "collector_rss_collector_99"
 
         # Check main action
         response = self.assert_put_ok(client, "/stories/group", [stories[0], stories[1]], auth_header)
@@ -351,7 +386,7 @@ class TestAssessStoriesGrouping(BaseTest):
         response_json = response.get_json()
         assert response_json["id"] == stories[0]
         assert len(response_json["news_items"]) == 2
-        assert response_json["last_change"] == "internal"
+        assert response_json["last_change"] == admin_actor
 
         # Check the manual story that is supposed to stay unchanged
         response = self.assert_get_ok(client, f"/story/{stories[2]}", auth_header)
@@ -364,19 +399,22 @@ class TestAssessStoriesGrouping(BaseTest):
         response = self.assert_get_ok(client, "stories", auth_header)
         assert response.get_json()["counts"]["total_count"] == 2
 
-    def test_ungroup_stories(self, client, stories, auth_header):
+    def test_ungroup_stories(self, client, stories, auth_header, admin_user):
         """
         This test ungroups the stories authenticated.
         """
+        from core.model.story import Story
+
+        admin_actor = Story.last_change_for_user(admin_user)
 
         self.assert_put_ok(client, "/stories/ungroup", [stories[0]], auth_header)
         response = self.assert_get_ok(client, "stories", auth_header)
         assert response.get_json()["counts"]["total_count"] == 3
 
-        assert response.get_json()["items"][0]["last_change"] == "internal"
-        assert response.get_json()["items"][0]["news_items"][0]["last_change"] == "external"
-        assert response.get_json()["items"][1]["last_change"] == "internal"
-        assert response.get_json()["items"][1]["news_items"][0]["last_change"] == "external"
+        assert response.get_json()["items"][0]["last_change"] == admin_actor
+        assert response.get_json()["items"][0]["news_items"][0]["last_change"] == "collector_rss_collector_99"
+        assert response.get_json()["items"][1]["last_change"] == admin_actor
+        assert response.get_json()["items"][1]["news_items"][0]["last_change"] == "collector_rss_collector_99"
 
         # Check last_change for a manual news item
         assert response.get_json()["items"][2]["news_items"][0]["id"] == "04129597-592d-45cb-9a80-3218108b29a1"
@@ -417,11 +455,11 @@ class TestAssessUngroupBigStory(BaseTest):
         response = self.assert_get_ok(client, f"/story/{full_story_id}", auth_header)
         assert response.get_json()["id"] == full_story_id
         assert len(response.get_json()["news_items"]) == 2
-        assert response.get_json()["last_change"] == "external"
+        assert response.get_json()["last_change"] == "collector_rss_collector_99"
         assert response.get_json()["news_items"][0]["id"] == "90f0d9ec-70e7-45cf-8919-6ae2c02a4d88"
-        assert response.get_json()["news_items"][0]["last_change"] == "external"
+        assert response.get_json()["news_items"][0]["last_change"] == "collector_rss_collector_99"
         assert response.get_json()["news_items"][1]["id"] == "c2a1c55c-6e7e-41de-8ad1-bda321f2f56b"
-        assert response.get_json()["news_items"][1]["last_change"] == "external"
+        assert response.get_json()["news_items"][1]["last_change"] == "collector_rss_collector_99"
         assert len(response.get_json()["attributes"]) == 4
         assert len(response.get_json()["tags"]) == 3
 
@@ -451,14 +489,16 @@ class TestAssessUngroupBigStory(BaseTest):
         story_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json()["tags"]}
         assert story_tags == {first_tag: "one", second_tag: "two", shared_tag: "shared"}
 
-    def test_ungroup_story_with_multiple_news_items(self, client, full_story_with_multiple_items_id, auth_header):
+    def test_ungroup_story_with_multiple_news_items(self, client, full_story_with_multiple_items_id, auth_header, admin_user):
         from core.managers.db_manager import db
+        from core.model.story import Story
 
         """
         This test ungroups (removes) a single news item from a story with multiple items.
         The existing story ID should be kept with the first item and the other news item should get a new story ID.
         """
         full_story_id, _ = full_story_with_multiple_items_id
+        admin_actor = Story.last_change_for_user(admin_user)
 
         response = self.assert_put_ok(client, "/news-items/ungroup", ["c2a1c55c-6e7e-41de-8ad1-bda321f2f56b"], auth_header)
         new_story_id = response.get_json()["new_stories_ids"][0]
@@ -472,17 +512,17 @@ class TestAssessUngroupBigStory(BaseTest):
         # Original story should still exist and change last_change property to internal
         response = self.assert_get_ok(client, f"/story/{full_story_id}", auth_header)
         assert response.get_json()["id"] == full_story_id
-        assert response.get_json()["last_change"] == "internal", "after an item was removed, property should be internal"
+        assert response.get_json()["last_change"] == admin_actor, "after an item was removed, property should track the user"
         assert len(response.get_json()["news_items"]) == 1
         assert response.get_json()["news_items"][0]["id"] == "90f0d9ec-70e7-45cf-8919-6ae2c02a4d88"
-        assert response.get_json()["news_items"][0]["last_change"] == "external"
+        assert response.get_json()["news_items"][0]["last_change"] == "collector_rss_collector_99"
 
         # New story should be created with the news item and have last_change set to internal
         response = self.assert_get_ok(client, f"/story/{new_story_id}", auth_header)
-        assert response.get_json()["last_change"] == "internal"
+        assert response.get_json()["last_change"] == admin_actor
         assert len(response.get_json()["news_items"]) == 1
         assert response.get_json()["news_items"][0]["id"] == "c2a1c55c-6e7e-41de-8ad1-bda321f2f56b"
-        assert response.get_json()["news_items"][0]["last_change"] == "external"
+        assert response.get_json()["news_items"][0]["last_change"] == "collector_rss_collector_99"
 
 
 class TestStoryNewsItemStatus(BaseTest):
@@ -492,10 +532,10 @@ class TestStoryNewsItemStatus(BaseTest):
         response = self.assert_get_ok(client, "stories", auth_header)
         assert response.get_json()["counts"]["total_count"] == 3
 
-        assert response.get_json()["items"][0]["last_change"] == "external"
-        assert response.get_json()["items"][0]["news_items"][0]["last_change"] == "external"
-        assert response.get_json()["items"][1]["last_change"] == "external"
-        assert response.get_json()["items"][1]["news_items"][0]["last_change"] == "external"
+        assert response.get_json()["items"][0]["last_change"] == "collector_rss_collector_99"
+        assert response.get_json()["items"][0]["news_items"][0]["last_change"] == "collector_rss_collector_99"
+        assert response.get_json()["items"][1]["last_change"] == "collector_rss_collector_99"
+        assert response.get_json()["items"][1]["news_items"][0]["last_change"] == "collector_rss_collector_99"
 
         assert response.get_json()["items"][2]["last_change"] == "internal", "manual should be internal"
         assert response.get_json()["items"][2]["news_items"][0]["id"] == "04129597-592d-45cb-9a80-3218108b29a1"

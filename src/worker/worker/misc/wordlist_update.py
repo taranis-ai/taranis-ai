@@ -1,4 +1,4 @@
-import requests
+import niquests as requests
 
 from worker.core_api import CoreApi
 from worker.log import logger

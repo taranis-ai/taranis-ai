@@ -2,6 +2,7 @@ import csv
 import json
 from enum import IntEnum
 from typing import Any
+from urllib.parse import urlparse
 
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
@@ -86,7 +87,17 @@ class WordList(BaseModel):
 
     @classmethod
     def get_all_empty(cls):
-        return cls.get_filtered(db.select(cls).filter_by(entries=None).order_by(db.asc(WordList.name)))
+        word_lists = cls.get_filtered(db.select(cls).filter_by(entries=None).order_by(db.asc(WordList.name))) or []
+        return [word_list for word_list in word_lists if word_list.has_valid_link()]
+
+    @classmethod
+    def get_all_for_gathering(cls) -> list["WordList"]:
+        word_lists = cls.get_filtered(db.select(cls).order_by(db.asc(WordList.name))) or []
+        return [word_list for word_list in word_lists if word_list.has_valid_link()]
+
+    def has_valid_link(self) -> bool:
+        parsed_link = urlparse(self.link or "")
+        return parsed_link.scheme in {"http", "https"} and bool(parsed_link.netloc)
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:

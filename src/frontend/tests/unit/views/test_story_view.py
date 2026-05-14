@@ -1,65 +1,141 @@
+import json
 from types import SimpleNamespace
+from urllib.parse import parse_qs, urlparse
 
-from flask import url_for
+from flask import render_template_string, url_for
 from lxml import html
+from models.assess import Story
+from werkzeug.datastructures import MultiDict
+from werkzeug.exceptions import Forbidden
 
+from frontend.cache import add_user_to_cache
 from frontend.config import Config
-from frontend.views.story_views import StoryView, _calculate_story_diff, _normalize_story_import_payload
+from frontend.views.story_views import StoryView, _normalize_story_import_payload
 
 
-def test_calculate_story_diff_ignores_empty_tag_changes():
-    from_data = {
-        "title": "Story title",
-        "tags": [{"name": None}],
-    }
-    to_data = {
-        "title": "Story title",
-        "tags": [{"name": ""}, {"name": "   "}],
-    }
-
-    changes = _calculate_story_diff(from_data, to_data)
-
-    assert changes == []
+def expected_search_trigger(input_id: str) -> str:
+    return f"input changed delay:500ms from:#{input_id}, search from:#{input_id}"
 
 
-def test_calculate_story_diff_keeps_real_tag_changes():
-    from_data = {
-        "title": "Story title",
-        "tags": [{"name": None}, {"name": "existing"}],
-    }
-    to_data = {
-        "title": "Story title",
-        "tags": [{"name": ""}, {"name": "existing"}, {"name": "new-tag"}],
-    }
+def test_story_diff_view_renders_compare_payload(app, authenticated_client, responses_mock):
+    story_id = "story-1"
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/1",
+        json={
+            "id": 1,
+            "revision": 1,
+            "created_at": "2026-03-12T10:00:00",
+            "created_by": "alice",
+            "created_by_id": 1,
+            "note": "created",
+            "data": {
+                "title": "Kill Chain im Krieg verkurzt",
+                "description": "First draft",
+                "summary": "Summary A",
+                "comments": "Comment A",
+                "likes": 1,
+                "dislikes": 0,
+                "tags": [{"name": "old-tag"}],
+                "news_items": [{"id": "news-1", "title": "Old news"}],
+                "attributes": [{"key": "TLP", "value": "clear"}],
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/2",
+        json={
+            "id": 2,
+            "revision": 2,
+            "created_at": "2026-03-12T11:00:00",
+            "created_by": "bob",
+            "created_by_id": 2,
+            "note": "update",
+            "data": {
+                "title": "Kill Chain im Krieg deutlich verkurzt",
+                "description": "First draft",
+                "summary": "Summary B",
+                "comments": "Comment A",
+                "likes": 3,
+                "dislikes": 1,
+                "tags": [{"name": "new-tag"}],
+                "news_items": [{"id": "news-2", "title": "New news"}],
+                "attributes": [{"key": "TLP", "value": "amber"}],
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
 
-    changes = _calculate_story_diff(from_data, to_data)
+    with app.test_request_context():
+        response = authenticated_client.get(url_for("assess.story_diff", story_id=story_id, from_rev=1, to_rev=2))
 
-    assert {"field": "Tags Added", "old_value": None, "new_value": "new-tag"} in changes
-
-
-def test_calculate_story_diff_uses_inline_markup_for_text_changes():
-    from_data = {"title": "Kill Chain im Krieg verkurzt"}
-    to_data = {"title": "Kill Chain im Krieg deutlich verkurzt"}
-
-    changes = _calculate_story_diff(from_data, to_data)
-
-    assert len(changes) == 1
-    assert changes[0]["field"] == "Title"
-    assert changes[0]["inline_diff"] is True
-    assert "bg-success/20" in str(changes[0]["new_value_diff"])
-    assert "deutlich " in str(changes[0]["new_value_diff"])
-    assert "deutlich " not in str(changes[0]["old_value_diff"])
+    assert response.status_code == 200
+    html_doc = response.get_data(as_text=True)
+    assert "Changes:" in html_doc
+    assert "Kill Chain im Krieg deutlich verkurzt" in html_doc
+    assert "old_segments" not in html_doc
+    assert "deutlich " in html_doc
+    assert "bg-success/20 text-success" in html_doc
+    assert "bg-error/20 text-error" in html_doc
+    assert "Likes" in html_doc
+    assert "Dislikes" in html_doc
 
 
-def test_calculate_story_diff_escapes_inline_markup_text():
-    from_data = {"title": "A <script>alert(1)</script> title"}
-    to_data = {"title": "A <script>alert(1)</script> new title"}
+def test_story_diff_view_shows_no_changes_state(app, authenticated_client, responses_mock):
+    story_id = "story-1"
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/1",
+        json={
+            "id": 1,
+            "revision": 1,
+            "created_at": "2026-03-12T10:00:00",
+            "created_by": "alice",
+            "created_by_id": 1,
+            "note": "created",
+            "data": {
+                "title": "Story title",
+                "tags": [],
+                "news_items": [],
+                "attributes": [],
+                "description": "",
+                "summary": "",
+                "comments": "",
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/2",
+        json={
+            "id": 2,
+            "revision": 2,
+            "created_at": "2026-03-12T11:00:00",
+            "created_by": "bob",
+            "created_by_id": 2,
+            "note": "update",
+            "data": {
+                "title": "Story title",
+                "tags": [],
+                "news_items": [],
+                "attributes": [],
+                "description": "",
+                "summary": "",
+                "comments": "",
+            },
+        },
+        status=200,
+        content_type="application/json",
+    )
 
-    changes = _calculate_story_diff(from_data, to_data)
+    with app.test_request_context():
+        response = authenticated_client.get(url_for("assess.story_diff", story_id=story_id, from_rev=1, to_rev=2))
 
-    assert len(changes) == 1
-    assert "&lt;script&gt;" in str(changes[0]["new_value_diff"])
-    assert "<script>" not in str(changes[0]["new_value_diff"])
+    assert response.status_code == 200
+    html_doc = response.get_data(as_text=True)
+    assert "No changes detected between these revisions." in html_doc
 
 
 def test_normalize_story_import_payload_unwraps_export_items():
@@ -85,6 +161,9 @@ def test_normalize_story_import_payload_strips_export_only_fields():
             {
                 "id": "story-1",
                 "title": "Imported Story",
+                "relevance_override": 7,
+                "user_vote": "like",
+                "in_reports_count": 3,
                 "updated": "2026-03-12T10:00:00",
                 "links": ["https://example.com/story"],
                 "news_items": [
@@ -107,6 +186,7 @@ def test_normalize_story_import_payload_strips_export_only_fields():
         {
             "id": "story-1",
             "title": "Imported Story",
+            "relevance_override": 7,
             "news_items": [
                 {
                     "id": "news-1",
@@ -121,6 +201,36 @@ def test_normalize_story_import_payload_strips_export_only_fields():
     ]
 
 
+def test_story_to_core_dict_strips_export_only_fields():
+    story = Story.model_validate(
+        {
+            "id": "story-1",
+            "title": "Imported Story",
+            "updated": "2026-03-12T10:00:00",
+            "links": ["https://example.com/story"],
+            "relevance_override": 7,
+            "user_vote": "like",
+            "in_reports_count": 3,
+            "news_items": [
+                {
+                    "osint_source_id": "manual",
+                    "title": "Imported Story News 1",
+                    "links": ["https://example.com/news"],
+                }
+            ],
+        }
+    )
+
+    normalized = story.to_core_dict()
+
+    assert normalized["relevance_override"] == 7
+    assert "updated" not in normalized
+    assert "links" not in normalized
+    assert "user_vote" not in normalized
+    assert "in_reports_count" not in normalized
+    assert "links" not in normalized["news_items"][0]
+
+
 def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authenticated_client):
     response = authenticated_client.get(url_for("assess.get_news_item", news_item_id=0))
 
@@ -129,15 +239,277 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     tree = html.fromstring(response.text)
     form = tree.xpath('//form[@id="news-item-form"]')
     file_form = tree.xpath('//form[@hx-encoding="multipart/form-data"]')
+    url_form = tree.xpath('//form[@id="news-item-create-from-url-form"]')
+    url_parameters_dialog = tree.xpath('//dialog[@id="create_from_url_parameters_dialog"]')
 
     assert len(form) == 1
     assert form[0].get("hx-target-error") == "#notification-bar"
     assert len(file_form) == 1
     assert file_form[0].get("hx-target-error") == "#notification-bar"
+    assert len(url_form) == 1
+    assert url_form[0].get("hx-target-error") == "#notification-bar"
+    assert url_form[0].xpath('.//input[@name="fetch_url"]')
+    assert len(url_parameters_dialog) == 1
+    assert url_parameters_dialog[0].xpath('.//*[@name="parameters[XPATH]"]')
+    assert url_parameters_dialog[0].xpath('.//*[@name="parameters[BROWSER_MODE]"]')
+    additional_headers_input = url_parameters_dialog[0].xpath('.//input[@name="parameters[ADDITIONAL_HEADERS]"]')
+    assert len(additional_headers_input) == 1
+    assert not url_parameters_dialog[0].xpath('.//textarea[@name="parameters[ADDITIONAL_HEADERS]"]')
 
     source_input = form[0].xpath('.//input[@name="source"]')
     assert len(source_input) == 1
     assert source_input[0].get("required") is None
+
+
+def test_assess_search_form_uses_single_htmx_submission_path(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={"tags": [], "sources": [], "groups": []},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [], "total_count": 0},
+    )
+
+    response = authenticated_client.get(url_for("assess.assess", search="pull"))
+
+    assert response.status_code == 200
+
+    tree = html.fromstring(response.text)
+    search_form = tree.xpath('//form[@id="assess-search-form"]')[0]
+    filter_form = tree.xpath('//form[@id="assess-sidebar"]')[0]
+    search_input = tree.xpath('//input[@id="story_search"]')[0]
+    clear_button = tree.xpath("//button[@title='Clear time filters']")[0]
+    changed_by_select = filter_form.xpath('.//label[.//span[text()="Changed by"]]/select')[0]
+
+    assert search_form.get("hx-trigger") == expected_search_trigger("story_search")
+    assert search_form.get("hx-include") == "#assess-sidebar, #selected-tags"
+    assert search_form.get("hx-on:submit") == "event.preventDefault()"
+    assert filter_form.get("hx-trigger") == "change"
+    assert filter_form.get("hx-include") == "#selected-tags"
+    assert filter_form.get("hx-on:submit") == "event.preventDefault()"
+    assert clear_button.get("hx-include") == "#assess-sidebar, #assess-search-form, #selected-tags"
+    assert [option.text for option in changed_by_select.xpath("./option")] == ["Any", "Me"]
+    assert search_input.get("hx-get") is None
+    assert search_input.get("hx-include") is None
+    assert search_input.get("hx-trigger") is None
+
+
+def test_assess_selection_key_ignores_paging_params():
+    selection_key = StoryView._build_assess_selection_key(
+        {
+            "offset": ["40"],
+            "page": ["2"],
+            "search": ["incident"],
+            "sort": ["date_desc"],
+            "tags": ["one", "two"],
+        }
+    )
+
+    assert selection_key == "search=incident&sort=date_desc&tags=one&tags=two"
+
+
+def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, auth_user, responses_mock):
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.assess_default_filters = {
+        "source": ["source-1"],
+        "read": "true",
+        "sort": "date_desc",
+    }
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={
+            "tags": [],
+            "sources": [{"id": "source-1", "name": "Source 1"}],
+            "groups": [],
+        },
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [], "total_count": 0},
+    )
+
+    response = authenticated_client.get(url_for("assess.assess"), follow_redirects=False)
+
+    assert response.status_code == 302
+
+    location = urlparse(response.headers["Location"])
+    assert location.path == url_for("assess.assess")
+    assert parse_qs(location.query) == {
+        "source": ["source-1"],
+        "read": ["true"],
+        "sort": ["date_desc"],
+    }
+
+    followup = authenticated_client.get(url_for("assess.assess"), follow_redirects=True)
+
+    assert followup.status_code == 200
+
+    tree = html.fromstring(followup.text)
+    read_select = tree.xpath('//select[@name="read"]')[0]
+    source_select = tree.xpath('//select[@id="source-filter"]')[0]
+    sort_select = tree.xpath('//select[@name="sort"]')[0]
+
+    assert read_select.xpath('./option[@value="true" and @selected]')
+    assert source_select.xpath('./optgroup[@label="OSINT Sources"]/option[@value="source-1" and @selected]')
+    assert sort_select.xpath('./option[@value="date_desc" and @selected]')
+
+    story_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories"))
+    parsed_query = parse_qs(urlparse(story_request.request.url).query)
+
+    assert parsed_query["source"] == ["source-1"]
+    assert parsed_query["read"] == ["true"]
+    assert parsed_query["sort"] == ["date_desc"]
+
+
+def test_assess_save_default_filters_posts_selected_filters_to_profile(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/users",
+        json={
+            "id": 1,
+            "username": "admin",
+            "name": "Arthur Dent",
+            "profile": {
+                "assess_default_filters": {
+                    "source": ["source-1"],
+                    "group": ["group-1"],
+                    "tags": ["alpha", "beta"],
+                    "read": "true",
+                    "important": "false",
+                    "sort": "date_desc",
+                    "range": "week",
+                    "timefrom": "2026-05-01T10:00",
+                    "timeto": "2026-05-02T11:00",
+                }
+            },
+            "permissions": ["ALL"],
+            "roles": [{"id": 1, "name": "Admin"}],
+        },
+    )
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/users/profile",
+        json={
+            "message": "Profile updated",
+            "id": 1,
+            "user_profile": {
+                "assess_default_filters": {
+                    "source": ["source-1"],
+                    "group": ["group-1"],
+                    "tags": ["alpha", "beta"],
+                    "read": "true",
+                    "important": "false",
+                    "sort": "date_desc",
+                    "range": "week",
+                    "timefrom": "2026-05-01T10:00",
+                    "timeto": "2026-05-02T11:00",
+                }
+            },
+        },
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.save_default_filters"),
+        data=MultiDict(
+            [
+                ("source", "source-1"),
+                ("group", "group-1"),
+                ("tags", "alpha"),
+                ("tags", "beta"),
+                ("read", "true"),
+                ("important", "false"),
+                ("sort", "date_desc"),
+                ("range", "week"),
+                ("timefrom", "2026-05-01T10:00"),
+                ("timeto", "2026-05-02T11:00"),
+            ]
+        ),
+    )
+
+    assert response.status_code == 200
+    assert "Assess defaults saved." in response.text
+
+    request_body = responses_mock.calls[0].request.body
+    payload = json.loads(request_body.decode() if isinstance(request_body, bytes) else request_body)
+    assert payload == {
+        "assess_default_filters": {
+            "source": ["source-1"],
+            "group": ["group-1"],
+            "tags": ["alpha", "beta"],
+            "read": "true",
+            "important": "false",
+            "sort": "date_desc",
+            "range": "week",
+            "timefrom": "2026-05-01T10:00",
+            "timeto": "2026-05-02T11:00",
+        }
+    }
+
+
+def test_table_search_bar_uses_form_level_search_trigger(app):
+    with app.test_request_context("/frontend/admin/osint-sources?search=alpha"):
+        markup = render_template_string(
+            '{% from "macros/table.html" import table_search_bar %}{{ table_search_bar("osint_table", "/frontend/admin/osint-sources") }}'
+        )
+
+    tree = html.fromstring(markup)
+    form = tree.xpath("//form")[0]
+    search_input = tree.xpath('//input[@id="osint_table-search"]')[0]
+
+    assert form.get("hx-trigger") == expected_search_trigger("osint_table-search")
+    assert form.get("hx-on:submit") == "event.preventDefault()"
+    assert search_input.get("hx-trigger") is None
+
+
+def test_omnisearch_dialog_form_uses_htmx_submit(authenticated_client):
+    response = authenticated_client.get(url_for("base.omnisearch"))
+
+    assert response.status_code == 200
+
+    tree = html.fromstring(response.text)
+    form = tree.xpath('//dialog[@id="assess_search_dialog"]//div[@class="modal-box"]/form')[0]
+    search_input = tree.xpath('//input[@id="omni_search"]')[0]
+
+    assert form.get("hx-trigger") == expected_search_trigger("omni_search")
+    assert form.get("hx-on:submit") == "event.preventDefault()"
+    assert search_input.get("hx-trigger") is None
+
+
+def test_create_news_item_from_url_posts_simple_web_collector_payload(authenticated_client, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/fetch",
+        json={"story_ids": ["story-1"], "news_item_ids": ["news-1"], "message": "1 News items added successfully"},
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.create_news_item"),
+        data={
+            "fetch_url": "https://example.com/story",
+            "parameters[XPATH]": "//article",
+            "parameters[TLP_LEVEL]": "green",
+            "parameters[BROWSER_MODE]": "true",
+            "parameters[DIGEST_SPLITTING]": "false",
+            "parameters[DIGEST_SPLITTING_LIMIT]": "30",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["HX-Redirect"] == url_for("assess.story_edit", story_id="story-1")
+    assert responses_mock.calls[0].request.url == f"{Config.TARANIS_CORE_URL}/assess/news-items/fetch"
+    assert responses_mock.calls[0].request.body
+    assert json.loads(responses_mock.calls[0].request.body) == {
+        "id": "manual",
+        "type": "simple_web_collector",
+        "parameters": {
+            "WEB_URL": "https://example.com/story",
+            "XPATH": "//article",
+            "TLP_LEVEL": "green",
+            "BROWSER_MODE": "true",
+            "DIGEST_SPLITTING": "false",
+            "DIGEST_SPLITTING_LIMIT": "30",
+        },
+    }
 
 
 def test_story_sharing_dialog_loads_connectors_from_assess_endpoint(authenticated_client_basic, responses_mock):
@@ -189,13 +561,39 @@ def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authent
     assert response.status_code == 200
     assert "Share Stories" in response.text
     assert "Shared Story" not in response.text
+    assert "Connector sharing is not available for your account" in response.text
+    assert "Share via email" in response.text
+    assert "Export to JSON" in response.text
 
     tree = html.fromstring(response.text)
     connector_select = tree.xpath('//select[@id="connector"]')
-    assert len(connector_select) == 1
-    options = connector_select[0].xpath("./option")
-    assert len(options) == 1
-    assert options[0].text == "Select a connector"
+    assert len(connector_select) == 0
+
+
+def test_story_sharing_dialog_still_renders_when_connector_loading_is_forbidden(authenticated_client_basic, monkeypatch, responses_mock):
+    story_id = "story-1"
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}",
+        json={"id": story_id, "title": "Shared Story", "links": ["https://example.com/story"]},
+    )
+
+    def raise_connector_loading_error(*args, **kwargs):
+        raise Forbidden("connector access denied")
+
+    monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.get_objects", raise_connector_loading_error)
+
+    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
+
+    assert response.status_code == 200
+    assert "Share Stories" in response.text
+    assert "Connector sharing is not available for your account" in response.text
+    assert "Share via email" in response.text
+    assert "Export to JSON" in response.text
+
+    tree = html.fromstring(response.text)
+    connector_select = tree.xpath('//select[@id="connector"]')
+    assert len(connector_select) == 0
 
 
 def test_handle_news_item_response_returns_notification_and_content(app, monkeypatch):

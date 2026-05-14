@@ -8,7 +8,7 @@
         <div class="alert alert-info my-5 mx-5" hx-get hx-trigger="every 20s" hx-target="#source_preview" hx-swap="outerHTML" hx-select="#source_preview">
           <p>OSINT source preview is currently being processed. Please wait...</p>
         </div>
-      {% elif task_result.status == 'SUCCESS' %}
+      {% elif task_result.status in ['SUCCESS', 'PREVIEW'] %}
         {% if task_result.result %}
           {% for story in task_result.result %}{{ preview_story_card(story) }}{% endfor %}
         {% else %}
@@ -16,6 +16,19 @@
             <p>No results found for this OSINT source.</p>
           </div>
         {% endif %}
+      {% elif task_result.status == 'FAILURE' %}
+        <div class="alert alert-error my-5 mx-5 flex flex-col gap-4">
+          <div>
+            <p class="font-semibold">OSINT source preview failed.</p>
+            {% if task_result.result %}<p class="mt-2 text-sm opacity-80">{{ task_result.result }}</p>{% endif %}
+          </div>
+          <button type="button"
+                  class="btn btn-primary btn-sm"
+                  hx-post="{{ url_for('admin.osint_source_preview_retrigger', osint_source_id=osint_source_id) }}"
+                  hx-target="#source_preview"
+                  hx-swap="outerHTML"
+                  hx-select="#source_preview">Retrigger preview</button>
+        </div>
       {% endif %}
     {% else %}
       <div class="alert alert-info my-5 mx-5">
