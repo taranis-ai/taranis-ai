@@ -271,14 +271,24 @@ class NewsItem(BaseModel):
 
     def set_tags(
         self,
-        incoming_tags: list | dict,
+        incoming_tags: list | dict[str, NewsItemTag],
         change_by_bot: bool = False,
         user: User | None = None,
         actor: str | None = None,
         replace: bool = True,
+        update_story: bool = True,
+        commit: bool = True,
     ) -> tuple[dict, int]:
         try:
-            return self._update_tags(incoming_tags, change_by_bot=change_by_bot, user=user, actor=actor, replace=replace)
+            return self._update_tags(
+                incoming_tags,
+                change_by_bot=change_by_bot,
+                user=user,
+                actor=actor,
+                replace=replace,
+                update_story=update_story,
+                commit=commit,
+            )
         except Exception as e:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
@@ -286,13 +296,15 @@ class NewsItem(BaseModel):
 
     def _update_tags(
         self,
-        incoming_tags: list | dict,
+        incoming_tags: list | dict[str, NewsItemTag],
         change_by_bot: bool = False,
         user: User | None = None,
         actor: str | None = None,
         replace: bool = True,
+        update_story: bool = True,
+        commit: bool = True,
     ) -> tuple[dict, int]:
-        parsed_tags = NewsItemTag.parse_tags(incoming_tags)
+        parsed_tags = self._parse_incoming_tags(incoming_tags)
         if not parsed_tags:
             if not replace:
                 return {"error": "No valid tags provided"}, 400
@@ -304,7 +316,7 @@ class NewsItem(BaseModel):
             self.patch_tags(parsed_tags)
             self.remove_tags(tags_to_remove)
 
-        if story := self.story:
+        if update_story and (story := self.story):
             from core.model.story import Story
 
             actor = Story.resolve_actor(user=user, actor=actor)
@@ -313,8 +325,15 @@ class NewsItem(BaseModel):
             else:
                 story.update_status()
             story.record_revision(user or Story.user_for_actor(actor), note="set_news_item_tags")
-        db.session.commit()
+        if commit:
+            db.session.commit()
         return {"message": f"Successfully updated news item: {self.id}, with {len(self.tags)} tags"}, 200
+
+    @staticmethod
+    def _parse_incoming_tags(incoming_tags: list | dict[str, NewsItemTag]) -> dict[str, NewsItemTag]:
+        if isinstance(incoming_tags, dict) and all(isinstance(tag, NewsItemTag) for tag in incoming_tags.values()):
+            return {name: NewsItemTag(name=tag.name, tag_type=tag.tag_type) for name, tag in incoming_tags.items()}
+        return NewsItemTag.parse_tags(incoming_tags)
 
     def patch_tags(self, tags: dict[str, NewsItemTag]):
         for tag in tags.values():

@@ -256,13 +256,17 @@ class Story(BaseModel):
         return [item.link for item in self.news_items if getattr(item, "link", None)]
 
     @property
-    def tags(self) -> list["NewsItemTag"]:
+    def aggregated_tags(self) -> list["NewsItemTag"]:
         tags_by_name: dict[str, NewsItemTag] = {}
         for news_item in self.news_items:
             for tag in news_item.tags:
                 if tag.name:
                     tags_by_name[tag.name] = tag
         return sorted(tags_by_name.values(), key=lambda tag: tag.name.lower())
+
+    @property
+    def tags(self) -> list["NewsItemTag"]:
+        return self.aggregated_tags
 
     @property
     def relevance_source(self) -> int:
@@ -1082,19 +1086,9 @@ class Story(BaseModel):
     def is_assigned_to_report(cls, story_ids: list) -> bool:
         return any(ReportItemStory.is_assigned(story_id) for story_id in story_ids)
 
-    @staticmethod
-    def _clone_tags(tags: dict[str, NewsItemTag]) -> dict[str, NewsItemTag]:
-        return {name: NewsItemTag(name=tag.name, tag_type=tag.tag_type) for name, tag in tags.items()}
-
     def apply_tags_to_news_items(self, tags: dict[str, NewsItemTag], change_by_bot: bool = False, replace: bool = True) -> None:
         for news_item in self.news_items:
-            cloned_tags = self._clone_tags(tags)
-            if change_by_bot or not replace:
-                news_item.patch_tags(cloned_tags)
-                continue
-            tags_to_remove = news_item.get_tags_to_remove(cloned_tags)
-            news_item.patch_tags(cloned_tags)
-            news_item.remove_tags(tags_to_remove)
+            news_item.set_tags(tags, change_by_bot=change_by_bot, replace=replace, update_story=False, commit=False)
 
     @classmethod
     def group_multiple_stories(cls, story_mappings: list[list[str]], user: User | None = None, actor: str | None = None):

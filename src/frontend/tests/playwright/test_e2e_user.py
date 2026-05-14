@@ -194,25 +194,32 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
         def test_user_profile_settings_adjustments():
+            user_settings_url = url_for("user.settings", _external=True)
+
             page.get_by_role("checkbox", name="Infinite scroll Automatically").uncheck()
             page.get_by_role("checkbox", name="Compact view Use condensed").check()
-            page.get_by_role("button", name="Save changes").click()
+            with page.expect_response(lambda response: response.request.method == "POST" and response.url == user_settings_url):
+                page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Assess").click()
 
             page.get_by_role("link", name="Next").click()
 
-            page.get_by_role("checkbox", name="Compact view").uncheck()
+            with page.expect_navigation(wait_until="load"):
+                page.get_by_role("checkbox", name="Compact view").uncheck()
+            expect(page.get_by_test_id("assess")).to_be_visible()
+            expect(page.get_by_test_id("user-menu-button")).to_have_count(1)
 
-            page.get_by_role("list").get_by_role("button").click()
+            page.get_by_test_id("user-menu-button").click()
             expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="User Settings").click()
             page.get_by_role("checkbox", name="Infinite scroll Automatically").check()
             page.get_by_role("checkbox", name="Compact view Use condensed").uncheck()
-            page.get_by_role("button", name="Save changes").click()
+            with page.expect_response(lambda response: response.request.method == "POST" and response.url == user_settings_url):
+                page.get_by_role("button", name="Save changes").click()
 
         def relog_in():
-            page.get_by_role("list").get_by_role("button").click()
+            page.get_by_test_id("user-menu-button").click()
             expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="Logout").click()
@@ -225,7 +232,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
         def change_password_back():
-            page.get_by_role("list").get_by_role("button").click()
+            page.get_by_test_id("user-menu-button").click()
             expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="User Settings").click()

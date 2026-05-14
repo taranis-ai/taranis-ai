@@ -185,7 +185,7 @@ class Tags(MethodView):
         if not isinstance(data, dict):
             return {"error": "Expected a dict for tags"}, 400
         for news_item_id, tags in data.items():
-            if not isinstance(tags, list | dict):
+            if not isinstance(tags, (list, dict)):
                 errors[news_item_id] = f"Invalid tags for news item {news_item_id}"
                 continue
             if not tags:
@@ -206,7 +206,7 @@ class Tags(MethodView):
                 errors[news_item_id] = "News item not found"
                 continue
             actor = Story.resolve_actor(actor=news_item.story.last_change) if news_item.story else None
-            _, status = news_item.set_tags(tags, actor=actor)
+            _, status = news_item.set_tags(parsed_tags, actor=actor)
             if status != 200:
                 errors[news_item_id] = status
         if errors:

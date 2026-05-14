@@ -293,6 +293,16 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert response.get_json().get("message") == "Tags updated"
 
+        updated_story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
+        assert updated_story_response.status_code == 200
+
+        updated_story = updated_story_response.get_json()[0]
+        updated_news_item = next(news_item for news_item in updated_story.get("news_items", []) if news_item["id"] == news_item_id)
+
+        updated_tags = updated_news_item.get("tags", [])
+        assert [tag.get("name") for tag in updated_tags] == tags
+        assert all(tag.get("tag_type") == "misc" for tag in updated_tags)
+
     def test_worker_put_tags_invalid_cases(self, client, stories, api_header):
         story_1_id = stories[0]
         story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
