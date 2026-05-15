@@ -79,6 +79,7 @@ class Story(BaseModel):
         tags: list[dict[str, Any]] | None = None,
         news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None = None,
         last_change: str | None = None,
+        updated: datetime | str | None = None,
     ):
         self.id = id or str(uuid.uuid4())
         self.likes = likes
@@ -86,7 +87,6 @@ class Story(BaseModel):
         self.relevance = 0
         self.title = title
         self.description = description
-        self.created = self.get_creation_date(created)
         self.read = read
         self.important = important
         self.summary = summary
@@ -99,6 +99,7 @@ class Story(BaseModel):
             self.attributes = NewsItemAttribute.load_multiple(attributes)
         if tags:
             self.tags = NewsItemTag.load_multiple(tags)
+        self.created, self.updated = self.get_story_dates(created, updated)
         self.recompute_relevance(in_reports_count=0)
 
     @classmethod
@@ -221,9 +222,23 @@ class Story(BaseModel):
     def from_dict(cls, data: dict[str, Any]) -> "Story":
         return cls(**StoryPayload.model_validate(data).to_core_dict())
 
-    def get_creation_date(self, created: datetime | str | None):
-        payload = StoryPayload.model_validate({"created": created})
-        return payload.created or self.utcnow()
+    def get_story_dates(self, created: datetime | str | None, updated: datetime | str | None) -> tuple[datetime, datetime]:
+        payload = StoryPayload.model_validate({"created": created, "updated": updated})
+        if payload.created:
+            created_date = payload.created
+            return created_date, payload.updated or created_date
+
+        published_dates = self._published_dates()
+        if not published_dates:
+            created_date = self.utcnow()
+            return created_date, payload.updated or created_date
+
+        created_date = min(published_dates, key=self._comparison_timestamp)
+        updated_date = payload.updated or max(published_dates, key=self._comparison_timestamp)
+        return created_date, updated_date
+
+    def _published_dates(self) -> list[datetime]:
+        return [news_item.published for news_item in self.news_items if news_item.published]
 
     def load_news_items(self, news_items) -> list["NewsItem"]:
         if not news_items:
@@ -700,7 +715,7 @@ class Story(BaseModel):
                     news_item.last_change = actor
             db.session.add(story)
             db.session.flush()
-            story.update_status(change=resolved_actor)
+            story.update_status(change=resolved_actor, refresh_timestamps=False)
             story.record_revision(note="created")
             db.session.commit()
 
@@ -1321,7 +1336,7 @@ class Story(BaseModel):
         db.session.add(new_story)
         db.session.flush()
 
-        new_story.update_status(change=change)
+        new_story.update_status(change=change, refresh_timestamps=False)
         new_story.record_revision(note="created")
         if commit:
             db.session.commit()
@@ -1365,10 +1380,11 @@ class Story(BaseModel):
             return True
         return False
 
-    def update_status(self, change: str | None = None):
+    def update_status(self, change: str | None = None, refresh_timestamps: bool = True):
         if self.remove_empty_story():
             return
-        self.update_timestamps()
+        if refresh_timestamps:
+            self.update_timestamps()
         self.update_status_attributes()
         self.recompute_relevance()
         if change is not None:
