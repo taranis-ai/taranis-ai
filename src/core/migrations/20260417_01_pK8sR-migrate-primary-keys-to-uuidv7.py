@@ -354,8 +354,16 @@ def _apply_sqlite(conn) -> None:
 
 
 def _pg_table_exists(cursor, table: str) -> bool:
-    cursor.execute("SELECT to_regclass(%s)", (table,))
-    return cursor.fetchone()[0] is not None
+    cursor.execute(
+        """
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = current_schema()
+          AND table_name = %s
+        """,
+        (table,),
+    )
+    return cursor.fetchone() is not None
 
 
 def _pg_column_exists(cursor, table: str, column: str) -> bool:
@@ -394,19 +402,45 @@ def _prepare_pg_semantic_columns(cursor) -> None:
                 cursor.execute(f'UPDATE {_quote(table)} SET "key" = %s WHERE "id" = %s', (str(old_id), old_id))
 
 
-def _drop_pg_constraints(cursor, tables: set[str]) -> None:
+def _drop_pg_constraints(cursor, tables: set[str]) -> list[tuple[str, str, str]]:
     cursor.execute(
         """
-        SELECT conrelid::regclass::text AS table_name, conname
-        FROM pg_constraint
-        WHERE contype IN ('f', 'p')
-          AND conrelid::regclass::text = ANY(%s)
-        ORDER BY contype = 'p'
+        SELECT child.relname AS table_name,
+               con.conname AS constraint_name,
+               pg_get_constraintdef(con.oid, true) AS constraint_definition
+        FROM pg_constraint con
+        JOIN pg_class child ON child.oid = con.conrelid
+        JOIN pg_namespace child_schema ON child_schema.oid = child.relnamespace
+        JOIN pg_class parent ON parent.oid = con.confrelid
+        JOIN pg_namespace parent_schema ON parent_schema.oid = parent.relnamespace
+        WHERE con.contype = 'f'
+          AND child_schema.nspname = current_schema()
+          AND parent_schema.nspname = current_schema()
+          AND (child.relname = ANY(%s) OR parent.relname = ANY(%s))
+        ORDER BY child.relname, con.conname
+        """,
+        (list(tables), list(tables)),
+    )
+    foreign_keys = cursor.fetchall()
+    for table, constraint, _definition in foreign_keys:
+        cursor.execute(f"ALTER TABLE {_quote(table)} DROP CONSTRAINT IF EXISTS {_quote(constraint)}")
+
+    cursor.execute(
+        """
+        SELECT table_class.relname AS table_name, con.conname AS constraint_name
+        FROM pg_constraint con
+        JOIN pg_class table_class ON table_class.oid = con.conrelid
+        JOIN pg_namespace table_schema ON table_schema.oid = table_class.relnamespace
+        WHERE con.contype = 'p'
+          AND table_schema.nspname = current_schema()
+          AND table_class.relname = ANY(%s)
+        ORDER BY table_class.relname, con.conname
         """,
         (list(tables),),
     )
     for table, constraint in cursor.fetchall():
         cursor.execute(f"ALTER TABLE {_quote(table)} DROP CONSTRAINT IF EXISTS {_quote(constraint)}")
+    return foreign_keys
 
 
 def _create_pg_maps(cursor) -> None:
@@ -472,7 +506,7 @@ def _update_pg_pk_values(cursor) -> None:
         )
 
 
-def _recreate_pg_constraints(cursor) -> None:
+def _recreate_pg_constraints(cursor, foreign_keys: list[tuple[str, str, str]]) -> None:
     for table, pk_columns in sorted(PRIMARY_KEYS.items()):
         if not _pg_table_exists(cursor, table):
             continue
@@ -480,20 +514,10 @@ def _recreate_pg_constraints(cursor) -> None:
         if quoted_columns:
             cursor.execute(f"ALTER TABLE {_quote(table)} ADD PRIMARY KEY ({quoted_columns})")
 
-    for table, refs in sorted(FK_REFERENCES.items()):
+    for table, constraint, definition in foreign_keys:
         if not _pg_table_exists(cursor, table):
             continue
-        for column, parent in sorted(refs.items()):
-            if not _pg_column_exists(cursor, table, column) or not _pg_table_exists(cursor, parent):
-                continue
-            constraint = f"fk_{table}_{column}_{parent}"
-            cursor.execute(
-                f"""
-                ALTER TABLE {_quote(table)}
-                ADD CONSTRAINT {_quote(constraint)}
-                FOREIGN KEY ({_quote(column)}) REFERENCES {_quote(parent)} ("id")
-                """
-            )
+        cursor.execute(f"ALTER TABLE {_quote(table)} ADD CONSTRAINT {_quote(constraint)} {definition}")
 
 
 def _create_pg_unique_indexes(cursor) -> None:
@@ -524,12 +548,12 @@ def _apply_postgres(conn) -> None:
     cursor = conn.cursor()
     tables = set(PRIMARY_KEYS) | set(FK_REFERENCES) | ID_TABLES
     _prepare_pg_semantic_columns(cursor)
-    _drop_pg_constraints(cursor, tables)
+    foreign_keys = _drop_pg_constraints(cursor, tables)
     _create_pg_maps(cursor)
     _alter_pg_columns(cursor)
     _update_pg_fk_values(cursor)
     _update_pg_pk_values(cursor)
-    _recreate_pg_constraints(cursor)
+    _recreate_pg_constraints(cursor, foreign_keys)
     _create_pg_unique_indexes(cursor)
 
 
