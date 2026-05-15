@@ -261,8 +261,8 @@ class TestSourcesConfigApi(BaseTest):
         from core.model.osint_source import OSINTSource
 
         unique_suffix = uuid.uuid4().hex
-        rss_source_id = f"rss-{unique_suffix}"
-        manual_source_id = f"manual-{unique_suffix}"
+        rss_source_id = str(uuid.uuid7())
+        manual_source_id = str(uuid.uuid7())
 
         rss_source = {
             "id": rss_source_id,
