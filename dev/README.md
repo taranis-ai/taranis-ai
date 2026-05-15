@@ -185,6 +185,26 @@ Taranis AI should be reachable on _local.taranis.ai_.
 
 ## Development Tools
 
+### Migration Test Harness
+
+Use the migration harness to reproduce production-like upgrades from the current master schema to the current branch:
+
+```bash
+./dev/test_master_to_branch_migration.sh
+```
+
+The script creates a temporary git worktree from `origin/master`, starts a disposable PostgreSQL container with Podman, initializes and seeds a fresh master database, copies it, then starts the current branch against the copy so pending yoyo migrations are applied. It also runs the UUID primary-key validation test against the migrated database.
+
+Useful options:
+
+```bash
+BASE_REF=master ./dev/test_master_to_branch_migration.sh
+KEEP_MIGRATION_TEST_DB=1 ./dev/test_master_to_branch_migration.sh
+PG_IMAGE=postgres:16-alpine ./dev/test_master_to_branch_migration.sh
+```
+
+`KEEP_MIGRATION_TEST_DB=1` leaves the temporary worktree and PostgreSQL container running for inspection. Do not point this harness at shared or production databases.
+
 ### RQ Cron Scheduler
 
 The development setup includes an **RQ Cron Scheduler** that automatically enqueues recurring jobs based on database schedules. It:

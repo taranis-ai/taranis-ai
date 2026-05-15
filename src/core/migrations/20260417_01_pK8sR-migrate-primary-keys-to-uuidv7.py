@@ -471,7 +471,45 @@ def _alter_pg_columns(cursor) -> None:
             continue
         for column in sorted(columns):
             if _pg_column_exists(cursor, table, column):
-                cursor.execute(f"ALTER TABLE {_quote(table)} ALTER COLUMN {_quote(column)} TYPE VARCHAR(36) USING {_quote(column)}::text")
+                try:
+                    cursor.execute(f"ALTER TABLE {_quote(table)} ALTER COLUMN {_quote(column)} TYPE VARCHAR(36) USING {_quote(column)}::text")
+                except Exception as exc:
+                    raise RuntimeError(f"Failed to alter {table}.{column} to VARCHAR(36)") from exc
+
+
+def _drop_pg_fulltext_triggers(cursor) -> None:
+    if _pg_table_exists(cursor, "story"):
+        cursor.execute("DROP TRIGGER IF EXISTS trg_story_update_search_vector ON story")
+    if _pg_table_exists(cursor, "news_item"):
+        cursor.execute("DROP TRIGGER IF EXISTS trg_newsitem_refresh_parent_story_vector ON news_item")
+
+
+def _drop_pg_legacy_check_constraints(cursor) -> None:
+    if _pg_table_exists(cursor, "settings"):
+        cursor.execute('ALTER TABLE "settings" DROP CONSTRAINT IF EXISTS "check_only_one_row"')
+
+
+def _recreate_pg_fulltext_triggers(cursor) -> None:
+    if _pg_table_exists(cursor, "story"):
+        cursor.execute(
+            """
+            CREATE TRIGGER trg_story_update_search_vector
+            BEFORE INSERT OR UPDATE OF title, summary
+            ON story
+            FOR EACH ROW
+            EXECUTE FUNCTION fts_update_story_search_vector()
+            """
+        )
+    if _pg_table_exists(cursor, "news_item"):
+        cursor.execute(
+            """
+            CREATE TRIGGER trg_newsitem_refresh_parent_story_vector
+            AFTER INSERT OR UPDATE OF story_id, title, content OR DELETE
+            ON news_item
+            FOR EACH ROW
+            EXECUTE FUNCTION fts_refresh_parent_story_vector()
+            """
+        )
 
 
 def _update_pg_fk_values(cursor) -> None:
@@ -550,11 +588,14 @@ def _apply_postgres(conn) -> None:
     _prepare_pg_semantic_columns(cursor)
     foreign_keys = _drop_pg_constraints(cursor, tables)
     _create_pg_maps(cursor)
+    _drop_pg_fulltext_triggers(cursor)
+    _drop_pg_legacy_check_constraints(cursor)
     _alter_pg_columns(cursor)
     _update_pg_fk_values(cursor)
     _update_pg_pk_values(cursor)
     _recreate_pg_constraints(cursor, foreign_keys)
     _create_pg_unique_indexes(cursor)
+    _recreate_pg_fulltext_triggers(cursor)
 
 
 steps = [step(apply_migration, rollback_migration)]
