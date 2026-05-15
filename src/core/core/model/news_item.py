@@ -14,6 +14,7 @@ from sqlalchemy.sql import Select
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+from core.model.filter_data import FilterData
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.osint_source import OSINTSource
 from core.model.role import TLPLevel
@@ -94,7 +95,7 @@ class NewsItem(BaseModel):
         self.source = source
         self.link = link
         self.author = author
-        self.language = language
+        self.language = FilterData.normalize_value(language)
         self.last_change = last_change
         self.hash = hash or self.get_hash(title, link, content)
         self.collected = self.get_date_field(collected)
@@ -214,7 +215,7 @@ class NewsItem(BaseModel):
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
-        news_item.language = lang
+        news_item.language = FilterData.normalize_value(lang)
         news_item._update_status(actor or "internal")
         if story := news_item.story:
             story.record_revision(note="update_news_item_lang")
@@ -281,7 +282,7 @@ class NewsItem(BaseModel):
         self.author = payload.author or ""
         self.link = payload.link or ""
         self.content = payload.content or ""
-        self.language = str(payload.language or "")
+        self.language = FilterData.normalize_value(str(payload.language or ""))
         self.published = payload.published or self.published
         self.hash = payload.hash or self.hash
 

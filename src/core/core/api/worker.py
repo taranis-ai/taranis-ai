@@ -18,6 +18,7 @@ from core.model.publisher_preset import PublisherPreset
 from core.model.report_item import ReportItem
 from core.model.story import Story
 from core.model.word_list import WordList
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 
 
 class AddNewsItems(MethodView):
@@ -28,6 +29,7 @@ class AddNewsItems(MethodView):
             return {"error": "Expected a list of news items"}, 400
         result, status = Story.add_news_items(json_data)
         sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item", "filter_lists"))
         return result, status
 
 

@@ -71,6 +71,8 @@ class TaskService:
             return "gather_word_list"
         if task_name == "cleanup_token_blacklist" or task_id.startswith("cleanup_token_blacklist"):
             return "cleanup_token_blacklist"
+        if task_name == "rebuild_filter_data" or task_id.startswith("rebuild_filter_data"):
+            return "rebuild_filter_data"
         if task_name == "presenter_task" or task_id.startswith("presenter_task"):
             return "presenter_task"
         if task_name == "collector_task" or task_name.startswith("collect_") or task_id.startswith("collect_"):
@@ -92,6 +94,13 @@ class TaskService:
         if task_kind == "cleanup_token_blacklist":
             check_time = datetime.now(timezone.utc).replace(tzinfo=None) - Config.JWT_ACCESS_TOKEN_EXPIRES
             TokenBlacklist.delete_older(check_time)
+            return
+
+        if task_kind == "rebuild_filter_data":
+            from core.model.filter_data import FilterData
+
+            FilterData.rebuild_filter_data()
+            cache_invalidation_module.invalidate_frontend_cache_on_success(200, models=("filter_lists",))
             return
 
         if task_kind == "collector_task":

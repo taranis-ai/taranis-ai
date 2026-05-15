@@ -28,6 +28,10 @@ def test_get_scheduled_jobs_includes_cleanup_cron(app, monkeypatch):
     assert cleanup_job.get("schedule") == "0 2 * * *"
     assert cleanup_job.get("type") == "cron"
     assert isinstance(cleanup_job.get("next_run_time"), str)
+    filter_data_jobs = [job for job in items if job.get("id") == "rebuild_filter_data"]
+    assert filter_data_jobs, "expected filter data rebuild cron job to be listed"
+    assert filter_data_jobs[0].get("queue") == "misc"
+    assert filter_data_jobs[0].get("schedule") == "7 * * * *"
 
 
 def test_get_scheduled_jobs_skips_zero_count_registry_debug_logs(monkeypatch, caplog):

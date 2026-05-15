@@ -904,6 +904,53 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                  sources:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: "#/components/schemas/osint_source"
+                        - type: object
+                          properties:
+                            item_count:
+                              type: integer
+                  groups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        item_count:
+                          type: integer
+                  languages:
+                    type: array
+                    items:
+                      type: string
+                  tag_metadata:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        item_count:
+                          type: integer
+                  language_metadata:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        value:
+                          type: string
+                        item_count:
+                          type: integer
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "403":
@@ -931,6 +978,11 @@ paths:
         - name: group
           in: query
           description: Filter based on OSINT source group
+          schema:
+            type: string
+        - name: language
+          in: query
+          description: Filter based on NewsItem language
           schema:
             type: string
         - name: read
@@ -1539,6 +1591,23 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                  sources:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/osint_source"
+                  groups:
+                    type: array
+                    items:
+                      type: object
+                  languages:
+                    type: array
+                    items:
+                      type: string
         "401":
           $ref: "#/components/responses/401Unauthorized"
         "403":

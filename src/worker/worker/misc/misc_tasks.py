@@ -49,6 +49,26 @@ def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
     return message
 
 
+def rebuild_filter_data(*args, **kwargs):
+    logger.info("Running assess filter data rebuild")
+
+    message = "Assess filter data rebuild triggered"
+
+    job = get_current_job()
+    if job:
+        core_api = CoreApi()
+        core_api.save_task_result(
+            job.id,
+            "rebuild_filter_data",
+            message,
+            "SUCCESS",
+            worker_id=job.id,
+            worker_type="rebuild_filter_data",
+        )
+
+    return message
+
+
 def _reschedule_cleanup():
     """Re-schedule the cleanup task for next run at 2 AM.
 

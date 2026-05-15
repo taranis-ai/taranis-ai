@@ -67,6 +67,7 @@ ASSESS_DEFAULT_FILTER_KEYS = frozenset(
         "source",
         "group",
         "tags",
+        "language",
         "read",
         "important",
         "in_report",
@@ -78,7 +79,7 @@ ASSESS_DEFAULT_FILTER_KEYS = frozenset(
         "timeto",
     }
 )
-ASSESS_DEFAULT_FILTER_MULTI_KEYS = frozenset({"source", "group", "tags"})
+ASSESS_DEFAULT_FILTER_MULTI_KEYS = frozenset({"source", "group", "tags", "language"})
 ASSESS_DEFAULT_FILTER_SESSION_KEY = "assess_default_filters_active"
 
 

@@ -231,6 +231,65 @@ def test_story_to_core_dict_strips_export_only_fields():
     assert "links" not in normalized["news_items"][0]
 
 
+def _render_news_item_card(story: Story) -> str:
+    return render_template_string(
+        '{% from "assess/news_item_card.html" import news_item_card %}{{ news_item_card(story.news_items[0], story) }}',
+        story=story,
+    )
+
+
+def test_news_item_card_shows_author_when_present(app):
+    story = Story.model_validate(
+        {
+            "id": "story-1",
+            "title": "Story with author",
+            "news_items": [
+                {
+                    "id": "news-1",
+                    "story_id": "story-1",
+                    "osint_source_id": "manual",
+                    "title": "News with author",
+                    "author": "James Bond",
+                }
+            ],
+        }
+    )
+
+    with app.test_request_context():
+        markup = _render_news_item_card(story)
+
+    tree = html.fromstring(markup)
+    author_badge = tree.xpath('//*[@data-testid="news-item-author"]')
+    assert len(author_badge) == 1
+    assert author_badge[0].text_content().strip() == "Author · James Bond"
+
+
+def test_news_item_card_hides_author_when_missing_or_empty(app):
+    for payload in ({}, {"author": ""}):
+        story = Story.model_validate(
+            {
+                "id": "story-1",
+                "title": "Story without author",
+                "news_items": [
+                    {
+                        "id": "news-1",
+                        "story_id": "story-1",
+                        "osint_source_id": "manual",
+                        "title": "News without author",
+                        **payload,
+                    }
+                ],
+            }
+        )
+
+        with app.test_request_context():
+            markup = _render_news_item_card(story)
+
+        tree = html.fromstring(markup)
+        assert not tree.xpath('//*[@data-testid="news-item-author"]')
+        assert "Author ·" not in tree.text_content()
+
+
 def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authenticated_client):
     response = authenticated_client.get(url_for("assess.get_news_item", news_item_id=0))
 
@@ -313,6 +372,7 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
     saved_user = auth_user.model_copy(deep=True)
     saved_user.profile.assess_default_filters = {
         "source": ["source-1"],
+        "language": ["en"],
         "read": "true",
         "sort": "date_desc",
     }
@@ -324,6 +384,7 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
             "tags": [],
             "sources": [{"id": "source-1", "name": "Source 1"}],
             "groups": [],
+            "languages": ["de", "en"],
         },
     )
     responses_mock.get(
@@ -339,6 +400,7 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
     assert location.path == url_for("assess.assess")
     assert parse_qs(location.query) == {
         "source": ["source-1"],
+        "language": ["en"],
         "read": ["true"],
         "sort": ["date_desc"],
     }
@@ -350,16 +412,19 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
     tree = html.fromstring(followup.text)
     read_select = tree.xpath('//select[@name="read"]')[0]
     source_select = tree.xpath('//select[@id="source-filter"]')[0]
+    language_select = tree.xpath('//select[@id="language-filter"]')[0]
     sort_select = tree.xpath('//select[@name="sort"]')[0]
 
     assert read_select.xpath('./option[@value="true" and @selected]')
     assert source_select.xpath('./optgroup[@label="OSINT Sources"]/option[@value="source-1" and @selected]')
+    assert language_select.xpath('./option[@value="en" and @selected]')
     assert sort_select.xpath('./option[@value="date_desc" and @selected]')
 
     story_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories"))
     parsed_query = parse_qs(urlparse(story_request.request.url).query)
 
     assert parsed_query["source"] == ["source-1"]
+    assert parsed_query["language"] == ["en"]
     assert parsed_query["read"] == ["true"]
     assert parsed_query["sort"] == ["date_desc"]
 
@@ -376,6 +441,7 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
                     "source": ["source-1"],
                     "group": ["group-1"],
                     "tags": ["alpha", "beta"],
+                    "language": ["en", "de"],
                     "read": "true",
                     "important": "false",
                     "sort": "date_desc",
@@ -398,6 +464,7 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
                     "source": ["source-1"],
                     "group": ["group-1"],
                     "tags": ["alpha", "beta"],
+                    "language": ["en", "de"],
                     "read": "true",
                     "important": "false",
                     "sort": "date_desc",
@@ -417,6 +484,8 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
                 ("group", "group-1"),
                 ("tags", "alpha"),
                 ("tags", "beta"),
+                ("language", "en"),
+                ("language", "de"),
                 ("read", "true"),
                 ("important", "false"),
                 ("sort", "date_desc"),
@@ -437,6 +506,7 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
             "source": ["source-1"],
             "group": ["group-1"],
             "tags": ["alpha", "beta"],
+            "language": ["en", "de"],
             "read": "true",
             "important": "false",
             "sort": "date_desc",

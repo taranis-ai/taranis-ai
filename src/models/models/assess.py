@@ -269,7 +269,8 @@ class FilterLists(TaranisBaseModel):
 
     tags: list[str] = []
     sources: list[AssessSource] = []
-    groups: list[dict[str, Any]] = []
+    groups: list[dict[str, str]] = []
+    languages: list[str] = []
 
 
 class StoryUpdatePayload(TaranisBaseModel):

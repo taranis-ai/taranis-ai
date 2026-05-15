@@ -12,6 +12,7 @@ from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args, validate_json
 from core.managers.sse_manager import sse_manager
 from core.model import connector, news_item, news_item_tag, osint_source, story
+from core.model.filter_data import FilterData
 from core.model.story_conflict import StoryConflict
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.news_item import NewsItemService
@@ -52,7 +53,7 @@ class NewsItems(MethodView):
         data_json["osint_source_id"] = "manual"
         result, status = story.Story.add_single_news_item(data_json, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item", "filter_lists"))
         return result, status
 
 
@@ -76,7 +77,7 @@ class NewsItemFetch(MethodView):
         response, status = StoryService.fetch_and_create_story(parameters)
         if 200 <= status < 300:
             sse_manager.news_items_updated()
-            invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
+            invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item", "filter_lists"))
         return response, status
 
 
@@ -90,7 +91,9 @@ class NewsItem(MethodView):
     def put(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
+        invalidate_frontend_cache_on_success(
+            code, models=("story", "news_item", "report_item", "filter_lists"), object_ids={"news_item": item_id}
+        )
         return response, code
 
     @auth_required("ASSESS_UPDATE")
@@ -98,14 +101,18 @@ class NewsItem(MethodView):
     def patch(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
+        invalidate_frontend_cache_on_success(
+            code, models=("story", "news_item", "report_item", "filter_lists"), object_ids={"news_item": item_id}
+        )
         return response, code
 
     @auth_required("ASSESS_DELETE")
     def delete(self, item_id: str):
         response, code = NewsItemService.delete(item_id, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
+        invalidate_frontend_cache_on_success(
+            code, models=("story", "news_item", "report_item", "filter_lists"), object_ids={"news_item": item_id}
+        )
         return response, code
 
 
@@ -114,7 +121,7 @@ class UpdateNewsItemAttributes(MethodView):
     def put(self, news_item_id: str):
         actor = story.Story.last_change_for_user(current_user)
         response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=actor)
-        invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+        invalidate_frontend_cache_on_success(status, models=("story", "news_item", "filter_lists"), object_ids={"news_item": news_item_id})
         return response, status
 
 
@@ -139,7 +146,7 @@ class Stories(MethodView):
                 "exclude_attr",
             ]
             filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
-            filter_list_keys = ["source", "group", "story_ids"]
+            filter_list_keys = ["source", "group", "story_ids", "language"]
             for key in filter_list_keys:
                 filter_args[key] = request.args.getlist(key)
 
@@ -337,10 +344,7 @@ class Connectors(MethodView):
 class FilterLists(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        tag_list = news_item_tag.NewsItemTag.get_list({})
-        source_list = osint_source.OSINTSource.get_all_for_assess_api(user=current_user)[0]["items"]
-        group_list = osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)[0]["items"]
-        return {"tags": tag_list, "sources": source_list, "groups": group_list}, 200
+        return FilterData.get_assess_filterlists(user=current_user), 200
 
 
 class Proposals(MethodView):

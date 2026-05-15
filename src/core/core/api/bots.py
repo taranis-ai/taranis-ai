@@ -75,7 +75,9 @@ class NewsItem(MethodView):
                 return {"Not update data provided"}
             if language := request.json.get("language"):
                 response, status = news_item.NewsItem.update_news_item_lang(news_item_id, language, actor=_bot_actor())
-                invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+                invalidate_frontend_cache_on_success(
+                    status, models=("story", "news_item", "filter_lists"), object_ids={"news_item": news_item_id}
+                )
                 return response, status
             return {"Not implemented"}
         except Exception as e:

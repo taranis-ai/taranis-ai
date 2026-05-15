@@ -38,6 +38,39 @@ def test_cleanup_token_blacklist_reports_task(monkeypatch):
     }
 
 
+def test_rebuild_filter_data_reports_task(monkeypatch):
+    recorded = {}
+
+    class DummyApi:
+        def save_task_result(self, job_id, task_name, result, status, *, worker_id=None, worker_type=None):
+            recorded["url"] = "/tasks"
+            recorded["payload"] = {
+                "id": job_id,
+                "task": task_name,
+                "worker_id": worker_id,
+                "worker_type": worker_type,
+                "result": result,
+                "status": status,
+            }
+            return True
+
+    monkeypatch.setattr(misc_tasks, "CoreApi", lambda: DummyApi())
+    monkeypatch.setattr(misc_tasks, "get_current_job", lambda: DummyJob())
+
+    message = misc_tasks.rebuild_filter_data()
+
+    assert message == "Assess filter data rebuild triggered"
+    assert recorded["url"] == "/tasks"
+    assert recorded["payload"] == {
+        "id": DummyJob.id,
+        "task": "rebuild_filter_data",
+        "worker_id": DummyJob.id,
+        "worker_type": "rebuild_filter_data",
+        "result": "Assess filter data rebuild triggered",
+        "status": "SUCCESS",
+    }
+
+
 def test_cleanup_token_blacklist_reschedules_when_requested(monkeypatch):
     ran = {"rescheduled": False}
 

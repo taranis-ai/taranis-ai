@@ -65,6 +65,7 @@ def sync_enums(db_engine: Engine):
 def pre_seed_update(db_engine: Engine):
     from core.managers.pre_seed_data import bots, product_types, report_types, workers
     from core.model.bot import Bot
+    from core.model.filter_data import FilterData
     from core.model.product_type import ProductType
     from core.model.report_item import ReportItemType
     from core.model.settings import Settings
@@ -79,6 +80,7 @@ def pre_seed_update(db_engine: Engine):
     migrate_user_profiles()
     cleanup_empty_stories()
     migrate_missing_initial_revisions()
+    FilterData.rebuild_filter_data()
     if db_engine.dialect.name == "postgresql":
         rebuild_story_search_vectors()
 

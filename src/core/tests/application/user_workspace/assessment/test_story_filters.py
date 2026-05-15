@@ -36,6 +36,8 @@ FILTER_CASES = [
     pytest.param({"in_report": "false"}, {"grouped_plain", "manual_important", "source_only"}, id="in-report-false"),
     pytest.param({"tags": ("alpha",)}, {"grouped_flagged"}, id="tag-alpha"),
     pytest.param({"tags": ("beta",)}, {"grouped_plain"}, id="tag-beta"),
+    pytest.param({"language": ("english",)}, {"grouped_flagged", "manual_important"}, id="language-english"),
+    pytest.param({"language": ("german", "french")}, {"grouped_plain", "source_only"}, id="language-multiple"),
     pytest.param({"story_ids": ("grouped_flagged", "manual_important")}, {"grouped_flagged", "manual_important"}, id="story-ids"),
     pytest.param({"search": "Story Filter Extra Source Story"}, {"source_only"}, id="search-extra-title"),
     pytest.param({"search": "Anonymous News Item"}, {"manual_important"}, id="search-anonymous-title"),
@@ -45,7 +47,7 @@ FILTER_CASES = [
 
 class TestStoryFilters(BaseTest):
     base_uri = "/api/assess"
-    _multi_value_filters = {"source", "group", "story_ids", "tags"}
+    _multi_value_filters = {"source", "group", "story_ids", "tags", "language"}
 
     @classmethod
     def _resolve_filter_values(cls, key: str, raw_values: Iterable[str], story_filter_data: dict) -> list[str]:
@@ -54,6 +56,7 @@ class TestStoryFilters(BaseTest):
             "group": story_filter_data["groups"],
             "story_ids": story_filter_data["stories"],
             "tags": story_filter_data["tags"],
+            "language": story_filter_data["languages"],
         }.get(key, {})
         return [lookup.get(value, value) for value in raw_values]
 
@@ -93,3 +96,61 @@ class TestStoryFilters(BaseTest):
     @pytest.mark.parametrize(("filters", "expected_story_keys"), FILTER_CASES)
     def test_story_filters(self, client, auth_header, story_filter_data, filters, expected_story_keys):
         self._assert_filtered_story_ids(client, auth_header, story_filter_data, filters, expected_story_keys)
+
+    def test_filter_lists_include_news_item_languages(self, client, auth_header, story_filter_data):
+        from core.model.filter_data import FilterData
+
+        response = client.get(self.concat_url("filter-lists"), headers=auth_header)
+        payload = self.assert_json_ok(response).get_json()
+
+        assert payload["languages"] == sorted(story_filter_data["languages"].values())
+        filter_data = FilterData.get(FilterData.ASSESS_FILTERLISTS_ID)
+        assert filter_data is not None
+        language_counts = {item["value"]: item["item_count"] for item in filter_data.languages}
+        tag_counts = {item["name"]: item["item_count"] for item in filter_data.tags}
+        source_counts = {item["id"]: item["item_count"] for item in filter_data.sources}
+        assert language_counts == {"de": 1, "en": 2, "fr": 1}
+        assert tag_counts["filter-alpha"] == 1
+        assert source_counts[story_filter_data["sources"]["source_only"]] == 1
+
+    def test_rebuild_filter_data_task_refreshes_cached_filterlists(self, app, monkeypatch, story_filter_data):
+        from models.task import TaskSubmission
+
+        from core.managers.db_manager import db
+        from core.model.filter_data import FilterData
+        from core.model.story import Story
+        from core.service import cache_invalidation as cache_invalidation_module
+        from core.service.task import TaskService
+
+        invalidations = []
+        monkeypatch.setattr(
+            cache_invalidation_module,
+            "invalidate_frontend_cache_on_success",
+            lambda status, **kwargs: invalidations.append(kwargs) or status,
+        )
+
+        with app.app_context():
+            FilterData.rebuild_filter_data()
+            source_only = Story.get(story_filter_data["stories"]["source_only"])
+            assert source_only is not None
+            source_only.news_items[0].language = "es"
+            db.session.commit()
+
+            response, status = TaskService.save_task_result(
+                TaskSubmission(
+                    id="rebuild_filter_data",
+                    task="rebuild_filter_data",
+                    result="Assess filter data rebuild triggered",
+                    status="SUCCESS",
+                    worker_id="rebuild_filter_data",
+                    worker_type="rebuild_filter_data",
+                )
+            )
+
+            assert status == 200
+            assert response["id"] == "rebuild_filter_data"
+            filter_data = FilterData.get(FilterData.ASSESS_FILTERLISTS_ID)
+            assert filter_data is not None
+            language_counts = {item["value"]: item["item_count"] for item in filter_data.languages}
+            assert language_counts == {"de": 1, "en": 2, "es": 1}
+            assert {"models": ("filter_lists",)} in invalidations

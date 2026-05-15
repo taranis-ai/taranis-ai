@@ -293,6 +293,10 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
         source_only.read = True
         source_only.important = False
         source_only.relevance = 5
+        grouped_flagged.news_items[0].language = "en"
+        grouped_plain.news_items[0].language = "de"
+        manual_important.news_items[0].language = "en"
+        source_only.news_items[0].language = "fr"
         db.session.commit()
 
         admin_user = User.find_by_name("admin")
@@ -332,6 +336,11 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
                 "beta": "filter-beta",
                 "gamma": "filter-gamma",
                 "delta": "filter-delta",
+            },
+            "languages": {
+                "english": "en",
+                "german": "de",
+                "french": "fr",
             },
             "actors": {
                 "admin": admin_actor,
