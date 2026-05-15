@@ -106,12 +106,10 @@ class TestStoryFilters(BaseTest):
         assert payload["languages"] == sorted(story_filter_data["languages"].values())
         filter_data = FilterData.get(FilterData.ASSESS_FILTERLISTS_ID)
         assert filter_data is not None
-        language_counts = {item["value"]: item["item_count"] for item in filter_data.languages}
-        tag_counts = {item["name"]: item["item_count"] for item in filter_data.tags}
-        source_counts = {item["id"]: item["item_count"] for item in filter_data.sources}
-        assert language_counts == {"de": 1, "en": 2, "fr": 1}
-        assert tag_counts["filter-alpha"] == 1
-        assert source_counts[story_filter_data["sources"]["source_only"]] == 1
+        source_ids = {item["id"] for item in filter_data.sources}
+        assert set(filter_data.languages) == {"de", "en", "fr"}
+        assert "filter-alpha" in filter_data.tags
+        assert story_filter_data["sources"]["source_only"] in source_ids
 
     def test_rebuild_filter_data_task_refreshes_cached_filterlists(self, app, monkeypatch, story_filter_data):
         from models.task import TaskSubmission
@@ -151,6 +149,5 @@ class TestStoryFilters(BaseTest):
             assert response["id"] == "rebuild_filter_data"
             filter_data = FilterData.get(FilterData.ASSESS_FILTERLISTS_ID)
             assert filter_data is not None
-            language_counts = {item["value"]: item["item_count"] for item in filter_data.languages}
-            assert language_counts == {"de": 1, "en": 2, "es": 1}
+            assert set(filter_data.languages) == {"de", "en", "es"}
             assert {"models": ("filter_lists",)} in invalidations

@@ -11,6 +11,21 @@ from core.service.health import get_health_response
 
 class DashboardService:
     @staticmethod
+    def _count_user_scheduled_jobs(schedules: dict) -> int:
+        if not isinstance(schedules, dict):
+            return 0
+
+        items = schedules.get("items", [])
+        if not isinstance(items, list):
+            return int(schedules.get("total_count", 0) or 0)
+
+        housekeeping_job_ids = {
+            queue_manager.TOKEN_CLEANUP_JOB_ID,
+            queue_manager.FILTER_DATA_REBUILD_JOB_ID,
+        }
+        return sum(1 for item in items if not isinstance(item, dict) or item.get("id") not in housekeeping_job_ids)
+
+    @staticmethod
     def _format_worker_status(worker_status: dict[str, dict[str, int | str | None]]) -> dict[str, dict[str, int]]:
         return {
             worker: {
@@ -31,7 +46,7 @@ class DashboardService:
         report_items_in_progress = ReportItem.count_all(False)
         latest_collected = NewsItem.latest_collected()
         schedules, _ = queue_manager.queue_manager.get_scheduled_jobs()
-        schedule_length = schedules.get("total_count", 0) if isinstance(schedules, dict) else 0
+        schedule_length = cls._count_user_scheduled_jobs(schedules)
         conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         health_status, _ = get_health_response()
         worker_status = cls._format_worker_status(Task.get_status_counts_by_task())

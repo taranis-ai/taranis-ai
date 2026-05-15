@@ -14,7 +14,6 @@ from sqlalchemy.sql import Select
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.filter_data import FilterData
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.osint_source import OSINTSource
 from core.model.role import TLPLevel
@@ -82,26 +81,46 @@ class NewsItem(BaseModel):
         collected: datetime | str | None = None,
         story_id: str = "",
     ):
-        self.id = id or str(uuid.uuid4())
-        self.title = title
-        self.review = review
-        self.content = content
-        if osint_source := OSINTSource.get(osint_source_id):
+        payload = AssessNewsItem.from_input(
+            {
+                "title": title,
+                "source": source,
+                "content": content,
+                "osint_source_id": osint_source_id,
+                "review": review,
+                "author": author,
+                "link": link,
+                "language": language,
+                "hash": hash,
+                "id": id,
+                "attributes": attributes,
+                "last_change": last_change,
+                "published": published,
+                "collected": collected,
+                "story_id": story_id,
+            }
+        )
+
+        self.id = payload.id or id or str(uuid.uuid4())
+        self.title = payload.title or ""
+        self.review = payload.review or ""
+        self.content = payload.content or ""
+        if osint_source := OSINTSource.get(payload.osint_source_id):
             with db.session.no_autoflush:
                 self.osint_source = osint_source
         else:
-            logger.warning(f"OSINT Source {osint_source_id} not found. Setting osint_source_id to manual.")
+            logger.warning(f"OSINT Source {payload.osint_source_id} not found. Setting osint_source_id to manual.")
             self.osint_source_id = "manual"
-        self.source = source
-        self.link = link
-        self.author = author
-        self.language = FilterData.normalize_value(language)
-        self.last_change = last_change
-        self.hash = hash or self.get_hash(title, link, content)
-        self.collected = self.get_date_field(collected)
-        self.published = self.get_date_field(published)
-        self.story_id = story_id
-        self.attributes = NewsItemAttribute.load_multiple(attributes or [])
+        self.source = payload.source or ""
+        self.link = payload.link or ""
+        self.author = payload.author or ""
+        self.language = payload.language or ""
+        self.last_change = payload.last_change or last_change
+        self.hash = payload.hash or self.get_hash(title=self.title, link=self.link)
+        self.collected = payload.collected or self.get_date_field(collected)
+        self.published = payload.published or self.get_date_field(published)
+        self.story_id = payload.story_id or story_id
+        self.attributes = NewsItemAttribute.load_multiple(payload.attributes or [])
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "NewsItem":
@@ -215,7 +234,20 @@ class NewsItem(BaseModel):
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
-        news_item.language = FilterData.normalize_value(lang)
+        payload = AssessNewsItem.from_input(
+            {
+                "osint_source_id": news_item.osint_source_id,
+                "title": news_item.title or " ",
+                "content": news_item.content or " ",
+                "link": news_item.link or "",
+                "source": news_item.source or "",
+                "author": news_item.author or "",
+                "review": news_item.review or "",
+                "story_id": news_item.story_id,
+                "language": lang,
+            }
+        )
+        news_item.language = payload.language or ""
         news_item._update_status(actor or "internal")
         if story := news_item.story:
             story.record_revision(note="update_news_item_lang")
@@ -282,7 +314,7 @@ class NewsItem(BaseModel):
         self.author = payload.author or ""
         self.link = payload.link or ""
         self.content = payload.content or ""
-        self.language = FilterData.normalize_value(str(payload.language or ""))
+        self.language = payload.language or ""
         self.published = payload.published or self.published
         self.hash = payload.hash or self.hash
 

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import Select
 
@@ -17,19 +17,19 @@ class FilterData(BaseModel):
     ASSESS_FILTERLISTS_ID = "assess_filterlists"
 
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
-    tags: Mapped[list[dict[str, Any]]] = db.Column(db.JSON, nullable=False, default=list)
+    tags: Mapped[list[str]] = db.Column(db.JSON, nullable=False, default=list)
     sources: Mapped[list[dict[str, Any]]] = db.Column(db.JSON, nullable=False, default=list)
     groups: Mapped[list[dict[str, Any]]] = db.Column(db.JSON, nullable=False, default=list)
-    languages: Mapped[list[dict[str, Any]]] = db.Column(db.JSON, nullable=False, default=list)
+    languages: Mapped[list[str]] = db.Column(db.JSON, nullable=False, default=list)
     updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow, onupdate=BaseModel.utcnow, nullable=False)
 
     def __init__(
         self,
         id: str = ASSESS_FILTERLISTS_ID,
-        tags: list[dict[str, Any]] | None = None,
+        tags: list[str] | None = None,
         sources: list[dict[str, Any]] | None = None,
         groups: list[dict[str, Any]] | None = None,
-        languages: list[dict[str, Any]] | None = None,
+        languages: list[str] | None = None,
     ):
         self.id = id
         self.tags = tags or []
@@ -46,7 +46,33 @@ class FilterData(BaseModel):
 
     @classmethod
     def get_assess_filterlists(cls, user=None) -> dict[str, Any]:
-        filter_data = cls.get(cls.ASSESS_FILTERLISTS_ID) or cls.rebuild_filter_data()
+        filter_data = cls.get(cls.ASSESS_FILTERLISTS_ID)
+        if filter_data is None:
+            try:
+                filter_data = cls.rebuild_filter_data()
+            except OperationalError:
+                db.session.rollback()
+                payload = {
+                    "tags": cls._build_tags(),
+                    "sources": cls._build_sources(),
+                    "groups": cls._build_groups(),
+                    "languages": cls._build_languages(),
+                }
+                return cls(**payload).to_filterlists_dict(user=user)
+
+        if not cls._is_cached_filter_data_valid(filter_data):
+            try:
+                filter_data = cls.rebuild_filter_data()
+            except OperationalError:
+                db.session.rollback()
+                payload = {
+                    "tags": cls._build_tags(),
+                    "sources": cls._build_sources(),
+                    "groups": cls._build_groups(),
+                    "languages": cls._build_languages(),
+                }
+                return cls(**payload).to_filterlists_dict(user=user)
+
         return filter_data.to_filterlists_dict(user=user)
 
     def to_filterlists_dict(self, user=None) -> dict[str, Any]:
@@ -94,19 +120,17 @@ class FilterData(BaseModel):
         return filter_data
 
     @classmethod
+    def _is_cached_filter_data_valid(cls, filter_data: "FilterData") -> bool:
+        return bool(filter_data)
+
+    @classmethod
     def _build_tags(cls) -> list[str]:
         from core.model.news_item_tag import NewsItemTag
 
         rows = db.session.scalars(
-            db.select(
-                NewsItemTag.name,
-                func.count(func.distinct(NewsItemTag.story_id)).label("item_count"),
-            )
-            .where(NewsItemTag.tag_type.not_ilike("report_%"))
-            .group_by(NewsItemTag.name)
-            .order_by(db.desc("item_count"), NewsItemTag.name)
-            .limit(10)
+            db.select(NewsItemTag.name).where(NewsItemTag.tag_type.not_ilike("report_%")).distinct().order_by(NewsItemTag.name)
         ).all()
+
         return [name for name in rows if name]
 
     @classmethod

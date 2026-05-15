@@ -172,10 +172,9 @@ class Stories(MethodView):
             return {"error": "No story ids provided"}, 400
         if payload is not None and not isinstance(payload, dict):
             return {"error": "Invalid payload provided"}, 400
+
         result_dict = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
-        for s in [story.Story.get(sid) for sid in story_ids if sid]:
-            if not s:
-                return {"error": "Story not found"}, 404
+        for s in [s for story_id in story_ids if (s := story.Story.get(story_id)) is not None]:
             response, code = story.Story.update(s.id, payload, current_user)
             if code != 200:
                 result_dict["errors"].append({"story_id": s.id, "response": response})
