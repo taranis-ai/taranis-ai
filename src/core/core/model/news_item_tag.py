@@ -34,7 +34,7 @@ class NewsItemTag(BaseModel):
         from core.model.news_item import NewsItem
 
         story_count = func.count(func.distinct(NewsItem.story_id))
-        query = db.select(cls.name, cls.tag_type, story_count.label("story_count")).join(NewsItem).where(cls.tag_type.not_ilike("report_%"))
+        query = db.select(cls.name, cls.tag_type, story_count.label("story_count")).join(NewsItem)
 
         if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
@@ -56,7 +56,7 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def get_all_for_collector(cls):
-        return cls.get_filtered(db.select(cls).where(cls.tag_type.not_ilike("report_%")))
+        return cls.get_filtered(db.select(cls))
 
     @classmethod
     def get_list(cls, filter_args: dict) -> list[str]:
@@ -95,7 +95,7 @@ class NewsItemTag(BaseModel):
         from core.model.news_item import NewsItem
 
         story_count = func.count(func.distinct(NewsItem.story_id))
-        query = db.select(cls.name, story_count.label("size")).join(NewsItem).where(cls.tag_type.not_ilike("report_%"))
+        query = db.select(cls.name, story_count.label("size")).join(NewsItem)
         if tag_type := filter_args.get("tag_type"):
             query = query.filter(cls.tag_type == tag_type)
 

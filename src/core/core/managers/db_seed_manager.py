@@ -78,7 +78,6 @@ def pre_seed_update(db_engine: Engine):
     migrate_use_feed_content()
     migrate_user_profiles()
     cleanup_empty_stories()
-    sync_report_story_attributes()
     migrate_missing_initial_revisions()
     if db_engine.dialect.name == "postgresql":
         rebuild_story_search_vectors()
@@ -149,21 +148,6 @@ def cleanup_empty_stories():
 
     empty_stories = StoryService.delete_stories_with_no_items()
     logger.info(f"Deleted {empty_stories} empty stories")
-
-
-def sync_report_story_attributes():
-    from core.managers.db_manager import db
-    from core.model.report_item import ReportItem
-    from core.service.report_story_sync import ReportStorySyncService
-
-    reports = db.session.execute(db.select(ReportItem).options(selectinload(ReportItem.stories)).order_by(ReportItem.id)).scalars().all()
-    synced_stories = 0
-    for report in reports:
-        synced_stories += len(ReportStorySyncService.sync_report_membership(report, report.stories, "retag"))
-
-    if synced_stories:
-        db.session.commit()
-        logger.info(f"Synced report story attributes for {synced_stories} stories")
 
 
 def migrate_missing_initial_revisions(batch_size: int = 100):

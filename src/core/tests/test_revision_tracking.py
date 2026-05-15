@@ -12,6 +12,7 @@ from core.model.revision import ReportRevision, StoryRevision
 from core.model.story import Story
 from core.service.news_item import NewsItemService
 from core.service.news_item_tag import NewsItemTagService
+from core.service.story import StoryService
 
 
 def _news_item_payload(source: str = "unit-test") -> dict:
@@ -465,8 +466,8 @@ def test_report_title_retag_happens_before_revision_and_commit(sample_report_typ
         events.append("commit")
         raise RuntimeError("stop-after-commit")
 
-    monkeypatch.setattr(NewsItemTagService, "remove_report_attribute", remove_attribute_spy)
-    monkeypatch.setattr(NewsItemTagService, "add_report_attribute", add_attribute_spy)
+    monkeypatch.setattr(StoryService, "remove_report_attribute", remove_attribute_spy)
+    monkeypatch.setattr(StoryService, "add_report_attribute", add_attribute_spy)
     monkeypatch.setattr(ReportItem, "record_revision", record_revision_spy)
     monkeypatch.setattr(db.session, "commit", commit_spy)
 

@@ -5768,26 +5768,6 @@ paths:
           description: forbidden
         "404":
           $ref: "#/components/responses/404NotFound"
-  /assess/tags:
-    get:
-      security:
-        - UserAuth: []
-      tags: [assess]
-      description: get tags
-      operationId: assess.tags.get
-      responses:
-        "200":
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        "401":
-          $ref: "#/components/responses/401Unauthorized"
-        "403":
-          description: forbidden
-        "404":
-          $ref: "#/components/responses/404NotFound"
   /assets:
     get:
       security:

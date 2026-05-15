@@ -205,22 +205,6 @@ class Stories(MethodView):
         return result_dict, 200
 
 
-class StoryTags(MethodView):
-    @auth_required("ASSESS_ACCESS")
-    def get(self):
-        try:
-            search = request.args.get("search", None)
-            limit = min(int(request.args.get("limit", 20)), 200)
-            offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
-            default_min_size = 0 if search else 3
-            min_size = int(request.args.get("min_size", default_min_size))
-            filter_args = {"limit": limit, "offset": offset, "search": search, "min_size": min_size}
-            return news_item_tag.NewsItemTag.get_filtered_tags(filter_args)
-        except Exception:
-            logger.exception()
-            return {"error": "Failed to get Tags"}, 400
-
-
 class StoryTagList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
@@ -406,7 +390,6 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
     assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
     assess_bp.add_url_rule("/osint-sources-list", view_func=OSINTSourcesList.as_view("osint_sources_list"))
-    assess_bp.add_url_rule("/tags", view_func=StoryTags.as_view("tags"))
     assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
     assess_bp.add_url_rule("/filter-lists", view_func=FilterLists.as_view("filter_lists"))
     assess_bp.add_url_rule("/import", view_func=AssessImport.as_view("import"))

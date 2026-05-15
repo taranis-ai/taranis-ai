@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timedelta
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from flask import Response, abort, jsonify
 from flask_jwt_extended import current_user
@@ -10,10 +10,15 @@ from core.log import logger
 from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.news_item import NewsItem
+from core.model.news_item_attribute import NewsItemAttribute
 from core.model.revision import StoryRevision
 from core.model.story import Story
 from core.model.user import User
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+
+
+if TYPE_CHECKING:
+    from core.model.report_item import ReportItem
 
 
 class StoryService:
@@ -151,6 +156,14 @@ class StoryService:
         db.session.commit()
 
         return len(deleted_ids)
+
+    @staticmethod
+    def add_report_attribute(story: Story, report: "ReportItem") -> None:
+        story.upsert_attribute(NewsItemAttribute(key=f"report_{report.id}", value=report.title))
+
+    @staticmethod
+    def remove_report_attribute(story: Story, report_id: str) -> None:
+        story.remove_attributes([f"report_{report_id}"])
 
     @staticmethod
     def fetch_and_create_story(parameters: dict[str, Any]) -> tuple[dict[str, Any], int]:

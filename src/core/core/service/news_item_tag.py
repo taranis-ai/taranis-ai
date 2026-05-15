@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import func
 
@@ -11,10 +11,6 @@ from core.model.news_item_tag import NewsItemTag
 from core.model.story import Story
 
 
-if TYPE_CHECKING:
-    from core.model.report_item import ReportItem
-
-
 class NewsItemTagService:
     @classmethod
     def find_largest_tag_clusters(cls, days: int = 7, limit: int = 12, min_count: int = 2):
@@ -24,7 +20,7 @@ class NewsItemTagService:
             db.select(NewsItemTag.name, NewsItemTag.tag_type, Story.id, Story.created)
             .join(NewsItemTag.news_item)
             .join(Story, NewsItem.story_id == Story.id)
-            .filter(Story.created >= start_date, NewsItemTag.tag_type.not_ilike("report_%"))
+            .filter(Story.created >= start_date)
             .distinct()
             .subquery()
         )
@@ -63,9 +59,7 @@ class NewsItemTagService:
     def get_n_biggest_tags_by_type(cls, tag_type: str, n: int, days: int = 0) -> list[dict]:
         story_count = func.count(func.distinct(NewsItem.story_id))
         stmt = (
-            db.select(NewsItemTag.name, story_count.label("name_count"))
-            .join(NewsItemTag.news_item)
-            .filter(NewsItemTag.tag_type == tag_type, NewsItemTag.tag_type.not_ilike("report_%"))
+            db.select(NewsItemTag.name, story_count.label("name_count")).join(NewsItemTag.news_item).filter(NewsItemTag.tag_type == tag_type)
         )
 
         if days > 0:
@@ -82,7 +76,6 @@ class NewsItemTagService:
         items = db.session.execute(
             db.select(NewsItemTag.tag_type)
             .join(NewsItemTag.news_item)
-            .where(NewsItemTag.tag_type.not_ilike("report_%"))
             .group_by(NewsItemTag.tag_type)
             .order_by(func.count(func.distinct(NewsItem.story_id)).desc())
         ).all()
@@ -99,10 +92,6 @@ class NewsItemTagService:
 
         logger.debug(f"Found {len(largest_tag_types)} tag clusters")
         return largest_tag_types
-
-    @classmethod
-    def add_report_attribute(cls, story: "Story", report: "ReportItem"):
-        story.upsert_attribute(NewsItemAttribute(key=f"report_{report.id}", value=report.title))
 
     @staticmethod
     def set_found_bot_tags(found_tags: dict[str, Any], *, actor: str | None = None):
@@ -135,10 +124,6 @@ class NewsItemTagService:
             story.record_revision(note="set_worker_execution_attribute")
 
         db.session.commit()
-
-    @classmethod
-    def remove_report_attribute(cls, story: "Story", report_id: str):
-        story.remove_attributes([f"report_{report_id}"])
 
     @classmethod
     def delete_tags_by_name(cls, tag_name: str):

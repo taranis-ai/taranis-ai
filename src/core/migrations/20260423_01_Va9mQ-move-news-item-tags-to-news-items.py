@@ -33,6 +33,45 @@ steps = [
     ),
     step(
         """
+        WITH report_tags AS (
+            SELECT DISTINCT
+                tag.story_id,
+                tag.tag_type,
+                tag.name
+            FROM news_item_tag tag
+            WHERE tag.news_item_id IS NULL
+              AND tag.story_id IS NOT NULL
+              AND tag.tag_type ILIKE 'report_%'
+        )
+        INSERT INTO news_item_attribute (id, key, value, created)
+        SELECT
+            md5('report-tag-attribute:' || report_tags.story_id || ':' || lower(report_tags.tag_type)),
+            report_tags.tag_type,
+            report_tags.name,
+            NOW()
+        FROM report_tags;
+
+        WITH report_tags AS (
+            SELECT DISTINCT
+                tag.story_id,
+                tag.tag_type
+            FROM news_item_tag tag
+            WHERE tag.news_item_id IS NULL
+              AND tag.story_id IS NOT NULL
+              AND tag.tag_type ILIKE 'report_%'
+        )
+        INSERT INTO story_news_item_attribute (story_id, news_item_attribute_id)
+        SELECT
+            report_tags.story_id,
+            md5('report-tag-attribute:' || report_tags.story_id || ':' || lower(report_tags.tag_type))
+        FROM report_tags;
+
+        """,
+        """
+        """,
+    ),
+    step(
+        """
         DELETE FROM story_news_item_attribute snia
         USING news_item_attribute attr
         WHERE attr.id = snia.news_item_attribute_id

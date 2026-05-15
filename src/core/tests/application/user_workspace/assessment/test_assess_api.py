@@ -312,41 +312,6 @@ class TestAssessStories(BaseTest):
         assert "revision_count" in items[stories[0]]
         assert items[stories[0]]["revision_count"] > 0
 
-    def test_get_story_tags(self, client, stories, auth_header):
-        from core.model.story import Story
-
-        nia1 = Story.get(stories[0])
-        nia2 = Story.get(stories[1])
-        assert nia1
-        assert nia2
-
-        tag_prefix = f"story-tag-{uuid.uuid4().hex}"
-        foo_tag = f"{tag_prefix}-foo"
-        bar_tag = f"{tag_prefix}-bar"
-        baz_tag = f"{tag_prefix}-baz"
-
-        response = nia1.news_items[0].set_tags([foo_tag, bar_tag, baz_tag])
-        assert response[1] == 200
-        response = nia2.news_items[0].set_tags({foo_tag: {"tag_type": "misc"}, bar_tag: {"tag_type": "misc"}})
-        assert response[1] == 200
-        response = nia2.news_items[0].set_tags(
-            {f"{tag_prefix}-new": {"tag_type": "misc"}, "falling_back": ["this_is_malformed_format_and_should_be_rejected"]}
-        )
-        assert response[1] == 500
-
-        response = client.get("/api/assess/tags", headers=auth_header)
-        assert len(response.get_json()) == 0
-        assert response.content_type == "application/json"
-        assert response.status_code == 200
-        response = client.get(f"/api/assess/tags?search={tag_prefix}&min_size=1", headers=auth_header)
-        assert len(response.get_json()) == 3
-        response = client.get(f"/api/assess/tags?search={foo_tag}&min_size=1", headers=auth_header)
-        assert len(response.get_json()) == 1
-        response = client.get(f"/api/assess/tags?search={tag_prefix}&limit=1&min_size=1", headers=auth_header)
-        assert len(response.get_json()) == 1
-        response = client.get(f"/api/assess/tags?search={tag_prefix}&offset=1&min_size=1", headers=auth_header)
-        assert len(response.get_json()) == 2
-
     def test_delete_story(self, client, stories, auth_header):
         response = self.assert_delete_ok(client, f"story/{stories[0]}", auth_header)
 
