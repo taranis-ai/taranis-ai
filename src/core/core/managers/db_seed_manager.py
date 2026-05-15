@@ -450,14 +450,13 @@ def pre_seed_default_user():
 
     admin_organization = Organization.find_by_name("The Earth")
     if not admin_organization:
-        Organization.add(
+        admin_organization = Organization.add(
             {
                 "name": "The Earth",
                 "description": "Earth is the third planet from the Sun and the only astronomical object known to harbor life.",
                 "address": {"street": "29 Arlington Avenue", "city": "Islington, London", "zip": "N1 7BE", "country": "United Kingdom"},
             }
         )
-        admin_organization = Organization.find_by_name("The Earth")
 
     if not User.find_by_name(username="admin") and not User.find_by_role_name(role_name="Admin"):
         if admin_role := Role.filter_by_name("Admin"):
@@ -471,8 +470,9 @@ def pre_seed_default_user():
                 }
             )
 
-    if not Organization.find_by_name("The Clacks"):
-        Organization.add(
+    user_organization = Organization.find_by_name("The Clacks")
+    if not user_organization:
+        user_organization = Organization.add(
             {
                 "name": "The Clacks",
                 "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
@@ -487,13 +487,12 @@ def pre_seed_default_user():
 
     if not User.find_by_name(username="user"):
         user_role = Role.filter_by_name("User").id  # type: ignore
-        user_organization = Organization.find_by_name("The Clacks")
         User.add(
             {
                 "username": "user",
                 "name": "Terry Pratchett",
                 "roles": [user_role],
-                "organization": {"id": user_organization.id if user_organization else None},
+                "organization": {"id": user_organization.id},
                 "password": Config.PRE_SEED_PASSWORD_USER,
             }
         )

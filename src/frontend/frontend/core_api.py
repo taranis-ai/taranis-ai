@@ -79,8 +79,8 @@ class CoreApi:
             json_data = {}
         return self.session.patch(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
-    def api_delete(self, endpoint: str) -> requests.Response:
-        return self.session.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, timeout=self.timeout)
+    def api_delete(self, endpoint: str, params: dict[str, Any] | None = None) -> requests.Response:
+        return self.session.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, params=params, timeout=self.timeout)
 
     def api_get(self, endpoint: str, params: dict | None = None):
         url = f"{self.api_url}{endpoint}"

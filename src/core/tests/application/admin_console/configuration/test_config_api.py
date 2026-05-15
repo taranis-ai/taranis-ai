@@ -257,6 +257,49 @@ class TestSourcesConfigApi(BaseTest):
                 if OSINTSource.get(manual_source_id):
                     OSINTSource.delete(manual_source_id)
 
+    def test_get_sources_can_include_manual_collectors(self, client, auth_header, app):
+        from core.model.osint_source import OSINTSource
+
+        unique_suffix = uuid.uuid4().hex
+        rss_source_id = f"rss-{unique_suffix}"
+        manual_source_id = f"manual-{unique_suffix}"
+
+        rss_source = {
+            "id": rss_source_id,
+            "name": f"Visible Source {unique_suffix}",
+            "description": "Collector that should remain visible",
+            "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
+            "type": "rss_collector",
+        }
+        manual_source = {
+            "id": manual_source_id,
+            "name": f"Visible Source {unique_suffix}",
+            "description": "Collector that should be shown when requested",
+            "parameters": {},
+            "type": "manual_collector",
+        }
+
+        with app.app_context():
+            OSINTSource.add(rss_source)
+            OSINTSource.add(manual_source)
+
+        try:
+            response = self.assert_get_ok(
+                client,
+                uri=f"osint-sources?search={unique_suffix}&fetch_all=true&filter_manual=false",
+                auth_header=auth_header,
+            )
+            payload = response.get_json()
+
+            assert payload["total_count"] == 2
+            assert {item["id"] for item in payload["items"]} == {rss_source_id, manual_source_id}
+        finally:
+            with app.app_context():
+                if OSINTSource.get(rss_source_id):
+                    OSINTSource.delete(rss_source_id)
+                if OSINTSource.get(manual_source_id):
+                    OSINTSource.delete(manual_source_id)
+
     def test_get_sources_orders_by_status(self, client, auth_header, app):
         from core.model.osint_source import OSINTSource
         from core.model.task import Task

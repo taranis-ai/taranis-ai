@@ -397,6 +397,22 @@ class BaseView(MethodView):
         return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), status_code
 
     @classmethod
+    def _invalidate_model_cache(cls, object_id: int | str | None = None) -> None:
+        if cls.is_create_object_id(object_id):
+            object_id = None
+
+        try:
+            dpl = DataPersistenceLayer()
+            dpl.invalidate_model_cache_locally(cls.model, object_id)
+            dpl.invalidate_cache_by_object(cls.model)
+            if object_id is not None:
+                dpl.invalidate_cache_by_object_id(cls.model, object_id)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception(f"Failed to invalidate cache for model {cls.model_name()}")
+
+    @classmethod
     def static_view(cls):
         try:
             items = DataPersistenceLayer().get_objects(cls.model)
@@ -480,6 +496,8 @@ class BaseView(MethodView):
         if not core_response.ok:
             return response, core_response.status_code or 500
 
+        cls._invalidate_model_cache(object_id)
+
         table, table_response = cls.render_list()
         if table_response == 200:
             response += table
@@ -494,6 +512,8 @@ class BaseView(MethodView):
                 render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True}),
                 500,
             )
+
+        cls._invalidate_model_cache()
 
         response, status_code = cls.render_list()
         response += render_template(
@@ -583,6 +603,11 @@ class BaseView(MethodView):
 
     @classmethod
     def handle_submit_success(cls, object_id: int | str, core_response: dict[str, Any]) -> ResponseReturnValue:
+        resolved_object_id = object_id
+        if (response_object_id := core_response.get("id")) and not cls.is_create_object_id(response_object_id):
+            resolved_object_id = response_object_id
+        cls._invalidate_model_cache(resolved_object_id)
+
         notification_response = cls.render_response_notification(core_response)
         table_response, table_status = cls.list_view()
         response = notification_response + table_response

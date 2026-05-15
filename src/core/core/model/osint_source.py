@@ -188,7 +188,7 @@ class OSINTSource(BaseModel):
     @classmethod
     def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = dict(filter_args or {})
-        filter_args["filter_manual"] = filter_args.get("filter_manual", True)
+        filter_args["filter_manual"] = cls._filter_manual_enabled(filter_args.get("filter_manual", True))
 
         response, status_code = super().get_all_for_api(filter_args=filter_args, with_count=with_count, user=user)
         items = response.get("items", [])
@@ -198,6 +198,10 @@ class OSINTSource(BaseModel):
             items.sort(key=lambda item: (item.get("status") or {}).get("status", ""), reverse=True)
 
         return response, status_code
+
+    @staticmethod
+    def _filter_manual_enabled(value: Any) -> bool:
+        return str(value).strip().lower() not in {"", "false", "0", "off", "no"}
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
@@ -446,6 +450,7 @@ class OSINTSource(BaseModel):
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
         from core.managers import queue_manager
+        from core.service.story import StoryService
 
         if not (source := cls.get(source_id)):
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
@@ -462,6 +467,7 @@ class OSINTSource(BaseModel):
                 news_item_table = db.metadata.tables.get("news_item")
                 if news_item_table is not None:
                     db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
+                StoryService.delete_stories_with_no_items()
             db.session.delete(source)
             db.session.commit()
             return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200

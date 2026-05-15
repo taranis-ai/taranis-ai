@@ -460,7 +460,7 @@ class QueueManager:
         if self.error:
             return {"error": "QueueManager not initialized"}, 500
 
-        word_lists = WordList.get_all_for_collector() or []
+        word_lists = WordList.get_all_for_gathering() or []
         for word_list in word_lists:
             self.enqueue_task("misc", "gather_word_list", word_list.id, job_id=f"gather_word_list_{word_list.id}")
         return {"message": "Gathering for all WordLists scheduled"}, 200
