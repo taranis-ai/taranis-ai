@@ -97,7 +97,9 @@ class Story(BaseModel):
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
         if tags:
-            self.apply_tags_to_news_items(NewsItemTag.parse_tags(tags))
+            parsed_tags = NewsItemTag.parse_tags(tags)
+            if parsed_tags and not self._news_items_carry_tags(news_items):
+                self.apply_tags_to_news_items(parsed_tags)
         self.created, self.updated = self.get_story_dates(created, updated)
         self.recompute_relevance(in_reports_count=0)
 
@@ -250,6 +252,22 @@ class Story(BaseModel):
         elif isinstance(news_items[0], NewsItem):
             return news_items
         return []
+
+    @staticmethod
+    def _news_items_carry_tags(news_items) -> bool:
+        if not news_items:
+            return False
+
+        for item in news_items:
+            if isinstance(item, dict) and "tags" in item:
+                return True
+            if isinstance(item, NewsItem) and item.tags:
+                return True
+            if isinstance(item, str):
+                news_item = NewsItem.get(item)
+                if news_item and news_item.tags:
+                    return True
+        return False
 
     @property
     def links(self) -> list[str]:
@@ -866,7 +884,9 @@ class Story(BaseModel):
         if "comments" in data:
             story.comments = data["comments"]
 
-        if "tags" in data:
+        if "tags" in data and not cls._news_items_carry_tags(data.get("news_items")):
+            if not isinstance(data["tags"], (list, dict)):
+                return {"error": "Tags must be a list or object"}, 400
             story.apply_tags_to_news_items(NewsItemTag.parse_tags(data["tags"]))
 
         if "summary" in data:
@@ -1180,9 +1200,6 @@ class Story(BaseModel):
             story = cls.get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404
-            for attribute in story.attributes:
-                if attribute.key.startswith("report_"):
-                    return {"error": f"Story {story.id} is part of a report, you need to remove the news items manually"}, 500
             for news_item in story.news_items[:]:
                 if user is None or news_item.allowed_with_acl(user, True):
                     cls.create_from_item(news_item, commit=False, actor=actor)

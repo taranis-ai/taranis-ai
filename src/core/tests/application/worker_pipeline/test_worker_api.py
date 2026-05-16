@@ -343,6 +343,37 @@ class TestWorkerApi:
         assert response.status_code == 400
         assert "error" in response.get_json()
 
+    def test_worker_story_roundtrip_preserves_news_item_tag_distribution(self, client, full_story_with_multiple_items_id, api_header):
+        story_id, _ = full_story_with_multiple_items_id
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
+        assert response.status_code == 200
+        story = response.get_json()[0]
+        news_items = story["news_items"]
+        assert len(news_items) == 2
+
+        first_item_id = news_items[0]["id"]
+        second_item_id = news_items[1]["id"]
+        tag_payload = {
+            first_item_id: [{"name": "roundtrip-first", "tag_type": "specific"}],
+            second_item_id: [{"name": "roundtrip-second", "tag_type": "specific"}],
+        }
+        response = client.put(f"{self.base_uri}/tags", json=tag_payload, headers=api_header)
+        assert response.status_code == 200
+
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
+        assert response.status_code == 200
+        roundtrip_payload = response.get_json()[0]
+        response = client.post(f"{self.base_uri}/stories", json=roundtrip_payload, headers=api_header)
+        assert response.status_code == 200
+
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
+        assert response.status_code == 200
+        updated_story = response.get_json()[0]
+        updated_tags = {item["id"]: {tag["name"] for tag in item["tags"]} for item in updated_story["news_items"]}
+
+        assert updated_tags[first_item_id] == {"roundtrip-first"}
+        assert updated_tags[second_item_id] == {"roundtrip-second"}
+
     def test_worker_get_tags(self, client, api_header, stories):
         from core.model.news_item_tag import NewsItemTag
         from core.model.story import Story
@@ -728,6 +759,8 @@ class TestConnector:
             "TLP": {"key": "TLP", "value": "clear"},
             "test": {"key": "test", "value": "test"},
         }
+        for news_item in story.get("news_items", []):
+            news_item.pop("tags", None)
         story["tags"] = {"test_tag": {"name": "test_tag", "tag_type": "misc"}}
 
         client.post(f"{self.base_uri}/stories", json=story, headers=api_header)

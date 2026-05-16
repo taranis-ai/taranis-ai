@@ -26,10 +26,11 @@ class AddNewsItems(MethodView):
     def post(self):
         json_data = request.json
 
-        logger.debug(f"Received news items data: {json_data}")
-
         if not isinstance(json_data, list):
+            logger.debug(f"Received invalid news items payload type: {type(json_data).__name__}")
             return {"error": "Expected a list of news items"}, 400
+        news_item_ids = [item.get("id") for item in json_data if isinstance(item, dict) and item.get("id")]
+        logger.debug(f"Received {len(json_data)} news items for worker ingestion: ids={news_item_ids}")
         result, status = Story.add_news_items(json_data)
         sse_manager.news_items_updated()
         return result, status

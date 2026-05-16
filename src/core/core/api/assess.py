@@ -137,7 +137,11 @@ class UpdateNewsItemTags(MethodView):
         if not item.allowed_with_acl(current_user, require_write_access=True):
             return {"error": "User does not have write access to this news item"}, 403
 
-        response, status = item.set_tags(request.json, user=current_user)
+        tags = request.json
+        if not isinstance(tags, (list, dict)):
+            return {"error": "Tags must be a list or object"}, 400
+
+        response, status = item.set_tags(tags, user=current_user)
         invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
         return response, status
 

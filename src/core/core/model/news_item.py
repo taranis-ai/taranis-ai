@@ -296,7 +296,7 @@ class NewsItem(BaseModel):
 
     def _update_tags(
         self,
-        incoming_tags: list | dict[str, NewsItemTag],
+        incoming_tags: Any,
         change_by_bot: bool = False,
         user: User | None = None,
         actor: str | None = None,
@@ -304,7 +304,17 @@ class NewsItem(BaseModel):
         update_story: bool = True,
         commit: bool = True,
     ) -> tuple[dict, int]:
-        parsed_tags = self._parse_incoming_tags(incoming_tags)
+        if not isinstance(incoming_tags, (list, dict)):
+            return {"error": "Tags must be a list or object"}, 400
+
+        try:
+            parsed_tags = self._parse_incoming_tags(incoming_tags)
+        except (TypeError, ValueError) as exc:
+            return {"error": str(exc)}, 400
+
+        if incoming_tags and not parsed_tags:
+            return {"error": "No valid tags provided"}, 400
+
         if not parsed_tags:
             if not replace:
                 return {"error": "No valid tags provided"}, 400

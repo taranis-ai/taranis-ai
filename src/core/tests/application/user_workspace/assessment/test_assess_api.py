@@ -177,6 +177,19 @@ class TestAssessNewsItems(BaseTest):
         story_tags = {tag["name"]: tag["tag_type"] for tag in story_response.get_json()["tags"]}
         assert story_tags[tag_name] == "endpoint"
 
+        response = client.put(f"{self.base_uri}/news-items/{item_id}/tags", json="not-valid", headers=auth_header)
+        assert response.status_code == 400
+
+        response = client.put(
+            f"{self.base_uri}/news-items/{item_id}/tags",
+            json=[{"name": "bad-tag", "tag_type": 123}],
+            headers=auth_header,
+        )
+        assert response.status_code == 400
+
+        item_response = self.assert_get_ok(client, f"news-items/{item_id}", auth_header)
+        assert item_response.get_json()["tags"] == [{"name": tag_name, "tag_type": "endpoint"}]
+
         clear_response = self.assert_put_ok(client, f"news-items/{item_id}/tags", [], auth_header)
         assert clear_response.get_json()["message"].startswith("Successfully updated news item")
 
@@ -186,6 +199,49 @@ class TestAssessNewsItems(BaseTest):
         story_response = self.assert_get_ok(client, f"story/{story_id}", auth_header)
         story_tags = {tag["name"]: tag["tag_type"] for tag in story_response.get_json()["tags"]}
         assert tag_name not in story_tags
+
+    def test_story_import_keeps_news_item_tags_when_aggregate_tags_are_present(self, app, fake_source):
+        from core.managers.db_manager import db
+        from core.model.news_item import NewsItem
+        from core.model.story import Story
+        from tests.application.support.builders import build_news_item_payload, build_story_payload
+
+        first_item = build_news_item_payload(source_id=fake_source, title_prefix="First Tagged Item")
+        second_item = build_news_item_payload(source_id=fake_source, title_prefix="Second Tagged Item")
+        first_item["tags"] = [{"name": "first-only", "tag_type": "specific"}]
+        second_item["tags"] = [{"name": "second-only", "tag_type": "specific"}]
+        story_payload = build_story_payload(
+            news_items=[first_item, second_item],
+            tags=[
+                {"name": "first-only", "tag_type": "specific"},
+                {"name": "second-only", "tag_type": "specific"},
+                {"name": "aggregate-only", "tag_type": "legacy"},
+            ],
+        )
+
+        story_id = None
+        with app.app_context():
+            try:
+                result, status = Story.add(story_payload)
+                assert status == 200
+                story_id = result["story_id"]
+
+                story = Story.get(story_id)
+                assert story is not None
+                item_tags = {item.id: {tag.name for tag in item.tags} for item in story.news_items}
+
+                assert item_tags[first_item["id"]] == {"first-only"}
+                assert item_tags[second_item["id"]] == {"second-only"}
+                assert {tag.name for tag in story.tags} == {"first-only", "second-only"}
+            finally:
+                if story_id and (story := Story.get(story_id)):
+                    for item in story.news_items[:]:
+                        db.session.delete(item)
+                    db.session.delete(story)
+                    db.session.commit()
+                else:
+                    NewsItem.delete(first_item["id"])
+                    NewsItem.delete(second_item["id"])
 
     def test_put_NewsItem(self, client, cleanup_news_item, auth_header):
         from core.model.news_item import NewsItem
@@ -398,6 +454,47 @@ class TestAssessStoriesGrouping(BaseTest):
         assert response.get_json()["items"][2]["news_items"][0]["last_change"] == "internal", (
             "manual news item's last_change should be internal"
         )
+
+    def test_ungroup_story_assigned_to_report_uses_membership_table(self, app, client, cleanup_report_item, fake_source, auth_header):
+        from copy import deepcopy
+
+        from core.managers.db_manager import db
+        from core.model.report_item import ReportItem
+        from core.model.story import Story
+        from tests.application.support.builders import build_news_item_payload, build_story_payload
+
+        report_id = "report-ungroup-membership"
+        story_id = None
+        report_payload = deepcopy(cleanup_report_item)
+        report_payload["id"] = report_id
+        report_payload["title"] = "Report Ungroup Membership"
+
+        try:
+            with app.app_context():
+                story_payload = build_story_payload(news_items=[build_news_item_payload(source_id=fake_source)])
+                result, status = Story.add(story_payload)
+                assert status == 200
+                story_id = result["story_id"]
+                report_payload["stories"] = [story_id]
+                report, status = ReportItem.add(report_payload)
+                assert status == 200
+                story = Story.get(story_id)
+                assert story is not None
+                story.remove_attributes([f"report_{report.id}"])
+                db.session.commit()
+
+            response = client.put(f"{self.base_uri}/stories/ungroup", json=[story_id], headers=auth_header)
+            assert response.status_code == 400
+            assert response.get_json()["error"] == f"Story {story_id} is assigned to a report"
+        finally:
+            with app.app_context():
+                if ReportItem.get(report_id):
+                    ReportItem.delete(report_id)
+                if story_id and (story := Story.get(story_id)):
+                    for item in story.news_items[:]:
+                        db.session.delete(item)
+                    db.session.delete(story)
+                    db.session.commit()
 
 
 class TestAssessUngroupNewsItem(BaseTest):
