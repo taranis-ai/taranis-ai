@@ -76,7 +76,7 @@ dev = [
 
 [tool.ruff]
 line-length = 142
-target-version = "py314"
+target-version = "py313"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2

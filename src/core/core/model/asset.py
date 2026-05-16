@@ -259,7 +259,7 @@ class AssetGroup(BaseModel):
             return asset_group
         try:
             normalized_id = cls.normalize_uuid_id(item_id)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             normalized_id = None
         if normalized_id and normalized_id != lookup_id:
             if asset_group := super().get(normalized_id):

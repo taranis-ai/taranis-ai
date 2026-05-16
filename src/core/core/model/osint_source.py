@@ -101,7 +101,7 @@ class OSINTSource(BaseModel):
             return osint_source
         try:
             normalized_id = cls.normalize_uuid_id(item_id)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             normalized_id = None
         if normalized_id and normalized_id != lookup_id:
             if osint_source := super().get(normalized_id):
@@ -823,7 +823,7 @@ class OSINTSourceGroup(BaseModel):
             return osint_source_group
         try:
             normalized_id = cls.normalize_uuid_id(item_id)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             normalized_id = None
         if normalized_id and normalized_id != lookup_id:
             if osint_source_group := super().get(normalized_id):

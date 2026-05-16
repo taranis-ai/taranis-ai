@@ -96,12 +96,12 @@ def test_representative_converted_seeded_models_use_string_ids(app):
         assert admin.roles[0].id == role.id
 
 
-def test_task_lookup_supports_preserved_legacy_primary_key(app, session):
+def test_task_lookup_supports_preserved_legacy_job_id(app, session):
     with app.app_context():
         task = Task(id="legacy-job-for-uuid-test")
-        task.id = "legacy-job-for-uuid-test"
         session.add(task)
         session.flush()
 
+        assert_uuid7(task.id)
         assert Task.get("legacy-job-for-uuid-test") == task
         assert Task.get_by_job_id("legacy-job-for-uuid-test") == task

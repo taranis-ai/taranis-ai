@@ -108,7 +108,7 @@ def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run
 
     try:
         next_expected_run = croniter(schedule, last_run_dt).get_next(datetime)
-    except CroniterBadCronError, CroniterBadDateError:
+    except (CroniterBadCronError, CroniterBadDateError):
         return False
 
     return now > (next_expected_run + OVERDUE_GRACE_PERIOD)

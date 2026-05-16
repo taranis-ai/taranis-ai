@@ -1,9 +1,9 @@
 """
 migrate model primary-key columns to string IDs
 
-Existing primary-key values are preserved. Legacy integer IDs are converted to
-their string representation, while rows created after this migration use UUIDv7
-IDs from the application model defaults.
+Existing integer primary-key values are preserved as strings. Legacy task job
+IDs move to the semantic job_id column while task primary keys are rewritten to
+UUIDv7-format strings.
 """
 
 from yoyo import step
@@ -86,6 +86,7 @@ steps = [
             rec RECORD;
             schema_name TEXT := current_schema();
             uuid_pattern TEXT := '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+            uuid_v7_pattern TEXT := '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
         BEGIN
             IF to_regclass(format('%I.%I', schema_name, 'permission')) IS NOT NULL THEN
                 EXECUTE format('ALTER TABLE %I.%I ADD COLUMN IF NOT EXISTS %I VARCHAR(128)', schema_name, 'permission', 'code');
@@ -112,6 +113,37 @@ steps = [
                     'job_id'
                 );
                 EXECUTE format('ALTER TABLE %I.%I ALTER COLUMN %I SET NOT NULL', schema_name, 'task', 'job_id');
+                EXECUTE format(
+                    'WITH generated AS (
+                         SELECT ctid,
+                                lpad(to_hex((extract(epoch from clock_timestamp()) * 1000)::bigint), 12, ''0'') AS ts_hex,
+                                md5("id"::TEXT || '':'' || row_number() OVER (ORDER BY "id"::TEXT)::TEXT || '':'' || clock_timestamp()::TEXT) AS entropy
+                           FROM %I.%I
+                          WHERE "id"::TEXT !~* %L
+                     )
+                     UPDATE %I.%I AS target
+                        SET "id" = lower(
+                            substr(generated.ts_hex, 1, 8) || ''-'' ||
+                            substr(generated.ts_hex, 9, 4) || ''-'' ||
+                            ''7'' || substr(generated.entropy, 1, 3) || ''-'' ||
+                            ''8'' || substr(generated.entropy, 4, 3) || ''-'' ||
+                            substr(generated.entropy, 7, 12)
+                        )
+                       FROM generated
+                      WHERE target.ctid = generated.ctid',
+                    schema_name,
+                    'task',
+                    uuid_v7_pattern,
+                    schema_name,
+                    'task'
+                );
+                EXECUTE format(
+                    'ALTER TABLE %I.%I ALTER COLUMN %I TYPE VARCHAR(36) USING %I::TEXT',
+                    schema_name,
+                    'task',
+                    'id',
+                    'id'
+                );
                 EXECUTE format('CREATE UNIQUE INDEX IF NOT EXISTS %I ON %I.%I (%I)', 'ux_task_job_id', schema_name, 'task', 'job_id');
             END IF;
 
