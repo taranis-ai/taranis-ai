@@ -2,7 +2,7 @@
   {% set news_item_tags = (news_item.tags.values() if news_item.tags is mapping else (news_item.tags or [])) | list %}
   <article id="news-item-card-{{ news_item.id }}"
            class="rounded-lg border border-base-200 bg-base-100 p-2 shadow-sm"
-           x-data='{ tagEditorOpen: false, tags: {{ news_item_tags | tojson }}, init() { if (!Array.isArray(this.tags)) { this.tags = Object.values(this.tags || {}); } this.tags = this.tags.map(tag => ({ "name": tag.name || "", "tag_type": tag.tag_type || "" })); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } }, addTag() { this.tags.push({ "name": "", "tag_type": "" }); }, removeTag(index) { this.tags.splice(index, 1); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } } }'>
+           x-data='{ tagEditorOpen: false, initialTags: {{ news_item_tags | tojson }}, tags: [], init() { this.resetTags(); }, normalizedTags() { const values = Array.isArray(this.initialTags) ? this.initialTags : Object.values(this.initialTags || {}); return values.map(tag => ({ "name": tag.name || "", "tag_type": tag.tag_type || "" })); }, resetTags() { this.tags = this.normalizedTags(); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } }, toggleTagEditor() { if (this.tagEditorOpen) { this.resetTags(); this.tagEditorOpen = false; } else { this.resetTags(); this.tagEditorOpen = true; } }, addTag() { this.tags.push({ "name": "", "tag_type": "" }); }, removeTag(index) { this.tags.splice(index, 1); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } } }'>
     <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between gap-2">
         <div class="flex flex-wrap items-start gap-2">
@@ -22,11 +22,7 @@
                     hx-select="#story-{{ news_item.story_id }}">Ungroup</button>
           {% endif %}
           {% if edit_tags %}
-            <button type="button"
-                    class="btn btn-sm btn-outline"
-                    data-testid="edit-newsitem-tags"
-                    @click="tagEditorOpen = !tagEditorOpen"
-                    aria-label="Edit news item tags">
+            <button type="button" class="btn btn-sm btn-outline" data-testid="edit-newsitem-tags" @click="toggleTagEditor()" aria-label="Edit news item tags">
               {{ heroicon_mini("tag", class="h-4 w-4") }}
               <span>Manage tags</span>
             </button>
@@ -97,7 +93,7 @@
             </template>
           </div>
           <div class="mt-3 flex justify-end gap-2">
-            <button type="button" class="btn btn-ghost btn-xs" @click="tagEditorOpen = false">Cancel</button>
+            <button type="button" class="btn btn-ghost btn-xs" @click="resetTags(); tagEditorOpen = false">Cancel</button>
             <button type="submit" class="btn btn-primary btn-xs">Save tags</button>
           </div>
         </form>

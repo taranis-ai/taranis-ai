@@ -317,6 +317,7 @@ def test_story_edit_renders_readonly_story_tags_and_news_item_tag_editor(authent
     assert tree.xpath('//*[@data-testid="story-readonly-tags"]//*[contains(text(), "story-tag")]')
     assert tree.xpath('//*[@data-testid="edit-newsitem-tags"]')
     assert tree.xpath('//*[@data-testid="news-item-tag-name-input"]')
+    assert "resetTags(); tagEditorOpen = false" in response.text
     assert not tree.xpath('//*[@data-testid="tag-name-input"]')
     assert not tree.xpath('//*[@data-testid="tag-value-input"]')
 

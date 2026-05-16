@@ -275,12 +275,12 @@ class Story(BaseModel):
 
     @property
     def aggregated_tags(self) -> list["NewsItemTag"]:
-        tags_by_name: dict[str, NewsItemTag] = {}
+        tags_by_identity: dict[tuple[str, str], NewsItemTag] = {}
         for news_item in self.news_items:
             for tag in news_item.tags:
                 if tag.name:
-                    tags_by_name[tag.name] = tag
-        return sorted(tags_by_name.values(), key=lambda tag: tag.name.lower())
+                    tags_by_identity[(tag.name, tag.tag_type or "misc")] = tag
+        return sorted(tags_by_identity.values(), key=lambda tag: (tag.name.lower(), (tag.tag_type or "").lower()))
 
     @property
     def tags(self) -> list["NewsItemTag"]:

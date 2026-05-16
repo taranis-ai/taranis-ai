@@ -48,7 +48,7 @@ steps = [
             md5('report-tag-attribute:' || report_tags.story_id || ':' || lower(report_tags.tag_type)),
             report_tags.tag_type,
             report_tags.name,
-            NOW()
+            CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
         FROM report_tags;
 
         WITH report_tags AS (

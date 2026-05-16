@@ -698,7 +698,7 @@ class StoryView(BaseView):
     def update_news_item_tags(cls, news_item_id: str):
         form_data = parse_formdata(request.form)
         story_id = str(form_data.get("story_id") or "")
-        tags = form_data.get("tags") or []
+        tags = cls._normalize_news_item_tags(form_data.get("tags") or [])
         try:
             core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}/tags", json_data=tags)
         except HTTPException:
@@ -714,6 +714,29 @@ class StoryView(BaseView):
 
         content = cls._get_news_item_tag_update_content(story_id, news_item_id)
         return make_response(notification_html + content, status)
+
+    @staticmethod
+    def _normalize_news_item_tags(tags: Any) -> list[dict[str, str]]:
+        if isinstance(tags, dict):
+            tags = list(tags.values())
+        if not isinstance(tags, list):
+            return []
+
+        normalized_tags = []
+        for tag in tags:
+            if isinstance(tag, str):
+                name = tag.strip()
+                tag_type = "misc"
+            elif isinstance(tag, dict):
+                name = str(tag.get("name") or "").strip()
+                tag_type = str(tag.get("tag_type") or "misc").strip() or "misc"
+            else:
+                continue
+
+            if name:
+                normalized_tags.append({"name": name, "tag_type": tag_type})
+
+        return normalized_tags
 
     @staticmethod
     def _get_news_item_tag_update_content(story_id: str, news_item_id: str) -> str:
