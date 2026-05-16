@@ -86,7 +86,7 @@ class ProductTypeView(AdminMixin, BaseView):
         return base_context
 
     @classmethod
-    def process_form_data(cls, object_id: int | str):
+    def process_form_data(cls, object_id: str):
         try:
             form_data = parse_formdata(request.form)
             return cls.store_form_data(form_data, object_id)

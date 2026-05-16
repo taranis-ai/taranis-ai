@@ -216,7 +216,7 @@ class TestSourceView:
                 data={"icon": (BytesIO(_VALID_PNG_BYTES), "icon.png", "image/png")},
                 content_type="multipart/form-data",
             ):
-                response, error = SourceView.process_form_data(0)
+                response, error = SourceView.process_form_data("0")
 
         assert error is None
         assert response == {"stored": True}
@@ -235,7 +235,7 @@ class TestSourceView:
                 data={"icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
                 content_type="multipart/form-data",
             ):
-                response, error = SourceView.process_form_data(0)
+                response, error = SourceView.process_form_data("0")
 
         assert response is None
         assert error == f"Icon file exceeds maximum size of {max_bytes} bytes."
@@ -249,7 +249,7 @@ class TestSourceView:
                 data={"icon": (BytesIO(b"not-an-image"), "icon.png", "image/png")},
                 content_type="multipart/form-data",
             ):
-                response, error = SourceView.process_form_data(0)
+                response, error = SourceView.process_form_data("0")
 
         assert response is None
         assert error == "Icon payload is not a valid image file."
@@ -262,7 +262,7 @@ class TestSourceView:
                 data={"delete_icon": "true"},
                 content_type="multipart/form-data",
             ):
-                response, error = SourceView.process_form_data(123)
+                response, error = SourceView.process_form_data("123")
 
         assert error is None
         assert response == {"stored": True}
@@ -282,7 +282,7 @@ class TestSourceView:
                 data={"delete_icon": "true", "icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
                 content_type="multipart/form-data",
             ):
-                response, error = SourceView.process_form_data(123)
+                response, error = SourceView.process_form_data("123")
 
         assert error is None
         assert response == {"stored": True}

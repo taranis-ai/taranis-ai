@@ -45,10 +45,19 @@ class Permission(BaseModel):
     def get(cls, item_id: str) -> "Permission | None":
         if item_id is None:
             return None
+        lookup_id = str(item_id)
+        if permission := super().get(lookup_id):
+            return permission
         try:
-            return super().get(cls.normalize_uuid_id(item_id))
+            normalized_id = cls.normalize_uuid_id(item_id)
         except TypeError, ValueError:
-            return cls.get_by_code(str(item_id))
+            normalized_id = None
+        if normalized_id and normalized_id != lookup_id:
+            if permission := super().get(normalized_id):
+                return permission
+        if lookup_id:
+            return cls.get_by_code(lookup_id)
+        return None
 
     @classmethod
     def get_by_code(cls, code: str) -> "Permission | None":

@@ -91,10 +91,19 @@ class Task(BaseModel):
     def get(cls, item_id: str) -> "Task | None":
         if item_id is None:
             return None
+        lookup_id = str(item_id)
+        if task := super().get(lookup_id):
+            return task
         try:
-            return super().get(cls.normalize_uuid_id(item_id))
+            normalized_id = cls.normalize_uuid_id(item_id)
         except TypeError, ValueError:
-            return cls.get_by_job_id(str(item_id))
+            normalized_id = None
+        if normalized_id and normalized_id != lookup_id:
+            if task := super().get(normalized_id):
+                return task
+        if lookup_id:
+            return cls.get_by_job_id(lookup_id)
+        return None
 
     @classmethod
     def get_by_job_id(cls, job_id: str) -> "Task | None":

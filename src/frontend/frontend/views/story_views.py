@@ -515,7 +515,7 @@ class StoryView(BaseView):
         return cls._render_story_list(paging_data, request_params)
 
     @classmethod
-    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
+    def get_item_context(cls, object_id: str) -> dict[str, Any]:
         context = super().get_item_context(object_id)
         context["_show_sidebar"] = False
         context["form_action"] = f"hx-post={url_for('assess.story_edit', story_id=object_id)}"

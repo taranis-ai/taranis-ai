@@ -137,7 +137,7 @@ class ProductView(BaseView):
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        return self.update_view(object_id=0)
+        return self.update_view(object_id="0")
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)

@@ -254,10 +254,19 @@ class AssetGroup(BaseModel):
     def get(cls, item_id: str) -> "AssetGroup | None":
         if item_id is None:
             return None
+        lookup_id = str(item_id)
+        if asset_group := super().get(lookup_id):
+            return asset_group
         try:
-            return super().get(cls.normalize_uuid_id(item_id))
+            normalized_id = cls.normalize_uuid_id(item_id)
         except TypeError, ValueError:
-            return cls.get_by_key(str(item_id))
+            normalized_id = None
+        if normalized_id and normalized_id != lookup_id:
+            if asset_group := super().get(normalized_id):
+                return asset_group
+        if lookup_id:
+            return cls.get_by_key(lookup_id)
+        return None
 
     @classmethod
     def get_by_key(cls, key: str | None) -> "AssetGroup | None":

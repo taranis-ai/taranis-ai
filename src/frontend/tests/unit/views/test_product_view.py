@@ -49,7 +49,7 @@ def test_product_download_streams_core_response(authenticated_client):
 def test_product_view_uses_publish_product_types_endpoint():
     product_types = [
         ProductType(
-            id=7,
+            id="product-type-1",
             title="CERT Daily Report",
             description="cert.at Daily Report HTML",
             type="HTML_PRESENTER",
@@ -71,20 +71,20 @@ def test_product_view_uses_publish_product_types_endpoint():
         context = ProductView.get_extra_context({})
 
     assert persistence.get_objects.call_args_list == [call(ProductType), call(PublisherPreset)]
-    assert context["product_types"] == [{"id": "7", "name": "CERT Daily Report"}]
+    assert context["product_types"] == [{"id": "product-type-1", "name": "CERT Daily Report"}]
     assert context["publishers"] == [{"id": "publisher-1", "name": "FTP Publisher"}]
 
 
 def test_product_view_preselects_report_from_query(app):
     product_type = ProductType.model_construct(
-        id=7, title="CERT Daily Report", description="cert.at Daily Report HTML", type="HTML_PRESENTER"
+        id="product-type-1", title="CERT Daily Report", description="cert.at Daily Report HTML", type="HTML_PRESENTER"
     )
-    report = ReportItem.model_construct(id="report-1", title="Selected report", report_item_type_id=4)
+    report = ReportItem.model_construct(id="report-1", title="Selected report", report_item_type_id="report-type-1")
     product_instance = Product.model_construct(
         id="product-1",
         title="Existing product",
         description="existing",
-        product_type_id=7,
+        product_type_id="product-type-1",
         report_items=["report-2"],
         supported_reports=[{"id": "report-2", "title": "Already selected"}],
     )

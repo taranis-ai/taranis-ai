@@ -42,7 +42,7 @@ class BaseView(MethodView):
         BaseView._registry[cls.pretty_name()] = cls
 
     @classmethod
-    def _common_context(cls, error: str | None = None, object_id: int | str = 0) -> dict[str, Any]:
+    def _common_context(cls, error: str | None = None, object_id: str = "0") -> dict[str, Any]:
         context = {
             "name": cls.pretty_name(),
             "templates": cls.get_template_urls(),
@@ -125,7 +125,7 @@ class BaseView(MethodView):
         ]
 
     @classmethod
-    def process_form_data(cls, object_id: int | str):
+    def process_form_data(cls, object_id: str):
         try:
             form_data = cls._get_normalized_form_data()
             return cls.store_form_data(form_data, object_id)
@@ -139,11 +139,11 @@ class BaseView(MethodView):
             return None, str(exc)
 
     @staticmethod
-    def is_create_object_id(object_id: int | str | None) -> bool:
-        return object_id in {0, "0", None, ""}
+    def is_create_object_id(object_id: str | None) -> bool:
+        return object_id in {"0", None, ""}
 
     @classmethod
-    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
+    def store_form_data(cls, processed_data: dict[str, Any], object_id: str = "0"):
         try:
             obj = cls.model(**processed_data)
             dpl = DataPersistenceLayer()
@@ -186,8 +186,8 @@ class BaseView(MethodView):
         return ""
 
     @classmethod
-    def edit_view(cls, object_id: int | str = 0):
-        if str(object_id) == "0":
+    def edit_view(cls, object_id: str = "0"):
+        if cls.is_create_object_id(object_id):
             return render_template(cls.get_update_template(), **cls.get_create_context()), 200
         return render_template(cls.get_update_template(), **cls.get_item_context(object_id)), 200
 
@@ -196,8 +196,8 @@ class BaseView(MethodView):
         return False
 
     @classmethod
-    def get_form_action(cls, object_id: int | str = 0) -> str:
-        if str(object_id) == "0":
+    def get_form_action(cls, object_id: str = "0") -> str:
+        if cls.is_create_object_id(object_id):
             action = cls.get_base_route()
             return f"hx-post={action}"
 
@@ -205,7 +205,7 @@ class BaseView(MethodView):
         return f"hx-put={action}"
 
     @classmethod
-    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
+    def get_item_context(cls, object_id: str) -> dict[str, Any]:
         submit = f"Update {cls.pretty_name()}"
 
         context = cls._common_context(object_id=object_id)
@@ -239,12 +239,12 @@ class BaseView(MethodView):
     @classmethod
     def get_update_context(
         cls,
-        object_id: int | str,
+        object_id: str,
         error: str | None = None,
         form_error: str | None = None,
         model_instance: TaranisBaseModel | None = None,
         response_message: str | None = None,
-        form_action_object_id: int | str | None = None,
+        form_action_object_id: str | None = None,
     ) -> dict[str, Any]:
         model_context_key = cls.model_name()
 
@@ -264,18 +264,18 @@ class BaseView(MethodView):
         return cls.get_extra_context(base_context=context)
 
     @classmethod
-    def get_object_by_id(cls, object_id: int | str) -> TaranisBaseModel | None:
+    def get_object_by_id(cls, object_id: str) -> TaranisBaseModel | None:
         return DataPersistenceLayer().get_object(cls.model, object_id)
 
     @classmethod
     def resolve_update_response(
-        cls, object_id: int | str, resp_obj: dict[str, Any] | None
-    ) -> tuple[int | str | None, TaranisBaseModel | None, str | None]:
+        cls, object_id: str, resp_obj: dict[str, Any] | None
+    ) -> tuple[str | None, TaranisBaseModel | None, str | None]:
         if not resp_obj:
-            return None if object_id in {0, "0", None, ""} else object_id, None, None
+            return None if cls.is_create_object_id(object_id) else object_id, None, None
 
         response_object_id = resp_obj.get("id", object_id)
-        persisted_object_id = None if response_object_id in {0, "0", None, ""} else response_object_id
+        persisted_object_id = None if cls.is_create_object_id(response_object_id) else response_object_id
         model_instance = None
 
         if model_payload := resp_obj.get(cls.model_name()):
@@ -316,7 +316,7 @@ class BaseView(MethodView):
         return cls.get_extra_context(context)
 
     @classmethod
-    def update_view_table(cls, object_id: int | str = 0):
+    def update_view_table(cls, object_id: str = "0"):
         core_response, error = cls.process_form_data(object_id)
         if not core_response or error:
             return cls.handle_submit_error(object_id, error=error, resp_obj=core_response)
@@ -324,7 +324,7 @@ class BaseView(MethodView):
         return cls.handle_submit_success(object_id, core_response)
 
     @classmethod
-    def update_view(cls, object_id: int | str = 0):
+    def update_view(cls, object_id: str = "0"):
         core_response, error = cls.process_form_data(object_id)
         persisted_object_id, model_instance, response_message = cls.resolve_update_response(object_id, core_response)
         if not core_response or error:
@@ -397,7 +397,7 @@ class BaseView(MethodView):
         return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), status_code
 
     @classmethod
-    def _invalidate_model_cache(cls, object_id: int | str | None = None) -> None:
+    def _invalidate_model_cache(cls, object_id: str | None = None) -> None:
         if cls.is_create_object_id(object_id):
             object_id = None
 
@@ -489,7 +489,7 @@ class BaseView(MethodView):
         return {"message": response.get("error"), "error": True}
 
     @classmethod
-    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
+    def delete_view(cls, object_id: str) -> tuple[str, int]:
         core_response = DataPersistenceLayer().delete_object(cls.model, object_id)
 
         response = cls.get_notification_from_response(core_response)
@@ -525,7 +525,7 @@ class BaseView(MethodView):
     def _get_object_key(cls) -> str:
         return f"{cls.model_name().lower()}_id"
 
-    def _get_object_id(self, kwargs: dict) -> int | str | None:
+    def _get_object_id(self, kwargs: dict) -> str | None:
         key = self._get_object_key()
         return kwargs.get(key)
 
@@ -536,12 +536,12 @@ class BaseView(MethodView):
         return self.edit_view(object_id=object_id)
 
     @classmethod
-    def _submitted_form_model(cls, object_id: int | str = 0):
+    def _submitted_form_model(cls, object_id: str = "0"):
         form_data = cls._get_normalized_form_data()
         if not form_data:
             return None
 
-        form_data["id"] = str(object_id or "0")
+        form_data["id"] = object_id or "0"
 
         try:
             return cls.model(**form_data)
@@ -557,9 +557,7 @@ class BaseView(MethodView):
         return cls._normalize_form_data(parse_formdata(request.form))
 
     @classmethod
-    def render_submitted_form_error(
-        cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None
-    ) -> tuple[str, int]:
+    def render_submitted_form_error(cls, object_id: str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
         submitted_model = cls._submitted_form_model(object_id)
         if cls.is_create_object_id(object_id):
             context = cls.get_create_context()
@@ -584,11 +582,11 @@ class BaseView(MethodView):
         return render_template(cls.get_edit_template(), **context), 400
 
     @classmethod
-    def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
+    def get_submit_redirect_target(cls, object_id: str, core_response: dict[str, Any]) -> str:
         return cls.get_base_route()
 
     @classmethod
-    def handle_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
+    def handle_submit_error(cls, object_id: str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
         persisted_object_id, model_instance, response_message = cls.resolve_update_response(object_id, resp_obj)
         return render_template(
             cls.get_update_template(),
@@ -602,7 +600,7 @@ class BaseView(MethodView):
         ), 400
 
     @classmethod
-    def handle_submit_success(cls, object_id: int | str, core_response: dict[str, Any]) -> ResponseReturnValue:
+    def handle_submit_success(cls, object_id: str, core_response: dict[str, Any]) -> ResponseReturnValue:
         resolved_object_id = object_id
         if (response_object_id := core_response.get("id")) and not cls.is_create_object_id(response_object_id):
             resolved_object_id = response_object_id
@@ -616,7 +614,7 @@ class BaseView(MethodView):
         return flask_response
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        return self.update_view_table(object_id=self._get_object_id(kwargs) or 0)
+        return self.update_view_table(object_id=self._get_object_id(kwargs) or "0")
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)

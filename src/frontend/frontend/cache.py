@@ -114,7 +114,7 @@ class FrontendCache:
     def model_list_key(self, username: str, model_name: str, suffix: str | int | None) -> str:
         return build_model_list_key(self.key_prefix, username, model_name, suffix)
 
-    def model_detail_key(self, username: str, model_name: str, object_id: str | int | None = None) -> str:
+    def model_detail_key(self, username: str, model_name: str, object_id: str | None = None) -> str:
         return build_model_detail_key(self.key_prefix, username, model_name, object_id)
 
     def user_profile_key(self, username: str) -> str:
@@ -168,7 +168,7 @@ def get_cached_users() -> list[UserProfile]:
     return users
 
 
-def add_model_to_cache(model: T, cache_key: str, user_id: int | str) -> T | None:
+def add_model_to_cache(model: T, cache_key: str, user_id: str) -> T | None:
     try:
         cache.set(
             key=cache.model_detail_key(str(user_id), model._model_name, cache_key),
@@ -181,7 +181,7 @@ def add_model_to_cache(model: T, cache_key: str, user_id: int | str) -> T | None
         return None
 
 
-def get_model_from_cache(model_name: str, cache_key: str, user_id: int | str) -> dict[str, Any] | None:
+def get_model_from_cache(model_name: str, cache_key: str, user_id: str) -> dict[str, Any] | None:
     return cache.get(cache.model_detail_key(str(user_id), model_name, cache_key))
 
 
