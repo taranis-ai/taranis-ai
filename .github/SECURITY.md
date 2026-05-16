@@ -7,8 +7,7 @@ Older releases may receive fixes when the project maintainers determine that the
 
 ## Reporting a Vulnerability
 
-Please report suspected vulnerabilities through GitHub's private vulnerability reporting for this repository.
-If private vulnerability reporting is unavailable, open a public issue requesting a private security contact, but do not include vulnerability details in that issue.
+Please report suspected vulnerabilities through GitHub's private vulnerability reporting for this repository or send an email to taranis@list.ait.ac.at.
 
 Include as much detail as possible:
 
@@ -19,3 +18,4 @@ Include as much detail as possible:
 - any known mitigations.
 
 We will acknowledge valid reports and coordinate disclosure timelines through the private report.
+
