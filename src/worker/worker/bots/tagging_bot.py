@@ -3,6 +3,7 @@ import re
 from worker.log import logger
 
 from .base_bot import BaseBot
+from .tagging_content import _news_item_content_for_tagging
 
 
 class TaggingBot(BaseBot):
@@ -27,11 +28,8 @@ class TaggingBot(BaseBot):
             for news_item in story["news_items"]:
                 findings = set()
                 existing_tags = self._tag_names(news_item.get("tags") or {})
-                content = news_item["content"]
-                title = news_item["title"]
-                review = news_item["review"]
 
-                analyzed_content = set((title + review + content).split())
+                analyzed_content = set(_news_item_content_for_tagging(news_item).split())
 
                 for element in analyzed_content:
                     if finding := re.search(f"({regexp})", element.strip(".,")):

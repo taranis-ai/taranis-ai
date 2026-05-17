@@ -352,6 +352,33 @@ def test_update_news_item_tags_posts_to_news_item_endpoint_and_rerenders_card(au
     assert 'hx-swap-oob="outerHTML"' in response.text
 
 
+def test_update_news_item_tags_filters_blank_rows_before_core_request(authenticated_client, responses_mock):
+    story_payload = story_with_news_item_tags()
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/news-1/tags",
+        json={"message": "Tags updated"},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}",
+        json=story_payload,
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.update_news_item_tags", news_item_id="news-1"),
+        data=MultiDict(
+            [
+                ("story_id", story_payload["id"]),
+                ("tags[][name]", ""),
+                ("tags[][tag_type]", ""),
+            ]
+        ),
+    )
+
+    assert response.status_code == 200
+    tag_call = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/news-items/news-1/tags"))
+    assert json.loads(tag_call.request.body) == []
+
+
 def test_update_news_item_tags_propagates_core_error_and_does_not_rerender_card(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     responses_mock.put(

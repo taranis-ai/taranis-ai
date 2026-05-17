@@ -142,7 +142,7 @@ class UpdateNewsItemTags(MethodView):
             return {"error": "Tags must be a list or object"}, 400
 
         response, status = item.set_tags(tags, user=current_user)
-        invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+        invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"), object_ids={"news_item": news_item_id})
         return response, status
 
 

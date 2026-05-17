@@ -718,7 +718,7 @@ class StoryView(BaseView):
     @staticmethod
     def _normalize_news_item_tags(tags: Any) -> list[dict[str, str]]:
         if isinstance(tags, dict):
-            tags = list(tags.values())
+            tags = [tags] if "name" in tags else list(tags.values())
         if not isinstance(tags, list):
             return []
 

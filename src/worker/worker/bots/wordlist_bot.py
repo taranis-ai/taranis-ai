@@ -3,6 +3,7 @@ import re
 from worker.log import logger
 
 from .base_bot import BaseBot
+from .tagging_content import _news_item_content_for_tagging
 
 
 class WordlistBot(BaseBot):
@@ -54,7 +55,7 @@ class WordlistBot(BaseBot):
         entry_set = {item["value"]: item["category"] for item in word_list_entries}
         existing_tags = self._tag_names(news_item.get("tags") or {})
 
-        all_content = self._news_item_content(news_item)
+        all_content = _news_item_content_for_tagging(news_item)
 
         for entry, category in entry_set.items():
             if re.search(r"\b" + re.escape(entry) + r"\b", all_content, ignore_case):
@@ -63,10 +64,6 @@ class WordlistBot(BaseBot):
                 findings[entry] = category
 
         return findings
-
-    @staticmethod
-    def _news_item_content(news_item):
-        return " ".join([news_item.get("title", ""), news_item.get("review", ""), news_item.get("content", "")])
 
     @staticmethod
     def _tag_names(tags) -> set[str]:

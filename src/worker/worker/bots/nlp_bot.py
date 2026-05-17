@@ -2,6 +2,7 @@ from worker.bot_api import BotApi
 from worker.config import Config
 
 from .base_bot import BaseBot
+from .tagging_content import _news_item_content_for_tagging
 
 
 def batched(stories: list, batch_size=10):
@@ -41,7 +42,7 @@ class NLPBot(BaseBot):
             else:
                 is_cybersecurity = False
             for news_item in story["news_items"]:
-                news_item_content = "\n".join([news_item.get("title", ""), news_item.get("review", ""), news_item.get("content", "")])
+                news_item_content = _news_item_content_for_tagging(news_item, separator="\n")
                 current_keywords = self._extract_ner(news_item_content, is_cybersecurity)
                 update_result[news_item["id"]] = current_keywords
 
