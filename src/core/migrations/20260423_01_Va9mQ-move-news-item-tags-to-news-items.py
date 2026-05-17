@@ -68,6 +68,37 @@ steps = [
 
         """,
         """
+        INSERT INTO news_item_tag (name, tag_type, story_id)
+        SELECT DISTINCT attr.value, attr.key, snia.story_id
+        FROM story_news_item_attribute snia
+        JOIN news_item_attribute attr ON attr.id = snia.news_item_attribute_id
+        WHERE attr.key ILIKE 'report_%'
+          AND attr.id = md5('report-tag-attribute:' || snia.story_id || ':' || lower(attr.key))
+          AND NOT EXISTS (
+              SELECT 1
+              FROM news_item_tag tag
+              WHERE tag.story_id = snia.story_id
+                AND tag.tag_type = attr.key
+                AND tag.name = attr.value
+          );
+
+        DELETE FROM story_news_item_attribute snia
+        USING news_item_attribute attr
+        WHERE attr.id = snia.news_item_attribute_id
+          AND attr.key ILIKE 'report_%'
+          AND attr.id = md5('report-tag-attribute:' || snia.story_id || ':' || lower(attr.key));
+
+        DELETE FROM news_item_attribute attr
+        WHERE attr.key ILIKE 'report_%'
+          AND EXISTS (
+              SELECT 1 FROM story WHERE attr.id = md5('report-tag-attribute:' || story.id || ':' || lower(attr.key))
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM story_news_item_attribute snia WHERE snia.news_item_attribute_id = attr.id
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM news_item_news_item_attribute ninia WHERE ninia.news_item_attribute_id = attr.id
+          );
         """,
     ),
     step(
