@@ -354,6 +354,25 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert search_input.get("hx-trigger") is None
 
 
+def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):
+    with app.test_request_context():
+        markup = render_template_string(
+            """
+            {% from "assess/sidebar/filter_token_select.html" import filter_token_select, filter_token_select_assets %}
+            {{ filter_token_select_assets() }}
+            {{ filter_token_select(id="source-filter", placeholder="Select sources", selected_items=[], options=[]) }}
+            """
+        )
+
+    assert '@click.outside="closeList()"' in markup
+    assert '@blur="closeList()"' not in markup
+    assert "closeTimer" not in markup
+    assert "closeListNow" not in markup
+    assert "setTimeout" not in markup
+    remove_item_body = markup.split("removeItem(item) {", 1)[1].split("selectFirst()", 1)[0]
+    assert "openList()" not in remove_item_body
+
+
 def test_assess_selection_key_ignores_paging_params():
     selection_key = StoryView._build_assess_selection_key(
         {

@@ -1,39 +1,12 @@
 {% from "assess/sidebar/filter_token_select.html" import filter_token_select %}
-
-{% set ns = namespace(options=[], selected_items=[]) %}
-{% set source_ids = filter_lists.sources | map(attribute="id") | list %}
-{% set group_ids = filter_lists.groups | map(attribute="id") | list %}
-
-{% for source in filter_lists.sources if source.id %}
-  {% set option = {"value": source.id, "label": source.name, "name": "source", "group": "OSINT Sources"} %}
-  {% set ns.options = ns.options + [option] %}
-  {% if source.id in selected_sources %}
-    {% set ns.selected_items = ns.selected_items + [option] %}
-  {% endif %}
-{% endfor %}
-
-{% for group in filter_lists.groups if group.id %}
-  {% set option = {"value": group.id, "label": group.name, "name": "group", "group": "Source Groups"} %}
-  {% set ns.options = ns.options + [option] %}
-  {% if group.id in selected_groups %}
-    {% set ns.selected_items = ns.selected_items + [option] %}
-  {% endif %}
-{% endfor %}
-
-{% for source_id in selected_sources if source_id not in source_ids %}
-  {% set ns.selected_items = ns.selected_items + [{"value": source_id, "label": source_id, "name": "source", "group": "OSINT Sources"}] %}
-{% endfor %}
-
-{% for group_id in selected_groups if group_id not in group_ids %}
-  {% set ns.selected_items = ns.selected_items + [{"value": group_id, "label": group_id, "name": "group", "group": "Source Groups"}] %}
-{% endfor %}
+{% set filter_select = source_filter_select | default({"options": [], "selected_items": []}) %}
 
 {# djlint:off #}
 {{ filter_token_select(
   id="source-filter",
   placeholder="Select sources",
-  selected_items=ns.selected_items,
-  options=ns.options,
+  selected_items=filter_select.selected_items,
+  options=filter_select.options,
   input_name="source",
   icon="rss",
   no_results_text="No sources found."

@@ -97,9 +97,14 @@ class StoryView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
-        base_context["filter_lists"] = cls._get_filter_lists()
+        filter_lists = cls._get_filter_lists()
+        base_context["filter_lists"] = filter_lists
+        assess_request_args: dict[str, list[str]] = {}
         if request.endpoint == "assess.assess":
-            base_context["assess_request_args"] = cls._get_assess_request_params()
+            assess_request_args = cls._get_assess_request_params()
+            base_context["assess_request_args"] = assess_request_args
+        base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
+        base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
         if stories := base_context.get("stories"):
             enhanced_stories = cls._get_enhanced_stories(stories, list(base_context["filter_lists"].sources))
             base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
@@ -143,6 +148,82 @@ class StoryView(BaseView):
             add_model_to_cache(filter_lists, "", username)
             return filter_lists
         return FilterLists(tags=[], sources=[], groups=[])
+
+    @staticmethod
+    def _filter_token_item(value: str, label: str, name: str, group: str | None = None) -> dict[str, str]:
+        item = {"value": value, "label": label, "name": name}
+        if group:
+            item["group"] = group
+        return item
+
+    @staticmethod
+    def _get_group_field(group: Any, field: str) -> str:
+        value = group.get(field) if isinstance(group, dict) else getattr(group, field, None)
+        return str(value) if value not in (None, "") else ""
+
+    @classmethod
+    def _build_source_filter_select(cls, filter_lists: FilterLists, request_args: dict[str, list[str]]) -> dict[str, list[dict[str, str]]]:
+        selected_sources = request_args.get("source", [])
+        selected_groups = request_args.get("group", [])
+        selected_source_ids = set(selected_sources)
+        selected_group_ids = set(selected_groups)
+        source_ids: set[str] = set()
+        group_ids: set[str] = set()
+        options: list[dict[str, str]] = []
+        selected_items: list[dict[str, str]] = []
+
+        for source in filter_lists.sources:
+            source_id = str(source.id) if source.id else ""
+            if not source_id:
+                continue
+            source_ids.add(source_id)
+            option = cls._filter_token_item(source_id, source.name, "source", "Source")
+            options.append(option)
+            if source_id in selected_source_ids:
+                selected_items.append(option)
+
+        for group in filter_lists.groups:
+            group_id = cls._get_group_field(group, "id")
+            if not group_id:
+                continue
+            group_ids.add(group_id)
+            group_name = cls._get_group_field(group, "name") or group_id
+            option = cls._filter_token_item(group_id, group_name, "group", "Group")
+            options.append(option)
+            if group_id in selected_group_ids:
+                selected_items.append(option)
+
+        selected_items.extend(
+            cls._filter_token_item(source_id, source_id, "source", "Source") for source_id in selected_sources if source_id not in source_ids
+        )
+        selected_items.extend(
+            cls._filter_token_item(group_id, group_id, "group", "Group") for group_id in selected_groups if group_id not in group_ids
+        )
+
+        return {"options": options, "selected_items": selected_items}
+
+    @classmethod
+    def _build_language_filter_select(cls, filter_lists: FilterLists, request_args: dict[str, list[str]]) -> dict[str, list[dict[str, str]]]:
+        selected_languages = request_args.get("language", [])
+        available_languages = [str(language) for language in filter_lists.languages]
+        available_language_ids = set(available_languages)
+        selected_language_ids = set(selected_languages)
+        options: list[dict[str, str]] = []
+        selected_items: list[dict[str, str]] = []
+
+        for language in available_languages:
+            option = cls._filter_token_item(language, language.upper(), "language")
+            options.append(option)
+            if language in selected_language_ids:
+                selected_items.append(option)
+
+        selected_items.extend(
+            cls._filter_token_item(language, language.upper(), "language")
+            for language in selected_languages
+            if language not in available_language_ids
+        )
+
+        return {"options": options, "selected_items": selected_items}
 
     @staticmethod
     def _normalize_assess_filter_values(values: Any) -> list[str]:

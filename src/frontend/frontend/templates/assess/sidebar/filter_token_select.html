@@ -34,7 +34,6 @@
         inputName: defaultInputName,
         query: "",
         isOpen: false,
-        closeTimer: null,
         formEl: null,
         limit: config.limit || 50,
         noResultsText: config.noResultsText || "No items found.",
@@ -69,7 +68,7 @@
           if (this.hasRemoteSuggestions()) {
             this.clearSuggestions();
           } else {
-            this.closeListNow();
+            this.closeList();
           }
           this.requestSidebarRefresh();
           this.$nextTick(() => {
@@ -84,9 +83,6 @@
           const updated = this.selectedItems.filter((selected) => this.itemKey(selected) !== key);
           if (updated.length === this.selectedItems.length) return;
           this.selectedItems = updated;
-          if (!this.hasRemoteSuggestions()) {
-            this.openList();
-          }
           this.requestSidebarRefresh();
         },
         selectFirst() {
@@ -95,24 +91,11 @@
           if (firstOption) this.addItem(firstOption);
         },
         openList() {
-          if (this.closeTimer) {
-            window.clearTimeout(this.closeTimer);
-            this.closeTimer = null;
-          }
           this.isOpen = true;
           this.$refs.suggestionsList?.style.removeProperty("display");
         },
         closeList() {
-          this.closeTimer = window.setTimeout(() => {
-            this.closeListNow();
-          }, 150);
-        },
-        closeListNow() {
-          if (this.closeTimer) {
-            window.clearTimeout(this.closeTimer);
-          }
           this.isOpen = false;
-          this.closeTimer = null;
           this.$refs.suggestionsList?.style.setProperty("display", "none");
         },
         hasQuery() {
@@ -172,7 +155,8 @@
              noResultsText: {{ no_results_text | tojson }},
              showAllOnFocus: {{ show_all_on_focus | tojson }}
            })'
-           x-effect="clearSuggestionsIfNeeded()">
+           x-effect="clearSuggestionsIfNeeded()"
+           @click.outside="closeList()">
     <div class="dropdown w-full mb-1" :class="{'dropdown-open': shouldShowOptions()}">
       <label class="input input-bordered input-sm flex items-center gap-2">
         {{ heroicon_outline(icon, class='h-4 w-4 text-base-content/70') }}
@@ -185,7 +169,6 @@
                x-model="query"
                x-ref="searchInput"
                @focus="openList()"
-               @blur="closeList()"
                @change.stop
                @keydown.enter.prevent="selectFirst()"
                @keydown.escape="closeList()"

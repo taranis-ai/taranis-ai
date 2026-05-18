@@ -3,10 +3,7 @@
 {% from "macros/htmx.html" import search_trigger %}
 {% set base_url = routes.base_route %}
 {% set request_args = assess_request_args | default({}) %}
-{% set selected_groups = request_args.get('group', []) %}
-{% set selected_sources = request_args.get('source', []) %}
 {% set selected_tags = request_args.get('tags', []) %}
-{% set selected_languages = request_args.get('language', []) %}
 {% set current_search = request_args.get('search', ['']) | first %}
 {% set current_limit = request_args.get('limit', [20]) | first %}
 {% set current_sort = request_args.get('sort', ['']) | first %}
