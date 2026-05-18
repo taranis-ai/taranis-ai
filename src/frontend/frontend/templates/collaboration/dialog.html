@@ -1,0 +1,51 @@
+<dialog id="collaboration_dialog" class="modal modal-open">
+  <div class="modal-box max-w-2xl">
+    <h3 class="text-xl font-semibold">Collaboration Channel</h3>
+    <p class="mt-2 text-sm text-base-content/70">
+      Create a new collaboration channel or add the selected stories to an existing open channel.
+      The channel title is what you will see in the collaboration workspace and share with partners.
+    </p>
+
+    <form class="mt-6 space-y-5"
+          x-data="{ selectedChannel: {{ (current_channel_id or '') | tojson }} }"
+          method="post"
+          action="{{ url_for('collaboration.submit_dialog') }}"
+          hx-post="{{ url_for('collaboration.submit_dialog') }}"
+          hx-target="#notification-bar"
+          hx-swap="outerHTML">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+      {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
+
+      <label class="form-control">
+        <span class="label-text font-medium">Existing channel</span>
+        <select class="select select-bordered" name="channel_id" x-model="selectedChannel">
+          <option value="">Create a new channel</option>
+          {% for channel in open_channels %}
+            <option value="{{ channel.channel_id }}" {% if current_channel_id == channel.channel_id %}selected{% endif %}>
+              {{ channel.topic }} ({{ channel.story_count }} stories)
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="form-control" :class="{ 'opacity-60': selectedChannel }">
+        <span class="label-text font-medium">Channel title for new channel</span>
+        <input class="input input-bordered"
+               type="text"
+               name="topic"
+               value="{{ topic }}"
+               placeholder="Example: Ransomware cluster review"
+               :disabled="!!selectedChannel">
+        <span class="label-text-alt text-base-content/60" x-show="!selectedChannel">
+          This becomes the channel name shown in the collaboration workspace, invite flow, and channel switcher.
+        </span>
+        <span class="label-text-alt text-base-content/60" x-show="!!selectedChannel">Ignored while adding stories to an existing channel.</span>
+      </label>
+
+      <div class="modal-action">
+        <button class="btn btn-primary" type="submit">Open Collaboration</button>
+        <button class="btn" type="button" onclick="document.getElementById('collaboration_dialog').remove()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</dialog>

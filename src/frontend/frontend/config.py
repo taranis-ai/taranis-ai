@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     TARANIS_CORE_URL: str = "http://local.taranis.ai/api"
     TARANIS_CORE_HOST: str = "http://local.taranis.ai"
     TARANIS_BASE_PATH: str = "/"
+    COLLAB_EXTERNAL_BASE_URL: str | None = None
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
     REQUESTS_TRUST_ENV: bool = True

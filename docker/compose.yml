@@ -34,6 +34,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    extra_hosts:
+      - "alpha.local.taranis.ai:host-gateway"
+      - "bravo.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
@@ -53,6 +56,7 @@ services:
 
       GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
       GRANIAN_HOST: "${GRANIAN_HOST:-0.0.0.0}"
+      GRANIAN_WORKERS: "${GRANIAN_WORKERS:-2}"
       TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
@@ -60,6 +64,8 @@ services:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
+      CACHE_REDIS_URL: ${CACHE_REDIS_URL:-redis://redis:6379/1}
+      COLLAB_EXTERNAL_BASE_URL: "${COLLAB_EXTERNAL_BASE_URL:-http://localhost:${TARANIS_PORT:-8080}}"
     volumes:
       - "core_data:/app/data"
     healthcheck:
@@ -102,6 +108,9 @@ services:
         max-file: "10"
 
   frontend:
+    extra_hosts:
+      - "alpha.local.taranis.ai:host-gateway"
+      - "bravo.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
@@ -112,7 +121,12 @@ services:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      REDIS_URL: "redis://redis:6379/0"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+      CACHE_REDIS_URL: "${CACHE_REDIS_URL:-redis://redis:6379/1}"
+      CACHE_REDIS_PASSWORD: "${CACHE_REDIS_PASSWORD:-}"
       DEBUG: "${DEBUG:-False}"
+      COLLAB_EXTERNAL_BASE_URL: "${COLLAB_EXTERNAL_BASE_URL:-http://localhost:${TARANIS_PORT:-8080}}"
     healthcheck:
       test: ["CMD", "taranis-frontend-healthcheck"]
       interval: 1m30s
@@ -129,6 +143,9 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    extra_hosts:
+      - "alpha.local.taranis.ai:host-gateway"
+      - "bravo.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
@@ -158,6 +175,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    extra_hosts:
+      - "alpha.local.taranis.ai:host-gateway"
+      - "bravo.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
@@ -185,6 +205,9 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    extra_hosts:
+      - "alpha.local.taranis.ai:host-gateway"
+      - "bravo.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
@@ -210,76 +233,76 @@ services:
         max-file: "10"
 
 
-  summary_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-stable}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
+  # summary_bot:
+  #   depends_on:
+  #     workers:
+  #       condition: service_healthy
+  #   deploy:
+  #     restart_policy:
+  #       condition: always
+  #   image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-stable}"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+  #     interval: 1m30s
+  #     timeout: 30s
+  #     retries: 5
+  #     start_period: 30s
+  #   environment:
+  #     API_KEY: "${BOT_API_KEY}"
+  #     DEBUG: "${DEBUG:-False}"
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "200k"
+  #       max-file: "10"
 
 
-  nlp_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-natural-language-processing:${TARANIS_BOT_TAG:-stable}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
+  # nlp_bot:
+  #   depends_on:
+  #     workers:
+  #       condition: service_healthy
+  #   deploy:
+  #     restart_policy:
+  #       condition: always
+  #   image: "${DOCKER_IMAGE_NAMESPACE}/taranis-natural-language-processing:${TARANIS_BOT_TAG:-stable}"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+  #     interval: 1m30s
+  #     timeout: 30s
+  #     retries: 5
+  #     start_period: 30s
+  #   environment:
+  #     API_KEY: "${BOT_API_KEY}"
+  #     DEBUG: "${DEBUG:-False}"
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "200k"
+  #       max-file: "10"
 
 
-  story_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering:${TARANIS_BOT_TAG:-stable}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
+  # story_bot:
+  #   depends_on:
+  #     workers:
+  #       condition: service_healthy
+  #   deploy:
+  #     restart_policy:
+  #       condition: always
+  #   image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering:${TARANIS_BOT_TAG:-stable}"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+  #     interval: 1m30s
+  #     timeout: 30s
+  #     retries: 5
+  #     start_period: 30s
+  #   environment:
+  #     API_KEY: "${BOT_API_KEY}"
+  #     DEBUG: "${DEBUG:-False}"
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "200k"
+  #       max-file: "10"
 
 
   redis:
@@ -302,9 +325,8 @@ services:
       fi
       '
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" ping; else redis-cli ping; fi | grep PONG"]
       interval: 10s
-      start_period: 10s
       timeout: 3s
       retries: 3
     logging:

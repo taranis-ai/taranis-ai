@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
+    COLLAB_EXTERNAL_BASE_URL: str | None = None
     TARANIS_CORE_SENTRY_DSN: str | None = None
     DISABLE_PPN_COLLECTOR: bool = True
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024

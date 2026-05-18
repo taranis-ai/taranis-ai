@@ -33,7 +33,21 @@ class CoreApi:
         return message
 
     def get_headers(self) -> dict[str, str]:
-        return {"Authorization": f"Bearer {self.jwt_token}", "Content-type": "application/json"}
+        headers = {"Authorization": f"Bearer {self.jwt_token}", "Content-type": "application/json"}
+        external_base_url = self.get_external_base_url()
+        if external_base_url:
+            headers["X-Taranis-External-Base-Url"] = external_base_url
+        return headers
+
+    @staticmethod
+    def get_external_base_url() -> str | None:
+        if Config.COLLAB_EXTERNAL_BASE_URL:
+            return Config.COLLAB_EXTERNAL_BASE_URL.rstrip("/")
+        try:
+            host_url = request.host_url.rstrip("/")
+        except RuntimeError:
+            return None
+        return host_url or None
 
     def get_jwt_from_request(self):
         return request.cookies.get(Config.JWT_ACCESS_COOKIE_NAME)
@@ -259,6 +273,45 @@ class CoreApi:
         if story_id:
             return self.api_get(f"/connectors/conflicts/stories/{story_id}")
         return self.api_get("/connectors/conflicts/stories")
+
+    def get_collaboration_channels(self):
+        return self.api_get("/assess/collab/channels")
+
+    def get_collaboration_channel(self, channel_id: str):
+        return self.api_get(f"/assess/collab/channels/{channel_id}")
+
+    def create_collaboration_channel(self, topic: str, story_ids: list[str]) -> requests.Response:
+        return self.api_post("/assess/collab/channels", json_data={"topic": topic, "story_ids": story_ids})
+
+    def redeem_collaboration_invite(self, owner_base_url: str, channel_id: str, token: str) -> requests.Response:
+        return self.api_post(
+            "/assess/collab/invites/redeem",
+            json_data={"owner_base_url": owner_base_url, "channel_id": channel_id, "token": token},
+        )
+
+    def add_stories_to_collaboration(self, channel_id: str, story_ids: list[str]) -> requests.Response:
+        return self.api_post(f"/assess/collab/channels/{channel_id}/stories", json_data={"story_ids": story_ids})
+
+    def update_collaboration_story(self, channel_id: str, snapshot_id: str, payload: dict[str, Any]) -> requests.Response:
+        return self.api_post(f"/assess/collab/channels/{channel_id}/story-update", json_data={"snapshot_id": snapshot_id, "payload": payload})
+
+    def move_collaboration_news_item(
+        self, channel_id: str, source_snapshot_id: str, target_snapshot_id: str, news_item_id: str
+    ) -> requests.Response:
+        return self.api_post(
+            f"/assess/collab/channels/{channel_id}/move-news-item",
+            json_data={
+                "source_snapshot_id": source_snapshot_id,
+                "target_snapshot_id": target_snapshot_id,
+                "news_item_id": news_item_id,
+            },
+        )
+
+    def finalize_collaboration_channel(self, channel_id: str, story_ids: list[str] | None = None) -> requests.Response:
+        return self.api_post(f"/assess/collab/channels/{channel_id}/finalize", json_data={"story_ids": story_ids or []})
+
+    def close_collaboration_channel(self, channel_id: str) -> requests.Response:
+        return self.api_post(f"/assess/collab/channels/{channel_id}/close")
 
     def resolve_story_conflict(self, story_id: str, resolution: dict, incoming_story_original: dict):
         payload = {

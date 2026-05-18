@@ -45,6 +45,12 @@ class SSEManager:
     def product_rendered(self, data):
         self.publish({"data": data, "event": "product-rendered"})
 
+    def collab_channel_updated(self, data):
+        self.publish({"data": data, "event": "collab-channel-updated"})
+
+    def collab_channel_closed(self, data):
+        self.publish({"data": data, "event": "collab-channel-closed"})
+
     def to_report_item_json(self, report_item_id: str):
         if report_item_id not in self.report_item_locks.keys():
             return {"report_item_id": report_item_id, "locked": False}

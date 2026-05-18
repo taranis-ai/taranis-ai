@@ -16,6 +16,7 @@ from .admin_views.word_list_views import WordListView
 from .admin_views.worker_views import WorkerView
 from .asset_views import AssetView
 from .auth_views import AuthView
+from .collaboration_views import CollaborationView
 from .dashboard_views import DashboardView
 from .product_views import ProductView
 from .report_views import ReportItemView
@@ -25,6 +26,7 @@ from .user_views import UserProfileView
 __all__ = [
     "AuthView",
     "AssetView",
+    "CollaborationView",
     "ACLView",
     "AdminDashboardView",
     "TemplateView",

@@ -42,6 +42,13 @@
         Publish
       </a>
     </li>
+    {% set collab_current = session.get('collab_current_channel', '') %}
+    <li>
+      <a href="{{ url_for('collaboration.workspace_channel', channel_id=collab_current) if collab_current else url_for('collaboration.workspace') }}">
+        {{ heroicon_outline("users") }}
+        Collaboration
+      </a>
+    </li>
     <li>
       <a href="{{ url_for('assets.assets') }}">
         {{ heroicon_outline("document-chart-bar") }}

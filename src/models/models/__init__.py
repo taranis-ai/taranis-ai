@@ -1,5 +1,6 @@
 from models.admin import ACL, Address, Job, Organization, Permission, ProductType, ReportItemType, Role, Template, User
 from models.base import TaranisBaseModel
+from models.collaboration import CollabChannelDetail, CollabChannelSummary, CollabInvite
 from models.dashboard import Dashboard, TrendingCluster
 from models.task import Task
 from models.types import WORKER_CATEGORY, WORKER_TYPES, TLPLevel
@@ -13,6 +14,9 @@ __all__ = [
     "Organization",
     "Role",
     "User",
+    "CollabChannelDetail",
+    "CollabChannelSummary",
+    "CollabInvite",
     "Permission",
     "Dashboard",
     "Template",

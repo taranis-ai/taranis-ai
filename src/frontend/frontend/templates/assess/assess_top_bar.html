@@ -35,11 +35,44 @@
         </button>
 
         <button type="button"
+                class="btn btn-outline"
+                hx-get="{{ url_for('collaboration.dialog') }}"
+                hx-target="body"
+                hx-swap="beforeend"
+                :hx-vals='action_vals()'>
+          {{ heroicon_mini("users") }}
+          <span class="text-sm">Collaborate</span>
+        </button>
+
+        <button type="button"
+                class="btn btn-outline"
+                hx-trigger="click, keyup[shiftKey && code == 'Space'] from:body"
+                hx-post="{{ url_for('assess.bulk_action') }}"
+                :hx-vals='action_vals("read", !selectedItemsAreRead())'>
+          {{ heroicon_mini("eye") }}
+          <span class="text-sm" x-text="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"></span>
+          <span class="text-xs opacity-80" x-show="showHints">
+            <kbd class="kbd kbd-xs">Shift+Space</kbd>
+          </span>
+        </button>
+
+        <button type="button"
+                class="btn btn-outline"
+                hx-trigger="click, keyup[shiftKey && key == 'I'] from:body"
+                hx-post="{{ url_for('assess.bulk_action') }}"
+                :hx-vals='action_vals("important", !selectedItemsAreImportant())'>
+          {{ heroicon_mini("star") }}
+          <span class="text-sm" x-text="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"></span>
+          <span class="text-xs" x-show="showHints">
+            <kbd class="kbd kbd-xs">Shift+I</kbd>
+          </span>
+        </button>
+
+        <button type="button"
                 x-ref="clusterButton"
                 class="btn btn-outline btn-sm"
                 x-show="selectedItems.length >= 2"
-                hx-trigger="click"
-                @keyup.shift.g.prevent.window="selectedItems.length >= 2 && $refs.clusterButton.click()"
+                hx-trigger="click, keyup[shiftKey && key == 'G'] from:body"
                 hx-get="{{ url_for('assess.cluster_story') }}"
                 hx-target="body"
                 hx-swap="beforeend"

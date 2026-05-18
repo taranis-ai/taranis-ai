@@ -39,6 +39,15 @@
   </button>
   <button type="button"
           class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+          hx-get='{{ url_for("collaboration.dialog") }}?story_id={{ story_id }}'
+          hx-target="body"
+          hx-swap="beforeend"
+          data-testid="collaborate-story">
+    {{ heroicon_mini("users") }}
+    <span>Collaborate</span>
+  </button>
+  <button type="button"
+          class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
           hx-get='{{ url_for("assess.share_story") }}?story_id={{ story_id }}'
           hx-target="body"
           hx-swap="beforeend"

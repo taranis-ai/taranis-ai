@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% set request_path = request.path %}
+  {% set sse_base = request_path.split('/frontend', 1)[0] if '/frontend' in request_path else '' %}
+  {% set sse_url = sse_base ~ '/sse' %}
+  <div class="p-6" id="collaboration-workspace">
+    {% if notification_html %}{{ notification_html | safe }}{% endif %}
+
+    <div class="mb-6 flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-semibold">Collaboration</h1>
+        <p class="text-sm text-base-content/70">Live demo workspace for cross-instance story collaboration.</p>
+      </div>
+      <a class="btn btn-outline" href="{{ url_for('assess.assess') }}">
+        {{ heroicon_mini("arrow-left") }}
+        Back to Assess
+      </a>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-[20rem_minmax(0,1fr)]">
+      <aside class="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-lg font-medium">Open Channels</h2>
+          <span class="badge badge-ghost">{{ channels | length }}</span>
+        </div>
+        <div class="space-y-3">
+          {% if channels %}
+            {% for channel in channels %}
+              <a href="{{ url_for('collaboration.workspace_channel', channel_id=channel.channel_id) }}"
+                 class="block rounded-box border p-3 transition hover:border-primary hover:bg-base-200 {% if active_channel_id == channel.channel_id %}border-primary bg-base-200{% else %}border-base-300{% endif %}">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <div class="font-medium">{{ channel.topic }}</div>
+                    <div class="text-xs text-base-content/60">{{ channel.participant_count }} participants • {{ channel.story_count }} stories</div>
+                  </div>
+                  <span class="badge {% if channel.status == 'open' %}badge-success{% else %}badge-neutral{% endif %}">{{ channel.status }}</span>
+                </div>
+              </a>
+            {% endfor %}
+          {% else %}
+            <p class="text-sm text-base-content/60">No active collaboration channels in this session.</p>
+          {% endif %}
+        </div>
+      </aside>
+
+      <section class="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm">
+        {% if active_channel %}
+          <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-3">
+                <h2 class="text-2xl font-semibold">{{ active_channel.topic }}</h2>
+                <span class="badge {% if active_channel.status == 'open' %}badge-success{% else %}badge-neutral{% endif %}">{{ active_channel.status }}</span>
+              </div>
+              <p class="mt-2 text-sm text-base-content/70">Owner: {{ active_channel.owner_base_url }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              {% if active_channel.status == 'open' %}
+                <form method="post" action="{{ url_for('collaboration.finalize', channel_id=active_channel.channel_id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                  <button class="btn btn-primary" type="submit">
+                    {{ heroicon_mini("document-chart-bar") }}
+                    Finalize Stories
+                  </button>
+                </form>
+                <form method="post" action="{{ url_for('collaboration.close', channel_id=active_channel.channel_id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                  <button class="btn btn-outline" type="submit">
+                    {{ heroicon_mini("x-mark") }}
+                    Close Channel
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mb-6 rounded-box border border-base-300 bg-base-200 p-4">
+            <div class="mb-2 text-sm font-medium">Reusable invite</div>
+            <div class="flex flex-col gap-3 md:flex-row">
+              <input class="input input-bordered w-full" value="{{ active_channel.invite.join_url if active_channel.invite else '' }}" readonly>
+              <button class="btn btn-outline"
+                      type="button"
+                      onclick="navigator.clipboard.writeText({{ (active_channel.invite.join_url if active_channel.invite else '') | tojson }})">
+                {{ heroicon_mini("link") }}
+                Copy Link
+              </button>
+            </div>
+          </div>
+
+          {% if finalize_result.created_story_ids %}
+            <div class="mb-6 rounded-box border border-success/30 bg-success/10 p-4">
+              <div class="font-medium">Finalized {{ finalize_result.created_story_ids | length }} stories locally.</div>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <a class="btn btn-sm btn-outline"
+                   href="{{ url_for('analyze.report', report_id='0') }}?{% for story_id in finalize_result.report_story_ids %}story_ids={{ story_id }}&{% endfor %}">
+                  {{ heroicon_mini("document-plus") }}
+                  Create Report
+                </a>
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+            <div>
+              <h3 class="mb-3 text-lg font-medium">Participants</h3>
+              <div class="space-y-3">
+                {% for participant in active_channel.participants %}
+                  <div class="rounded-box border border-base-300 p-3">
+                    <div class="flex items-center justify-between gap-3">
+                      <div class="font-medium">{{ participant.base_url }}</div>
+                      <span class="badge badge-ghost">{{ participant.role }}</span>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+
+              <h3 class="mb-3 mt-6 text-lg font-medium">Channel Stories</h3>
+              <div class="space-y-3">
+                {% for story in active_channel.stories %}
+                  <a href="{{ url_for('collaboration.workspace_channel', channel_id=active_channel.channel_id) }}?story_id={{ story.id }}"
+                     class="block rounded-box border p-3 transition hover:border-primary hover:bg-base-200 {% if selected_story_id == story.id %}border-primary bg-base-200{% else %}border-base-300{% endif %}">
+                    <div class="font-medium">{{ story.title or "Untitled Story" }}</div>
+                    <div class="mt-1 text-xs text-base-content/60">{{ story.source_instance }} • {{ (story.story.news_items or []) | length }} news items</div>
+                    {% if story.story.summary %}
+                      <p class="mt-2 text-sm text-base-content/80">{{ story.story.summary | truncate(120, False, '…') }}</p>
+                    {% endif %}
+                  </a>
+                {% else %}
+                  <p class="text-sm text-base-content/60">No stories in this channel yet.</p>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div>
+              {% if selected_story %}
+                <div class="mb-4 flex items-start justify-between gap-4">
+                  <div>
+                    <h3 class="text-lg font-medium">Channel Story Editor</h3>
+                    <p class="mt-1 text-sm text-base-content/60">
+                      Edit the collaboration snapshot directly here. This is the demo editing surface for cross-instance work.
+                    </p>
+                  </div>
+                </div>
+
+                <form class="space-y-4"
+                      method="post"
+                      action="{{ url_for('collaboration.update_story', channel_id=active_channel.channel_id, snapshot_id=selected_story.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                  <label class="form-control">
+                    <span class="label-text">Story title</span>
+                    <input class="input input-bordered" type="text" name="title" value="{{ selected_story.story.title or '' }}">
+                  </label>
+
+                  <label class="form-control">
+                    <span class="label-text">Description</span>
+                    <textarea class="textarea textarea-bordered min-h-24" name="description">{{ selected_story.story.description or '' }}</textarea>
+                  </label>
+
+                  <label class="form-control">
+                    <span class="label-text">Summary</span>
+                    <textarea class="textarea textarea-bordered min-h-32" name="summary">{{ selected_story.story.summary or '' }}</textarea>
+                  </label>
+
+                  <label class="form-control">
+                    <span class="label-text">Analyst comments</span>
+                    <textarea class="textarea textarea-bordered min-h-32" name="comments">{{ selected_story.story.comments or '' }}</textarea>
+                  </label>
+
+                  <div class="flex gap-2">
+                    <button class="btn btn-primary" type="submit">
+                      {{ heroicon_mini("pencil-square") }}
+                      Save Story Changes
+                    </button>
+                    {% if selected_story.source_instance == active_channel.active_instance_base_url and selected_story.source_story_id %}
+                      <a class="btn btn-outline" href="{{ url_for('assess.assess') }}">
+                        {{ heroicon_mini("arrow-top-right-on-square") }}
+                        Back to Assess
+                      </a>
+                    {% endif %}
+                  </div>
+                </form>
+
+                <div class="mt-8">
+                  <h3 class="mb-3 text-lg font-medium">News Items</h3>
+                  <div class="space-y-4">
+                    {% for news_item in selected_story.story.news_items or [] %}
+                      <article class="rounded-box border border-base-300 p-4">
+                        <div class="flex items-start justify-between gap-4">
+                          <div class="min-w-0 flex-1">
+                            <div class="font-medium">{{ news_item.title or "Untitled News Item" }}</div>
+                            {% if news_item.link %}
+                              <a class="mt-1 block truncate text-sm link link-primary" href="{{ news_item.link }}" target="_blank" rel="noreferrer">{{ news_item.link }}</a>
+                            {% endif %}
+                            {% if news_item.content %}
+                              <p class="mt-3 whitespace-pre-line text-sm text-base-content/80">{{ news_item.content | truncate(900, False, '…') }}</p>
+                            {% endif %}
+                          </div>
+                          <form class="w-64 space-y-2"
+                                method="post"
+                                action="{{ url_for('collaboration.move_news_item', channel_id=active_channel.channel_id, snapshot_id=selected_story.id, news_item_id=news_item.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                            <label class="form-control">
+                              <span class="label-text">Move to story</span>
+                              <select class="select select-bordered" name="target_snapshot_id">
+                                {% for target_story in active_channel.stories %}
+                                  {% if target_story.id != selected_story.id %}
+                                    <option value="{{ target_story.id }}">{{ target_story.title or "Untitled Story" }}</option>
+                                  {% endif %}
+                                {% endfor %}
+                              </select>
+                            </label>
+                            <button class="btn btn-outline btn-sm w-full" type="submit" {% if active_channel.stories | length < 2 %}disabled{% endif %}>
+                              {{ heroicon_mini("arrows-right-left") }}
+                              Move News Item
+                            </button>
+                          </form>
+                        </div>
+                      </article>
+                    {% else %}
+                      <p class="text-sm text-base-content/60">No news items are attached to this channel story.</p>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% else %}
+                <h3 class="mb-3 text-lg font-medium">Channel Stories</h3>
+                <p class="text-sm text-base-content/60">Select a channel story to inspect and edit it.</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <script>
+            (() => {
+              const source = new EventSource({{ sse_url | tojson }});
+              const channelId = {{ active_channel.channel_id | tojson }};
+              const reloadWorkspace = (event) => {
+                try {
+                  const payload = JSON.parse(event.data);
+                  if (payload.channel_id === channelId) {
+                    window.location.reload();
+                  }
+                } catch {
+                  window.location.reload();
+                }
+              };
+              source.addEventListener("collab-channel-updated", reloadWorkspace);
+              source.addEventListener("collab-channel-closed", reloadWorkspace);
+              window.addEventListener("beforeunload", () => source.close(), { once: true });
+            })();
+          </script>
+        {% else %}
+          <div class="flex min-h-80 items-center justify-center rounded-box border border-dashed border-base-300">
+            <div class="text-center">
+              <h2 class="text-xl font-medium">No Active Collaboration Selected</h2>
+              <p class="mt-2 text-sm text-base-content/60">Start a channel from Assess or open an invite link on this instance.</p>
+            </div>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+{% endblock content %}

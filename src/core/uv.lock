@@ -300,6 +300,7 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/51/16/96b101f18cba17ecce3225ab07bc4c8f23e6befd8552dbbed87482e7c7fb/flask_jwt_extended-4.7.1.tar.gz", hash = "sha256:8085d6757505b6f3291a2638c84d207e8f0ad0de662d1f46aa2f77e658a0c976", size = 34411, upload-time = "2024-11-20T23:44:41.044Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/67/34/9a91da47b1565811ab4aa5fb134632c8d1757960bfa7d457f486947c4d75/Flask_JWT_Extended-4.7.1-py2.py3-none-any.whl", hash = "sha256:52f35bf0985354d7fb7b876e2eb0e0b141aaff865a22ff6cc33d9a18aa987978", size = 22588, upload-time = "2024-11-20T23:44:39.435Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/73/919244a6460bc87e3d2bc6028699fb0cf651274d5d07b530701a61d528f1/flask_jwt_extended-4.7.1-py2.py3-none-any.whl", hash = "sha256:17ac0d4bfe8b060b9c60d61bf98b703192a0090874e83c8eaa73653372656a5b", size = 22699, upload-time = "2026-05-08T16:30:59.808Z" },
 ]
 
 [[package]]
