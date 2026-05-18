@@ -274,17 +274,13 @@ class Story(BaseModel):
         return [item.link for item in self.news_items if getattr(item, "link", None)]
 
     @property
-    def aggregated_tags(self) -> list["NewsItemTag"]:
+    def tags(self) -> list["NewsItemTag"]:
         tags_by_identity: dict[tuple[str, str], NewsItemTag] = {}
         for news_item in self.news_items:
             for tag in news_item.tags:
                 if tag.name:
                     tags_by_identity[(tag.name, tag.tag_type or "misc")] = tag
-        return sorted(tags_by_identity.values(), key=lambda tag: (tag.name.lower(), (tag.tag_type or "").lower()))
-
-    @property
-    def tags(self) -> list["NewsItemTag"]:
-        return self.aggregated_tags
+        return [tags_by_identity[identity] for identity in sorted(tags_by_identity)]
 
     @property
     def relevance_source(self) -> int:
