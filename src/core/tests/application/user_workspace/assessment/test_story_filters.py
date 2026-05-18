@@ -98,56 +98,26 @@ class TestStoryFilters(BaseTest):
         self._assert_filtered_story_ids(client, auth_header, story_filter_data, filters, expected_story_keys)
 
     def test_filter_lists_include_news_item_languages(self, client, auth_header, story_filter_data):
-        from core.model.filter_data import FilterData
-
         response = client.get(self.concat_url("filter-lists"), headers=auth_header)
         payload = self.assert_json_ok(response).get_json()
 
         assert payload["languages"] == sorted(story_filter_data["languages"].values())
-        filter_data = FilterData.get(FilterData.ASSESS_FILTERLISTS_ID)
-        assert filter_data is not None
-        source_ids = {item["id"] for item in filter_data.sources}
-        assert set(filter_data.languages) == {"de", "en", "fr"}
-        assert "filter-alpha" in filter_data.tags
+        source_ids = {item["id"] for item in payload["sources"]}
+        assert set(payload["languages"]) == {"de", "en", "fr"}
+        assert "filter-alpha" in payload["tags"]
         assert story_filter_data["sources"]["source_only"] in source_ids
 
-    def test_rebuild_filter_data_task_refreshes_cached_filterlists(self, app, monkeypatch, story_filter_data):
-        from models.task import TaskSubmission
-
+    def test_filter_lists_reflect_language_changes_without_rebuild(self, app, client, auth_header, story_filter_data):
         from core.managers.db_manager import db
-        from core.model.filter_data import FilterData
         from core.model.story import Story
-        from core.service import cache_invalidation as cache_invalidation_module
-        from core.service.task import TaskService
-
-        invalidations = []
-        monkeypatch.setattr(
-            cache_invalidation_module,
-            "invalidate_frontend_cache_on_success",
-            lambda status, **kwargs: invalidations.append(kwargs) or status,
-        )
 
         with app.app_context():
-            FilterData.rebuild_filter_data()
             source_only = Story.get(story_filter_data["stories"]["source_only"])
             assert source_only is not None
             source_only.news_items[0].language = "es"
             db.session.commit()
 
-            response, status = TaskService.save_task_result(
-                TaskSubmission(
-                    id="rebuild_filter_data",
-                    task="rebuild_filter_data",
-                    result="Assess filter data rebuild triggered",
-                    status="SUCCESS",
-                    worker_id="rebuild_filter_data",
-                    worker_type="rebuild_filter_data",
-                )
-            )
+        response = client.get(self.concat_url("filter-lists"), headers=auth_header)
+        payload = self.assert_json_ok(response).get_json()
 
-            assert status == 200
-            assert response["id"] == "rebuild_filter_data"
-            filter_data = FilterData.get(FilterData.ASSESS_FILTERLISTS_ID)
-            assert filter_data is not None
-            assert set(filter_data.languages) == {"de", "en", "es"}
-            assert {"models": ("filter_lists",)} in invalidations
+        assert set(payload["languages"]) == {"de", "en", "es"}

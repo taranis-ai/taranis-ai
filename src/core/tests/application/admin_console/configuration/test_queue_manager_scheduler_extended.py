@@ -524,8 +524,8 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
         schedules, status = qm.get_scheduled_jobs()
 
     assert status == 200
-    # 120 OSINT cron jobs + housekeeping crons
-    assert schedules["total_count"] == 122
+    # 120 OSINT cron jobs + cleanup housekeeping cron
+    assert schedules["total_count"] == 121
 
 
 def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
@@ -579,11 +579,13 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
     qm._redis.hashes["rq:cron:def"] = {  # type: ignore[attr-defined]
         "osint_source_stale": b'{"cron":"0 * * * *"}',
         "bot_stale": b'{"cron":"0 * * * *"}',
+        "rebuild_filter_data": b'{"cron":"7 * * * *"}',
         "custom_keep": b'{"cron":"0 * * * *"}',
     }
     qm._redis.zsets["rq:cron:next"] = {  # type: ignore[attr-defined]
         "osint_source_stale": 1234.0,
         "bot_stale": 1234.0,
+        "rebuild_filter_data": 1234.0,
         "custom_keep": 1234.0,
     }
 
@@ -602,10 +604,10 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
     assert "osint_source_live-source" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "bot_live-bot" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "cleanup_token_blacklist" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
-    assert "rebuild_filter_data" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert "rebuild_filter_data" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "osint_source_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "bot_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "custom_keep" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert len(purged_calls) == 1
     assert purged_calls[0][0] == set()
-    assert set(purged_calls[0][1]) == {"cron_osint_source_stale_", "cron_bot_stale_"}
+    assert set(purged_calls[0][1]) == {"cron_osint_source_stale_", "cron_bot_stale_", "cron_rebuild_filter_data_"}

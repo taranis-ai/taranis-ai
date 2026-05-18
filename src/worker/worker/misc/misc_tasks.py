@@ -50,9 +50,9 @@ def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
 
 
 def rebuild_filter_data(*args, **kwargs):
-    logger.info("Running assess filter data rebuild")
+    logger.info("Skipping legacy assess filter data rebuild")
 
-    message = "Assess filter data rebuild triggered"
+    message = "Assess filter data rebuild skipped; filter lists are computed on request"
 
     job = get_current_job()
     if job:

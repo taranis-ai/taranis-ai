@@ -55,9 +55,6 @@ CRON_NEXT_KEY = "rq:cron:next"
 TOKEN_CLEANUP_JOB_ID = "cleanup_token_blacklist"
 TOKEN_CLEANUP_CRON = "0 2 * * *"
 TOKEN_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Token Blacklist"
-FILTER_DATA_REBUILD_JOB_ID = "rebuild_filter_data"
-FILTER_DATA_REBUILD_CRON = "7 * * * *"
-FILTER_DATA_REBUILD_DISPLAY_NAME = "Maintenance: Rebuild Assess Filter Data"
 
 
 def _decode_redis_value(value: bytes | str) -> str:
@@ -193,7 +190,6 @@ TASK_MAP = {
     "connector_task": "worker.connectors.connector_tasks.connector_task",
     "gather_word_list": "worker.misc.misc_tasks.gather_word_list",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
-    "rebuild_filter_data": "worker.misc.misc_tasks.rebuild_filter_data",
     "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
 }
 
@@ -319,13 +315,6 @@ class QueueManager:
                 job_id=TOKEN_CLEANUP_JOB_ID,
                 cron=TOKEN_CLEANUP_CRON,
                 func_path="cleanup_token_blacklist",
-                queue_name="misc",
-            ),
-            CronSpec(
-                meta={"name": FILTER_DATA_REBUILD_DISPLAY_NAME},
-                job_id=FILTER_DATA_REBUILD_JOB_ID,
-                cron=FILTER_DATA_REBUILD_CRON,
-                func_path="rebuild_filter_data",
                 queue_name="misc",
             ),
         )
@@ -883,23 +872,6 @@ class QueueManager:
                 )
             )
 
-            filter_data_result = self._get_latest_task_result(
-                exact_ids={FILTER_DATA_REBUILD_JOB_ID},
-                prefixes=[f"cron_{FILTER_DATA_REBUILD_JOB_ID}_"],
-                task_name=FILTER_DATA_REBUILD_JOB_ID,
-            )
-            all_jobs.append(
-                self.build_cron_schedule_entry(
-                    job_id=FILTER_DATA_REBUILD_JOB_ID,
-                    name=FILTER_DATA_REBUILD_DISPLAY_NAME,
-                    queue="misc",
-                    cron_schedule=FILTER_DATA_REBUILD_CRON,
-                    task_id=FILTER_DATA_REBUILD_JOB_ID,
-                    last_run=filter_data_result.last_run if filter_data_result else None,
-                    last_success=filter_data_result.last_success if filter_data_result else None,
-                    last_status=filter_data_result.status if filter_data_result else None,
-                )
-            )
         except Exception as e:
             logger.warning(f"Failed to fetch cron schedules: {e}")
             # Don't fail the whole request if cron scheduler is not available
@@ -1084,17 +1056,6 @@ class QueueManager:
                     "name": "Cleanup Token Blacklist",
                 }
             )
-            cron_jobs.append(
-                {
-                    "task": FILTER_DATA_REBUILD_JOB_ID,
-                    "queue": "misc",
-                    "args": [],
-                    "cron": FILTER_DATA_REBUILD_CRON,
-                    "task_id": FILTER_DATA_REBUILD_JOB_ID,
-                    "name": "Rebuild Filter Data",
-                }
-            )
-
             return {"cron_jobs": cron_jobs}, 200
         except Exception:
             logger.exception("Failed to get cron job configurations")

@@ -207,17 +207,17 @@ document.addEventListener('htmx:afterSwap', function (event) {
                hx-trigger="change delay:250ms">
       </label>
     </div>
+  </section>
+
+  <section class="space-y-3 mt-2">
     <label class="form-control w-full">
-      <select id="language-filter" name="language" class="select select-sm" multiple>
+      <select id="language-filter" name="language" class="select select-xs" multiple>
         {% for language in filter_lists.languages %}
           <option class="uppercase" value="{{ language }}" {% if language in selected_languages %}selected{% endif %}>{{ language|upper }}</option>
         {% endfor %}
       </select>
     </label>
-  </section>
 
-  <div class="divider text-xs">Status</div>
-  <section class="space-y-3">
     {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
     <label class="select w-full">
       <span class="label">Changed by</span>

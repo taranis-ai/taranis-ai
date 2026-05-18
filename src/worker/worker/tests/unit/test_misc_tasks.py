@@ -38,7 +38,7 @@ def test_cleanup_token_blacklist_reports_task(monkeypatch):
     }
 
 
-def test_rebuild_filter_data_reports_task(monkeypatch):
+def test_rebuild_filter_data_legacy_task_reports_noop(monkeypatch):
     recorded = {}
 
     class DummyApi:
@@ -59,14 +59,14 @@ def test_rebuild_filter_data_reports_task(monkeypatch):
 
     message = misc_tasks.rebuild_filter_data()
 
-    assert message == "Assess filter data rebuild triggered"
+    assert message == "Assess filter data rebuild skipped; filter lists are computed on request"
     assert recorded["url"] == "/tasks"
     assert recorded["payload"] == {
         "id": DummyJob.id,
         "task": "rebuild_filter_data",
         "worker_id": DummyJob.id,
         "worker_type": "rebuild_filter_data",
-        "result": "Assess filter data rebuild triggered",
+        "result": "Assess filter data rebuild skipped; filter lists are computed on request",
         "status": "SUCCESS",
     }
 

@@ -52,6 +52,7 @@ Core owns frontend cache invalidation for write operations.
 - unit tests keep cache disabled by default through `build_config_overrides`
 - admin configuration writes under `/api/config/*` currently invalidate the full frontend cache by design
 - the manual invalidation endpoint is `POST /api/admin/cache/invalidate`
+- `/api/assess/filter-lists` builds filter options from current database state on request; frontend caching may cache that response by user
 
 ## Health Endpoints
 
