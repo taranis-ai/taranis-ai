@@ -23,11 +23,12 @@ on:
       - src/worker/**
       - README.md
 
+permissions:
+  contents: read
+
 jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     defaults:
       run:
         shell: bash

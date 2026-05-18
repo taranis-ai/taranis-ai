@@ -112,16 +112,18 @@ if (document.readyState === "loading") {
 }
 
 document.body.addEventListener("htmx:confirm", function (evt) {
-  if (!evt.target.hasAttribute("hx-confirm")) {
+  const triggerElement = evt.detail.elt;
+
+  if (!(triggerElement instanceof Element) || !triggerElement.hasAttribute("hx-confirm")) {
     return;
   }
 
-  if (evt.detail.elt.matches("[data-swal-confirm]")) {
+  if (triggerElement.matches("[data-swal-confirm]")) {
     return;
   }
 
   evt.preventDefault();
-  const opts = getConfirmOptions(evt.target, evt.detail.question);
+  const opts = getConfirmOptions(triggerElement, evt.detail.question);
   showConfirmDialog(opts).then((r) => {
     if (r.isConfirmed) {
       evt.detail.issueRequest(true);

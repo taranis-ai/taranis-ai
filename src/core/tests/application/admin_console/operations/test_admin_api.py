@@ -58,7 +58,7 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert data[0]["id"] == story_id
     assert data[0]["news_items"][0].get("author") is None
 
-    expected_created = min(datetime.fromisoformat(item["published"]) for item in full_story[0]["news_items"]).isoformat()
+    expected_created = datetime.fromisoformat(full_story[0]["created"]).isoformat()
     assert data[0]["created"] == expected_created
 
     exported_news_item_ids = {ni["id"] for ni in data[0].get("news_items", [])}

@@ -6,7 +6,6 @@ from models.assess import Story
 from models.product import Product, ProductType
 from models.report import ReportItem, ReportTypes
 from models.revision_diff import build_report_revision_diff_payload
-from pydantic import ValidationError
 from werkzeug.exceptions import Forbidden, HTTPException
 
 from frontend.auth import auth_required
@@ -15,7 +14,6 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count, render_datetime
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
 
@@ -66,39 +64,76 @@ class ReportItemView(BaseView):
         return data
 
     @classmethod
-    def _apply_request_values_to_report(cls, report: ReportItem) -> ReportItem:
-        if not request.values.get("layout_switch"):
-            return report
+    def _parse_form_attributes(cls, attributes: dict[str, Any]) -> dict[str, Any]:
+        return {key: cls._normalize_attribute_value(value) for key, value in attributes.items()}
 
-        form_data = parse_formdata(request.values)
+    @staticmethod
+    def _normalize_story_ids(stories: Any, remove_story_id: str | None = None, remove_all: bool = False) -> list[str]:
+        if remove_all:
+            return []
+
+        story_ids = stories if isinstance(stories, list) else ([stories] if stories else [])
+        normalized_story_ids = [str(story_id) for story_id in story_ids if story_id]
+        if remove_story_id:
+            normalized_story_ids = [story_id for story_id in normalized_story_ids if story_id != remove_story_id]
+        return normalized_story_ids
+
+    @classmethod
+    def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
+        form_data = dict(form_data)
         cls._strip_layout_keys(form_data)
 
-        if title := form_data.get("title"):
-            report.title = title
-        if report_item_type_id := form_data.get("report_item_type_id"):
-            report.report_item_type_id = report_item_type_id
+        if story_ids := form_data.pop("story_ids", None):
+            form_data.setdefault("stories", story_ids)
 
-        if "stories" in form_data:
-            story_ids = cls._normalize_story_ids(form_data.get("stories"))
-            story_id_set = {str(story_id) for story_id in story_ids}
-            report.stories = [story for story in DataPersistenceLayer().get_objects(Story) if str(story.id) in story_id_set]
+        remove_story_id = form_data.pop("remove_story_id", None)
+        remove_all_stories = form_data.pop("remove_all_stories", None) == "1"
+        if "stories" in form_data or remove_story_id or remove_all_stories:
+            form_data["stories"] = cls._normalize_story_ids(form_data.get("stories"), remove_story_id, remove_all_stories)
 
-        attributes = cls._parse_form_attributes(form_data.get("attributes", {}))
-        if attributes and report.grouped_attributes:
-            for group in report.grouped_attributes:
+        attributes = form_data.get("attributes", {})
+        form_data["attributes"] = cls._parse_form_attributes(attributes if isinstance(attributes, dict) else {})
+
+        return cls.model.model_validate(form_data).model_dump(exclude_unset=True)
+
+    @classmethod
+    def _get_normalized_form_data_from(cls, submitted_data: Any) -> dict[str, Any]:
+        form_data = parse_formdata(submitted_data)
+        if story_ids := submitted_data.getlist("story_ids"):
+            form_data["story_ids"] = story_ids
+        return cls._normalize_form_data(form_data)
+
+    @classmethod
+    def _get_normalized_form_data(cls) -> dict[str, Any]:
+        return cls._get_normalized_form_data_from(request.form)
+
+    @classmethod
+    def _get_normalized_request_values(cls) -> dict[str, Any]:
+        return cls._get_normalized_form_data_from(request.values)
+
+    @classmethod
+    def _apply_form_data_to_report(cls, report: ReportItem, form_data: dict[str, Any]) -> ReportItem:
+        if "title" in form_data:
+            report.title = form_data["title"]
+        if "report_item_type_id" in form_data:
+            report.report_item_type_id = form_data["report_item_type_id"]
+
+        if isinstance(form_data.get("attributes"), dict):
+            for group in report.grouped_attributes or []:
                 for attribute in group.attributes:
-                    if str(attribute.id) in attributes:
-                        attribute.value = attributes[str(attribute.id)]
+                    if attribute.id is None:
+                        continue
+                    attribute_key = str(attribute.id)
+                    if attribute_key not in form_data["attributes"]:
+                        continue
+                    attribute.value = form_data["attributes"][attribute_key]
 
         return report
 
-    @staticmethod
-    def _parse_bool_flag(value: Any) -> bool:
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
-            return value.lower() in {"1", "true", "yes", "on"}
-        return bool(value)
+    @classmethod
+    def _apply_story_ids_to_report(cls, report: ReportItem, story_ids: Any) -> None:
+        normalized_story_ids = set(cls._normalize_story_ids(story_ids))
+        report.stories = [story for story in DataPersistenceLayer().get_objects(Story) if str(story.id) in normalized_story_ids]
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
@@ -111,23 +146,28 @@ class ReportItemView(BaseView):
             base_context["current_report_item_type_filter"] = request.args.get("report_item_type_id", "")
             layout = cls._normalize_layout(request.values.get("layout_switch") or request.values.get("layout") or base_context.get("layout"))
 
-            if report := base_context.get("report"):
-                product_types = {product_type.id: product_type.title for product_type in dpl.get_objects(ProductType)}
-                products = dpl.get_objects(Product)
-                base_context["existing_products"] = [
-                    {
-                        "id": product.id,
-                        "name": f"{product.title} ({product_types.get(product.product_type_id, 'Unknown')})",
-                    }
-                    for product in products
-                    if product.id
-                ]
+            report = base_context.get("report")
+            if report:
+                if cls.is_create_object_id(report.id):
+                    base_context["existing_products"] = []
+                else:
+                    product_types = {product_type.id: product_type.title for product_type in dpl.get_objects(ProductType)}
+                    products = dpl.get_objects(Product)
+                    base_context["existing_products"] = [
+                        {
+                            "id": product.id,
+                            "name": f"{product.title} ({product_types.get(product.product_type_id, 'Unknown')})",
+                        }
+                        for product in products
+                        if product.id
+                    ]
+                submitted_data = cls._get_normalized_request_values()
+                report = cls._apply_form_data_to_report(report, submitted_data)
+                if cls.is_create_object_id(report.id) and (story_ids := submitted_data.get("stories")):
+                    cls._apply_story_ids_to_report(report, story_ids)
+                base_context["report"] = report
             else:
                 base_context["existing_products"] = []
-
-            if report := base_context.get("report"):
-                report = cls._apply_request_values_to_report(report)
-                base_context["report"] = report
 
             base_context |= {
                 "layout": layout,
@@ -139,23 +179,6 @@ class ReportItemView(BaseView):
             logger.exception("Error getting extra context for ReportItemView")
 
         return base_context
-
-    @classmethod
-    def get_create_context(cls) -> dict[str, Any]:
-        context = super().get_create_context()
-        report = context.get("report")
-        if not report:
-            return context
-        if title := request.values.get("title"):
-            report.title = title
-        if report_item_type_id := request.values.get("report_item_type_id"):
-            report.report_item_type_id = report_item_type_id
-        story_ids = request.values.getlist("stories[]") or request.values.getlist("story_ids")
-        if story_ids:
-            report.stories = [s for s in DataPersistenceLayer().get_objects(Story) if str(s.id) in {str(story_id) for story_id in story_ids}]
-            context["report"] = report
-
-        return context
 
     @classmethod
     def _render_layout_switch_view(cls, object_id: int | str = 0) -> tuple[str, int]:
@@ -219,42 +242,6 @@ class ReportItemView(BaseView):
         if object_id is None:
             return abort(405)
         return self.update_view_table(object_id=object_id)
-
-    @classmethod
-    def _parse_form_attributes(cls, attributes: dict[str, Any]) -> dict[str, Any]:
-        return {key: cls._normalize_attribute_value(value) for key, value in attributes.items()}
-
-    @staticmethod
-    def _normalize_story_ids(stories: Any, remove_story_id: str | None = None, remove_all: bool = False) -> list[str]:
-        if remove_all:
-            return []
-
-        story_ids = stories if isinstance(stories, list) else ([stories] if stories else [])
-        normalized_story_ids = [str(story_id) for story_id in story_ids if story_id]
-        if remove_story_id:
-            normalized_story_ids = [story_id for story_id in normalized_story_ids if story_id != remove_story_id]
-        return normalized_story_ids
-
-    @classmethod
-    def process_form_data(cls, object_id: int | str):
-        try:
-            form_data = parse_formdata(request.form)
-            logger.debug(f"Parsed form data: {form_data}")
-            cls._strip_layout_keys(form_data)
-            remove_story_id = form_data.pop("remove_story_id", None)
-            remove_all_stories = cls._parse_bool_flag(form_data.pop("remove_all_stories", None))
-            if "stories" in form_data or remove_story_id or remove_all_stories:
-                form_data["stories"] = cls._normalize_story_ids(form_data.get("stories"), remove_story_id, remove_all_stories)
-            form_data["attributes"] = cls._parse_form_attributes(form_data.get("attributes", {}))
-            return cls.store_form_data(form_data, object_id)
-        except ValidationError as exc:
-            logger.error(format_pydantic_errors(exc, cls.model))
-            return None, format_pydantic_errors(exc, cls.model)
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.error(f"Error storing form data: {str(exc)}")
-            return None, str(exc)
 
     @staticmethod
     @auth_required()
