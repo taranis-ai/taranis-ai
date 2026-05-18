@@ -58,11 +58,12 @@ PY
   )
 }
 
-run_uuid_validation() {
+run_pytest_validation() {
   local core_dir="$1"
   local database_url="$2"
+  local pytest_target="$3"
 
-  run_step "Validate migrated branch database"
+  run_step "Validate migrated branch database with pytest target: $pytest_target"
   (
     cd "$core_dir"
     env \
@@ -70,7 +71,7 @@ run_uuid_validation() {
       DEBUG=true \
       DISABLE_SCHEDULER=true \
       TARANIS_CORE_SENTRY_DSN= \
-      uv run --frozen pytest tests/unit/test_uuidv7_primary_keys.py
+      uv run --frozen pytest "$pytest_target"
   )
 }
 
@@ -109,6 +110,7 @@ cd "$ROOT_DIR"
 
 BASE_REF="${BASE_REF:-origin/master}"
 CURRENT_REF="$(git rev-parse --abbrev-ref HEAD)"
+PYTEST_TARGET="${PYTEST_TARGET:-tests/unit}"
 RUN_ID="$(date +%Y%m%d%H%M%S)-$$"
 TMP_DIR="$(mktemp -d)"
 MASTER_WORKTREE="$TMP_DIR/master"
@@ -166,7 +168,7 @@ podman exec "$PG_CONTAINER" pg_dump --no-owner --no-privileges -U "$PG_USER" -d 
 podman exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$PG_USER" -d "$BRANCH_DB" <"$DUMP_FILE" >/dev/null
 
 run_core_db_setup "$ROOT_DIR/src/core" "$BRANCH_DATABASE_URL" "Apply current branch migrations to copied master database"
-run_uuid_validation "$ROOT_DIR/src/core" "$BRANCH_DATABASE_URL"
+run_pytest_validation "$ROOT_DIR/src/core" "$BRANCH_DATABASE_URL" "$PYTEST_TARGET"
 
 run_step "Migration test completed"
-echo "Migrated $BASE_REF database successfully using current branch migrations."
+echo "Migrated $BASE_REF database successfully using current branch migrations and pytest target $PYTEST_TARGET."
