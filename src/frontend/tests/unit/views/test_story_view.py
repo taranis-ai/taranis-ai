@@ -35,7 +35,6 @@ def story_with_news_item_tags() -> dict:
         "description": "Story description",
         "summary": "Story summary",
         "comments": "Story comment",
-        "tags": [{"name": "story-tag", "tag_type": "misc"}],
         "attributes": [],
         "news_items": [
             {
@@ -305,7 +304,7 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     assert source_input[0].get("required") is None
 
 
-def test_story_edit_renders_readonly_story_tags_and_news_item_tag_editor(authenticated_client, responses_mock):
+def test_story_edit_renders_news_item_tag_editor(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     mock_story_for_edit(responses_mock, story_payload)
 
@@ -314,7 +313,6 @@ def test_story_edit_renders_readonly_story_tags_and_news_item_tag_editor(authent
     assert response.status_code == 200
     tree = html.fromstring(response.text)
 
-    assert tree.xpath('//*[@data-testid="story-readonly-tags"]//*[contains(text(), "story-tag")]')
     assert tree.xpath('//*[@data-testid="edit-newsitem-tags"]')
     assert tree.xpath('//*[@data-testid="news-item-tag-name-input"]')
     assert "resetTags(); tagEditorOpen = false" in response.text
@@ -348,8 +346,6 @@ def test_update_news_item_tags_posts_to_news_item_endpoint_and_rerenders_card(au
     tag_call = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/news-items/news-1/tags"))
     assert json.loads(tag_call.request.body) == [{"name": "incident", "tag_type": "actor"}]
     assert 'id="news-item-card-news-1"' in response.text
-    assert 'id="story-tags-readonly-story-1"' in response.text
-    assert 'hx-swap-oob="outerHTML"' in response.text
 
 
 def test_update_news_item_tags_filters_blank_rows_before_core_request(authenticated_client, responses_mock):
@@ -401,7 +397,6 @@ def test_update_news_item_tags_propagates_core_error_and_does_not_rerender_card(
     assert response.status_code == 400
     assert "Tags not updated" in response.text
     assert 'id="news-item-card-news-1"' not in response.text
-    assert 'id="story-tags-readonly-story-1"' not in response.text
 
 
 def test_assess_search_form_uses_single_htmx_submission_path(authenticated_client, responses_mock):

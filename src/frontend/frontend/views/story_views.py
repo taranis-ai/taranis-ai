@@ -753,12 +753,7 @@ class StoryView(BaseView):
             logger.warning(f"News item {news_item_id} not found on story {story_id}")
             return render_template("partials/404.html")
 
-        return render_template("assess/story_readonly_tags.html", story=story, oob=True) + render_template(
-            "assess/news_item_card_fragment.html",
-            news_item=news_item,
-            story=story,
-            edit_tags=True,
-        )
+        return render_template("assess/news_item_card_fragment.html", news_item=news_item, story=story, edit_tags=True)
 
     @classmethod
     def _create_news_item_from_file(cls, file: FileStorage):

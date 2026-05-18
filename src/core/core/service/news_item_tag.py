@@ -30,19 +30,12 @@ class NewsItemTagService:
 
         stmt = (
             db.select(subquery.c.name, subquery.c.tag_type, group_concat_fn, func.count(subquery.c.name).label("count"))
-            .select_from(subquery.join(Story, subquery.c.id == Story.id))
+            .select_from(subquery)
             .group_by(subquery.c.name, subquery.c.tag_type)
             .having(func.count(subquery.c.name) >= min_count)
             .order_by(func.count(subquery.c.name).desc())
             .limit(limit)
-stmt = (
-    db.select(subquery.c.name, subquery.c.tag_type, group_concat_fn, func.count(subquery.c.name).label("count"))
-    .select_from(subquery)
-    .group_by(subquery.c.name, subquery.c.tag_type)
-    .having(func.count(subquery.c.name) >= min_count)
-    .order_by(func.count(subquery.c.name).desc())
-    .limit(limit)
-)
+        )
 
         result = db.session.execute(stmt).all()
         if not result:

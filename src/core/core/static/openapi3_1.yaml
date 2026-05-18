@@ -1172,29 +1172,6 @@ paths:
           description: write access denied
         "404":
           $ref: "#/components/responses/404NotFound"
-    patch:
-      security:
-        - UserAuth: []
-      tags: [assess]
-      description: replace tags for the specified news item
-      operationId: assess.update_news_item_tags.patch
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/news_item_tags_update"
-      responses:
-        "200":
-          description: tags were updated
-        "400":
-          description: invalid tag payload
-        "401":
-          $ref: "#/components/responses/401Unauthorized"
-        "403":
-          description: write access denied
-        "404":
-          $ref: "#/components/responses/404NotFound"
-
   /assess/story/{story_id}:
     parameters:
       - name: story_id

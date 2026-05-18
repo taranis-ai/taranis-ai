@@ -200,49 +200,6 @@ class TestAssessNewsItems(BaseTest):
         story_tags = {tag["name"]: tag["tag_type"] for tag in story_response.get_json()["tags"]}
         assert tag_name not in story_tags
 
-    def test_story_import_keeps_news_item_tags_when_aggregate_tags_are_present(self, app, fake_source):
-        from core.managers.db_manager import db
-        from core.model.news_item import NewsItem
-        from core.model.story import Story
-        from tests.application.support.builders import build_news_item_payload, build_story_payload
-
-        first_item = build_news_item_payload(source_id=fake_source, title_prefix="First Tagged Item")
-        second_item = build_news_item_payload(source_id=fake_source, title_prefix="Second Tagged Item")
-        first_item["tags"] = [{"name": "first-only", "tag_type": "specific"}]
-        second_item["tags"] = [{"name": "second-only", "tag_type": "specific"}]
-        story_payload = build_story_payload(
-            news_items=[first_item, second_item],
-            tags=[
-                {"name": "first-only", "tag_type": "specific"},
-                {"name": "second-only", "tag_type": "specific"},
-                {"name": "aggregate-only", "tag_type": "legacy"},
-            ],
-        )
-
-        story_id = None
-        with app.app_context():
-            try:
-                result, status = Story.add(story_payload)
-                assert status == 200
-                story_id = result["story_id"]
-
-                story = Story.get(story_id)
-                assert story is not None
-                item_tags = {item.id: {tag.name for tag in item.tags} for item in story.news_items}
-
-                assert item_tags[first_item["id"]] == {"first-only"}
-                assert item_tags[second_item["id"]] == {"second-only"}
-                assert {tag.name for tag in story.tags} == {"first-only", "second-only"}
-            finally:
-                if story_id and (story := Story.get(story_id)):
-                    for item in story.news_items[:]:
-                        db.session.delete(item)
-                    db.session.delete(story)
-                    db.session.commit()
-                else:
-                    NewsItem.delete(first_item["id"])
-                    NewsItem.delete(second_item["id"])
-
     def test_put_NewsItem(self, client, cleanup_news_item, auth_header):
         from core.model.news_item import NewsItem
 

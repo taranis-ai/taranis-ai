@@ -75,7 +75,6 @@ class Story(BaseModel):
         comments: str = "",
         revision: int = 0,
         attributes: list[dict[str, Any]] | None = None,
-        tags: list[dict[str, Any]] | None = None,
         news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None = None,
         last_change: str | None = None,
         updated: datetime | str | None = None,
@@ -96,10 +95,6 @@ class Story(BaseModel):
         self.relevance_override = relevance if relevance_override is None else relevance_override
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
-        if tags:
-            parsed_tags = NewsItemTag.parse_tags(tags)
-            if parsed_tags and not self._news_items_carry_tags(news_items):
-                self.apply_tags_to_news_items(parsed_tags)
         self.created, self.updated = self.get_story_dates(created, updated)
         self.recompute_relevance(in_reports_count=0)
 
@@ -241,7 +236,7 @@ class Story(BaseModel):
     def _published_dates(self) -> list[datetime]:
         return [news_item.published for news_item in self.news_items if news_item.published]
 
-    def load_news_items(self, news_items) -> list["NewsItem"]:
+    def load_news_items(self, news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None) -> list["NewsItem"]:
         if not news_items:
             return []
         elif isinstance(news_items[0], dict):
@@ -252,22 +247,6 @@ class Story(BaseModel):
         elif isinstance(news_items[0], NewsItem):
             return news_items
         return []
-
-    @staticmethod
-    def _news_items_carry_tags(news_items) -> bool:
-        if not news_items:
-            return False
-
-        for item in news_items:
-            if isinstance(item, dict) and "tags" in item:
-                return True
-            if isinstance(item, NewsItem) and item.tags:
-                return True
-            if isinstance(item, str):
-                news_item = NewsItem.get(item)
-                if news_item and news_item.tags:
-                    return True
-        return False
 
     @property
     def links(self) -> list[str]:
@@ -407,11 +386,11 @@ class Story(BaseModel):
         if tags := filter_args.get("tags"):
             for tag in tags:
                 item_alias = aliased(NewsItem)
-                alias = aliased(NewsItemTag)
+                tag_alias = aliased(NewsItemTag)
                 query = (
                     query.join(item_alias, item_alias.story_id == Story.id)
-                    .join(alias, item_alias.id == alias.news_item_id)
-                    .filter(or_(alias.name == tag, alias.tag_type == tag))
+                    .join(tag_alias, item_alias.id == tag_alias.news_item_id)
+                    .filter(or_(tag_alias.name == tag, tag_alias.tag_type == tag))
                 )
 
         if changed_by := filter_args.get("changed_by"):
@@ -720,8 +699,6 @@ class Story(BaseModel):
     @classmethod
     def add(cls, data, user: User | None = None, actor: str | None = None) -> "tuple[dict[str, Any], int]":
         try:
-            if tags := data.get("tags"):
-                data["tags"] = NewsItemTag.unify_tags(tags)
             if attributes := data.get("attributes"):
                 data["attributes"] = NewsItemAttribute.unify_attributes_to_old_format(attributes)
             source = cls._first_news_item_source(data.get("news_items"))
@@ -879,11 +856,6 @@ class Story(BaseModel):
 
         if "comments" in data:
             story.comments = data["comments"]
-
-        if "tags" in data and not cls._news_items_carry_tags(data.get("news_items")):
-            if not isinstance(data["tags"], (list, dict)):
-                return {"error": "Tags must be a list or object"}, 400
-            story.apply_tags_to_news_items(NewsItemTag.parse_tags(data["tags"]))
 
         if "summary" in data:
             story.summary = data["summary"]
@@ -1101,10 +1073,6 @@ class Story(BaseModel):
     @classmethod
     def is_assigned_to_report(cls, story_ids: list) -> bool:
         return any(ReportItemStory.is_assigned(story_id) for story_id in story_ids)
-
-    def apply_tags_to_news_items(self, tags: dict[str, NewsItemTag], change_by_bot: bool = False, replace: bool = True) -> None:
-        for news_item in self.news_items:
-            news_item.set_tags(tags, change_by_bot=change_by_bot, replace=replace, update_story=False, commit=False)
 
     @classmethod
     def group_multiple_stories(cls, story_mappings: list[list[str]], user: User | None = None, actor: str | None = None):

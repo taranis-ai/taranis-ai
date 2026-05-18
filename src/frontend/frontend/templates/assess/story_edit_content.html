@@ -130,9 +130,7 @@
             <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">News items</p>
             <p class="text-sm font-medium">{{ news_count }}</p>
           </div>
-          {% with oob=false %}
-            {% include "assess/story_readonly_tags.html" %}
-          {% endwith %}
+          {% include "assess/story_readonly_tags.html" %}
           {% set languages = (story.news_items or []) | map(attribute='language') | select('string') | select | unique | list %}
           {% if languages %}
             <div class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3">

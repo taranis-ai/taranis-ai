@@ -122,15 +122,6 @@ class UpdateNewsItemTags(MethodView):
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self, news_item_id: str):
-        return self._update(news_item_id)
-
-    @auth_required("ASSESS_UPDATE")
-    @validate_json
-    def patch(self, news_item_id: str):
-        return self._update(news_item_id)
-
-    @staticmethod
-    def _update(news_item_id: str):
         item = news_item.NewsItem.get(news_item_id)
         if not item:
             return {"error": f"NewsItem with id: {news_item_id} not found"}, 404

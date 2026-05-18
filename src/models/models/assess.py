@@ -50,7 +50,6 @@ STORY_IMPORT_FIELDS = frozenset(
         "comments",
         "revision",
         "attributes",
-        "tags",
         "news_items",
         "last_change",
     }

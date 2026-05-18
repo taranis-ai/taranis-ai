@@ -29,8 +29,7 @@ class AddNewsItems(MethodView):
         if not isinstance(json_data, list):
             logger.debug(f"Received invalid news items payload type: {type(json_data).__name__}")
             return {"error": "Expected a list of news items"}, 400
-        news_item_ids = [item.get("id") for item in json_data if isinstance(item, dict) and item.get("id")]
-        logger.debug(f"Received {len(json_data)} news items for worker ingestion: ids={news_item_ids}")
+        logger.debug(f"Received {len(json_data)} news items for worker ingestion")
         result, status = Story.add_news_items(json_data)
         sse_manager.news_items_updated()
         return result, status
@@ -186,19 +185,7 @@ class Tags(MethodView):
         if not isinstance(data, dict):
             return {"error": "Expected a dict for tags"}, 400
         for news_item_id, tags in data.items():
-            if not isinstance(tags, (list, dict)):
-                errors[news_item_id] = f"Invalid tags for news item {news_item_id}"
-                continue
-            if not tags:
-                errors[news_item_id] = f"Invalid tags for news item {news_item_id}"
-                continue
-
-            try:
-                parsed_tags = NewsItemTag.parse_tags(tags)
-            except (ValueError, TypeError) as exc:
-                errors[news_item_id] = str(exc)
-                continue
-            if not parsed_tags:
+            if not isinstance(tags, (list, dict)) or not tags:
                 errors[news_item_id] = f"Invalid tags for news item {news_item_id}"
                 continue
 
@@ -207,9 +194,9 @@ class Tags(MethodView):
                 errors[news_item_id] = "News item not found"
                 continue
             actor = Story.resolve_actor(actor=news_item.story.last_change) if news_item.story else None
-            _, status = news_item.set_tags(parsed_tags, actor=actor)
+            result, status = news_item.set_tags(tags, actor=actor)
             if status != 200:
-                errors[news_item_id] = status
+                errors[news_item_id] = result.get("error", status)
         if errors:
             return {"message": "Some tags failed to update", "errors": errors}, 207
         return {"message": "Tags updated"}, 200

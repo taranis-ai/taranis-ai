@@ -185,19 +185,21 @@ def test_story_add_single_news_item_detects_duplicates_by_title_and_link():
 
 
 @pytest.mark.usefixtures("session")
-def test_story_from_dict_accepts_tag_mapping():
+def test_story_from_dict_accepts_news_item_tag_mapping():
+    news_item = _news_item_payload(source="manual")
+    news_item["tags"] = {
+        "Example": {"name": "Example", "tag_type": "Organization"},
+    }
     story_payload = {
         "title": f"Story {uuid.uuid4()}",
-        "tags": {
-            "Example": {"name": "Example", "tag_type": "Organization"},
-        },
-        "news_items": [_news_item_payload(source="manual")],
+        "news_items": [news_item],
     }
 
     story = Story.from_dict(story_payload)
 
     assert len(story.tags) == 1
     assert story.tags[0].name == "Example"
+    assert story.news_items[0].tags[0].tag_type == "Organization"
 
 
 @pytest.mark.usefixtures("session")
