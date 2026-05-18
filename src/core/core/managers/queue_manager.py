@@ -430,9 +430,9 @@ class QueueManager:
             logger.error(f"Failed to clear queues: {e}")
 
     def publish_schedule_cache_invalidation(self) -> int:
-        from core.service.cache_invalidation import cache_invalidation_service
+        from core.service.cache_invalidation import SCOPE_SCHEDULE, cache_invalidation_service
 
-        return cache_invalidation_service.invalidate_scope("schedule")
+        return cache_invalidation_service.invalidate_scope(SCOPE_SCHEDULE)
 
     @property
     def redis(self) -> Redis | None:

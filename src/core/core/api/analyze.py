@@ -9,7 +9,7 @@ from core.managers.auth_manager import auth_required
 from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
 from core.model.revision import ReportRevision
-from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import SCOPE_REPORT_VIEWS, invalidate_frontend_cache_on_success
 from core.service.product import ProductService
 from core.service.report_publish_workflow import ReportPublishWorkflowService
 
@@ -34,7 +34,7 @@ class ReportStories(MethodView):
         response, status = report_item.ReportItem.set_stories(report_item_id, request_data, current_user)
         invalidate_frontend_cache_on_success(
             status,
-            models=("report", "story", "product"),
+            scopes=(SCOPE_REPORT_VIEWS,),
             object_ids={"report": report_item_id},
         )
         return response, status
@@ -48,7 +48,7 @@ class ReportStories(MethodView):
         response, status = report_item.ReportItem.add_stories(report_item_id, request_data, current_user)
         invalidate_frontend_cache_on_success(
             status,
-            models=("report", "story", "product"),
+            scopes=(SCOPE_REPORT_VIEWS,),
             object_ids={"report": report_item_id},
         )
         return response, status
@@ -81,7 +81,7 @@ class ReportItem(MethodView):
         if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
             sse_manager.report_item_updated(new_report_item.id)
-            invalidate_frontend_cache_on_success(status, models=("report", "story", "product"))
+            invalidate_frontend_cache_on_success(status, scopes=(SCOPE_REPORT_VIEWS,))
 
         return {"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}, status
 
@@ -99,7 +99,7 @@ class ReportItem(MethodView):
             ProductService.autopublish_product(report_item_id)
             invalidate_frontend_cache_on_success(
                 status,
-                models=("report", "story", "product"),
+                scopes=(SCOPE_REPORT_VIEWS,),
                 object_ids={"report": report_item_id},
             )
 
@@ -114,7 +114,7 @@ class ReportItem(MethodView):
             sse_manager.report_item_updated(report_item_id)
             invalidate_frontend_cache_on_success(
                 code,
-                models=("report", "story", "product"),
+                scopes=(SCOPE_REPORT_VIEWS,),
                 object_ids={"report": report_item_id},
             )
         return result, code
@@ -140,7 +140,7 @@ class CloneReportItem(MethodView):
             return abort(400, f"Error cloning report item: {ex}")
         if status == 200:
             sse_manager.report_item_updated(result["id"])
-            invalidate_frontend_cache_on_success(status, models=("report", "story", "product"))
+            invalidate_frontend_cache_on_success(status, scopes=(SCOPE_REPORT_VIEWS,))
 
         return result, status
 
