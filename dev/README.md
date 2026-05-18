@@ -193,6 +193,8 @@ Use the migration harness to reproduce production-like upgrades from the current
 ./dev/test_master_to_branch_migration.sh
 ```
 
+This harness requires `podman`.
+
 The script creates a temporary git worktree from `origin/master`, starts a disposable PostgreSQL container with Podman, initializes and seeds a fresh master database, copies it, then starts the current branch against the copy so pending yoyo migrations are applied. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
 
 Useful options:
