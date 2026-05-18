@@ -107,7 +107,7 @@ class TestStoryFilters(BaseTest):
         assert "filter-alpha" in payload["tags"]
         assert story_filter_data["sources"]["source_only"] in source_ids
 
-    def test_filter_lists_reflect_language_changes_without_rebuild(self, app, client, auth_header, story_filter_data):
+    def test_filter_lists_reflect_language_changes_immediately(self, app, client, auth_header, story_filter_data):
         from core.managers.db_manager import db
         from core.model.story import Story
 
