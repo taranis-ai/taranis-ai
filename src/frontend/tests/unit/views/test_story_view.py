@@ -411,13 +411,17 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
 
     tree = html.fromstring(followup.text)
     read_select = tree.xpath('//select[@name="read"]')[0]
-    source_select = tree.xpath('//select[@id="source-filter"]')[0]
-    language_select = tree.xpath('//select[@id="language-filter"]')[0]
+    source_filter = tree.xpath('//section[@data-filter-id="source-filter"]')[0]
+    language_filter = tree.xpath('//section[@data-filter-id="language-filter"]')[0]
     sort_select = tree.xpath('//select[@name="sort"]')[0]
 
     assert read_select.xpath('./option[@value="true" and @selected]')
-    assert source_select.xpath('./optgroup[@label="OSINT Sources"]/option[@value="source-1" and @selected]')
-    assert language_select.xpath('./option[@value="en" and @selected]')
+    assert source_filter.xpath('.//input[@type="search" and @aria-label="Select sources"]')
+    assert "source-1" in source_filter.get("x-data")
+    assert '"name": "source"' in source_filter.get("x-data")
+    assert language_filter.xpath('.//input[@type="search" and @aria-label="Select languages"]')
+    assert '"value": "en"' in language_filter.get("x-data")
+    assert '"name": "language"' in language_filter.get("x-data")
     assert sort_select.xpath('./option[@value="date_desc" and @selected]')
 
     story_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories"))

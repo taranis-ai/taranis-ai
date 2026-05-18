@@ -1,9 +1,9 @@
 {
   "nodeModulesDir": "auto",
   "imports": {
-    "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.2.4",
-    "alpinejs": "npm:alpinejs@^3.15.11",
-    "choices.js": "npm:choices.js@^11.2.2",
+    "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.3.0",
+    "alpinejs": "npm:alpinejs@^3.15.12",
+    "choices.js": "npm:choices.js@^11.2.3",
     "daisyui": "npm:daisyui@^5.5.19",
     "fuse.js": "npm:fuse.js@^7.3.0",
     "highlight-search-term": "npm:highlight-search-term@^1.0.3",
@@ -11,12 +11,12 @@
     "htmx.org": "npm:htmx.org@^2.0.10",
     "sortablejs": "npm:sortablejs@^1.15.7",
     "sweetalert2": "npm:sweetalert2@^11.26.24",
-    "tailwindcss": "npm:tailwindcss@^4.2.4",
+    "tailwindcss": "npm:tailwindcss@^4.3.0",
     "@codemirror/state": "npm:@codemirror/state@^6.6.0",
-    "@codemirror/view": "npm:@codemirror/view@^6.41.1",
+    "@codemirror/view": "npm:@codemirror/view@^6.43.0",
     "@codemirror/commands": "npm:@codemirror/commands@^6.10.3",
     "@codemirror/language": "npm:@codemirror/language@^6.12.3",
-    "@codemirror/legacy-modes": "npm:@codemirror/legacy-modes@^6.5.2",
+    "@codemirror/legacy-modes": "npm:@codemirror/legacy-modes@^6.5.3",
     "@codemirror/merge": "npm:@codemirror/merge@^6.12.1",
     "codemirror": "npm:codemirror@^6.0.2"  },
   "tasks": {

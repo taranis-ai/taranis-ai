@@ -1,0 +1,28 @@
+{% from "assess/sidebar/filter_token_select.html" import filter_token_select %}
+
+{% set ns = namespace(options=[], selected_items=[]) %}
+{% set available_languages = filter_lists.languages | default([]) | list %}
+
+{% for language in available_languages %}
+  {% set option = {"value": language, "label": language | upper, "name": "language"} %}
+  {% set ns.options = ns.options + [option] %}
+  {% if language in selected_languages %}
+    {% set ns.selected_items = ns.selected_items + [option] %}
+  {% endif %}
+{% endfor %}
+
+{% for language in selected_languages if language not in available_languages %}
+  {% set ns.selected_items = ns.selected_items + [{"value": language, "label": language | upper, "name": "language"}] %}
+{% endfor %}
+
+{# djlint:off #}
+{{ filter_token_select(
+  id="language-filter",
+  placeholder="Select languages",
+  selected_items=ns.selected_items,
+  options=ns.options,
+  input_name="language",
+  icon="language",
+  no_results_text="No languages found."
+) }}
+{# djlint:on #}

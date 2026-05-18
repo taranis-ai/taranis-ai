@@ -1,0 +1,238 @@
+{% macro filter_token_select_assets() %}
+  <script type="text/javascript">
+  if (!window.createAssessFilterSelect) {
+    window.createAssessFilterSelect = function (config) {
+      const defaultInputName = config.inputName || config.id;
+      const normalizeItem = function (item) {
+        if (typeof item === "string") {
+          return { value: item, label: item, name: defaultInputName, group: "", keywords: "" };
+        }
+
+        const value = item?.value ?? item?.id ?? item?.label ?? "";
+        const label = item?.label ?? item?.name ?? value;
+        return {
+          value: String(value),
+          label: String(label),
+          name: item?.name || defaultInputName,
+          group: item?.group ? String(item.group) : "",
+          keywords: item?.keywords ? String(item.keywords) : "",
+        };
+      };
+      const itemKey = function (item) {
+        const normalized = normalizeItem(item);
+        return `${normalized.name}:${normalized.value}`;
+      };
+      const dedupeItems = function (items) {
+        const byKey = new Map();
+        (items || []).map(normalizeItem).filter((item) => item.value).forEach((item) => {
+          byKey.set(itemKey(item), item);
+        });
+        return Array.from(byKey.values());
+      };
+
+      return {
+        inputName: defaultInputName,
+        query: "",
+        isOpen: false,
+        closeTimer: null,
+        formEl: null,
+        limit: config.limit || 50,
+        noResultsText: config.noResultsText || "No items found.",
+        options: dedupeItems(config.options),
+        selectedItems: dedupeItems(config.selectedItems),
+        showAllOnFocus: config.showAllOnFocus !== false,
+        init() {
+          this.ensureForm();
+        },
+        itemKey(item) {
+          return itemKey(item);
+        },
+        isSelected(item) {
+          const key = this.itemKey(item);
+          return this.selectedItems.some((selected) => this.itemKey(selected) === key);
+        },
+        get filteredOptions() {
+          const term = this.query.trim().toLowerCase();
+          return this.options
+            .filter((option) => !this.isSelected(option))
+            .filter((option) => {
+              if (!term) return true;
+              return [option.label, option.value, option.group, option.keywords].some((value) => value.toLowerCase().includes(term));
+            })
+            .slice(0, this.limit);
+        },
+        addItem(item) {
+          const normalized = normalizeItem(item);
+          if (!normalized.value || this.isSelected(normalized)) return;
+          this.selectedItems = [...this.selectedItems, normalized];
+          this.query = "";
+          if (this.hasRemoteSuggestions()) {
+            this.clearSuggestions();
+          } else {
+            this.closeListNow();
+          }
+          this.requestSidebarRefresh();
+          this.$nextTick(() => {
+            this.$refs.searchInput?.focus();
+          });
+        },
+        addRemoteItem(value, label = null, name = null) {
+          this.addItem({ value: value, label: label || value, name: name || this.inputName });
+        },
+        removeItem(item) {
+          const key = this.itemKey(item);
+          const updated = this.selectedItems.filter((selected) => this.itemKey(selected) !== key);
+          if (updated.length === this.selectedItems.length) return;
+          this.selectedItems = updated;
+          if (!this.hasRemoteSuggestions()) {
+            this.openList();
+          }
+          this.requestSidebarRefresh();
+        },
+        selectFirst() {
+          if (this.hasRemoteSuggestions()) return;
+          const firstOption = this.filteredOptions[0];
+          if (firstOption) this.addItem(firstOption);
+        },
+        openList() {
+          if (this.closeTimer) {
+            window.clearTimeout(this.closeTimer);
+            this.closeTimer = null;
+          }
+          this.isOpen = true;
+          this.$refs.suggestionsList?.style.removeProperty("display");
+        },
+        closeList() {
+          this.closeTimer = window.setTimeout(() => {
+            this.closeListNow();
+          }, 150);
+        },
+        closeListNow() {
+          if (this.closeTimer) {
+            window.clearTimeout(this.closeTimer);
+          }
+          this.isOpen = false;
+          this.closeTimer = null;
+          this.$refs.suggestionsList?.style.setProperty("display", "none");
+        },
+        hasQuery() {
+          return this.query.trim().length > 0;
+        },
+        hasRemoteSuggestions() {
+          return Boolean(config.suggestionsUrl);
+        },
+        shouldShowOptions() {
+          if (this.hasRemoteSuggestions()) return this.isOpen && this.hasQuery();
+          return this.isOpen && (this.showAllOnFocus || this.hasQuery());
+        },
+        clearSuggestions() {
+          if (this.$refs.suggestionsList) {
+            this.$refs.suggestionsList.innerHTML = "";
+          }
+        },
+        clearSuggestionsIfNeeded() {
+          if (this.hasRemoteSuggestions() && !this.hasQuery()) {
+            this.clearSuggestions();
+          }
+        },
+        requestSidebarRefresh() {
+          this.ensureForm();
+          if (!this.formEl) return;
+          this.$nextTick(() => {
+            if (window.htmx && typeof window.htmx.trigger === "function") {
+              window.htmx.trigger(this.formEl, "change");
+              return;
+            }
+            this.formEl.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+        },
+        ensureForm() {
+          if (!this.formEl) {
+            this.formEl = this.$root.closest("form") || document.getElementById("assess-sidebar");
+          }
+        },
+      };
+    };
+  }
+  </script>
+{% endmacro %}
+
+{% macro filter_token_select(id, placeholder, selected_items, options=[], input_name="", icon="magnifying-glass", suggestions_url=None, selected_container_id=None, no_results_text="No items found.", show_all_on_focus=True) %}
+  {% set suggestion_list_id = id ~ "-suggestion-list" %}
+  {% set selected_id = selected_container_id if selected_container_id else id ~ "-selected" %}
+  {# djlint:off #}
+  <section class="space-y-2 relative"
+           data-filter-id="{{ id }}"
+           x-data='createAssessFilterSelect({
+             id: {{ id | tojson }},
+             inputName: {{ input_name | tojson }},
+             options: {{ options | tojson }},
+             selectedItems: {{ selected_items | tojson }},
+             suggestionsUrl: {{ suggestions_url | tojson }},
+             noResultsText: {{ no_results_text | tojson }},
+             showAllOnFocus: {{ show_all_on_focus | tojson }}
+           })'
+           x-effect="clearSuggestionsIfNeeded()">
+    <div class="dropdown w-full mb-1" :class="{'dropdown-open': shouldShowOptions()}">
+      <label class="input input-bordered input-sm flex items-center gap-2">
+        {{ heroicon_outline(icon, class='h-4 w-4 text-base-content/70') }}
+        <input type="search"
+               id="{{ id }}"
+               placeholder="{{ placeholder }}"
+               aria-label="{{ placeholder }}"
+               class="grow"
+               autocomplete="off"
+               x-model="query"
+               x-ref="searchInput"
+               @focus="openList()"
+               @blur="closeList()"
+               @change.stop
+               @keydown.enter.prevent="selectFirst()"
+               @keydown.escape="closeList()"
+               {% if suggestions_url %}
+                 hx-get="{{ suggestions_url }}"
+                 hx-trigger="keyup changed delay:300ms"
+                 hx-target="#{{ suggestion_list_id }}"
+                 hx-push-url="false"
+                 hx-swap="innerHTML"
+                 :hx-vals="JSON.stringify({ q: query })"
+                 hx-on::beforeRequest="if (!hasQuery()) event.preventDefault()"
+               {% endif %}>
+      </label>
+      <ul id="{{ suggestion_list_id }}"
+          x-ref="suggestionsList"
+          class="dropdown-content menu menu-compact w-full max-h-60 bg-base-200 text-sm rounded-box p-2 shadow flex-nowrap overflow-y-auto z-30"
+          role="listbox"
+          x-show="shouldShowOptions()"
+          @mousedown.prevent>
+        {% if not suggestions_url %}
+          <template x-for="option in filteredOptions" :key="itemKey(option)">
+            <li class="w-full">
+              <button type="button" class="btn btn-ghost btn-sm justify-between w-full text-left" @click="addItem(option)">
+                <span class="min-w-0 truncate" x-text="option.label"></span>
+                <template x-if="option.group">
+                  <span class="badge badge-ghost badge-xs shrink-0" x-text="option.group"></span>
+                </template>
+              </button>
+            </li>
+          </template>
+          <li class="w-full px-4 py-2 text-sm text-base-content/70" x-show="filteredOptions.length === 0" x-text="noResultsText"></li>
+        {% endif %}
+      </ul>
+    </div>
+
+    <div id="{{ selected_id }}" class="mt-2 flex flex-wrap gap-2" data-test-id="{{ selected_id }}">
+      <template x-for="item in selectedItems" :key="itemKey(item)">
+        <div class="badge badge-primary inline-flex max-w-full items-center gap-2 overflow-hidden"
+             :title="item.group ? item.group + ': ' + item.label : item.label">
+          <span class="min-w-0 truncate" x-text="item.label"></span>
+          <button type="button" class="btn btn-xs btn-circle btn-ghost shrink-0 ml-1" @click="removeItem(item)" :aria-label="'Remove ' + item.label">
+            {{ heroicon_mini('x-mark', class='h-3 w-3') }}
+          </button>
+          <input type="hidden" :name="item.name" :value="item.value">
+        </div>
+      </template>
+    </div>
+  </section>
+  {# djlint:on #}
+{% endmacro %}

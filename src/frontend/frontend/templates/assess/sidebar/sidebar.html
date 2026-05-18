@@ -1,4 +1,5 @@
 {% from "assess/sidebar/tri_state_filter.html" import tri_state_filter %}
+{% from "assess/sidebar/filter_token_select.html" import filter_token_select_assets %}
 {% from "macros/htmx.html" import search_trigger %}
 {% set base_url = routes.base_route %}
 {% set request_args = assess_request_args | default({}) %}
@@ -40,33 +41,14 @@
   {'name': 'relevant', 'label': 'Relevance', 'value': relevant_filter}
 ] %}
 
+{{ filter_token_select_assets() }}
+
 <script type="text/javascript">
-const classNames = {
-  containerOuter: ['choices', '!bg-base-200'],
-  containerInner: ['choices__inner', '!bg-base-200'],
-  input: ['choices__input', '!bg-base-200'],
-  inputCloned: ['choices__input--cloned', '!bg-base-200'],
-  list: ['choices__list', '!bg-base-200'],
-  itemSelectable: ['choices__item--selectable', 'choices-item-selectable-primary'],
-  itemChoice: ['choices__item--choice', '!bg-base-200', '!truncate', '!w-54'],
-  selectedState: ['is-selected', 'choices-selected-primary'],
-};
-
-const choicesConfig = {
-  itemSelectText: '✓',
-  appendGroupInSearch: true,
-  classNames: classNames
-}
-
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    initChoices('source-filter', 'sources', choicesConfig);
-    initChoices('language-filter', 'languages', choicesConfig);
     highlightSearch({{ current_search | tojson }});
   });
 } else {
-  initChoices('source-filter', 'sources', choicesConfig);
-  initChoices('language-filter', 'languages', choicesConfig);
   highlightSearch({{ current_search | tojson }});
 }
 
@@ -210,13 +192,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
   </section>
 
   <section class="space-y-3 mt-2">
-    <label class="form-control w-full">
-      <select id="language-filter" name="language" class="select select-xs" multiple>
-        {% for language in filter_lists.languages %}
-          <option class="uppercase" value="{{ language }}" {% if language in selected_languages %}selected{% endif %}>{{ language|upper }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    {% include "assess/sidebar/language_select.html" %}
 
     {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
     <label class="select w-full">
