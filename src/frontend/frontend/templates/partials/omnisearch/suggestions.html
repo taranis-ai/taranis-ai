@@ -1,0 +1,16 @@
+{% set suggestion_items = suggestions | default([]) %}
+{% if suggestion_items %}
+  <ul class="menu menu-compact bg-base-200 rounded-box max-h-72 w-full flex-nowrap overflow-y-auto p-2 shadow" role="listbox">
+    {% for suggestion in suggestion_items %}
+      <li role="option">
+        <button type="button"
+                class="flex w-full items-center justify-between gap-3 text-left"
+                data-query="{{ suggestion.replacement_query }}"
+                @click="applySuggestion($el.dataset.query)">
+          <span class="min-w-0 truncate font-medium">{{ suggestion.label }}</span>
+          <span class="text-xs text-base-content/60">{{ suggestion.detail }}</span>
+        </button>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}

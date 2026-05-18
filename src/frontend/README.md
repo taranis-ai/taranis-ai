@@ -29,6 +29,12 @@ uv sync --frozen
 granian app
 ```
 
+### Assess omnisearch
+
+The navbar search opens an Assess omnisearch dialog. Submitting the dialog uses a normal `GET /search?q=...` form submit; the frontend validates and translates the query, then redirects to `/assess` with the same query parameters produced by the Assess sidebar filters.
+
+Supported initial qualifiers are `source:`, `group:`, `tag:`/`tags:`, `read:`, `important:`, `relevant:`, `in-report:`/`report:`, `cybersecurity:`/`cyber:`, `changed-by:`, `range:`, `from:`, `to:`, and `sort:`. Source, group, and tag value suggestions are loaded from `/assess/filter-lists`; static values are suggested by the frontend.
+
 ### Cache configuration
 
 Frontend caching now uses Redis directly and falls back to a no-op cache when disabled or when Redis is unavailable.

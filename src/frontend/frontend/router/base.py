@@ -1,10 +1,14 @@
-from flask import Blueprint, Flask, Response, jsonify, render_template, send_from_directory
+from urllib.parse import urlencode
+
+from flask import Blueprint, Flask, Response, jsonify, redirect, render_template, request, send_from_directory, url_for
 from flask.views import MethodView
 
+from frontend.assess_omnisearch import build_assess_omnisearch_suggestions, translate_assess_omnisearch
 from frontend.auth import auth_required, logout
 from frontend.cache import get_cache_keys, get_cached_users
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.views import AuthView, DashboardView
+from frontend.views.story_views import StoryView
 
 
 class InvalidateCache(MethodView):
@@ -64,11 +68,42 @@ class FaviconView(MethodView):
 
 
 class OmniSearch(MethodView):
+    @auth_required(["ASSESS_ACCESS", "ALL"])
     def get(self):
-        return render_template("partials/omnisearch/search_dialog.html")
+        current_search = request.args.get("q", "").strip()
+        if "q" in request.args:
+            if not current_search:
+                return redirect(url_for("assess.assess"))
 
-    def post(self):
-        print("TODO: Implement")
+            filter_lists = StoryView._get_filter_lists()
+            translation = translate_assess_omnisearch(current_search, filter_lists)
+            if translation.errors:
+                return (
+                    render_template(
+                        "partials/omnisearch/search_dialog.html",
+                        current_search=current_search,
+                        suggestions=build_assess_omnisearch_suggestions(current_search, filter_lists),
+                        errors=translation.errors,
+                    ),
+                    400,
+                )
+
+            query_string = urlencode(translation.params, doseq=True)
+            assess_url = url_for("assess.assess")
+            return redirect(f"{assess_url}?{query_string}" if query_string else assess_url)
+
+        return render_template("partials/omnisearch/search_dialog.html", current_search="")
+
+
+class OmniSearchSuggestions(MethodView):
+    @auth_required(["ASSESS_ACCESS", "ALL"])
+    def get(self):
+        current_search = request.args.get("q", "")
+        filter_lists = StoryView._get_filter_lists()
+        return render_template(
+            "partials/omnisearch/suggestions.html",
+            suggestions=build_assess_omnisearch_suggestions(current_search, filter_lists),
+        )
 
 
 class NewsItemConflictsView(MethodView):
@@ -112,6 +147,7 @@ def init(app: Flask):
     base_bp.add_url_rule("/open_api", view_func=OpenAPIView.as_view("open_api"))
     base_bp.add_url_rule("/notification", view_func=NotificationView.as_view("notification"))
     base_bp.add_url_rule("/search", view_func=OmniSearch.as_view("omnisearch"))
+    base_bp.add_url_rule("/search/suggestions", view_func=OmniSearchSuggestions.as_view("omnisearch_suggestions"))
 
     base_bp.add_url_rule("/invalidate_cache", view_func=InvalidateCache.as_view("invalidate_cache"))
     base_bp.add_url_rule("/invalidate_cache/<string:suffix>", view_func=InvalidateCache.as_view("invalidate_cache_suffix"))

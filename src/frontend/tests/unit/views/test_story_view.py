@@ -462,7 +462,7 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
     assert search_input.get("hx-trigger") is None
 
 
-def test_omnisearch_dialog_form_uses_htmx_submit(authenticated_client):
+def test_omnisearch_dialog_form_uses_normal_submit_and_htmx_suggestions(authenticated_client):
     response = authenticated_client.get(url_for("base.omnisearch"))
 
     assert response.status_code == 200
@@ -471,9 +471,77 @@ def test_omnisearch_dialog_form_uses_htmx_submit(authenticated_client):
     form = tree.xpath('//dialog[@id="assess_search_dialog"]//div[@class="modal-box"]/form')[0]
     search_input = tree.xpath('//input[@id="omni_search"]')[0]
 
-    assert form.get("hx-trigger") == expected_search_trigger("omni_search")
-    assert form.get("hx-on:submit") == "event.preventDefault()"
-    assert search_input.get("hx-trigger") is None
+    assert form.get("method") == "get"
+    assert form.get("action") == url_for("base.omnisearch")
+    assert form.get("hx-get") is None
+    assert form.get("hx-trigger") is None
+    assert form.get("hx-on:submit") is None
+    assert search_input.get("name") == "q"
+    assert search_input.get("hx-get") == url_for("base.omnisearch_suggestions")
+    assert search_input.get("hx-trigger") == expected_search_trigger("omni_search")
+    assert search_input.get("hx-target") == "#omni-search-suggestions"
+
+
+def test_omnisearch_submit_redirects_to_assess_query(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={
+            "tags": ["apt"],
+            "sources": [{"id": "source-1", "name": "Some Source"}],
+            "groups": [{"id": "group-1", "name": "Some Group"}],
+        },
+    )
+
+    response = authenticated_client.get(
+        url_for("base.omnisearch", q='vpn source:"Some Source" tag:apt read:false sort:relevance'),
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    location = urlparse(response.headers["Location"])
+    assert location.path == url_for("assess.assess")
+    assert parse_qs(location.query) == {
+        "search": ["vpn"],
+        "source": ["source-1"],
+        "tags": ["apt"],
+        "read": ["false"],
+        "sort": ["relevance"],
+    }
+
+
+def test_omnisearch_submit_shows_validation_errors(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={"tags": [], "sources": [], "groups": []},
+    )
+
+    response = authenticated_client.get(url_for("base.omnisearch", q="read:maybe"), follow_redirects=False)
+
+    assert response.status_code == 400
+    tree = html.fromstring(response.text)
+    errors = tree.xpath('//div[@id="omni-search-errors"]//li/text()')
+    assert errors == ["Invalid value 'maybe' for keyword 'read:'."]
+
+
+def test_omnisearch_suggestions_use_filter_lists(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={
+            "tags": [],
+            "sources": [{"id": "source-1", "name": "Some Source"}],
+            "groups": [],
+        },
+    )
+
+    response = authenticated_client.get(
+        url_for("base.omnisearch_suggestions", q="source:Some"),
+        headers={"HX-Request": "true"},
+    )
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    suggestion_button = tree.xpath("//button[@data-query='source:\"Some Source\" ']")[0]
+    assert suggestion_button.xpath('.//span[@class="min-w-0 truncate font-medium"]/text()') == ["Some Source"]
 
 
 def test_create_news_item_from_url_posts_simple_web_collector_payload(authenticated_client, responses_mock):

@@ -72,6 +72,7 @@ ASSESS_DEFAULT_FILTER_KEYS = frozenset(
         "in_report",
         "relevant",
         "cybersecurity",
+        "changed_by",
         "range",
         "sort",
         "timefrom",
