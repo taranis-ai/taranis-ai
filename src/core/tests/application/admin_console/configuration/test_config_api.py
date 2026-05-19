@@ -802,6 +802,52 @@ class TestBotConfigApi(BaseTest):
         assert response.json["message"] == f"Bot {cleanup_bot['name']} deleted"
 
 
+class TestAdminMenuBadgesConfigApi(BaseTest):
+    base_uri = "/api/config"
+
+    def test_get_admin_menu_badges(self, client, auth_header, app):
+        from core.model.task import Task
+
+        task_ids = [
+            f"admin-menu-badge-collector-{uuid.uuid4().hex}",
+            f"admin-menu-badge-bot-{uuid.uuid4().hex}",
+        ]
+
+        with app.app_context():
+            Task.add(
+                {
+                    "id": task_ids[0],
+                    "task": "collector_task",
+                    "worker_id": "source-1",
+                    "worker_type": "rss_collector",
+                    "status": "FAILURE",
+                    "result": {"error": "boom"},
+                }
+            )
+            Task.add(
+                {
+                    "id": task_ids[1],
+                    "task": "bot_task",
+                    "worker_id": "bot-1",
+                    "worker_type": "WORDLIST_BOT",
+                    "status": "FAILURE",
+                    "result": {"error": "boom"},
+                }
+            )
+
+        try:
+            response = self.assert_get_ok(client, uri="admin-menu-badges", auth_header=auth_header)
+            assert response.json == {"osint_source": 1, "bot": 1}
+            cache_control = response.headers["Cache-Control"].lower()
+            assert "private" in cache_control
+            assert "max-age=300" in cache_control
+        finally:
+            with app.app_context():
+                for task_id in task_ids:
+                    if Task.get(task_id):
+                        Task.delete(task_id)
+
+
 class TestConnectorConfigApi(BaseTest):
     base_uri = "/api/config"
 

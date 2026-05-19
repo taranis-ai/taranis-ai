@@ -3,8 +3,7 @@ import json
 from typing import Any, Literal
 
 from flask import render_template, request, url_for
-from models.admin import OSINTSource
-from models.dashboard import Dashboard
+from models.admin import AdminMenuBadges, OSINTSource
 from models.task import Task
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
@@ -36,13 +35,15 @@ class SourceView(AdminMixin, BaseView):
     @classmethod
     def get_admin_menu_badge(cls) -> int:
         try:
-            if dashboard := DataPersistenceLayer().get_first(Dashboard):
-                if worker_status := dashboard.worker_status:
-                    return worker_status.get("collector_task", {}).get("failures", 0)
+            badges = DataPersistenceLayer().get_object(AdminMenuBadges)
+            if not badges:
+                return 0
+
+            return int(getattr(badges, "osint_source", 0) or 0)
         except HTTPException:
             raise
         except Exception:
-            logger.exception("Error retrieving dashboard for source admin menu badge")
+            logger.exception("Error retrieving source admin menu badge")
 
         return 0
 
