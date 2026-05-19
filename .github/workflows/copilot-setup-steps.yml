@@ -6,28 +6,17 @@ on:
     paths:
       - .github/copilot-instructions.md
       - .github/workflows/copilot-setup-steps.yml
-      - dev/**
-      - src/core/**
-      - src/frontend/**
-      - src/models/**
-      - src/worker/**
-      - README.md
   pull_request:
     paths:
       - .github/copilot-instructions.md
       - .github/workflows/copilot-setup-steps.yml
-      - dev/**
-      - src/core/**
-      - src/frontend/**
-      - src/models/**
-      - src/worker/**
-      - README.md
+
+permissions:
+  contents: read
 
 jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     defaults:
       run:
         shell: bash
@@ -40,7 +29,7 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install 3.13
+        run: uv python install 3.14
 
       - name: Sync core dependencies
         working-directory: src/core

@@ -597,7 +597,7 @@ class StoryView(BaseView):
         return cls._render_story_list(paging_data, request_params)
 
     @classmethod
-    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
+    def get_item_context(cls, object_id: str) -> dict[str, Any]:
         context = super().get_item_context(object_id)
         context["_show_sidebar"] = False
         context["form_action"] = f"hx-post={url_for('assess.story_edit', story_id=object_id)}"
@@ -774,6 +774,68 @@ class StoryView(BaseView):
             core_response,
             content_builder=lambda _: cls.news_item_view(news_item_id=news_item_id)[0],
         )
+
+    @classmethod
+    @auth_required()
+    def update_news_item_tags(cls, news_item_id: str):
+        form_data = parse_formdata(request.form)
+        story_id = str(form_data.get("story_id") or "")
+        tags = cls._normalize_news_item_tags(form_data.get("tags") or [])
+        try:
+            core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}/tags", json_data=tags)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to update news item tags.")
+            return make_response(cls.render_response_notification({"error": "Failed to update news item tags."}), 500)
+
+        notification_html = cls.get_notification_from_response(core_response)
+        status = 200 if getattr(core_response, "ok", False) else getattr(core_response, "status_code", 400) or 400
+        if not getattr(core_response, "ok", False):
+            return make_response(notification_html, status)
+
+        content = cls._get_news_item_tag_update_content(story_id, news_item_id)
+        return make_response(notification_html + content, status)
+
+    @staticmethod
+    def _normalize_news_item_tags(tags: Any) -> list[dict[str, str]]:
+        if isinstance(tags, dict):
+            tags = [tags] if "name" in tags else list(tags.values())
+        if not isinstance(tags, list):
+            return []
+
+        normalized_tags = []
+        for tag in tags:
+            if isinstance(tag, str):
+                name = tag.strip()
+                tag_type = "misc"
+            elif isinstance(tag, dict):
+                name = str(tag.get("name") or "").strip()
+                tag_type = str(tag.get("tag_type") or "misc").strip() or "misc"
+            else:
+                continue
+
+            if name:
+                normalized_tags.append({"name": name, "tag_type": tag_type})
+
+        return normalized_tags
+
+    @staticmethod
+    def _get_news_item_tag_update_content(story_id: str, news_item_id: str) -> str:
+        if not story_id:
+            return ""
+
+        story = StoryView.get_object_by_id(story_id)
+        if not isinstance(story, Story):
+            logger.warning(f"Story {story_id} not found")
+            return render_template("partials/404.html")
+
+        news_item = next((item for item in story.news_items or [] if item.id == news_item_id), None)
+        if not news_item:
+            logger.warning(f"News item {news_item_id} not found on story {story_id}")
+            return render_template("partials/404.html")
+
+        return render_template("assess/news_item_card_fragment.html", news_item=news_item, story=story, edit_tags=True)
 
     @classmethod
     def _create_news_item_from_file(cls, file: FileStorage):

@@ -4,7 +4,7 @@ from urllib.parse import parse_qs, urlparse
 
 from flask import render_template_string, url_for
 from lxml import html
-from models.assess import Story
+from models.assess import Story, StoryUpdatePayload
 from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import Forbidden
 
@@ -17,16 +17,49 @@ def expected_search_trigger(input_id: str) -> str:
     return f"input changed delay:500ms from:#{input_id}, search from:#{input_id}"
 
 
+def mock_story_for_edit(responses_mock, story_payload: dict):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={"tags": [], "sources": [], "groups": []},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}",
+        json=story_payload,
+    )
+
+
+def story_with_news_item_tags() -> dict:
+    return {
+        "id": "story-1",
+        "title": "Tagged Story",
+        "description": "Story description",
+        "summary": "Story summary",
+        "comments": "Story comment",
+        "attributes": [],
+        "news_items": [
+            {
+                "id": "news-1",
+                "story_id": "story-1",
+                "title": "Tagged News Item",
+                "content": "News item content",
+                "source": "manual",
+                "osint_source_id": "manual",
+                "tags": [{"name": "item-tag", "tag_type": "actor"}],
+            }
+        ],
+    }
+
+
 def test_story_diff_view_renders_compare_payload(app, authenticated_client, responses_mock):
     story_id = "story-1"
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/1",
         json={
-            "id": 1,
+            "id": "revision-1",
             "revision": 1,
             "created_at": "2026-03-12T10:00:00",
             "created_by": "alice",
-            "created_by_id": 1,
+            "created_by_id": "user-1",
             "note": "created",
             "data": {
                 "title": "Kill Chain im Krieg verkurzt",
@@ -46,11 +79,11 @@ def test_story_diff_view_renders_compare_payload(app, authenticated_client, resp
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/2",
         json={
-            "id": 2,
+            "id": "revision-2",
             "revision": 2,
             "created_at": "2026-03-12T11:00:00",
             "created_by": "bob",
-            "created_by_id": 2,
+            "created_by_id": "user-2",
             "note": "update",
             "data": {
                 "title": "Kill Chain im Krieg deutlich verkurzt",
@@ -88,11 +121,11 @@ def test_story_diff_view_shows_no_changes_state(app, authenticated_client, respo
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/1",
         json={
-            "id": 1,
+            "id": "revision-1",
             "revision": 1,
             "created_at": "2026-03-12T10:00:00",
             "created_by": "alice",
-            "created_by_id": 1,
+            "created_by_id": "user-1",
             "note": "created",
             "data": {
                 "title": "Story title",
@@ -110,11 +143,11 @@ def test_story_diff_view_shows_no_changes_state(app, authenticated_client, respo
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/2",
         json={
-            "id": 2,
+            "id": "revision-2",
             "revision": 2,
             "created_at": "2026-03-12T11:00:00",
             "created_by": "bob",
-            "created_by_id": 2,
+            "created_by_id": "user-2",
             "note": "update",
             "data": {
                 "title": "Story title",
@@ -174,6 +207,7 @@ def test_normalize_story_import_payload_strips_export_only_fields():
                         "content": "content",
                         "osint_source_id": "99",
                         "updated": "2026-03-12T10:00:00",
+                        "tags": [{"name": "news-tag", "tag_type": "misc"}],
                     }
                 ],
             }
@@ -194,6 +228,7 @@ def test_normalize_story_import_payload_strips_export_only_fields():
                     "source": "https://example.com/source",
                     "content": "content",
                     "osint_source_id": "99",
+                    "tags": [{"name": "news-tag", "tag_type": "misc"}],
                     "story_id": "story-1",
                 }
             ],
@@ -216,6 +251,7 @@ def test_story_to_core_dict_strips_export_only_fields():
                     "osint_source_id": "manual",
                     "title": "Imported Story News 1",
                     "links": ["https://example.com/news"],
+                    "tags": [{"name": "news-tag", "tag_type": "misc"}],
                 }
             ],
         }
@@ -229,6 +265,13 @@ def test_story_to_core_dict_strips_export_only_fields():
     assert "user_vote" not in normalized
     assert "in_reports_count" not in normalized
     assert "links" not in normalized["news_items"][0]
+    assert normalized["news_items"][0]["tags"] == [{"name": "news-tag", "tag_type": "misc"}]
+
+
+def test_story_update_payload_ignores_tags():
+    payload = StoryUpdatePayload(title="Updated Story", tags=[{"name": "story-tag", "tag_type": "misc"}])
+
+    assert payload.model_dump(mode="json") == {"title": "Updated Story"}
 
 
 def _render_news_item_card(story: Story) -> str:
@@ -291,7 +334,7 @@ def test_news_item_card_hides_author_when_missing_or_empty(app):
 
 
 def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authenticated_client):
-    response = authenticated_client.get(url_for("assess.get_news_item", news_item_id=0))
+    response = authenticated_client.get(url_for("assess.get_news_item", news_item_id="0"))
 
     assert response.status_code == 200
 
@@ -318,6 +361,101 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     source_input = form[0].xpath('.//input[@name="source"]')
     assert len(source_input) == 1
     assert source_input[0].get("required") is None
+
+
+def test_story_edit_renders_news_item_tag_editor(authenticated_client, responses_mock):
+    story_payload = story_with_news_item_tags()
+    mock_story_for_edit(responses_mock, story_payload)
+
+    response = authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"]))
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+
+    assert tree.xpath('//*[@data-testid="edit-newsitem-tags"]')
+    assert tree.xpath('//*[@data-testid="news-item-tag-name-input"]')
+    assert "resetTags(); tagEditorOpen = false" in response.text
+    assert not tree.xpath('//*[@data-testid="tag-name-input"]')
+    assert not tree.xpath('//*[@data-testid="tag-value-input"]')
+
+
+def test_update_news_item_tags_posts_to_news_item_endpoint_and_rerenders_card(authenticated_client, responses_mock):
+    story_payload = story_with_news_item_tags()
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/news-1/tags",
+        json={"message": "Tags updated"},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}",
+        json=story_payload,
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.update_news_item_tags", news_item_id="news-1"),
+        data=MultiDict(
+            [
+                ("story_id", story_payload["id"]),
+                ("tags[][name]", "incident"),
+                ("tags[][tag_type]", "actor"),
+            ]
+        ),
+    )
+
+    assert response.status_code == 200
+    tag_call = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/news-items/news-1/tags"))
+    assert json.loads(tag_call.request.body) == [{"name": "incident", "tag_type": "actor"}]
+    assert 'id="news-item-card-news-1"' in response.text
+
+
+def test_update_news_item_tags_filters_blank_rows_before_core_request(authenticated_client, responses_mock):
+    story_payload = story_with_news_item_tags()
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/news-1/tags",
+        json={"message": "Tags updated"},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}",
+        json=story_payload,
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.update_news_item_tags", news_item_id="news-1"),
+        data=MultiDict(
+            [
+                ("story_id", story_payload["id"]),
+                ("tags[][name]", ""),
+                ("tags[][tag_type]", ""),
+            ]
+        ),
+    )
+
+    assert response.status_code == 200
+    tag_call = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/news-items/news-1/tags"))
+    assert json.loads(tag_call.request.body) == []
+
+
+def test_update_news_item_tags_propagates_core_error_and_does_not_rerender_card(authenticated_client, responses_mock):
+    story_payload = story_with_news_item_tags()
+    responses_mock.put(
+        f"{Config.TARANIS_CORE_URL}/assess/news-items/news-1/tags",
+        status=400,
+        json={"message": "Tags not updated"},
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.update_news_item_tags", news_item_id="news-1"),
+        data=MultiDict(
+            [
+                ("story_id", story_payload["id"]),
+                ("tags[][name]", "incident"),
+                ("tags[][tag_type]", "actor"),
+            ]
+        ),
+    )
+
+    assert response.status_code == 400
+    assert "Tags not updated" in response.text
+    assert 'id="news-item-card-news-1"' not in response.text
 
 
 def test_assess_search_form_uses_single_htmx_submission_path(authenticated_client, responses_mock):
@@ -456,7 +594,7 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/users",
         json={
-            "id": 1,
+            "id": "user-1",
             "username": "admin",
             "name": "Arthur Dent",
             "profile": {
@@ -474,14 +612,14 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
                 }
             },
             "permissions": ["ALL"],
-            "roles": [{"id": 1, "name": "Admin"}],
+            "roles": [{"id": "role-1", "name": "Admin"}],
         },
     )
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/users/profile",
         json={
             "message": "Profile updated",
-            "id": 1,
+            "id": "user-1",
             "user_profile": {
                 "assess_default_filters": {
                     "source": ["source-1"],

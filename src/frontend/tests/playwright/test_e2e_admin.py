@@ -130,7 +130,9 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Password", exact=True).fill("testasdfasdf")
 
             expect(page.locator('select[name="organization"]')).to_have_attribute("required", "")
-            page.get_by_label("Organization").select_option("1")
+            organization_value = page.locator('select[name="organization"] option:not([value=""])').first.get_attribute("value")
+            assert organization_value is not None
+            page.get_by_label("Organization").select_option(organization_value)
             roles_select = page.locator('select[name="roles[]"]')
             expect(roles_select).to_have_attribute("required", "")
             roles_select.select_option(label="User - Basic user role", force=True)
@@ -549,10 +551,16 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             acl_form.locator('input[name="enabled"][type="checkbox"]').set_checked(False)
             acl_form.locator('input[name="read_only"][type="checkbox"]').set_checked(False)
-            roles_table.locator("tbody tr", has_text="Admin Administrator role").locator('input[type="checkbox"]').click()
-            expect(roles_widget.locator('input[type="hidden"][name="roles[]"][value="1"]')).to_have_count(1)
-            roles_table.locator("tbody tr", has_text="User Basic user role").locator('input[type="checkbox"]').click()
-            expect(roles_widget.locator('input[type="hidden"][name="roles[]"][value="2"]')).to_have_count(1)
+            admin_role_checkbox = roles_table.locator("tbody tr", has_text="Admin Administrator role").locator('input[type="checkbox"]')
+            admin_role_value = admin_role_checkbox.get_attribute("value")
+            assert admin_role_value is not None
+            user_role_checkbox = roles_table.locator("tbody tr", has_text="User Basic user role").locator('input[type="checkbox"]')
+            user_role_value = user_role_checkbox.get_attribute("value")
+            assert user_role_value is not None
+            admin_role_checkbox.click()
+            expect(roles_widget.locator(f'input[type="hidden"][name="roles[]"][value="{admin_role_value}"]')).to_have_count(1)
+            user_role_checkbox.click()
+            expect(roles_widget.locator(f'input[type="hidden"][name="roles[]"][value="{user_role_value}"]')).to_have_count(1)
             page.get_by_role("button", name="Create ACL").click()
 
         def test_acl_update():
@@ -562,9 +570,12 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             roles_table = acl_form.locator("#roles-table")
             roles_widget = acl_form.locator("#dataTableDiv")
-            expect(roles_widget.locator('input[type="hidden"][name="roles[]"][value="1"]')).to_have_count(1)
-            roles_table.locator("tbody tr", has_text="Admin Administrator role").locator('input[type="checkbox"]').click()
-            expect(roles_widget.locator('input[type="hidden"][name="roles[]"][value="1"]')).to_have_count(0)
+            admin_role_checkbox = roles_table.locator("tbody tr", has_text="Admin Administrator role").locator('input[type="checkbox"]')
+            admin_role_value = admin_role_checkbox.get_attribute("value")
+            assert admin_role_value is not None
+            expect(roles_widget.locator(f'input[type="hidden"][name="roles[]"][value="{admin_role_value}"]')).to_have_count(1)
+            admin_role_checkbox.click()
+            expect(roles_widget.locator(f'input[type="hidden"][name="roles[]"][value="{admin_role_value}"]')).to_have_count(0)
             name_input = acl_form.locator('input[name="name"]')
             expect(name_input).to_have_attribute("required", "")
             name_input.fill("Test ACL updated")
@@ -649,7 +660,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Attribute Title").click()
             page.get_by_role("textbox", name="Attribute Title").fill("attr title text")
             expect(page.locator("select[name$='[attribute_id]']").first).to_have_attribute("required", "")
-            page.get_by_label("Attribute Type * Select an").select_option("28")
+            page.get_by_label("Attribute Type * Select an").select_option(label="attribute number 5")
             page.get_by_role("textbox", name="Attribute Description").click()
             page.get_by_role("textbox", name="Attribute Description").fill("test 5")
             page.get_by_role("textbox", name="Attribute Description").dblclick()
@@ -666,7 +677,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.locator(".col-span-12 > .grid > div").first.click()
             expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").fill("number 5 in report")
-            page.get_by_label("Report Type Select a report").select_option("6")
+            page.get_by_label("Report Type Select a report").select_option(label="report item type test 5")
             page.get_by_test_id("save-report").click()
             expect(page.get_by_role("heading", name="Update Report - number 5 in")).to_be_visible()
             expect(page.get_by_role("heading", name="group1")).to_be_visible()
@@ -706,7 +717,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Title").click()
             expect(page.get_by_role("textbox", name="Title")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Title").fill("update attr use")
-            page.get_by_label("Report Type Select a report").select_option("6")
+            page.get_by_label("Report Type Select a report").select_option(label="report item type test 5")
             page.get_by_test_id("save-report").click()
             attr_field = page.get_by_role("spinbutton", name="attr title text")
             expect(attr_field).to_have_value("6")

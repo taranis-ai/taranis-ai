@@ -29,8 +29,12 @@ class ReportItemView(BaseView):
     edit_route = "analyze.report"
 
     @classmethod
-    def get_form_action(cls, object_id: int | str = 0) -> str:
-        return cls.get_edit_route(report_id=str(object_id))
+    def get_form_action(cls, object_id: str = "0") -> str:
+        return cls.get_edit_route(report_id=object_id)
+
+    @classmethod
+    def _get_object_key(cls) -> str:
+        return "report_id"
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
@@ -181,7 +185,7 @@ class ReportItemView(BaseView):
         return base_context
 
     @classmethod
-    def _render_layout_switch_view(cls, object_id: int | str = 0) -> tuple[str, int]:
+    def _render_layout_switch_view(cls, object_id: str = "0") -> tuple[str, int]:
         if cls.is_create_object_id(object_id):
             return render_template(cls.get_update_template(), **cls.get_create_context()), 200
 
@@ -232,7 +236,7 @@ class ReportItemView(BaseView):
         return ReportItemView.list_view()
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        object_id = self._get_object_id(kwargs) or 0
+        object_id = self._get_object_id(kwargs) or "0"
         if request.form.get("layout_switch"):
             return self._render_layout_switch_view(object_id)
         return self.update_view_table(object_id=object_id)
@@ -267,16 +271,16 @@ class ReportItemView(BaseView):
         return render_template("analyze/report_versions.html", **context), 200
 
     @classmethod
-    def handle_submit_error(cls, object_id: int | str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
+    def handle_submit_error(cls, object_id: str, error: str | None = None, resp_obj: dict[str, Any] | None = None) -> tuple[str, int]:
         return cls.render_submitted_form_error(object_id, error=error, resp_obj=resp_obj)
 
     @classmethod
-    def handle_submit_success(cls, object_id: int | str, core_response: dict[str, Any]) -> ResponseReturnValue:
+    def handle_submit_success(cls, object_id: str, core_response: dict[str, Any]) -> ResponseReturnValue:
         cls.add_flash_notification(core_response)
         return cls.redirect_htmx(cls.get_submit_redirect_target(object_id, core_response))
 
     @classmethod
-    def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
+    def get_submit_redirect_target(cls, object_id: str, core_response: dict[str, Any]) -> str:
         response_object_id = core_response.get("id", object_id)
         if not cls.is_create_object_id(object_id):
             try:

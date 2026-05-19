@@ -2,24 +2,13 @@
 from datetime import datetime, timezone
 from typing import Any, cast
 
-import pytest
 import rq.registry as rq_registry
 
-from core.managers import auth_manager
 from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
 from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
 from core.model.task import Task as TaskModel
-
-
-@pytest.fixture(autouse=True)
-def disable_token_revocation(monkeypatch):
-    """Avoid hitting the database for JWT blacklist checks during unit tests."""
-    from core.model import token_blacklist
-
-    monkeypatch.setattr(auth_manager, "check_if_token_is_revoked", lambda *_, **__: False)
-    monkeypatch.setattr(token_blacklist.TokenBlacklist, "invalid", classmethod(lambda cls, jti: False))
 
 
 class _FakeRedis:

@@ -27,11 +27,11 @@ def test_report_diff_view_renders_compare_payload(app, authenticated_client_basi
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/1",
         json={
-            "id": 1,
+            "id": "revision-1",
             "revision": 1,
             "created_at": "2026-03-12T10:00:00",
             "created_by": "alice",
-            "created_by_id": 1,
+            "created_by_id": "user-1",
             "note": "created",
             "data": {
                 "title": "Report Draft",
@@ -51,11 +51,11 @@ def test_report_diff_view_renders_compare_payload(app, authenticated_client_basi
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/2",
         json={
-            "id": 2,
+            "id": "revision-2",
             "revision": 2,
             "created_at": "2026-03-12T11:00:00",
             "created_by": "bob",
-            "created_by_id": 2,
+            "created_by_id": "user-2",
             "note": "update",
             "data": {
                 "title": "Report Final",
@@ -90,11 +90,11 @@ def test_report_diff_view_shows_no_changes_state(app, authenticated_client_basic
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/1",
         json={
-            "id": 1,
+            "id": "revision-1",
             "revision": 1,
             "created_at": "2026-03-12T10:00:00",
             "created_by": "alice",
-            "created_by_id": 1,
+            "created_by_id": "user-1",
             "note": "created",
             "data": {"title": "Report title", "completed": False, "stories": [], "grouped_attributes": []},
         },
@@ -104,11 +104,11 @@ def test_report_diff_view_shows_no_changes_state(app, authenticated_client_basic
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/analyze/report-items/{report_id}/revisions/2",
         json={
-            "id": 2,
+            "id": "revision-2",
             "revision": 2,
             "created_at": "2026-03-12T11:00:00",
             "created_by": "bob",
-            "created_by_id": 2,
+            "created_by_id": "user-2",
             "note": "update",
             "data": {"title": "Report title", "completed": False, "stories": [], "grouped_attributes": []},
         },
@@ -150,7 +150,7 @@ def test_story_view_renders_access_denied_page_when_core_returns_403(app, authen
 
 def test_report_update_response_fetches_saved_report_when_core_response_only_contains_id(app, monkeypatch):
     saved_report_id = "8124ae6f-3c85-49b4-93a1-9f3dc6516310"
-    saved_report = ReportItem.model_construct(id=saved_report_id, title="test title", report_item_type_id=4)
+    saved_report = ReportItem.model_construct(id=saved_report_id, title="test title", report_item_type_id="report-type-1")
 
     def mock_get_object(_self, model, object_id):
         assert model is ReportItem
@@ -159,7 +159,7 @@ def test_report_update_response_fetches_saved_report_when_core_response_only_con
 
     def mock_get_objects(_self, model, *args, **kwargs):
         assert model is ReportTypes
-        return [ReportTypes.model_construct(id=4, title="CERT Report")]
+        return [ReportTypes.model_construct(id="report-type-1", title="CERT Report")]
 
     monkeypatch.setattr(
         "frontend.views.base_view.BaseView.get_object_by_id", classmethod(lambda cls, object_id: mock_get_object(None, cls.model, object_id))
@@ -168,10 +168,10 @@ def test_report_update_response_fetches_saved_report_when_core_response_only_con
 
     with app.test_request_context("/report/0?layout=split"):
         persisted_object_id, model_instance, response_message = ReportItemView.resolve_update_response(
-            0, {"id": saved_report_id, "message": "Report item created"}
+            "0", {"id": saved_report_id, "message": "Report item created"}
         )
         context = ReportItemView.get_update_context(
-            0,
+            "0",
             model_instance=model_instance,
             response_message=response_message,
             form_action_object_id=persisted_object_id,
@@ -187,7 +187,7 @@ def test_report_create_post_renders_saved_report_when_core_response_only_contain
     app, authenticated_client_basic, monkeypatch, responses_mock
 ):
     saved_report_id = "8124ae6f-3c85-49b4-93a1-9f3dc6516310"
-    saved_report = ReportItem.model_construct(id=saved_report_id, title="test title", report_item_type_id=4)
+    saved_report = ReportItem.model_construct(id=saved_report_id, title="test title", report_item_type_id="report-type-1")
 
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/analyze/report-items",
@@ -203,7 +203,7 @@ def test_report_create_post_renders_saved_report_when_core_response_only_contain
 
     def mock_get_objects(_self, model, *args, **kwargs):
         assert model is ReportTypes
-        return [ReportTypes.model_construct(id=4, title="CERT Report")]
+        return [ReportTypes.model_construct(id="report-type-1", title="CERT Report")]
 
     monkeypatch.setattr(
         "frontend.views.base_view.BaseView.get_object_by_id", classmethod(lambda cls, object_id: mock_get_object(None, cls.model, object_id))
@@ -213,7 +213,7 @@ def test_report_create_post_renders_saved_report_when_core_response_only_contain
     with app.test_request_context():
         response = authenticated_client_basic.post(
             url_for("analyze.report", report_id="0"),
-            data={"title": "test title", "report_item_type_id": "4", "layout": "split"},
+            data={"title": "test title", "report_item_type_id": "report-type-1", "layout": "split"},
             headers={"HX-Request": "true"},
         )
 

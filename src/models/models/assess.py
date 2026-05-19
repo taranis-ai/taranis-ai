@@ -26,6 +26,7 @@ NEWS_ITEM_IMPORT_FIELDS = frozenset(
         "language",
         "hash",
         "attributes",
+        "tags",
         "last_change",
         "published",
         "collected",
@@ -49,7 +50,6 @@ STORY_IMPORT_FIELDS = frozenset(
         "comments",
         "revision",
         "attributes",
-        "tags",
         "news_items",
         "last_change",
     }
@@ -119,9 +119,11 @@ class NewsItem(TaranisBaseModel):
     collected: datetime | None = None
     updated: datetime | None = None
     attributes: list[str | dict[str, Any]] | None = None
+    tags: list[dict[str, Any]] | dict[str, Any] | None = None
     story_id: str | None = None
     language: BCP47 = None
     last_change: str | None = None
+    osint_source_key: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -277,6 +279,8 @@ class FilterLists(TaranisBaseModel):
 
 
 class StoryUpdatePayload(TaranisBaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     vote: Literal["like", "dislike", ""] | None = None
     important: bool | None = None
     read: bool | None = None
@@ -284,7 +288,6 @@ class StoryUpdatePayload(TaranisBaseModel):
     description: str | None = None
     comments: str | None = None
     summary: str | None = None
-    tags: list[dict[str, Any]] | None = None
     attributes: list[dict[str, Any]] | None = None
 
 

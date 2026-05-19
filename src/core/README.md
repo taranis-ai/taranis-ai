@@ -6,7 +6,7 @@ It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLA
 
 ## Requirements
 
-* Python version 3.12 or greater.
+* Python version 3.14 or greater.
 * SQLite or PostgreSQL
 * Redis
 
@@ -27,7 +27,7 @@ Source venv and install dependencies
 
 ```bash
 source .venv/bin/activate
-uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv sync --all-extras --frozen --python 3.14 --no-install-package taranis-models
 uv pip install -e ../models
 ```
 

@@ -11,7 +11,7 @@ def cleanup_sources(app):
         from core.model.osint_source import OSINTSource
 
         source_data = {
-            "id": "42",
+            "id": str(uuid.uuid7()),
             "description": "This is a test source",
             "name": "Test Source",
             "rank": 0,
@@ -61,7 +61,7 @@ def cleanup_source_groups(app):
         from core.model.osint_source import OSINTSourceGroup
 
         source_group_data = {
-            "id": "42",
+            "id": str(uuid.uuid7()),
             "name": "Test Group",
             "description": "This is a test group",
         }
@@ -79,7 +79,7 @@ def cleanup_word_lists(app):
         from core.model.word_list import WordList
 
         word_list_data = {
-            "id": 42,
+            "id": str(uuid.uuid7()),
             "name": "Test word list name",
             "description": "Desc of word lists",
             "usage": ["TAGGING_BOT"],
@@ -97,14 +97,19 @@ def cleanup_word_lists(app):
 @pytest.fixture(scope="session")
 def cleanup_user(app):
     with app.app_context():
+        from core.model.organization import Organization
+        from core.model.role import Role
         from core.model.user import User
 
+        organization = Organization.find_by_name("The Earth")
+        role = Role.filter_by_name("User")
+
         user_data = {
-            "id": 42,
+            "id": str(uuid.uuid7()),
             "username": "testuser",
             "name": "Test User",
-            "organization": 1,
-            "roles": [2],
+            "organization": organization.id if organization else None,
+            "roles": [role.id] if role else [],
             "password": "testpassword",
         }
 
@@ -121,7 +126,7 @@ def cleanup_role(app):
         from core.model.role import Role
 
         role_data = {
-            "id": 42,
+            "id": str(uuid.uuid7()),
             "name": "testrole",
             "description": "Test Role",
             "permissions": ["ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_DELETE"],
@@ -140,7 +145,7 @@ def cleanup_organization(app):
         from core.model.organization import Organization
 
         organization_data = {
-            "id": 42,
+            "id": str(uuid.uuid7()),
             "name": "testOrg",
             "description": "Test Organization",
             "address": {"street": "testStreet", "city": "testCity"},
@@ -159,7 +164,7 @@ def cleanup_bot(app):
         from core.model.bot import Bot
 
         bot_data = {
-            "id": "42",
+            "id": str(uuid.uuid7()),
             "name": "testBot",
             "description": "test Bot",
             "type": "nlp_bot",
@@ -176,10 +181,16 @@ def cleanup_bot(app):
 @pytest.fixture(scope="session")
 def cleanup_report_item_type(app):
     with app.app_context():
+        from core.managers.db_manager import db
+        from core.model.attribute import Attribute
         from core.model.report_item_type import ReportItemType
 
+        attribute = Attribute.get_first(db.select(Attribute))
+        if attribute is None:
+            raise ValueError("No seeded attribute found")
+
         report_type_data = {
-            "id": 42,
+            "id": str(uuid.uuid7()),
             "title": "Test Report Type",
             "description": "This is a test report type",
             "attribute_groups": [
@@ -190,7 +201,7 @@ def cleanup_report_item_type(app):
                     "attribute_group_items": [
                         {
                             "index": 0,
-                            "attribute_id": 1,
+                            "attribute_id": attribute.id,
                             "title": "Test Attribute Group Item",
                             "description": "This is a test attribute group item",
                             "required": False,
@@ -213,7 +224,7 @@ def cleanup_product_types(app):
         from core.model.product_type import ProductType
 
         product_type_data = {
-            "id": 42,
+            "id": str(uuid.uuid7()),
             "type": "pdf_presenter",
             "parameters": {"TEMPLATE_PATH": "pdf_template.html"},
             "title": "Test Product type",
@@ -233,7 +244,7 @@ def cleanup_acls(app):
         from core.model.role_based_access import RoleBasedAccess
 
         rbac_data = {
-            "id": 42,
+            "id": str(uuid.uuid7()),
             "name": "test_acl_unique",
             "description": "Test ACL",
             "item_type": "word_list",
@@ -254,7 +265,7 @@ def cleanup_publisher_preset(app):
         from core.model.publisher_preset import PublisherPreset
 
         publisher_presets = {
-            "id": "42",
+            "id": str(uuid.uuid7()),
             "name": "test_publisher_preset",
             "description": "Test ACL",
             "type": "ftp_publisher",
@@ -274,7 +285,7 @@ def cleanup_attribute(app):
         from core.model.attribute import Attribute
 
         attribute_data = {
-            "id": 42,
+            "id": str(uuid.uuid7()),
             "name": "Attribute name",
             "description": "Simple attribute desc",
             "type": "STRING",
