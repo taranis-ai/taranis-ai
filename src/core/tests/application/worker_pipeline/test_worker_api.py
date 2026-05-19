@@ -467,14 +467,8 @@ class TestWorkerTaskResults:
             ("FAILURE", "Error: feed retrieval failed"),
         ],
     )
-    def test_collector_non_success_result_invalidates_admin_badges_and_osint_source_cache(
-        self,
-        client,
-        api_header,
-        app,
-        monkeypatch,
-        status,
-        result_message,
+    def test_collector_non_success_result_invalidates_only_osint_source_cache(
+        self, client, api_header, app, monkeypatch, status, result_message
     ):
         import fakeredis
 
