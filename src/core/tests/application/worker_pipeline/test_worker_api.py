@@ -6,6 +6,16 @@ from pathlib import Path
 import pytest
 
 
+def _tag_names(tags: list[dict] | dict[str, dict]) -> set[str]:
+    if isinstance(tags, dict):
+        tags = list(tags.values())
+    return {tag["name"] for tag in tags}
+
+
+def _expected_story_tag_names(story: dict) -> set[str]:
+    return {tag["name"] for item in story.get("news_items", []) for tag in item.get("tags", [])}
+
+
 class TestWorkerApi:
     base_uri = "/api/worker"
 
@@ -109,9 +119,9 @@ class TestWorkerApi:
 
         update_data = cleanup_story_update_data.copy()
         update_data["id"] = story_1_id  # reuse the story id from the previous test
-        update_data["news_items"] = [cleanup_news_item]
+        expected_tags = [{"name": "tag1", "tag_type": "misc"}, {"name": "tag2", "tag_type": "misc"}]
+        update_data["news_items"] = [{**cleanup_news_item, "tags": expected_tags}]
         update_data["attributes"].append({"key": "status", "value": "updated"})
-        update_data["tags"] = ["tag1", "tag2"]
 
         response = client.post(
             f"{self.base_uri}/stories",
@@ -142,7 +152,7 @@ class TestWorkerApi:
         assert attributes_in_story["status"].get("value") == "updated", (
             f"Expected 'updated' but got '{attributes_in_story['status'].get('value')}'"
         )
-        assert len(updated_story.get("tags")) == 2
+        assert _tag_names(updated_story.get("tags", {})) == _tag_names(expected_tags)
 
     def test_worker_story_update_including_existing_news_items(
         self, client, stories, cleanup_news_item_2, cleanup_story_update_data, api_header
@@ -156,11 +166,12 @@ class TestWorkerApi:
         assert response.status_code == 200
         original_story = response.get_json()[0]
         original_news_items = original_story.get("news_items", [])
-        original_news_items.append(cleanup_news_item_2)
+        expected_tags = [{"name": "tag1", "tag_type": "misc"}, {"name": "tag2", "tag_type": "misc"}]
+        new_news_item = {**cleanup_news_item_2, "tags": expected_tags}
 
         update_data = cleanup_story_update_data.copy()
         update_data["id"] = story_1_id
-        update_data["news_items"] = original_news_items
+        update_data["news_items"] = [*original_news_items, new_news_item]
 
         response = client.post(
             f"{self.base_uri}/stories",
@@ -181,8 +192,8 @@ class TestWorkerApi:
 
         assert response.status_code == 200
         assert response.get_json()[0].get("title") == update_data["title"]
-        assert len(response.get_json()[0].get("news_items", [])) == len(original_news_items)
-        assert len(response.get_json()[0].get("tags")) == 2
+        assert len(response.get_json()[0].get("news_items", [])) == len(update_data["news_items"])
+        assert _tag_names(response.get_json()[0].get("tags", {})) == _tag_names(expected_tags)
 
     def test_worker_story_update_with_conflict(self, client, stories, cleanup_news_item_2, cleanup_story_update_data, api_header):
         story_2_id = stories[1]
@@ -247,7 +258,10 @@ class TestWorkerApi:
         assert story.get("id") == new_story_id
         assert story.get("title") == full_story[0].get("title")
         assert len(story.get("news_items", [])) == len(full_story[0].get("news_items", []))
-        assert len(story.get("tags", [])) == len(full_story[0].get("tags", []))
+        assert _tag_names(story.get("tags", [])) == _expected_story_tag_names(full_story[0])
+        for news_item in story.get("news_items", []):
+            expected_item = next(item for item in full_story[0].get("news_items", []) if item["id"] == news_item["id"])
+            assert _tag_names(news_item.get("tags", [])) == _tag_names(expected_item.get("tags", []))
         assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1  # TLP is automatically added
 
     def test_worker_post_to_misp_endpoint(self, client, full_story: list[dict], api_header):
@@ -275,42 +289,59 @@ class TestWorkerApi:
         assert story.get("id") == story_id
         assert story.get("title") == full_story[0].get("title")
         assert len(story.get("news_items", [])) == len(full_story[0].get("news_items", []))
-        assert len(story.get("tags", [])) == len(full_story[0].get("tags", []))
+        assert _tag_names(story.get("tags", [])) == _expected_story_tag_names(full_story[0])
+        for news_item in story.get("news_items", []):
+            expected_item = next(item for item in full_story[0].get("news_items", []) if item["id"] == news_item["id"])
+            assert _tag_names(news_item.get("tags", [])) == _tag_names(expected_item.get("tags", []))
         assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1
 
     def test_worker_put_tags(self, client, stories, api_header):
         story_1_id = stories[0]
         tags = ["tag3", "tag4"]
+        story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
+        news_item_id = story_response.get_json()[0]["news_items"][0]["id"]
 
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: tags}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: tags}, headers=api_header)
 
         assert response.status_code == 200
         assert response.get_json().get("message") == "Tags updated"
 
+        updated_story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
+        assert updated_story_response.status_code == 200
+
+        updated_story = updated_story_response.get_json()[0]
+        updated_news_item = next(news_item for news_item in updated_story.get("news_items", []) if news_item["id"] == news_item_id)
+
+        updated_tags = updated_news_item.get("tags", [])
+        assert [tag.get("name") for tag in updated_tags] == tags
+        assert all(tag.get("tag_type") == "misc" for tag in updated_tags)
+
     def test_worker_put_tags_invalid_cases(self, client, stories, api_header):
         story_1_id = stories[0]
+        story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
+        news_item_id = story_response.get_json()[0]["news_items"][0]["id"]
 
         # Empty list
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: []}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: []}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
 
         # Tags not a list
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: "notalist"}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: "notalist"}, headers=api_header)
         assert response.status_code == 207
         assert "message" in response.get_json()
 
-        # Missing story id
-        response = client.put(f"{self.base_uri}/tags", json={"not_a_story_id": ["tag1"]}, headers=api_header)
+        # Missing news item id
+        response = client.put(f"{self.base_uri}/tags", json={"not_a_news_item_id": ["tag1"]}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
 
         # Tags list contains non-string elements
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: [123, None]}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: [123, None]}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
 
-        # Story ID is not a string
+        # News item ID is not a string
         response = client.put(f"{self.base_uri}/tags", json={123: ["tag1"]}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
@@ -325,6 +356,37 @@ class TestWorkerApi:
         assert response.status_code == 400
         assert "error" in response.get_json()
 
+    def test_worker_story_roundtrip_preserves_news_item_tag_distribution(self, client, full_story_with_multiple_items_id, api_header):
+        story_id, _ = full_story_with_multiple_items_id
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
+        assert response.status_code == 200
+        story = response.get_json()[0]
+        news_items = story["news_items"]
+        assert len(news_items) == 2
+
+        first_item_id = news_items[0]["id"]
+        second_item_id = news_items[1]["id"]
+        tag_payload = {
+            first_item_id: [{"name": "roundtrip-first", "tag_type": "specific"}],
+            second_item_id: [{"name": "roundtrip-second", "tag_type": "specific"}],
+        }
+        response = client.put(f"{self.base_uri}/tags", json=tag_payload, headers=api_header)
+        assert response.status_code == 200
+
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
+        assert response.status_code == 200
+        roundtrip_payload = response.get_json()[0]
+        response = client.post(f"{self.base_uri}/stories", json=roundtrip_payload, headers=api_header)
+        assert response.status_code == 200
+
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
+        assert response.status_code == 200
+        updated_story = response.get_json()[0]
+        updated_tags = {item["id"]: {tag["name"] for tag in item["tags"]} for item in updated_story["news_items"]}
+
+        assert updated_tags[first_item_id] == {"roundtrip-first"}
+        assert updated_tags[second_item_id] == {"roundtrip-second"}
+
     def test_worker_get_tags(self, client, api_header, stories):
         from core.model.news_item_tag import NewsItemTag
         from core.model.story import Story
@@ -335,7 +397,7 @@ class TestWorkerApi:
 
         story = Story.get(stories[0])
         assert story is not None
-        update_result, update_status = story.set_tags(sorted(expected_tags))
+        update_result, update_status = story.news_items[0].set_tags(sorted(expected_tags))
         assert update_status == 200, update_result
 
         response = client.get(f"{self.base_uri}/tags", headers=api_header)
@@ -430,7 +492,9 @@ class TestWorkerTaskResults:
 
                 story_data = story_response.get_json()
                 structured_tags = {tag["name"]: tag["tag_type"] for tag in story_data.get("tags", [])}
-                expected_tags = wordlist_bot_result["result"].get(story_id, {})
+                expected_tags = {}
+                for news_item in story_data.get("news_items", []):
+                    expected_tags |= wordlist_bot_result["result"].get(news_item["id"], {})
 
                 assert structured_tags == expected_tags
                 attr_by_key = {attribute.get("key"): attribute.get("value") for attribute in story_data.get("attributes", [])}
@@ -760,9 +824,16 @@ class TestConnector:
             "TLP": {"key": "TLP", "value": "clear"},
             "test": {"key": "test", "value": "test"},
         }
-        story["tags"] = {"test_tag": {"name": "test_tag", "tag_type": "misc"}}
+        news_item_id = story["news_items"][0]["id"]
+        story.pop("tags", None)
+        for news_item in story.get("news_items", []):
+            news_item.pop("tags", None)
 
         client.post(f"{self.base_uri}/stories", json=story, headers=api_header)
+        tag_response = client.put(
+            f"{self.base_uri}/tags", json={news_item_id: [{"name": "test_tag", "tag_type": "misc"}]}, headers=api_header
+        )
+        assert tag_response.status_code == 200
 
         response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
         updated_story = response.get_json()[0]

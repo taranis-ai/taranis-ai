@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterable, Literal
 
 from core.managers.db_manager import db
-from core.service.news_item_tag import NewsItemTagService
+from core.service.story import StoryService
 
 
 if TYPE_CHECKING:
@@ -37,20 +37,20 @@ class ReportStorySyncService:
 
         if action == "attach":
             for story in stories:
-                NewsItemTagService.add_report_tag(story, report)
+                StoryService.add_report_attribute(story, report)
             cls.update_affected_stories(stories)
             return stories
 
         if action == "detach":
             for story in stories:
-                NewsItemTagService.remove_report_tag(story, report.id)
+                StoryService.remove_report_attribute(story, report.id)
             cls.update_affected_stories(stories)
             return stories
 
         if action == "retag":
             for story in stories:
-                NewsItemTagService.remove_report_tag(story, report.id)
-                NewsItemTagService.add_report_tag(story, report)
+                StoryService.remove_report_attribute(story, report.id)
+                StoryService.add_report_attribute(story, report)
             return stories
 
         raise ValueError(f"Unsupported report story sync action: {action}")

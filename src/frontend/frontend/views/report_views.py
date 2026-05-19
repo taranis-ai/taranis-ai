@@ -29,6 +29,10 @@ class ReportItemView(BaseView):
     edit_route = "analyze.report"
 
     @classmethod
+    def _get_object_key(cls) -> str:
+        return "report_id"
+
+    @classmethod
     def get_form_action(cls, object_id: int | str = 0) -> str:
         return cls.get_edit_route(report_id=str(object_id))
 

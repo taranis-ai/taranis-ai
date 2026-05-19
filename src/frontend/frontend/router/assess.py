@@ -19,6 +19,12 @@ def init(app: Flask):
     assess_bp.add_url_rule(
         "/news-item/<string:news_item_id>", view_func=StoryView.update_news_item, methods=["POST"], endpoint="update_news_item"
     )
+    assess_bp.add_url_rule(
+        "/news-item/<string:news_item_id>/tags",
+        view_func=StoryView.update_news_item_tags,
+        methods=["POST"],
+        endpoint="update_news_item_tags",
+    )
     assess_bp.add_url_rule("/news-item", view_func=StoryView.create_news_item, methods=["POST"], endpoint="create_news_item")
     assess_bp.add_url_rule("/news-item/<string:news_item_id>", view_func=StoryView.news_item_view, methods=["GET"], endpoint="get_news_item")
     assess_bp.add_url_rule(

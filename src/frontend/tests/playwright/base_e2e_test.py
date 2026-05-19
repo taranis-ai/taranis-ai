@@ -1,8 +1,13 @@
 import re
+from urllib.parse import urljoin, urlparse
 
 from flask import url_for
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
+
+
+DELETE_RESPONSE_TIMEOUT_MS = 30000
+HTMX_TRIGGER_SETTLE_MS = 600
 
 
 class BaseE2ETest(PlaywrightHelpers):
@@ -13,6 +18,13 @@ class BaseE2ETest(PlaywrightHelpers):
         table = page.get_by_test_id(table_id)
         exact_link_text = re.compile(rf"^\s*{re.escape(link_text)}\s*$")
         return table.locator(f"a[data-testid^='{table_id}_']").filter(has_text=exact_link_text).first
+
+    def wait_for_htmx_settled(self, page: Page):
+        page.wait_for_timeout(HTMX_TRIGGER_SETTLE_MS)
+        page.wait_for_function(
+            "() => !document.querySelector('.htmx-request, .htmx-swapping, .htmx-settling')",
+            timeout=DELETE_RESPONSE_TIMEOUT_MS,
+        )
 
     def login_with_credentials(
         self,
@@ -39,20 +51,34 @@ class BaseE2ETest(PlaywrightHelpers):
     def delete_table_row(self, page: Page, delete_button_test_id: str, confirm: bool = True, force: bool = False):
         """Delete row by explicit delete action test id."""
         assert delete_button_test_id, "delete_table_row requires delete_button_test_id"
+        self.wait_for_htmx_settled(page)
         delete_button = page.get_by_test_id(delete_button_test_id)
         assert delete_button.count() == 1, f"Expected exactly one delete button '{delete_button_test_id}', found {delete_button.count()}"
         expect(delete_button).to_be_visible()
-        delete_button.click()
-        row_locator = delete_button.locator("xpath=ancestor::tr[1]").first
+        delete_url = delete_button.get_attribute("hx-delete")
+        assert delete_url, f"Expected delete button '{delete_button_test_id}' to define hx-delete"
+        delete_url = urljoin(page.url, delete_url)
+        delete_path = urlparse(delete_url).path.rstrip("/")
+
+        def is_delete_response(response):
+            return response.request.method == "DELETE" and urlparse(response.url).path.rstrip("/") == delete_path
+
         if confirm:
+            row_locator = delete_button.locator("xpath=ancestor::tr[1]").first
+            delete_button.click()
             confirm_button = page.locator(".swal2-container .swal2-confirm")
             expect(confirm_button).to_be_visible()
+            expect(confirm_button).to_be_enabled()
             if force:
                 force_checkbox = page.locator(".swal2-container .swal2-input [type='checkbox'], .swal2-container input[type='checkbox']")
                 if force_checkbox.count():
                     force_checkbox.check()
-            confirm_button.click(force=True)
+            with page.expect_response(is_delete_response, timeout=DELETE_RESPONSE_TIMEOUT_MS):
+                confirm_button.click()
         else:
+            row_locator = delete_button.locator("xpath=ancestor::tr[1]").first
+            with page.expect_response(is_delete_response, timeout=DELETE_RESPONSE_TIMEOUT_MS):
+                delete_button.click()
             expect(row_locator).not_to_be_visible()
 
         try:
