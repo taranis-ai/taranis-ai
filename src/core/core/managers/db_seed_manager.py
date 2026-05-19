@@ -312,14 +312,14 @@ def convert_interval_to_cron(interval: int) -> str:
 def pre_seed_source_groups():
     from core.model.osint_source import OSINTSourceGroup
 
-    if not OSINTSourceGroup.get("default"):
+    if not OSINTSourceGroup.get_by_key("default"):
         OSINTSourceGroup.add({"id": "default", "name": "Default", "description": "Default group for uncategorized sources", "default": True})
 
 
 def pre_seed_manual_source():
     from core.model.osint_source import OSINTSource
 
-    if not OSINTSource.get("manual"):
+    if not OSINTSource.get_by_key("manual"):
         OSINTSource.add(
             {
                 "id": "manual",
@@ -448,13 +448,13 @@ def pre_seed_default_user():
     if user_count > 0:
         return
 
-    admin_organization = Organization.get(1)
+    admin_organization = Organization.find_by_name("The Earth")
     if not admin_organization:
-        Organization.add(
+        admin_organization = Organization.add(
             {
-                "id": 1,
-                "name": "Default Organization",
-                "description": "Default organization for initial users.",
+                "name": "The Earth",
+                "description": "Earth is the third planet from the Sun and the only astronomical object known to harbor life.",
+                "address": {"street": "29 Arlington Avenue", "city": "Islington, London", "zip": "N1 7BE", "country": "United Kingdom"},
             }
         )
 
@@ -465,10 +465,25 @@ def pre_seed_default_user():
                     "username": "admin",
                     "name": "Arthur Dent",
                     "roles": [admin_role.id],
-                    "organization": {"id": 1},
+                    "organization": {"id": admin_organization.id},
                     "password": Config.PRE_SEED_PASSWORD_ADMIN,
                 }
             )
+
+    user_organization = Organization.find_by_name("The Clacks")
+    if not user_organization:
+        user_organization = Organization.add(
+            {
+                "name": "The Clacks",
+                "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
+                "address": {
+                    "street": "Cherry Tree Rd",
+                    "city": "Beaconsfield, Buckinghamshire",
+                    "zip": "HP9 1BH",
+                    "country": "United Kingdom",
+                },
+            }
+        )
 
     if not User.find_by_name(username="user"):
         user_role = Role.filter_by_name("User").id  # type: ignore
@@ -477,7 +492,7 @@ def pre_seed_default_user():
                 "username": "user",
                 "name": "Terry Pratchett",
                 "roles": [user_role],
-                "organization": {"id": 1},
+                "organization": {"id": user_organization.id},
                 "password": Config.PRE_SEED_PASSWORD_USER,
             }
         )

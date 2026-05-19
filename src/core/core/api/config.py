@@ -79,7 +79,7 @@ class DictionariesReload(MethodView):
 class ACLEntries(MethodView):
     @auth_required("CONFIG_ACL_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, acl_id: int | None = None, filter_args: dict[str, Any] | None = None):
+    def get(self, acl_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if acl_id:
             return role_based_access.RoleBasedAccess.get_for_api(acl_id)
         return role_based_access.RoleBasedAccess.get_all_for_api(filter_args, True)
@@ -91,7 +91,7 @@ class ACLEntries(MethodView):
         return {"message": "ACL created", "id": acl.id}, 201
 
     @auth_required("CONFIG_ACL_UPDATE")
-    def put(self, acl_id: int | None = None):
+    def put(self, acl_id: str | None = None):
         if acl_id is None:
             return {"error": "No acl_id provided"}, 400
         response, status = role_based_access.RoleBasedAccess.update(acl_id, request.json)
@@ -99,7 +99,7 @@ class ACLEntries(MethodView):
         return response, status
 
     @auth_required("CONFIG_ACL_DELETE")
-    def delete(self, acl_id: int | None = None):
+    def delete(self, acl_id: str | None = None):
         if acl_id is None:
             return {"error": "No acl_id provided"}, 400
         response, status = role_based_access.RoleBasedAccess.delete(acl_id)
@@ -110,7 +110,7 @@ class ACLEntries(MethodView):
 class Attributes(MethodView):
     @auth_required(["CONFIG_ATTRIBUTE_ACCESS"])
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, attribute_id: int | None = None, filter_args: dict[str, Any] | None = None):
+    def get(self, attribute_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if attribute_id:
             return attribute.Attribute.get_for_api(attribute_id)
 
@@ -123,7 +123,7 @@ class Attributes(MethodView):
         return {"message": "Attribute added", "id": attribute_result.id}, 201
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def put(self, attribute_id: int | None = None):
+    def put(self, attribute_id: str | None = None):
         if attribute_id is None:
             return {"error": "No attribute_id provided"}, 400
         response, status = attribute.Attribute.update(attribute_id, request.json)
@@ -131,7 +131,7 @@ class Attributes(MethodView):
         return response, status
 
     @auth_required("CONFIG_ATTRIBUTE_DELETE")
-    def delete(self, attribute_id: int | None = None):
+    def delete(self, attribute_id: str | None = None):
         if attribute_id is None:
             return {"error": "No attribute_id provided"}, 400
         response, status = attribute.Attribute.delete(attribute_id)
@@ -168,7 +168,7 @@ class ReportItemTypesExport(MethodView):
 class ReportItemTypes(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, type_id: int | None = None, filter_args: dict[str, Any] | None = None):
+    def get(self, type_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if type_id:
             return report_item_type.ReportItemType.get_for_api(type_id)
         return report_item_type.ReportItemType.get_all_for_api(filter_args, True, current_user)
@@ -184,7 +184,7 @@ class ReportItemTypes(MethodView):
             return {"error": "Failed to add report item type"}, 500
 
     @auth_required("CONFIG_REPORT_TYPE_UPDATE")
-    def put(self, type_id: int | None = None):
+    def put(self, type_id: str | None = None):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
         if item := report_item_type.ReportItemType.update(type_id, request.json):
@@ -193,7 +193,7 @@ class ReportItemTypes(MethodView):
         return {"error": f"Report item type with ID: {type_id} not found"}, 404
 
     @auth_required("CONFIG_REPORT_TYPE_DELETE")
-    def delete(self, type_id: int | None = None):
+    def delete(self, type_id: str | None = None):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
         response, status = report_item_type.ReportItemType.delete(type_id)
@@ -204,7 +204,7 @@ class ReportItemTypes(MethodView):
 class ProductTypes(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, type_id: int | None = None, filter_args: dict[str, Any] | None = None):
+    def get(self, type_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if type_id:
             return product_type.ProductType.get_for_api(type_id)
         return product_type.ProductType.get_all_for_api(filter_args, True, current_user)
@@ -224,7 +224,7 @@ class ProductTypes(MethodView):
             return {"error": "Failed to create product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
-    def put(self, type_id: int | None = None):
+    def put(self, type_id: str | None = None):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
         try:
@@ -238,7 +238,7 @@ class ProductTypes(MethodView):
             return {"error": "Failed to update product type"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
-    def delete(self, type_id: int | None = None):
+    def delete(self, type_id: str | None = None):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
         try:
@@ -276,7 +276,7 @@ class Permissions(MethodView):
 class Roles(MethodView):
     @auth_required("CONFIG_ROLE_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, role_id: int | None = None, filter_args: dict[str, Any] | None = None):
+    def get(self, role_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if role_id:
             return role.Role.get_for_api(role_id)
         return role.Role.get_all_for_api(filter_args, True)
@@ -288,7 +288,7 @@ class Roles(MethodView):
         return {"message": "Role created", "id": new_role.id}, 201
 
     @auth_required("CONFIG_ROLE_UPDATE")
-    def put(self, role_id: int | None = None):
+    def put(self, role_id: str | None = None):
         if role_id is None:
             return {"error": "No role_id provided"}, 400
         if data := request.json:
@@ -298,7 +298,7 @@ class Roles(MethodView):
         return {"error": "No data provided"}, 400
 
     @auth_required("CONFIG_ROLE_DELETE")
-    def delete(self, role_id: int | None = None):
+    def delete(self, role_id: str | None = None):
         if role_id is None:
             return {"error": "No role_id provided"}, 400
         if user.UserRole.has_assigned_user(role_id):
@@ -391,7 +391,7 @@ class TemplateValidation(MethodView):
 class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, organization_id: int | None = None, filter_args: dict[str, Any] | None = None):
+    def get(self, organization_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if organization_id:
             return organization.Organization.get_for_api(organization_id)
         return organization.Organization.get_all_for_api(filter_args, True)
@@ -403,7 +403,7 @@ class Organizations(MethodView):
         return {"message": "Organization created", "id": org.id}, 201
 
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
-    def put(self, organization_id: int | None = None):
+    def put(self, organization_id: str | None = None):
         if organization_id is None:
             return {"error": "No organization_id provided"}, 400
         response, status = organization.Organization.update(organization_id, request.json)
@@ -411,7 +411,7 @@ class Organizations(MethodView):
         return response, status
 
     @auth_required("CONFIG_ORGANIZATION_DELETE")
-    def delete(self, organization_id: int | None = None):
+    def delete(self, organization_id: str | None = None):
         if organization_id is None:
             return {"error": "No organization_id provided"}, 400
         response, status = organization.Organization.delete(organization_id)
@@ -449,7 +449,7 @@ class UsersExport(MethodView):
 class Users(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, user_id: int | None = None, filter_args: dict[str, Any] | None = None):
+    def get(self, user_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if user_id:
             return user.User.get_for_api(user_id)
         return user.User.get_all_for_api(filter_args, True)
@@ -467,7 +467,7 @@ class Users(MethodView):
             return {"error": "Could not create user"}, 400
 
     @auth_required("CONFIG_USER_UPDATE")
-    def put(self, user_id: int | None = None):
+    def put(self, user_id: str | None = None):
         if user_id is None:
             return {"error": "No user_id provided"}, 400
         try:
@@ -481,7 +481,7 @@ class Users(MethodView):
             return {"error": "Could not update user"}, 400
 
     @auth_required("CONFIG_USER_DELETE")
-    def delete(self, user_id: int | None = None):
+    def delete(self, user_id: str | None = None):
         if user_id is None:
             return {"error": "No user_id provided"}, 400
         try:
@@ -919,7 +919,7 @@ class PublisherPresets(MethodView):
 class WordLists(MethodView):
     @auth_required("CONFIG_WORD_LIST_ACCESS")
     @extract_args("search", "usage", "with_entries", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, word_list_id: int | None = None, filter_args: dict[str, Any] | None = None):
+    def get(self, word_list_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if word_list_id:
             return word_list.WordList.get_for_api(word_list_id)
         return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
@@ -931,7 +931,7 @@ class WordLists(MethodView):
         return {"id": wordlist.id, "message": "Word list created successfully"}, 200
 
     @auth_required("CONFIG_WORD_LIST_DELETE")
-    def delete(self, word_list_id: int | None = None):
+    def delete(self, word_list_id: str | None = None):
         if word_list_id is None:
             return {"error": "No word_list_id provided"}, 400
         try:
@@ -945,7 +945,7 @@ class WordLists(MethodView):
             return {"error": "Could not delete word list"}, 400
 
     @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def put(self, word_list_id: int | None = None):
+    def put(self, word_list_id: str | None = None):
         if word_list_id is None:
             return {"error": "No word_list_id provided"}, 400
         if data := request.json:
@@ -998,7 +998,7 @@ class WordListExport(MethodView):
 
 class WordListGather(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def post(self, word_list_id: int | None = None):
+    def post(self, word_list_id: str | None = None):
         if not word_list_id:
             return queue_manager.queue_manager.gather_all_word_lists()
         return queue_manager.queue_manager.gather_word_list(word_list_id)
@@ -1040,9 +1040,9 @@ def build_config_blueprint(name: str) -> Blueprint:
     crud_patch_methods = ["GET", "PUT", "DELETE", "PATCH"]
 
     config_bp.add_url_rule("/acls", view_func=ACLEntries.as_view(f"{name}_acls"))
-    config_bp.add_url_rule("/acls/<int:acl_id>", view_func=ACLEntries.as_view(f"{name}_acl"), methods=crud_methods)
+    config_bp.add_url_rule("/acls/<string:acl_id>", view_func=ACLEntries.as_view(f"{name}_acl"), methods=crud_methods)
     config_bp.add_url_rule("/attributes", view_func=Attributes.as_view(f"{name}_attributes"))
-    config_bp.add_url_rule("/attributes/<int:attribute_id>", view_func=Attributes.as_view(f"{name}_attribute"), methods=crud_methods)
+    config_bp.add_url_rule("/attributes/<string:attribute_id>", view_func=Attributes.as_view(f"{name}_attribute"), methods=crud_methods)
     config_bp.add_url_rule("/bots", view_func=Bots.as_view(f"{name}_bots_config"))
     config_bp.add_url_rule("/bots/<string:bot_id>", view_func=Bots.as_view(f"{name}_bot_config"), methods=crud_methods)
     config_bp.add_url_rule("/bots/<string:bot_id>/execute", view_func=BotExecute.as_view(f"{name}_bot_execute"))
@@ -1051,7 +1051,7 @@ def build_config_blueprint(name: str) -> Blueprint:
     )
     config_bp.add_url_rule("/organizations", view_func=Organizations.as_view(f"{name}_organizations"))
     config_bp.add_url_rule(
-        "/organizations/<int:organization_id>",
+        "/organizations/<string:organization_id>",
         view_func=Organizations.as_view(f"{name}_organization"),
         methods=crud_methods,
     )
@@ -1075,7 +1075,7 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/permissions", view_func=Permissions.as_view(f"{name}_permissions"))
     config_bp.add_url_rule("/presenters", view_func=Presenters.as_view(f"{name}_presenters"))
     config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view(f"{name}_product_types_config"))
-    config_bp.add_url_rule("/product-types/<int:type_id>", view_func=ProductTypes.as_view(f"{name}_product_type"), methods=crud_methods)
+    config_bp.add_url_rule("/product-types/<string:type_id>", view_func=ProductTypes.as_view(f"{name}_product_type"), methods=crud_methods)
     config_bp.add_url_rule("/templates", view_func=Templates.as_view(f"{name}_templates"))
     config_bp.add_url_rule("/templates/<string:template_path>", view_func=Templates.as_view(f"{name}_template"))
     config_bp.add_url_rule("/templates/validate", view_func=TemplateValidation.as_view(f"{name}_template_validation"))
@@ -1090,19 +1090,19 @@ def build_config_blueprint(name: str) -> Blueprint:
     )
     config_bp.add_url_rule("/report-item-types", view_func=ReportItemTypes.as_view(f"{name}_report_item_types"))
     config_bp.add_url_rule(
-        "/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view(f"{name}_report_item_type"), methods=crud_methods
+        "/report-item-types/<string:type_id>", view_func=ReportItemTypes.as_view(f"{name}_report_item_type"), methods=crud_methods
     )
     config_bp.add_url_rule("/export-report-item-types", view_func=ReportItemTypesExport.as_view(f"{name}_report_item_types_export"))
     config_bp.add_url_rule("/import-report-item-types", view_func=ReportItemTypesImport.as_view(f"{name}_report_item_types_import"))
     config_bp.add_url_rule("/roles", view_func=Roles.as_view(f"{name}_roles"))
-    config_bp.add_url_rule("/roles/<int:role_id>", view_func=Roles.as_view(f"{name}_role"), methods=crud_methods)
+    config_bp.add_url_rule("/roles/<string:role_id>", view_func=Roles.as_view(f"{name}_role"), methods=crud_methods)
     config_bp.add_url_rule("/users", view_func=Users.as_view(f"{name}_users"))
     config_bp.add_url_rule("/users-import", view_func=UsersImport.as_view(f"{name}_users_import"))
     config_bp.add_url_rule("/users-export", view_func=UsersExport.as_view(f"{name}_users_export"))
-    config_bp.add_url_rule("/users/<int:user_id>", view_func=Users.as_view(f"{name}_user"), methods=crud_methods)
+    config_bp.add_url_rule("/users/<string:user_id>", view_func=Users.as_view(f"{name}_user"), methods=crud_methods)
     config_bp.add_url_rule("/word-lists", view_func=WordLists.as_view(f"{name}_word_lists"))
-    config_bp.add_url_rule("/word-lists/<int:word_list_id>", view_func=WordLists.as_view(f"{name}_word_list"), methods=crud_methods)
-    config_bp.add_url_rule("/word-lists/gather/<int:word_list_id>", view_func=WordListGather.as_view(f"{name}_word_list_gather"))
+    config_bp.add_url_rule("/word-lists/<string:word_list_id>", view_func=WordLists.as_view(f"{name}_word_list"), methods=crud_methods)
+    config_bp.add_url_rule("/word-lists/gather/<string:word_list_id>", view_func=WordListGather.as_view(f"{name}_word_list_gather"))
     config_bp.add_url_rule("/word-lists/gather", view_func=WordListGather.as_view(f"{name}_word_list_gather_all"))
     config_bp.add_url_rule("/export-word-lists", view_func=WordListExport.as_view(f"{name}_word_list_export"))
     config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view(f"{name}_word_list_import"))

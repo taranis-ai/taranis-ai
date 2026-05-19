@@ -55,11 +55,11 @@ def test_story_diff_view_renders_compare_payload(app, authenticated_client, resp
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/1",
         json={
-            "id": 1,
+            "id": "revision-1",
             "revision": 1,
             "created_at": "2026-03-12T10:00:00",
             "created_by": "alice",
-            "created_by_id": 1,
+            "created_by_id": "user-1",
             "note": "created",
             "data": {
                 "title": "Kill Chain im Krieg verkurzt",
@@ -79,11 +79,11 @@ def test_story_diff_view_renders_compare_payload(app, authenticated_client, resp
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/2",
         json={
-            "id": 2,
+            "id": "revision-2",
             "revision": 2,
             "created_at": "2026-03-12T11:00:00",
             "created_by": "bob",
-            "created_by_id": 2,
+            "created_by_id": "user-2",
             "note": "update",
             "data": {
                 "title": "Kill Chain im Krieg deutlich verkurzt",
@@ -121,11 +121,11 @@ def test_story_diff_view_shows_no_changes_state(app, authenticated_client, respo
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/1",
         json={
-            "id": 1,
+            "id": "revision-1",
             "revision": 1,
             "created_at": "2026-03-12T10:00:00",
             "created_by": "alice",
-            "created_by_id": 1,
+            "created_by_id": "user-1",
             "note": "created",
             "data": {
                 "title": "Story title",
@@ -143,11 +143,11 @@ def test_story_diff_view_shows_no_changes_state(app, authenticated_client, respo
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/stories/{story_id}/revisions/2",
         json={
-            "id": 2,
+            "id": "revision-2",
             "revision": 2,
             "created_at": "2026-03-12T11:00:00",
             "created_by": "bob",
-            "created_by_id": 2,
+            "created_by_id": "user-2",
             "note": "update",
             "data": {
                 "title": "Story title",
@@ -275,7 +275,7 @@ def test_story_update_payload_ignores_tags():
 
 
 def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authenticated_client):
-    response = authenticated_client.get(url_for("assess.get_news_item", news_item_id=0))
+    response = authenticated_client.get(url_for("assess.get_news_item", news_item_id="0"))
 
     assert response.status_code == 200
 
@@ -506,7 +506,7 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/users",
         json={
-            "id": 1,
+            "id": "user-1",
             "username": "admin",
             "name": "Arthur Dent",
             "profile": {
@@ -523,14 +523,14 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
                 }
             },
             "permissions": ["ALL"],
-            "roles": [{"id": 1, "name": "Admin"}],
+            "roles": [{"id": "role-1", "name": "Admin"}],
         },
     )
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/users/profile",
         json={
             "message": "Profile updated",
-            "id": 1,
+            "id": "user-1",
             "user_profile": {
                 "assess_default_filters": {
                     "source": ["source-1"],

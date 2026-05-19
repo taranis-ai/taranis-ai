@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from typing import Any, Sequence
 
@@ -10,7 +9,7 @@ from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.task import Task as TaskModel
 from core.model.worker import Worker
@@ -19,7 +18,7 @@ from core.model.worker import Worker
 class Bot(BaseModel):
     __tablename__ = "bot"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES))
@@ -37,7 +36,7 @@ class Bot(BaseModel):
         enabled: bool = True,
         id: str | None = None,
     ):
-        self.id = id or str(uuid.uuid4())
+        self.id = self.normalize_uuid_id(id)
         self.name = name
         self.description = description
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
@@ -259,5 +258,5 @@ class Bot(BaseModel):
 
 
 class BotParameterValue(BaseModel):
-    bot_id: Mapped[str] = db.Column(db.String, db.ForeignKey("bot.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)
+    bot_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("bot.id", ondelete="CASCADE"), primary_key=True)
+    parameter_value_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id"), primary_key=True)

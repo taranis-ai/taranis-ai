@@ -3,7 +3,7 @@ from __future__ import annotations
 from difflib import SequenceMatcher
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from models.base import TaranisBaseModel
 
@@ -14,17 +14,27 @@ class RevisionDiffSegment(TaranisBaseModel):
 
 
 class RevisionDiffRevision(TaranisBaseModel):
-    id: int
+    id: str
     revision: int
     created_at: str | None = None
     created_by: str | None = None
-    created_by_id: int | None = None
+    created_by_id: str | None = None
     note: str | None = None
+
+    @field_validator("id", "created_by_id", mode="before")
+    @classmethod
+    def coerce_ids(cls, value: Any) -> Any:
+        return str(value) if value is not None else None
 
 
 class RevisionDiffResource(TaranisBaseModel):
     id: str
     title: str | None = None
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_id(cls, value: Any) -> Any:
+        return str(value) if value is not None else None
 
 
 class RevisionDiffChange(TaranisBaseModel):

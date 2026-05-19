@@ -527,7 +527,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_placeholder("CO-Handler").fill("Mensch")
             page.get_by_test_id("save-report").click()
             report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
-            assert self.is_uuid4(report_uuid), f"Expected a valid UUID4, got {report_uuid}"
+            assert self.is_uuid7(report_uuid), f"Expected a valid UUIDv7, got {report_uuid}"
             return report_uuid
 
         def check_report_list_filters():
@@ -661,7 +661,7 @@ class TestEndToEndUser(BaseE2ETest):
                 assert len(new_hrefs) == 1
                 clone_report_href = new_hrefs[0]
                 cloned_report_uuid = clone_report_href.split("/")[-1]
-                assert self.is_uuid4(cloned_report_uuid), f"Expected a valid UUID4, got {cloned_report_uuid}"
+                assert self.is_uuid7(cloned_report_uuid), f"Expected a valid UUIDv7, got {cloned_report_uuid}"
                 cloned_report = page.get_by_test_id("report-table").locator(f'a[href="{clone_report_href}"]').first
                 cloned_report_title = cloned_report.inner_text().strip()
                 item_id = self.get_table_row_id_by_link_text(page, "report-table", cloned_report_title)

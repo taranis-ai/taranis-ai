@@ -296,6 +296,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/misp/stories", view_func=MISPStories.as_view("misp_stories_worker"))
     worker_bp.add_url_rule("/misp/last-change", view_func=MISPStories.as_view("last_change"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
-    worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
+    worker_bp.add_url_rule("/word-list/<string:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
     app.register_blueprint(worker_bp)

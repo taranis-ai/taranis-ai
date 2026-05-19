@@ -24,6 +24,7 @@ def app():
 
     with contextlib.suppress(Exception):
         parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
+        print(f"Cleaning up database file at {parsed_uri.path} before tests")
         os.remove(f"{parsed_uri.path}")
 
     app = create_app()

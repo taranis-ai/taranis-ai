@@ -4,7 +4,7 @@
     "@tailwindcss/cli": "npm:@tailwindcss/cli@^4.3.0",
     "alpinejs": "npm:alpinejs@^3.15.12",
     "choices.js": "npm:choices.js@^11.2.3",
-    "daisyui": "npm:daisyui@^5.5.19",
+    "daisyui": "npm:daisyui@^5.5.20",
     "fuse.js": "npm:fuse.js@^7.3.0",
     "highlight-search-term": "npm:highlight-search-term@^1.0.3",
     "htmx-ext-response-targets": "npm:htmx-ext-response-targets@^2.0.4",

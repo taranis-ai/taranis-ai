@@ -1,4 +1,3 @@
-import uuid
 from functools import lru_cache
 from typing import Any
 
@@ -8,14 +7,14 @@ from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.parameter_value import ParameterValue
 
 
 class Worker(BaseModel):
     __tablename__ = "worker"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[WORKER_TYPES] = db.Column(db.Enum(WORKER_TYPES), nullable=False, unique=True)
@@ -23,7 +22,7 @@ class Worker(BaseModel):
     parameters: Mapped[list["ParameterValue"]] = relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
 
     def __init__(self, name, description, type, parameters=None):
-        self.id = str(uuid.uuid4())
+        self.id = self.uuid7_str()
         self.name = name
         self.description = description
         self.type = type
@@ -212,5 +211,5 @@ class Worker(BaseModel):
 
 
 class WorkerParameterValue(BaseModel):
-    worker_id = db.Column(db.String, db.ForeignKey("worker.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)
+    worker_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("worker.id", ondelete="CASCADE"), primary_key=True)
+    parameter_value_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id"), primary_key=True)
