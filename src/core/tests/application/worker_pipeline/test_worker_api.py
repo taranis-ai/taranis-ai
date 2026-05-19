@@ -543,6 +543,64 @@ class TestWorkerTaskResults:
                 if Task.get(task_id):
                     Task.delete(task_id)
 
+    def test_collector_not_modified_clears_admin_badges_cache_after_failure(self, client, api_header, app, monkeypatch):
+        import fakeredis
+
+        from core.model.task import Task
+        from core.service import cache_invalidation as cache_invalidation_module
+
+        source_id = f"source-{uuid.uuid4().hex}"
+        task_id = f"collect_rss_collector_{source_id}"
+        previous_failure_id = f"{task_id}-failed"
+        redis_client = fakeredis.FakeRedis(decode_responses=True)
+        cached_keys = {
+            "taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton",
+            f"taranis_frontend:user:alice:model:osint_source:detail:{source_id}",
+            "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+        }
+        for key in cached_keys:
+            redis_client.set(key, "1")
+
+        service = cache_invalidation_module.FrontendCacheInvalidationService()
+        service._client = redis_client
+        monkeypatch.setattr(cache_invalidation_module, "cache_invalidation_service", service)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_ENABLED", True)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_KEY_PREFIX", "taranis_frontend")
+
+        try:
+            with app.app_context():
+                Task.add(
+                    {
+                        "id": previous_failure_id,
+                        "task": "collector_task",
+                        "worker_id": source_id,
+                        "worker_type": "rss_collector",
+                        "status": "FAILURE",
+                        "result": {"error": "boom"},
+                    }
+                )
+
+            response = client.post(
+                self.base_uri,
+                json={
+                    "id": task_id,
+                    "task": "collector_task",
+                    "worker_id": source_id,
+                    "worker_type": "rss_collector",
+                    "result": "No changes: feed was not modified",
+                    "status": "NOT_MODIFIED",
+                },
+                headers=api_header,
+            )
+
+            assert response.status_code == 200
+            assert "taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton" not in set(redis_client.scan_iter(match="*"))
+        finally:
+            with app.app_context():
+                for candidate in (task_id, previous_failure_id):
+                    if Task.get(candidate):
+                        Task.delete(candidate)
+
     def test_collector_success_result_restores_full_cache_invalidation(self, client, api_header, app, monkeypatch):
         import fakeredis
 
