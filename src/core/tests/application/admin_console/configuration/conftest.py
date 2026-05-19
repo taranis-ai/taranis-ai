@@ -5,15 +5,6 @@ import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 
-@pytest.fixture
-def disable_token_revocation(monkeypatch):
-    """Avoid hitting the database for JWT blacklist checks during unit tests."""
-    from core.model import token_blacklist
-
-    monkeypatch.setattr(auth_manager, "check_if_token_is_revoked", lambda *_, **__: False)
-    monkeypatch.setattr(token_blacklist.TokenBlacklist, "invalid", classmethod(lambda cls, jti: False))
-
-
 @pytest.fixture(scope="session")
 def cleanup_sources(app):
     with app.app_context():
