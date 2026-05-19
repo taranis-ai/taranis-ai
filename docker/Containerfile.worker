@@ -1,26 +1,37 @@
+# syntax=docker/dockerfile:1.7
+
 FROM python:3.13-slim AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /bin/uv
 WORKDIR /app/
 
-RUN apt-get update && apt-get upgrade -y && \
+ARG build_version=0.0.dev0
+ENV UV_COMPILE_BYTECODE=1
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${build_version}
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
       build-essential \
       python3-dev \
-      libglib2.0-0 \
-      libpango-1.0-0 \
-      libpangoft2-1.0-0 \
-      git
+      git && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY ./src/worker/pyproject.toml ./src/worker/uv.lock ./src/worker/README.md /app/
+COPY ./src/models/pyproject.toml ./src/models/README.md /models/
+COPY ./src/models/models /models/models
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv && \
+    export PATH="/app/.venv/bin:$PATH" && \
+    uv sync --frozen --no-editable --no-dev --no-install-project
 
 COPY ./src/worker/. /app/
 COPY ./src/models/. /models/
-COPY ./.git /.git
 
-ENV UV_COMPILE_BYTECODE=1
-
-RUN uv venv && \
+RUN --mount=type=cache,target=/root/.cache/uv \
     export PATH="/app/.venv/bin:$PATH" && \
-    uv sync --frozen --no-editable
+    uv sync --frozen --no-editable --no-dev
 
 FROM python:3.13-slim
 
@@ -31,22 +42,33 @@ WORKDIR /app
 ENV PYTHONOPTIMIZE=1
 ENV PYTHONPATH=/app
 ENV PATH="/app/.venv/bin:$PATH"
-COPY --from=builder /bin/uv /bin/uv
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/ms-playwright
 
-RUN apt-get update && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
+      libglib2.0-0 \
       libpango-1.0-0 \
       libpangoft2-1.0-0 && \
-      uv tool run playwright install-deps chromium
+    rm -rf /var/lib/apt/lists/*
 
-RUN groupadd user && useradd --home-dir /app -g user user && chown -R user:user /app
+COPY --from=builder /app/.venv /app/.venv
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    playwright install-deps chromium && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN groupadd user && \
+    useradd --home-dir /app -g user user && \
+    install -d -o user -g user /app/ms-playwright
+COPY --chown=user:user ./src/worker/. /app/
+
 USER user
-COPY --from=builder --chown=user:user /app/ /app/
+
 RUN playwright install --only-shell chromium
 
 ARG git_info
 ENV GIT_INFO=${git_info:-'{}'}
-RUN echo BUILD_DATE=$(date --iso-8601=minutes) > .env
 
 ENTRYPOINT [ "taranis-worker" ]
 

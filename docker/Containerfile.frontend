@@ -1,42 +1,60 @@
+# syntax=docker/dockerfile:1.7
+
 FROM python:3.13-slim AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /bin/uv
 COPY --from=denoland/deno:bin-2.5.6 /deno /usr/local/bin/deno
 
 WORKDIR /app/
 
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    git \
-    curl \
+ARG build_version=0.0.dev0
+ENV UV_COMPILE_BYTECODE=1
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${build_version}
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && apt-get install --no-install-recommends -y \
     7zip \
+    curl \
     openssl \
     build-essential \
-    python3-dev
+    python3-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY ./src/frontend/pyproject.toml ./src/frontend/uv.lock ./src/frontend/README.md /app/
+COPY ./src/models/pyproject.toml ./src/models/README.md /models/
+COPY ./src/models/models /models/models
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv && \
+    export PATH="/app/.venv/bin:$PATH" && \
+    uv sync --frozen --no-editable --no-dev --no-install-project
+
+COPY ./src/frontend/build_tailwindcss.sh ./src/frontend/deno.json ./src/frontend/deno.lock ./src/frontend/tailwind.config.js ./src/frontend/vendor.js ./src/frontend/vendor_codemirror.js /app/
+COPY ./src/frontend/frontend/templates /app/frontend/templates
+COPY ./src/frontend/frontend/static /app/frontend/static
+COPY ./src/core/core/static/openapi3_1.yaml /app/frontend/static/assets/openapi3_1.yaml
+
+RUN /app/build_tailwindcss.sh
 
 COPY ./src/frontend/. /app/
 COPY ./src/models/. /models/
-COPY ./.git /.git
-RUN rm -f /app/frontend/static/assets/openapi3_1.yaml
-COPY ./src/core/core/static/openapi3_1.yaml /app/frontend/static/assets/openapi3_1.yaml
 
-ENV UV_COMPILE_BYTECODE=1
-
-RUN /app/build_tailwindcss.sh && \
-    uv venv && \
+RUN --mount=type=cache,target=/root/.cache/uv \
     export PATH="/app/.venv/bin:$PATH" && \
-    uv sync --frozen --no-editable
+    uv sync --frozen --no-editable --no-dev
 
 FROM python:3.13-slim
 
 LABEL description="Taranis AI Python Flask HTMX Frontend"
 WORKDIR /app/
 
-RUN groupadd user && useradd --home-dir /app -g user user && chown -R user:user /app
-RUN install -d -o user -g user /app/data
+RUN groupadd user && \
+    useradd --home-dir /app -g user user && \
+    install -d -o user -g user /app/data
 
 COPY --from=builder --chown=user:user /app/.venv /app/.venv
-COPY --chown=user:user ./src/frontend/. /app/
-COPY --from=builder --chown=user:user /app/frontend/static/ /app/frontend/static/
+COPY --chown=user:user ./src/frontend/app.py /app/app.py
+COPY --from=builder --chown=user:user /app/frontend /app/frontend
 
 USER user
 
@@ -45,7 +63,6 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH=/app
 ARG git_info
 ENV GIT_INFO=${git_info:-'{}'}
-RUN echo BUILD_DATE=$(date --iso-8601=minutes) > .env
 ENV DATA_FOLDER=/app/data
 ENV GRANIAN_THREADS=2
 ENV GRANIAN_WORKERS=2
@@ -53,7 +70,6 @@ ENV GRANIAN_INTERFACE=wsgi
 ENV GRANIAN_BLOCKING_THREADS=4
 ENV GRANIAN_HOST=0.0.0.0
 ENV GRANIAN_PORT=8080
-
 
 VOLUME ["/app/data"]
 EXPOSE 8080

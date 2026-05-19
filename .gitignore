@@ -41,3 +41,5 @@ src/.env
 *.sln
 *.sw?
 /.python-version
+.buildx-cache/
+.buildx-cache-new/
