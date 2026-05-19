@@ -120,6 +120,7 @@ class NewsItem(TaranisBaseModel):
     story_id: str | None = None
     language: BCP47 = None
     last_change: str | None = None
+    osint_source_key: str | None = None
 
     @model_validator(mode="before")
     @classmethod

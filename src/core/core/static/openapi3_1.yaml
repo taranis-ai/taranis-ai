@@ -9732,6 +9732,8 @@ components:
           type: string
         osint_source_id:
           type: string
+        osint_source_key:
+          type: string
         content:
           type: string
         last_change:
