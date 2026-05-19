@@ -33,6 +33,10 @@ class ReportItemView(BaseView):
         return cls.get_edit_route(report_id=object_id)
 
     @classmethod
+    def _get_object_key(cls) -> str:
+        return "report_id"
+
+    @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
             {"title": "Title", "field": "title", "sortable": True, "renderer": None},

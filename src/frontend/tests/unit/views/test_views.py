@@ -2,6 +2,7 @@ import base64
 import json
 from datetime import datetime
 from io import BytesIO
+from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import urlparse
 
@@ -142,6 +143,15 @@ class TestCRUDViews:
 
 
 class TestSourceView:
+    def test_source_menu_badge_uses_task_failure_count(self, monkeypatch):
+        fake_badges = SimpleNamespace(osint_source=4)
+        monkeypatch.setattr(
+            "frontend.views.admin_views.source_views.DataPersistenceLayer",
+            lambda: SimpleNamespace(get_object=lambda model: fake_badges),
+        )
+
+        assert SourceView.get_admin_menu_badge() == 4
+
     def test_import_post_view(self, authenticated_client, responses_mock):
         """
         Test that the import_post_view method correctly extracts the "sources" key
@@ -442,7 +452,12 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
                             "workers": "down",
                         },
                     },
-                    "worker_status": {},
+                    "task_status_totals": {
+                        "successes": 3,
+                        "failures": 1,
+                        "total": 4,
+                        "success_pct": 75,
+                    },
                 }
             ]
         },
@@ -475,6 +490,8 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
     assert "front456" not in html
     assert "System Health" in html
     assert "Degraded" in html
+    assert "Task Status" in html
+    assert "Success rate: 75%" in html
     assert "Database" in html
     assert "Pre-seeded" in html
     assert "Redis" in html
@@ -512,7 +529,12 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
                             "workers": "up",
                         },
                     },
-                    "worker_status": {},
+                    "task_status_totals": {
+                        "successes": 3,
+                        "failures": 1,
+                        "total": 4,
+                        "success_pct": 75,
+                    },
                 }
             ]
         },
@@ -535,3 +557,4 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
     assert "front456" in html
     assert "master" in html
     assert "Unavailable" in html
+    assert "Task Status" in html

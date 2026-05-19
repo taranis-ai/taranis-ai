@@ -172,7 +172,7 @@ def _migrate_missing_story_revisions(batch_size: int) -> int:
             db.select(Story)
             .options(
                 selectinload(Story.attributes),
-                selectinload(Story.tags),
+                selectinload(Story.news_items).selectinload(NewsItem.tags),
                 selectinload(Story.news_items).selectinload(NewsItem.attributes),
             )
             .where(Story.revision == -1)
@@ -203,7 +203,7 @@ def _migrate_missing_report_revisions(batch_size: int) -> int:
             .options(
                 selectinload(ReportItem.report_item_type),
                 selectinload(ReportItem.attributes),
-                selectinload(ReportItem.stories).selectinload(Story.tags),
+                selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.tags),
                 selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.attributes),
             )
             .where(ReportItem.revision == -1)

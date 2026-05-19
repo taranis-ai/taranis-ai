@@ -12,6 +12,7 @@ from core.model.revision import ReportRevision, StoryRevision
 from core.model.story import Story
 from core.service.news_item import NewsItemService
 from core.service.news_item_tag import NewsItemTagService
+from core.service.story import StoryService
 
 
 def _news_item_payload(source: str = "unit-test") -> dict:
@@ -84,54 +85,54 @@ def test_story_revisions_are_created_on_updates(admin_user):
 
 
 @pytest.mark.usefixtures("session")
-def test_story_set_tags_creates_created_and_update_revisions(admin_user):
+def test_news_item_set_tags_creates_created_and_update_revisions(admin_user):
     story = _create_story()
     expected_actor = Story.resolve_actor(user=admin_user)
 
-    response, status = story.set_tags(["apt29"], actor=expected_actor)
+    response, status = story.news_items[0].set_tags(["apt29"], actor=expected_actor)
 
     assert status == 200
-    assert response["message"].startswith("Successfully updated story")
+    assert response["message"].startswith("Successfully updated news item")
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 2
     assert story.last_change == expected_actor
-    assert [revision.note for revision in revisions] == ["created", "set_tags"]
+    assert [revision.note for revision in revisions] == ["created", "set_news_item_tags"]
     assert revisions[-1].created_by_id == admin_user.id
     assert revisions[-1].data["last_change"] == expected_actor
 
 
 @pytest.mark.usefixtures("session")
-def test_story_set_tags_preserves_worker_actor():
+def test_news_item_set_tags_preserves_worker_actor():
     story = _create_story()
     story.last_change = "collector_rss_collector_99"
     db.session.commit()
 
-    response, status = story.set_tags(["apt29"], actor=story.last_change)
+    response, status = story.news_items[0].set_tags(["apt29"], actor=story.last_change)
 
     assert status == 200
-    assert response["message"].startswith("Successfully updated story")
+    assert response["message"].startswith("Successfully updated news item")
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 2
     assert story.last_change == "collector_rss_collector_99"
-    assert [revision.note for revision in revisions] == ["created", "set_tags"]
+    assert [revision.note for revision in revisions] == ["created", "set_news_item_tags"]
     assert revisions[-1].data["last_change"] == "collector_rss_collector_99"
 
 
 @pytest.mark.usefixtures("session")
 def test_set_found_bot_tags_marks_story_as_bot_actor():
     story = _create_story()
-    assert story.set_tags(["existing-tag"], actor="bot")[1] == 200
+    assert story.news_items[0].set_tags(["existing-tag"], actor="bot")[1] == 200
 
-    NewsItemTagService.set_found_bot_tags({story.id: ["apt29"]}, actor="bot")
+    NewsItemTagService.set_found_bot_tags({story.news_items[0].id: ["apt29"]}, actor="bot")
 
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 3
     assert story.last_change == "bot"
     assert sorted(tag.name for tag in story.tags) == ["apt29", "existing-tag"]
-    assert [revision.note for revision in revisions] == ["created", "set_tags", "set_tags"]
+    assert [revision.note for revision in revisions] == ["created", "set_news_item_tags", "set_news_item_tags"]
     assert revisions[-1].data["last_change"] == "bot"
 
 
@@ -184,19 +185,21 @@ def test_story_add_single_news_item_detects_duplicates_by_title_and_link():
 
 
 @pytest.mark.usefixtures("session")
-def test_story_from_dict_accepts_tag_mapping():
+def test_story_from_dict_accepts_news_item_tag_mapping():
+    news_item = _news_item_payload(source="manual")
+    news_item["tags"] = {
+        "Example": {"name": "Example", "tag_type": "Organization"},
+    }
     story_payload = {
         "title": f"Story {uuid.uuid4()}",
-        "tags": {
-            "Example": {"name": "Example", "tag_type": "Organization"},
-        },
-        "news_items": [_news_item_payload(source="manual")],
+        "news_items": [news_item],
     }
 
     story = Story.from_dict(story_payload)
 
     assert len(story.tags) == 1
     assert story.tags[0].name == "Example"
+    assert story.news_items[0].tags[0].tag_type == "Organization"
 
 
 @pytest.mark.usefixtures("session")
@@ -451,11 +454,11 @@ def test_report_title_retag_happens_before_revision_and_commit(sample_report_typ
 
     original_record_revision = ReportItem.record_revision
 
-    def remove_tag_spy(*args, **kwargs):
-        events.append("remove_report_tag")
+    def remove_attribute_spy(*args, **kwargs):
+        events.append("remove_report_attribute")
 
-    def add_tag_spy(*args, **kwargs):
-        events.append("add_report_tag")
+    def add_attribute_spy(*args, **kwargs):
+        events.append("add_report_attribute")
 
     def record_revision_spy(self, *args, **kwargs):
         events.append("record_revision")
@@ -465,12 +468,12 @@ def test_report_title_retag_happens_before_revision_and_commit(sample_report_typ
         events.append("commit")
         raise RuntimeError("stop-after-commit")
 
-    monkeypatch.setattr(NewsItemTagService, "remove_report_tag", remove_tag_spy)
-    monkeypatch.setattr(NewsItemTagService, "add_report_tag", add_tag_spy)
+    monkeypatch.setattr(StoryService, "remove_report_attribute", remove_attribute_spy)
+    monkeypatch.setattr(StoryService, "add_report_attribute", add_attribute_spy)
     monkeypatch.setattr(ReportItem, "record_revision", record_revision_spy)
     monkeypatch.setattr(db.session, "commit", commit_spy)
 
     with pytest.raises(RuntimeError, match="stop-after-commit"):
         ReportItem.update_report_item(report_item.id, {"title": "Renamed Report"}, admin_user)
 
-    assert events == ["remove_report_tag", "add_report_tag", "record_revision", "commit"]
+    assert events == ["remove_report_attribute", "add_report_attribute", "record_revision", "commit"]

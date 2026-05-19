@@ -12,7 +12,7 @@ from core.model.task import Task
 from core.service.dashboard import DashboardService
 
 
-def test_get_dashboard_data_strips_worker_metadata(monkeypatch):
+def test_get_dashboard_data_includes_task_totals(monkeypatch):
     latest_collected = datetime(2026, 4, 13, 12, 30, tzinfo=timezone.utc)
 
     monkeypatch.setattr(NewsItem, "get_count", classmethod(lambda cls: 11))
@@ -31,28 +31,22 @@ def test_get_dashboard_data_strips_worker_metadata(monkeypatch):
     monkeypatch.setattr("core.service.dashboard.get_health_response", lambda: ({"healthy": True}, 200))
     monkeypatch.setattr(
         Task,
-        "get_status_counts_by_task",
+        "get_status_totals",
         classmethod(
             lambda cls: {
-                "WORDLIST_BOT": {
-                    "failures": 1,
-                    "successes": 2,
-                    "success_pct": 66,
-                    "total": 3,
-                    "worker_type": "WORDLIST_BOT",
-                    "worker_id": "bot-123",
-                }
+                "failures": 1,
+                "successes": 2,
+                "success_pct": 66,
+                "total": 3,
             }
         ),
     )
 
     dashboard = DashboardService.get_dashboard_data()["items"][0]
 
-    assert dashboard["worker_status"] == {
-        "WORDLIST_BOT": {
-            "failures": 1,
-            "successes": 2,
-            "success_pct": 66,
-            "total": 3,
-        }
+    assert dashboard["task_status_totals"] == {
+        "failures": 1,
+        "successes": 2,
+        "success_pct": 66,
+        "total": 3,
     }

@@ -1200,8 +1200,38 @@ paths:
             application/json:
               schema:
                 type: object
-        '404':
-          $ref: '#/components/responses/404NotFound'
+        "404":
+          $ref: "#/components/responses/404NotFound"
+
+  /assess/news-items/{item_id}/tags:
+    parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: replace tags for the specified news item
+      operationId: assess.update_news_item_tags.put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/news_item_tags_update"
+      responses:
+        "200":
+          description: tags were updated
+        "400":
+          description: invalid tag payload
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: write access denied
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/story/{story_id}:
     parameters:
     - name: story_id
@@ -1790,16 +1820,17 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
     put:
       security:
-      - APIKey: []
-      tags:
-      - bots
-      description: update news item tags
+        - APIKey: []
+      tags: [bots]
+      description: update tags keyed by news item id
       operationId: worker.tags_worker.put
       requestBody:
         content:
           application/json:
             schema:
               type: object
+              additionalProperties:
+                $ref: "#/components/schemas/news_item_tags_update"
       responses:
         '200':
           description: tag has been updated
@@ -5838,29 +5869,8 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-  /assess/tags:
-    get:
-      security:
-      - UserAuth: []
-      tags:
-      - assess
-      description: get tags
-      operationId: assess.tags.get
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assets:
     get:
       security:
@@ -7633,8 +7643,28 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
+        "404":
+          $ref: "#/components/responses/404NotFound"
+  /config/admin-menu-badges:
+    get:
+      security:
+        - UserAuth: []
+      tags: [config]
+      description: get admin menu badges
+      operationId: config.config_admin_menu_badges.get
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: forbidden
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /config/workers/tasks:
     get:
       security:
@@ -9709,7 +9739,11 @@ components:
         attributes:
           type: array
           items:
-            $ref: '#/components/schemas/news_item_attribute'
+            $ref: "#/components/schemas/news_item_attribute"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/news_item_tag"
       required:
       - title
       - source
@@ -9743,7 +9777,11 @@ components:
         attributes:
           type: array
           items:
-            $ref: '#/components/schemas/news_item_attribute'
+            $ref: "#/components/schemas/news_item_attribute"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/news_item_tag"
       anyOf:
       - required:
         - title
@@ -9776,6 +9814,18 @@ components:
           type: string
         tag_type:
           type: string
+    news_item_tags_update:
+      oneOf:
+        - type: array
+          items:
+            oneOf:
+              - type: string
+              - $ref: "#/components/schemas/news_item_tag"
+        - type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - $ref: "#/components/schemas/news_item_tag"
     story:
       type: object
       properties:

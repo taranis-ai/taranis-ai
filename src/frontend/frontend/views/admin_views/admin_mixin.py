@@ -17,7 +17,7 @@ class AdminMixin:
 
     @classmethod
     def get_sidebar_template(cls) -> str:
-        return "partials/admin_menu.html"
+        return "partials/admin_sidebar.html"
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

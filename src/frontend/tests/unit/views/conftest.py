@@ -198,6 +198,12 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
         content_type="application/json",
     )
     responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/admin-menu-badges",
+        json={"osint_source": 2, "bot": 3},
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/tasks",
         json={
             "items": [
@@ -399,26 +405,6 @@ def mock_core_update_endpoints(responses_mock, mock_core_get_item_endpoint_data)
 
 
 ########### LEGACY FIXTURES ###########
-
-
-@pytest.fixture
-def dashboard_get_mock(responses_mock):
-    mock_data = {
-        "items": [
-            {
-                "latest_collected": "2025-01-14T21:16:42.699574+01:00",
-                "report_items_completed": 5,
-                "report_items_in_progress": 1,
-                "schedule_length": 2,
-                "total_database_items": 308,
-                "total_news_items": 306,
-                "total_products": 1,
-            }
-        ]
-    }
-
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard", json=mock_data)
-    yield mock_data
 
 
 @pytest.fixture
