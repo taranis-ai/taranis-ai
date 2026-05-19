@@ -452,9 +452,9 @@ def pre_seed_default_user():
     if not admin_organization:
         Organization.add(
             {
-                "name": "The Earth",
-                "description": "Earth is the third planet from the Sun and the only astronomical object known to harbor life.",
-                "address": {"street": "29 Arlington Avenue", "city": "Islington, London", "zip": "N1 7BE", "country": "United Kingdom"},
+                "id": 1,
+                "name": "Default Organization",
+                "description": "Default organization for initial users.",
             }
         )
 
@@ -470,20 +470,6 @@ def pre_seed_default_user():
                 }
             )
 
-    if not Organization.get(2):
-        Organization.add(
-            {
-                "name": "The Clacks",
-                "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
-                "address": {
-                    "street": "Cherry Tree Rd",
-                    "city": "Beaconsfield, Buckinghamshire",
-                    "zip": "HP9 1BH",
-                    "country": "United Kingdom",
-                },
-            }
-        )
-
     if not User.find_by_name(username="user"):
         user_role = Role.filter_by_name("User").id  # type: ignore
         User.add(
@@ -491,7 +477,7 @@ def pre_seed_default_user():
                 "username": "user",
                 "name": "Terry Pratchett",
                 "roles": [user_role],
-                "organization": {"id": 2},
+                "organization": {"id": 1},
                 "password": Config.PRE_SEED_PASSWORD_USER,
             }
         )
