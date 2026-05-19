@@ -42,12 +42,16 @@ class Bot(BaseModel):
         self.description = description
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
         self.index = index or Bot.get_highest_index() + 1
-        self.enabled = self.enabled
+        self.enabled = enabled
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @property
     def status(self):
-        if task_result := TaskModel.get(self.task_id):
+        if task_result := TaskModel.get_latest_matching(
+            exact_ids={self.task_id},
+            prefixes=[self.cron_run_prefix],
+            task_name=self.task_id,
+        ):
             return task_result.to_dict()
         return None
 

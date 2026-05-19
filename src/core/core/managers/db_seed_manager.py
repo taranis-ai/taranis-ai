@@ -91,6 +91,8 @@ def pre_seed_update(db_engine: Engine):
     for b in bots:
         bot = Bot.filter_by_type(b["type"])
         if not bot:
+            b["enabled"] = False
+            logger.debug(f"Adding new bot type '{b['type']}' in disabled state")
             Bot.add(b)
 
     for r in report_types:
@@ -170,7 +172,7 @@ def _migrate_missing_story_revisions(batch_size: int) -> int:
             db.select(Story)
             .options(
                 selectinload(Story.attributes),
-                selectinload(Story.tags),
+                selectinload(Story.news_items).selectinload(NewsItem.tags),
                 selectinload(Story.news_items).selectinload(NewsItem.attributes),
             )
             .where(Story.revision == -1)
@@ -201,7 +203,7 @@ def _migrate_missing_report_revisions(batch_size: int) -> int:
             .options(
                 selectinload(ReportItem.report_item_type),
                 selectinload(ReportItem.attributes),
-                selectinload(ReportItem.stories).selectinload(Story.tags),
+                selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.tags),
                 selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.attributes),
             )
             .where(ReportItem.revision == -1)
@@ -450,9 +452,9 @@ def pre_seed_default_user():
     if not admin_organization:
         Organization.add(
             {
-                "name": "The Earth",
-                "description": "Earth is the third planet from the Sun and the only astronomical object known to harbor life.",
-                "address": {"street": "29 Arlington Avenue", "city": "Islington, London", "zip": "N1 7BE", "country": "United Kingdom"},
+                "id": 1,
+                "name": "Default Organization",
+                "description": "Default organization for initial users.",
             }
         )
 
@@ -468,20 +470,6 @@ def pre_seed_default_user():
                 }
             )
 
-    if not Organization.get(2):
-        Organization.add(
-            {
-                "name": "The Clacks",
-                "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
-                "address": {
-                    "street": "Cherry Tree Rd",
-                    "city": "Beaconsfield, Buckinghamshire",
-                    "zip": "HP9 1BH",
-                    "country": "United Kingdom",
-                },
-            }
-        )
-
     if not User.find_by_name(username="user"):
         user_role = Role.filter_by_name("User").id  # type: ignore
         User.add(
@@ -489,7 +477,7 @@ def pre_seed_default_user():
                 "username": "user",
                 "name": "Terry Pratchett",
                 "roles": [user_role],
-                "organization": {"id": 2},
+                "organization": {"id": 1},
                 "password": Config.PRE_SEED_PASSWORD_USER,
             }
         )

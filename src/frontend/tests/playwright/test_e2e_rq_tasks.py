@@ -2,8 +2,10 @@ import json
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
+from croniter import croniter
 import pytest
 import redis
 from rq import Queue
@@ -14,8 +16,9 @@ from tests.core_requests import CoreRequestClient
 
 
 CRON_ENQUEUE_KEY_PREFIX = "rq:cron:enqueue:"
+CRON_NEXT_KEY = "rq:cron:next"
 DEFAULT_JOB_TIMEOUT_SECONDS = 30
-CRON_JOB_TIMEOUT_SECONDS = 90
+CRON_JOB_TIMEOUT_SECONDS = 20
 
 RedisBackend = dict[str, str]
 JsonDict = dict[str, Any]
@@ -117,7 +120,7 @@ def _assert_cron_registration(
 ) -> tuple[dict[str, Any], float]:
     redis_conn = _redis_conn(redis_backend)
     raw_spec = redis_conn.hget("rq:cron:def", job_id)
-    next_run_raw = redis_conn.zscore("rq:cron:next", job_id)
+    next_run_raw = redis_conn.zscore(CRON_NEXT_KEY, job_id)
     assert isinstance(raw_spec, (bytes, str)), f"Missing cron registration for {job_id}"
     assert isinstance(next_run_raw, (int, float)), f"Missing or invalid next run entry for {job_id}"
     next_run = float(next_run_raw)
@@ -125,6 +128,25 @@ def _assert_cron_registration(
     if expected_cron is not None:
         assert parsed.get("cron") == expected_cron
     return parsed, next_run
+
+
+def _previous_scheduled_timestamp(cron_spec: dict[str, Any], current_next_run: float) -> float:
+    if cron_expression := cron_spec.get("cron"):
+        current_next_run_dt = datetime.fromtimestamp(current_next_run, tz=timezone.utc)
+        return croniter(str(cron_expression), current_next_run_dt).get_prev(datetime).timestamp()
+
+    if interval := cron_spec.get("interval"):
+        return current_next_run - float(interval)
+
+    return current_next_run - 1
+
+
+def _force_cron_job_due(redis_backend: RedisBackend, job_id: str) -> float:
+    redis_conn = _redis_conn(redis_backend)
+    cron_spec, current_next_run = _assert_cron_registration(redis_backend, job_id)
+    due_timestamp = _previous_scheduled_timestamp(cron_spec, current_next_run)
+    redis_conn.zadd(CRON_NEXT_KEY, {job_id: due_timestamp})
+    return due_timestamp
 
 
 def _wait_for_cron_enqueue_event(
@@ -217,6 +239,9 @@ class RqE2EHarness:
     ) -> tuple[dict[str, Any], float]:
         return _assert_cron_registration(self.redis_backend, job_id, expected_cron=expected_cron)
 
+    def force_cron_job_due(self, job_id: str) -> float:
+        return _force_cron_job_due(self.redis_backend, job_id)
+
     def wait_for_cron_task_result(
         self,
         cron_job_id: str,
@@ -281,18 +306,21 @@ def test_rq_scheduled_collector_cron(
     source_id = rq_harness.create_osint_source(source_payload)
     cron_job_id = f"osint_source_{source_id}"
     rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
     assert payload.get("status") == "SUCCESS"
     assert source_payload["name"] in (payload.get("result") or "")
+    _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    assert next_run_after_execution > forced_due_timestamp
 
 
 @pytest.mark.e2e_ci
 def test_rq_osint_cron_update_immediately_refreshes_next_run(
-    cron_process: None,
     rq_harness: RqE2EHarness,
     rss_server: str,
 ) -> None:
+    # Core updates the Redis cron registration synchronously; no running cron scheduler is needed for this check.
     initial_cron = "0 0 1 1 *"
     updated_cron = "*/1 * * * *"
 
@@ -358,7 +386,10 @@ def test_rq_scheduled_wordlist_bot_cron(
     rq_harness.update_bot(bot_id, bot_payload)
     cron_job_id = f"bot_{bot_id}"
     rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
     assert payload.get("status") == "SUCCESS"
     assert payload.get("task") == f"bot_{bot_id}"
+    _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    assert next_run_after_execution > forced_due_timestamp

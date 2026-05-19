@@ -228,6 +228,7 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
         from core.model.osint_source import OSINTSource, OSINTSourceGroup
         from core.model.report_item import ReportItem
         from core.model.story import Story, StoryNewsItemAttribute
+        from core.model.user import User
 
         extra_source = OSINTSource(
             id="story-filter-source-extra",
@@ -277,6 +278,11 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
         assert manual_important is not None
         assert source_only is not None
 
+        assert grouped_flagged.news_items[0].set_tags(["filter-alpha"])[1] == 200
+        assert grouped_plain.news_items[0].set_tags(["filter-beta"])[1] == 200
+        assert manual_important.news_items[0].set_tags(["filter-gamma"])[1] == 200
+        assert source_only.news_items[0].set_tags(["filter-delta"])[1] == 200
+
         grouped_flagged.read = True
         grouped_flagged.important = True
         grouped_flagged.relevance = 10
@@ -291,13 +297,15 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
 
         source_only.read = True
         source_only.important = False
-        source_only.relevance = 5
-        db.session.commit()
 
-        assert grouped_flagged.set_tags(["filter-alpha"])[1] == 200
-        assert grouped_plain.set_tags(["filter-beta"])[1] == 200
-        assert manual_important.set_tags(["filter-gamma"])[1] == 200
-        assert source_only.set_tags(["filter-delta"])[1] == 200
+        for story in (grouped_flagged, grouped_plain, manual_important, source_only):
+            story.recompute_relevance(in_reports_count=0)
+
+        admin_user = User.find_by_name("admin")
+        assert admin_user is not None
+        admin_actor = Story.last_change_for_user(admin_user)
+        grouped_flagged.last_change = admin_actor
+        db.session.commit()
 
         report_payload = deepcopy(cleanup_report_item)
         report_payload["id"] = "story-filter-report-item"
@@ -326,6 +334,9 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
                 "beta": "filter-beta",
                 "gamma": "filter-gamma",
                 "delta": "filter-delta",
+            },
+            "actors": {
+                "admin": admin_actor,
             },
         }
 
@@ -381,6 +392,111 @@ def cleanup_product(app):
         }
 
         Product.delete_all()
+
+
+@pytest.fixture
+def workflow_publish_resources(app):
+    with app.app_context():
+        from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
+
+        from core.managers.db_manager import db
+        from core.model.attribute import Attribute, AttributeType
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.publisher_preset import PublisherPreset
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+
+        suffix = uuid.uuid4().hex
+
+        summary_attribute = Attribute(
+            name=f"workflow_summary_{suffix}",
+            description="Workflow summary attribute",
+            attribute_type=AttributeType.STRING,
+            default_value="Default executive summary",
+        )
+        recommendation_attribute = Attribute(
+            name=f"workflow_recommendation_{suffix}",
+            description="Workflow recommendation attribute",
+            attribute_type=AttributeType.STRING,
+            default_value="Default recommendation",
+        )
+        db.session.add_all([summary_attribute, recommendation_attribute])
+        db.session.flush()
+
+        report_type = ReportItemType(
+            title=f"Workflow Report Type {suffix}",
+            description="Workflow report type for publish endpoint tests",
+            attribute_groups=[
+                {
+                    "index": 0,
+                    "title": "Workflow Group",
+                    "description": "Workflow attributes",
+                    "attribute_group_items": [
+                        {
+                            "index": 0,
+                            "attribute_id": summary_attribute.id,
+                            "title": "Executive Summary",
+                            "description": "Summary field",
+                            "required": False,
+                        },
+                        {
+                            "index": 1,
+                            "attribute_id": recommendation_attribute.id,
+                            "title": "Recommendation",
+                            "description": "Recommendation field",
+                            "required": False,
+                        },
+                    ],
+                }
+            ],
+        )
+        db.session.add(report_type)
+        db.session.flush()
+
+        product_type = ProductType(
+            title=f"Workflow Product Type {suffix}",
+            type=PRESENTER_TYPES.HTML_PRESENTER,
+            description="Workflow product type",
+            parameters={"TEMPLATE_PATH": "cert_at_daily_report.html"},
+            report_types=[report_type.id],
+        )
+        publisher_preset = PublisherPreset(
+            id=f"workflow-publisher-{suffix}",
+            name=f"Workflow Publisher {suffix}",
+            description="Workflow publisher preset",
+            type=PUBLISHER_TYPES.FTP_PUBLISHER,
+            parameters={"FTP_URL": "ftp://example.invalid/out"},
+        )
+
+        db.session.add_all([product_type, publisher_preset])
+        db.session.commit()
+
+        yield {
+            "report_type_id": report_type.id,
+            "product_type_id": product_type.id,
+            "publisher_preset_id": publisher_preset.id,
+            "group_title": "Workflow Group",
+            "summary_title": "Executive Summary",
+            "summary_default": "Default executive summary",
+            "recommendation_title": "Recommendation",
+            "recommendation_default": "Default recommendation",
+        }
+
+        Product.delete_all()
+        ReportItem.delete_all()
+
+        if PublisherPreset.get(publisher_preset.id):
+            db.session.delete(PublisherPreset.get(publisher_preset.id))
+        if ProductType.get(product_type.id):
+            db.session.delete(ProductType.get(product_type.id))
+        if ReportItemType.get(report_type.id):
+            db.session.delete(ReportItemType.get(report_type.id))
+        if Attribute.get(summary_attribute.id):
+            db.session.delete(Attribute.get(summary_attribute.id))
+        if Attribute.get(recommendation_attribute.id):
+            db.session.delete(Attribute.get(recommendation_attribute.id))
+        db.session.commit()
 
 
 @pytest.fixture(scope="class")
@@ -747,12 +863,18 @@ def cleanup_publisher(app):
 
 
 def remap_result_keys(payload: dict, stories) -> dict:
+    from core.model.story import Story
+
     payload = deepcopy(payload)
 
     old = payload["result"]
-    story_ids = [str(getattr(s, "id", s)) for s in stories]
+    news_item_ids = []
+    for story_ref in stories:
+        story_id = str(getattr(story_ref, "id", story_ref))
+        if story := Story.get(story_id):
+            news_item_ids.extend(news_item.id for news_item in story.news_items[:1])
 
-    payload["result"] = {story_id: tags_dict for story_id, tags_dict in zip(story_ids, old.values())}
+    payload["result"] = {news_item_id: tags_dict for news_item_id, tags_dict in zip(news_item_ids, old.values())}
     return payload
 
 

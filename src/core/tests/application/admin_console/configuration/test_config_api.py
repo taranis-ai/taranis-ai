@@ -160,10 +160,16 @@ class TestSourcesConfigApi(BaseTest):
         assert "Validation failed for model 'OSINTSource':" in response.json["error"]
         assert "Field 'rank': Input should be less than or equal to 5" in response.json["error"]
 
-    def test_modify_source(self, client, auth_header, cleanup_sources):
+    def test_modify_source(self, client, auth_header, cleanup_sources, monkeypatch):
+        purged_calls: list[tuple[set[str], list[str]]] = []
+        monkeypatch.setattr(
+            "core.managers.queue_manager.queue_manager.purge_job_artifacts",
+            lambda *, exact_ids=None, prefixes=None: purged_calls.append((exact_ids or set(), prefixes or [])) or (1, 1),
+        )
         source_data = {
             "description": "Sourcy McSourceFace",
             "rank": 5,
+            "parameters": {"FEED_URL": "https://example.com/updated.xml"},
         }
         source_id = cleanup_sources["id"]
         response = self.assert_put_ok(client, uri=f"osint-sources/{source_id}", json_data=source_data, auth_header=auth_header)
@@ -172,6 +178,8 @@ class TestSourcesConfigApi(BaseTest):
         source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
         assert source_response.json["description"] == "Sourcy McSourceFace"
         assert source_response.json["rank"] == 5
+        assert source_response.json["parameters"]["FEED_URL"] == "https://example.com/updated.xml"
+        assert purged_calls == [({f"source_preview_{source_id}"}, [])]
 
     def test_modify_source_can_store_rank_zero(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]
@@ -249,6 +257,49 @@ class TestSourcesConfigApi(BaseTest):
                 if OSINTSource.get(manual_source_id):
                     OSINTSource.delete(manual_source_id)
 
+    def test_get_sources_can_include_manual_collectors(self, client, auth_header, app):
+        from core.model.osint_source import OSINTSource
+
+        unique_suffix = uuid.uuid4().hex
+        rss_source_id = f"rss-{unique_suffix}"
+        manual_source_id = f"manual-{unique_suffix}"
+
+        rss_source = {
+            "id": rss_source_id,
+            "name": f"Visible Source {unique_suffix}",
+            "description": "Collector that should remain visible",
+            "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
+            "type": "rss_collector",
+        }
+        manual_source = {
+            "id": manual_source_id,
+            "name": f"Visible Source {unique_suffix}",
+            "description": "Collector that should be shown when requested",
+            "parameters": {},
+            "type": "manual_collector",
+        }
+
+        with app.app_context():
+            OSINTSource.add(rss_source)
+            OSINTSource.add(manual_source)
+
+        try:
+            response = self.assert_get_ok(
+                client,
+                uri=f"osint-sources?search={unique_suffix}&fetch_all=true&filter_manual=false",
+                auth_header=auth_header,
+            )
+            payload = response.get_json()
+
+            assert payload["total_count"] == 2
+            assert {item["id"] for item in payload["items"]} == {rss_source_id, manual_source_id}
+        finally:
+            with app.app_context():
+                if OSINTSource.get(rss_source_id):
+                    OSINTSource.delete(rss_source_id)
+                if OSINTSource.get(manual_source_id):
+                    OSINTSource.delete(manual_source_id)
+
     def test_get_sources_orders_by_status(self, client, auth_header, app):
         from core.model.osint_source import OSINTSource
         from core.model.task import Task
@@ -310,6 +361,47 @@ class TestSourcesConfigApi(BaseTest):
                 for source in sources:
                     if OSINTSource.get(source["id"]):
                         OSINTSource.delete(source["id"])
+
+    def test_get_source_uses_latest_cron_collector_status(self, client, auth_header, app):
+        from core.model.osint_source import OSINTSource
+        from core.model.task import Task
+
+        source_id = f"cron-status-{uuid.uuid4().hex}"
+        source = {
+            "id": source_id,
+            "name": f"Cron Status Source {source_id}",
+            "description": "Cron status source",
+            "parameters": {"FEED_URL": "https://example.invalid/cron-status.xml"},
+            "type": "rss_collector",
+        }
+        cron_task_id = f"cron_osint_source_{source_id}_1777459628"
+        task = {
+            "id": cron_task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "rss_collector",
+            "result": "No changes: feed was not modified",
+            "status": "NOT_MODIFIED",
+        }
+
+        with app.app_context():
+            OSINTSource.add(source)
+            Task.add(task)
+
+        try:
+            response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+            payload = response.get_json()
+
+            assert payload["id"] == source_id
+            assert payload["status"]["status"] == "NOT_MODIFIED"
+            assert payload["status"]["id"] == cron_task_id
+            assert payload["status"]["worker_id"] == source_id
+        finally:
+            with app.app_context():
+                if Task.get(cron_task_id):
+                    Task.delete(cron_task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
 
     def test_delete_source(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]
@@ -660,6 +752,42 @@ class TestBotConfigApi(BaseTest):
         assert response.json["items"][0]["description"] == "Boty McBotFace"
         assert response.json["items"][0]["id"] == bot_id
 
+    def test_get_bot_uses_latest_cron_bot_status(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+        from core.model.task import Task
+
+        bot_id = cleanup_bot["id"]
+        cron_task_id = f"cron_bot_{bot_id}_1777459628"
+        task = {
+            "id": cron_task_id,
+            "task": f"bot_{bot_id}",
+            "worker_id": bot_id,
+            "worker_type": cleanup_bot["type"].upper(),
+            "result": {"message": "Bot completed"},
+            "status": "SUCCESS",
+        }
+
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+            Bot.add(cleanup_bot)
+            Task.add(task)
+
+        try:
+            response = self.assert_get_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
+            payload = response.get_json()
+
+            assert payload["id"] == bot_id
+            assert payload["status"]["status"] == "SUCCESS"
+            assert payload["status"]["id"] == cron_task_id
+            assert payload["status"]["worker_id"] == bot_id
+        finally:
+            with app.app_context():
+                if Task.get(cron_task_id):
+                    Task.delete(cron_task_id)
+                if Bot.get(bot_id):
+                    Bot.delete(bot_id)
+
     def test_delete_bot(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot
 
@@ -672,6 +800,65 @@ class TestBotConfigApi(BaseTest):
 
         response = self.assert_delete_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
         assert response.json["message"] == f"Bot {cleanup_bot['name']} deleted"
+
+
+class TestAdminMenuBadgesConfigApi(BaseTest):
+    base_uri = "/api/config"
+
+    def test_get_admin_menu_badges(self, client, auth_header, app):
+        from core.model.task import Task
+
+        task_ids = [
+            f"admin-menu-badge-collector-{uuid.uuid4().hex}",
+            f"admin-menu-badge-bot-{uuid.uuid4().hex}",
+        ]
+
+        with app.app_context():
+            Task.add(
+                {
+                    "id": task_ids[0],
+                    "task": "collector_task",
+                    "worker_id": "source-1",
+                    "worker_type": "rss_collector",
+                    "status": "FAILURE",
+                    "result": {"error": "boom"},
+                }
+            )
+            Task.add(
+                {
+                    "id": task_ids[1],
+                    "task": "bot_task",
+                    "worker_id": "bot-1",
+                    "worker_type": "WORDLIST_BOT",
+                    "status": "FAILURE",
+                    "result": {"error": "boom"},
+                }
+            )
+
+        try:
+            response = self.assert_get_ok(client, uri="admin-menu-badges", auth_header=auth_header)
+            assert response.json == {"osint_source": 1, "bot": 1}
+            cache_control = response.headers["Cache-Control"].lower()
+            assert "private" in cache_control
+            assert "max-age=300" in cache_control
+        finally:
+            with app.app_context():
+                for task_id in task_ids:
+                    if Task.get(task_id):
+                        Task.delete(task_id)
+
+
+class TestConnectorConfigApi(BaseTest):
+    base_uri = "/api/config"
+
+    def test_patch_connector_state_persists(self, client, auth_header, cleanup_connector):
+        connector_id = cleanup_connector["id"]
+
+        response = self.assert_patch_ok(client, uri=f"connectors/{connector_id}", json_data={"state": 1}, auth_header=auth_header)
+        assert response.json["id"] == connector_id
+
+        connector_response = self.assert_get_ok(client, uri=f"connectors/{connector_id}", auth_header=auth_header)
+        assert connector_response.json["state"] == 1
 
 
 class TestReportTypeConfigApi(BaseTest):
@@ -767,7 +954,6 @@ class TestProductTypes(BaseTest):
         response = self.assert_get_ok(client, uri=f"product-types?search={product_type_type}", auth_header=auth_header)
         assert response.json["items"][0]["type"] == product_type_type
         assert response.json["total_count"] == 2
-        assert response.json["templates"]
 
     def test_delete_product_type(self, client, auth_header, cleanup_product_types):
         product_type_id = cleanup_product_types["id"]

@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from sqlalchemy import inspect, or_
 from sqlalchemy.orm import Mapped, relationship
@@ -124,7 +124,27 @@ class ReportItem(BaseModel):
         return response, status_code
 
     def get_attribute_dict(self) -> list[dict[str, Any]]:
-        return [attribute.to_report_dict() for attribute in self.attributes]
+        story_choices = [{"id": story.id, "title": story.title or story.id} for story in self.stories if story and story.id]
+
+        attributes = []
+        for attribute in self.attributes:
+            attr = attribute.to_report_dict()
+            render_data = dict(attr.get("render_data") or {})
+            if attribute.attribute_type == AttributeType.STORY:
+                render_data["story_choices"] = story_choices
+            attr["render_data"] = render_data
+            attributes.append(attr)
+
+        return attributes
+
+    @staticmethod
+    def _get_used_story_ids(attributes: list["ReportItemAttribute"]) -> list[str]:
+        used_story_ids: list[str] = []
+        for attribute in attributes:
+            if attribute.attribute_type != AttributeType.STORY:
+                continue
+            used_story_ids.extend(story_id.strip() for story_id in str(attribute.value).split(",") if story_id and story_id.strip())
+        return list(dict.fromkeys(used_story_ids))
 
     def get_grouped_attributes(self, attributes: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         attribute_dicts = attributes if attributes is not None else self.get_attribute_dict()
@@ -143,6 +163,7 @@ class ReportItem(BaseModel):
         attributes = self.get_attribute_dict()
         data["grouped_attributes"] = self.get_grouped_attributes(attributes)
         data["stories"] = [story.to_dict() for story in self.stories if story]
+        data["used_story_ids"] = self._get_used_story_ids(self.attributes or [])
         data["revision_count"] = self.get_revision_count()
         return data
 
@@ -255,9 +276,6 @@ class ReportItem(BaseModel):
                 return None, ({"error": "stories must be a list of story ids"}, 400)
             sanitized["stories"] = normalized_stories
 
-        if "report_item_cpes" in data:
-            sanitized["report_item_cpes"] = data["report_item_cpes"]
-
         if raw_id := data.get("id"):
             if isinstance(raw_id, str) and raw_id.strip():
                 sanitized["id"] = raw_id.strip()
@@ -304,7 +322,7 @@ class ReportItem(BaseModel):
         return [cls.from_dict(report_item) for report_item in data]
 
     @classmethod
-    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem" | dict[str, Any], int]:
+    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem", Literal[200]] | tuple[dict[str, Any], int]:
         sanitized_data, error = cls._sanitize_create_payload(report_item_data)
         if error:
             return error[0], error[1]
@@ -408,7 +426,7 @@ class ReportItem(BaseModel):
             if filter_range.upper() == "MONTH":
                 date_limit = date_limit.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                 query = query.filter(ReportItem.created >= date_limit)
-        
+
         if story_id := filter_args.get("story_id"):
             query = query.filter(cls.stories.any(Story.id == story_id))
 
@@ -418,6 +436,15 @@ class ReportItem(BaseModel):
 
         if completed == "false":
             query = query.filter(ReportItem.completed == false())
+
+        report_item_type_id_raw = filter_args.get("report_item_type_id")
+        try:
+            report_item_type_id = int(report_item_type_id_raw) if report_item_type_id_raw is not None else None
+        except (TypeError, ValueError):
+            report_item_type_id = None
+
+        if report_item_type_id and report_item_type_id > 0:
+            query = query.filter(ReportItem.report_item_type_id == report_item_type_id)
 
         return query
 
@@ -558,9 +585,11 @@ class ReportItem(BaseModel):
 
         report = cls.get(report_id)
         if not report:
+            logger.warning(f"Attempted to delete Report Item {report_id} which does not exist")
             return {"error": "Report not found"}, 404
 
         if ProductReportItem.assigned(report_id):
+            logger.warning(f"Attempted to delete Report Item {report_id} which is still assigned to a Product")
             return {"error": "Report is used in a product"}, 409
 
         affected_stories = list(report.stories)

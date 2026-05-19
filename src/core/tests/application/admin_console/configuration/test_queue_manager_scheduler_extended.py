@@ -202,6 +202,66 @@ def test_publish_schedule_cache_invalidation_notifies_scheduler_views(monkeypatc
     assert cache_invalidation_calls == ["schedule"]
 
 
+def test_get_task_returns_live_rq_status(monkeypatch):
+    class FakeJob:
+        is_finished = False
+        is_failed = False
+
+        @staticmethod
+        def get_status():
+            return "STARTED"
+
+    monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(lambda task_id, connection=None: FakeJob())}))
+
+    qm = _make_queue_manager()
+
+    response, status = qm.get_task("source_preview_123")
+
+    assert status == 202
+    assert response == {"id": "source_preview_123", "status": "STARTED"}
+
+
+def test_get_task_returns_success_payload(monkeypatch):
+    class FakeJob:
+        is_finished = True
+        is_failed = False
+        result = [{"title": "Preview item"}]
+
+        @staticmethod
+        def get_status():
+            return "FINISHED"
+
+    monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(lambda task_id, connection=None: FakeJob())}))
+
+    qm = _make_queue_manager()
+
+    response, status = qm.get_task("source_preview_123")
+
+    assert status == 200
+    assert response == {"id": "source_preview_123", "status": "SUCCESS", "result": [{"title": "Preview item"}]}
+
+
+def test_preview_osint_source_purges_existing_preview_artifacts(monkeypatch):
+    purged_calls: list[tuple[set[str], list[str]]] = []
+
+    class FakeJob:
+        id = "source_preview_123"
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(
+        qm,
+        "purge_job_artifacts",
+        lambda *, exact_ids=None, prefixes=None: purged_calls.append((exact_ids or set(), prefixes or [])) or (1, 1),
+    )
+    monkeypatch.setattr(qm, "enqueue_task", lambda *args, **kwargs: FakeJob())
+
+    response, status = qm.preview_osint_source("123")
+
+    assert purged_calls == [({"source_preview_123"}, [])]
+    assert status == 201
+    assert response == {"message": "Preview for source 123 scheduled", "id": "source_preview_123", "status": "STARTED"}
+
+
 def test_get_active_jobs_uses_registry(monkeypatch):
     class FakeJob:
         def __init__(self, job_id):
@@ -294,6 +354,64 @@ def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
     assert status == 200
     assert payload == {"items": [], "total_count": 0}
     assert removed == [("job-stale", False)]
+
+
+def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
+    qm = _make_queue_manager()
+    job_ids = iter(("presenter_task_product-1_101", "publisher_task_product-1_202"))
+    presenter_job = object()
+    publisher_job = object()
+    calls: list[dict[str, Any]] = []
+
+    monkeypatch.setattr(qm, "_build_unique_job_id", lambda _task_name, _worker_id: next(job_ids))
+
+    def fake_enqueue_task(queue_name: str, task_name: str, *args, **kwargs):
+        calls.append(
+            {
+                "queue_name": queue_name,
+                "task_name": task_name,
+                "args": args,
+                "kwargs": kwargs,
+            }
+        )
+        if task_name == "presenter_task":
+            return presenter_job
+        return publisher_job
+
+    monkeypatch.setattr(qm, "enqueue_task", fake_enqueue_task)
+
+    payload, status = qm.autopublish_product("product-1", "publisher-1")
+
+    assert status == 200
+    assert payload["presenter_job_id"] == "presenter_task_product-1_101"
+    assert payload["publisher_job_id"] == "publisher_task_product-1_202"
+    assert len(calls) == 2
+    assert calls[0] == {
+        "queue_name": "presenters",
+        "task_name": "presenter_task",
+        "args": ("product-1",),
+        "kwargs": {"job_id": "presenter_task_product-1_101"},
+    }
+    assert calls[1] == {
+        "queue_name": "publishers",
+        "task_name": "publisher_task",
+        "args": ("product-1", "publisher-1"),
+        "kwargs": {
+            "job_id": "publisher_task_product-1_202",
+            "depends_on": presenter_job,
+        },
+    }
+
+
+def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypatch):
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "_build_unique_job_id", lambda _task_name, _worker_id: "presenter_task_product-2_303")
+    monkeypatch.setattr(qm, "enqueue_task", lambda *args, **kwargs: False)
+
+    payload, status = qm.autopublish_product("product-2", "publisher-2")
+
+    assert status == 500
+    assert payload == {"error": "Could not schedule presenter job for product product-2"}
 
 
 def test_osint_schedule_entries_include_metadata(monkeypatch):

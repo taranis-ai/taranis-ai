@@ -105,7 +105,7 @@ def _wait_for_cron_leader(redis_url: str, timeout_seconds: int = 15) -> None:
 
 @pytest.fixture(scope="session")
 def docker_compose_file() -> str:
-    return str(Path(__file__).parent / "docker-compose.e2e.yml")
+    return str(Path(__file__).parent / "compose.e2e.yml")
 
 
 @pytest.fixture(scope="session")
@@ -185,10 +185,9 @@ def worker_process(
             docker_compose_command,
             docker_compose_file,
             "worker",
-            "worker_setup",
             "core",
             "redis",
-            "fixtures",
+            "testdata",
             project_name=docker_compose_project_name,
         )
         raise RuntimeError(f"Worker failed to become ready: {exc}\n\nCompose logs:\n{logs}") from exc
@@ -209,7 +208,6 @@ def cron_process(
             docker_compose_command,
             docker_compose_file,
             "cron",
-            "worker_setup",
             "core",
             "redis",
             project_name=docker_compose_project_name,
@@ -219,9 +217,9 @@ def cron_process(
 
 @pytest.fixture(scope="session")
 def wordlist_server() -> Generator[str, None, None]:
-    yield "http://fixtures/wordlist.csv"
+    yield "http://testdata/wordlist.csv"
 
 
 @pytest.fixture(scope="session")
 def rss_server() -> Generator[str, None, None]:
-    yield "http://fixtures/feed.xml"
+    yield "http://testdata/feed.xml"

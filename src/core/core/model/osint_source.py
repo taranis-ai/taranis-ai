@@ -16,6 +16,7 @@ from sqlalchemy.sql import Select
 
 from core.config import Config
 from core.log import logger
+from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
@@ -95,7 +96,11 @@ class OSINTSource(BaseModel):
 
     @property
     def status(self):
-        if task_result := TaskModel.get(self.task_id):
+        if task_result := TaskModel.get_latest_matching(
+            exact_ids={self.task_id},
+            prefixes=[self.cron_run_prefix],
+            task_name="collector_task",
+        ):
             return task_result.to_dict()
         return None
 
@@ -164,7 +169,7 @@ class OSINTSource(BaseModel):
     @classmethod
     def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = dict(filter_args or {})
-        filter_args["filter_manual"] = filter_args.get("filter_manual", True)
+        filter_args["filter_manual"] = cls._filter_manual_enabled(filter_args.get("filter_manual", True))
 
         response, status_code = super().get_all_for_api(filter_args=filter_args, with_count=with_count, user=user)
         items = response.get("items", [])
@@ -174,6 +179,10 @@ class OSINTSource(BaseModel):
             items.sort(key=lambda item: (item.get("status") or {}).get("status", ""), reverse=True)
 
         return response, status_code
+
+    @staticmethod
+    def _filter_manual_enabled(value: Any) -> bool:
+        return str(value).strip().lower() not in {"", "false", "0", "off", "no"}
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
@@ -361,6 +370,10 @@ class OSINTSource(BaseModel):
         if "parameters" in update_fields and validated_update.parameters is not None:
             osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
         db.session.commit()
+
+        if "parameters" in update_fields and validated_update.parameters is not None:
+            queue_manager.queue_manager.purge_job_artifacts(exact_ids={f"source_preview_{osint_source_id}"})
+
         osint_source.schedule_osint_source()
         return osint_source
 
@@ -417,6 +430,7 @@ class OSINTSource(BaseModel):
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
         from core.managers import queue_manager
+        from core.service.story import StoryService
 
         if source_id == "manual":
             return {"error": "The manual source cannot be deleted"}, 400
@@ -434,6 +448,7 @@ class OSINTSource(BaseModel):
                 news_item_table = db.metadata.tables.get("news_item")
                 if news_item_table is not None:
                     db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
+                StoryService.delete_stories_with_no_items()
             db.session.delete(source)
             db.session.commit()
             return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200

@@ -112,7 +112,13 @@ def auth_user_basic():
         username="user",
         name="Ford Prefect",
         organization={"id": 1, "name": "Galactic Government"},
-        permissions=["ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
+        permissions=[
+            "ASSESS_ACCESS",
+            "ANALYZE_ACCESS",
+            "ANALYZE_DELETE",
+            "PUBLISH_ACCESS",
+            "ASSETS_ACCESS",
+        ],
         profile={},
         roles=[{"id": 2, "name": "User"}],
     )
@@ -200,7 +206,7 @@ def htmx_header():
 def pytest_addoption(parser):
     group = parser.getgroup("e2e")
     group.addoption("--e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
-    group.addoption("--e2e-timeout", action="store", default="10000", help="milliseconds to wait for e2e tests")
+    group.addoption("--e2e-timeout", action="store", default="5000", help="milliseconds to wait for e2e tests")
     group.addoption("--highlight-delay", action="store", default="0", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
     group.addoption("--e2e-admin", action="store_true", default=False, help="run e2e tests of admin interface")

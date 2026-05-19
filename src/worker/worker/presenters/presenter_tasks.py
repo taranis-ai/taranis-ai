@@ -6,7 +6,7 @@ Functions for generating products/reports in various formats.
 from base64 import b64encode
 from typing import Any
 
-from requests.exceptions import ConnectionError
+from niquests.exceptions import ConnectionError
 from rq import get_current_job
 
 import worker.presenters
