@@ -288,10 +288,10 @@ class NewsItem(BaseModel):
                 update_story=update_story,
                 commit=commit,
             )
-        except Exception as e:
+        except Exception:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
-            return {"error": str(e)}, 500
+            return {"error": "Update News Item Tags Failed"}, 500
 
     def _update_tags(
         self,
@@ -304,8 +304,8 @@ class NewsItem(BaseModel):
     ) -> tuple[dict, int]:
         try:
             parsed_tags = NewsItemTag.parse_tags(incoming_tags)
-        except (TypeError, ValueError) as exc:
-            return {"error": str(exc)}, 400
+        except (TypeError, ValueError):
+            return {"error": "Invalid tags"}, 400
 
         if incoming_tags and not parsed_tags:
             return {"error": "No valid tags provided"}, 400

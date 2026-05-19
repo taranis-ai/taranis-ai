@@ -63,7 +63,7 @@ class DeleteTag(MethodView):
     @auth_required()
     def delete(self, tag_name: str):
         NewsItemTagService.delete_tags_by_name(tag_name)
-        return {"message": f"Cluster {tag_name} deleted"}, 200
+        return jsonify({"message": f"Cluster {tag_name} deleted"}), 200
 
 
 class BuildInfo(MethodView):

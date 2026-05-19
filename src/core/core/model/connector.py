@@ -117,7 +117,7 @@ class Connector(BaseModel):
             return {"message": f"Connecotor {connector.name} deleted", "id": f"{connector_id}"}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
-            return {"error": f"Deleting Connector with ID: {connector_id} failed {str(e)}"}, 500
+            return {"error": f"Deleting Connector with ID: {connector_id} failed"}, 500
 
     @staticmethod
     def _update_last_change(model_class: Type, data: dict[str, str]) -> tuple[dict[str, str], int]:

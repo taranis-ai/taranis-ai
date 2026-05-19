@@ -8,6 +8,7 @@ from core.audit import audit_logger
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
+from core.managers.api_response import jsonify_result
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args, validate_json
 from core.managers.sse_manager import sse_manager
@@ -22,13 +23,13 @@ from core.service.story import StoryService
 class OSINTSourceGroupsList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)
+        return jsonify_result(osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user))
 
 
 class OSINTSourcesList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSource.get_all_for_assess_api(user=current_user)
+        return jsonify_result(osint_source.OSINTSource.get_all_for_assess_api(user=current_user))
 
 
 class NewsItems(MethodView):
@@ -40,20 +41,20 @@ class NewsItems(MethodView):
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 1000)
         page = int(request.args.get("page", 0))
         filter_args["offset"] = min(int(request.args.get("offset", page * filter_args["limit"])), (2**31) - 1)
-        return news_item.NewsItem.get_all_for_api(filter_args, current_user)
+        return jsonify_result(news_item.NewsItem.get_all_for_api(filter_args, current_user))
 
     @auth_required("ASSESS_CREATE")
     @validate_json
     def post(self):
         data_json = request.json
         if not data_json:
-            return {"error": "No NewsItems in JSON Body"}, 422
+            return jsonify_result({"error": "No NewsItems in JSON Body"}, 422)
 
         data_json["osint_source_id"] = "manual"
         result, status = story.Story.add_single_news_item(data_json, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
-        return result, status
+        return jsonify_result(result, status)
 
 
 class NewsItemFetch(MethodView):
@@ -66,24 +67,24 @@ class NewsItemFetch(MethodView):
     def post(self):
         request_payload = request.get_json(silent=True)
         if not isinstance(request_payload, dict):
-            return {"error": "Couldn't create News Item"}, 400
+            return jsonify_result({"error": "Couldn't create News Item"}, 400)
 
         parameters = request_payload
         url = get_simple_web_collector_url(parameters)
         if not self._is_supported_web_url(url):
-            return {"error": "A valid http or https URL is required"}, 400
+            return jsonify_result({"error": "A valid http or https URL is required"}, 400)
 
         response, status = StoryService.fetch_and_create_story(parameters)
         if 200 <= status < 300:
             sse_manager.news_items_updated()
             invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
-        return response, status
+        return jsonify_result(response, status)
 
 
 class NewsItem(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, item_id: str):
-        return news_item.NewsItem.get_for_api(item_id, current_user)
+        return jsonify_result(news_item.NewsItem.get_for_api(item_id, current_user))
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
@@ -91,7 +92,7 @@ class NewsItem(MethodView):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
-        return response, code
+        return jsonify_result(response, code)
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
@@ -99,14 +100,14 @@ class NewsItem(MethodView):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
-        return response, code
+        return jsonify_result(response, code)
 
     @auth_required("ASSESS_DELETE")
     def delete(self, item_id: str):
         response, code = NewsItemService.delete(item_id, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
-        return response, code
+        return jsonify_result(response, code)
 
 
 class UpdateNewsItemAttributes(MethodView):
@@ -115,7 +116,7 @@ class UpdateNewsItemAttributes(MethodView):
         actor = story.Story.last_change_for_user(current_user)
         response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=actor)
         invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
-        return response, status
+        return jsonify_result(response, status)
 
 
 class UpdateNewsItemTags(MethodView):
@@ -124,17 +125,17 @@ class UpdateNewsItemTags(MethodView):
     def put(self, news_item_id: str):
         item = news_item.NewsItem.get(news_item_id)
         if not item:
-            return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
+            return jsonify_result({"error": f"NewsItem with id: {news_item_id} not found"}, 404)
         if not item.allowed_with_acl(current_user, require_write_access=True):
-            return {"error": "User does not have write access to this news item"}, 403
+            return jsonify_result({"error": "User does not have write access to this news item"}, 403)
 
         tags = request.json
         if not isinstance(tags, (list, dict)):
-            return {"error": "Tags must be a list or object"}, 400
+            return jsonify_result({"error": "Tags must be a list or object"}, 400)
 
         response, status = item.set_tags(tags, user=current_user)
         invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"), object_ids={"news_item": news_item_id})
-        return response, status
+        return jsonify_result(response, status)
 
 
 class Stories(MethodView):
@@ -169,25 +170,25 @@ class Stories(MethodView):
             offset = int(request.args.get("offset", page * filter_args["limit"]))
             filter_args["offset"] = min(offset, (2**31) - 1)
 
-            return story.Story.get_by_filter_json(filter_args, current_user)
+            return jsonify_result(story.Story.get_by_filter_json(filter_args, current_user))
         except Exception:
             logger.exception("Failed to get Stories")
-            return {"error": "Failed to get Stories"}, 400
+            return jsonify_result({"error": "Failed to get Stories"}, 400)
 
     @auth_required("ASSESS_UPDATE")
     def post(self):
         if not (data_json := request.json):
-            return {"error": "No story ids provided"}, 400
+            return jsonify_result({"error": "No story ids provided"}, 400)
         story_ids = data_json.get("story_ids")
         payload = data_json.get("payload")
         if not isinstance(story_ids, list) or not story_ids:
-            return {"error": "No story ids provided"}, 400
+            return jsonify_result({"error": "No story ids provided"}, 400)
         if payload is not None and not isinstance(payload, dict):
-            return {"error": "Invalid payload provided"}, 400
+            return jsonify_result({"error": "Invalid payload provided"}, 400)
         result_dict = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
         for s in [story.Story.get(sid) for sid in story_ids if sid]:
             if not s:
-                return {"error": "Story not found"}, 404
+                return jsonify_result({"error": "Story not found"}, 404)
             response, code = story.Story.update(s.id, payload, current_user)
             if code != 200:
                 result_dict["errors"].append({"story_id": s.id, "response": response})
@@ -197,7 +198,7 @@ class Stories(MethodView):
 
         result_dict["message"] = f"Bulk action completed. {result_dict['updated']} stories updated."
         invalidate_frontend_cache_on_success(200, models=("story",))
-        return result_dict, 200
+        return jsonify_result(result_dict, 200)
 
 
 class StoryTagList(MethodView):
@@ -208,16 +209,16 @@ class StoryTagList(MethodView):
             limit = min(int(request.args.get("limit", 20)), 200)
             offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
             filter_args = {"limit": limit, "offset": offset, "search": search}
-            return news_item_tag.NewsItemTag.get_list(filter_args)
+            return jsonify_result(news_item_tag.NewsItemTag.get_list(filter_args))
         except Exception:
             logger.exception()
-            return {"error": "Failed to get Tags"}, 400
+            return jsonify_result({"error": "Failed to get Tags"}, 400)
 
 
 class Story(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id: str):
-        return story.Story.get_for_api(story_id, current_user)
+        return jsonify_result(story.Story.get_for_api(story_id, current_user))
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
@@ -225,21 +226,21 @@ class Story(MethodView):
         response, code = story.Story.update(story_id, request.json, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "report_item"), object_ids={"story": story_id})
-        return response, code
+        return jsonify_result(response, code)
 
     @auth_required("ASSESS_DELETE")
     def delete(self, story_id):
         response, code = story.Story.delete_by_id(story_id, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "report_item"), object_ids={"story": story_id})
-        return response, code
+        return jsonify_result(response, code)
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def patch(self, story_id):
         response, code = story.Story.update(story_id, request.json, current_user)
         invalidate_frontend_cache_on_success(code, models=("story", "report_item"), object_ids={"story": story_id})
-        return response, code
+        return jsonify_result(response, code)
 
 
 class UnGroupNewsItem(MethodView):
@@ -247,12 +248,12 @@ class UnGroupNewsItem(MethodView):
     @validate_json
     def put(self):
         if not (newsitem_ids := request.json):
-            return {"error": "No news item ids provided"}, 400
+            return jsonify_result({"error": "No news item ids provided"}, 400)
         actor = story.Story.last_change_for_user(current_user)
         response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
-        return response, code
+        return jsonify_result(response, code)
 
 
 class UnGroupStories(MethodView):
@@ -260,11 +261,11 @@ class UnGroupStories(MethodView):
     @validate_json
     def put(self):
         if not (story_ids := request.json):
-            return {"error": "No story ids provided"}, 400
+            return jsonify_result({"error": "No story ids provided"}, 400)
         response, code = story.Story.ungroup_multiple_stories(story_ids, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
-        return response, code
+        return jsonify_result(response, code)
 
 
 class GroupAction(MethodView):
@@ -272,23 +273,23 @@ class GroupAction(MethodView):
     @validate_json
     def put(self):
         if not (story_ids := request.json):
-            return {"error": "No story ids provided"}, 400
+            return jsonify_result({"error": "No story ids provided"}, 400)
         actor = story.Story.last_change_for_user(current_user)
         response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
-        return response, code
+        return jsonify_result(response, code)
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def post(self):
         if not (story_ids := request.json):
-            return {"error": "No story ids provided"}, 400
+            return jsonify_result({"error": "No story ids provided"}, 400)
         actor = story.Story.last_change_for_user(current_user)
         response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
-        return response, code
+        return jsonify_result(response, code)
 
 
 class BotActions(MethodView):
@@ -296,17 +297,17 @@ class BotActions(MethodView):
     @validate_json
     def post(self):
         if not request.json:
-            return {"error": "Please provide story_id & bot_id"}, 400
+            return jsonify_result({"error": "Please provide story_id & bot_id"}, 400)
         bot_id = request.json.get("bot_id")
         if not bot_id:
-            return {"error": "No bot_id provided"}, 400
+            return jsonify_result({"error": "No bot_id provided"}, 400)
         story_id = request.json.get("story_id")
         if not story_id:
-            return {"error": "No story_id provided"}, 400
+            return jsonify_result({"error": "No story_id provided"}, 400)
         response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter={"story_id": story_id})
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story",), object_ids={"story": story_id})
-        return response, code
+        return jsonify_result(response, code)
 
 
 class Connectors(MethodView):
@@ -314,27 +315,28 @@ class Connectors(MethodView):
     @extract_args("search", "page", "limit", "offset", "sort", "order", "fetch_all")
     def get(self, connector_id: str | None = None, filter_args: dict | None = None):
         if connector_id:
-            return connector.Connector.get_for_api(connector_id)
-        return connector.Connector.get_all_for_user_api(filter_args, user=current_user)
+            return jsonify_result(connector.Connector.get_for_api(connector_id))
+        return jsonify_result(connector.Connector.get_all_for_user_api(filter_args, user=current_user))
 
     @auth_required("CONNECTOR_USER_ACCESS")
     @validate_json
     def post(self, connector_id: str | None = None):
         """Send stories to an external system."""
         if not connector_id:
-            return {"error": "No connector_id provided"}, 400
+            return jsonify_result({"error": "No connector_id provided"}, 400)
         if not request.json:
-            return {"error": "Invalid JSON payload"}, 400
+            return jsonify_result({"error": "Invalid JSON payload"}, 400)
 
         story_ids = request.json.get("story_ids")
         if not story_ids:
-            return {"error": "No story_id provided"}, 400
+            return jsonify_result({"error": "No story_id provided"}, 400)
 
         try:
             response, code = queue_manager.queue_manager.push_to_connector(connector_id=connector_id, story_ids=story_ids)
-            return response, code
-        except Exception as e:
-            return {"error": str(e)}, 500
+            return jsonify_result(response, code)
+        except Exception:
+            logger.exception("Failed to push stories to connector %s", connector_id)
+            return jsonify_result({"error": "Failed to push stories to connector"}, 500)
 
 
 class FilterLists(MethodView):
@@ -343,25 +345,25 @@ class FilterLists(MethodView):
         tag_list = news_item_tag.NewsItemTag.get_list({})
         source_list = osint_source.OSINTSource.get_all_for_assess_api(user=current_user)[0]["items"]
         group_list = osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)[0]["items"]
-        return {"tags": tag_list, "sources": source_list, "groups": group_list}, 200
+        return jsonify_result({"tags": tag_list, "sources": source_list, "groups": group_list}, 200)
 
 
 class Proposals(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
     def get(self):
-        return {"count": StoryConflict.get_proposal_count()}, 200
+        return jsonify_result({"count": StoryConflict.get_proposal_count()}, 200)
 
 
 class StoryRevisions(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id: str):
-        return StoryService.get_story_revisions(story_id)
+        return jsonify_result(StoryService.get_story_revisions(story_id))
 
 
 class StoryRevisionData(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id: str, revision_number: int):
-        return StoryService.get_story_revision_data(story_id, revision_number)
+        return jsonify_result(StoryService.get_story_revision_data(story_id, revision_number))
 
 
 class AssessImport(MethodView):
@@ -369,7 +371,7 @@ class AssessImport(MethodView):
     @validate_json
     def post(self):
         if not (data_json := request.json):
-            return {"error": "No data provided"}, 400
+            return jsonify_result({"error": "No data provided"}, 400)
 
         imported_stories = StoryService.import_stories(data_json, current_user)
         sse_manager.news_items_updated()

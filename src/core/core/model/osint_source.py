@@ -482,7 +482,7 @@ class OSINTSource(BaseModel):
             return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
-            return {"error": f"Deleting OSINT Source with ID: {source_id} failed {str(e)}"}, 500
+            return {"error": f"Deleting OSINT Source with ID: {source_id} failed"}, 500
 
     @classmethod
     def schedule_all_osint_sources(cls):

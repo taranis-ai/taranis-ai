@@ -161,7 +161,7 @@ class ProductType(BaseModel):
     def get_detail_json(self):
         data = self.to_dict()
         if template := self.get_template():
-            data["template"] = get_template_as_base64(template)
+            data["template"] = get_template_as_base64(os.path.basename(template))
         return data
 
     @classmethod

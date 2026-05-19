@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from shutil import copy
 
+from werkzeug.utils import secure_filename
+
 from core.config import Config
 from core.log import logger
 
@@ -39,20 +41,14 @@ def validate_presenter_template_name(template_id: str) -> str:
 
 def _resolve_presenter_template_path(presenter_template: str, *, must_exist: bool = False) -> Path:
     templates_dir = _get_presenter_templates_dir().resolve()
-    candidate = Path(presenter_template)
+    template_name = validate_presenter_template_name(presenter_template)
 
     try:
-        if candidate.is_absolute():
-            resolved_candidate = candidate.resolve(strict=must_exist)
-        else:
-            resolved_candidate = (templates_dir / validate_presenter_template_name(presenter_template)).resolve(strict=must_exist)
+        resolved_candidate = (templates_dir / template_name).resolve(strict=must_exist)
     except FileNotFoundError as exc:
         raise InvalidPresenterTemplatePathError from exc
 
     if resolved_candidate.parent != templates_dir:
-        raise InvalidPresenterTemplatePathError
-
-    if candidate.is_absolute() and not is_valid_presenter_template_id(resolved_candidate.name):
         raise InvalidPresenterTemplatePathError
 
     if must_exist and not resolved_candidate.is_file():
@@ -139,11 +135,11 @@ def delete_template(template_id: str) -> bool:
 
 
 def get_presenter_template_path(presenter_template: str) -> str:
-    """Return an absolute presenter template path if it stays within the trusted template directory."""
+    """Return an absolute presenter template path for a valid template ID."""
     try:
         return _resolve_presenter_template_path(presenter_template).as_posix()
     except InvalidPresenterTemplatePathError:
-        logger.warning(f"Rejected presenter template path outside allowed directory: {presenter_template}")
+        logger.warning(f"Rejected invalid presenter template path: {presenter_template}")
         return ""
 
 
@@ -176,8 +172,10 @@ def is_valid_presenter_template_id(template_id: str) -> bool:
         return False
 
     candidate = Path(template_id)
+    secure_template_id = secure_filename(template_id)
     return (
-        not candidate.is_absolute()
+        secure_template_id == template_id
+        and not candidate.is_absolute()
         and candidate.name == template_id
         and template_id not in {".", ".."}
         and not template_id.startswith(".")

@@ -1,6 +1,9 @@
-from flask import Flask
-import jinja2
 import datetime
+from pathlib import Path
+
+import jinja2
+from flask import Flask
+from werkzeug.utils import secure_filename
 
 example_product = {
     "id": 1,
@@ -115,16 +118,28 @@ example_product = {
 app = Flask(__name__)
 
 
+def _resolve_template_path(template_path: str) -> Path:
+    template_name = secure_filename(template_path)
+    if not template_name or template_name != template_path:
+        raise ValueError("Invalid template path")
+    base_path = Path.cwd().resolve()
+    resolved_path = (base_path / template_name).resolve(strict=True)
+    if resolved_path.parent != base_path:
+        raise ValueError("Invalid template path")
+    return resolved_path
+
+
 @app.route("/", defaults={"template_path": "template.html"})
 @app.route("/<path:template_path>")
 def render(template_path):
     try:
-        # Attempt to open the specified file; use default if not provided
-        template = open(template_path, "r").read()
+        template = _resolve_template_path(template_path).read_text(encoding="utf-8")
+    except ValueError:
+        return {"error": "Invalid template path"}, 400
     except FileNotFoundError:
-        return {"error": f"Template file {template_path} not found."}, 404
-    except Exception as error:
-        return {"error": str(error)}, 500
+        return {"error": "Template file not found."}, 404
+    except Exception:
+        return {"error": "Unable to read template file"}, 500
     return generate(example_product, template)
 
 
@@ -138,9 +153,9 @@ def generate(product, template, parameters: dict[str, str] | None = None) -> dic
         product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
 
         return tmpl.render(data=product).encode("utf-8")
-    except Exception as error:
-        return {"error": str(error)}
+    except Exception:
+        return {"error": "Template rendering failed"}
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, extra_files=["template.html"])
+    app.run(port=5000, extra_files=["template.html"])

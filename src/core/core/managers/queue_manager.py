@@ -962,7 +962,7 @@ class QueueManager:
             return {"items": annotated_jobs, "total_count": len(annotated_jobs)}, 200
         except Exception as e:
             logger.exception(f"Failed to get scheduled jobs: {e}")
-            return {"error": f"Failed to get scheduled jobs: {str(e)}"}, 500
+            return {"error": "Failed to get scheduled jobs"}, 500
 
     def register_cron_job(self, spec: CronSpec) -> bool:
         if self.error or not self._redis:
@@ -1093,7 +1093,7 @@ class QueueManager:
             return {"items": active_jobs, "total_count": len(active_jobs)}, 200
         except Exception as e:
             logger.exception(f"Failed to get active jobs: {e}")
-            return {"error": f"Failed to get active jobs: {str(e)}"}, 500
+            return {"error": "Failed to get active jobs"}, 500
 
     def get_failed_jobs(self) -> tuple[dict, int]:
         """Get failed jobs from FailedJobRegistry"""
@@ -1137,7 +1137,7 @@ class QueueManager:
             return {"items": failed_jobs, "total_count": len(failed_jobs)}, 200
         except Exception as e:
             logger.exception(f"Failed to get failed jobs: {e}")
-            return {"error": f"Failed to get failed jobs: {str(e)}"}, 500
+            return {"error": "Failed to get failed jobs"}, 500
 
     def get_worker_stats(self) -> tuple[dict, int]:
         """Get worker statistics"""
@@ -1177,7 +1177,7 @@ class QueueManager:
             return worker_stats, 200
         except Exception as e:
             logger.exception(f"Failed to get worker stats: {e}")
-            return {"error": f"Failed to get worker stats: {str(e)}"}, 500
+            return {"error": "Failed to get worker stats"}, 500
 
     @staticmethod
     def _build_unique_job_id(task_name: str, product_id: str) -> str:

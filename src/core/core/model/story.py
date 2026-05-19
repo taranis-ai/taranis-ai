@@ -787,9 +787,9 @@ class Story(BaseModel):
             return {"error": "Invalid news item data"}, 400
         try:
             return cls.add_from_news_item(normalized_news_item, user=user)
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to add news items")
-            return {"error": f"Failed to add news items: {e}"}, 400
+            return {"error": "Failed to add news items"}, 400
 
     @classmethod
     def add_news_items(cls, news_items_list: list[dict], user: User | None = None):
@@ -813,9 +813,9 @@ class Story(BaseModel):
                 story_ids.append(message["story_id"])
                 news_item_ids += message["news_item_ids"]
             db.session.commit()
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to add news items")
-            return {"error": f"Failed to add news items: {e}"}, 400
+            return {"error": "Failed to add news items"}, 400
 
         result = {"story_ids": story_ids, "news_item_ids": news_item_ids, "message": f"{len(news_item_ids)} News items added successfully"}
         if len(skipped_items) == len(news_items_list):
@@ -1138,9 +1138,9 @@ class Story(BaseModel):
                 story.record_revision(user, note="group_stories")
             db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
-        except Exception as e:
-            logger.exception(f"Grouping Stories Failed - {str(e)}")
-            return {"error": f"Grouping Stories Failed - {str(e)}"}, 500
+        except Exception:
+            logger.exception("Grouping Stories Failed")
+            return {"error": "Grouping Stories Failed"}, 500
 
     @classmethod
     def ungroup_multiple_stories(cls, story_ids: list[str], user: User | None = None):
@@ -1167,9 +1167,9 @@ class Story(BaseModel):
             story.record_revision(user, note="ungroup_story")
             db.session.commit()
             return {"message": "Ungrouping Stories successful"}, 200
-        except Exception as e:
-            logger.exception(f"Ungrouping Stories Failed - {str(e)}")
-            return {"error": f"Ungrouping Stories failed - {str(e)}"}, 500
+        except Exception:
+            logger.exception("Ungrouping Stories Failed")
+            return {"error": "Ungrouping Stories failed"}, 500
 
     @classmethod
     def ungroup_news_items_from_story(
