@@ -12,7 +12,7 @@ class TaranisBaseModel(BaseModel):
     _model_name: ClassVar[str] = ""
     _pretty_name: ClassVar[str] = ""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", coerce_numbers_to_str=True)
 
     @classmethod
     def extract_validation_errors(cls, exc: ValidationError) -> list[dict[str, str]]:

@@ -51,7 +51,7 @@ class SettingsView(AdminMixin, BaseView):
             return CoreApi().stream_proxy(response, "stories_export.json")
 
         if request.form:
-            response, error = cls.process_form_data(object_id=0)
+            response, error = cls.process_form_data(object_id="0")
             message = response.get("message") if response else error
             notification = render_template("notification/index.html", notification={"message": message, "error": bool(error)})
         else:

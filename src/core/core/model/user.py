@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.organization import Organization
 from core.model.role import Role, TLPLevel
 
@@ -22,26 +22,26 @@ PROFILE_TEMPLATE: dict[str, Any] = ProfileSettings().model_dump(mode="json")
 class User(BaseModel):
     __tablename__ = "user"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     username: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     password: Mapped[str] = db.Column(db.String(), nullable=True)
     last_login: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
 
-    organization_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("organization.id"))
+    organization_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("organization.id"))
     organization: Mapped["Organization"] = relationship("Organization")
 
     roles: Mapped[list["Role"]] = relationship("Role", secondary="user_role")
     profile: Mapped[dict[str, Any]] = db.Column(db.JSON)
 
-    def __init__(self, username: str, name: str, organization: int, roles: list[int], password=None, id=None):
-        if id:
-            self.id = id
+    def __init__(self, username: str, name: str, organization: str | dict, roles: list[str], password=None, id=None):
+        self.id = self.normalize_uuid_id(id)
         self.username = username
         self.name = name
         if password:
             self.password = generate_password_hash(password)
-        if org := Organization.get(organization):
+        organization_id = organization.get("id") if isinstance(organization, dict) else organization
+        if org := Organization.get(organization_id):
             self.organization = org
         self.roles = Role.get_bulk(roles)
         self.profile = deepcopy(PROFILE_TEMPLATE)
@@ -51,7 +51,7 @@ class User(BaseModel):
         return cls.get_first(db.select(cls).filter_by(username=username))
 
     @classmethod
-    def find_by_role(cls, role_id: int) -> "Sequence[User]":
+    def find_by_role(cls, role_id: str) -> "Sequence[User]":
         return cls.get_filtered(db.select(cls).join(Role, Role.id == role_id)) or []
 
     @classmethod
@@ -105,7 +105,8 @@ class User(BaseModel):
             return {"error": f"User {user_id} not found"}, 404
         data.pop("id", None)
         if organization := data.pop("organization", None):
-            if update_org := Organization.get(organization):
+            organization_id = organization.get("id") if isinstance(organization, dict) else organization
+            if update_org := Organization.get(organization_id):
                 user.organization = update_org
         if (roles := data.pop("roles", None)) is not None:
             user.roles = Role.get_bulk(roles)
@@ -213,9 +214,9 @@ class User(BaseModel):
 
 
 class UserRole(BaseModel):
-    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
-    role_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="SET NULL"), primary_key=True)
+    user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id"), primary_key=True)
+    role_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("role.id", ondelete="SET NULL"), primary_key=True)
 
     @classmethod
-    def has_assigned_user(cls, role_id: int) -> bool:
+    def has_assigned_user(cls, role_id: str) -> bool:
         return db.session.execute(db.select(db.exists().where(UserRole.role_id == role_id))).scalar_one()

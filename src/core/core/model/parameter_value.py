@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
 
 class PARAMETER_TYPES(StrEnum):
@@ -24,22 +24,21 @@ class PARAMETER_TYPES(StrEnum):
 class ParameterValue(BaseModel):
     __tablename__ = "parameter_value"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     parameter: Mapped[str] = db.Column(db.String, nullable=False)
     value: Mapped[str] = db.Column(db.String, nullable=False, default="")
     type: Mapped[PARAMETER_TYPES] = db.Column(db.Enum(PARAMETER_TYPES), nullable=False)
     rules: Mapped[str] = db.Column(db.String, nullable=True)
 
     def __init__(
-        self, parameter: str, value: str = "", type: str | PARAMETER_TYPES = "text", rules: str | None | list = None, id: int | None = None
+        self, parameter: str, value: str = "", type: str | PARAMETER_TYPES = "text", rules: str | None | list = None, id: str | None = None
     ):
         self.parameter = parameter
         self.value = value
         self.type = type if isinstance(type, PARAMETER_TYPES) else PARAMETER_TYPES(type.lower())
         if rules:
             self.rules = ",".join(rules) if isinstance(rules, list) else rules
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
 
     def to_dict(self) -> dict[str, str]:
         return {self.parameter: self.value}

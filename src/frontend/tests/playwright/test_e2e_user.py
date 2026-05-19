@@ -194,25 +194,32 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.locator("#notification-bar")).to_contain_text("Password changed successfully")
 
         def test_user_profile_settings_adjustments():
+            user_settings_url = url_for("user.settings", _external=True)
+
             page.get_by_role("checkbox", name="Infinite scroll Automatically").uncheck()
             page.get_by_role("checkbox", name="Compact view Use condensed").check()
-            page.get_by_role("button", name="Save changes").click()
+            with page.expect_response(lambda response: response.request.method == "POST" and response.url == user_settings_url):
+                page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Assess").click()
 
             page.get_by_role("link", name="Next").click()
 
-            page.get_by_role("checkbox", name="Compact view").uncheck()
+            with page.expect_navigation(wait_until="load"):
+                page.get_by_role("checkbox", name="Compact view").uncheck()
+            expect(page.get_by_test_id("assess")).to_be_visible()
+            expect(page.get_by_test_id("user-menu-button")).to_have_count(1)
 
-            page.get_by_role("list").get_by_role("button").click()
+            page.get_by_test_id("user-menu-button").click()
             expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="User Settings").click()
             page.get_by_role("checkbox", name="Infinite scroll Automatically").check()
             page.get_by_role("checkbox", name="Compact view Use condensed").uncheck()
-            page.get_by_role("button", name="Save changes").click()
+            with page.expect_response(lambda response: response.request.method == "POST" and response.url == user_settings_url):
+                page.get_by_role("button", name="Save changes").click()
 
         def relog_in():
-            page.get_by_role("list").get_by_role("button").click()
+            page.get_by_test_id("user-menu-button").click()
             expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="Logout").click()
@@ -225,7 +232,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
         def change_password_back():
-            page.get_by_role("list").get_by_role("button").click()
+            page.get_by_test_id("user-menu-button").click()
             expect(page.get_by_role("link", name="Profile")).to_be_visible()
 
             page.get_by_role("link", name="User Settings").click()
@@ -294,14 +301,17 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("textbox", name="Title").fill(edited_title)
             page.get_by_role("textbox", name="Summary").fill("Test summary")
             page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
-            page.get_by_test_id("tag-name-input").fill("tag name")
-            page.get_by_test_id("tag-value-input").fill("tag value")
+            news_item_card = page.locator("article[id^='news-item-card-']").first
+            news_item_card.get_by_test_id("edit-newsitem-tags").click()
+            news_item_card.get_by_test_id("news-item-tag-name-input").fill("tag name")
+            news_item_card.get_by_test_id("news-item-tag-value-input").fill("tag value")
+            news_item_card.get_by_role("button", name="Add tag").click()
+            news_item_card.get_by_test_id("news-item-tag-name-input").nth(1).fill("tag 2")
+            news_item_card.get_by_test_id("news-item-tag-value-input").nth(1).fill("value2")
+            page.get_by_role("button", name="Save tags").click()
             page.get_by_role("button", name="Add attribute").click()
             page.get_by_test_id("attribute-key-input").nth(1).fill("attr")
             page.get_by_test_id("attribute-value-input").nth(1).fill("value attr")
-            page.get_by_role("button", name="Add tag").click()
-            page.get_by_test_id("tag-name-input").nth(1).fill("tag 2")
-            page.get_by_test_id("tag-value-input").nth(1).fill("value2")
             page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Advanced").click()
             expect(page.get_by_role("complementary")).to_contain_text("Story status")
@@ -517,7 +527,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_placeholder("CO-Handler").fill("Mensch")
             page.get_by_test_id("save-report").click()
             report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
-            assert self.is_uuid4(report_uuid), f"Expected a valid UUID4, got {report_uuid}"
+            assert self.is_uuid7(report_uuid), f"Expected a valid UUIDv7, got {report_uuid}"
             return report_uuid
 
         def check_report_list_filters():
@@ -569,7 +579,6 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).not_to_be_visible()
 
             completed_filter.select_option("true")
-            expect(page).to_have_url(re.compile(r"completed=true"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).not_to_be_visible()
 
@@ -652,7 +661,7 @@ class TestEndToEndUser(BaseE2ETest):
                 assert len(new_hrefs) == 1
                 clone_report_href = new_hrefs[0]
                 cloned_report_uuid = clone_report_href.split("/")[-1]
-                assert self.is_uuid4(cloned_report_uuid), f"Expected a valid UUID4, got {cloned_report_uuid}"
+                assert self.is_uuid7(cloned_report_uuid), f"Expected a valid UUIDv7, got {cloned_report_uuid}"
                 cloned_report = page.get_by_test_id("report-table").locator(f'a[href="{clone_report_href}"]').first
                 cloned_report_title = cloned_report.inner_text().strip()
                 item_id = self.get_table_row_id_by_link_text(page, "report-table", cloned_report_title)

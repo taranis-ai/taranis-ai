@@ -158,10 +158,10 @@ class TestUserWorkflow(BaseE2ETest):
             )
             self.highlight_element(page.get_by_role("textbox", name="Analyst comments")).fill("I like this story, it needs to be reviewed.")
 
-            page.get_by_role("button", name="Add tag").click()
-            page.get_by_test_id("tag-name-input").last.fill("Austria")
-            page.get_by_test_id("tag-value-input").last.fill("Location")
-            page.get_by_role("button", name="Save changes").click()
+            page.get_by_test_id("edit-newsitem-tags").first.click()
+            page.get_by_test_id("news-item-tag-name-input").last.fill("Austria")
+            page.get_by_test_id("news-item-tag-value-input").last.fill("Location")
+            page.get_by_role("button", name="Save tags").click()
             page.get_by_role("button", name="Add attribute").click()
             page.get_by_test_id("attribute-key-input").last.fill("Analyst_1")
             page.get_by_test_id("attribute-value-input").last.fill("read")
@@ -310,7 +310,7 @@ class TestUserWorkflow(BaseE2ETest):
 
         self.highlight_element(page.get_by_role("button", name="New Product").first).click()
         self.highlight_element(page.get_by_label("Product Type * Select an item")).click()
-        page.get_by_label("Product Type * Select an item").select_option("5")
+        page.get_by_label("Product Type * Select an item").select_option(label="CERT Daily Report")
 
         self.highlight_element(page.get_by_role("textbox", name="Title")).fill("Test Product Title")
         self.highlight_element(page.get_by_role("textbox", name="Description")).click()

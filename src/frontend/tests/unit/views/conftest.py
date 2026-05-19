@@ -35,7 +35,7 @@ def get_items_from_factory(view_name, model):
         items = [instance.model_dump(mode="json")]
     except ParameterException as e:
         logger.warning(f"PolyFactory couldn’t build {model.__name__} for view {view_name}: {e}\nFalling back to a minimal stub.")
-        items = [{"id": 1, "name": f"test_{view_name.lower()}"}]
+        items = [{"id": "test-1", "name": f"test_{view_name.lower()}"}]
 
     return items
 
@@ -194,6 +194,12 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             "failed_jobs": [],
             "failed_total_count": 0,
         },
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/admin-menu-badges",
+        json={"osint_source": 2, "bot": 3},
         status=200,
         content_type="application/json",
     )
@@ -402,33 +408,13 @@ def mock_core_update_endpoints(responses_mock, mock_core_get_item_endpoint_data)
 
 
 @pytest.fixture
-def dashboard_get_mock(responses_mock):
-    mock_data = {
-        "items": [
-            {
-                "latest_collected": "2025-01-14T21:16:42.699574+01:00",
-                "report_items_completed": 5,
-                "report_items_in_progress": 1,
-                "schedule_length": 2,
-                "total_database_items": 308,
-                "total_news_items": 306,
-                "total_products": 1,
-            }
-        ]
-    }
-
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard", json=mock_data)
-    yield mock_data
-
-
-@pytest.fixture
 def users_get_mock(responses_mock, organizations_get_mock, roles_get_mock):
     mock_data = {
         "items": [
             {
-                "id": 1,
+                "id": "user-1",
                 "name": "Arthur Dent",
-                "organization": 1,
+                "organization": "organization-1",
                 "permissions": [
                     "ASSESS_ACCESS",
                     "ANALYZE_ACCESS",
@@ -442,13 +428,13 @@ def users_get_mock(responses_mock, organizations_get_mock, roles_get_mock):
                     "ASSESS_CREATE",
                 ],
                 "profile": {},
-                "roles": [1],
+                "roles": ["role-1"],
                 "username": "admin",
             },
             {
-                "id": 6,
+                "id": "user-2",
                 "name": "ccc",
-                "organization": 1,
+                "organization": "organization-1",
                 "permissions": [
                     "PUBLISH_DELETE",
                     "ASSESS_UPDATE",
@@ -466,7 +452,7 @@ def users_get_mock(responses_mock, organizations_get_mock, roles_get_mock):
                     "ASSESS_CREATE",
                 ],
                 "profile": {},
-                "roles": [2],
+                "roles": ["role-2"],
                 "username": "ccc",
             },
         ],
@@ -484,7 +470,7 @@ def organizations_get_mock(responses_mock):
             {
                 "address": {},
                 "description": "Default organization for initial users.",
-                "id": 1,
+                "id": "organization-1",
                 "name": "Default Organization",
             },
         ],
@@ -501,7 +487,7 @@ def roles_get_mock(responses_mock):
         "items": [
             {
                 "description": "Administrator role",
-                "id": 1,
+                "id": "role-1",
                 "name": "Admin",
                 "permissions": [
                     "ANALYZE_CREATE",
@@ -514,7 +500,7 @@ def roles_get_mock(responses_mock):
             },
             {
                 "description": "Basic user role",
-                "id": 2,
+                "id": "role-2",
                 "name": "User",
                 "permissions": [
                     "ASSESS_ACCESS",
@@ -557,19 +543,19 @@ def permissions_get_mock(responses_mock):
 @pytest.fixture
 def users_delete_mock(responses_mock):
     response = {"message": "User deleted successfully"}
-    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/config/users/2", json=response)
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/config/users/user-2", json=response)
     yield response
 
 
 @pytest.fixture
 def users_put_mock(responses_mock):
-    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/users/1", json={"message": "Success"})
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/users/user-1", json={"message": "Success"})
 
 
 @pytest.fixture
 def organizations_delete_mock(responses_mock):
     response = {"message": "Organization deleted successfully"}
-    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/config/organizations/2", json=response)
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/config/organizations/organization-2", json=response)
     yield response
 
 
@@ -581,19 +567,19 @@ def mock_worker_parameters_get(responses_mock, worker_parameter_data):
 @pytest.fixture
 def organizations_put_mock(responses_mock):
     responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations", json={"message": "Success"})
-    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations/1", json={"message": "Success"})
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/organizations/organization-1", json={"message": "Success"})
 
 
 @pytest.fixture
 def roles_delete_mock(responses_mock):
     response = {"message": "Role deleted successfully"}
-    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/config/roles/2", json=response)
+    responses_mock.delete(f"{Config.TARANIS_CORE_URL}/config/roles/role-2", json=response)
     yield response
 
 
 @pytest.fixture
 def roles_put_mock(responses_mock):
-    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/roles/1", json={"message": "Success"})
+    responses_mock.put(f"{Config.TARANIS_CORE_URL}/config/roles/role-1", json={"message": "Success"})
 
 
 @pytest.fixture

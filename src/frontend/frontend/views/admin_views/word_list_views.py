@@ -88,7 +88,7 @@ class WordListView(AdminMixin, BaseView):
 
     @classmethod
     @admin_required()
-    def update_word_lists(cls, word_list_id: int | None = None):
+    def update_word_lists(cls, word_list_id: str | None = None):
         dpl = DataPersistenceLayer()
         core_response = CoreApi().update_word_lists(word_list_id)
         if not core_response.ok:
