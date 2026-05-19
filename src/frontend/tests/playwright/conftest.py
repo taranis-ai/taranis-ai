@@ -8,6 +8,7 @@ import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
 from pathlib import Path
+from typing import Any
 
 import pytest
 import requests
@@ -453,51 +454,14 @@ def stories(core_request_client, api_header, fake_source):
     with open(story_json, encoding="utf-8") as f:
         stories_raw = json.load(f)
 
-    def clean_news_item(item, story_id: str):
-        """Keep only the same fields as in story_item_list fixture."""
-        allowed_fields = {
-            "id",
-            "title",
-            "content",
-            "author",
-            "source",
-            "link",
-            "language",
-            # "osint_source_id",
-            "review",
-            "collected",
-            "published",
-            "story_id",
-            "hash",
-        }
-        cleaned = {k: v for k, v in item.items() if k in allowed_fields}
-
-        # Ensure required values are set
-        cleaned.setdefault("language", None)
-        cleaned["story_id"] = story_id
-        cleaned["osint_source_id"] = fake_source
-        return cleaned
+    def clean_news_item(item: dict[str, Any], story_id: str):
+        item.setdefault("language", None)
+        item["story_id"] = story_id
+        item["osint_source_id"] = fake_source
+        return item
 
     def clean_story(story):
-        """Keep only whitelisted fields and clean nested news_items."""
-        allowed_story_fields = {
-            "id",
-            "title",
-            "description",
-            "created",
-            "read",
-            "important",
-            "likes",
-            "dislikes",
-            "relevance",
-            "comments",
-            "summary",
-            "news_items",
-            "tags",
-            "attributes",
-        }
-
-        cleaned_story = {k: v for k, v in story.items() if k in allowed_story_fields}
+        cleaned_story = {k: v for k, v in story.items()}
 
         # Make sure all required top-level keys exist
         cleaned_story.setdefault("description", "")
