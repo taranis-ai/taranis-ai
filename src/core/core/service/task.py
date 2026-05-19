@@ -42,6 +42,7 @@ class TaskService:
 
     @classmethod
     def save_task_result(cls, submission: TaskSubmission) -> tuple[dict[str, Any], int]:
+        task_kind = cls._resolve_task_kind(submission.id, submission.task)
         payload: dict[str, Any] = {
             "id": submission.id,
             "result": submission.result,
@@ -55,12 +56,10 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
-        task_kind = cls._resolve_task_kind(submission.id, submission.task)
-        if submission.status in TaskModel.FAILURE_STATUSES:
-            cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
         if submission.status == "SUCCESS" and submission.result is not None:
             cls._handle_success_result(submission)
         elif task_kind == "collector_task":
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
             cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
         validated = TaskResponseModel.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), 200
