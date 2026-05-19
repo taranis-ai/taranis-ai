@@ -420,7 +420,7 @@ class TestAssessStoriesGrouping(BaseTest):
         from core.model.story import Story
         from tests.application.support.builders import build_news_item_payload, build_story_payload
 
-        report_id = "report-ungroup-membership"
+        report_id = str(uuid.uuid7())
         story_id = None
         report_payload = deepcopy(cleanup_report_item)
         report_payload["id"] = report_id

@@ -1,5 +1,7 @@
 import logging
+from pathlib import Path
 
+import pytest
 import schemathesis
 from dotenv import load_dotenv
 from flask_jwt_extended import create_access_token
@@ -14,14 +16,33 @@ from schemathesis.config import (
     ProjectsConfig,
 )
 
-from core.__init__ import create_app
 from core.model.user import User
+
+
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / "core" / "static" / "openapi3_1.yaml"
+SCHEMA_BYTES = SCHEMA_PATH.read_bytes()
+_APP_FOR_SCHEMA = None
 
 
 load_dotenv(dotenv_path="tests/.env", override=True)
 load_all_checks()
 
-app = create_app()
+pytestmark = pytest.mark.usefixtures("_bind_schema_app")
+
+
+def _schema_wsgi_app(environ, start_response):
+    path = environ.get("PATH_INFO", "")
+    if path == "/api/static/openapi3_1.yaml" or path.endswith("/api/static/openapi3_1.yaml"):
+        start_response("200 OK", [("Content-Type", "application/yaml"), ("Content-Length", str(len(SCHEMA_BYTES)))])
+        return [SCHEMA_BYTES]
+    if _APP_FOR_SCHEMA is None:
+        message = b"Schema app backend not initialized"
+        start_response("503 Service Unavailable", [("Content-Type", "text/plain"), ("Content-Length", str(len(message)))])
+        return [message]
+    return _APP_FOR_SCHEMA(environ, start_response)
+
+
+schema_app = _schema_wsgi_app
 schemathesis_config = schemathesis.Config(
     projects=ProjectsConfig(
         default=ProjectConfig(
@@ -33,7 +54,17 @@ schemathesis_config = schemathesis.Config(
         )
     )
 )
-schema = schemathesis.openapi.from_wsgi("/api/static/openapi3_1.yaml", app, config=schemathesis_config).exclude(deprecated=True)
+schema = schemathesis.openapi.from_wsgi("/api/static/openapi3_1.yaml", schema_app, config=schemathesis_config).exclude(deprecated=True)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _bind_schema_app(app):
+    global _APP_FOR_SCHEMA
+    _APP_FOR_SCHEMA = app
+    yield
+    _APP_FOR_SCHEMA = None
+
+
 response_check_names = {
     "not_a_server_error",
     "status_code_conformance",
@@ -47,7 +78,7 @@ response_checks = [check for check in CHECKS.get_all() if check.__name__ in resp
 @schema.auth()
 class UserAuth:
     def get(self, case, context):
-        with context.app.app_context():
+        with _APP_FOR_SCHEMA.app_context():
             user = User.find_by_name("admin")
             if not user:
                 raise AssertionError("Admin user not found")
