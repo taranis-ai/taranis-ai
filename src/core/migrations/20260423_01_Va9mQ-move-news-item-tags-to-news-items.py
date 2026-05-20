@@ -21,8 +21,8 @@ steps = [
     ),
     step(
         """
-        INSERT INTO news_item_tag (name, tag_type, news_item_id)
-        SELECT DISTINCT tag.name, tag.tag_type, news_item.id
+        INSERT INTO news_item_tag (id, name, tag_type, news_item_id)
+        SELECT DISTINCT gen_random_uuid()::text, tag.name, tag.tag_type, news_item.id
         FROM news_item_tag tag
         JOIN news_item ON news_item.story_id = tag.story_id
         WHERE tag.news_item_id IS NULL
@@ -68,8 +68,8 @@ steps = [
 
         """,
         """
-        INSERT INTO news_item_tag (name, tag_type, story_id)
-        SELECT DISTINCT attr.value, attr.key, snia.story_id
+        INSERT INTO news_item_tag (id, name, tag_type, story_id)
+        SELECT DISTINCT gen_random_uuid()::text, attr.value, attr.key, snia.story_id
         FROM story_news_item_attribute snia
         JOIN news_item_attribute attr ON attr.id = snia.news_item_attribute_id
         WHERE attr.key ILIKE 'report_%'
