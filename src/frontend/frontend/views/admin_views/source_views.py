@@ -3,8 +3,7 @@ import json
 from typing import Any, Literal
 
 from flask import render_template, request, url_for
-from models.admin import OSINTSource
-from models.dashboard import Dashboard
+from models.admin import AdminMenuBadges, OSINTSource
 from models.task import Task
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
@@ -14,7 +13,7 @@ from frontend.auth import admin_required
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.filters import render_icon, render_source_parameter, render_truncated, render_worker_status
+from frontend.filters import render_source_parameter, render_truncated, render_worker_status
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.validation_helpers import format_pydantic_errors
@@ -36,13 +35,15 @@ class SourceView(AdminMixin, BaseView):
     @classmethod
     def get_admin_menu_badge(cls) -> int:
         try:
-            if dashboard := DataPersistenceLayer().get_first(Dashboard):
-                if worker_status := dashboard.worker_status:
-                    return worker_status.get("collector_task", {}).get("failures", 0)
+            badges = DataPersistenceLayer().get_object(AdminMenuBadges)
+            if not badges:
+                return 0
+
+            return int(getattr(badges, "osint_source", 0) or 0)
         except HTTPException:
             raise
         except Exception:
-            logger.exception("Error retrieving dashboard for source admin menu badge")
+            logger.exception("Error retrieving source admin menu badge")
 
         return 0
 
@@ -99,7 +100,6 @@ class SourceView(AdminMixin, BaseView):
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
-            {"title": "Icon", "field": "icon", "sortable": False, "renderer": render_icon},
             {"title": "State", "field": "status", "sortable": True, "renderer": render_worker_status},
             {
                 "title": "Name",
@@ -142,14 +142,14 @@ class SourceView(AdminMixin, BaseView):
         return cls.redirect_htmx(cls.get_base_route())
 
     @classmethod
-    def get_submit_redirect_target(cls, object_id: int | str, core_response: dict[str, Any]) -> str:
+    def get_submit_redirect_target(cls, object_id: str, core_response: dict[str, Any]) -> str:
         target_id = core_response.get("id") or object_id
-        if not target_id or str(target_id) == "0":
+        if cls.is_create_object_id(target_id):
             return cls.get_base_route()
         return cls.get_edit_route(**{cls._get_object_key(): target_id})
 
     @classmethod
-    def process_form_data(cls, object_id: int | str):
+    def process_form_data(cls, object_id: str):
         try:
             form_data = parse_formdata(request.form)
             delete_icon = str(form_data.pop("delete_icon", "")).lower() in {"true", "1", "yes", "on"}
@@ -200,6 +200,7 @@ class SourceView(AdminMixin, BaseView):
 
     @classmethod
     def load_default_osint_sources(cls):
+        dpl = DataPersistenceLayer()
         response = CoreApi().load_default_osint_sources()
         if not response:
             logger.error("Failed to load default OSINT sources")
@@ -213,7 +214,9 @@ class SourceView(AdminMixin, BaseView):
             logger.error(error_message)
             return render_template("notification/index.html", notification={"message": error_message, "error": True})
 
-        items = DataPersistenceLayer().get_objects(cls.model)
+        dpl.invalidate_cache_by_object(cls.model)
+        dpl.invalidate_model_cache_locally(cls.model)
+        items = dpl.get_objects(cls.model)
         return render_template(cls.get_list_template(), **cls.get_view_context(items))
 
     @classmethod
@@ -270,11 +273,24 @@ class SourceView(AdminMixin, BaseView):
         return render_template("osint_source/osint_source_preview.html", task_result=task_result, osint_source_id=osint_source_id)
 
     @classmethod
-    def delete_view(cls, object_id: str | int) -> tuple[str, int]:
-        if request.args.get("force") == "true":
-            logger.warning(f"Force deleting OSINT source {object_id}")
-            return super().delete_view(f"{object_id}{'?force=true'}")
-        return super().delete_view(object_id)
+    def delete_view(cls, object_id: str) -> tuple[str, int]:
+        force = str(request.values.get("force", "")).lower() in {"1", "true", "yes", "on"}
+        dpl = DataPersistenceLayer()
+        params = {"force": "true"} if force else None
+        core_response = dpl.delete_object(cls.model, object_id, params=params)
+
+        response = cls.get_notification_from_response(core_response)
+        if not core_response.ok:
+            return response, core_response.status_code or 500
+
+        cls._invalidate_model_cache(object_id)
+        if force:
+            logger.debug(f"Force deleted OSINT source {object_id}")
+
+        table, table_response = cls.render_list()
+        if table_response == 200:
+            response += table
+        return response, core_response.status_code or table_response
 
     @classmethod
     @admin_required()

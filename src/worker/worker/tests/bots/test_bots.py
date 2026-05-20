@@ -1,3 +1,4 @@
+from worker.bots.tagging_content import _news_item_content_for_tagging
 from worker.config import Config
 
 
@@ -20,6 +21,13 @@ def test_ioc_bot(story_get_mock):
     ioc_bot.execute()
 
     assert story_get_mock.call_count == 1
+
+
+def test_news_item_content_for_tagging_handles_nullable_fields():
+    news_item = {"title": None, "review": None, "content": "content"}
+
+    assert _news_item_content_for_tagging(news_item) == "  content"
+    assert _news_item_content_for_tagging(news_item, separator="\n") == "\n\ncontent"
 
 
 def test_nlp_bot(story_get_mock, ner_bot_mock):
@@ -47,6 +55,11 @@ def test_nlp_bot_uses_requests_timeout_parameter(story_get_mock, ner_bot_mock):
 def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_mock, story_attribute_update_mock, cybersec_classifier_mock):
     import worker.bots as bots
 
+    def extract_attributes(request_json):
+        if isinstance(request_json, dict):
+            return request_json.get("attributes", [])
+        return request_json
+
     num_stories = len(stories)
     num_news_items = sum(len(story.get("news_items", [])) for story in stories)
 
@@ -66,7 +79,9 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
     assert story_attribute_update_mock.call_count == num_stories
 
     request_json_list = [req.json() for req in story_attribute_update_mock.request_history if req.method == "PATCH"][:num_stories]
-    cybersec_status_list = [d["value"] for attributes_list in request_json_list for d in attributes_list if d["key"] == "cybersecurity"]
+    cybersec_status_list = [
+        d["value"] for attributes_list in request_json_list for d in extract_attributes(attributes_list) if d["key"] == "cybersecurity"
+    ]
     assert set(cybersec_status_list) == {"no"}
 
     # threshold 0.5 -> all news items classified as yes
@@ -75,7 +90,9 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
     request_json_list = [req.json() for req in story_attribute_update_mock.request_history if req.method == "PATCH"][
         num_stories : 2 * num_stories
     ]
-    cybersec_status_list = [d["value"] for attributes_list in request_json_list for d in attributes_list if d["key"] == "cybersecurity"]
+    cybersec_status_list = [
+        d["value"] for attributes_list in request_json_list for d in extract_attributes(attributes_list) if d["key"] == "cybersecurity"
+    ]
     assert set(cybersec_status_list) == {"yes"}
 
     # bot API not reachable -> all news items classified as none
@@ -88,5 +105,7 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
 
     assert result_msg == {"message": "Classified 0 news items"}
     request_json_list = [req.json() for req in story_attribute_update_mock.request_history if req.method == "PATCH"][2 * num_stories :]
-    cybersec_status_list = [d["value"] for attributes_list in request_json_list for d in attributes_list if d["key"] == "cybersecurity"]
+    cybersec_status_list = [
+        d["value"] for attributes_list in request_json_list for d in extract_attributes(attributes_list) if d["key"] == "cybersecurity"
+    ]
     assert set(cybersec_status_list) == {"none"}

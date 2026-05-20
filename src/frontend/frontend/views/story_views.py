@@ -1,20 +1,14 @@
 import datetime
-from difflib import SequenceMatcher
 from json import JSONDecodeError
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import Response, abort, flash, json, make_response, redirect, render_template, request, url_for
+from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
-from markupsafe import Markup, escape
 from models.assess import (
-    NEWS_ITEM_IMPORT_FIELDS as _NEWS_ITEM_IMPORT_FIELDS,
-)
-from models.assess import (
-    STORY_IMPORT_FIELDS as _STORY_IMPORT_FIELDS,
-)
-from models.assess import (
+    NEWS_ITEM_IMPORT_FIELDS,
+    STORY_IMPORT_FIELDS,
     AssessSource,
     BulkAction,
     Connector,
@@ -24,31 +18,32 @@ from models.assess import (
     StoryUpdatePayload,
 )
 from models.report import ReportItem
+from models.revision_diff import build_story_revision_diff_payload
 from pydantic import ValidationError
 from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import HTTPException
 
-from frontend.auth import auth_required
+from frontend.auth import auth_required, update_current_user_cache
 from frontend.cache import add_model_to_cache, get_model_from_cache
 from frontend.cache_models import CacheObject, PagingData
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.utils.router_helpers import parse_paging_data
+from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
 
 def _sanitize_news_item_import_payload(news_item_data: dict[str, Any], story_id: str | None = None) -> dict[str, Any]:
-    sanitized_payload = {key: value for key, value in news_item_data.items() if key in _NEWS_ITEM_IMPORT_FIELDS}
+    sanitized_payload = {key: value for key, value in news_item_data.items() if key in NEWS_ITEM_IMPORT_FIELDS}
     if story_id:
         sanitized_payload["story_id"] = story_id
     return sanitized_payload
 
 
 def _sanitize_story_import_payload(story_data: dict[str, Any]) -> dict[str, Any]:
-    sanitized_payload = {key: value for key, value in story_data.items() if key in _STORY_IMPORT_FIELDS}
+    sanitized_payload = {key: value for key, value in story_data.items() if key in STORY_IMPORT_FIELDS}
     if news_items := story_data.get("news_items"):
         sanitized_payload["news_items"] = [
             _sanitize_news_item_import_payload(news_item_data, sanitized_payload.get("id")) for news_item_data in news_items
@@ -66,6 +61,27 @@ def _normalize_story_import_payload(json_data: dict[str, Any] | list[dict[str, A
     return json_data
 
 
+ASSESS_DEFAULT_FILTER_KEYS = frozenset(
+    {
+        "search",
+        "source",
+        "group",
+        "tags",
+        "read",
+        "important",
+        "in_report",
+        "relevant",
+        "cybersecurity",
+        "range",
+        "sort",
+        "timefrom",
+        "timeto",
+    }
+)
+ASSESS_DEFAULT_FILTER_MULTI_KEYS = frozenset({"source", "group", "tags"})
+ASSESS_DEFAULT_FILTER_SESSION_KEY = "assess_default_filters_active"
+
+
 class StoryView(BaseView):
     model = Story
     icon = "newspaper"
@@ -81,6 +97,8 @@ class StoryView(BaseView):
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         base_context["filter_lists"] = cls._get_filter_lists()
+        if request.endpoint == "assess.assess":
+            base_context["assess_request_args"] = cls._get_assess_request_params()
         if stories := base_context.get("stories"):
             enhanced_stories = cls._get_enhanced_stories(stories, list(base_context["filter_lists"].sources))
             base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
@@ -124,6 +142,84 @@ class StoryView(BaseView):
             add_model_to_cache(filter_lists, "", username)
             return filter_lists
         return FilterLists(tags=[], sources=[], groups=[])
+
+    @staticmethod
+    def _normalize_assess_filter_values(values: Any) -> list[str]:
+        if values in (None, ""):
+            return []
+        if isinstance(values, (list, tuple, set)):
+            return [str(value) for value in values if value not in (None, "")]
+        return [str(values)]
+
+    @classmethod
+    def _get_saved_assess_default_filters(cls) -> dict[str, list[str]]:
+        profile = getattr(current_user, "profile", None)
+        raw_defaults = getattr(profile, "assess_default_filters", None) if profile is not None else None
+        if not isinstance(raw_defaults, dict):
+            return {}
+
+        normalized: dict[str, list[str]] = {}
+        for key, values in raw_defaults.items():
+            if key not in ASSESS_DEFAULT_FILTER_KEYS:
+                continue
+            normalized_values = cls._normalize_assess_filter_values(values)
+            if normalized_values:
+                normalized[key] = normalized_values
+        return normalized
+
+    @classmethod
+    def _get_assess_request_params(cls, request_params: dict[str, list[str]] | None = None) -> dict[str, list[str]]:
+        params = {
+            key: [value for value in values if value not in (None, "")]
+            for key, values in (request_params or request.args.to_dict(flat=False)).items()
+        }
+        has_reset = "reset" in params
+        params.pop("reset", None)
+        if has_reset:
+            session.pop(ASSESS_DEFAULT_FILTER_SESSION_KEY, None)
+            return {}
+
+        if not params:
+            saved_defaults = cls._get_saved_assess_default_filters()
+            if saved_defaults and not is_htmx_request():
+                session[ASSESS_DEFAULT_FILTER_SESSION_KEY] = True
+                return {key: values[:] for key, values in saved_defaults.items()}
+
+            if request.method == "GET" and is_htmx_request():
+                session.pop(ASSESS_DEFAULT_FILTER_SESSION_KEY, None)
+            elif request.method == "POST" and session.get(ASSESS_DEFAULT_FILTER_SESSION_KEY) and saved_defaults:
+                return {key: values[:] for key, values in saved_defaults.items()}
+            return {}
+
+        if request.method == "GET" and is_htmx_request() and not set(params).intersection(ASSESS_DEFAULT_FILTER_KEYS):
+            session.pop(ASSESS_DEFAULT_FILTER_SESSION_KEY, None)
+            return params
+
+        return params
+
+    @classmethod
+    def _extract_assess_default_filters_from_request(cls) -> dict[str, Any]:
+        default_filters: dict[str, Any] = {}
+        for key in ASSESS_DEFAULT_FILTER_MULTI_KEYS:
+            values = [value for value in request.form.getlist(key) if value not in (None, "")]
+            if values:
+                default_filters[key] = values
+        for key in ASSESS_DEFAULT_FILTER_KEYS - ASSESS_DEFAULT_FILTER_MULTI_KEYS:
+            value = request.form.get(key, "")
+            if value not in ("", None):
+                default_filters[key] = value
+        return default_filters
+
+    @classmethod
+    def _build_assess_filters_url(cls, request_params: dict[str, list[str]]) -> str:
+        query_string = urlencode(request_params, doseq=True)
+        base_url = cls.get_base_route()
+        return f"{base_url}?{query_string}" if query_string else base_url
+
+    @classmethod
+    def _build_assess_selection_key(cls, request_params: dict[str, list[str]]) -> str:
+        selection_params = {key: values[:] for key, values in sorted(request_params.items()) if key not in {"offset", "page"} and values}
+        return urlencode(selection_params, doseq=True)
 
     @classmethod
     def default_share_story_link(cls) -> str:
@@ -272,6 +368,25 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
+    def save_default_filters(cls):
+        try:
+            default_filters = cls._extract_assess_default_filters_from_request()
+            response = CoreApi().update_user_profile({"assess_default_filters": default_filters})
+            if getattr(response, "ok", False):
+                session[ASSESS_DEFAULT_FILTER_SESSION_KEY] = bool(default_filters)
+                update_current_user_cache()
+                message = "Assess defaults saved." if default_filters else "Assess defaults cleared."
+                return render_template("notification/index.html", notification={"message": message}), 200
+
+            return make_response(cls.get_notification_from_response(response), getattr(response, "status_code", 500) or 500)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to save assess default filters.")
+            return render_template("notification/index.html", notification={"message": "Failed to save assess defaults.", "error": True}), 500
+
+    @classmethod
+    @auth_required()
     def submit_search_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
@@ -359,6 +474,7 @@ class StoryView(BaseView):
 
         context = cls.get_view_context(items, error)
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
+        context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
 
         return render_template(cls.get_list_template(), **context), 200
 
@@ -372,6 +488,7 @@ class StoryView(BaseView):
             parsed_url = urlparse(url)
             request_params = parse_qs(parsed_url.query)
 
+        request_params = cls._get_assess_request_params(request_params)
         paging_data = parse_paging_data(request_params)
         table, status = cls._render_story_list(paging_data, request_params)
         if notification:
@@ -380,12 +497,25 @@ class StoryView(BaseView):
 
     @classmethod
     def list_view(cls):
-        request_params = request.args.to_dict(flat=False)
+        raw_request_params = request.args.to_dict(flat=False)
+        if not is_htmx_request():
+            filtered_request_params = {
+                key: [value for value in values if value not in (None, "")] for key, values in raw_request_params.items()
+            }
+            has_reset = "reset" in filtered_request_params
+            filtered_request_params.pop("reset", None)
+            if not has_reset and not filtered_request_params:
+                saved_defaults = cls._get_saved_assess_default_filters()
+                if saved_defaults:
+                    session[ASSESS_DEFAULT_FILTER_SESSION_KEY] = True
+                    return redirect(cls._build_assess_filters_url(saved_defaults))
+
+        request_params = cls._get_assess_request_params(raw_request_params)
         paging_data = parse_paging_data(request_params)
         return cls._render_story_list(paging_data, request_params)
 
     @classmethod
-    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
+    def get_item_context(cls, object_id: str) -> dict[str, Any]:
         context = super().get_item_context(object_id)
         context["_show_sidebar"] = False
         context["form_action"] = f"hx-post={url_for('assess.story_edit', story_id=object_id)}"
@@ -564,6 +694,68 @@ class StoryView(BaseView):
         )
 
     @classmethod
+    @auth_required()
+    def update_news_item_tags(cls, news_item_id: str):
+        form_data = parse_formdata(request.form)
+        story_id = str(form_data.get("story_id") or "")
+        tags = cls._normalize_news_item_tags(form_data.get("tags") or [])
+        try:
+            core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}/tags", json_data=tags)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to update news item tags.")
+            return make_response(cls.render_response_notification({"error": "Failed to update news item tags."}), 500)
+
+        notification_html = cls.get_notification_from_response(core_response)
+        status = 200 if getattr(core_response, "ok", False) else getattr(core_response, "status_code", 400) or 400
+        if not getattr(core_response, "ok", False):
+            return make_response(notification_html, status)
+
+        content = cls._get_news_item_tag_update_content(story_id, news_item_id)
+        return make_response(notification_html + content, status)
+
+    @staticmethod
+    def _normalize_news_item_tags(tags: Any) -> list[dict[str, str]]:
+        if isinstance(tags, dict):
+            tags = [tags] if "name" in tags else list(tags.values())
+        if not isinstance(tags, list):
+            return []
+
+        normalized_tags = []
+        for tag in tags:
+            if isinstance(tag, str):
+                name = tag.strip()
+                tag_type = "misc"
+            elif isinstance(tag, dict):
+                name = str(tag.get("name") or "").strip()
+                tag_type = str(tag.get("tag_type") or "misc").strip() or "misc"
+            else:
+                continue
+
+            if name:
+                normalized_tags.append({"name": name, "tag_type": tag_type})
+
+        return normalized_tags
+
+    @staticmethod
+    def _get_news_item_tag_update_content(story_id: str, news_item_id: str) -> str:
+        if not story_id:
+            return ""
+
+        story = StoryView.get_object_by_id(story_id)
+        if not isinstance(story, Story):
+            logger.warning(f"Story {story_id} not found")
+            return render_template("partials/404.html")
+
+        news_item = next((item for item in story.news_items or [] if item.id == news_item_id), None)
+        if not news_item:
+            logger.warning(f"News item {news_item_id} not found on story {story_id}")
+            return render_template("partials/404.html")
+
+        return render_template("assess/news_item_card_fragment.html", news_item=news_item, story=story, edit_tags=True)
+
+    @classmethod
     def _create_news_item_from_file(cls, file: FileStorage):
         if file.filename == "":
             flash("No file selected for upload", "error")
@@ -655,6 +847,18 @@ class StoryView(BaseView):
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete news item"})
 
+        payload = core_response.json()
+        story_id = payload.get("story_id") or payload.get("story_ids", [""])[0]
+
+        current_url_path = cls._get_current_url_path()
+        if story_id and current_url_path in {
+            url_for("assess.story", story_id=story_id),
+            url_for("assess.story_edit", story_id=story_id),
+        }:
+            if CoreApi().api_get(f"/assess/stories/{story_id}") is None:
+                cls.add_flash_notification(core_response)
+                return cls.redirect_htmx(url_for("assess.assess"))
+
         return cls._handle_news_item_response(
             core_response,
             content_builder=cls._get_action_response_content,
@@ -670,6 +874,10 @@ class StoryView(BaseView):
             raise
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete story"})
+
+        if cls._get_current_url_path() == url_for("assess.assess"):
+            notification_html = cls.get_notification_from_response(core_response)
+            return cls.rerender_list(notification=notification_html)
 
         cls.add_flash_notification(core_response)
         return cls.redirect_htmx(url_for("assess.assess"))
@@ -782,9 +990,6 @@ class StoryView(BaseView):
     def get(self, **kwargs) -> tuple[str, int]:
         object_id = kwargs.get("story_id")
         if object_id is None:
-            if request.args.get("reset"):
-                logger.debug("Droping cache & resitting filters")
-                return redirect(url_for("assess.assess"))  # type: ignore
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
@@ -832,176 +1037,20 @@ class StoryView(BaseView):
         if not story_id:
             return abort(400, description="No story ID provided.")
 
-        # Get story data
-        story = DataPersistenceLayer().get_object(Story, story_id)
-        if not story:
-            return abort(404, description="Story not found.")
-
-        # Get revision data from core API
-        from_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions/{from_rev}")
-        to_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions/{to_rev}")
-
-        if not from_data or not to_data:
+        core_api = CoreApi()
+        from_revision = core_api.api_get(f"/assess/stories/{story_id}/revisions/{from_rev}")
+        to_revision = core_api.api_get(f"/assess/stories/{story_id}/revisions/{to_rev}")
+        if not from_revision or not to_revision:
             return abort(404, description="Revision not found.")
 
-        # Calculate diff
-        from_revision_data = from_data.get("data", {})
-        to_revision_data = to_data.get("data", {})
-
-        # Prepare diff data
-        diff_data = {
-            "from_revision": from_data,
-            "to_revision": to_data,
-            "changes": _calculate_story_diff(from_revision_data, to_revision_data),
-        }
+        story_title = to_revision.get("data", {}).get("title") or from_revision.get("data", {}).get("title")
+        diff = build_story_revision_diff_payload(story_id, story_title, from_revision, to_revision)
 
         context = {
-            "story": story,
-            "diff": diff_data,
+            "diff": diff,
             "from_rev": from_rev,
             "to_rev": to_rev,
+            "story_id": story_id,
         }
 
         return render_template("assess/story_diff.html", **context), 200
-
-
-def _calculate_story_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
-    """Calculate differences between two story data dictionaries"""
-    changes = []
-
-    def _inline_text_diff(old_text: str, new_text: str) -> tuple[Markup, Markup]:
-        old_parts: list[str] = []
-        new_parts: list[str] = []
-        matcher = SequenceMatcher(a=old_text, b=new_text)
-
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            old_segment = escape(old_text[i1:i2])
-            new_segment = escape(new_text[j1:j2])
-
-            if tag == "equal":
-                old_parts.append(str(old_segment))
-                new_parts.append(str(new_segment))
-                continue
-
-            if tag in {"delete", "replace"} and i1 != i2:
-                old_parts.append(f'<span class="line-through bg-error/20 text-error rounded px-0.5">{old_segment}</span>')
-
-            if tag in {"insert", "replace"} and j1 != j2:
-                new_parts.append(f'<span class="bg-success/20 text-success rounded px-0.5">{new_segment}</span>')
-
-        return Markup("".join(old_parts)), Markup("".join(new_parts))
-
-    def _append_text_change(field: str, old_value: Any, new_value: Any) -> None:
-        if old_value == new_value:
-            return
-
-        change: dict[str, Any] = {
-            "field": field,
-            "old_value": old_value,
-            "new_value": new_value,
-        }
-
-        if isinstance(old_value, str) and isinstance(new_value, str):
-            old_value_diff, new_value_diff = _inline_text_diff(old_value, new_value)
-            change["old_value_diff"] = old_value_diff
-            change["new_value_diff"] = new_value_diff
-            change["inline_diff"] = True
-
-        changes.append(change)
-
-    def _normalized_tag_names(data: dict) -> set[str]:
-        tag_names = set()
-        for tag in data.get("tags") or []:
-            if not isinstance(tag, dict):
-                continue
-            name = tag.get("name")
-            if not isinstance(name, str):
-                continue
-            normalized_name = name.strip()
-            if normalized_name:
-                tag_names.add(normalized_name)
-        return tag_names
-
-    # Compare title
-    _append_text_change("Title", from_data.get("title"), to_data.get("title"))
-
-    # Compare description
-    _append_text_change("Description", from_data.get("description"), to_data.get("description"))
-
-    # Compare summary
-    _append_text_change("Summary", from_data.get("summary"), to_data.get("summary"))
-
-    # Compare comments
-    _append_text_change("Comments", from_data.get("comments"), to_data.get("comments"))
-
-    # Compare tags
-    from_tags = _normalized_tag_names(from_data)
-    to_tags = _normalized_tag_names(to_data)
-
-    added_tags = to_tags - from_tags
-    removed_tags = from_tags - to_tags
-
-    if added_tags:
-        changes.append(
-            {
-                "field": "Tags Added",
-                "old_value": None,
-                "new_value": ", ".join(sorted(added_tags)),
-            }
-        )
-
-    if removed_tags:
-        changes.append(
-            {
-                "field": "Tags Removed",
-                "old_value": ", ".join(sorted(removed_tags)),
-                "new_value": None,
-            }
-        )
-
-    # Compare news items
-    from_news_items = {item.get("id") for item in from_data.get("news_items", [])}
-    to_news_items = {item.get("id") for item in to_data.get("news_items", [])}
-
-    added_items = to_news_items - from_news_items
-    removed_items = from_news_items - to_news_items
-
-    if added_items:
-        item_titles = [item.get("title", item.get("id")) for item in to_data.get("news_items", []) if item.get("id") in added_items]
-        changes.append(
-            {
-                "field": "News Items Added",
-                "old_value": None,
-                "new_value": ", ".join(item_titles[:5]) + (f" and {len(item_titles) - 5} more" if len(item_titles) > 5 else ""),
-            }
-        )
-
-    if removed_items:
-        item_titles = [item.get("title", item.get("id")) for item in from_data.get("news_items", []) if item.get("id") in removed_items]
-        changes.append(
-            {
-                "field": "News Items Removed",
-                "old_value": ", ".join(item_titles[:5]) + (f" and {len(item_titles) - 5} more" if len(item_titles) > 5 else ""),
-                "new_value": None,
-            }
-        )
-
-    # Compare attributes
-    from_attrs = {attr.get("key"): attr.get("value") for attr in from_data.get("attributes", [])}
-    to_attrs = {attr.get("key"): attr.get("value") for attr in to_data.get("attributes", [])}
-
-    # Find changed, added, and removed attributes
-    all_keys = set(from_attrs.keys()) | set(to_attrs.keys())
-    for key in sorted(all_keys):
-        from_val = from_attrs.get(key)
-        to_val = to_attrs.get(key)
-        if from_val != to_val:
-            changes.append(
-                {
-                    "field": f"Attribute: {key}",
-                    "old_value": from_val,
-                    "new_value": to_val,
-                }
-            )
-
-    return changes

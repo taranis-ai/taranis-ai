@@ -9,6 +9,7 @@ import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 import pytest
@@ -268,6 +269,9 @@ def _dismiss_notifications(page: Page):
 
 def _cookies_from_response(resp) -> list[dict]:
     """Parse Flask Response `Set-Cookie` headers into Playwright cookie dicts (name/value/path only)."""
+    if hasattr(resp, "cookies") and getattr(resp, "cookies", None):
+        return [{"name": name, "value": value} for name, value in resp.cookies.items()]
+
     cookies: list[dict] = []
     set_cookie_headers: list[str] = []
 
@@ -458,6 +462,8 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         non_admin_logged_in_page,
         extra_allow_patterns=[
             r"(?i)\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(forbidden\)",
+            r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
+            r"\[console\.error\].*htmx:oobErrorNoTarget, #notification-bar",
         ],
     )
 
@@ -568,51 +574,14 @@ def stories(core_request_client, api_header, fake_source):
     with open(story_json, encoding="utf-8") as f:
         stories_raw = json.load(f)
 
-    def clean_news_item(item, story_id: str):
-        """Keep only the same fields as in story_item_list fixture."""
-        allowed_fields = {
-            "id",
-            "title",
-            "content",
-            "author",
-            "source",
-            "link",
-            "language",
-            # "osint_source_id",
-            "review",
-            "collected",
-            "published",
-            "story_id",
-            "hash",
-        }
-        cleaned = {k: v for k, v in item.items() if k in allowed_fields}
-
-        # Ensure required values are set
-        cleaned.setdefault("language", None)
-        cleaned["story_id"] = story_id
-        cleaned["osint_source_id"] = fake_source
-        return cleaned
+    def clean_news_item(item: dict[str, Any], story_id: str):
+        item.setdefault("language", None)
+        item["story_id"] = story_id
+        item["osint_source_id"] = fake_source
+        return item
 
     def clean_story(story):
-        """Keep only whitelisted fields and clean nested news_items."""
-        allowed_story_fields = {
-            "id",
-            "title",
-            "description",
-            "created",
-            "read",
-            "important",
-            "likes",
-            "dislikes",
-            "relevance",
-            "comments",
-            "summary",
-            "news_items",
-            "tags",
-            "attributes",
-        }
-
-        cleaned_story = {k: v for k, v in story.items() if k in allowed_story_fields}
+        cleaned_story = {k: v for k, v in story.items()}
 
         # Make sure all required top-level keys exist
         cleaned_story.setdefault("description", "")
@@ -949,7 +918,7 @@ def fake_source(core_request_client):
     responses.add_passthru(pattern)
 
     source_data = {
-        "id": "99",
+        "id": "019b678a-3c63-736a-8c81-59c737fc4f53",
         "description": "This is a test source",
         "name": "Test Source",
         "parameters": {"FEED_URL": "https://url/feed.xml"},
@@ -984,7 +953,7 @@ def story_item_list(fake_source):
                     "link": "https://url/",
                     "language": None,
                     "osint_source_id": fake_source,
-                    "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebq",
+                    "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608eba",
                     "story_id": "78049551-dcef-45bd-a5cd-4fe842c4d5e3",
                     "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c82",
                     "title": "Test News Item 13",

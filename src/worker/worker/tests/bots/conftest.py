@@ -29,7 +29,7 @@ def story_get_mock(requests_mock, stories):
 
 @pytest.fixture
 def tags_update_mock(requests_mock):
-    yield requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags", json={"message": "Sucessfully updated story"})
+    yield requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/tags", json={"message": "Successfully updated news item tags"})
 
 
 @pytest.fixture

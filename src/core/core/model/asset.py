@@ -1,4 +1,3 @@
-import uuid
 from typing import Any
 
 from sqlalchemy import or_
@@ -6,7 +5,7 @@ from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.organization import Organization
 from core.model.report_item import ReportItem
 
@@ -14,12 +13,12 @@ from core.model.report_item import ReportItem
 class Asset(BaseModel):
     __tablename__ = "asset"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     serial: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
 
-    asset_group_id: Mapped[str] = db.Column(db.String, db.ForeignKey("asset_group.id"))
+    asset_group_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("asset_group.id"))
     asset_group: Mapped["AssetGroup"] = relationship("AssetGroup")
 
     asset_cpes: Mapped[list["AssetCpe"]] = relationship("AssetCpe", cascade="all, delete-orphan", back_populates="asset")
@@ -30,8 +29,7 @@ class Asset(BaseModel):
     vulnerabilities_count: Mapped[int] = db.Column(db.Integer, default=0)
 
     def __init__(self, name, serial, description, group=None, asset_cpes=None, vulnerabilities=None, id=None):
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
         self.name = name
         self.serial = serial
         self.description = description
@@ -189,16 +187,17 @@ class Asset(BaseModel):
 class AssetVulnerability(BaseModel):
     __tablename__ = "asset_vulnerability"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     solved: Mapped[bool] = db.Column(db.Boolean, default=False)
 
-    asset_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("asset.id"))
+    asset_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("asset.id"))
     asset: Mapped["Asset"] = relationship("Asset", back_populates="vulnerabilities")
 
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id"))
+    report_item_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item.id"))
     report_item: Mapped["ReportItem"] = relationship("ReportItem")
 
     def __init__(self, asset_id, report_item_id):
+        self.id = self.uuid7_str()
         self.asset_id = asset_id
         self.report_item_id = report_item_id
 
@@ -210,22 +209,27 @@ class AssetVulnerability(BaseModel):
 class AssetGroup(BaseModel):
     __tablename__ = "asset_group"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    key: Mapped[str | None] = db.Column(db.String(64), unique=True, nullable=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
-    organization_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("organization.id"))
+    organization_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("organization.id"))
     organization: Mapped["Organization|None"] = relationship("Organization")
 
     def __init__(self, name, description, organization, id=None):
-        self.id = id or str(uuid.uuid4())
+        try:
+            self.id = self.normalize_uuid_id(id)
+        except ValueError:
+            self.id = self.uuid7_str()
+            self.key = str(id)
         self.name = name
         self.description = description
-        self.organization = Organization.get(organization) if isinstance(organization, int) else organization
+        self.organization = Organization.get(organization) if isinstance(organization, str) else organization
 
     @classmethod
     def access_allowed(cls, organization: Organization, group_id: str) -> bool:
-        if group_id == "default":
+        if (default_group := cls.get_by_key("default")) and group_id == default_group.id:
             return True
         if group := cls.get(group_id):
             return group.organization == organization
@@ -233,9 +237,9 @@ class AssetGroup(BaseModel):
 
     @classmethod
     def get_default_group(cls) -> "AssetGroup":
-        if default_group := cls.get("default"):
+        if default_group := cls.get_by_key("default"):
             return default_group
-        if not (org := Organization.get(1)):
+        if not (org := Organization.find_by_name("The Earth")):
             raise Exception("Default organization (id=1) not found. Cannot create default asset group.")
         return AssetGroup.add(
             {
@@ -245,6 +249,30 @@ class AssetGroup(BaseModel):
                 "id": "default",
             }
         )
+
+    @classmethod
+    def get(cls, item_id: str) -> "AssetGroup | None":
+        if item_id is None:
+            return None
+        lookup_id = str(item_id)
+        if asset_group := super().get(lookup_id):
+            return asset_group
+        try:
+            normalized_id = cls.normalize_uuid_id(item_id)
+        except (TypeError, ValueError):
+            normalized_id = None
+        if normalized_id and normalized_id != lookup_id:
+            if asset_group := super().get(normalized_id):
+                return asset_group
+        if lookup_id:
+            return cls.get_by_key(lookup_id)
+        return None
+
+    @classmethod
+    def get_by_key(cls, key: str | None) -> "AssetGroup | None":
+        if not key:
+            return None
+        return cls.get_first(db.select(cls).filter_by(key=key))
 
     @classmethod
     def get_for_api(cls, item_id, organization: Organization) -> tuple[dict[str, Any], int]:
@@ -303,11 +331,12 @@ class AssetGroup(BaseModel):
 class AssetCpe(BaseModel):
     __tablename__ = "asset_cpe"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     value: Mapped[str] = db.Column(db.String())
 
-    asset_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("asset.id"))
+    asset_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("asset.id"))
     asset: Mapped["Asset"] = relationship("Asset")
 
     def __init__(self, value):
+        self.id = self.uuid7_str()
         self.value = value

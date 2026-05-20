@@ -222,8 +222,8 @@ class TestSourcesConfigApi(BaseTest):
         from core.model.osint_source import OSINTSource
 
         unique_suffix = uuid.uuid4().hex
-        rss_source_id = f"rss-{unique_suffix}"
-        manual_source_id = f"manual-{unique_suffix}"
+        rss_source_id = str(uuid.uuid7())
+        manual_source_id = str(uuid.uuid7())
 
         rss_source = {
             "id": rss_source_id,
@@ -257,13 +257,56 @@ class TestSourcesConfigApi(BaseTest):
                 if OSINTSource.get(manual_source_id):
                     OSINTSource.delete(manual_source_id)
 
+    def test_get_sources_can_include_manual_collectors(self, client, auth_header, app):
+        from core.model.osint_source import OSINTSource
+
+        unique_suffix = uuid.uuid4().hex
+        rss_source_id = str(uuid.uuid7())
+        manual_source_id = str(uuid.uuid7())
+
+        rss_source = {
+            "id": rss_source_id,
+            "name": f"Visible Source {unique_suffix}",
+            "description": "Collector that should remain visible",
+            "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
+            "type": "rss_collector",
+        }
+        manual_source = {
+            "id": manual_source_id,
+            "name": f"Visible Source {unique_suffix}",
+            "description": "Collector that should be shown when requested",
+            "parameters": {},
+            "type": "manual_collector",
+        }
+
+        with app.app_context():
+            OSINTSource.add(rss_source)
+            OSINTSource.add(manual_source)
+
+        try:
+            response = self.assert_get_ok(
+                client,
+                uri=f"osint-sources?search={unique_suffix}&fetch_all=true&filter_manual=false",
+                auth_header=auth_header,
+            )
+            payload = response.get_json()
+
+            assert payload["total_count"] == 2
+            assert {item["id"] for item in payload["items"]} == {rss_source_id, manual_source_id}
+        finally:
+            with app.app_context():
+                if OSINTSource.get(rss_source_id):
+                    OSINTSource.delete(rss_source_id)
+                if OSINTSource.get(manual_source_id):
+                    OSINTSource.delete(manual_source_id)
+
     def test_get_sources_orders_by_status(self, client, auth_header, app):
         from core.model.osint_source import OSINTSource
         from core.model.task import Task
 
         unique_suffix = uuid.uuid4().hex
-        failure_source_id = f"failure-{unique_suffix}"
-        success_source_id = f"success-{unique_suffix}"
+        failure_source_id = str(uuid.uuid7())
+        success_source_id = str(uuid.uuid7())
 
         sources = [
             {
@@ -323,7 +366,7 @@ class TestSourcesConfigApi(BaseTest):
         from core.model.osint_source import OSINTSource
         from core.model.task import Task
 
-        source_id = f"cron-status-{uuid.uuid4().hex}"
+        source_id = str(uuid.uuid7())
         source = {
             "id": source_id,
             "name": f"Cron Status Source {source_id}",
@@ -351,7 +394,7 @@ class TestSourcesConfigApi(BaseTest):
 
             assert payload["id"] == source_id
             assert payload["status"]["status"] == "NOT_MODIFIED"
-            assert payload["status"]["id"] == cron_task_id
+            assert payload["status"]["job_id"] == cron_task_id
             assert payload["status"]["worker_id"] == source_id
         finally:
             with app.app_context():
@@ -736,7 +779,7 @@ class TestBotConfigApi(BaseTest):
 
             assert payload["id"] == bot_id
             assert payload["status"]["status"] == "SUCCESS"
-            assert payload["status"]["id"] == cron_task_id
+            assert payload["status"]["job_id"] == cron_task_id
             assert payload["status"]["worker_id"] == bot_id
         finally:
             with app.app_context():
@@ -757,6 +800,52 @@ class TestBotConfigApi(BaseTest):
 
         response = self.assert_delete_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
         assert response.json["message"] == f"Bot {cleanup_bot['name']} deleted"
+
+
+class TestAdminMenuBadgesConfigApi(BaseTest):
+    base_uri = "/api/config"
+
+    def test_get_admin_menu_badges(self, client, auth_header, app):
+        from core.model.task import Task
+
+        task_ids = [
+            f"admin-menu-badge-collector-{uuid.uuid4().hex}",
+            f"admin-menu-badge-bot-{uuid.uuid4().hex}",
+        ]
+
+        with app.app_context():
+            Task.add(
+                {
+                    "id": task_ids[0],
+                    "task": "collector_task",
+                    "worker_id": "source-1",
+                    "worker_type": "rss_collector",
+                    "status": "FAILURE",
+                    "result": {"error": "boom"},
+                }
+            )
+            Task.add(
+                {
+                    "id": task_ids[1],
+                    "task": "bot_task",
+                    "worker_id": "bot-1",
+                    "worker_type": "WORDLIST_BOT",
+                    "status": "FAILURE",
+                    "result": {"error": "boom"},
+                }
+            )
+
+        try:
+            response = self.assert_get_ok(client, uri="admin-menu-badges", auth_header=auth_header)
+            assert response.json == {"osint_source": 1, "bot": 1}
+            cache_control = response.headers["Cache-Control"].lower()
+            assert "private" in cache_control
+            assert "max-age=300" in cache_control
+        finally:
+            with app.app_context():
+                for task_id in task_ids:
+                    if Task.get(task_id):
+                        Task.delete(task_id)
 
 
 class TestConnectorConfigApi(BaseTest):
@@ -934,10 +1023,15 @@ class TestPublisherPreset(BaseTest):
         assert response.json["items"][0]["type"] == cleanup_publisher_preset["type"]
         assert response.json["items"][0]["parameters"]["FTP_URL"] == cleanup_publisher_preset["parameters"]["FTP_URL"]
 
-    def test_delete_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
+    def test_delete_publisher_preset(self, client, auth_header, cleanup_publisher_preset, app):
+        from core.model.publisher_preset import PublisherPreset
+
         publisher_preset_id = cleanup_publisher_preset["id"]
+        with app.app_context():
+            if not PublisherPreset.get(publisher_preset_id):
+                PublisherPreset.add(cleanup_publisher_preset)
         response = self.assert_delete_ok(client, uri=f"publishers-presets/{publisher_preset_id}", auth_header=auth_header)
-        assert response.json["message"] == "PublisherPreset 42 deleted"
+        assert response.json["message"] == f"PublisherPreset {publisher_preset_id} deleted"
 
 
 class TestAttributes(BaseTest):
@@ -964,10 +1058,15 @@ class TestAttributes(BaseTest):
         response = self.assert_get_ok(client, uri=f"attributes/{attribute_id}", auth_header=auth_header)
         assert response.json["id"] == attribute_id
 
-    def test_delete_attribute(self, client, auth_header, cleanup_attribute):
+    def test_delete_attribute(self, client, auth_header, cleanup_attribute, app):
+        from core.model.attribute import Attribute
+
         attribute_id = cleanup_attribute["id"]
+        with app.app_context():
+            if not Attribute.get(attribute_id):
+                Attribute.add(cleanup_attribute.copy())
         response = self.assert_delete_ok(client, uri=f"attributes/{attribute_id}", auth_header=auth_header)
-        assert response.json["message"] == "Attribute 42 deleted"
+        assert response.json["message"] == f"Attribute {attribute_id} deleted"
 
 
 class TestWorkerTypes(BaseTest):

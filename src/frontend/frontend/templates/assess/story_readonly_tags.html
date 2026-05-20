@@ -1,0 +1,17 @@
+{% set story_tags_list = (story.tags.values() if story.tags is mapping else (story.tags or [])) | list %}
+<div id="story-tags-readonly-{{ story.id }}"
+     class="rounded-2xl border border-base-200 bg-base-200/40 px-4 py-3"
+     data-testid="story-readonly-tags"
+     {% if oob | default(false) %}hx-swap-oob="outerHTML"{% endif %}>
+  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Tags</p>
+  {% if story_tags_list %}
+    <div class="mt-1 flex flex-wrap gap-1">
+      {% for tag in story_tags_list[:8] if tag.name %}
+        <span class="tooltip before:z-[50] badge badge-ghost badge-xs max-w-full truncate" data-tip="{{ tag.tag_type or 'misc' }}">{{ tag.name }}</span>
+      {% endfor %}
+      {% if story_tags_list | length > 8 %}<span class="badge badge-outline badge-xs">+{{ story_tags_list | length - 8 }}</span>{% endif %}
+    </div>
+  {% else %}
+    <p class="text-sm text-base-content/60">No tags</p>
+  {% endif %}
+</div>

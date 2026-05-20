@@ -144,3 +144,10 @@ class PlaywrightHelpers:
         except ValueError:
             return False
         return u.version == 4
+
+    def is_uuid7(self, value: str) -> bool:
+        try:
+            u = UUID(value)
+        except ValueError:
+            return False
+        return u.version == 7

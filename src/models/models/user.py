@@ -27,6 +27,7 @@ class ProfileSettings(TaranisBaseModel):
     split_view: bool = False
     end_of_shift: str | None = None
     highlight: bool = False
+    assess_default_filters: dict[str, Any] = Field(default_factory=dict)
     dashboard: ProfileSettingsDashboard = Field(default_factory=ProfileSettingsDashboard)
 
 
@@ -34,7 +35,7 @@ class UserProfile(TaranisBaseModel):
     _core_endpoint = "/users"
     _model_name = "user_profile"
 
-    id: int | None = None
+    id: str | None = None
     username: str = ""
     name: str
     last_login: datetime | None = None

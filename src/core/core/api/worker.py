@@ -10,6 +10,7 @@ from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 from core.model.connector import Connector
+from core.model.news_item import NewsItem
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource
 from core.model.product import Product
@@ -24,8 +25,11 @@ class AddNewsItems(MethodView):
     @api_key_required
     def post(self):
         json_data = request.json
+
         if not isinstance(json_data, list):
+            logger.debug(f"Received invalid news items payload type: {type(json_data).__name__}")
             return {"error": "Expected a list of news items"}, 400
+        logger.debug(f"Received {len(json_data)} news items for worker ingestion")
         result, status = Story.add_news_items(json_data)
         sse_manager.news_items_updated()
         return result, status
@@ -180,14 +184,19 @@ class Tags(MethodView):
         errors = {}
         if not isinstance(data, dict):
             return {"error": "Expected a dict for tags"}, 400
-        for story_id, tags in data.items():
-            story = Story.get(story_id)
-            if not story:
-                errors[story_id] = "Story not found"
+        for news_item_id, tags in data.items():
+            if not isinstance(tags, (list, dict)) or not tags:
+                errors[news_item_id] = f"Invalid tags for news item {news_item_id}"
                 continue
-            _, status = story.set_tags(tags)
+
+            news_item = NewsItem.get(news_item_id)
+            if not news_item:
+                errors[news_item_id] = "News item not found"
+                continue
+            actor = Story.resolve_actor(actor=news_item.story.last_change) if news_item.story else None
+            result, status = news_item.set_tags(tags, actor=actor)
             if status != 200:
-                errors[story_id] = status
+                errors[news_item_id] = result.get("error", status)
         if errors:
             return {"message": "Some tags failed to update", "errors": errors}, 207
         return {"message": "Tags updated"}, 200
@@ -287,6 +296,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/misp/stories", view_func=MISPStories.as_view("misp_stories_worker"))
     worker_bp.add_url_rule("/misp/last-change", view_func=MISPStories.as_view("last_change"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
-    worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
+    worker_bp.add_url_rule("/word-list/<string:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
     app.register_blueprint(worker_bp)

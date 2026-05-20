@@ -1,23 +1,26 @@
 import copy
 
 from sqlalchemy.orm import Mapped
-from sqlalchemy.schema import CheckConstraint
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.role import TLPLevel
 
 
 class Settings(BaseModel):
     __tablename__ = "settings"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True, default=1)
-    __table_args__ = (CheckConstraint("id = 1", name="check_only_one_row"),)
+    SINGLETON_KEY = "settings"
+
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    singleton_key: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False, default=SINGLETON_KEY)
 
     settings: Mapped["dict"] = db.Column(db.JSON)
 
     def __init__(self, settings: dict | None = None):
+        self.id = self.uuid7_str()
+        self.singleton_key = self.SINGLETON_KEY
         self.settings = settings or {
             "default_collector_proxy": "",
             "default_collector_interval": "0 */8 * * *",
@@ -28,7 +31,7 @@ class Settings(BaseModel):
 
     @classmethod
     def update(cls, data) -> tuple[dict, int]:
-        settings = cls.get(1)
+        settings = cls.get_settings_entry()
         if settings is None:
             logger.debug("No Settings entry found")
             return {"error": "Error updating settings"}, 404
@@ -43,7 +46,7 @@ class Settings(BaseModel):
 
     @classmethod
     def initialize(cls):
-        if settings := cls.get(1):
+        if settings := cls.get_settings_entry():
             current_settings = copy.deepcopy(settings.settings)
             if "default_collector_proxy" not in current_settings:
                 current_settings["default_collector_proxy"] = ""
@@ -63,8 +66,18 @@ class Settings(BaseModel):
 
     @classmethod
     def get_settings(cls) -> dict:
-        settings = cls.get(1)
+        settings = cls.get_settings_entry()
         if settings is None:
             logger.debug("No Settings entry found")
             return {}
         return settings.settings
+
+    @classmethod
+    def get_settings_entry(cls) -> "Settings | None":
+        return cls.get_first(db.select(cls).filter_by(singleton_key=cls.SINGLETON_KEY))
+
+    @classmethod
+    def get(cls, item_id):
+        if item_id in (1, "1", cls.SINGLETON_KEY):
+            return cls.get_settings_entry()
+        return super().get(item_id)

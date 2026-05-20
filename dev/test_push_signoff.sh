@@ -16,10 +16,6 @@ ensure_clean_worktree() {
   fi
 }
 
-run_step() {
-  printf '\n==> %s\n' "$1"
-}
-
 require_command git
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "Run this command from inside the taranis-ai git worktree."
 cd "$ROOT_DIR"
@@ -40,5 +36,6 @@ fi
 
 ensure_clean_worktree "Working tree changed during local validation. Review the changes before running signoff."
 
-run_step "gh signoff"
+git push
+
 gh signoff

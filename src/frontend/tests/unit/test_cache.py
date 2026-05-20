@@ -29,13 +29,13 @@ def test_news_item_detail_cache_key_uses_news_item_model_name():
 
 def test_user_cache_round_trips_user_profile(app, test_cache_backend):
     user_payload = {
-        "id": 1,
+        "id": "1",
         "username": "admin",
         "name": "Arthur Dent",
-        "organization": {"id": 1, "name": "Galactic Government"},
+        "organization": {"id": "1", "name": "Galactic Government"},
         "permissions": ["ALL"],
         "profile": {},
-        "roles": [{"id": 1, "name": "Admin"}],
+        "roles": [{"id": "1", "name": "Admin"}],
     }
 
     with app.app_context():

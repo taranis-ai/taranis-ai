@@ -30,8 +30,8 @@ FILTER_CASES = [
     pytest.param({"read": "false"}, {"grouped_plain", "manual_important"}, id="read-false"),
     pytest.param({"important": "true"}, {"grouped_flagged", "manual_important"}, id="important-true"),
     pytest.param({"important": "false"}, {"grouped_plain", "source_only"}, id="important-false"),
-    pytest.param({"relevant": "true"}, {"grouped_flagged", "source_only"}, id="relevant-true"),
-    pytest.param({"relevant": "false"}, {"grouped_plain", "manual_important"}, id="relevant-false"),
+    pytest.param({"relevant": "true"}, {"grouped_flagged", "manual_important"}, id="relevant-true"),
+    pytest.param({"relevant": "false"}, {"grouped_plain", "source_only"}, id="relevant-false"),
     pytest.param({"in_report": "true"}, {"grouped_flagged"}, id="in-report-true"),
     pytest.param({"in_report": "false"}, {"grouped_plain", "manual_important", "source_only"}, id="in-report-false"),
     pytest.param({"tags": ("alpha",)}, {"grouped_flagged"}, id="tag-alpha"),
@@ -39,6 +39,7 @@ FILTER_CASES = [
     pytest.param({"story_ids": ("grouped_flagged", "manual_important")}, {"grouped_flagged", "manual_important"}, id="story-ids"),
     pytest.param({"search": "Story Filter Extra Source Story"}, {"source_only"}, id="search-extra-title"),
     pytest.param({"search": "Anonymous News Item"}, {"manual_important"}, id="search-anonymous-title"),
+    pytest.param({"changed_by": "me"}, {"grouped_flagged"}, id="changed-by-me"),
 ]
 
 

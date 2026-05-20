@@ -9,7 +9,7 @@ from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
 
 class AttributeType(Enum):
@@ -35,18 +35,17 @@ class AttributeType(Enum):
 class AttributeEnum(BaseModel):
     __tablename__ = "attribute_enum"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     index: Mapped[int] = db.Column(db.Integer)
     value: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
     imported: Mapped[bool] = db.Column(db.Boolean, default=False)
 
-    attribute_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute.id", ondelete="CASCADE"))
+    attribute_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("attribute.id", ondelete="CASCADE"))
     attribute: Mapped["Attribute"] = relationship("Attribute", cascade="all, delete")
 
-    def __init__(self, index: int, value: str, description: str, attribute_id: int | None = None, imported: bool = False, id=None):
-        if id:
-            self.id = id
+    def __init__(self, index: int, value: str, description: str, attribute_id: str | None = None, imported: bool = False, id=None):
+        self.id = self.normalize_uuid_id(id)
         self.index = index
         self.value = value
         self.description = description
@@ -116,15 +115,14 @@ class AttributeEnum(BaseModel):
 class Attribute(BaseModel):
     __tablename__ = "attribute"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[AttributeType] = db.Column(db.Enum(AttributeType))
     default_value: Mapped[str] = db.Column(db.String(), default="")
 
     def __init__(self, name: str, description: str, attribute_type: AttributeType, default_value: str = "", id=None):
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
         self.name = name
         self.description = description
         self.type = attribute_type

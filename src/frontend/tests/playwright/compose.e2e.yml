@@ -1,9 +1,9 @@
 services:
   core:
-    image: ghcr.io/astral-sh/uv:python3.13-trixie-slim
+    image: ghcr.io/astral-sh/uv:python3.14-trixie-slim
     working_dir: /app/core
     command: >-
-      sh -lc "uv sync --frozen --python 3.13 --no-install-project &&
+      sh -lc "uv sync --frozen --python 3.14 --no-install-project &&
       uv pip install --python /tmp/.venv/bin/python --no-deps psycopg-binary cryptography==46.0.7 &&
       /tmp/.venv/bin/python -m flask run --no-reload --host 0.0.0.0 --port 8080"
     environment:

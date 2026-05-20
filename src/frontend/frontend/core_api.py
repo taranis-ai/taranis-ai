@@ -65,22 +65,22 @@ class CoreApi:
         return False
 
     def api_put(self, endpoint: str, json_data=None) -> requests.Response:
-        if not json_data:
+        if json_data is None:
             json_data = {}
         return self.session.put(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
     def api_post(self, endpoint: str, json_data=None) -> requests.Response:
-        if not json_data:
+        if json_data is None:
             json_data = {}
         return self.session.post(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
     def api_patch(self, endpoint: str, json_data=None) -> requests.Response:
-        if not json_data:
+        if json_data is None:
             json_data = {}
         return self.session.patch(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
-    def api_delete(self, endpoint: str) -> requests.Response:
-        return self.session.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, timeout=self.timeout)
+    def api_delete(self, endpoint: str, params: dict[str, Any] | None = None) -> requests.Response:
+        return self.session.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, params=params, timeout=self.timeout)
 
     def api_get(self, endpoint: str, params: dict | None = None):
         url = f"{self.api_url}{endpoint}"
@@ -196,7 +196,7 @@ class CoreApi:
             logger.error(f"Load default word lists failed: {e}")
             return None
 
-    def update_word_lists(self, word_list_id: int | None = None):
+    def update_word_lists(self, word_list_id: str | None = None):
         uri = f"/config/word-lists/gather/{word_list_id}" if word_list_id else "/config/word-lists/gather"
         return self.api_post(uri)
 

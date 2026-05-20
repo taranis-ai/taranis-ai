@@ -101,9 +101,9 @@ class ReportPublishWorkflowService:
         if title is None:
             return {"error": "Product title is required"}, 400
 
-        product_type_id = cls._parse_int(data.get("product_type_id"))
-        if product_type_id is None:
-            return {"error": "product_type_id must be an integer"}, 400
+        product_type_id = str(data.get("product_type_id") or "")
+        if not product_type_id:
+            return {"error": "product_type_id is required"}, 400
 
         product_type = ProductType.get(product_type_id)
         if not product_type:
@@ -138,14 +138,6 @@ class ReportPublishWorkflowService:
         db.session.add(product)
         db.session.flush()
         return product, 200
-
-    @staticmethod
-    def _parse_int(value: Any) -> int | None:
-        try:
-            parsed = int(value)
-        except (TypeError, ValueError):
-            return None
-        return parsed if parsed > 0 else None
 
     @staticmethod
     def _get_stories(story_ids: list[str]) -> tuple[list[Story], list[str]]:
