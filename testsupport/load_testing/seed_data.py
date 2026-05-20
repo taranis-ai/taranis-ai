@@ -1,4 +1,5 @@
 import json
+import uuid
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -131,9 +132,14 @@ def load_story_seed_payloads(source_id: str = DEFAULT_STORY_SOURCE_ID, limit: in
     return stories
 
 
-def build_report_payload(story_ids: list[str], report_type_id: int, title: str, report_id: str) -> dict:
+def build_report_payload(
+    story_ids: list[str],
+    report_type_id: str,
+    title: str,
+    report_id: str | None = None,
+) -> dict:
     return {
-        "id": report_id,
+        "id": report_id or str(uuid.uuid4()),
         "title": title,
         "report_item_type_id": report_type_id,
         "completed": False,

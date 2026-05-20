@@ -73,7 +73,7 @@ def ensure_osint_source(
     ensure_ok(create_response, f"create osint source {source_id}")
 
 
-def ensure_report_type(session: requests.Session, core_api_url: str, title: str) -> int:
+def ensure_report_type(session: requests.Session, core_api_url: str, title: str) -> str:
     response = session.get(
         f"{core_api_url}/config/report-item-types",
         params={"search": title, "fetch_all": "true"},
@@ -82,7 +82,7 @@ def ensure_report_type(session: requests.Session, core_api_url: str, title: str)
     payload = ensure_ok(response, "fetch report item types")
     for item in payload.get("items", []):
         if item.get("title") == title:
-            return int(item["id"])
+            return str(item["id"])
 
     report_type_definition = deepcopy(LOAD_TEST_REPORT_TYPE_DEFINITION)
     report_type_definition["title"] = title
@@ -97,7 +97,7 @@ def ensure_report_type(session: requests.Session, core_api_url: str, title: str)
         raise RuntimeError(
             f"Load test report item type was created without an id: {create_payload}"
         )
-    return int(report_type_id)
+    return str(report_type_id)
 
 
 def seed_stories(core_api_url: str, api_key: str, source_id: str) -> list[str]:
@@ -118,7 +118,7 @@ def seed_stories(core_api_url: str, api_key: str, source_id: str) -> list[str]:
 def seed_reports(
     session: requests.Session,
     core_api_url: str,
-    report_type_id: int,
+    report_type_id: str,
     story_ids: list[str],
     title_prefix: str,
 ) -> list[str]:
@@ -128,7 +128,6 @@ def seed_reports(
             story_ids=story_ids[index - 1 : index + 1],
             report_type_id=report_type_id,
             title=f"{title_prefix} {index}",
-            report_id=f"load-test-report-{index}",
         )
         response = session.post(
             f"{core_api_url}/analyze/report-items",
