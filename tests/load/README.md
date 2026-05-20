@@ -36,6 +36,12 @@ The runner also writes:
 - `ux-timings-summary.md` with Locust `PAGE` rows sorted by slowest `p95`
 - `ux-timings-summary.json` with the same data in machine-readable form
 
+Feature-specific local test:
+
+```bash
+cd tests/load && uv run pytest test_summarize_stats.py
+```
+
 ## Notes
 
 - This harness is intentionally browser-first and user-workspace-only.

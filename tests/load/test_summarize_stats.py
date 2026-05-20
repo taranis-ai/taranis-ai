@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.load.load_support.summarize_stats import load_page_rows, write_outputs
+from load_support.summarize_stats import load_page_rows, write_outputs
 
 
 class SummarizeStatsTest(unittest.TestCase):
