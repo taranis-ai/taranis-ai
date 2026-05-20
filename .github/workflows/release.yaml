@@ -54,23 +54,50 @@ jobs:
           REPOSITORY_OWNER: ${{ github.repository_owner }}
           TAG: ${{ env.TAG }}
         run: |
-          images=("taranis-core" "taranis-worker" "taranis-ingress" "taranis-frontend")
+          python_images=("taranis-core" "taranis-worker" "taranis-frontend")
           short_sha=$(printf '%.7s' "${GITHUB_SHA}")
           git_info=$(printf '{"branch":"master","HEAD":"%s","tag":"%s"}' "${short_sha}" "${TAG}")
 
-          for image in "${images[@]}"; do
-            printf "FROM ghcr.io/%s/%s:latest\nARG git_info\nENV GIT_INFO=\${git_info}\n" \
-              "${REPOSITORY_OWNER}" "${image}" \
-            | docker buildx build \
-              --platform linux/amd64,linux/arm64 \
+          for image in "${python_images[@]}"; do
+            case "${image}" in
+              taranis-core)
+                file="docker/Containerfile.core"
+                ;;
+              taranis-worker)
+                file="docker/Containerfile.worker"
+                ;;
+              taranis-frontend)
+                file="docker/Containerfile.frontend"
+                ;;
+            esac
+
+            docker buildx build \
+              --file "${file}" \
               --build-arg "git_info=${git_info}" \
+              --build-arg "build_version=${TAG}" \
+              --platform linux/amd64,linux/arm64 \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:${TAG}" \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:stable" \
               --metadata-file "${{ runner.temp }}/${image}-meta.json" \
               --sbom=true \
+              --cache-from "type=registry,ref=ghcr.io/${REPOSITORY_OWNER}/${image}-cache-amd64:latest" \
+              --cache-from "type=registry,ref=ghcr.io/${REPOSITORY_OWNER}/${image}-cache-arm64:latest" \
               --push \
-              -
+              .
           done
+
+          docker buildx build \
+            --file docker/Containerfile.ingress \
+            --build-arg "git_info=${git_info}" \
+            --platform linux/amd64,linux/arm64 \
+            --tag "ghcr.io/${REPOSITORY_OWNER}/taranis-ingress:${TAG}" \
+            --tag "ghcr.io/${REPOSITORY_OWNER}/taranis-ingress:stable" \
+            --metadata-file "${{ runner.temp }}/taranis-ingress-meta.json" \
+            --sbom=true \
+            --cache-from "type=registry,ref=ghcr.io/${REPOSITORY_OWNER}/taranis-ingress-cache-amd64:latest" \
+            --cache-from "type=registry,ref=ghcr.io/${REPOSITORY_OWNER}/taranis-ingress-cache-arm64:latest" \
+            --push \
+            .
 
       - name: Attest images
         env:
