@@ -7,14 +7,11 @@ import pytest
 from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Error, Page, expect
-from testdata.report_item_type_all_attribute_types import report_definition
 
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
 ASSESS_STORY_PAGE_SIZE = 20
-ALL_ATTRIBUTE_TYPES_REPORT_TITLE = report_definition["title"]
-ALL_ATTRIBUTE_TYPES_REQUIRED_REPORT_TITLE = f"{ALL_ATTRIBUTE_TYPES_REPORT_TITLE} REQUIRED"
 
 
 @pytest.mark.e2e_user
@@ -24,21 +21,8 @@ class TestEndToEndUser(BaseE2ETest):
     """End-to-end tests for the Taranis AI user interface."""
 
     CERT_REPORT_TYPE_LABEL = "CERT Report"
-
-    @staticmethod
-    def _select_report_type_by_title(page: Page, title: str) -> None:
-        report_type_select = page.get_by_test_id("report-type-select")
-        option_value = report_type_select.locator("option").evaluate_all(
-            """(options, expectedTitle) => {
-                const option = [...options].find(candidate => candidate.textContent?.trim() === expectedTitle);
-                if (!option) {
-                    throw new Error(`Report type option not found: ${expectedTitle}`);
-                }
-                return option.value;
-            }""",
-            title,
-        )
-        report_type_select.select_option(option_value)
+    ALL_ATTRIBUTE_REPORT_TYPE_LABEL = "Zzz_All Attribute Types Report"
+    ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL = f"{ALL_ATTRIBUTE_REPORT_TYPE_LABEL} REQUIRED"
 
     @staticmethod
     def _boolean_attribute_checkbox(page: Page):
@@ -710,7 +694,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report")
-                self._select_report_type_by_title(page, ALL_ATTRIBUTE_TYPES_REPORT_TITLE)
+                page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
 
@@ -867,7 +851,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report REQUIRED")
-                self._select_report_type_by_title(page, ALL_ATTRIBUTE_TYPES_REQUIRED_REPORT_TITLE)
+                page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
                 expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible()
@@ -1005,7 +989,7 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_test_id("new-report-button").click()
         expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
         page.get_by_role("textbox", name="Title").fill(report_title)
-        self._select_report_type_by_title(page, ALL_ATTRIBUTE_TYPES_REPORT_TITLE)
+        page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
         page.get_by_test_id("save-report").click()
         page.get_by_text("Report item created").click()
 
@@ -1040,7 +1024,7 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_test_id("new-report-button").click()
         expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
         page.get_by_role("textbox", name="Title").fill(report_title)
-        self._select_report_type_by_title(page, ALL_ATTRIBUTE_TYPES_REPORT_TITLE)
+        page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
         page.get_by_test_id("save-report").click()
         page.get_by_text("Report item created").click()
 
