@@ -19,6 +19,9 @@ SPAWN_RATE=""
 RUN_TIME=""
 RUN_ID="${LOAD_RUN_ID:-load-$(date +%Y%m%d-%H%M%S)}"
 ARTIFACT_DIR="${LOAD_ARTIFACT_DIR:-$ARTIFACTS_ROOT/$RUN_ID}"
+LOCUST_STATS_PATH="$ARTIFACT_DIR/locust_stats.csv"
+UX_TIMINGS_MARKDOWN_PATH="$ARTIFACT_DIR/ux-timings-summary.md"
+UX_TIMINGS_JSON_PATH="$ARTIFACT_DIR/ux-timings-summary.json"
 INGRESS_PORT="${LOAD_TEST_INGRESS_PORT:-18080}"
 PROJECT_NAME="taranis-load-${RUN_ID//[^a-zA-Z0-9]/}"
 PROJECT_NAME="$(printf '%s' "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')"
@@ -275,6 +278,28 @@ capture_logs() {
   compose ps >"$ARTIFACT_DIR/compose-ps.txt" || true
 }
 
+write_missing_page_summary() {
+  cat >"$UX_TIMINGS_MARKDOWN_PATH" <<EOF
+# UX Timings Summary
+
+No \`PAGE\` timing summary could be generated because \`locust_stats.csv\` was not created.
+EOF
+  printf '[]\n' >"$UX_TIMINGS_JSON_PATH"
+  cat "$UX_TIMINGS_MARKDOWN_PATH"
+}
+
+generate_page_summary() {
+  if [[ ! -f "$LOCUST_STATS_PATH" ]]; then
+    write_missing_page_summary
+    return 0
+  fi
+
+  python3 -m tests.load.load_support.summarize_stats \
+    "$LOCUST_STATS_PATH" \
+    "$UX_TIMINGS_MARKDOWN_PATH" \
+    "$UX_TIMINGS_JSON_PATH"
+}
+
 run_and_capture() {
   local log_file="$1"
   shift
@@ -332,12 +357,24 @@ if ! run_and_capture "$ARTIFACT_DIR/recovery.log" compose run --rm check_recover
   recovery_status=$?
 fi
 
+summary_status=0
+if ! generate_page_summary; then
+  summary_status=$?
+fi
+
+echo "UX timings summary path: $UX_TIMINGS_MARKDOWN_PATH"
+echo "UX timings summary JSON: $UX_TIMINGS_JSON_PATH"
+
 if [[ $locust_status -ne 0 ]]; then
   exit "$locust_status"
 fi
 
 if [[ $recovery_status -ne 0 ]]; then
   exit "$recovery_status"
+fi
+
+if [[ $summary_status -ne 0 ]]; then
+  exit "$summary_status"
 fi
 
 update_latest_artifacts

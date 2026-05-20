@@ -7,7 +7,7 @@ Manual browser end-to-end load testing for Taranis AI using Locust and `locust-p
 - starts a disposable Docker stack with `ingress`, `core`, `frontend`, PostgreSQL, and Redis
 - seeds deterministic stories and reports
 - runs low-concurrency browser flows against `/frontend/login`, `/frontend/`, `/frontend/assess`, and `/frontend/analyze`
-- stores Locust reports, compose logs, and recovery checks under `tests/load/artifacts/`
+- stores Locust reports, compose logs, recovery checks, and page-ready timing summaries under `tests/load/artifacts/`
 
 ## Local usage
 
@@ -31,9 +31,18 @@ Defaults:
 
 Artifacts are written to a timestamped directory below `tests/load/artifacts/`.
 The newest HTML report is always linked at `tests/load/artifacts/latest/locust-report.html`.
+The runner also writes:
+
+- `ux-timings-summary.md` with Locust `PAGE` rows sorted by slowest `p95`
+- `ux-timings-summary.json` with the same data in machine-readable form
 
 ## Notes
 
 - This harness is intentionally browser-first and user-workspace-only.
 - It does not include `worker` or `cron` in the baseline stack.
+- Locust keeps the coarse `TASK` rows and additionally records user-facing page readiness as `PAGE` rows:
+  - `login:dashboard_ready`
+  - `dashboard:ready`
+  - `assess:ready`
+  - `analyze:ready`
 - `/api/health` is compared against the pre-load baseline instead of assuming a healthy `200`, because the current core health model reports worker availability when Redis is configured.
