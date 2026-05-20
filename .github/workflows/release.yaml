@@ -54,27 +54,44 @@ jobs:
           REPOSITORY_OWNER: ${{ github.repository_owner }}
           TAG: ${{ env.TAG }}
         run: |
-          python_images=("taranis-core" "taranis-worker" "taranis-frontend")
+          images=("taranis-core" "taranis-worker" "taranis-ingress" "taranis-frontend")
           short_sha=$(printf '%.7s' "${GITHUB_SHA}")
           git_info=$(printf '{"branch":"master","HEAD":"%s","tag":"%s"}' "${short_sha}" "${TAG}")
 
-          for image in "${python_images[@]}"; do
+          for image in "${images[@]}"; do
             case "${image}" in
               taranis-core)
                 file="docker/Containerfile.core"
+                build_args=(
+                  --build-arg "git_info=${git_info}"
+                  --build-arg "build_version=${TAG}"
+                )
                 ;;
               taranis-worker)
                 file="docker/Containerfile.worker"
+                build_args=(
+                  --build-arg "git_info=${git_info}"
+                  --build-arg "build_version=${TAG}"
+                )
+                ;;
+              taranis-ingress)
+                file="docker/Containerfile.ingress"
+                build_args=(
+                  --build-arg "git_info=${git_info}"
+                )
                 ;;
               taranis-frontend)
                 file="docker/Containerfile.frontend"
+                build_args=(
+                  --build-arg "git_info=${git_info}"
+                  --build-arg "build_version=${TAG}"
+                )
                 ;;
             esac
 
             docker buildx build \
               --file "${file}" \
-              --build-arg "git_info=${git_info}" \
-              --build-arg "build_version=${TAG}" \
+              "${build_args[@]}" \
               --platform linux/amd64,linux/arm64 \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:${TAG}" \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:stable" \
@@ -85,19 +102,6 @@ jobs:
               --push \
               .
           done
-
-          docker buildx build \
-            --file docker/Containerfile.ingress \
-            --build-arg "git_info=${git_info}" \
-            --platform linux/amd64,linux/arm64 \
-            --tag "ghcr.io/${REPOSITORY_OWNER}/taranis-ingress:${TAG}" \
-            --tag "ghcr.io/${REPOSITORY_OWNER}/taranis-ingress:stable" \
-            --metadata-file "${{ runner.temp }}/taranis-ingress-meta.json" \
-            --sbom=true \
-            --cache-from "type=registry,ref=ghcr.io/${REPOSITORY_OWNER}/taranis-ingress-cache-amd64:latest" \
-            --cache-from "type=registry,ref=ghcr.io/${REPOSITORY_OWNER}/taranis-ingress-cache-arm64:latest" \
-            --push \
-            .
 
       - name: Attest images
         env:
