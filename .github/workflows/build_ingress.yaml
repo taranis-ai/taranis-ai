@@ -11,10 +11,7 @@ on:
     - master
 
 permissions:
-  packages: write
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 env:
   GHCR_IMAGE: ghcr.io/taranis-ai/taranis-ingress
@@ -24,6 +21,9 @@ jobs:
   build_container:
     name: build container
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         include:
@@ -63,6 +63,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
           provenance: true
+          sbom: true
           cache-from: type=registry,ref=${{ env.GHCR_IMAGE }}-cache-${{ matrix.arch }}:latest
           cache-to: type=registry,ref=${{ env.GHCR_IMAGE }}-cache-${{ matrix.arch }}:latest,mode=max
           outputs: type=image,"name=${{ env.GHCR_IMAGE }}",push-by-digest=true,name-canonical=true,push=true,compression=zstd
@@ -86,6 +87,11 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build_container
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     steps:
       - name: Download digests
         uses: actions/download-artifact@v8

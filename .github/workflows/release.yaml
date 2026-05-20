@@ -5,6 +5,9 @@ on:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
 
+permissions:
+  contents: read
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -64,6 +67,7 @@ jobs:
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:${TAG}" \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:stable" \
               --metadata-file "${{ runner.temp }}/${image}-meta.json" \
+              --sbom=true \
               --push \
               -
           done
@@ -107,12 +111,23 @@ jobs:
           subject-digest: ${{ env.DIGEST_taranis_frontend }}
           push-to-registry: true
 
-      - name: Download latest SBOM artifact
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          prune-cache: false
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Create release SBOMs
         run: |
-          run_id=$(gh run list --workflow "build core" --status success --commit "${{ github.sha }}" --limit 1 --json databaseId --jq '.[0].databaseId')
-          gh run download $run_id -n taranis_core_sbom.json -D ${{ runner.temp }}
+          set -euo pipefail
+
+          for component in core frontend worker; do
+            uv sync --all-extras --frozen --directory "src/${component}"
+            uvx --from cyclonedx-bom cyclonedx-py environment "src/${component}/.venv" -o "${{ runner.temp }}/taranis_${component}_sbom.json"
+          done
 
       - name: Release
         uses: softprops/action-gh-release@v2.6.1
@@ -124,3 +139,5 @@ jobs:
             docker/compose.yml
             ${{ runner.temp }}/env.sample
             ${{ runner.temp }}/taranis_core_sbom.json
+            ${{ runner.temp }}/taranis_frontend_sbom.json
+            ${{ runner.temp }}/taranis_worker_sbom.json
