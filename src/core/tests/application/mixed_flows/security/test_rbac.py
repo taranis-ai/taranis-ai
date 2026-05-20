@@ -92,23 +92,23 @@ class TestRBAC:
         filter_query = RoleBasedAccessService.filter_query_with_tlp(query, mock_user)
         results = Story.get_filtered(filter_query)
         assert results
-        result_ids = {n.id for story in results for n in story.news_items}
-        assert result_ids == {"tlp-news-clear"}
+        result_titles = {n.title for story in results for n in story.news_items}
+        assert result_titles == {"Plain News Item"}
 
         # User has TLP level Green -> should see the TLP Green and Clear story
         mock_user.get_highest_tlp.return_value = TLPLevel.GREEN
         filter_query = RoleBasedAccessService.filter_query_with_tlp(query, mock_user)
         results = Story.get_filtered(filter_query)
         assert results
-        result_ids = {n.id for story in results for n in story.news_items}
-        assert result_ids == {"tlp-news-green", "tlp-news-clear"}
+        result_titles = {n.title for story in results for n in story.news_items}
+        assert result_titles == {"TLP News Item", "Plain News Item"}
 
         # User has TLP level Red -> should see all stories
         mock_user.get_highest_tlp.return_value = TLPLevel.RED
         filter_query = RoleBasedAccessService.filter_query_with_tlp(query, mock_user)
         results = Story.get_filtered(filter_query)
         assert results
-        result_ids = {n.id for story in results for n in story.news_items}
-        assert result_ids == {"tlp-news-green", "tlp-news-clear", "tlp-news-red"}
+        result_titles = {n.title for story in results for n in story.news_items}
+        assert result_titles == {"TLP News Item", "Plain News Item", "Another TLP News Item"}
 
         db.session.remove()

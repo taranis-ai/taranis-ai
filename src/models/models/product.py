@@ -29,12 +29,12 @@ class ProductType(TaranisBaseModel):
     _model_name = "product_type"
     _pretty_name = "Product Type"
 
-    id: int | None = None
+    id: str | None = None
     title: str
     description: str | None = ""
     type: PRESENTER_TYPES
     parameters: ProductParameterValue = Field(default_factory=ProductParameterValue)
-    report_types: list[int] = Field(default_factory=list)
+    report_types: list[str] = Field(default_factory=list)
 
 
 class PublisherPreset(TaranisBaseModel):
@@ -60,7 +60,7 @@ class Product(TaranisBaseModel):
     created: datetime | None = None
     auto_publish: bool | None = None
     default_publisher: str | None = None
-    product_type_id: int
+    product_type_id: str
     report_items: list[str] = Field(default_factory=list)
     last_rendered: datetime | None = None
     render_result: str | None = None

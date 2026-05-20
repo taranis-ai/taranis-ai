@@ -61,11 +61,11 @@ class UserProfileView(BaseView):
         LANGUAGE_OPTIONS = [
             {"id": "en", "name": "English"},
         ]
-        core_response, error = cls.process_form_data(0)
+        core_response, error = cls.process_form_data("0")
         if not core_response or error:
             return render_template(
                 "user_profile/settings.html",
-                **cls.get_update_context(0, error=error),
+                **cls.get_update_context("0", error=error),
             ), 400
 
         notification_response = cls.get_notification_from_dict(core_response)
@@ -77,7 +77,7 @@ class UserProfileView(BaseView):
         ), 200
 
     @classmethod
-    def store_form_data(cls, processed_data: dict[str, Any], object_id: int | str = 0):
+    def store_form_data(cls, processed_data: dict[str, Any], object_id: str = "0"):
         try:
             obj = ProfileSettings(**processed_data)
             dpl = DataPersistenceLayer()

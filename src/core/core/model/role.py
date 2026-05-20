@@ -8,7 +8,7 @@ from sqlalchemy.sql.expression import Select
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.permission import Permission
 
 
@@ -62,7 +62,7 @@ class TLPLevel(StrEnum):
 class Role(BaseModel):
     __tablename__ = "role"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
     tlp_level: Mapped[Optional[TLPLevel]] = db.Column(db.Enum(TLPLevel), nullable=False, default=TLPLevel.CLEAR)
@@ -70,8 +70,7 @@ class Role(BaseModel):
     acls = relationship("RoleBasedAccess", secondary="rbac_role")
 
     def __init__(self, name, description=None, tlp_level=None, permissions=None, id=None):
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
         self.name = name
         if description:
             self.description = description
@@ -114,10 +113,10 @@ class Role(BaseModel):
         }
 
     def get_permissions(self):
-        return [permission.id for permission in self.permissions if permission]
+        return [permission.code for permission in self.permissions if permission]
 
     @classmethod
-    def update(cls, role_id: int, data: dict) -> tuple[dict, int]:
+    def update(cls, role_id: str, data: dict) -> tuple[dict, int]:
         logger.debug(f"Updating role with ID {role_id} with data: {data}")
         role = cls.get(role_id)
         if not role:
@@ -133,7 +132,7 @@ class Role(BaseModel):
         return {"message": f"Successfully updated {role.name}", "id": f"{role.id}"}, 201
 
     @classmethod
-    def delete(cls, role_id: int) -> tuple[dict[str, str], int]:
+    def delete(cls, role_id: str) -> tuple[dict[str, str], int]:
         if item := cls.get(role_id):
             db.session.delete(item)
             db.session.commit()
@@ -143,5 +142,5 @@ class Role(BaseModel):
 
 
 class RolePermission(BaseModel):
-    role_id = db.Column(db.Integer, db.ForeignKey("role.id"), primary_key=True)
-    permission_id = db.Column(db.String, db.ForeignKey("permission.id", ondelete="SET NULL"), primary_key=True)
+    role_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("role.id"), primary_key=True)
+    permission_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("permission.id", ondelete="SET NULL"), primary_key=True)

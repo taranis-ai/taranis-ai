@@ -54,7 +54,7 @@ class SSEManager:
             "lock_time": self.report_item_locks[report_item_id]["lock_time"].astimezone().isoformat(timespec="seconds"),
         }
 
-    def report_item_lock(self, report_item_id: str, user_id: int):
+    def report_item_lock(self, report_item_id: str, user_id: str):
         if report_item_id in self.report_item_locks:
             if self.report_item_locks[report_item_id]["user_id"] == user_id:
                 self.report_item_locks[report_item_id]["lock_time"] = datetime.now()
@@ -69,7 +69,7 @@ class SSEManager:
         return self.to_report_item_json(report_item_id), 200
         # schedule.every(1).minute.do(self.schedule_unlock_report_item, report_item_id, user_id)
 
-    def report_item_unlock(self, report_item_id: str, user_id: int):
+    def report_item_unlock(self, report_item_id: str, user_id: str):
         if report_item_id not in self.report_item_locks.keys():
             return self.to_report_item_json(report_item_id), 200
 

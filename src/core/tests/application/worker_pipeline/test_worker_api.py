@@ -439,7 +439,7 @@ class TestWorkerTaskResults:
         from core.model.product import Product
         from core.model.task import Task
 
-        product_id = f"worker-product-{uuid.uuid4().hex}"
+        product_id = str(uuid.uuid7())
         task_id = f"presenter-job-{uuid.uuid4().hex}"
         render_result = "YmFzZTY0"
 
@@ -518,7 +518,7 @@ class TestWorkerTaskResults:
         try:
             response = client.post(self.base_uri, json=payload, headers=api_header)
             assert response.status_code == 200
-            assert response.get_json()["id"] == task_id
+            assert response.get_json()["job_id"] == task_id
         finally:
             with app.app_context():
                 if Task.get(task_id):

@@ -54,14 +54,14 @@ class TemplateView(AdminMixin, BaseView):
         return base_context
 
     @classmethod
-    def process_form_data(cls, object_id: str | int):
+    def process_form_data(cls, object_id: str):
         try:
             form_data = parse_formdata(request.form)
             obj = Template(**form_data)
             if obj.content:
                 obj.content = b64encode(obj.content.encode("utf-8")).decode("utf-8")
             dpl = DataPersistenceLayer()
-            result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
+            result = dpl.store_object(obj) if cls.is_create_object_id(object_id) else dpl.update_object(obj, object_id)
             return (result.json(), None) if result.ok else (None, result.json().get("error"))
         except HTTPException:
             raise

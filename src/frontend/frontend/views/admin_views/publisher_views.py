@@ -86,7 +86,7 @@ class ProductTypeView(AdminMixin, BaseView):
         return base_context
 
     @classmethod
-    def process_form_data(cls, object_id: int | str):
+    def process_form_data(cls, object_id: str):
         try:
             form_data = parse_formdata(request.form)
             return cls.store_form_data(form_data, object_id)
@@ -108,7 +108,7 @@ class ProductTypeView(AdminMixin, BaseView):
         return [{"id": t.id, "name": t.id} for t in DataPersistenceLayer().get_objects(Template).items]
 
     @classmethod
-    def get_product_type_parameters_view(cls, product_type_id: int, presenter_type: str) -> str:
+    def get_product_type_parameters_view(cls, product_type_id: str, presenter_type: str) -> str:
         if not product_type_id and not presenter_type:
             logger.warning("No Product Type ID or Presenter Type provided.")
 

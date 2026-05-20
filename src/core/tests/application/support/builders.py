@@ -76,7 +76,7 @@ def create_story(
 
 
 def build_report_payload(
-    report_item_type_id: int,
+    report_item_type_id: str,
     *,
     title: str | None = None,
     title_prefix: str = "Report",
@@ -117,7 +117,7 @@ def create_osint_source(
     from core.model.osint_source import OSINTSource
 
     source = OSINTSource(
-        id=source_id or f"source-{uuid.uuid4()}",
+        id=source_id or str(uuid.uuid7()),
         name=name or f"Relevance Source {rank}",
         description=description,
         rank=rank,

@@ -196,7 +196,7 @@ class CoreApi:
             logger.error(f"Load default word lists failed: {e}")
             return None
 
-    def update_word_lists(self, word_list_id: int | None = None):
+    def update_word_lists(self, word_list_id: str | None = None):
         uri = f"/config/word-lists/gather/{word_list_id}" if word_list_id else "/config/word-lists/gather"
         return self.api_post(uri)
 
