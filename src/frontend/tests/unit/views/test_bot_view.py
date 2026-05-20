@@ -1,8 +1,12 @@
+from types import SimpleNamespace
+
 import pytest
 from flask import render_template, url_for
 from lxml import html
 from models.admin import Bot
 from models.types import BOT_TYPES
+
+from frontend.views.admin_views.bot_views import BotView
 
 
 @pytest.mark.parametrize(
@@ -34,6 +38,16 @@ def test_bot_parameters_include_optional_positive_integer_requests_timeout(authe
     assert requests_timeout_fields[0].get("required") is None
     assert refresh_interval_fields[0].get("required") is None
     assert response.text.index('name="parameters[ITEM_FILTER]"') < response.text.index('name="parameters[REQUESTS_TIMEOUT]"')
+
+
+def test_bot_menu_badge_uses_task_failure_count(monkeypatch):
+    fake_badges = SimpleNamespace(bot=7)
+    monkeypatch.setattr(
+        "frontend.views.admin_views.bot_views.DataPersistenceLayer",
+        lambda: SimpleNamespace(get_object=lambda model: fake_badges),
+    )
+
+    assert BotView.get_admin_menu_badge() == 7
 
 
 def test_bot_form_renders_enabled_switch(app):

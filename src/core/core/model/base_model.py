@@ -1,5 +1,6 @@
 import base64
 import json
+import uuid
 from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence, Type, TypeVar
@@ -14,6 +15,7 @@ from core.managers.db_manager import db
 
 T = TypeVar("T", bound="BaseModel")
 DB_INTEGER_MAX = (2**63) - 1
+UUID_STR_LENGTH = 36
 
 
 class BaseModel(db.Model):
@@ -21,7 +23,7 @@ class BaseModel(db.Model):
     __abstract__ = True
 
     if TYPE_CHECKING:
-        id: Mapped[int | str]
+        id: Mapped[str]
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}"
@@ -40,6 +42,18 @@ class BaseModel(db.Model):
     @staticmethod
     def utcnow() -> datetime:
         return datetime.now(timezone.utc).replace(tzinfo=None)
+
+    @staticmethod
+    def uuid7_str() -> str:
+        return str(uuid.uuid7())
+
+    @staticmethod
+    def normalize_uuid_id(value: Any | None) -> str:
+        if value in (None, ""):
+            return BaseModel.uuid7_str()
+        if isinstance(value, uuid.UUID):
+            return str(value)
+        return str(uuid.UUID(str(value)))
 
     @staticmethod
     def as_utc_aware(value: datetime) -> datetime:

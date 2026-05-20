@@ -26,6 +26,9 @@ Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `sse-broker`, `
 Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
 Pin explicit tags for production.
 
+Published `core`, `frontend`, `worker`, and `ingress` images include registry SBOM attestations.
+GitHub releases attach CycloneDX JSON SBOM files for the Python application environments: `taranis_core_sbom.json`, `taranis_frontend_sbom.json`, and `taranis_worker_sbom.json`.
+
 ## Raw Kubernetes
 
 ```bash

@@ -3,6 +3,7 @@ import re
 from worker.log import logger
 
 from .base_bot import BaseBot
+from .tagging_content import _news_item_content_for_tagging
 
 
 class TaggingBot(BaseBot):
@@ -24,20 +25,25 @@ class TaggingBot(BaseBot):
 
         found_tags = {}
         for story in data:
-            findings = set()
-            existing_tags = story["tags"] or []
             for news_item in story["news_items"]:
-                content = news_item["content"]
-                title = news_item["title"]
-                review = news_item["review"]
+                findings = set()
+                existing_tags = self._tag_names(news_item.get("tags") or {})
 
-                analyzed_content = set((title + review + content).split())
+                analyzed_content = set(_news_item_content_for_tagging(news_item).split())
 
                 for element in analyzed_content:
                     if finding := re.search(f"({regexp})", element.strip(".,")):
                         if finding[1] not in existing_tags:
                             findings.add(finding[1])
-            found_tags[story["id"]] = findings
+                found_tags[news_item["id"]] = sorted(findings)
 
         logger.info({"message": f"Extracted {len(found_tags)} tags"})
         return found_tags
+
+    @staticmethod
+    def _tag_names(tags) -> set[str]:
+        if isinstance(tags, dict):
+            return set(tags)
+        if isinstance(tags, list):
+            return {tag["name"] for tag in tags if isinstance(tag, dict) and isinstance(tag.get("name"), str)}
+        return set()

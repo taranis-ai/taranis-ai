@@ -7,7 +7,7 @@ from sqlalchemy import UniqueConstraint, func
 from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
 
 if TYPE_CHECKING:
@@ -30,11 +30,11 @@ def _increment_parent_revision(item: "Story | ReportItem") -> int:
 class StoryRevision(BaseModel):
     __tablename__ = "story_revision"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), nullable=False, index=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"), nullable=False, index=True)
     revision: Mapped[int] = db.Column(db.Integer, nullable=False)
     created_at: Mapped[datetime] = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
-    created_by_id: Mapped[int | None] = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_by_id: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_by: Mapped["User | None"] = relationship("User")
     note: Mapped[str | None] = db.Column(db.Text)
     data: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False)
@@ -46,7 +46,7 @@ class StoryRevision(BaseModel):
         return story.to_detail_dict()
 
     @classmethod
-    def create_from_story(cls, story: "Story", created_by_id: int | None = None, note: str | None = None) -> "StoryRevision":
+    def create_from_story(cls, story: "Story", created_by_id: str | None = None, note: str | None = None) -> "StoryRevision":
         next_revision = _increment_parent_revision(story)
         revision = cls(
             story_id=story.id,
@@ -62,11 +62,13 @@ class StoryRevision(BaseModel):
 class ReportRevision(BaseModel):
     __tablename__ = "report_revision"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=False, index=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    report_item_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     revision: Mapped[int] = db.Column(db.Integer, nullable=False)
     created_at: Mapped[datetime] = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
-    created_by_id: Mapped[int | None] = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_by_id: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_by: Mapped["User | None"] = relationship("User")
     note: Mapped[str | None] = db.Column(db.Text)
     data: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False)
@@ -78,7 +80,7 @@ class ReportRevision(BaseModel):
         return report.to_detail_dict()
 
     @classmethod
-    def create_from_report(cls, report: "ReportItem", created_by_id: int | None = None, note: str | None = None) -> "ReportRevision":
+    def create_from_report(cls, report: "ReportItem", created_by_id: str | None = None, note: str | None = None) -> "ReportRevision":
         next_revision = _increment_parent_revision(report)
         revision = cls(
             report_item_id=report.id,

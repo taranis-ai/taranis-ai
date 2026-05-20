@@ -128,10 +128,6 @@ class StoryOperationsService:
         return len(result.scalars().all())
 
     @staticmethod
-    def merge_story_tags(target_story: "Story", source_story: "Story") -> None:
-        target_story.tags = list({tag.name: tag for tag in [*target_story.tags, *source_story.tags]}.values())
-
-    @staticmethod
     def transfer_news_item_to_story(
         target_story: "Story",
         news_item: "NewsItem | None",

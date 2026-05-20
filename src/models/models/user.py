@@ -35,7 +35,7 @@ class UserProfile(TaranisBaseModel):
     _core_endpoint = "/users"
     _model_name = "user_profile"
 
-    id: int | None = None
+    id: str | None = None
     username: str = ""
     name: str
     last_login: datetime | None = None

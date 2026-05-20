@@ -1,3 +1,4 @@
+from worker.bots.tagging_content import _news_item_content_for_tagging
 from worker.config import Config
 
 
@@ -20,6 +21,13 @@ def test_ioc_bot(story_get_mock):
     ioc_bot.execute()
 
     assert story_get_mock.call_count == 1
+
+
+def test_news_item_content_for_tagging_handles_nullable_fields():
+    news_item = {"title": None, "review": None, "content": "content"}
+
+    assert _news_item_content_for_tagging(news_item) == "  content"
+    assert _news_item_content_for_tagging(news_item, separator="\n") == "\n\ncontent"
 
 
 def test_nlp_bot(story_get_mock, ner_bot_mock):

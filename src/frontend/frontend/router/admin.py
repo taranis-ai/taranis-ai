@@ -103,7 +103,7 @@ class PublisherParameterAPI(MethodView):
 
 class ProductTypeParameterAPI(MethodView):
     @admin_required()
-    def get(self, product_type_id: int) -> str:
+    def get(self, product_type_id: str) -> str:
         presenter_type = request.args.get("type", "")
         return ProductTypeView.get_product_type_parameters_view(product_type_id, presenter_type)
 
@@ -136,10 +136,10 @@ def init(app: Flask):
     admin_bp.add_url_rule("/", view_func=AdminDashboardView.as_view("dashboard"))
 
     admin_bp.add_url_rule("/attributes", view_func=AttributeView.as_view("attributes"))
-    admin_bp.add_url_rule("/attributes/<int:attribute_id>", view_func=AttributeView.as_view("edit_attribute"))
+    admin_bp.add_url_rule("/attributes/<string:attribute_id>", view_func=AttributeView.as_view("edit_attribute"))
 
     admin_bp.add_url_rule("/users", view_func=UserView.as_view("users"))
-    admin_bp.add_url_rule("/users/<int:user_id>", view_func=UserView.as_view("edit_user"))
+    admin_bp.add_url_rule("/users/<string:user_id>", view_func=UserView.as_view("edit_user"))
     admin_bp.add_url_rule("/export/users", view_func=UserView.export_view, methods=["GET"], endpoint="export_users")
     admin_bp.add_url_rule("/import/users", view_func=ImportUsers.as_view("import_users"))
 
@@ -152,13 +152,13 @@ def init(app: Flask):
     admin_bp.add_url_rule("/scheduler/history", view_func=ScheduleHistoryAPI.as_view("scheduler_history"))
 
     admin_bp.add_url_rule("/organizations", view_func=OrganizationView.as_view("organizations"))
-    admin_bp.add_url_rule("/organizations/<int:organization_id>", view_func=OrganizationView.as_view("edit_organization"))
+    admin_bp.add_url_rule("/organizations/<string:organization_id>", view_func=OrganizationView.as_view("edit_organization"))
 
     admin_bp.add_url_rule("/roles", view_func=RoleView.as_view("roles"))
-    admin_bp.add_url_rule("/roles/<int:role_id>", view_func=RoleView.as_view("edit_role"))
+    admin_bp.add_url_rule("/roles/<string:role_id>", view_func=RoleView.as_view("edit_role"))
 
     admin_bp.add_url_rule("/acls", view_func=ACLView.as_view("acls"))
-    admin_bp.add_url_rule("/acls/<int:acl_id>", view_func=ACLView.as_view("edit_acl"))
+    admin_bp.add_url_rule("/acls/<string:acl_id>", view_func=ACLView.as_view("edit_acl"))
     admin_bp.add_url_rule("/acl/item_ids", view_func=ACLItemAPI.as_view("acl_item_ids"))
 
     admin_bp.add_url_rule("/connectors", view_func=ConnectorView.as_view("connectors"))
@@ -203,14 +203,14 @@ def init(app: Flask):
     admin_bp.add_url_rule("/bot_execute/<string:bot_id>", view_func=BotView.execute_bot, methods=["POST"])
 
     admin_bp.add_url_rule("/report_types", view_func=ReportItemTypeView.as_view("report_item_types"))
-    admin_bp.add_url_rule("/report_types/<int:report_item_type_id>", view_func=ReportItemTypeView.as_view("edit_report_item_type"))
+    admin_bp.add_url_rule("/report_types/<string:report_item_type_id>", view_func=ReportItemTypeView.as_view("edit_report_item_type"))
     admin_bp.add_url_rule("/add_report_type_group", view_func=ReportItemTypeGroupsAPI.as_view("add_report_item_types_group"))
     admin_bp.add_url_rule("/add_report_type_group_item", view_func=ReportItemTypeGroupItemAPI.as_view("add_report_item_types_group_item"))
 
     admin_bp.add_url_rule("/product_types", view_func=ProductTypeView.as_view("product_types"))
-    admin_bp.add_url_rule("/product_types/<int:product_type_id>", view_func=ProductTypeView.as_view("edit_product_type"))
+    admin_bp.add_url_rule("/product_types/<string:product_type_id>", view_func=ProductTypeView.as_view("edit_product_type"))
     admin_bp.add_url_rule(
-        "/product_type_parameters/<int:product_type_id>", view_func=ProductTypeParameterAPI.as_view("product_type_parameters")
+        "/product_type_parameters/<string:product_type_id>", view_func=ProductTypeParameterAPI.as_view("product_type_parameters")
     )
 
     admin_bp.add_url_rule("/templates", view_func=TemplateView.as_view("template_data"))
@@ -221,7 +221,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/publisher_parameters/<string:publisher_id>", view_func=PublisherParameterAPI.as_view("publisher_parameters"))
 
     admin_bp.add_url_rule("/word_lists", view_func=WordListView.as_view("word_lists"))
-    admin_bp.add_url_rule("/word_lists/<int:word_list_id>", view_func=WordListView.as_view("edit_word_list"))
+    admin_bp.add_url_rule("/word_lists/<string:word_list_id>", view_func=WordListView.as_view("edit_word_list"))
     admin_bp.add_url_rule("/export/word_lists", view_func=WordListView.export_view, methods=["GET"], endpoint="export_word_lists")
     admin_bp.add_url_rule("/import/word_lists", view_func=ImportWordLists.as_view("import_word_lists"))
     admin_bp.add_url_rule("/update-word_lists", view_func=WordListView.update_word_lists, methods=["POST"], endpoint="update_all_word_lists")

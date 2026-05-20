@@ -27,7 +27,7 @@ class AttributeView(AdminMixin, BaseView):
         return base_context
 
     @classmethod
-    def process_form_data(cls, object_id: int | str):
+    def process_form_data(cls, object_id: str):
         try:
             form_data = parse_formdata(request.form)
             logger.debug(f"Parsed form data: {form_data}")
