@@ -2,15 +2,18 @@ from urllib.parse import unquote
 
 from flask import flash, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
+from models.report import ReportItem
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
 from frontend.views.base_view import BaseView
 
 
 COLLAB_SESSION_CHANNELS_KEY = "collab_channels"
 COLLAB_SESSION_CURRENT_KEY = "collab_current_channel"
+COLLAB_SESSION_FINALIZE_RESULTS_KEY = "collab_finalize_results"
 
 
 class CollaborationView:
@@ -40,12 +43,33 @@ class CollaborationView:
         cls._set_session_channels(channels)
         session[COLLAB_SESSION_CURRENT_KEY] = channel_id
 
+    @staticmethod
+    def _get_finalize_results() -> dict[str, dict]:
+        results = session.get(COLLAB_SESSION_FINALIZE_RESULTS_KEY, {})
+        return results if isinstance(results, dict) else {}
+
+    @classmethod
+    def _set_finalize_result(cls, channel_id: str, finalize_result: dict) -> None:
+        results = cls._get_finalize_results()
+        results[channel_id] = finalize_result
+        session[COLLAB_SESSION_FINALIZE_RESULTS_KEY] = results
+
+    @classmethod
+    def _get_finalize_result(cls, channel_id: str | None) -> dict:
+        if not channel_id:
+            return {}
+        return cls._get_finalize_results().get(channel_id, {})
+
     @classmethod
     def _forget_channel(cls, channel_id: str) -> None:
         remaining = [cid for cid in cls._get_session_channels() if cid != channel_id]
         cls._set_session_channels(remaining)
         if session.get(COLLAB_SESSION_CURRENT_KEY) == channel_id:
             session[COLLAB_SESSION_CURRENT_KEY] = remaining[0] if remaining else ""
+        results = cls._get_finalize_results()
+        if channel_id in results:
+            results.pop(channel_id, None)
+            session[COLLAB_SESSION_FINALIZE_RESULTS_KEY] = results
 
     @staticmethod
     def _notification_response(core_response) -> str:
@@ -89,7 +113,7 @@ class CollaborationView:
             "selected_story": selected_story,
             "selected_story_id": selected_story_id,
             "notification_html": notification or "",
-            "finalize_result": finalize_result or {},
+            "finalize_result": finalize_result or cls._get_finalize_result(active_id),
         }
 
     @classmethod
@@ -190,8 +214,47 @@ class CollaborationView:
         api = CoreApi()
         core_response = api.finalize_collaboration_channel(channel_id)
         BaseView.add_flash_notification(core_response)
+        if core_response.ok:
+            cls._set_finalize_result(channel_id, core_response.json())
         response = redirect(url_for("collaboration.workspace_channel", channel_id=channel_id), code=302)
         return response
+
+    @classmethod
+    @auth_required()
+    def report_dialog(cls, channel_id: str) -> tuple[str, int] | ResponseReturnValue:
+        api = CoreApi()
+        core_response = api.finalize_collaboration_channel(channel_id)
+        if not core_response.ok:
+            BaseView.add_flash_notification(core_response)
+            return redirect(url_for("collaboration.workspace_channel", channel_id=channel_id), code=302)
+
+        finalize_result = core_response.json()
+        cls._set_finalize_result(channel_id, finalize_result)
+        reports = DataPersistenceLayer().get_objects(ReportItem)
+        return (
+            render_template(
+                "assess/story_report_dialog.html",
+                story_ids=finalize_result.get("report_story_ids", []),
+                reports=reports,
+                target="#collaboration-workspace",
+                submit_url=url_for("collaboration.submit_report_dialog"),
+                new_report_url=url_for("analyze.report", report_id="0")
+                + "?"
+                + "&".join(f"story_ids={story_id}" for story_id in finalize_result.get("report_story_ids", [])),
+                channel_id=channel_id,
+            ),
+            200,
+        )
+
+    @classmethod
+    @auth_required()
+    def submit_report_dialog(cls) -> ResponseReturnValue:
+        story_ids = request.form.getlist("story_ids")
+        report_id = request.form.get("report", "").strip()
+        channel_id = request.form.get("channel_id", "").strip()
+        core_response = CoreApi().add_collaboration_stories_to_report(report_id, story_ids)
+        BaseView.add_flash_notification(core_response)
+        return BaseView.redirect_htmx(url_for("collaboration.workspace_channel", channel_id=channel_id))
 
     @classmethod
     @auth_required()

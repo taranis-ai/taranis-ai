@@ -64,6 +64,17 @@
                     Finalize Stories
                   </button>
                 </form>
+                <form method="post"
+                      action="{{ url_for('collaboration.report_dialog', channel_id=active_channel.channel_id) }}"
+                      hx-post="{{ url_for('collaboration.report_dialog', channel_id=active_channel.channel_id) }}"
+                      hx-target="body"
+                      hx-swap="beforeend">
+                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                  <button class="btn btn-outline" type="submit">
+                    {{ heroicon_mini("document-plus") }}
+                    Add Session Outcome to Report
+                  </button>
+                </form>
                 <form method="post" action="{{ url_for('collaboration.close', channel_id=active_channel.channel_id) }}">
                   <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
                   <button class="btn btn-outline" type="submit">
@@ -88,15 +99,25 @@
             </div>
           </div>
 
-          {% if finalize_result.created_story_ids %}
+          {% if finalize_result.report_story_ids %}
             <div class="mb-6 rounded-box border border-success/30 bg-success/10 p-4">
-              <div class="font-medium">Finalized {{ finalize_result.created_story_ids | length }} stories locally.</div>
+              <div class="font-medium">
+                Persisted {{ finalize_result.report_story_ids | length }} session outcome stories locally.
+                {% if finalize_result.updated_story_ids %}Updated {{ finalize_result.updated_story_ids | length }}.{% endif %}
+                {% if finalize_result.created_story_ids %}Created {{ finalize_result.created_story_ids | length }}.{% endif %}
+              </div>
               <div class="mt-3 flex flex-wrap gap-2">
-                <a class="btn btn-sm btn-outline"
-                   href="{{ url_for('analyze.report', report_id='0') }}?{% for story_id in finalize_result.report_story_ids %}story_ids={{ story_id }}&{% endfor %}">
-                  {{ heroicon_mini("document-plus") }}
-                  Create Report
-                </a>
+                <form method="post"
+                      action="{{ url_for('collaboration.report_dialog', channel_id=active_channel.channel_id) }}"
+                      hx-post="{{ url_for('collaboration.report_dialog', channel_id=active_channel.channel_id) }}"
+                      hx-target="body"
+                      hx-swap="beforeend">
+                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                  <button class="btn btn-sm btn-outline" type="submit">
+                    {{ heroicon_mini("document-plus") }}
+                    Add Session Outcome to Report
+                  </button>
+                </form>
               </div>
             </div>
           {% endif %}
@@ -186,12 +207,6 @@
 
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="text-sm text-base-content/60" data-collab-save-status>Live sync idle.</span>
-                    {% if selected_story.source_instance == active_channel.active_instance_base_url and selected_story.source_story_id %}
-                      <a class="btn btn-outline" href="{{ url_for('assess.assess') }}">
-                        {{ heroicon_mini("arrow-top-right-on-square") }}
-                        Open Original Story
-                      </a>
-                    {% endif %}
                   </div>
                 </div>
 

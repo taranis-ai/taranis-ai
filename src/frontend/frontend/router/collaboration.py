@@ -40,6 +40,18 @@ def init(app: Flask):
         endpoint="finalize",
     )
     collaboration_bp.add_url_rule(
+        "/collaboration/<string:channel_id>/report-dialog",
+        view_func=CollaborationView.report_dialog,
+        methods=["POST"],
+        endpoint="report_dialog",
+    )
+    collaboration_bp.add_url_rule(
+        "/collaboration/report",
+        view_func=CollaborationView.submit_report_dialog,
+        methods=["POST"],
+        endpoint="submit_report_dialog",
+    )
+    collaboration_bp.add_url_rule(
         "/collaboration/<string:channel_id>/close",
         view_func=CollaborationView.close,
         methods=["POST"],

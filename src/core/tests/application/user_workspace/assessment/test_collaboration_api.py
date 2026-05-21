@@ -49,7 +49,7 @@ def test_collaboration_channel_invite_can_be_redeemed_multiple_times(client, aut
     assert {"https://bravo.demo", "https://charlie.demo", collaboration_service.external_base_url()} <= participant_urls
 
 
-def test_finalize_collaboration_channel_creates_local_stories(client, auth_header, stories):
+def test_finalize_collaboration_channel_creates_local_stories_for_remote_origin(client, auth_header, stories):
     collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
@@ -57,6 +57,10 @@ def test_finalize_collaboration_channel_creates_local_stories(client, auth_heade
         headers=auth_header,
     )
     channel_id = create_response.get_json()["channel_id"]
+    snapshot = collaboration_service.channels[channel_id]["result_stories"][0]
+    snapshot["source_instance"] = "https://remote.demo"
+    snapshot["source_story_id"] = "remote-story-1"
+    snapshot["persisted_local_story_id"] = None
 
     finalize_response = client.post(f"/api/assess/collab/channels/{channel_id}/finalize", json={}, headers=auth_header)
 
@@ -65,9 +69,68 @@ def test_finalize_collaboration_channel_creates_local_stories(client, auth_heade
     assert payload["channel_id"] == channel_id
     assert payload["created_story_ids"]
     created_story_id = payload["created_story_ids"][0]
+    assert payload["persisted_story_ids"] == payload["report_story_ids"]
 
     story_response = client.get(f"/api/assess/story/{created_story_id}", headers=auth_header)
     assert story_response.status_code == 200
+
+
+def test_finalize_collaboration_channel_updates_local_origin_story_in_place(client, auth_header, stories):
+    collaboration_service.channels.clear()
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Finalize Local Update", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    snapshot = collaboration_service.channels[channel_id]["result_stories"][0]
+    snapshot["story"]["summary"] = "Updated through collaboration finalize"
+
+    finalize_response = client.post(f"/api/assess/collab/channels/{channel_id}/finalize", json={}, headers=auth_header)
+
+    assert finalize_response.status_code == 200
+    payload = finalize_response.get_json()
+    assert payload["created_story_ids"] == []
+    assert payload["updated_story_ids"] == [stories[0]]
+    assert payload["report_story_ids"] == [stories[0]]
+
+    story_response = client.get(f"/api/assess/story/{stories[0]}", headers=auth_header)
+    assert story_response.status_code == 200
+    assert story_response.get_json()["summary"] == "Updated through collaboration finalize"
+
+
+def test_finalize_collaboration_channel_reuses_remote_persisted_story(client, auth_header, stories):
+    collaboration_service.channels.clear()
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Finalize Remote Update", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    snapshot = collaboration_service.channels[channel_id]["result_stories"][0]
+    snapshot["source_instance"] = "https://remote.demo"
+    snapshot["source_story_id"] = "remote-story-1"
+    snapshot["persisted_local_story_id"] = None
+
+    first_finalize = client.post(f"/api/assess/collab/channels/{channel_id}/finalize", json={}, headers=auth_header)
+
+    assert first_finalize.status_code == 200
+    first_payload = first_finalize.get_json()
+    assert len(first_payload["created_story_ids"]) == 1
+    created_story_id = first_payload["created_story_ids"][0]
+
+    snapshot["story"]["summary"] = "Updated after first persistence"
+    second_finalize = client.post(f"/api/assess/collab/channels/{channel_id}/finalize", json={}, headers=auth_header)
+
+    assert second_finalize.status_code == 200
+    second_payload = second_finalize.get_json()
+    assert second_payload["created_story_ids"] == []
+    assert second_payload["updated_story_ids"] == [created_story_id]
+    assert second_payload["report_story_ids"] == [created_story_id]
+
+    story_response = client.get(f"/api/assess/story/{created_story_id}", headers=auth_header)
+    assert story_response.status_code == 200
+    assert story_response.get_json()["summary"] == "Updated after first persistence"
 
 
 def test_collaboration_live_state_tracks_presence_and_locks(client, auth_header, stories):

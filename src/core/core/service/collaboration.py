@@ -8,6 +8,7 @@ from urllib.parse import quote, urlsplit
 import requests
 from flask import has_request_context, request
 from itsdangerous import BadSignature, URLSafeSerializer
+from models.assess import Story as StoryPayload
 from models.collaboration import (
     CollabChannelDetail,
     CollabChannelSummary,
@@ -21,7 +22,9 @@ from models.collaboration import (
 
 from core.config import Config
 from core.log import logger
+from core.managers.db_manager import db
 from core.managers.sse_manager import sse_manager
+from core.model.news_item import NewsItem
 from core.model.story import Story
 from core.model.user import User
 
@@ -155,12 +158,159 @@ class CollaborationService:
             self._touch_channel(channel_state)
         return changed
 
+    def _set_persisted_story_id(self, channel_state: dict[str, Any], snapshot_id: str, story_id: str) -> None:
+        for key in ("stories", "result_stories"):
+            for snapshot in channel_state[key]:
+                if snapshot.get("id") == snapshot_id:
+                    snapshot["persisted_local_story_id"] = story_id
+        self._touch_channel(channel_state)
+
     @staticmethod
     def _find_snapshot(channel_state: dict[str, Any], snapshot_id: str) -> dict[str, Any] | None:
         for snapshot in channel_state["stories"]:
             if snapshot.get("id") == snapshot_id:
                 return snapshot
         return None
+
+    @staticmethod
+    def _story_update_payload(snapshot: CollabStorySnapshot) -> dict[str, Any]:
+        story_payload = copy.deepcopy(snapshot.story)
+        payload: dict[str, Any] = {}
+        for field in ("title", "description", "summary", "comments", "important", "read", "relevance_override"):
+            if field in story_payload:
+                payload[field] = story_payload.get(field)
+        if "attributes" in story_payload:
+            payload["attributes"] = copy.deepcopy(story_payload.get("attributes") or [])
+        if "tags" in story_payload:
+            payload["tags"] = copy.deepcopy(story_payload.get("tags") or [])
+        return payload
+
+    @staticmethod
+    def _new_story_payload(snapshot: CollabStorySnapshot) -> dict[str, Any]:
+        payload = CollaborationService._story_update_payload(snapshot)
+        payload["title"] = payload.get("title") or snapshot.title or snapshot.story.get("title") or "Untitled Story"
+        if created := snapshot.story.get("created") or snapshot.created:
+            payload["created"] = created
+        return payload
+
+    @classmethod
+    def _create_persisted_story_shell(cls, snapshot: CollabStorySnapshot, *, actor: str) -> Story:
+        payload = cls._new_story_payload(snapshot)
+        return Story(
+            title=payload.get("title") or "Untitled Story",
+            description=payload.get("description") or "",
+            created=payload.get("created"),
+            summary=payload.get("summary") or "",
+            comments=payload.get("comments") or "",
+            important=bool(payload.get("important", False)),
+            read=bool(payload.get("read", False)),
+            relevance_override=payload.get("relevance_override"),
+            attributes=payload.get("attributes") or [],
+            tags=payload.get("tags") or [],
+            news_items=[],
+            last_change=actor,
+        )
+
+    @staticmethod
+    def _finalize_actor(user: User | None) -> str:
+        return Story.last_change_for_user(user) or "internal"
+
+    @classmethod
+    def _find_matching_news_item(cls, item_data: dict[str, Any], *, prefer_item_id: bool) -> NewsItem | None:
+        if prefer_item_id and (item_id := item_data.get("id")):
+            if item := NewsItem.get(item_id):
+                return item
+        if item_hash := item_data.get("hash"):
+            if item := NewsItem.get_by_hash(item_hash):
+                return item
+        if not prefer_item_id and (item_id := item_data.get("id")):
+            return NewsItem.get(item_id)
+        return None
+
+    def _reconcile_story_news_items(
+        self,
+        target_story: Story,
+        snapshot: CollabStorySnapshot,
+        *,
+        actor: str,
+    ) -> None:
+        desired_ids: list[str] = []
+        source_stories: dict[str, Story] = {}
+        prefer_item_id = snapshot.source_instance == self.external_base_url()
+
+        for item_data in snapshot.story.get("news_items") or []:
+            if not isinstance(item_data, dict):
+                continue
+            existing_item = self._find_matching_news_item(item_data, prefer_item_id=prefer_item_id)
+            if existing_item is None:
+                new_item_payload = copy.deepcopy(item_data)
+                new_item_payload.pop("id", None)
+                new_item_payload.pop("story_id", None)
+                new_item = NewsItem.from_dict(new_item_payload)
+                target_story.news_items.append(new_item)
+                db.session.add(new_item)
+                desired_ids.append(new_item.id)
+                continue
+
+            if existing_item.story_id != target_story.id:
+                if source_story := Story.get(existing_item.story_id):
+                    source_stories[source_story.id] = source_story
+                    if existing_item in source_story.news_items:
+                        source_story.news_items.remove(existing_item)
+                target_story.news_items.append(existing_item)
+            desired_ids.append(existing_item.id)
+
+        for existing_item in target_story.news_items[:]:
+            if existing_item.id in desired_ids:
+                continue
+            target_story.news_items.remove(existing_item)
+            Story.create_from_item(existing_item, commit=False, actor=actor)
+
+        processed_stories = {target_story, *source_stories.values()}
+        for story in processed_stories:
+            story.update_status(change=actor)
+            story.record_revision(note="collaboration_finalize")
+
+    def _persist_snapshot(
+        self,
+        channel_state: dict[str, Any],
+        snapshot: CollabStorySnapshot,
+        *,
+        user: User | None = None,
+    ) -> tuple[str, bool]:
+        local_base_url = self.external_base_url()
+        actor = self._finalize_actor(user)
+        target_story_id: str | None = None
+        created = False
+
+        if snapshot.source_instance == local_base_url and snapshot.source_story_id and Story.get(snapshot.source_story_id):
+            target_story_id = snapshot.source_story_id
+        elif snapshot.persisted_local_story_id and Story.get(snapshot.persisted_local_story_id):
+            target_story_id = snapshot.persisted_local_story_id
+
+        if target_story_id is None:
+            target_story = self._create_persisted_story_shell(snapshot, actor=actor)
+            db.session.add(target_story)
+            db.session.flush()
+            target_story_id = target_story.id
+            created = True
+            self._set_persisted_story_id(channel_state, snapshot.id, target_story_id)
+        else:
+            update_result, status = Story.update(target_story_id, self._story_update_payload(snapshot), user=user, actor=actor)
+            if status != 200:
+                raise RuntimeError(f"Failed to update collaboration outcome story {target_story_id}: {update_result}")
+            target_story = Story.get(target_story_id)
+            if target_story is None:
+                raise RuntimeError(f"Persisted story {target_story_id} not found")
+
+        if created and snapshot.story.get("created"):
+            target_story.created = StoryPayload.model_validate({"created": snapshot.story.get("created")}).created or target_story.created
+        elif not created and (created_value := snapshot.story.get("created")):
+            target_story.created = StoryPayload.model_validate({"created": created_value}).created or target_story.created
+
+        self._reconcile_story_news_items(target_story, snapshot, actor=actor)
+        db.session.commit()
+        return target_story_id, created
 
     @staticmethod
     def _lock_key(snapshot_id: str, field_name: str) -> str:
@@ -709,20 +859,25 @@ class CollaborationService:
         if selected_ids:
             snapshots = [snapshot for snapshot in snapshots if snapshot.id in selected_ids]
 
+        persisted_story_ids: list[str] = []
         created_story_ids: list[str] = []
+        updated_story_ids: list[str] = []
         for snapshot in snapshots:
-            story_payload = copy.deepcopy(snapshot.story)
-            story_payload.pop("id", None)
-            for news_item in story_payload.get("news_items", []) or []:
-                if isinstance(news_item, dict):
-                    news_item.pop("id", None)
-                    news_item.pop("story_id", None)
-                    link = news_item.get("link") or ""
-                    news_item["link"] = f"{link}#collab-{uuid.uuid4().hex}"
-            result, status = Story.add(story_payload)
-            if status == 200 and result.get("story_id"):
-                created_story_ids.append(result["story_id"])
-        return CollabFinalizeResult(channel_id=channel_id, created_story_ids=created_story_ids, report_story_ids=created_story_ids)
+            story_id, created = self._persist_snapshot(channel_state, snapshot, user=user)
+            persisted_story_ids.append(story_id)
+            if created:
+                created_story_ids.append(story_id)
+            else:
+                updated_story_ids.append(story_id)
+
+        self._broadcast_update(channel_state)
+        return CollabFinalizeResult(
+            channel_id=channel_id,
+            persisted_story_ids=persisted_story_ids,
+            created_story_ids=created_story_ids,
+            updated_story_ids=updated_story_ids,
+            report_story_ids=persisted_story_ids,
+        )
 
 
 collaboration_service = CollaborationService()

@@ -38,6 +38,7 @@ class CollabStorySnapshot(TaranisBaseModel):
     created: datetime | None = None
     source_instance: str | None = None
     source_story_id: str | None = None
+    persisted_local_story_id: str | None = None
     story: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -194,5 +195,7 @@ class CollabFinalizeRequest(TaranisBaseModel):
 
 class CollabFinalizeResult(TaranisBaseModel):
     channel_id: str
+    persisted_story_ids: list[str] = Field(default_factory=list)
     created_story_ids: list[str] = Field(default_factory=list)
+    updated_story_ids: list[str] = Field(default_factory=list)
     report_story_ids: list[str] = Field(default_factory=list)

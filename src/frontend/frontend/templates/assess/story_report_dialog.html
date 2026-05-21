@@ -17,16 +17,17 @@
         </select>
       </label>
       {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
+      {% if channel_id %}<input type="hidden" name="channel_id" value="{{ channel_id }}">{% endif %}
       <div class="join gap-4">
         <button type="button"
                 class="btn btn-outline btn-wide"
-                hx-post="{{ url_for('assess.submit_report_story') }}"
+                hx-post="{{ submit_url | default(url_for('assess.submit_report_story') ) }}"
                 hx-target="{{ target | default('#assess') }}"
                 hx-on::after-request="document.getElementById('share_story_to_report_dialog').close()"
                 data-testid="share-to-report-dialog-button">Share</button>
         <a type="button"
            class="btn btn-outline btn-wide"
-           href="{{ url_for('analyze.report', report_id='0') }}?{% for story_id in story_ids %}story_ids={{ story_id }}&{% endfor %}"
+           href="{% if new_report_url %}{{ new_report_url }}{% else %}{{ url_for('analyze.report', report_id='0') }}?{% for story_id in story_ids %}story_ids={{ story_id }}&{% endfor %}{% endif %}"
            data-testid="new-report-button-dialog">New Report</a>
       </div>
     </form>

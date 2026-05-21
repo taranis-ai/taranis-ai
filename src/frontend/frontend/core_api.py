@@ -310,6 +310,9 @@ class CoreApi:
     def finalize_collaboration_channel(self, channel_id: str, story_ids: list[str] | None = None) -> requests.Response:
         return self.api_post(f"/assess/collab/channels/{channel_id}/finalize", json_data={"story_ids": story_ids or []})
 
+    def add_collaboration_stories_to_report(self, report_id: str, story_ids: list[str]) -> requests.Response:
+        return self.api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
+
     def close_collaboration_channel(self, channel_id: str) -> requests.Response:
         return self.api_post(f"/assess/collab/channels/{channel_id}/close")
 

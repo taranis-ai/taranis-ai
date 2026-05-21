@@ -119,3 +119,5 @@ def test_collaboration_workspace_renders_active_channel(authenticated_client, re
     assert "https://bravo.demo" in html
     assert "data-collab-connection-status" in html
     assert "Live sync idle." in html
+    assert "Add Session Outcome to Report" in html
+    assert "Open Original Story" not in html
