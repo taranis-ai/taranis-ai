@@ -1,3 +1,5 @@
+import pytest
+
 from core.service.collaboration import collaboration_service
 
 
@@ -66,3 +68,88 @@ def test_finalize_collaboration_channel_creates_local_stories(client, auth_heade
 
     story_response = client.get(f"/api/assess/story/{created_story_id}", headers=auth_header)
     assert story_response.status_code == 200
+
+
+def test_collaboration_live_state_tracks_presence_and_locks(client, auth_header, stories):
+    collaboration_service.channels.clear()
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Live Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    payload = create_response.get_json()
+    channel_id = payload["channel_id"]
+    snapshot_id = payload["stories"][0]["id"]
+    actor = {
+        "base_url": collaboration_service.external_base_url(),
+        "session_id": "session-a",
+        "username": "alice",
+    }
+
+    detail = collaboration_service.register_presence(
+        channel_id, participant_base_url=actor["base_url"], session_id="session-a", username="alice"
+    )
+    detail = collaboration_service.acquire_field_lock(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="summary",
+        participant_base_url=actor["base_url"],
+        session_id="session-a",
+        username="alice",
+        selected_story_id=snapshot_id,
+    )
+
+    assert detail.presence[0].username == "alice"
+    assert detail.locks[0].field_name == "summary"
+
+    response = client.get(f"/api/assess/collab/channels/{channel_id}/live-state", headers=auth_header)
+    assert response.status_code == 200
+    live_payload = response.get_json()
+    assert live_payload["presence"][0]["username"] == "alice"
+    assert live_payload["locks"][0]["field_name"] == "summary"
+
+
+def test_collaboration_live_lock_blocks_other_session(client, auth_header, stories):
+    collaboration_service.channels.clear()
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Live Locks", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    payload = create_response.get_json()
+    channel_id = payload["channel_id"]
+    snapshot_id = payload["stories"][0]["id"]
+    base_url = collaboration_service.external_base_url()
+
+    collaboration_service.acquire_field_lock(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="summary",
+        participant_base_url=base_url,
+        session_id="session-a",
+        username="alice",
+        selected_story_id=snapshot_id,
+    )
+
+    with pytest.raises(PermissionError):
+        collaboration_service.update_story_snapshot_live(
+            channel_id,
+            snapshot_id,
+            {"summary": "blocked"},
+            participant_base_url=base_url,
+            session_id="session-b",
+            username="bob",
+            selected_story_id=snapshot_id,
+        )
+
+    updated = collaboration_service.update_story_snapshot_live(
+        channel_id,
+        snapshot_id,
+        {"summary": "allowed"},
+        participant_base_url=base_url,
+        session_id="session-a",
+        username="alice",
+        selected_story_id=snapshot_id,
+    )
+
+    assert updated.stories[0].story["summary"] == "allowed"

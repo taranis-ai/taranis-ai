@@ -81,6 +81,17 @@ def test_collaboration_workspace_renders_active_channel(authenticated_client, re
                 {"base_url": "https://alpha.demo", "role": "owner", "joined_at": "2026-05-08T10:00:00"},
                 {"base_url": "https://bravo.demo", "role": "participant", "joined_at": "2026-05-08T10:01:00"},
             ],
+            "presence": [
+                {
+                    "session_id": "session-1",
+                    "participant_base_url": "https://bravo.demo",
+                    "username": "bravo-user",
+                    "connected_at": "2026-05-08T10:01:00",
+                    "last_seen_at": "2026-05-08T10:01:05",
+                    "selected_story_id": "snapshot-1",
+                }
+            ],
+            "locks": [],
             "stories": [
                 {
                     "id": "snapshot-1",
@@ -89,7 +100,7 @@ def test_collaboration_workspace_renders_active_channel(authenticated_client, re
                     "created": "2026-05-08T10:00:00",
                     "source_instance": "https://alpha.demo",
                     "source_story_id": "story-1",
-                    "story": {"id": "story-1", "title": "Story in Channel"},
+                    "story": {"id": "story-1", "title": "Story in Channel", "summary": "Shared summary", "news_items": []},
                 }
             ],
             "result_stories": [],
@@ -106,3 +117,5 @@ def test_collaboration_workspace_renders_active_channel(authenticated_client, re
     assert "Live Demo" in html
     assert "Story in Channel" in html
     assert "https://bravo.demo" in html
+    assert "data-collab-connection-status" in html
+    assert "Live sync idle." in html

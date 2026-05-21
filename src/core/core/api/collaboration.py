@@ -6,6 +6,10 @@ from models.collaboration import (
     CollabChannelCreate,
     CollabFinalizeRequest,
     CollabInviteRedeem,
+    CollabLiveLockRequest,
+    CollabLiveMoveNewsItem,
+    CollabLivePresenceRequest,
+    CollabLiveStoryPatch,
     CollabMoveNewsItem,
     CollabPeerJoin,
     CollabPeerMoveNewsItem,
@@ -18,7 +22,7 @@ from models.collaboration import (
 from pydantic import ValidationError
 
 from core.config import Config
-from core.managers.auth_manager import auth_required
+from core.managers.auth_manager import api_key_or_auth_required, auth_required
 from core.service.collaboration import collaboration_service
 
 
@@ -173,6 +177,169 @@ class CollaborationRemoteSync(MethodView):
             detail = collaboration_service.apply_remote_sync(channel_id, payload.token, payload.channel.model_dump(mode="json"))
         except PermissionError as exc:
             return {"error": str(exc)}, 403
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLiveState(MethodView):
+    @api_key_or_auth_required("ASSESS_ACCESS")
+    def get(self, channel_id: str):
+        detail = collaboration_service.get_channel(channel_id)
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLivePresenceConnect(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLivePresenceRequest.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        detail = collaboration_service.register_presence(
+            channel_id,
+            participant_base_url=payload.actor.base_url,
+            session_id=payload.actor.session_id,
+            username=payload.actor.username,
+            selected_story_id=payload.selected_story_id,
+        )
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLivePresenceDisconnect(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLivePresenceRequest.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        detail = collaboration_service.unregister_presence(
+            channel_id,
+            payload.actor.session_id,
+            active_instance_base_url=payload.actor.base_url,
+        )
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLiveLockAcquire(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveLockRequest.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        try:
+            detail = collaboration_service.acquire_field_lock(
+                channel_id,
+                snapshot_id=payload.snapshot_id,
+                field_name=payload.field_name,
+                participant_base_url=payload.actor.base_url,
+                session_id=payload.actor.session_id,
+                username=payload.actor.username,
+                selected_story_id=payload.selected_story_id,
+            )
+        except PermissionError as exc:
+            return {"error": str(exc)}, 409
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLiveLockHeartbeat(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveLockRequest.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        try:
+            detail = collaboration_service.heartbeat_field_lock(
+                channel_id,
+                snapshot_id=payload.snapshot_id,
+                field_name=payload.field_name,
+                participant_base_url=payload.actor.base_url,
+                session_id=payload.actor.session_id,
+                username=payload.actor.username,
+                selected_story_id=payload.selected_story_id,
+            )
+        except PermissionError as exc:
+            return {"error": str(exc)}, 409
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLiveLockRelease(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveLockRequest.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        detail = collaboration_service.release_field_lock(
+            channel_id,
+            snapshot_id=payload.snapshot_id,
+            field_name=payload.field_name,
+            session_id=payload.actor.session_id,
+            active_instance_base_url=payload.actor.base_url,
+        )
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLiveStoryPatchView(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveStoryPatch.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        try:
+            detail = collaboration_service.update_story_snapshot_live(
+                channel_id,
+                payload.snapshot_id,
+                payload.payload.model_dump(exclude_none=True),
+                participant_base_url=payload.actor.base_url,
+                session_id=payload.actor.session_id,
+                username=payload.actor.username,
+                selected_story_id=payload.snapshot_id,
+            )
+        except PermissionError as exc:
+            return {"error": str(exc)}, 409
+        except KeyError:
+            return {"error": "Collaboration story not found"}, 404
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLiveMoveNewsItemView(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveMoveNewsItem.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        try:
+            detail = collaboration_service.move_news_item_live(
+                channel_id,
+                payload.source_snapshot_id,
+                payload.target_snapshot_id,
+                payload.news_item_id,
+                participant_base_url=payload.actor.base_url,
+                session_id=payload.actor.session_id,
+                username=payload.actor.username,
+            )
+        except KeyError:
+            return {"error": "Collaboration item not found"}, 404
+        except PermissionError as exc:
+            return {"error": str(exc)}, 409
         except ValueError as exc:
             return {"error": str(exc)}, 400
         return detail.model_dump(mode="json"), 200
@@ -399,6 +566,46 @@ def initialize(app: Flask):
     collab_bp.add_url_rule(
         "/channels/<string:channel_id>/remote-sync",
         view_func=CollaborationRemoteSync.as_view("collab_remote_sync"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live-state",
+        view_func=CollaborationLiveState.as_view("collab_live_state"),
+        methods=["GET"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/presence/connect",
+        view_func=CollaborationLivePresenceConnect.as_view("collab_live_presence_connect"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/presence/disconnect",
+        view_func=CollaborationLivePresenceDisconnect.as_view("collab_live_presence_disconnect"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/lock/acquire",
+        view_func=CollaborationLiveLockAcquire.as_view("collab_live_lock_acquire"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/lock/heartbeat",
+        view_func=CollaborationLiveLockHeartbeat.as_view("collab_live_lock_heartbeat"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/lock/release",
+        view_func=CollaborationLiveLockRelease.as_view("collab_live_lock_release"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/story-patch",
+        view_func=CollaborationLiveStoryPatchView.as_view("collab_live_story_patch"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/move-news-item",
+        view_func=CollaborationLiveMoveNewsItemView.as_view("collab_live_move_news_item"),
         methods=["POST"],
     )
     collab_bp.add_url_rule(

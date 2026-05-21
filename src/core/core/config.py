@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
     COLLAB_EXTERNAL_BASE_URL: str | None = None
+    COLLAB_CORE_API_URL: str = "http://core:8080/api"
+    COLLAB_REALTIME_HOST: str = "0.0.0.0"
+    COLLAB_REALTIME_PORT: int = 8090
+    COLLAB_REALTIME_REQUEST_TIMEOUT: int = 15
     TARANIS_CORE_SENTRY_DSN: str | None = None
     DISABLE_PPN_COLLECTOR: bool = True
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024

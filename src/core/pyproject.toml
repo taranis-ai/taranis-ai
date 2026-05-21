@@ -29,7 +29,10 @@ dependencies = [
     "Pillow",
     "granian",
     "psycopg",
+    "httpx",
     "requests",
+    "starlette",
+    "websockets",
     "authlib",
     "setuptools",
     "taranis-models>=1.3.3.dev5",
@@ -53,6 +56,7 @@ build-backend = "setuptools.build_meta"
 [project.scripts]
 taranis-ai = "core.granian:main"
 taranis-core-healthcheck = "core.healthcheck:main"
+taranis-collab-realtime = "core.collaboration_realtime:main"
 
 [tool.setuptools_scm]
 root = "../.."

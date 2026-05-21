@@ -12,6 +12,25 @@ class CollabParticipant(TaranisBaseModel):
     joined_at: datetime | None = None
 
 
+class CollabFieldLock(TaranisBaseModel):
+    snapshot_id: str
+    field_name: Literal["title", "description", "summary", "comments"]
+    participant_base_url: str
+    session_id: str
+    username: str
+    acquired_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
+class CollabPresence(TaranisBaseModel):
+    session_id: str
+    participant_base_url: str
+    username: str
+    connected_at: datetime | None = None
+    last_seen_at: datetime | None = None
+    selected_story_id: str | None = None
+
+
 class CollabStorySnapshot(TaranisBaseModel):
     id: str
     title: str | None = None
@@ -53,6 +72,8 @@ class CollabChannelDetail(TaranisBaseModel):
     active_instance_base_url: str | None = None
     invite: CollabInvite | None = None
     participants: list[CollabParticipant] = Field(default_factory=list)
+    presence: list[CollabPresence] = Field(default_factory=list)
+    locks: list[CollabFieldLock] = Field(default_factory=list)
     stories: list[CollabStorySnapshot] = Field(default_factory=list)
     result_stories: list[CollabStorySnapshot] = Field(default_factory=list)
     created_at: datetime | None = None
@@ -91,6 +112,49 @@ class CollabStoryUpdatePayload(TaranisBaseModel):
     description: str | None = None
     summary: str | None = None
     comments: str | None = None
+
+
+class CollabLiveActor(TaranisBaseModel):
+    base_url: str
+    session_id: str
+    username: str
+
+
+class CollabLiveLockRequest(TaranisBaseModel):
+    snapshot_id: str
+    field_name: Literal["title", "description", "summary", "comments"]
+    actor: CollabLiveActor
+    selected_story_id: str | None = None
+
+
+class CollabLivePresenceRequest(TaranisBaseModel):
+    actor: CollabLiveActor
+    selected_story_id: str | None = None
+
+
+class CollabLiveStoryPatch(TaranisBaseModel):
+    snapshot_id: str
+    payload: CollabStoryUpdatePayload = Field(default_factory=CollabStoryUpdatePayload)
+    actor: CollabLiveActor
+
+
+class CollabLiveMoveNewsItem(TaranisBaseModel):
+    source_snapshot_id: str
+    target_snapshot_id: str
+    news_item_id: str
+    actor: CollabLiveActor
+
+
+class CollabPeerRealtimeEnvelope(TaranisBaseModel):
+    token: str
+    partner_base_url: str
+    message: dict[str, Any] = Field(default_factory=dict)
+
+
+class CollabRealtimeMessage(TaranisBaseModel):
+    type: str
+    channel_id: str
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class CollabStoryUpdate(TaranisBaseModel):

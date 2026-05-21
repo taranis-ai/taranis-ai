@@ -1,7 +1,7 @@
 import copy
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote, urlsplit
 
@@ -11,9 +11,11 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from models.collaboration import (
     CollabChannelDetail,
     CollabChannelSummary,
+    CollabFieldLock,
     CollabFinalizeResult,
     CollabInvite,
     CollabParticipant,
+    CollabPresence,
     CollabStorySnapshot,
 )
 
@@ -33,6 +35,7 @@ class CollaborationService:
         self.channels: dict[str, dict[str, Any]] = {}
         self.serializer = URLSafeSerializer(Config.API_KEY.get_secret_value(), salt="collaboration-channel")
         self.timeout = 15
+        self.lock_ttl_seconds = 10
 
     def _sync_channel_to_participant(self, channel_id: str, base_url: str, sync_payload: dict[str, Any]) -> None:
         try:
@@ -131,7 +134,7 @@ class CollaborationService:
             changed = True
         if changed:
             channel_state["result_stories"] = copy.deepcopy(channel_state["stories"])
-            channel_state["updated_at"] = _utcnow().isoformat()
+            self._touch_channel(channel_state)
         return changed
 
     @staticmethod
@@ -149,7 +152,7 @@ class CollaborationService:
                     self._story_fields_snapshot(story_payload, snapshot)
                     changed = True
         if changed:
-            channel_state["updated_at"] = _utcnow().isoformat()
+            self._touch_channel(channel_state)
         return changed
 
     @staticmethod
@@ -159,9 +162,73 @@ class CollaborationService:
                 return snapshot
         return None
 
+    @staticmethod
+    def _lock_key(snapshot_id: str, field_name: str) -> str:
+        return f"{snapshot_id}:{field_name}"
+
+    @staticmethod
+    def _touch_channel(channel_state: dict[str, Any]) -> None:
+        channel_state["updated_at"] = _utcnow().isoformat()
+
+    def _prune_runtime_state(self, channel_state: dict[str, Any]) -> None:
+        now = _utcnow()
+        valid_locks = []
+        for lock in channel_state.get("locks", []):
+            expires_at = lock.get("expires_at")
+            if not expires_at:
+                continue
+            try:
+                if datetime.fromisoformat(expires_at) <= now:
+                    continue
+            except ValueError:
+                continue
+            valid_locks.append(lock)
+        channel_state["locks"] = valid_locks
+
+    def _upsert_presence(
+        self,
+        channel_state: dict[str, Any],
+        *,
+        session_id: str,
+        participant_base_url: str,
+        username: str,
+        selected_story_id: str | None = None,
+    ) -> None:
+        now = _utcnow().isoformat()
+        for presence in channel_state.get("presence", []):
+            if presence.get("session_id") == session_id:
+                presence["participant_base_url"] = participant_base_url
+                presence["username"] = username
+                presence["selected_story_id"] = selected_story_id
+                presence["last_seen_at"] = now
+                return
+        channel_state.setdefault("presence", []).append(
+            {
+                "session_id": session_id,
+                "participant_base_url": participant_base_url,
+                "username": username,
+                "connected_at": now,
+                "last_seen_at": now,
+                "selected_story_id": selected_story_id,
+            }
+        )
+
+    def _remove_presence(self, channel_state: dict[str, Any], session_id: str) -> bool:
+        existing = channel_state.get("presence", [])
+        remaining = [presence for presence in existing if presence.get("session_id") != session_id]
+        if len(remaining) == len(existing):
+            return False
+        channel_state["presence"] = remaining
+        channel_state["locks"] = [lock for lock in channel_state.get("locks", []) if lock.get("session_id") != session_id]
+        self._touch_channel(channel_state)
+        return True
+
     def _channel_to_detail(self, channel_state: dict[str, Any], active_instance_base_url: str | None = None) -> CollabChannelDetail:
+        self._prune_runtime_state(channel_state)
         invite = self._build_invite(channel_state["channel_id"], channel_state["token"], channel_state["owner_base_url"])
         participants = [CollabParticipant.model_validate(item) for item in channel_state["participants"]]
+        presence = [CollabPresence.model_validate(item) for item in channel_state.get("presence", [])]
+        locks = [CollabFieldLock.model_validate(item) for item in channel_state.get("locks", [])]
         stories = [CollabStorySnapshot.model_validate(item) for item in channel_state["stories"]]
         result_stories = [CollabStorySnapshot.model_validate(item) for item in channel_state["result_stories"]]
         active_base_url = active_instance_base_url or self.external_base_url()
@@ -173,6 +240,8 @@ class CollaborationService:
             active_instance_base_url=active_base_url,
             invite=invite,
             participants=participants,
+            presence=presence,
+            locks=locks,
             stories=stories,
             result_stories=result_stories,
             created_at=channel_state["created_at"],
@@ -250,6 +319,8 @@ class CollaborationService:
                     "joined_at": now.isoformat(),
                 }
             ],
+            "presence": [],
+            "locks": [],
             "stories": [],
             "result_stories": [],
             "created_at": now.isoformat(),
@@ -270,7 +341,7 @@ class CollaborationService:
         normalized_base_url = self._normalize_base_url(partner_base_url)
         if normalized_base_url not in {participant["base_url"] for participant in channel_state["participants"]}:
             channel_state["participants"].append({"base_url": normalized_base_url, "role": "participant", "joined_at": _utcnow().isoformat()})
-            channel_state["updated_at"] = _utcnow().isoformat()
+            self._touch_channel(channel_state)
             self._broadcast_update(channel_state, skip_participants={normalized_base_url})
         return self._channel_to_detail(channel_state, active_instance_base_url=normalized_base_url)
 
@@ -286,6 +357,8 @@ class CollaborationService:
         detail = CollabChannelDetail.model_validate(response.json())
         channel_state = detail.model_dump(mode="json")
         channel_state["token"] = token
+        channel_state.setdefault("presence", [])
+        channel_state.setdefault("locks", [])
         self.channels[channel_id] = channel_state
         sse_manager.collab_channel_updated(detail.model_dump(mode="json"))
         return self._channel_to_detail(channel_state, active_instance_base_url=partner_base_url)
@@ -298,6 +371,8 @@ class CollaborationService:
             raise PermissionError("Invalid collaboration token")
         channel_state = copy.deepcopy(channel_payload)
         channel_state["token"] = token
+        channel_state.setdefault("presence", [])
+        channel_state.setdefault("locks", [])
         self.channels[channel_id] = channel_state
         detail = self._channel_to_detail(channel_state, active_instance_base_url=self.external_base_url())
         if detail.status == "closed":
@@ -310,6 +385,231 @@ class CollaborationService:
         normalized = self._normalize_base_url(partner_base_url)
         if normalized not in {participant["base_url"] for participant in channel_state["participants"]}:
             raise PermissionError("Unknown collaboration participant")
+
+    def _apply_story_update(self, channel_state: dict[str, Any], snapshot_id: str, payload: dict[str, Any]) -> None:
+        snapshot = self._find_snapshot(channel_state, snapshot_id)
+        if snapshot is None:
+            raise KeyError(snapshot_id)
+        story_payload = copy.deepcopy(snapshot.get("story") or {})
+        for field in ("title", "description", "summary", "comments"):
+            if field in payload:
+                story_payload[field] = payload.get(field) or ""
+        self._replace_story_snapshot(channel_state, snapshot_id, story_payload)
+
+    def _apply_move_news_item(
+        self,
+        channel_state: dict[str, Any],
+        source_snapshot_id: str,
+        target_snapshot_id: str,
+        news_item_id: str,
+    ) -> None:
+        if source_snapshot_id == target_snapshot_id:
+            raise ValueError("Source and target stories must differ")
+
+        source_snapshot = self._find_snapshot(channel_state, source_snapshot_id)
+        target_snapshot = self._find_snapshot(channel_state, target_snapshot_id)
+        if source_snapshot is None or target_snapshot is None:
+            raise KeyError("Collaboration story not found")
+
+        source_story = copy.deepcopy(source_snapshot.get("story") or {})
+        target_story = copy.deepcopy(target_snapshot.get("story") or {})
+        source_news = list(source_story.get("news_items") or [])
+        target_news = list(target_story.get("news_items") or [])
+
+        moved_item = None
+        remaining_news: list[dict[str, Any]] = []
+        for news_item in source_news:
+            if isinstance(news_item, dict) and news_item.get("id") == news_item_id and moved_item is None:
+                moved_item = news_item
+            else:
+                remaining_news.append(news_item)
+        if moved_item is None:
+            raise KeyError(news_item_id)
+
+        target_news.append(moved_item)
+        source_story["news_items"] = remaining_news
+        target_story["news_items"] = target_news
+
+        self._replace_story_snapshot(channel_state, source_snapshot_id, source_story)
+        self._replace_story_snapshot(channel_state, target_snapshot_id, target_story)
+
+    def _assert_field_lock(
+        self,
+        channel_state: dict[str, Any],
+        snapshot_id: str,
+        field_name: str,
+        *,
+        session_id: str,
+    ) -> None:
+        self._prune_runtime_state(channel_state)
+        lock_key = self._lock_key(snapshot_id, field_name)
+        for lock in channel_state.get("locks", []):
+            if self._lock_key(lock.get("snapshot_id", ""), lock.get("field_name", "")) != lock_key:
+                continue
+            if lock.get("session_id") == session_id:
+                return
+            raise PermissionError(f"Field {field_name} is locked by {lock.get('username', 'another participant')}")
+
+    def register_presence(
+        self,
+        channel_id: str,
+        *,
+        participant_base_url: str,
+        session_id: str,
+        username: str,
+        selected_story_id: str | None = None,
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        self._upsert_presence(
+            channel_state,
+            session_id=session_id,
+            participant_base_url=self._normalize_base_url(participant_base_url),
+            username=username,
+            selected_story_id=selected_story_id,
+        )
+        self._touch_channel(channel_state)
+        return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
+
+    def unregister_presence(self, channel_id: str, session_id: str, active_instance_base_url: str | None = None) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        self._remove_presence(channel_state, session_id)
+        return self._channel_to_detail(channel_state, active_instance_base_url=active_instance_base_url)
+
+    def acquire_field_lock(
+        self,
+        channel_id: str,
+        *,
+        snapshot_id: str,
+        field_name: str,
+        participant_base_url: str,
+        session_id: str,
+        username: str,
+        selected_story_id: str | None = None,
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Channel is closed")
+        self._upsert_presence(
+            channel_state,
+            session_id=session_id,
+            participant_base_url=self._normalize_base_url(participant_base_url),
+            username=username,
+            selected_story_id=selected_story_id,
+        )
+        self._assert_field_lock(channel_state, snapshot_id, field_name, session_id=session_id)
+        now = _utcnow()
+        expires_at = now + timedelta(seconds=self.lock_ttl_seconds)
+        channel_state["locks"] = [
+            lock
+            for lock in channel_state.get("locks", [])
+            if self._lock_key(lock.get("snapshot_id", ""), lock.get("field_name", "")) != self._lock_key(snapshot_id, field_name)
+        ]
+        channel_state["locks"].append(
+            {
+                "snapshot_id": snapshot_id,
+                "field_name": field_name,
+                "participant_base_url": self._normalize_base_url(participant_base_url),
+                "session_id": session_id,
+                "username": username,
+                "acquired_at": now.isoformat(),
+                "expires_at": expires_at.isoformat(),
+            }
+        )
+        self._touch_channel(channel_state)
+        return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
+
+    def heartbeat_field_lock(
+        self,
+        channel_id: str,
+        *,
+        snapshot_id: str,
+        field_name: str,
+        participant_base_url: str,
+        session_id: str,
+        username: str,
+        selected_story_id: str | None = None,
+    ) -> CollabChannelDetail:
+        return self.acquire_field_lock(
+            channel_id,
+            snapshot_id=snapshot_id,
+            field_name=field_name,
+            participant_base_url=participant_base_url,
+            session_id=session_id,
+            username=username,
+            selected_story_id=selected_story_id,
+        )
+
+    def release_field_lock(
+        self,
+        channel_id: str,
+        *,
+        snapshot_id: str,
+        field_name: str,
+        session_id: str,
+        active_instance_base_url: str | None = None,
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        lock_key = self._lock_key(snapshot_id, field_name)
+        channel_state["locks"] = [
+            lock
+            for lock in channel_state.get("locks", [])
+            if not (
+                self._lock_key(lock.get("snapshot_id", ""), lock.get("field_name", "")) == lock_key and lock.get("session_id") == session_id
+            )
+        ]
+        self._touch_channel(channel_state)
+        return self._channel_to_detail(channel_state, active_instance_base_url=active_instance_base_url)
+
+    def update_story_snapshot_live(
+        self,
+        channel_id: str,
+        snapshot_id: str,
+        payload: dict[str, Any],
+        *,
+        participant_base_url: str,
+        session_id: str,
+        username: str,
+        selected_story_id: str | None = None,
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Channel is closed")
+        self._upsert_presence(
+            channel_state,
+            session_id=session_id,
+            participant_base_url=self._normalize_base_url(participant_base_url),
+            username=username,
+            selected_story_id=selected_story_id,
+        )
+        for field in ("title", "description", "summary", "comments"):
+            if field in payload:
+                self._assert_field_lock(channel_state, snapshot_id, field, session_id=session_id)
+        self._apply_story_update(channel_state, snapshot_id, payload)
+        return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
+
+    def move_news_item_live(
+        self,
+        channel_id: str,
+        source_snapshot_id: str,
+        target_snapshot_id: str,
+        news_item_id: str,
+        *,
+        participant_base_url: str,
+        session_id: str,
+        username: str,
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Channel is closed")
+        self._upsert_presence(
+            channel_state,
+            session_id=session_id,
+            participant_base_url=self._normalize_base_url(participant_base_url),
+            username=username,
+            selected_story_id=source_snapshot_id,
+        )
+        self._apply_move_news_item(channel_state, source_snapshot_id, target_snapshot_id, news_item_id)
+        return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
 
     def add_story_payloads(self, channel_id: str, story_payloads: list[dict[str, Any]], user: User | None = None) -> CollabChannelDetail:
         channel_state = self._require_channel(channel_id)
@@ -339,14 +639,7 @@ class CollaborationService:
         channel_state = self._require_channel(channel_id)
         if channel_state["status"] != "open":
             raise ValueError("Channel is closed")
-        snapshot = self._find_snapshot(channel_state, snapshot_id)
-        if snapshot is None:
-            raise KeyError(snapshot_id)
-        story_payload = copy.deepcopy(snapshot.get("story") or {})
-        for field in ("title", "description", "summary", "comments"):
-            if field in payload:
-                story_payload[field] = payload.get(field) or ""
-        self._replace_story_snapshot(channel_state, snapshot_id, story_payload)
+        self._apply_story_update(channel_state, snapshot_id, payload)
         self._broadcast_update(channel_state)
         return self._channel_to_detail(channel_state)
 
@@ -359,14 +652,7 @@ class CollaborationService:
         if not self._validate_token(channel_id, token):
             raise PermissionError("Invalid collaboration token")
         self._assert_known_participant(channel_state, partner_base_url)
-        snapshot = self._find_snapshot(channel_state, snapshot_id)
-        if snapshot is None:
-            raise KeyError(snapshot_id)
-        story_payload = copy.deepcopy(snapshot.get("story") or {})
-        for field in ("title", "description", "summary", "comments"):
-            if field in payload:
-                story_payload[field] = payload.get(field) or ""
-        self._replace_story_snapshot(channel_state, snapshot_id, story_payload)
+        self._apply_story_update(channel_state, snapshot_id, payload)
         self._broadcast_update(channel_state, skip_participants={partner_base_url})
         return self._channel_to_detail(channel_state)
 
@@ -374,35 +660,7 @@ class CollaborationService:
         channel_state = self._require_channel(channel_id)
         if channel_state["status"] != "open":
             raise ValueError("Channel is closed")
-        if source_snapshot_id == target_snapshot_id:
-            raise ValueError("Source and target stories must differ")
-
-        source_snapshot = self._find_snapshot(channel_state, source_snapshot_id)
-        target_snapshot = self._find_snapshot(channel_state, target_snapshot_id)
-        if source_snapshot is None or target_snapshot is None:
-            raise KeyError("Collaboration story not found")
-
-        source_story = copy.deepcopy(source_snapshot.get("story") or {})
-        target_story = copy.deepcopy(target_snapshot.get("story") or {})
-        source_news = list(source_story.get("news_items") or [])
-        target_news = list(target_story.get("news_items") or [])
-
-        moved_item = None
-        remaining_news: list[dict[str, Any]] = []
-        for news_item in source_news:
-            if isinstance(news_item, dict) and news_item.get("id") == news_item_id and moved_item is None:
-                moved_item = news_item
-            else:
-                remaining_news.append(news_item)
-        if moved_item is None:
-            raise KeyError(news_item_id)
-
-        target_news.append(moved_item)
-        source_story["news_items"] = remaining_news
-        target_story["news_items"] = target_news
-
-        self._replace_story_snapshot(channel_state, source_snapshot_id, source_story)
-        self._replace_story_snapshot(channel_state, target_snapshot_id, target_story)
+        self._apply_move_news_item(channel_state, source_snapshot_id, target_snapshot_id, news_item_id)
         self._broadcast_update(channel_state)
         return self._channel_to_detail(channel_state)
 
@@ -421,42 +679,14 @@ class CollaborationService:
         if not self._validate_token(channel_id, token):
             raise PermissionError("Invalid collaboration token")
         self._assert_known_participant(channel_state, partner_base_url)
-        if source_snapshot_id == target_snapshot_id:
-            raise ValueError("Source and target stories must differ")
-
-        source_snapshot = self._find_snapshot(channel_state, source_snapshot_id)
-        target_snapshot = self._find_snapshot(channel_state, target_snapshot_id)
-        if source_snapshot is None or target_snapshot is None:
-            raise KeyError("Collaboration story not found")
-
-        source_story = copy.deepcopy(source_snapshot.get("story") or {})
-        target_story = copy.deepcopy(target_snapshot.get("story") or {})
-        source_news = list(source_story.get("news_items") or [])
-        target_news = list(target_story.get("news_items") or [])
-
-        moved_item = None
-        remaining_news: list[dict[str, Any]] = []
-        for news_item in source_news:
-            if isinstance(news_item, dict) and news_item.get("id") == news_item_id and moved_item is None:
-                moved_item = news_item
-            else:
-                remaining_news.append(news_item)
-        if moved_item is None:
-            raise KeyError(news_item_id)
-
-        target_news.append(moved_item)
-        source_story["news_items"] = remaining_news
-        target_story["news_items"] = target_news
-
-        self._replace_story_snapshot(channel_state, source_snapshot_id, source_story)
-        self._replace_story_snapshot(channel_state, target_snapshot_id, target_story)
+        self._apply_move_news_item(channel_state, source_snapshot_id, target_snapshot_id, news_item_id)
         self._broadcast_update(channel_state, skip_participants={partner_base_url})
         return self._channel_to_detail(channel_state)
 
     def close_channel(self, channel_id: str) -> CollabChannelDetail:
         channel_state = self._require_channel(channel_id)
         channel_state["status"] = "closed"
-        channel_state["updated_at"] = _utcnow().isoformat()
+        self._touch_channel(channel_state)
         self._broadcast_update(channel_state, closed=True)
         return self._channel_to_detail(channel_state)
 

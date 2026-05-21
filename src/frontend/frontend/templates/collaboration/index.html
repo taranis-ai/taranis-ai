@@ -51,6 +51,7 @@
               <div class="flex items-center gap-3">
                 <h2 class="text-2xl font-semibold">{{ active_channel.topic }}</h2>
                 <span class="badge {% if active_channel.status == 'open' %}badge-success{% else %}badge-neutral{% endif %}">{{ active_channel.status }}</span>
+                <span class="badge badge-outline" data-collab-connection-status>Connecting…</span>
               </div>
               <p class="mt-2 text-sm text-base-content/70">Owner: {{ active_channel.owner_base_url }}</p>
             </div>
@@ -103,26 +104,34 @@
           <div class="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
             <div>
               <h3 class="mb-3 text-lg font-medium">Participants</h3>
-              <div class="space-y-3">
+              <div class="space-y-3" data-collab-presence-list>
                 {% for participant in active_channel.participants %}
                   <div class="rounded-box border border-base-300 p-3">
                     <div class="flex items-center justify-between gap-3">
                       <div class="font-medium">{{ participant.base_url }}</div>
                       <span class="badge badge-ghost">{{ participant.role }}</span>
                     </div>
+                    {% set live_users = active_channel.presence | selectattr('participant_base_url', 'equalto', participant.base_url) | list %}
+                    {% if live_users %}
+                      <div class="mt-2 text-xs text-base-content/60">Live: {{ live_users | map(attribute='username') | join(', ') }}</div>
+                    {% endif %}
                   </div>
                 {% endfor %}
               </div>
 
               <h3 class="mb-3 mt-6 text-lg font-medium">Channel Stories</h3>
-              <div class="space-y-3">
+              <div class="space-y-3" data-collab-story-list>
                 {% for story in active_channel.stories %}
                   <a href="{{ url_for('collaboration.workspace_channel', channel_id=active_channel.channel_id) }}?story_id={{ story.id }}"
                      class="block rounded-box border p-3 transition hover:border-primary hover:bg-base-200 {% if selected_story_id == story.id %}border-primary bg-base-200{% else %}border-base-300{% endif %}">
-                    <div class="font-medium">{{ story.title or "Untitled Story" }}</div>
-                    <div class="mt-1 text-xs text-base-content/60">{{ story.source_instance }} • {{ (story.story.news_items or []) | length }} news items</div>
+                    <div class="font-medium" data-collab-story-title="{{ story.id }}">{{ story.title or "Untitled Story" }}</div>
+                    <div class="mt-1 text-xs text-base-content/60">
+                      {{ story.source_instance }} • <span data-collab-news-count="{{ story.id }}">{{ (story.story.news_items or []) | length }}</span> news items
+                    </div>
                     {% if story.story.summary %}
-                      <p class="mt-2 text-sm text-base-content/80">{{ story.story.summary | truncate(120, False, '…') }}</p>
+                      <p class="mt-2 text-sm text-base-content/80" data-collab-story-summary="{{ story.id }}">
+                        {{ story.story.summary | truncate(120, False, '…') }}
+                      </p>
                     {% endif %}
                   </a>
                 {% else %}
@@ -137,54 +146,60 @@
                   <div>
                     <h3 class="text-lg font-medium">Channel Story Editor</h3>
                     <p class="mt-1 text-sm text-base-content/60">
-                      Edit the collaboration snapshot directly here. This is the demo editing surface for cross-instance work.
+                      Edit the collaboration snapshot directly here. Text changes stream live through the collaboration channel while field locks prevent overwrite races.
                     </p>
                   </div>
                 </div>
 
-                <form class="space-y-4"
-                      method="post"
-                      action="{{ url_for('collaboration.update_story', channel_id=active_channel.channel_id, snapshot_id=selected_story.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                <div class="space-y-4" data-collab-editor data-collab-selected-story="{{ selected_story.id }}">
                   <label class="form-control">
-                    <span class="label-text">Story title</span>
-                    <input class="input input-bordered" type="text" name="title" value="{{ selected_story.story.title or '' }}">
+                    <span class="label-text flex items-center justify-between gap-3">
+                      <span>Story title</span>
+                      <span class="text-xs text-base-content/60" data-collab-lock-status="title">Unlocked</span>
+                    </span>
+                    <input class="input input-bordered" type="text" name="title" value="{{ selected_story.story.title or '' }}" data-collab-field="title">
                   </label>
 
                   <label class="form-control">
-                    <span class="label-text">Description</span>
-                    <textarea class="textarea textarea-bordered min-h-24" name="description">{{ selected_story.story.description or '' }}</textarea>
+                    <span class="label-text flex items-center justify-between gap-3">
+                      <span>Description</span>
+                      <span class="text-xs text-base-content/60" data-collab-lock-status="description">Unlocked</span>
+                    </span>
+                    <textarea class="textarea textarea-bordered min-h-24" name="description" data-collab-field="description">{{ selected_story.story.description or '' }}</textarea>
                   </label>
 
                   <label class="form-control">
-                    <span class="label-text">Summary</span>
-                    <textarea class="textarea textarea-bordered min-h-32" name="summary">{{ selected_story.story.summary or '' }}</textarea>
+                    <span class="label-text flex items-center justify-between gap-3">
+                      <span>Summary</span>
+                      <span class="text-xs text-base-content/60" data-collab-lock-status="summary">Unlocked</span>
+                    </span>
+                    <textarea class="textarea textarea-bordered min-h-32" name="summary" data-collab-field="summary">{{ selected_story.story.summary or '' }}</textarea>
                   </label>
 
                   <label class="form-control">
-                    <span class="label-text">Analyst comments</span>
-                    <textarea class="textarea textarea-bordered min-h-32" name="comments">{{ selected_story.story.comments or '' }}</textarea>
+                    <span class="label-text flex items-center justify-between gap-3">
+                      <span>Analyst comments</span>
+                      <span class="text-xs text-base-content/60" data-collab-lock-status="comments">Unlocked</span>
+                    </span>
+                    <textarea class="textarea textarea-bordered min-h-32" name="comments" data-collab-field="comments">{{ selected_story.story.comments or '' }}</textarea>
                   </label>
 
-                  <div class="flex gap-2">
-                    <button class="btn btn-primary" type="submit">
-                      {{ heroicon_mini("pencil-square") }}
-                      Save Story Changes
-                    </button>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-sm text-base-content/60" data-collab-save-status>Live sync idle.</span>
                     {% if selected_story.source_instance == active_channel.active_instance_base_url and selected_story.source_story_id %}
                       <a class="btn btn-outline" href="{{ url_for('assess.assess') }}">
                         {{ heroicon_mini("arrow-top-right-on-square") }}
-                        Back to Assess
+                        Open Original Story
                       </a>
                     {% endif %}
                   </div>
-                </form>
+                </div>
 
                 <div class="mt-8">
                   <h3 class="mb-3 text-lg font-medium">News Items</h3>
                   <div class="space-y-4">
                     {% for news_item in selected_story.story.news_items or [] %}
-                      <article class="rounded-box border border-base-300 p-4">
+                      <article class="rounded-box border border-base-300 p-4" data-collab-news-item="{{ news_item.id }}">
                         <div class="flex items-start justify-between gap-4">
                           <div class="min-w-0 flex-1">
                             <div class="font-medium">{{ news_item.title or "Untitled News Item" }}</div>
@@ -197,11 +212,14 @@
                           </div>
                           <form class="w-64 space-y-2"
                                 method="post"
-                                action="{{ url_for('collaboration.move_news_item', channel_id=active_channel.channel_id, snapshot_id=selected_story.id, news_item_id=news_item.id) }}">
+                                action="{{ url_for('collaboration.move_news_item', channel_id=active_channel.channel_id, snapshot_id=selected_story.id, news_item_id=news_item.id) }}"
+                                data-collab-move-form
+                                data-news-item-id="{{ news_item.id }}"
+                                data-source-snapshot-id="{{ selected_story.id }}">
                             <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
                             <label class="form-control">
                               <span class="label-text">Move to story</span>
-                              <select class="select select-bordered" name="target_snapshot_id">
+                              <select class="select select-bordered" name="target_snapshot_id" data-collab-move-target>
                                 {% for target_story in active_channel.stories %}
                                   {% if target_story.id != selected_story.id %}
                                     <option value="{{ target_story.id }}">{{ target_story.title or "Untitled Story" }}</option>
@@ -230,21 +248,279 @@
 
           <script>
             (() => {
-              const source = new EventSource({{ sse_url | tojson }});
               const channelId = {{ active_channel.channel_id | tojson }};
-              const reloadWorkspace = (event) => {
-                try {
-                  const payload = JSON.parse(event.data);
-                  if (payload.channel_id === channelId) {
-                    window.location.reload();
+              const initialSelectedStoryId = {{ selected_story_id | tojson }};
+              const rootPrefix = window.location.pathname.includes("/frontend")
+                ? window.location.pathname.split("/frontend", 1)[0]
+                : "";
+              const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+              const socketUrl = `${protocol}//${window.location.host}${rootPrefix}/collaboration/ws?channel_id=${encodeURIComponent(channelId)}&story_id=${encodeURIComponent(initialSelectedStoryId)}`;
+              const connectionBadge = document.querySelector("[data-collab-connection-status]");
+              const saveStatus = document.querySelector("[data-collab-save-status]");
+              const presenceList = document.querySelector("[data-collab-presence-list]");
+              const moveForms = Array.from(document.querySelectorAll("[data-collab-move-form]"));
+              const fieldElements = Array.from(document.querySelectorAll("[data-collab-field]"));
+              const lockStatusElements = new Map(
+                Array.from(document.querySelectorAll("[data-collab-lock-status]")).map((node) => [node.dataset.collabLockStatus, node]),
+              );
+              const storyTitles = new Map(
+                Array.from(document.querySelectorAll("[data-collab-story-title]")).map((node) => [node.dataset.collabStoryTitle, node]),
+              );
+              const storySummaries = new Map(
+                Array.from(document.querySelectorAll("[data-collab-story-summary]")).map((node) => [node.dataset.collabStorySummary, node]),
+              );
+              const newsCounts = new Map(
+                Array.from(document.querySelectorAll("[data-collab-news-count]")).map((node) => [node.dataset.collabNewsCount, node]),
+              );
+              const state = {
+                channel: {{ active_channel | tojson }},
+                selectedStoryId: initialSelectedStoryId,
+                socket: null,
+                sessionId: null,
+                patchTimers: new Map(),
+                heartbeatTimers: new Map(),
+              };
+
+              const setConnectionState = (label, classes) => {
+                if (!connectionBadge) {
+                  return;
+                }
+                connectionBadge.textContent = label;
+                connectionBadge.className = `badge ${classes}`;
+              };
+
+              const setSaveStatus = (text) => {
+                if (saveStatus) {
+                  saveStatus.textContent = text;
+                }
+              };
+
+              const lockFor = (channel, fieldName) => (channel.locks || []).find(
+                (item) => item.snapshot_id === state.selectedStoryId && item.field_name === fieldName,
+              );
+
+              const selectedStory = (channel) => (channel.stories || []).find((story) => story.id === state.selectedStoryId);
+
+              const renderPresence = (channel) => {
+                if (!presenceList) {
+                  return;
+                }
+                presenceList.innerHTML = (channel.participants || []).map((participant) => {
+                  const liveUsers = (channel.presence || []).filter((entry) => entry.participant_base_url === participant.base_url);
+                  const liveLine = liveUsers.length ? `<div class="mt-2 text-xs text-base-content/60">Live: ${liveUsers.map((entry) => entry.username).join(", ")}</div>` : "";
+                  return `
+                    <div class="rounded-box border border-base-300 p-3">
+                      <div class="flex items-center justify-between gap-3">
+                        <div class="font-medium">${participant.base_url}</div>
+                        <span class="badge badge-ghost">${participant.role}</span>
+                      </div>
+                      ${liveLine}
+                    </div>
+                  `;
+                }).join("");
+              };
+
+              const renderStoryList = (channel) => {
+                (channel.stories || []).forEach((story) => {
+                  const titleNode = storyTitles.get(story.id);
+                  if (titleNode) {
+                    titleNode.textContent = story.title || "Untitled Story";
                   }
-                } catch {
+                  const summaryNode = storySummaries.get(story.id);
+                  if (summaryNode) {
+                    summaryNode.textContent = story.story?.summary || "";
+                  }
+                  const countNode = newsCounts.get(story.id);
+                  if (countNode) {
+                    countNode.textContent = String((story.story?.news_items || []).length);
+                  }
+                });
+              };
+
+              const renderEditor = (channel) => {
+                const story = selectedStory(channel);
+                if (!story) {
+                  return;
+                }
+                const socketReady = Boolean(state.socket && state.socket.readyState === WebSocket.OPEN);
+                fieldElements.forEach((fieldElement) => {
+                  const fieldName = fieldElement.dataset.collabField;
+                  const value = story.story?.[fieldName] || "";
+                  const lock = lockFor(channel, fieldName);
+                  const ownedBySelf = lock && lock.session_id === state.sessionId;
+                  if (document.activeElement !== fieldElement || !ownedBySelf) {
+                    fieldElement.value = value;
+                  }
+                  fieldElement.disabled = !socketReady || (lock && !ownedBySelf);
+                  const lockNode = lockStatusElements.get(fieldName);
+                  if (lockNode) {
+                    lockNode.textContent = !socketReady
+                      ? "Disconnected"
+                      : !lock
+                        ? "Unlocked"
+                        : ownedBySelf
+                          ? "Locked by you"
+                          : `Locked by ${lock.username}`;
+                  }
+                });
+              };
+
+              const maybeReloadForStructuralChanges = (channel) => {
+                const story = selectedStory(channel);
+                if (!story) {
+                  window.location.reload();
+                  return;
+                }
+                const renderedNewsItems = document.querySelectorAll("article[data-collab-news-item]");
+                if (renderedNewsItems.length !== (story.story?.news_items || []).length) {
                   window.location.reload();
                 }
               };
-              source.addEventListener("collab-channel-updated", reloadWorkspace);
-              source.addEventListener("collab-channel-closed", reloadWorkspace);
-              window.addEventListener("beforeunload", () => source.close(), { once: true });
+
+              const applyChannel = (channel, { sessionId } = {}) => {
+                state.channel = channel;
+                if (sessionId) {
+                  state.sessionId = sessionId;
+                }
+                renderPresence(channel);
+                renderStoryList(channel);
+                renderEditor(channel);
+                maybeReloadForStructuralChanges(channel);
+              };
+
+              const sendMessage = (type, payload) => {
+                if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
+                  return;
+                }
+                state.socket.send(JSON.stringify({ type, channel_id: channelId, payload }));
+              };
+
+              const schedulePatch = (fieldName, value) => {
+                const currentTimer = state.patchTimers.get(fieldName);
+                if (currentTimer) {
+                  window.clearTimeout(currentTimer);
+                }
+                setSaveStatus(`Syncing ${fieldName}…`);
+                state.patchTimers.set(fieldName, window.setTimeout(() => {
+                  sendMessage("collab.story.patch", {
+                    snapshot_id: state.selectedStoryId,
+                    fields: { [fieldName]: value },
+                    selected_story_id: state.selectedStoryId,
+                  });
+                }, 180));
+              };
+
+              const startHeartbeat = (fieldName) => {
+                const currentTimer = state.heartbeatTimers.get(fieldName);
+                if (currentTimer) {
+                  window.clearInterval(currentTimer);
+                }
+                state.heartbeatTimers.set(fieldName, window.setInterval(() => {
+                  sendMessage("collab.lock.heartbeat", {
+                    snapshot_id: state.selectedStoryId,
+                    field_name: fieldName,
+                    selected_story_id: state.selectedStoryId,
+                  });
+                }, 4000));
+              };
+
+              const stopHeartbeat = (fieldName) => {
+                const currentTimer = state.heartbeatTimers.get(fieldName);
+                if (currentTimer) {
+                  window.clearInterval(currentTimer);
+                  state.heartbeatTimers.delete(fieldName);
+                }
+              };
+
+              fieldElements.forEach((fieldElement) => {
+                const fieldName = fieldElement.dataset.collabField;
+                fieldElement.addEventListener("focus", () => {
+                  sendMessage("collab.lock.acquire", {
+                    snapshot_id: state.selectedStoryId,
+                    field_name: fieldName,
+                    selected_story_id: state.selectedStoryId,
+                  });
+                  startHeartbeat(fieldName);
+                });
+                fieldElement.addEventListener("blur", () => {
+                  stopHeartbeat(fieldName);
+                  sendMessage("collab.lock.release", {
+                    snapshot_id: state.selectedStoryId,
+                    field_name: fieldName,
+                    selected_story_id: state.selectedStoryId,
+                  });
+                  setSaveStatus("Live sync idle.");
+                });
+                fieldElement.addEventListener("input", () => {
+                  schedulePatch(fieldName, fieldElement.value);
+                });
+              });
+
+              moveForms.forEach((form) => {
+                form.addEventListener("submit", (event) => {
+                  event.preventDefault();
+                  const target = form.querySelector("[data-collab-move-target]");
+                  if (!target || !target.value) {
+                    return;
+                  }
+                  setSaveStatus("Moving news item…");
+                  sendMessage("collab.news_item.move", {
+                    source_snapshot_id: form.dataset.sourceSnapshotId,
+                    target_snapshot_id: target.value,
+                    news_item_id: form.dataset.newsItemId,
+                    selected_story_id: state.selectedStoryId,
+                  });
+                });
+              });
+
+              const connect = () => {
+                state.socket = new WebSocket(socketUrl);
+                setConnectionState("Connecting…", "badge-outline");
+                state.socket.addEventListener("open", () => {
+                  setConnectionState("Live", "badge-success");
+                  setSaveStatus("Live sync connected.");
+                });
+                state.socket.addEventListener("message", (event) => {
+                  const message = JSON.parse(event.data);
+                  if (message.type === "collab.error") {
+                    setConnectionState("Sync error", "badge-error");
+                    fieldElements.forEach((fieldElement) => {
+                      fieldElement.disabled = true;
+                    });
+                    lockStatusElements.forEach((node) => {
+                      node.textContent = "Disconnected";
+                    });
+                    setSaveStatus(message.payload?.message || "Collaboration update failed.");
+                    return;
+                  }
+                  if (message.type === "collab.state.snapshot") {
+                    applyChannel(message.payload.channel, { sessionId: message.payload.session_id });
+                    setSaveStatus("Live sync connected.");
+                    return;
+                  }
+                  if (message.type === "collab.state.updated") {
+                    applyChannel(message.payload.channel);
+                    setSaveStatus("All changes synced.");
+                  }
+                });
+                state.socket.addEventListener("close", () => {
+                  setConnectionState("Disconnected", "badge-error");
+                  setSaveStatus("Live sync disconnected. Reload to reconnect.");
+                  fieldElements.forEach((fieldElement) => {
+                    fieldElement.disabled = true;
+                  });
+                });
+              };
+
+              window.addEventListener("beforeunload", () => {
+                fieldElements.forEach((fieldElement) => stopHeartbeat(fieldElement.dataset.collabField));
+                if (state.socket) {
+                  state.socket.close();
+                }
+              }, { once: true });
+
+              applyChannel(state.channel);
+              connect();
             })();
           </script>
         {% else %}

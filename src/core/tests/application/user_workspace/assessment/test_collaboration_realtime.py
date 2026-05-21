@@ -1,0 +1,119 @@
+import asyncio
+import json
+
+from starlette.websockets import WebSocketDisconnect
+
+from core.collaboration_realtime import CollaborationRealtimeHub
+
+
+class PeerSocketStub:
+    def __init__(self, messages: list[dict]):
+        self._messages = [json.dumps(message) for message in messages]
+        self.accepted = False
+        self.closed = None
+        self.sent_texts: list[str] = []
+
+    async def accept(self):
+        self.accepted = True
+
+    async def receive_text(self) -> str:
+        if self._messages:
+            return self._messages.pop(0)
+        raise WebSocketDisconnect()
+
+    async def send_text(self, payload: str):
+        self.sent_texts.append(payload)
+
+    async def send(self, _message):
+        raise AssertionError("peer websocket bootstrap must use send_text on Starlette WebSocket")
+
+    async def close(self, code: int | None = None, reason: str | None = None):
+        self.closed = {"code": code, "reason": reason}
+
+
+def test_peer_socket_sends_initial_snapshot_via_send_text():
+    channel_id = "channel-1"
+    token = "invite-token"
+    partner_base_url = "https://bravo.demo"
+    channel = {
+        "channel_id": channel_id,
+        "invite": {"token": token},
+        "participants": [{"base_url": partner_base_url}],
+    }
+    websocket = PeerSocketStub(
+        [
+            {
+                "type": "peer.connect",
+                "channel_id": channel_id,
+                "payload": {"token": token, "partner_base_url": partner_base_url},
+            }
+        ]
+    )
+    hub = CollaborationRealtimeHub()
+
+    async def fake_channel_state(requested_channel_id: str):
+        assert requested_channel_id == channel_id
+        return channel
+
+    hub._channel_state = fake_channel_state
+
+    asyncio.run(hub.peer_socket(websocket))
+
+    assert websocket.accepted is True
+    assert websocket.closed is None
+    assert len(websocket.sent_texts) == 1
+    snapshot_message = json.loads(websocket.sent_texts[0])
+    assert snapshot_message["type"] == "collab.state.snapshot"
+    assert snapshot_message["payload"]["channel"]["channel_id"] == channel_id
+
+
+def test_peer_socket_processes_followup_messages_without_async_iteration():
+    channel_id = "channel-2"
+    token = "invite-token"
+    partner_base_url = "https://bravo.demo"
+    channel = {
+        "channel_id": channel_id,
+        "invite": {"token": token},
+        "participants": [{"base_url": partner_base_url}],
+    }
+    websocket = PeerSocketStub(
+        [
+            {
+                "type": "peer.connect",
+                "channel_id": channel_id,
+                "payload": {"token": token, "partner_base_url": partner_base_url},
+            },
+            {
+                "type": "collab.story.patch",
+                "channel_id": channel_id,
+                "payload": {"actor": {"username": "alice"}, "fields": {"summary": "updated"}},
+            },
+        ]
+    )
+    hub = CollaborationRealtimeHub()
+    applied_messages: list[dict] = []
+    broadcasted_channels: list[dict] = []
+
+    async def fake_channel_state(requested_channel_id: str):
+        assert requested_channel_id == channel_id
+        return channel
+
+    async def fake_apply_owner_message(requested_channel_id: str, actor: dict, message: dict):
+        assert requested_channel_id == channel_id
+        applied_messages.append({"actor": actor, "message": message})
+        return {**channel, "updated": True}
+
+    async def fake_broadcast_state(updated_channel: dict, *, snapshot: bool = False, session_id: str | None = None):
+        broadcasted_channels.append(updated_channel)
+
+    hub._channel_state = fake_channel_state
+    hub._apply_owner_message = fake_apply_owner_message
+    hub._broadcast_state = fake_broadcast_state
+
+    asyncio.run(hub.peer_socket(websocket))
+
+    assert len(applied_messages) == 1
+    assert applied_messages[0]["actor"]["base_url"] == partner_base_url
+    assert applied_messages[0]["message"]["type"] == "collab.story.patch"
+    assert len(broadcasted_channels) == 1
+    assert broadcasted_channels[0]["updated"] is True
