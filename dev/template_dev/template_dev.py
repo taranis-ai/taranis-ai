@@ -116,13 +116,14 @@ example_product = {
 
 
 app = Flask(__name__)
+TEMPLATE_BASE_PATH = Path(__file__).resolve().parent
 
 
 def _resolve_template_path(template_path: str) -> Path:
     template_name = secure_filename(template_path)
     if not template_name or template_name != template_path:
         raise ValueError("Invalid template path")
-    base_path = Path.cwd().resolve()
+    base_path = TEMPLATE_BASE_PATH
     resolved_path = (base_path / template_name).resolve(strict=True)
     if resolved_path.parent != base_path:
         raise ValueError("Invalid template path")
@@ -140,21 +141,21 @@ def render(template_path):
         return {"error": "Template file not found."}, 404
     except Exception:
         return {"error": "Unable to read template file"}, 500
-    return generate(example_product, template)
+    try:
+        return generate(example_product, template)
+    except Exception:
+        return {"error": "Template rendering failed"}, 500
 
 
-def generate(product, template, parameters: dict[str, str] | None = None) -> dict[str, bytes | str]:
+def generate(product, template, parameters: dict[str, str] | None = None) -> bytes:
     if parameters is None:
         parameters = {}
 
-    try:
-        env = jinja2.Environment(autoescape=False)
-        tmpl = env.from_string(template)
-        product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
+    env = jinja2.Environment(autoescape=False)
+    tmpl = env.from_string(template)
+    product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
 
-        return tmpl.render(data=product).encode("utf-8")
-    except Exception:
-        return {"error": "Template rendering failed"}
+    return tmpl.render(data=product).encode("utf-8")
 
 
 if __name__ == "__main__":
