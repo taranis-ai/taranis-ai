@@ -5,7 +5,6 @@ from flask_jwt_extended import current_user
 from core.audit import audit_logger
 from core.config import Config
 from core.log import logger
-from core.managers.api_response import jsonify_result
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import validate_json
 from core.managers.sse_manager import sse_manager
@@ -20,23 +19,23 @@ class StoryConflicts(MethodView):
     def get(self, story_id=None):
         if story_id:
             if conflict := StoryConflict.conflict_store.get(story_id):
-                return jsonify_result(conflict.to_dict(), 200)
+                return conflict.to_dict(), 200
         conflicts = [conflict.to_dict() for conflict in StoryConflict.conflict_store.values()]
-        return jsonify_result({"conflicts": conflicts}, 200)
+        return {"conflicts": conflicts}, 200
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self, story_id):
         if not request.json:
-            return jsonify_result({"error": "Invalid JSON payload"}, 400)
+            return {"error": "Invalid JSON payload"}, 400
         if not story_id:
-            return jsonify_result({"error": "No story_id provided"}, 400)
+            return {"error": "No story_id provided"}, 400
         resolved_story = request.json.get("resolution", {})
         incoming_story_original = request.json.get("incoming_story_original", {})
         conflict = StoryConflict.conflict_store.get(story_id)
         if conflict is None:
             logger.error(f"No conflict found for story {story_id}")
-            return jsonify_result({"error": "No conflict found", "id": story_id}, 404)
+            return {"error": "No conflict found"}, 404
 
         response, code = conflict.resolve(resolved_story, user=current_user)
         if code != 200:
@@ -44,40 +43,40 @@ class StoryConflicts(MethodView):
         else:
             NewsItemConflict.reevaluate_conflicts()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"story": story_id})
-        return jsonify_result(response, code)
+        return response, code
 
 
 class NewsItemConflicts(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         conflicts = [conflict.to_dict() for conflict in NewsItemConflict.conflict_store.values()]
-        return jsonify_result({"items": conflicts}, 200)
+        return {"items": conflicts}, 200
 
     @auth_required("ASSESS_CREATE")
     @validate_json
     def post(self):
         data_json = request.json
         if not data_json:
-            return jsonify_result({"error": "No NewsItems in JSON Body"}, 422)
+            return {"error": "No NewsItems in JSON Body"}, 422
 
         result, code = NewsItemConflict.add_news_items_and_clear_from_store(data_json)
         if code != 200:
-            return jsonify_result(result, code)
+            return result, code
 
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
-        return jsonify_result(result, 200)
+        return result, 200
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self):
         data = request.json
         if not data:
-            return jsonify_result({"error": "Missing story_ids or news_item_ids"}, 400)
+            return {"error": "Missing story_ids or news_item_ids"}, 400
         result, code = NewsItemConflict.ingest_incoming_ungroup_internal_clear_store(data, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
-        return jsonify_result(result, code)
+        return result, code
 
 
 class StoryInfo(MethodView):
@@ -86,18 +85,15 @@ class StoryInfo(MethodView):
         if story := Story.get(story_id):
             is_misp_story = any(attribute.key == "misp_event_uuid" for attribute in story.attributes)
             news_item_data = [{"title": item.title, "id": item.id} for item in story.news_items if hasattr(item, "title")]
-            return jsonify_result(
-                {
-                    "id": story.id,
-                    "title": story.title,
-                    "is_misp_story": is_misp_story,
-                    "news_item_count": len(story.news_items),
-                    "relevance": story.relevance,
-                    "news_item_data": news_item_data,
-                },
-                200,
-            )
-        return jsonify_result({"error": "Story not found"}, 404)
+            return {
+                "id": story.id,
+                "title": story.title,
+                "is_misp_story": is_misp_story,
+                "news_item_count": len(story.news_items),
+                "relevance": story.relevance,
+                "news_item_data": news_item_data,
+            }, 200
+        return {"error": "Story not found"}, 404
 
 
 class ConflictStore(MethodView):
@@ -106,7 +102,7 @@ class ConflictStore(MethodView):
         StoryConflict.flush_store()
         NewsItemConflict.flush_store()
         logger.info("Cleared all conflicts from the store.")
-        return jsonify_result({"message": "All conflicts cleared"}, 200)
+        return {"message": "All conflicts cleared"}, 200
 
 
 def initialize(app: Flask):

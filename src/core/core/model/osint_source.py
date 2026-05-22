@@ -33,6 +33,12 @@ if TYPE_CHECKING:
     from core.model.user import User
 
 
+class InvalidOSINTSourceIconError(ValueError):
+    def __init__(self, public_message: str):
+        super().__init__(public_message)
+        self.public_message = public_message
+
+
 class OSINTSource(BaseModel):
     __tablename__ = "osint_source"
 
@@ -363,7 +369,7 @@ class OSINTSource(BaseModel):
     def toggle_state(cls, source_id: str, state: str) -> tuple[dict, int]:
         osint_source = cls.get(source_id)
         if not osint_source:
-            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
+            return {"error": "OSINT Source not found"}, 404
 
         if state == "enabled":
             logger.debug(f"Enabling OSINT Source: {osint_source.name}")
@@ -378,7 +384,7 @@ class OSINTSource(BaseModel):
             return {"error": "Invalid state"}, 400
 
         db.session.commit()
-        return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
+        return {"message": "OSINT Source state updated", "id": osint_source.id}, 200
 
     @classmethod
     def update(cls, osint_source_id: str, data: dict[str, Any]) -> "OSINTSource|None":
@@ -415,9 +421,9 @@ class OSINTSource(BaseModel):
                 return b""
             icon_bytes = self.is_valid_base64(icon)
         if not icon_bytes:
-            raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
+            raise InvalidOSINTSourceIconError("Invalid icon payload provided; expected base64 string or bytes.")
         if len(icon_bytes) > Config.OSINT_SOURCE_ICON_MAX_BYTES:
-            raise ValueError(f"Icon payload exceeds the maximum size of {Config.OSINT_SOURCE_ICON_MAX_BYTES} bytes.")
+            raise InvalidOSINTSourceIconError(f"Icon payload exceeds the maximum size of {Config.OSINT_SOURCE_ICON_MAX_BYTES} bytes.")
         return self._normalize_icon_image(icon_bytes)
 
     @classmethod
@@ -426,14 +432,14 @@ class OSINTSource(BaseModel):
             with Image.open(BytesIO(icon_bytes)) as image:
                 image_format = image.format.upper() if image.format else None
                 if image_format not in cls._ALLOWED_ICON_FORMATS:
-                    raise ValueError(
+                    raise InvalidOSINTSourceIconError(
                         f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: {', '.join(cls._ALLOWED_ICON_FORMATS)}."
                     )
                 image.load()
                 normalized = ImageOps.exif_transpose(image).convert("RGBA")
         except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
             logger.warning(f"Pillow decode failed for icon: {exc}")
-            raise ValueError("Icon payload is not a valid image file.") from exc
+            raise InvalidOSINTSourceIconError("Icon payload is not a valid image file.") from exc
 
         target_size = Config.OSINT_SOURCE_ICON_PIXELS
         normalized.thumbnail((target_size, target_size), Image.Resampling.LANCZOS)
@@ -462,7 +468,7 @@ class OSINTSource(BaseModel):
         from core.service.story import StoryService
 
         if not (source := cls.get(source_id)):
-            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
+            return {"error": "OSINT Source not found"}, 404
         if source.key == "manual":
             return {"error": "The manual source cannot be deleted"}, 400
 
@@ -479,10 +485,10 @@ class OSINTSource(BaseModel):
                 StoryService.delete_stories_with_no_items()
             db.session.delete(source)
             db.session.commit()
-            return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
+            return {"message": "OSINT Source deleted", "id": source.id}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
-            return {"error": f"Deleting OSINT Source with ID: {source_id} failed"}, 500
+            return {"error": "Deleting OSINT Source failed"}, 500
 
     @classmethod
     def schedule_all_osint_sources(cls):
@@ -517,7 +523,7 @@ class OSINTSource(BaseModel):
 
         if not self.enabled:
             logger.warning(f"OSINT Source: {self.name} is disabled, skipping scheduling")
-            return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}"}, 400
+            return {"error": "OSINT Source is disabled", "id": f"{self.id}"}, 400
 
         return queue_manager.queue_manager.register_cron_job(self.get_cron_spec())
 
@@ -882,7 +888,7 @@ class OSINTSourceGroup(BaseModel):
 
         db.session.delete(osint_source_group)
         db.session.commit()
-        return {"message": f"Successfully deleted {osint_source_group.id}"}, 200
+        return {"message": "OSINT source group deleted"}, 200
 
     @classmethod
     def update(cls, osint_source_group_id: str, data: dict[str, Any], user: "User | None" = None) -> tuple[dict[str, str], int]:
@@ -903,7 +909,7 @@ class OSINTSourceGroup(BaseModel):
         word_lists = data.get("word_lists", [])
         osint_source_group.word_lists = WordList.get_bulk(word_lists)
         db.session.commit()
-        return {"message": f"Successfully updated {osint_source_group.name}", "id": f"{osint_source_group.id}"}, 201
+        return {"message": "OSINT source group updated", "id": f"{osint_source_group.id}"}, 201
 
     def to_assess_dict(self) -> dict[str, Any]:
         return {

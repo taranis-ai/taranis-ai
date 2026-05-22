@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import os
 from pathlib import Path
 from shutil import copy
 
@@ -40,21 +41,19 @@ def validate_presenter_template_name(template_id: str) -> str:
 
 
 def _resolve_presenter_template_path(presenter_template: str, *, must_exist: bool = False) -> Path:
-    templates_dir = _get_presenter_templates_dir().resolve()
+    templates_dir = os.path.realpath(_get_presenter_templates_dir())
     template_name = validate_presenter_template_name(presenter_template)
 
-    try:
-        resolved_candidate = (templates_dir / template_name).resolve(strict=must_exist)
-    except FileNotFoundError as exc:
-        raise InvalidPresenterTemplatePathError from exc
+    resolved_candidate = os.path.realpath(os.path.join(templates_dir, template_name))
 
-    if resolved_candidate.parent != templates_dir:
+    if not resolved_candidate.startswith(templates_dir + os.sep):
         raise InvalidPresenterTemplatePathError
 
-    if must_exist and not resolved_candidate.is_file():
+    candidate_path = Path(resolved_candidate)
+    if must_exist and not candidate_path.is_file():
         raise InvalidPresenterTemplatePathError
 
-    return resolved_candidate
+    return candidate_path
 
 
 def sync_presenter_templates_to_data() -> None:
@@ -111,10 +110,8 @@ def list_templates() -> list[str]:
 def save_template_content(template_id: str, content: str) -> None:
     """Save the template content to a file."""
     try:
-        template_id = validate_presenter_template_name(template_id)
-        path = _get_presenter_templates_dir()
-        path.mkdir(parents=True, exist_ok=True)
-        file_path = path / template_id
+        file_path = _resolve_presenter_template_path(template_id)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content, encoding="utf-8")
     except Exception as e:
         logger.error(f"Error saving template {template_id}: {e}")

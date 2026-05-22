@@ -1,9 +1,8 @@
-from flask import Flask, request
+from flask import Flask, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
 from core.config import Config
-from core.managers.api_response import jsonify_result
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args
 from core.model import asset
@@ -15,37 +14,37 @@ class AssetGroups(MethodView):
     @extract_args("search", "page", "limit", "order", "fetch_all")
     def get(self, group_id=None, filter_args=None):
         if group_id:
-            return jsonify_result(asset.AssetGroup.get_for_api(group_id, current_user.organization))
+            return asset.AssetGroup.get_for_api(group_id, current_user.organization)
 
         filter_args = filter_args or {}
         filter_args["organization"] = current_user.organization
-        return jsonify_result(asset.AssetGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user))
+        return asset.AssetGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("ASSETS_CONFIG")
     def post(self):
         data = request.json
         if not data:
-            return jsonify_result({"error": "No data provided"}, 400)
+            return {"error": "No data provided"}, 400
         data["organization"] = current_user.organization
         asset_result = asset.AssetGroup.add(data)
         invalidate_frontend_cache_on_success(201, models=("asset_group",))
-        return jsonify_result({"message": "Asset Group added", "id": asset_result.id}, 201)
+        return jsonify({"message": "Asset Group added", "id": asset_result.id}), 201
 
     @auth_required("ASSETS_CONFIG")
     def delete(self, group_id: str | None = None):
         if not group_id:
-            return jsonify_result({"error": "No group_id provided"}, 400)
+            return {"error": "No group_id provided"}, 400
         response, status = asset.AssetGroup.delete(current_user.organization, group_id)
         invalidate_frontend_cache_on_success(status, models=("asset_group",))
-        return jsonify_result(response, status)
+        return response, status
 
     @auth_required("ASSETS_CONFIG")
     def put(self, group_id: str | None = None):
         if not group_id:
-            return jsonify_result({"error": "No group_id provided"}, 400)
+            return {"error": "No group_id provided"}, 400
         response, status = asset.AssetGroup.update(current_user.organization, group_id, request.json)
         invalidate_frontend_cache_on_success(status, models=("asset_group",))
-        return jsonify_result(response, status)
+        return response, status
 
 
 class Assets(MethodView):
@@ -53,34 +52,34 @@ class Assets(MethodView):
     @extract_args("search", "vulnerable", "group", "page", "limit", "order", "fetch_all")
     def get(self, asset_id=None, filter_args=None):
         if asset_id:
-            return jsonify_result(asset.Asset.get_for_api(asset_id, current_user.organization))
+            return asset.Asset.get_for_api(asset_id, current_user.organization)
         filter_args = filter_args or {}
         filter_args["organization"] = current_user.organization
-        return jsonify_result(asset.Asset.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user))
+        return asset.Asset.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("ASSETS_CREATE")
     def post(self):
         if not (data := request.json):
-            return jsonify_result({"error": "No data provided"}, 400)
+            return {"error": "No data provided"}, 400
         response, status = asset.Asset.add(current_user.organization, data)
         invalidate_frontend_cache_on_success(status, models=("asset",))
-        return jsonify_result(response, status)
+        return response, status
 
     @auth_required("ASSETS_CREATE")
     def put(self, asset_id: str | None = None):
         if asset_id is None:
-            return jsonify_result({"error": "No asset_id provided"}, 400)
+            return {"error": "No asset_id provided"}, 400
         response, status = asset.Asset.update(current_user.organization, asset_id, request.json)
         invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset_id})
-        return jsonify_result(response, status)
+        return response, status
 
     @auth_required("ASSETS_CREATE")
     def delete(self, asset_id: str | None = None):
         if asset_id is None:
-            return jsonify_result({"error": "No asset_id provided"}, 400)
+            return {"error": "No asset_id provided"}, 400
         response, status = asset.Asset.delete(current_user.organization, asset_id)
         invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset_id})
-        return jsonify_result(response, status)
+        return response, status
 
 
 class AssetVulnerability(MethodView):
@@ -88,10 +87,10 @@ class AssetVulnerability(MethodView):
     def put(self, asset_id, vulnerability_id):
         data = request.json
         if not data or "solved" not in data:
-            return jsonify_result({"message": "Missing solved field"}, 400)
+            return {"message": "Missing solved field"}, 400
         response, status = asset.Asset.solve_vulnerability(current_user.organization, asset_id, vulnerability_id, data["solved"])
         invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset_id})
-        return jsonify_result(response, status)
+        return response, status
 
 
 def initialize(app: Flask):

@@ -1,9 +1,8 @@
-from flask import Blueprint, Flask, request, url_for
+from flask import Blueprint, Flask, jsonify, request, url_for
 from flask.views import MethodView
 
 from core.config import Config
 from core.managers import queue_manager
-from core.managers.api_response import jsonify_result
 from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
 from core.model.settings import Settings
@@ -18,7 +17,7 @@ class DeleteTags(MethodView):
     def post(self):
         response, status = NewsItemTag.delete_all()
         invalidate_frontend_cache_on_success(status, full=True)
-        return jsonify_result(response, status)
+        return response, status
 
 
 class DeleteStories(MethodView):
@@ -26,26 +25,26 @@ class DeleteStories(MethodView):
     def post(self):
         response, status = Story.delete_all()
         invalidate_frontend_cache_on_success(status, full=True)
-        return jsonify_result(response, status)
+        return response, status
 
 
 class UngroupStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
-        return jsonify_result({"error": "TODO IMPLEMENT"}, 501)
+        return {"error": "TODO IMPLEMENT"}, 501
 
 
 class ResetDatabase(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
-        return jsonify_result({"error": "TODO IMPLEMENT"}, 501)
+        return {"error": "TODO IMPLEMENT"}, 501
 
 
 class ClearQueues(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
         queue_manager.queue_manager.clear_queues()
-        return jsonify_result({"message": "All queues cleared"}, 200)
+        return {"message": "All queues cleared"}, 200
 
 
 class CacheInvalidate(MethodView):
@@ -56,36 +55,36 @@ class CacheInvalidate(MethodView):
 
         if mode == "all":
             deleted = cache_invalidation_service.invalidate_all()
-            return jsonify_result({"message": "Frontend cache invalidated", "deleted": deleted, "mode": mode}, 200)
+            return {"message": "Frontend cache invalidated", "deleted": deleted, "mode": mode}, 200
 
         if mode == "model":
             if not (model_name := str(payload.get("model") or "").strip()):
-                return jsonify_result({"error": "model is required for mode=model"}, 400)
+                return {"error": "model is required for mode=model"}, 400
             deleted = cache_invalidation_service.invalidate_model(model_name, payload.get("object_id"))
-            return jsonify_result({"message": "Frontend model cache invalidated", "deleted": deleted, "mode": mode, "model": model_name}, 200)
+            return jsonify({"message": "Frontend model cache invalidated", "deleted": deleted, "mode": mode, "model": model_name}), 200
 
         if mode == "scope":
             if not (scope_name := str(payload.get("scope") or "").strip()):
-                return jsonify_result({"error": "scope is required for mode=scope"}, 400)
+                return {"error": "scope is required for mode=scope"}, 400
             if scope_name not in cache_invalidation_service.scope_names:
-                return jsonify_result({"error": f"Unknown scope: {scope_name}"}, 400)
+                return {"error": "Unknown scope"}, 400
             deleted = cache_invalidation_service.invalidate_scope(scope_name)
-            return jsonify_result({"message": "Frontend cache scope invalidated", "deleted": deleted, "mode": mode, "scope": scope_name}, 200)
+            return jsonify({"message": "Frontend cache scope invalidated", "deleted": deleted, "mode": mode, "scope": scope_name}), 200
 
-        return jsonify_result({"error": "Invalid mode"}, 400)
+        return {"error": "Invalid mode"}, 400
 
 
 class RebuildStorySearchVectors(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
         count = StoryService.rebuild_search_vectors()
-        return jsonify_result({"message": f"Rebuilt search vectors for {count} stories", "updated": count}, 200)
+        return {"message": f"Rebuilt search vectors for {count} stories", "updated": count}, 200
 
 
 class ExportStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
-        return jsonify_result(AdminService.export_stories(request.args))
+        return AdminService.export_stories(request.args)
 
 
 class SettingsView(MethodView):
@@ -103,23 +102,23 @@ class SettingsView(MethodView):
             "update_settings": url_for("settings.settings"),
         }
 
-        return jsonify_result(settings_data, return_code)
+        return settings_data, return_code
 
     @auth_required("ADMIN_OPERATIONS")
     def put(self):
         if data := request.json:
             response, status = Settings.update(data)
             invalidate_frontend_cache_on_success(status, models=("settings",))
-            return jsonify_result(response, status)
-        return jsonify_result({"error": "No data provided"}, 400)
+            return response, status
+        return {"error": "No data provided"}, 400
 
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
         if data := request.json:
             response, status = Settings.update(data)
             invalidate_frontend_cache_on_success(status, models=("settings",))
-            return jsonify_result(response, status)
-        return jsonify_result({"error": "No data provided"}, 400)
+            return response, status
+        return {"error": "No data provided"}, 400
 
 
 def initialize(app: Flask):

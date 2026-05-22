@@ -10,7 +10,7 @@ class NewsItemService:
     def update(cls, news_item_id: str, data, user: User):
         news_item = NewsItem.get(news_item_id)
         if not news_item:
-            return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
+            return {"error": "NewsItem not found"}, 404
         if not news_item.allowed_with_acl(user, require_write_access=True):
             return {"error": "User does not have write access to this news item"}, 403
         response, status = news_item.update_item(data, actor=Story.last_change_for_user(user))
@@ -21,7 +21,7 @@ class NewsItemService:
         if story := Story.get(news_item.story_id):
             story.record_revision(user, note="update_news_item")
             db.session.commit()
-            return {"message": "Successfully updated News Item", "story_id": story.id, "news_item_id": news_item_id}, 200
+            return {"message": "Successfully updated News Item", "story_id": story.id, "news_item_id": news_item.id}, 200
 
         db.session.rollback()
         return {"error": "Unable to update News Itemm"}, 500
@@ -31,7 +31,7 @@ class NewsItemService:
         news_item = NewsItem.get(news_item_id)
         if not news_item:
             logger.debug(f"NewsItem with id: {news_item_id} not found")
-            return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
+            return {"error": "NewsItem not found"}, 404
         if not news_item.allowed_with_acl(user, require_write_access=True):
             logger.debug("User does not have write access to this news item")
             return {"error": "User does not have write access to this news item"}, 403
@@ -39,11 +39,11 @@ class NewsItemService:
         story = Story.get(story_id)
         if not story:
             logger.debug(f"Story with id: {story_id} not found")
-            return {"error": f"Story with id: {id} not found"}, 404
+            return {"error": "Story not found"}, 404
 
         if Story.is_assigned_to_report([story_id]):
             logger.debug(f"Story with: {story_id} assigned to a report")
-            return {"error": f"Story with: {story_id} assigned to a report"}, 400
+            return {"error": "Story is assigned to a report"}, 400
 
         story_actor = Story.last_change_for_user(user) or "internal"
         story.last_change = story_actor
@@ -56,7 +56,7 @@ class NewsItemService:
         story.record_revision(user, note="delete_news_item")
         db.session.commit()
         logger.debug(f"NewsItem with id: {news_item_id} deleted")
-        return {"message": "News Item deleted", "id": news_item_id, "story_id": story_id}, 200
+        return {"message": "News Item deleted", "id": news_item.id, "story_id": story.id}, 200
 
     @classmethod
     def has_related_news_items(cls, osint_source_id: str) -> bool:

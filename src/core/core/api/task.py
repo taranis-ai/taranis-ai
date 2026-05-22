@@ -7,7 +7,6 @@ from pydantic import ValidationError
 
 from core.config import Config
 from core.log import logger
-from core.managers.api_response import jsonify_result
 from core.managers.auth_manager import api_key_or_auth_required, api_key_required
 from core.managers.decorators import extract_args
 from core.service.task import TaskService
@@ -18,28 +17,28 @@ class Task(MethodView):
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
     def get(self, task_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if task_id:
-            return jsonify_result(TaskService.get_task(task_id))
-        return jsonify_result(TaskService.get_tasks(filter_args=filter_args, user=getattr(g, "authenticated_user", None)))
+            return TaskService.get_task(task_id)
+        return TaskService.get_tasks(filter_args=filter_args, user=getattr(g, "authenticated_user", None))
 
     @api_key_required
     def post(self):
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
-            return jsonify_result({"error": "No data provided"}, 400)
+            return {"error": "No data provided"}, 400
 
         try:
             submission = TaskSubmission.model_validate(payload)
         except ValidationError as exc:
-            return jsonify_result({"error": TaskSubmission.format_validation_errors(exc)}, 400)
+            return {"error": TaskSubmission.format_validation_errors(exc)}, 400
 
         logger.debug(f"Received task result with id {submission.id} and status {submission.status}")
-        return jsonify_result(TaskService.save_task_result(submission))
+        return TaskService.save_task_result(submission)
 
     @api_key_or_auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def delete(self, task_id: str | None = None):
         if not task_id:
-            return jsonify_result({"error": "No task_id provided"}, 400)
-        return jsonify_result(TaskService.delete_task(task_id))
+            return {"error": "No task_id provided"}, 400
+        return TaskService.delete_task(task_id)
 
 
 def initialize(app: Flask):

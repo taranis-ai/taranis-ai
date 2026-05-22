@@ -142,7 +142,7 @@ class Asset(BaseModel):
         if item := cls.get(item_id):
             if AssetGroup.access_allowed(organization, item.asset_group_id):
                 return item.to_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def add(cls, organization: Organization, data) -> tuple[dict, int]:

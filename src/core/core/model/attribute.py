@@ -192,7 +192,7 @@ class Attribute(BaseModel):
                 setattr(attribute, key, value)
 
         db.session.commit()
-        return {"message": f"Attribute {attribute.name} updated", "id": attribute_id}, 200
+        return {"message": "Attribute updated", "id": attribute.id}, 200
 
     @classmethod
     def convert_enum(cls, data: dict[str, Any]) -> dict[str, Any]:

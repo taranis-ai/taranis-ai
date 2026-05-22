@@ -285,7 +285,7 @@ class Story(BaseModel):
 
         if item := db.session.execute(query).scalar():
             return item.to_detail_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def get_additional_counts(cls, filter_query):
@@ -647,7 +647,7 @@ class Story(BaseModel):
         if code != 200 and message.get("error") == "Story already exists":
             logger.warning(f"Story being added {data['id']} contains existing content. A news item conflict is raised.")
             cls.handle_conflicting_news_items(data)
-            return {"error": f"Story being added {data['id']} contains existing content. A news item conflict is raised."}, 409
+            return {"error": "Story contains existing content. A news item conflict is raised."}, 409
         return message, code
 
     @classmethod
@@ -833,7 +833,7 @@ class Story(BaseModel):
         story: "Story | None" = cls.get(story_id)
         logger.debug(f"Updating story {story_id} with data: {data}")
         if not story:
-            return {"error": "Story not found", "id": f"{story_id}"}, 404
+            return {"error": "Story not found"}, 404
 
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
@@ -873,7 +873,7 @@ class Story(BaseModel):
         story.recompute_relevance()
         story.record_revision(user, note="update")
         db.session.commit()
-        return {"message": "Story updated successfully", "id": f"{story_id}", "story": story.to_detail_dict()}, 200
+        return {"message": "Story updated successfully", "id": story.id, "story": story.to_detail_dict()}, 200
 
     @classmethod
     def update_with_conflicts(cls, story_id: str, upstream_data: dict[str, Any]) -> tuple[dict[str, Any], int]:
@@ -1043,11 +1043,11 @@ class Story(BaseModel):
         story = cls.get(story_id)
         if not story:
             logger.debug(f"Story with id: {story_id} not found")
-            return {"error": f"Story with id: {story_id} not found"}, 404
+            return {"error": "Story not found"}, 404
 
         if cls.is_assigned_to_report([story_id]):
             logger.debug(f"Story with: {story_id} assigned to a report")
-            return {"error": f"Story with: {story_id} assigned to a report"}, 500
+            return {"error": "Story is assigned to a report"}, 500
 
         for news_item in story.news_items[:]:
             if news_item.allowed_with_acl(user, True):
@@ -1055,13 +1055,13 @@ class Story(BaseModel):
                 news_item.delete_item()
             else:
                 logger.debug(f"User {user.id} not allowed to remove news item {news_item.id}")
-                return {"error": f"User {user.id} not allowed to remove news item {news_item.id}"}, 403
+                return {"error": "User is not allowed to remove news item"}, 403
 
         story.update_status()
 
         db.session.commit()
 
-        return {"message": f"Successfully deleted story: {story_id}"}, 200
+        return {"message": "Successfully deleted story"}, 200
 
     def delete(self, user):
         return self.delete_by_id(self.id, user)
@@ -1156,7 +1156,7 @@ class Story(BaseModel):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
             if ReportItemStory.is_assigned(story_id):
-                return {"error": f"Story {story_id} is assigned to a report"}, 400
+                return {"error": "Story is assigned to a report"}, 400
             story = cls.get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404
