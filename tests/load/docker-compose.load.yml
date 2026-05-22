@@ -158,6 +158,7 @@ services:
       PWHEADLESS: "1"
       PWBROWSER: chromium
       TARGET_HOST: http://ingress:8080
+      TARANIS_LOAD_FLOWS: ${TARANIS_LOAD_FLOWS:-}
       TARANIS_LOAD_USERNAME: user
       TARANIS_LOAD_PASSWORD: test
       TARANIS_EXPECTED_REPORT_TITLE: Load Test Report 1
