@@ -128,7 +128,7 @@ class UpdateStory(MethodView):
         result = story.Story.update(story_id, request.json, actor=_bot_actor())
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(result[1], models=("story", "report_item"), object_ids={"story": story_id})
-        return jsonify_result(result)
+        return jsonify_result(*result)
 
 
 class BotsInfo(MethodView):

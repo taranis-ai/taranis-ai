@@ -1,4 +1,5 @@
 import base64
+import binascii
 import io
 from typing import Any
 
@@ -316,12 +317,11 @@ class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self, template_path: str | None = None):
         if template_path:
-            resp = build_template_response(template_path)
-            return jsonify(resp), 200
+            return jsonify_result(build_template_response(template_path), 200)
 
         # List all templates
         items = build_templates_list()
-        return jsonify({"items": items, "total_count": len(items)}), 200
+        return jsonify_result({"items": items, "total_count": len(items)}, 200)
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self, template_path: str | None = None):
@@ -377,7 +377,11 @@ class TemplateValidation(MethodView):
         try:
             # Decode base64 content if needed
             if request.json.get("is_base64", False):
-                template_content = base64.b64decode(template_content).decode("utf-8")
+                try:
+                    template_content = base64.b64decode(template_content, validate=True).decode("utf-8")
+                except (binascii.Error, UnicodeDecodeError) as e:
+                    logger.error("Failed to decode template content: %s", e)
+                    return jsonify_result({"error": "Failed to decode content"}, 400)
 
             validation_result = validate_template_content(template_content)
             return jsonify_result(
@@ -518,7 +522,7 @@ class Bots(MethodView):
             if updated_bot := bot.Bot.update(bot_id, update_data):
                 logger.debug(f"Successfully updated {updated_bot}")
                 _invalidate_admin_cache(200)
-                return jsonify_result({"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200)
+                return jsonify_result({"message": f"Successfully updated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200)
         except ValueError as e:
             logger.warning("Invalid bot update payload: %s", e)
             return jsonify_result({"error": "Invalid bot update payload"}, 400)

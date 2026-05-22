@@ -32,7 +32,8 @@ class AddNewsItems(MethodView):
             return jsonify_result({"error": "Expected a list of news items"}, 400)
         logger.debug(f"Received {len(json_data)} news items for worker ingestion")
         result, status = Story.add_news_items(json_data)
-        sse_manager.news_items_updated()
+        if 200 <= status < 300:
+            sse_manager.news_items_updated()
         return jsonify_result(result, status)
 
 

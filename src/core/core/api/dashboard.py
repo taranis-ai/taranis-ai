@@ -1,8 +1,9 @@
-from flask import Blueprint, Flask, jsonify, request
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
 from core.config import Config
+from core.managers.api_response import jsonify_result
 from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
 from core.service.dashboard import DashboardService
@@ -13,13 +14,13 @@ from core.service.story import StoryService
 class Dashboard(MethodView):
     @auth_required()
     def get(self):
-        return DashboardService.get_dashboard_data(), 200
+        return jsonify_result(DashboardService.get_dashboard_data(), 200)
 
 
 class ClusterNames(MethodView):
     @auth_required()
     def get(self):
-        return {"items": NewsItemTagService.get_tag_types()}, 200
+        return jsonify_result({"items": NewsItemTagService.get_tag_types()}, 200)
 
 
 class TrendingClusters(MethodView):
@@ -36,7 +37,7 @@ class TrendingClusters(MethodView):
         if trending_cluster_filter:
             items = [tag for tag in items if tag.get("name") in trending_cluster_filter]
 
-        return {"items": items}, 200
+        return jsonify_result({"items": items}, 200)
 
 
 class StoryClusters(MethodView):
@@ -44,7 +45,7 @@ class StoryClusters(MethodView):
     def get(self):
         days = int(request.args.get("days", 7))
         limit = int(request.args.get("limit", 12))
-        return jsonify(StoryService.get_story_clusters(days, limit))
+        return jsonify_result(StoryService.get_story_clusters(days, limit))
 
 
 class ClusterByType(MethodView):
@@ -56,14 +57,14 @@ class ClusterByType(MethodView):
         offset = min((page - 1) * limit, (2**31) - 1)
         search = request.args.get("search")
         filter_args = {"tag_type": tag_type, "limit": limit, "offset": offset, "sort": sort, "search": search}
-        return NewsItemTag.get_cluster_by_filter(filter_args)
+        return jsonify_result(NewsItemTag.get_cluster_by_filter(filter_args))
 
 
 class DeleteTag(MethodView):
     @auth_required()
     def delete(self, tag_name: str):
         NewsItemTagService.delete_tags_by_name(tag_name)
-        return jsonify({"message": f"Cluster {tag_name} deleted"}), 200
+        return jsonify_result({"message": f"Cluster {tag_name} deleted"}, 200)
 
 
 class BuildInfo(MethodView):
@@ -72,7 +73,7 @@ class BuildInfo(MethodView):
         result = {"build_date": Config.BUILD_DATE.isoformat()}
         if Config.GIT_INFO:
             result |= Config.GIT_INFO
-        return result
+        return jsonify_result(result)
 
 
 def initialize(app: Flask):

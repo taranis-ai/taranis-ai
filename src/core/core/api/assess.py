@@ -375,7 +375,7 @@ class AssessImport(MethodView):
 
         imported_stories = StoryService.import_stories(data_json, current_user)
         sse_manager.news_items_updated()
-        return imported_stories
+        return jsonify_result(imported_stories)
 
 
 def initialize(app: Flask):

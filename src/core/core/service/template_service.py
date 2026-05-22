@@ -1,4 +1,5 @@
 import base64
+import binascii
 from typing import TypedDict
 
 from jinja2 import DebugUndefined, TemplateSyntaxError, UndefinedError
@@ -39,9 +40,9 @@ def create_or_update_template(template_id, base64_content):
 
     # Decode content
     try:
-        template_content = base64.b64decode(base64_content).decode("utf-8")
-    except Exception:
-        logger.exception("Failed to decode template content")
+        template_content = base64.b64decode(base64_content, validate=True).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError) as e:
+        logger.error("Failed to decode template content: %s", e)
         return {"error": "Failed to decode content"}, 400
 
     # Validate
