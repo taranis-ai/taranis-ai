@@ -1,12 +1,11 @@
-from urllib.parse import urlencode
-
 from flask import Blueprint, Flask, Response, jsonify, redirect, render_template, request, send_from_directory, url_for
 from flask.views import MethodView
+from models.assess import FilterLists
 
-from frontend.assess_omnisearch import build_assess_omnisearch_suggestions, translate_assess_omnisearch
 from frontend.auth import auth_required, logout
 from frontend.cache import get_cache_keys, get_cached_users
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.omnisearch import build_omnisearch_context, build_omnisearch_navigation, needs_assess_filter_lists
 from frontend.views import AuthView, DashboardView
 from frontend.views.story_views import StoryView
 
@@ -68,42 +67,54 @@ class FaviconView(MethodView):
 
 
 class OmniSearch(MethodView):
-    @auth_required(["ASSESS_ACCESS", "ALL"])
+    @auth_required()
     def get(self):
         current_search = request.args.get("q", "").strip()
-        if "q" in request.args:
-            if not current_search:
-                return redirect(url_for("assess.assess"))
+        if not current_search:
+            return redirect(url_for("base.dashboard"))
 
-            filter_lists = StoryView._get_filter_lists()
-            translation = translate_assess_omnisearch(current_search, filter_lists)
-            if translation.errors:
-                return (
-                    render_template(
-                        "partials/omnisearch/search_dialog.html",
-                        current_search=current_search,
-                        suggestions=build_assess_omnisearch_suggestions(current_search, filter_lists),
-                        errors=translation.errors,
+        filter_lists = _get_omnisearch_filter_lists(current_search)
+        navigation = build_omnisearch_navigation(current_search, filter_lists)
+        if navigation.errors:
+            return (
+                render_template(
+                    "partials/omnisearch/results.html",
+                    search_context=build_omnisearch_context(
+                        current_search,
+                        limit_per_scope=10,
+                        filter_lists=filter_lists,
+                        errors=navigation.errors,
                     ),
-                    400,
-                )
+                    current_search=current_search,
+                ),
+                400,
+            )
 
-            query_string = urlencode(translation.params, doseq=True)
-            assess_url = url_for("assess.assess")
-            return redirect(f"{assess_url}?{query_string}" if query_string else assess_url)
+        if navigation.url:
+            return redirect(navigation.url)
 
-        return render_template("partials/omnisearch/search_dialog.html", current_search="")
+        return render_template(
+            "partials/omnisearch/results.html",
+            search_context=build_omnisearch_context(current_search, limit_per_scope=10, filter_lists=filter_lists),
+            current_search=current_search,
+        )
 
 
 class OmniSearchSuggestions(MethodView):
-    @auth_required(["ASSESS_ACCESS", "ALL"])
+    @auth_required()
     def get(self):
         current_search = request.args.get("q", "")
-        filter_lists = StoryView._get_filter_lists()
+        filter_lists = _get_omnisearch_filter_lists(current_search)
         return render_template(
             "partials/omnisearch/suggestions.html",
-            suggestions=build_assess_omnisearch_suggestions(current_search, filter_lists),
+            search_context=build_omnisearch_context(current_search, limit_per_scope=4, filter_lists=filter_lists),
         )
+
+
+def _get_omnisearch_filter_lists(query: str) -> FilterLists:
+    if needs_assess_filter_lists(query):
+        return StoryView._get_filter_lists()
+    return FilterLists(tags=[], sources=[], groups=[])
 
 
 class NewsItemConflictsView(MethodView):

@@ -29,11 +29,13 @@ uv sync --frozen
 granian app
 ```
 
-### Assess omnisearch
+### Omnisearch
 
-The navbar search opens an Assess omnisearch dialog. Submitting the dialog uses a normal `GET /search?q=...` form submit; the frontend validates and translates the query, then redirects to `/assess` with the same query parameters produced by the Assess sidebar filters.
+The navbar search sends users to `GET /search?q=...`. Unqualified searches render grouped results across Stories, Reports, and Products with links to matching objects and to each filtered list view.
 
-Supported initial qualifiers are `source:`, `group:`, `tag:`/`tags:`, `read:`, `important:`, `relevant:`, `in-report:`/`report:`, `cybersecurity:`/`cyber:`, `changed-by:`, `range:`, `from:`, `to:`, and `sort:`. Source, group, and tag value suggestions are loaded from `/assess/filter-lists`; static values are suggested by the frontend.
+Scope prefixes jump straight to the existing list views: `story: <search>` opens `/assess?search=<search>`, `report: <search>` opens `/analyze?search=<search>`, and `product: <search>` opens `/publish?search=<search>`. The aliases `stories:`, `assess:`, `reports:`, `analyze:`, `products:`, and `publish:` are also accepted. `report:true` and `report:false` are reserved for the Assess `in_report` filter; use `report: <search>` for report search.
+
+Assess keyword filters are implicit story mode. `vpn tag:apt read:false sort:relevance` opens `/assess` with the same query parameters as the Assess sidebar. Supported Assess qualifiers are `source:`, `group:`, `tag:`/`tags:`, `read:`, `important:`, `relevant:`, `in-report:`/`report:`, `cybersecurity:`/`cyber:`, `changed-by:`, `range:`, `from:`, `to:`, and `sort:`. `range:` accepts `shift`, `24h`, `week`, `day`, `month`, and `last<N>` values such as `last7`.
 
 ### Cache configuration
 
