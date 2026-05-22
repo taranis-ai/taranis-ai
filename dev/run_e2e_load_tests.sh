@@ -17,6 +17,7 @@ PROFILE="smoke"
 USERS=""
 SPAWN_RATE=""
 RUN_TIME=""
+FLOWS=""
 RUN_ID="${LOAD_RUN_ID:-load-$(date +%Y%m%d-%H%M%S)}"
 ARTIFACT_DIR="${LOAD_ARTIFACT_DIR:-$ARTIFACTS_ROOT/$RUN_ID}"
 LOCUST_STATS_PATH="$ARTIFACT_DIR/locust_stats.csv"
@@ -30,7 +31,7 @@ LATEST_ARTIFACT_LINK="$ARTIFACTS_ROOT/latest"
 usage() {
   cat <<'EOF'
 Usage:
-  ./dev/run_e2e_load_tests.sh [--profile smoke|browser_load] [--users N] [--spawn-rate N] [--run-time 2m] [--report-port N]
+  ./dev/run_e2e_load_tests.sh [--profile smoke|browser_load] [--users N] [--spawn-rate N] [--run-time 2m] [--flows login,dashboard] [--report-port N]
   ./dev/run_e2e_load_tests.sh --stop-report-server
 EOF
 }
@@ -51,6 +52,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --run-time)
       RUN_TIME="$2"
+      shift 2
+      ;;
+    --flows)
+      FLOWS="$2"
       shift 2
       ;;
     --report-port)
@@ -205,6 +210,7 @@ export LOCUST_USERS="${USERS:-$DEFAULT_USERS}"
 export LOCUST_SPAWN_RATE="${SPAWN_RATE:-$DEFAULT_SPAWN_RATE}"
 export LOCUST_RUN_TIME="${RUN_TIME:-$DEFAULT_RUN_TIME}"
 export COMPOSE_PROJECT_NAME="$PROJECT_NAME"
+export TARANIS_LOAD_FLOWS="$FLOWS"
 
 mkdir -p "$ARTIFACT_DIR"
 mkdir -p "$ARTIFACTS_ROOT"
@@ -337,6 +343,11 @@ echo "Profile: $PROFILE"
 echo "Users: $LOCUST_USERS"
 echo "Spawn rate: $LOCUST_SPAWN_RATE"
 echo "Run time: $LOCUST_RUN_TIME"
+if [[ -n "$TARANIS_LOAD_FLOWS" ]]; then
+  echo "Flows: $TARANIS_LOAD_FLOWS"
+else
+  echo "Flows: profile defaults"
+fi
 echo "Ingress URL: http://127.0.0.1:$LOAD_TEST_INGRESS_PORT/frontend/login"
 
 compose build core frontend ingress seed locust check_recovery
