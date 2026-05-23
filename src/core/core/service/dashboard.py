@@ -25,7 +25,7 @@ class DashboardService:
         housekeeping_job_ids = {
             queue_manager.TOKEN_CLEANUP_JOB_ID,
         }
-        return sum(1 for item in items if not isinstance(item, dict) or item.get("id") not in housekeeping_job_ids)
+        return sum(1 for item in items if isinstance(item, dict) and item.get("id") not in housekeeping_job_ids)
 
     @classmethod
     def get_dashboard_data(cls) -> dict:

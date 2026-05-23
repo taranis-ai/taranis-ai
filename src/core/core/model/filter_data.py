@@ -1,5 +1,7 @@
 from typing import Any
 
+from sqlalchemy import or_
+
 from core.managers.db_manager import db
 
 
@@ -18,7 +20,10 @@ class FilterData:
         from core.model.news_item_tag import NewsItemTag
 
         rows = db.session.scalars(
-            db.select(NewsItemTag.name).where(NewsItemTag.tag_type.not_ilike("report_%")).distinct().order_by(NewsItemTag.name)
+            db.select(NewsItemTag.name)
+            .where(or_(NewsItemTag.tag_type.is_(None), NewsItemTag.tag_type.not_ilike("report_%")))
+            .distinct()
+            .order_by(NewsItemTag.name)
         ).all()
 
         return [name for name in rows if name]

@@ -272,10 +272,10 @@ class FilterLists(TaranisBaseModel):
     _model_name = "filter_lists"
     _pretty_name = "Filter Lists"
 
-    tags: list[str] = []
-    sources: list[AssessSource] = []
-    groups: list[dict[str, str]] = []
-    languages: list[str] = []
+    tags: list[str] = Field(default_factory=list)
+    sources: list[AssessSource] = Field(default_factory=list)
+    groups: list[dict[str, str | None]] = Field(default_factory=list)
+    languages: list[str] = Field(default_factory=list)
 
 
 class StoryUpdatePayload(TaranisBaseModel):

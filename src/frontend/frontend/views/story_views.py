@@ -205,7 +205,7 @@ class StoryView(BaseView):
     @classmethod
     def _build_language_filter_select(cls, filter_lists: FilterLists, request_args: dict[str, list[str]]) -> dict[str, list[dict[str, str]]]:
         selected_languages = request_args.get("language", [])
-        available_languages = [str(language) for language in filter_lists.languages]
+        available_languages = [str(language) for language in (filter_lists.languages or []) if language not in (None, "")]
         available_language_ids = set(available_languages)
         selected_language_ids = set(selected_languages)
         options: list[dict[str, str]] = []

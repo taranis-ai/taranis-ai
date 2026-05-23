@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as AssessStory
+from models.assess import validate_bcp47
 from pydantic import ValidationError
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -83,6 +84,10 @@ class NewsItem(BaseModel):
         story_id: str = "",
         tags: list | dict | None = None,
     ):
+        normalized_published = self.get_date_field(published)
+        normalized_collected = self.get_date_field(collected)
+        normalized_id = self.normalize_uuid_id(id)
+
         payload = AssessNewsItem.from_input(
             {
                 "title": title,
@@ -94,17 +99,17 @@ class NewsItem(BaseModel):
                 "link": link,
                 "language": language,
                 "hash": hash,
-                "id": id,
+                "id": normalized_id,
                 "attributes": attributes,
                 "last_change": last_change,
-                "published": published,
-                "collected": collected,
+                "published": normalized_published,
+                "collected": normalized_collected,
                 "story_id": story_id,
                 "tags": tags,
             }
         )
 
-        self.id = self.normalize_uuid_id(payload.id)
+        self.id = payload.id or normalized_id
         self.title = payload.title or ""
         self.review = payload.review or ""
         self.content = payload.content or ""
@@ -120,8 +125,8 @@ class NewsItem(BaseModel):
         self.language = payload.language or ""
         self.last_change = payload.last_change or last_change
         self.hash = payload.hash or self.get_hash(title=self.title, link=self.link, content=self.content)
-        self.collected = payload.collected or self.get_date_field(collected)
-        self.published = payload.published or self.get_date_field(published)
+        self.collected = payload.collected or normalized_collected
+        self.published = payload.published or normalized_published
         self.story_id = payload.story_id or story_id
         self.attributes = NewsItemAttribute.load_multiple(payload.attributes or [])
         self.tags = list(NewsItemTag.parse_tags(payload.tags or {}).values())
@@ -240,25 +245,19 @@ class NewsItem(BaseModel):
         if self.story:
             self.story.update_status(change=change)
 
+    @staticmethod
+    def _normalize_language(lang: str | None) -> str:
+        return validate_bcp47(lang) or ""
+
     @classmethod
     def update_news_item_lang(cls, news_item_id, lang, actor: str | None = None):
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
-        payload = AssessNewsItem.from_input(
-            {
-                "osint_source_id": news_item.osint_source_id,
-                "title": news_item.title or " ",
-                "content": news_item.content or " ",
-                "link": news_item.link or "",
-                "source": news_item.source or "",
-                "author": news_item.author or "",
-                "review": news_item.review or "",
-                "story_id": news_item.story_id,
-                "language": lang,
-            }
-        )
-        news_item.language = payload.language or ""
+        try:
+            news_item.language = cls._normalize_language(lang)
+        except (TypeError, ValueError) as exc:
+            return {"error": f"Invalid news item data: language: {exc}"}, 400
         news_item._update_status(actor or "internal")
         if story := news_item.story:
             story.record_revision(note="update_news_item_lang")

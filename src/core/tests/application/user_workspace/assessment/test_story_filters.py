@@ -38,6 +38,8 @@ FILTER_CASES = [
     pytest.param({"tags": ("beta",)}, {"grouped_plain"}, id="tag-beta"),
     pytest.param({"language": ("english",)}, {"grouped_flagged", "manual_important"}, id="language-english"),
     pytest.param({"language": ("german", "french")}, {"grouped_plain", "source_only"}, id="language-multiple"),
+    pytest.param({"language": ("spanish",)}, set(), id="language-unknown"),
+    pytest.param({"language": ("",)}, set(), id="language-empty"),
     pytest.param({"story_ids": ("grouped_flagged", "manual_important")}, {"grouped_flagged", "manual_important"}, id="story-ids"),
     pytest.param({"search": "Story Filter Extra Source Story"}, {"source_only"}, id="search-extra-title"),
     pytest.param({"search": "Anonymous News Item"}, {"manual_important"}, id="search-anonymous-title"),
@@ -47,7 +49,7 @@ FILTER_CASES = [
 
 class TestStoryFilters(BaseTest):
     base_uri = "/api/assess"
-    _multi_value_filters = {"source", "group", "story_ids", "tags", "language"}
+    _multi_value_filters = frozenset({"source", "group", "story_ids", "tags", "language"})
 
     @classmethod
     def _resolve_filter_values(cls, key: str, raw_values: Iterable[str], story_filter_data: dict) -> list[str]:
@@ -106,6 +108,21 @@ class TestStoryFilters(BaseTest):
         assert set(payload["languages"]) == {"de", "en", "fr"}
         assert "filter-alpha" in payload["tags"]
         assert story_filter_data["sources"]["source_only"] in source_ids
+
+    def test_filter_lists_include_untyped_tags(self, app, client, auth_header, story_filter_data):
+        from core.managers.db_manager import db
+        from core.model.news_item_tag import NewsItemTag
+
+        with app.app_context():
+            tag = NewsItemTag.find_by_name(story_filter_data["tags"]["alpha"])
+            assert tag is not None
+            tag.tag_type = None
+            db.session.commit()
+
+        response = client.get(self.concat_url("filter-lists"), headers=auth_header)
+        payload = self.assert_json_ok(response).get_json()
+
+        assert story_filter_data["tags"]["alpha"] in payload["tags"]
 
     def test_filter_lists_reflect_language_changes_immediately(self, app, client, auth_header, story_filter_data):
         from core.managers.db_manager import db

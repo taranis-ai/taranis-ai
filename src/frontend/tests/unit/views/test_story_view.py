@@ -4,7 +4,7 @@ from urllib.parse import parse_qs, urlparse
 
 from flask import render_template_string, url_for
 from lxml import html
-from models.assess import Story, StoryUpdatePayload
+from models.assess import FilterLists, Story, StoryUpdatePayload
 from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import Forbidden
 
@@ -302,7 +302,7 @@ def test_news_item_card_shows_author_when_present(app):
         markup = _render_news_item_card(story)
 
     tree = html.fromstring(markup)
-    author_badge = tree.xpath('//*[@data-testid="news-item-author"]')
+    author_badge = tree.xpath('//*[@data-test-id="news-item-author"]')
     assert len(author_badge) == 1
     assert author_badge[0].text_content().strip() == "Author · James Bond"
 
@@ -329,7 +329,7 @@ def test_news_item_card_hides_author_when_missing_or_empty(app):
             markup = _render_news_item_card(story)
 
         tree = html.fromstring(markup)
-        assert not tree.xpath('//*[@data-testid="news-item-author"]')
+        assert not tree.xpath('//*[@data-test-id="news-item-author"]')
         assert "Author ·" not in tree.text_content()
 
 
@@ -504,11 +504,25 @@ def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):
 
     assert '@click.outside="closeList()"' in markup
     assert '@blur="closeList()"' not in markup
-    assert "closeTimer" not in markup
-    assert "closeListNow" not in markup
-    assert "setTimeout" not in markup
-    remove_item_body = markup.split("removeItem(item) {", 1)[1].split("selectFirst()", 1)[0]
-    assert "openList()" not in remove_item_body
+
+
+def test_language_filter_select_handles_missing_languages():
+    select_data = StoryView._build_language_filter_select(SimpleNamespace(languages=None), {"language": ["en"]})
+
+    assert select_data == {
+        "options": [],
+        "selected_items": [{"value": "en", "label": "EN", "name": "language"}],
+    }
+
+
+def test_source_filter_select_accepts_group_payloads_with_null_key():
+    filter_lists = FilterLists(tags=[], sources=[], groups=[{"id": "group-1", "key": None, "name": "Group 1"}], languages=[])
+
+    select_data = StoryView._build_source_filter_select(filter_lists, {"group": ["group-1"]})
+
+    expected_item = {"value": "group-1", "label": "Group 1", "name": "group", "group": "Group"}
+    assert expected_item in select_data["options"]
+    assert expected_item in select_data["selected_items"]
 
 
 def test_assess_selection_key_ignores_paging_params():

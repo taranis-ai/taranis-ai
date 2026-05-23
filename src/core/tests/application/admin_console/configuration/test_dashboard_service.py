@@ -50,3 +50,16 @@ def test_get_dashboard_data_includes_task_totals(monkeypatch):
         "success_pct": 66,
         "total": 3,
     }
+
+
+def test_count_user_scheduled_jobs_ignores_housekeeping_and_malformed_entries():
+    schedules = {
+        "items": [
+            {"id": dashboard_module.queue_manager.TOKEN_CLEANUP_JOB_ID},
+            {"id": "collector-source-1"},
+            "unexpected",
+            None,
+        ]
+    }
+
+    assert DashboardService._count_user_scheduled_jobs(schedules) == 1
