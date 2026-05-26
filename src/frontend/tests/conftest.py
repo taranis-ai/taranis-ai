@@ -106,7 +106,7 @@ def app():
             }
         )
 
-    return app
+    yield app
 
 
 @pytest.fixture(scope="session")
