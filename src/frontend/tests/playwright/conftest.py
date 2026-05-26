@@ -45,14 +45,6 @@ class ExternalE2EServer:
         return self._base_url
 
 
-def _configure_core_urls(core_api_url: str) -> str:
-    from frontend.config import Config
-
-    Config.TARANIS_CORE_HOST = core_host_from_api_url(core_api_url)
-    Config.TARANIS_CORE_URL = core_api_url
-    return core_api_url
-
-
 def _core_token_response(user_type: str, access_token_response, access_token_response_basic):
     if user_type == "admin":
         return access_token_response
@@ -98,17 +90,24 @@ def docker_cleanup():
 
 @pytest.fixture(scope="session")
 def run_core(request):
+    from frontend.config import Config
+
     taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
 
     if external_core_url := external_core_api_url():
-        core_url = _configure_core_urls(external_core_url)
+        Config.TARANIS_CORE_HOST = core_host_from_api_url(external_core_url)
+        Config.TARANIS_CORE_URL = external_core_url
+        core_url = external_core_url
         print(f"Using external Taranis Core for E2E tests: {external_core_url}")
         wait_for_server_to_be_alive(f"{core_url}/health", taranis_core_start_timeout)
         return core_url
 
     docker_services = request.getfixturevalue("docker_services")
     core_port = docker_services.port_for("core", 8080)
-    core_url = _configure_core_urls(f"http://127.0.0.1:{core_port}/api")
+    core_url = f"http://127.0.0.1:{core_port}/api"
+
+    Config.TARANIS_CORE_HOST = f"http://127.0.0.1:{core_port}"
+    Config.TARANIS_CORE_URL = core_url
 
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
@@ -226,27 +225,11 @@ def _dismiss_notifications(page: Page):
 
 def _cookies_from_response(resp) -> list[dict]:
     """Parse Flask Response `Set-Cookie` headers into Playwright cookie dicts (name/value/path only)."""
-    if hasattr(resp, "cookies") and getattr(resp, "cookies", None):
+    if getattr(resp, "cookies", None):
         return [{"name": name, "value": value} for name, value in resp.cookies.items()]
 
     cookies: list[dict] = []
-    set_cookie_headers: list[str] = []
-
-    headers = getattr(resp, "headers", None)
-    if headers is not None and hasattr(headers, "getlist"):
-        set_cookie_headers = list(headers.getlist("Set-Cookie"))
-
-    if not set_cookie_headers:
-        raw_headers = getattr(getattr(resp, "raw", None), "headers", None)
-        if raw_headers is not None and hasattr(raw_headers, "getlist"):
-            set_cookie_headers = list(raw_headers.getlist("Set-Cookie"))
-
-    if not set_cookie_headers and headers is not None:
-        header = headers.get("Set-Cookie")
-        if header:
-            set_cookie_headers = [header]
-
-    for header in set_cookie_headers:
+    for header in resp.headers.getlist("Set-Cookie"):
         c = SimpleCookie()
         c.load(header)
         cookies.extend(
