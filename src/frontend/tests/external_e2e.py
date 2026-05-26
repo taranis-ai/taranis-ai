@@ -11,27 +11,12 @@ from tests.playwright.e2e_harness import wait_for_http_ok
 LOCALHOST_PASSTHRU_PATTERN = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)")
 
 
-def normalize_and_validate_absolute_url(url: str, env_name: str) -> str:
-    normalized = url.strip().rstrip("/")
-    parsed = urlsplit(normalized)
-    if not parsed.scheme or not parsed.netloc:
-        raise RuntimeError(f"{env_name} must be an absolute URL, got: {url}")
-    return normalized
-
-
 def external_frontend_base_url() -> str | None:
-    base_url = os.getenv("TARANIS_E2E_EXTERNAL_BASE_URL", "").strip()
-    if not base_url:
-        return None
-    return normalize_and_validate_absolute_url(base_url, "TARANIS_E2E_EXTERNAL_BASE_URL")
+    return os.getenv("TARANIS_E2E_EXTERNAL_BASE_URL") or None
 
 
 def external_core_api_url() -> str | None:
-    core_url = os.getenv("TARANIS_E2E_EXTERNAL_CORE_URL", "").strip()
-    if not core_url:
-        return None
-    normalized = normalize_and_validate_absolute_url(core_url, "TARANIS_E2E_EXTERNAL_CORE_URL")
-    return normalized if normalized.endswith("/api") else f"{normalized}/api"
+    return os.getenv("TARANIS_E2E_EXTERNAL_CORE_API_URL") or None
 
 
 def external_auth_credentials() -> tuple[str, str]:

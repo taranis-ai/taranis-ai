@@ -81,7 +81,7 @@ jobs:
         env:
           DEBUG: "false"
           TARANIS_E2E_EXTERNAL_BASE_URL: "http://127.0.0.1:8080/frontend"
-          TARANIS_E2E_EXTERNAL_CORE_URL: "http://127.0.0.1:8080/api"
+          TARANIS_E2E_EXTERNAL_CORE_API_URL: "http://127.0.0.1:8080/api"
           TARANIS_E2E_EXTERNAL_API_KEY: "supersecret"
           TARANIS_E2E_EXTERNAL_AUTH_USERNAME: "admin"
           TARANIS_E2E_EXTERNAL_AUTH_PASSWORD: "admin"
