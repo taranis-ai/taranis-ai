@@ -18,11 +18,8 @@ class SummaryBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
-        self.bot_api = BotApi(
-            bot_endpoint=parameters.get("BOT_ENDPOINT", Config.SUMMARY_API_ENDPOINT),
-            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
-            requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
-        )
+        summary_api = self._build_bot_api(parameters, "SUMMARY_ENDPOINT", Config.SUMMARY_API_ENDPOINT)
+        title_api = self._build_bot_api(parameters, "TITLE_ENDPOINT", None)
 
         for story in data:
             news_items = story.get("news_items", [])
@@ -30,11 +27,16 @@ class SummaryBot(BaseBot):
 
             logger.debug(f"Summarizing {story['id']} with {len(content_to_summarize)} characters")
             try:
-                if summary := self.predict_summary(content_to_summarize):
+                summary = self.predict_summary(summary_api, content_to_summarize)
+                title = self.predict_title(title_api, content_to_summarize)
+
+                if summary:
                     self.core_api.update_story_summary(story["id"], summary)
+                if title:
+                    self.core_api.update_story_title(story["id"], title)
                 self.core_api.update_story_attributes(
                     story["id"],
-                    [{"key": self.type, "value": 1 if summary else 0}],
+                    [{"key": self.type, "value": 1 if summary or title else 0}],
                 )
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")
@@ -43,7 +45,30 @@ class SummaryBot(BaseBot):
             logger.debug(f"Created summary for : {story['id']}")
         return {"message": f"Summarized {len(data)} stories"}
 
-    def predict_summary(self, text_to_summarize: str) -> str:
-        if summary := self.bot_api.api_post("/", {"text": text_to_summarize}):
-            return summary.get("summary", "")
+    @staticmethod
+    def _build_bot_api(parameters: dict, endpoint_parameter: str, default_endpoint: str | None) -> BotApi | None:
+        endpoint = parameters.get(endpoint_parameter) or default_endpoint
+        if not endpoint:
+            return None
+
+        return BotApi(
+            bot_endpoint=endpoint,
+            bot_api_key=parameters.get("BOT_API_KEY", Config.BOT_API_KEY),
+            requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
+        )
+
+    def predict_summary(self, bot_api: BotApi | None, text_to_summarize: str) -> str:
+        if not bot_api:
+            return ""
+
+        if response := bot_api.api_post("", {"text": text_to_summarize}):
+            return response.get("summary", "")
+        return ""
+
+    def predict_title(self, bot_api: BotApi | None, text_to_title: str) -> str:
+        if not bot_api:
+            return ""
+
+        if response := bot_api.api_post("", {"text": text_to_title}):
+            return response.get("title", "")
         return ""
