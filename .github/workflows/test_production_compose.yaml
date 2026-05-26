@@ -1,4 +1,4 @@
-name: E2E test docker compose
+name: Smoke test docker compose
 on:
   workflow_dispatch:
   pull_request_review:
@@ -29,7 +29,7 @@ jobs:
         run: |
           cp env.sample .env
           docker compose pull redis sse database
-          docker compose up ingress core frontend database redis workers cron sse --pull=never --wait-timeout=180 --wait
+          docker compose up ingress core frontend database redis collector workers cron sse --pull=never --wait-timeout=180 --wait
 
       - name: Check container status
         # Show status/logs only when a previous step failed (e.g. compose --wait)
@@ -48,7 +48,7 @@ jobs:
         working-directory: docker
         run: |
           # Check that services with healthchecks are healthy
-          for service in core frontend workers cron database redis; do
+          for service in core frontend collector workers cron database redis; do
             HEALTH=$(docker compose ps $service --format json | jq -r '.Health')
             if [ -n "$HEALTH" ] && [ "$HEALTH" != "healthy" ]; then
               echo "❌ Service $service health check failed (health: $HEALTH)"
