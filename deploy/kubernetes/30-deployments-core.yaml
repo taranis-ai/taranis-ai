@@ -33,6 +33,7 @@ spec:
                 configMapKeyRef:
                   name: taranis-config
                   key: TARANIS_BASE_PATH
+                  optional: true
             - name: JWT_SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -48,6 +49,7 @@ spec:
                 secretKeyRef:
                   name: taranis-secrets
                   key: BOT_API_KEY
+                  optional: true
             - name: PRE_SEED_PASSWORD_ADMIN
               valueFrom:
                 secretKeyRef:
@@ -122,6 +124,7 @@ spec:
                 configMapKeyRef:
                   name: taranis-config
                   key: TARANIS_BASE_PATH
+                  optional: true
             - name: JWT_SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -248,6 +251,7 @@ spec:
                 configMapKeyRef:
                   name: taranis-config
                   key: TARANIS_BASE_PATH
+                  optional: true
           ports:
             - containerPort: 8080
               name: http
