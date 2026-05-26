@@ -152,16 +152,26 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(run_core, app, request):
-    if external_frontend_url := external_frontend_base_url():
-        print(f"Using external Taranis Frontend for E2E tests: {external_frontend_url}")
-        return ExternalE2EServer(external_frontend_url)
+def e2e_server_external():
+    external_frontend_url = external_frontend_base_url()
+    if external_frontend_url is None:
+        raise RuntimeError("External frontend URL is not configured")
+    print(f"Using external Taranis Frontend for E2E tests: {external_frontend_url}")
+    return ExternalE2EServer(external_frontend_url)
 
-    live_server = request.getfixturevalue("live_server")
-    request.getfixturevalue("build_tailwindcss")
+
+@pytest.fixture(scope="session")
+def e2e_server_local(run_core, app, live_server, build_tailwindcss):
     live_server.app = app
     live_server.start()
     return live_server
+
+
+@pytest.fixture(scope="session")
+def e2e_server(request):
+    if external_frontend_base_url():
+        return request.getfixturevalue("e2e_server_external")
+    return request.getfixturevalue("e2e_server_local")
 
 
 @pytest.fixture(scope="session")
