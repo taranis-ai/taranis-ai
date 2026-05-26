@@ -89,20 +89,26 @@ def docker_cleanup():
 
 
 @pytest.fixture(scope="session")
-def run_core(request):
+def run_core_external():
     from frontend.config import Config
 
     taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
+    external_core_url = external_core_api_url()
+    if external_core_url is None:
+        raise RuntimeError("External core URL is not configured")
 
-    if external_core_url := external_core_api_url():
-        Config.TARANIS_CORE_HOST = core_host_from_api_url(external_core_url)
-        Config.TARANIS_CORE_URL = external_core_url
-        core_url = external_core_url
-        print(f"Using external Taranis Core for E2E tests: {external_core_url}")
-        wait_for_server_to_be_alive(f"{core_url}/health", taranis_core_start_timeout)
-        return core_url
+    Config.TARANIS_CORE_HOST = core_host_from_api_url(external_core_url)
+    Config.TARANIS_CORE_URL = external_core_url
+    print(f"Using external Taranis Core for E2E tests: {external_core_url}")
+    wait_for_server_to_be_alive(f"{external_core_url}/health", taranis_core_start_timeout)
+    return external_core_url
 
-    docker_services = request.getfixturevalue("docker_services")
+
+@pytest.fixture(scope="session")
+def run_core_local(docker_services):
+    from frontend.config import Config
+
+    taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
     core_port = docker_services.port_for("core", 8080)
     core_url = f"http://127.0.0.1:{core_port}/api"
 
@@ -116,6 +122,13 @@ def run_core(request):
         return core_url
     except Exception as e:
         pytest.fail(str(e))
+
+
+@pytest.fixture(scope="session")
+def run_core(request):
+    if external_core_api_url():
+        return request.getfixturevalue("run_core_external")
+    return request.getfixturevalue("run_core_local")
 
 
 @pytest.fixture(scope="session")
