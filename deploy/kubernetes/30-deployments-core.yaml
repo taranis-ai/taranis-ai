@@ -43,6 +43,11 @@ spec:
                 secretKeyRef:
                   name: taranis-secrets
                   key: API_KEY
+            - name: BOT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: BOT_API_KEY
             - name: PRE_SEED_PASSWORD_ADMIN
               valueFrom:
                 secretKeyRef:
