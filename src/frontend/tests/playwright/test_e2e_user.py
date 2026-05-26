@@ -121,7 +121,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("row", name="Page 6")).to_be_visible()
             page.get_by_text("›").click()
             expect(footer).to_contain_text("Page 7 of 7")
-            expect(page.locator("tbody")).to_contain_text("Airport")
+            expect(all_rows).to_have_count(10)
             page.get_by_text("«").click()
             expect(page.locator("tbody")).to_contain_text("USA")
             page.get_by_role("combobox").click()
