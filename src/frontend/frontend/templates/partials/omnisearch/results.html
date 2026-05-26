@@ -13,7 +13,13 @@
       <form method="get" action="{{ url_for('base.omnisearch') }}" class="w-full max-w-xl">
         <label class="input input-bordered flex items-center gap-2">
           {{ heroicon_outline('magnifying-glass', class='h-5 w-5 text-base-content/70') }}
-          <input type="search" name="q" value="{{ current_search }}" class="grow" autocomplete="off" data-testid="omnisearch-results-input">
+          <input type="search"
+                 name="q"
+                 value="{{ current_search }}"
+                 class="grow"
+                 autocomplete="off"
+                 aria-label="Search"
+                 data-testid="omnisearch-results-input">
         </label>
       </form>
     </div>

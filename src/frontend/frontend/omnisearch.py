@@ -183,8 +183,6 @@ OMNISEARCH_SCOPES: tuple[OmniSearchScopeDefinition, ...] = (
 )
 
 OMNISEARCH_SCOPE_INDEX = {alias: scope for scope in OMNISEARCH_SCOPES for alias in scope.aliases}
-REPORT_SCOPE_ALIASES = frozenset({"report", "reports", "analyze", "analysis"})
-STORY_SCOPE_ALIASES = frozenset({"story", "stories", "assess"})
 BOOLEAN_VALUES = frozenset({"true", "false"})
 
 ASSESS_OMNISEARCH_KEYWORDS: tuple[AssessOmniSearchKeyword, ...] = (
@@ -283,7 +281,9 @@ def build_omnisearch_context(
     quick_links = _build_quick_links(parsed_query, query, filter_lists, assess_filter_query)
     scope_definitions = _matching_scopes(parsed_query)
     buckets: list[OmniSearchBucket] = []
-    if not assess_filter_query and not _should_suppress_global_buckets(query, assess_suggestions):
+    if parsed_query.scope in {"report", "product"} or (
+        not assess_filter_query and not _should_suppress_global_buckets(query, assess_suggestions)
+    ):
         buckets = [_build_bucket(scope_definition, parsed_query.term, limit_per_scope) for scope_definition in scope_definitions]
     return OmniSearchContext(
         parsed_query=parsed_query,

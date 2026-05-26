@@ -51,9 +51,11 @@ def test_omnisearch_navbar_input_submits_to_global_search_and_loads_suggestions(
     assert search_container.get("x-data").startswith("omniSearch(")
     assert search_container.get("@click.outside") == "open = false"
     assert search_container.get("@keydown.window") == "focusShortcut($event)"
+    assert search_container.get("@keydown.enter.prevent") is None
     assert search_input.get("name") is None
     assert search_input.get("data-testid") == "omnisearch-input"
     assert search_input.get("@click") == "open = true"
+    assert search_input.get("@keydown.enter.prevent.stop") == "submitOmniSearch()"
     assert search_input.get("hx-get") == expected_suggestions
     assert search_input.get("hx-vals") == "js:{q: this.value}"
     assert search_input.get("hx-target") == "#omnisearch-suggestions"
@@ -94,22 +96,23 @@ def test_omnisearch_loads_filter_lists_only_when_value_suggestions_or_resolution
     assert needs_assess_filter_lists("story: source:Some") is True
 
 
-def test_omnisearch_scope_search_uses_first_page_offset(monkeypatch):
+def test_omnisearch_scope_search_uses_first_page_offset(app, monkeypatch):
     captured = {}
 
     class FakePersistenceLayer:
         def get_objects(self, model, paging_data):
             captured["model"] = model
             captured["paging_data"] = paging_data
-            return []
+            return omnisearch.CacheObject([])
 
     monkeypatch.setattr(omnisearch, "DataPersistenceLayer", FakePersistenceLayer)
 
-    result = omnisearch._search_scope(omnisearch.get_omnisearch_scope("report"), "weekly", 4)
+    with app.test_request_context("/frontend/search/suggestions?q=report:foo"):
+        context = build_omnisearch_context("report:foo", limit_per_scope=4)
 
-    assert result == []
+    assert [bucket.scope for bucket in context.buckets] == ["report"]
     assert captured["paging_data"].page == 1
-    assert captured["paging_data"].query_params == {"search": "weekly", "limit": "4", "offset": "0"}
+    assert captured["paging_data"].query_params == {"search": "foo", "limit": "4", "offset": "0"}
 
 
 def test_omnisearch_resolves_filter_list_values():
