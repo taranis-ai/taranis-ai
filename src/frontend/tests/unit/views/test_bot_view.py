@@ -40,6 +40,23 @@ def test_bot_parameters_include_optional_positive_integer_requests_timeout(authe
     assert response.text.index('name="parameters[ITEM_FILTER]"') < response.text.index('name="parameters[REQUESTS_TIMEOUT]"')
 
 
+def test_summary_bot_parameters_include_split_summary_and_title_endpoints(authenticated_client, htmx_header):
+    response = authenticated_client.get(
+        url_for("admin.bot_parameters", bot_id="0", type="summary_bot"),
+        headers=htmx_header,
+    )
+    assert response.status_code == 200
+
+    tree = html.fromstring(response.text)
+    summary_endpoint_fields = tree.xpath('//input[@name="parameters[SUMMARY_ENDPOINT]"]')
+    title_endpoint_fields = tree.xpath('//input[@name="parameters[TITLE_ENDPOINT]"]')
+
+    assert len(summary_endpoint_fields) == 1
+    assert len(title_endpoint_fields) == 1
+    assert summary_endpoint_fields[0].get("required") is None
+    assert title_endpoint_fields[0].get("required") is None
+
+
 def test_bot_menu_badge_uses_task_failure_count(monkeypatch):
     fake_badges = SimpleNamespace(bot=7)
     monkeypatch.setattr(
