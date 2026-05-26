@@ -4,7 +4,13 @@ from flask import render_template, url_for
 from lxml import html
 from models.assess import AssessSource, FilterLists
 
-from frontend.omnisearch import build_omnisearch_context, build_omnisearch_target_url, translate_assess_omnisearch
+from frontend import omnisearch
+from frontend.omnisearch import (
+    build_omnisearch_context,
+    build_omnisearch_target_url,
+    needs_assess_filter_lists,
+    translate_assess_omnisearch,
+)
 
 
 def _filter_lists() -> FilterLists:
@@ -23,6 +29,15 @@ def test_omnisearch_builds_scope_target_urls_and_ignores_unknown_colon_queries(a
         assert build_omnisearch_target_url("cve:2026-1234") is None
 
 
+def test_omnisearch_story_scope_preserves_plain_colon_search_terms(app):
+    with app.test_request_context("/frontend/search"):
+        location = build_omnisearch_target_url("story: http://example.com/cve:2026-1234", _filter_lists())
+
+    parsed_location = urlparse(location or "")
+    assert parsed_location.path.endswith("/assess")
+    assert parse_qs(parsed_location.query) == {"search": ["http://example.com/cve:2026-1234"]}
+
+
 def test_omnisearch_navbar_input_submits_to_global_search_and_loads_suggestions(app):
     with app.test_request_context("/"):
         markup = render_template("partials/omnisearch/omni_search.html")
@@ -33,8 +48,9 @@ def test_omnisearch_navbar_input_submits_to_global_search_and_loads_suggestions(
     search_input = tree.xpath('//input[@id="omnisearch"]')[0]
     suggestions_panel = tree.xpath('//*[@id="omnisearch-suggestions"]')[0]
 
-    assert "submitOmniSearch" in search_container.get("x-data")
+    assert search_container.get("x-data").startswith("omniSearch(")
     assert search_container.get("@click.outside") == "open = false"
+    assert search_container.get("@keydown.window") == "focusShortcut($event)"
     assert search_input.get("name") is None
     assert search_input.get("data-testid") == "omnisearch-input"
     assert search_input.get("@click") == "open = true"
@@ -55,6 +71,45 @@ def test_omnisearch_translates_issue_story_keywords():
         "read": ["false"],
         "sort": ["relevance"],
     }
+
+
+def test_omnisearch_preserves_unknown_colon_tokens_as_search_terms():
+    result = translate_assess_omnisearch("read:false cve:2026-1234 http://example.com", _filter_lists())
+
+    assert result.errors == []
+    assert result.params == {
+        "search": ["cve:2026-1234 http://example.com"],
+        "read": ["false"],
+    }
+
+
+def test_omnisearch_loads_filter_lists_only_when_value_suggestions_or_resolution_need_them():
+    assert needs_assess_filter_lists("") is False
+    assert needs_assess_filter_lists("sou") is False
+    assert needs_assess_filter_lists("read:false") is False
+    assert needs_assess_filter_lists("story: read:false") is False
+    assert needs_assess_filter_lists("source:") is True
+    assert needs_assess_filter_lists("group:Some") is True
+    assert needs_assess_filter_lists("tag:ap") is True
+    assert needs_assess_filter_lists("story: source:Some") is True
+
+
+def test_omnisearch_scope_search_uses_first_page_offset(monkeypatch):
+    captured = {}
+
+    class FakePersistenceLayer:
+        def get_objects(self, model, paging_data):
+            captured["model"] = model
+            captured["paging_data"] = paging_data
+            return []
+
+    monkeypatch.setattr(omnisearch, "DataPersistenceLayer", FakePersistenceLayer)
+
+    result = omnisearch._search_scope(omnisearch.get_omnisearch_scope("report"), "weekly", 4)
+
+    assert result == []
+    assert captured["paging_data"].page == 1
+    assert captured["paging_data"].query_params == {"search": "weekly", "limit": "4", "offset": "0"}
 
 
 def test_omnisearch_resolves_filter_list_values():
@@ -122,6 +177,17 @@ def test_omnisearch_assess_filter_suggestions_are_story_only(app):
     assert not tree.xpath('//*[@data-testid="omnisearch-scope-story"]')
     assert not tree.xpath('//*[@data-testid="omnisearch-scope-report"]')
     assert not tree.xpath('//*[@data-testid="omnisearch-scope-product"]')
+
+
+def test_omnisearch_suggestions_surface_validation_errors(authenticated_client):
+    with authenticated_client.application.test_request_context("/"):
+        suggestions_url = url_for("base.omnisearch_suggestions", q="read:maybe")
+
+    response = authenticated_client.get(suggestions_url, headers={"HX-Request": "true"})
+    tree = html.fromstring(response.text)
+
+    assert response.status_code == 200
+    assert tree.xpath('//*[@data-testid="omnisearch-errors"]/div/text()') == ["Invalid value 'maybe' for keyword 'read:'."]
 
 
 def test_omnisearch_preserves_report_search_and_report_boolean_filter(app):

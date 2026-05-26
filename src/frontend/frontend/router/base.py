@@ -105,15 +105,21 @@ class OmniSearchSuggestions(MethodView):
     def get(self):
         current_search = request.args.get("q", "")
         filter_lists = _get_omnisearch_filter_lists(current_search)
+        navigation = build_omnisearch_navigation(current_search, filter_lists)
         return render_template(
             "partials/omnisearch/suggestions.html",
-            search_context=build_omnisearch_context(current_search, limit_per_scope=4, filter_lists=filter_lists),
+            search_context=build_omnisearch_context(
+                current_search,
+                limit_per_scope=4,
+                filter_lists=filter_lists,
+                errors=navigation.errors,
+            ),
         )
 
 
 def _get_omnisearch_filter_lists(query: str) -> FilterLists:
     if needs_assess_filter_lists(query):
-        return StoryView._get_filter_lists()
+        return StoryView.get_filter_lists()
     return FilterLists(tags=[], sources=[], groups=[])
 
 

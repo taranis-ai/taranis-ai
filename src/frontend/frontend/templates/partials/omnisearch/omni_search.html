@@ -1,7 +1,8 @@
 <div class="relative w-72 lg:w-144"
      role="search"
-     x-data='{ searchUrl: {{ url_for("base.omnisearch") | tojson }}, open: false, applyOmniSearch(query) { const input = this.$refs.omniInput; input.value = query; this.open = true; input.focus(); input.dispatchEvent(new Event("input", { bubbles: true })); }, submitOmniSearch() { const query = this.$refs.omniInput.value.trim(); if (query) window.location.href = `${this.searchUrl}?q=${encodeURIComponent(query)}`; } }'
+     x-data='omniSearch({{ url_for("base.omnisearch") | tojson }})'
      @keydown.escape.window="open = false"
+     @keydown.window="focusShortcut($event)"
      @keydown.enter.prevent="submitOmniSearch()"
      @click.outside="open = false">
   <label class="input input-bordered input-sm flex items-center gap-2">
@@ -17,7 +18,6 @@
            @focus="open = true"
            @click="open = true"
            @input="open = true"
-           @keydown.window="if ($event.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes($event.target.tagName)) { $event.preventDefault(); $el.focus(); $el.select(); }"
            hx-get="{{ url_for('base.omnisearch_suggestions') }}"
            hx-vals="js:{q: this.value}"
            hx-target="#omnisearch-suggestions"

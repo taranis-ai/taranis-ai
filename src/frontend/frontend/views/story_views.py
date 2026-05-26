@@ -97,7 +97,7 @@ class StoryView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
-        base_context["filter_lists"] = cls._get_filter_lists()
+        base_context["filter_lists"] = cls.get_filter_lists()
         if request.endpoint == "assess.assess":
             base_context["assess_request_args"] = cls._get_assess_request_params()
         if stories := base_context.get("stories"):
@@ -134,7 +134,7 @@ class StoryView(BaseView):
         return story
 
     @staticmethod
-    def _get_filter_lists() -> FilterLists:
+    def get_filter_lists() -> FilterLists:
         username = getattr(current_user, "username", getattr(current_user, "id", "anonymous"))
         if filter_lists := get_model_from_cache(FilterLists._model_name, "", username):
             return FilterLists(**filter_lists)
@@ -143,6 +143,10 @@ class StoryView(BaseView):
             add_model_to_cache(filter_lists, "", username)
             return filter_lists
         return FilterLists(tags=[], sources=[], groups=[])
+
+    @staticmethod
+    def _get_filter_lists() -> FilterLists:
+        return StoryView.get_filter_lists()
 
     @staticmethod
     def _normalize_assess_filter_values(values: Any) -> list[str]:
@@ -533,7 +537,7 @@ class StoryView(BaseView):
             context["story_cyber_status"] = cls._format_cyber_status(cybersecurity_value)
             context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
             context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
-            sources = list(cls._get_filter_lists().sources)
+            sources = list(cls.get_filter_lists().sources)
             source_dict = {source.id: source for source in sources if source.id}
             cls._enhance_story_with_details(story, source_dict)
         else:
