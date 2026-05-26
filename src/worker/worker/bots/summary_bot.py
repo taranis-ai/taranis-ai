@@ -30,10 +30,14 @@ class SummaryBot(BaseBot):
                 summary = self.predict_summary(summary_api, content_to_summarize)
                 title = self.predict_title(title_api, content_to_summarize)
 
+                story_update_data = {}
                 if summary:
-                    self.core_api.update_story_summary(story["id"], summary)
+                    story_update_data["summary"] = summary
                 if title:
-                    self.core_api.update_story_title(story["id"], title)
+                    story_update_data["title"] = title
+
+                if story_update_data:
+                    self.core_api.update_story(story["id"], story_update_data)
                 self.core_api.update_story_attributes(
                     story["id"],
                     [{"key": self.type, "value": 1 if summary or title else 0}],

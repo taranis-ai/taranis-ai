@@ -256,15 +256,9 @@ class CoreApi:
         except Exception:
             return None
 
-    def update_story_summary(self, story_id, summary: str) -> dict | None:
+    def update_story(self, story_id: str, data: dict) -> dict | None:
         try:
-            return self.api_put(url=f"/bots/story/{story_id}", json_data={"summary": summary})
-        except Exception:
-            return None
-
-    def update_story_title(self, story_id, title: str) -> dict | None:
-        try:
-            return self.api_put(url=f"/bots/story/{story_id}", json_data={"title": title})
+            return self.api_put(url=f"/bots/story/{story_id}", json_data=dict(data))
         except Exception:
             return None
 
