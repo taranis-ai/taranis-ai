@@ -25,7 +25,6 @@ jobs:
         working-directory: docker
         env:
           PRE_SEED_PASSWORD_USER: test
-          WORKER_TYPES: '["Presenters", "Publishers"]'
         run: |
           cp env.sample .env
           docker compose pull redis sse database
