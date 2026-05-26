@@ -166,42 +166,6 @@ document.body.addEventListener("htmx:configRequest", function (evt) {
   evt.detail.headers["X-CSRF-TOKEN"] = getCSRFToken(); // add CSRF to every request
 });
 
-document.body.addEventListener("showNotification", function (evt) {
-  const notification = evt.detail;
-  const notificationBar = document.querySelector("#notification-bar");
-  if (!notificationBar || !notification?.message) {
-    return;
-  }
-
-  const toast = document.createElement("div");
-  toast.className = "toast toast-center toast-bottom w-1/2 z-50";
-
-  const alert = document.createElement("div");
-  alert.className = `alert flex flex-col w-full gap-2 cursor-pointer ${notification.error ? "alert-error" : notification.class || "alert-info"}`;
-  alert.setAttribute("role", "alert");
-  alert.addEventListener("click", () => notificationBar.replaceChildren());
-
-  const messageRow = document.createElement("div");
-  messageRow.className = "flex items-center gap-2";
-
-  const message = document.createElement("span");
-  message.id = "notification-message";
-  message.textContent = notification.message;
-
-  const progress = document.createElement("div");
-  progress.className = "w-full h-2 bg-black/20 rounded overflow-hidden";
-
-  const progressBar = document.createElement("div");
-  progressBar.className = "h-full bg-black animate-shrink-10";
-  progressBar.addEventListener("animationend", () => notificationBar.replaceChildren());
-
-  messageRow.append(message);
-  progress.append(progressBar);
-  alert.append(messageRow, progress);
-  toast.append(alert);
-  notificationBar.replaceChildren(toast);
-});
-
 function initChoices(elementID, placeholder = "items", config = {}) {
   const select = document.getElementById(elementID);
   if (!select || select.classList.contains("choices__input")) {

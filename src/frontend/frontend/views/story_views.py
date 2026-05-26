@@ -700,7 +700,6 @@ class StoryView(BaseView):
         response = make_response(render_template("notification/index.html", notification=notification, oob=False), 400)
         response.headers["HX-Retarget"] = "#notification-bar"
         response.headers["HX-Reswap"] = "outerHTML"
-        response.headers["HX-Trigger"] = json.dumps({"showNotification": notification})
         return response
 
     @classmethod

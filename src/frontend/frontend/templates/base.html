@@ -12,7 +12,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/vendor.bundle.css') }}">
 
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
-    <meta name="htmx-config" content='{"selfRequestsOnly": false}' />
+    <meta name="htmx-config"
+          content='{"selfRequestsOnly": false, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "400", "swap": true, "error": true}, {"code": "[45]..", "swap": false, "error": true}, {"code": "...", "swap": false}]}' />
     {% block head %}
     {% endblock head %}
   </head>
