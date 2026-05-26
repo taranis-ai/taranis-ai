@@ -2,10 +2,82 @@
 move news item tags to news items
 """
 
+import uuid
+
 from yoyo import step
 
 
 __depends__ = {"20260416_01_Q7vKp-add-task-worker-metadata"}
+
+
+def _insert_news_item_tags_for_news_items(connection):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT DISTINCT tag.name, tag.tag_type, news_item.id
+            FROM news_item_tag tag
+            JOIN news_item ON news_item.story_id = tag.story_id
+            WHERE tag.news_item_id IS NULL
+              AND tag.tag_type NOT ILIKE 'report_%';
+            """
+        )
+        rows = cursor.fetchall()
+        cursor.executemany(
+            """
+            INSERT INTO news_item_tag (id, name, tag_type, news_item_id)
+            VALUES (%s, %s, %s, %s);
+            """,
+            [(str(uuid.uuid7()), name, tag_type, news_item_id) for name, tag_type, news_item_id in rows],
+        )
+
+
+def _restore_report_tags_to_news_item_tags(connection):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT DISTINCT attr.value, attr.key, snia.story_id
+            FROM story_news_item_attribute snia
+            JOIN news_item_attribute attr ON attr.id = snia.news_item_attribute_id
+            WHERE attr.key ILIKE 'report_%'
+              AND attr.id = md5('report-tag-attribute:' || snia.story_id || ':' || lower(attr.key))
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM news_item_tag tag
+                  WHERE tag.story_id = snia.story_id
+                    AND tag.tag_type = attr.key
+                    AND tag.name = attr.value
+              );
+            """
+        )
+        rows = cursor.fetchall()
+        cursor.executemany(
+            """
+            INSERT INTO news_item_tag (id, name, tag_type, story_id)
+            VALUES (%s, %s, %s, %s);
+            """,
+            [(str(uuid.uuid7()), name, tag_type, story_id) for name, tag_type, story_id in rows],
+        )
+        cursor.execute(
+            """
+            DELETE FROM story_news_item_attribute snia
+            USING news_item_attribute attr
+            WHERE attr.id = snia.news_item_attribute_id
+              AND attr.key ILIKE 'report_%'
+              AND attr.id = md5('report-tag-attribute:' || snia.story_id || ':' || lower(attr.key));
+
+            DELETE FROM news_item_attribute attr
+            WHERE attr.key ILIKE 'report_%'
+              AND EXISTS (
+                  SELECT 1 FROM story WHERE attr.id = md5('report-tag-attribute:' || story.id || ':' || lower(attr.key))
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM story_news_item_attribute snia WHERE snia.news_item_attribute_id = attr.id
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM news_item_news_item_attribute ninia WHERE ninia.news_item_attribute_id = attr.id
+              );
+            """
+        )
 
 
 steps = [
@@ -20,14 +92,7 @@ steps = [
         """,
     ),
     step(
-        """
-        INSERT INTO news_item_tag (name, tag_type, news_item_id)
-        SELECT DISTINCT tag.name, tag.tag_type, news_item.id
-        FROM news_item_tag tag
-        JOIN news_item ON news_item.story_id = tag.story_id
-        WHERE tag.news_item_id IS NULL
-          AND tag.tag_type NOT ILIKE 'report_%';
-        """,
+        _insert_news_item_tags_for_news_items,
         """
         """,
     ),
@@ -67,39 +132,7 @@ steps = [
         FROM report_tags;
 
         """,
-        """
-        INSERT INTO news_item_tag (name, tag_type, story_id)
-        SELECT DISTINCT attr.value, attr.key, snia.story_id
-        FROM story_news_item_attribute snia
-        JOIN news_item_attribute attr ON attr.id = snia.news_item_attribute_id
-        WHERE attr.key ILIKE 'report_%'
-          AND attr.id = md5('report-tag-attribute:' || snia.story_id || ':' || lower(attr.key))
-          AND NOT EXISTS (
-              SELECT 1
-              FROM news_item_tag tag
-              WHERE tag.story_id = snia.story_id
-                AND tag.tag_type = attr.key
-                AND tag.name = attr.value
-          );
-
-        DELETE FROM story_news_item_attribute snia
-        USING news_item_attribute attr
-        WHERE attr.id = snia.news_item_attribute_id
-          AND attr.key ILIKE 'report_%'
-          AND attr.id = md5('report-tag-attribute:' || snia.story_id || ':' || lower(attr.key));
-
-        DELETE FROM news_item_attribute attr
-        WHERE attr.key ILIKE 'report_%'
-          AND EXISTS (
-              SELECT 1 FROM story WHERE attr.id = md5('report-tag-attribute:' || story.id || ':' || lower(attr.key))
-          )
-          AND NOT EXISTS (
-              SELECT 1 FROM story_news_item_attribute snia WHERE snia.news_item_attribute_id = attr.id
-          )
-          AND NOT EXISTS (
-              SELECT 1 FROM news_item_news_item_attribute ninia WHERE ninia.news_item_attribute_id = attr.id
-          );
-        """,
+        _restore_report_tags_to_news_item_tags,
     ),
     step(
         """
