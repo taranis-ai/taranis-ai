@@ -174,6 +174,17 @@ def e2e_server(request):
     return request.getfixturevalue("e2e_server_local")
 
 
+@pytest.fixture(autouse=True)
+def e2e_request_context(e2e_server, app):
+    app = getattr(e2e_server, "app", None) or app
+    ctx = app.test_request_context()
+    ctx.push()
+    try:
+        yield
+    finally:
+        ctx.pop()
+
+
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args, browser_type_launch_args, request):
     browser_type_launch_args["args"] = ["--window-size=1964,1211"]
