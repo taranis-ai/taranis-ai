@@ -38,12 +38,6 @@ class TestEndToEndUser(BaseE2ETest):
         assert match, f"Unable to parse assess story selection count from: {count_text!r}"
         return int(match.group(1))
 
-    @staticmethod
-    def _get_pagination_total_pages(locator_text: str) -> int:
-        match = re.search(r"Page\s+\d+\s+of\s+(\d+)", locator_text)
-        assert match, f"Unable to parse pagination text from: {locator_text!r}"
-        return int(match.group(1))
-
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
         page.context.clear_cookies()
@@ -116,23 +110,26 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.locator("tbody")).to_contain_text("Wärmestuben")
             expect(page.locator("tbody")).to_contain_text("1")
             footer = page.locator("tfoot")
-            expect(footer).to_contain_text("Page 1 of")
-            initial_total_pages = self._get_pagination_total_pages(footer.inner_text())
-            assert initial_total_pages >= 2
-            for page_number in range(2, initial_total_pages + 1):
-                page.get_by_text("›").click()
-                expect(page.get_by_role("row", name=f"Page {page_number}")).to_be_visible()
-            expect(footer).to_contain_text(f"Page {initial_total_pages} of {initial_total_pages}")
+            expect(footer).to_contain_text("Page 1 of 7")
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Page 2")).to_be_visible()
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Page 3")).to_be_visible()
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Page 4")).to_be_visible()
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Page 5")).to_be_visible()
+            page.get_by_text("›").click()
+            expect(page.get_by_role("row", name="Page 6")).to_be_visible()
+            page.get_by_text("›").click()
+            expect(footer).to_contain_text("Page 7 of 7")
             expect(page.locator("tbody")).to_contain_text("Airport")
             page.get_by_text("«").click()
-            expect(footer).to_contain_text("Page 1 of")
             expect(page.locator("tbody")).to_contain_text("USA")
             page.get_by_role("combobox").click()
             page.get_by_role("combobox").select_option("5")
             expect(all_rows).to_have_count(5)
-            expect(footer).to_contain_text("Page 1 of")
-            paged_total_pages = self._get_pagination_total_pages(footer.inner_text())
-            assert paged_total_pages >= initial_total_pages
+            expect(footer).to_contain_text("Page 1 of 26")
 
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
