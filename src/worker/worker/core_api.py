@@ -262,6 +262,12 @@ class CoreApi:
         except Exception:
             return None
 
+    def update_story_title(self, story_id, title: str) -> dict | None:
+        try:
+            return self.api_put(url=f"/bots/story/{story_id}", json_data={"title": title})
+        except Exception:
+            return None
+
     def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
             payload = dict(attributes=attributes) if not isinstance(attributes, dict) else dict(attributes)
