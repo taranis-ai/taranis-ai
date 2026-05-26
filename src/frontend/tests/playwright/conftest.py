@@ -293,18 +293,32 @@ def _new_authenticated_page(taranis_frontend: Page, e2e_server, token_response) 
 
 
 @pytest.fixture
-def authenticated_page_factory(taranis_frontend: Page, e2e_server, access_token_response, access_token_response_basic):
+def authenticated_page_factory_local(taranis_frontend: Page, e2e_server, access_token_response, access_token_response_basic):
     """Factory fixture for creating authenticated pages with different user types."""
 
     def _create(user_type="admin"):
-        token_response = (
-            _external_token_response(user_type)
-            if external_core_api_url()
-            else _core_token_response(user_type, access_token_response, access_token_response_basic)
-        )
+        token_response = _core_token_response(user_type, access_token_response, access_token_response_basic)
         return _new_authenticated_page(taranis_frontend, e2e_server, token_response)
 
     return _create
+
+
+@pytest.fixture
+def authenticated_page_factory_external(taranis_frontend: Page, e2e_server):
+    """Factory fixture for creating authenticated pages against an external core."""
+
+    def _create(user_type="admin"):
+        token_response = _external_token_response(user_type)
+        return _new_authenticated_page(taranis_frontend, e2e_server, token_response)
+
+    return _create
+
+
+@pytest.fixture
+def authenticated_page_factory(request):
+    if external_core_api_url():
+        return request.getfixturevalue("authenticated_page_factory_external")
+    return request.getfixturevalue("authenticated_page_factory_local")
 
 
 @pytest.fixture
