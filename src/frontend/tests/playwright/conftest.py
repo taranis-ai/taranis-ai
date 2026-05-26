@@ -724,7 +724,7 @@ def pre_seed_report_type(report_definition, core_request_client):
     unexpected_types = sorted(available_types - ALL_ATTRIBUTE_TYPES)
     assert not unexpected_types, f"System has unexpected AttributeTypes: {unexpected_types}"
 
-    return core_request_client.json_request("POST", "/config/report-item-types", json_data=report_definition)
+    core_request_client.post("/config/report-item-types", json_data=report_definition)
 
 
 @pytest.fixture(scope="session")
@@ -732,12 +732,7 @@ def pre_seed_report_type_all_attribute_types_optional(core_request_client):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
-    report_type = pre_seed_report_type(report_definition_copy, core_request_client)
-    try:
-        yield report_type
-    finally:
-        if report_type_id := report_type.get("id"):
-            core_request_client.delete(f"/config/report-item-types/{report_type_id}", raise_for_status=False)
+    pre_seed_report_type(report_definition_copy, core_request_client)
 
 
 @pytest.fixture(scope="session")
@@ -751,12 +746,7 @@ def pre_seed_report_type_all_attribute_types_required(core_request_client):
         for attribute in attribute_group.get("attribute_group_items", {}):
             attribute["required"] = True
 
-    report_type = pre_seed_report_type(report_definition_copy, core_request_client)
-    try:
-        yield report_type
-    finally:
-        if report_type_id := report_type.get("id"):
-            core_request_client.delete(f"/config/report-item-types/{report_type_id}", raise_for_status=False)
+    pre_seed_report_type(report_definition_copy, core_request_client)
 
 
 @pytest.fixture(scope="session")
