@@ -166,6 +166,26 @@ document.body.addEventListener("htmx:configRequest", function (evt) {
   evt.detail.headers["X-CSRF-TOKEN"] = getCSRFToken(); // add CSRF to every request
 });
 
+document.body.addEventListener("htmx:responseError", function (evt) {
+  const xhr = evt.detail.xhr;
+  const retarget = xhr.getResponseHeader("HX-Retarget");
+  if (retarget !== "#notification-bar") {
+    return;
+  }
+
+  const notificationBar = document.querySelector(retarget);
+  if (!notificationBar || !xhr.responseText) {
+    return;
+  }
+
+  notificationBar.outerHTML = xhr.responseText;
+  const updatedNotificationBar = document.querySelector(retarget);
+  if (updatedNotificationBar) {
+    htmx.process(updatedNotificationBar);
+    Alpine.initTree(updatedNotificationBar);
+  }
+});
+
 function initChoices(elementID, placeholder = "items", config = {}) {
   const select = document.getElementById(elementID);
   if (!select || select.classList.contains("choices__input")) {
