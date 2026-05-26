@@ -389,7 +389,6 @@ def forward_console_and_page_errors_non_admin(request, non_admin_logged_in_page)
         non_admin_logged_in_page,
         extra_allow_patterns=[
             r"(?i)\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(forbidden\)",
-            r"\[console\.error\].*/admin/attributes.*Failed to load resource: the server responded with a status of 403 \(FORBIDDEN\)",
             r"\[console\.error\].*htmx:oobErrorNoTarget, #notification-bar",
         ],
     )
@@ -666,18 +665,6 @@ ALL_ATTRIBUTE_TYPES = {
 }
 
 
-def _find_report_type_by_title(core_request_client, title: str) -> dict | None:
-    response_payload = core_request_client.json_request(
-        "GET",
-        "/config/report-item-types",
-        params={"search": title, "limit": 100},
-    )
-    for item in response_payload.get("items", []):
-        if item.get("title") == title:
-            return item
-    return None
-
-
 def pre_seed_report_type(report_definition, core_request_client):
     allow_requests_passthru()
 
@@ -700,12 +687,7 @@ def pre_seed_report_type(report_definition, core_request_client):
     unexpected_types = sorted(available_types - ALL_ATTRIBUTE_TYPES)
     assert not unexpected_types, f"System has unexpected AttributeTypes: {unexpected_types}"
 
-    existing_report_type = _find_report_type_by_title(core_request_client, report_definition["title"])
-    if existing_report_type:
-        return existing_report_type["id"], False
-
-    created_report_type = core_request_client.json_request("POST", "/config/report-item-types", json_data=report_definition)
-    return created_report_type["id"], True
+    return core_request_client.json_request("POST", "/config/report-item-types", json_data=report_definition)
 
 
 @pytest.fixture(scope="session")
@@ -713,14 +695,12 @@ def pre_seed_report_type_all_attribute_types_optional(core_request_client):
     from testdata.report_item_type_all_attribute_types import report_definition
 
     report_definition_copy = copy.deepcopy(report_definition)
-    report_type_id, created = pre_seed_report_type(report_definition_copy, core_request_client)
+    report_type = pre_seed_report_type(report_definition_copy, core_request_client)
     try:
-        yield {"id": report_type_id, "title": report_definition_copy["title"]}
+        yield report_type
     finally:
-        if created:
-            report_type = _find_report_type_by_title(core_request_client, report_definition_copy["title"])
-            if report_type and (report_type_id := report_type.get("id")):
-                core_request_client.delete(f"/config/report-item-types/{report_type_id}", raise_for_status=False)
+        if report_type_id := report_type.get("id"):
+            core_request_client.delete(f"/config/report-item-types/{report_type_id}", raise_for_status=False)
 
 
 @pytest.fixture(scope="session")
@@ -734,14 +714,12 @@ def pre_seed_report_type_all_attribute_types_required(core_request_client):
         for attribute in attribute_group.get("attribute_group_items", {}):
             attribute["required"] = True
 
-    report_type_id, created = pre_seed_report_type(report_definition_copy, core_request_client)
+    report_type = pre_seed_report_type(report_definition_copy, core_request_client)
     try:
-        yield {"id": report_type_id, "title": report_definition_copy["title"]}
+        yield report_type
     finally:
-        if created:
-            report_type = _find_report_type_by_title(core_request_client, report_definition_copy["title"])
-            if report_type and (report_type_id := report_type.get("id")):
-                core_request_client.delete(f"/config/report-item-types/{report_type_id}", raise_for_status=False)
+        if report_type_id := report_type.get("id"):
+            core_request_client.delete(f"/config/report-item-types/{report_type_id}", raise_for_status=False)
 
 
 @pytest.fixture(scope="session")
