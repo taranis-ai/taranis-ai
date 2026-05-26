@@ -25,10 +25,6 @@ class TestEndToEndUser(BaseE2ETest):
     ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL = f"{ALL_ATTRIBUTE_REPORT_TYPE_LABEL} REQUIRED"
 
     @staticmethod
-    def _boolean_attribute_checkbox(page: Page):
-        return page.get_by_test_id("report-boolean-attribute-checkbox")
-
-    @staticmethod
     def _get_assess_story_counts(page: Page) -> tuple[int, int]:
         count_text = page.get_by_test_id("assess_story_count").inner_text()
         match = re.search(r"(\d+)\s*/\s*(\d+)", count_text)
@@ -745,9 +741,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("STRING field").fill("string")
                 page.get_by_placeholder("NUMBER field").click()
                 page.get_by_placeholder("NUMBER field").fill("111")
-                boolean_checkbox = self._boolean_attribute_checkbox(page)
-                expect(boolean_checkbox).to_be_visible()
-                boolean_checkbox.check()
+                expect(boolean_attribute).to_be_visible()
+                boolean_attribute.check()
                 page.get_by_role("radio", name="UNRESTRICTED").check()
                 page.get_by_label("Impact (Enum) Select an").select_option("Malicious code execution affecting CIA of the system")
                 page.get_by_placeholder("TEXT field", exact=True).click()
@@ -772,9 +767,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("option", name="Report Story 2 Remove item:").get_by_role("button").click()
                 page.get_by_placeholder("STRING field").fill("")
                 page.get_by_placeholder("NUMBER field").fill("")
-                boolean_checkbox = self._boolean_attribute_checkbox(page)
-                expect(boolean_checkbox).to_be_visible()
-                boolean_checkbox.uncheck()
+                expect(boolean_attribute).to_be_visible()
+                boolean_attribute.uncheck()
                 page.get_by_role("radio", name="CLASSIFIED").check()
                 page.get_by_label("Impact (Enum) Malicious code").select_option("Privilege escalation")
                 page.get_by_placeholder("TEXT field", exact=True).fill("")
@@ -798,7 +792,7 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_role("option", name="Report Story 1 Remove item:")).not_to_be_visible()
                 expect(page.get_by_placeholder("STRING field")).to_be_empty()
                 expect(page.get_by_placeholder("NUMBER field")).to_be_empty()
-                expect(self._boolean_attribute_checkbox(page)).not_to_be_checked()
+                expect(boolean_attribute).not_to_be_checked()
                 expect(page.get_by_role("radio", name="CLASSIFIED")).to_be_checked()
                 expect(page.get_by_role("radio", name="UNRESTRICTED")).not_to_be_checked()
                 expect(page.get_by_label("Impact (Enum) Malicious code")).to_have_value("Privilege escalation")
@@ -851,7 +845,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report REQUIRED")
-                page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
+                page.get_by_label("Report Type Select a report").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
                 page.get_by_test_id("save-report").click()
                 page.get_by_text("Report item created").click()
                 expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible()
@@ -898,9 +892,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("STRING field*").fill("string")
                 page.get_by_placeholder("NUMBER field*").click()
                 page.get_by_placeholder("NUMBER field*").fill("111")
-                boolean_checkbox = self._boolean_attribute_checkbox(page)
-                expect(boolean_checkbox).to_be_visible()
-                boolean_checkbox.check()
+                expect(boolean_attribute).to_be_visible()
+                boolean_attribute.check()
                 page.get_by_role("radio", name="UNRESTRICTED").check()
                 page.get_by_label("Impact (Enum) * Select an").select_option("Malicious code execution affecting CIA of the system")
                 page.get_by_placeholder("TEXT field*", exact=True).fill("text")

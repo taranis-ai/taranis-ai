@@ -3,7 +3,6 @@ import copy
 import os
 import random
 import re
-import shutil
 import subprocess
 import warnings as pywarnings
 from datetime import datetime, timedelta
@@ -114,15 +113,11 @@ def docker_compose_file():
 
 @pytest.fixture(scope="session")
 def docker_compose_command() -> str:
-    if shutil.which("podman-compose"):
-        return "podman-compose"
     return require_docker_compose_command()
 
 
 @pytest.fixture(scope="session")
 def docker_setup(docker_compose_command):
-    if "podman" in docker_compose_command:
-        return ["down -v --remove-orphans", "up -d"]
     return docker_setup_commands(docker_compose_command)
 
 
