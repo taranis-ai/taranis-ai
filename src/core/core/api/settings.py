@@ -1,4 +1,4 @@
-from flask import Blueprint, Flask, request, url_for
+from flask import Blueprint, Flask, jsonify, request, url_for
 from flask.views import MethodView
 
 from core.config import Config
@@ -61,15 +61,15 @@ class CacheInvalidate(MethodView):
             if not (model_name := str(payload.get("model") or "").strip()):
                 return {"error": "model is required for mode=model"}, 400
             deleted = cache_invalidation_service.invalidate_model(model_name, payload.get("object_id"))
-            return {"message": "Frontend model cache invalidated", "deleted": deleted, "mode": mode, "model": model_name}, 200
+            return jsonify({"message": "Frontend model cache invalidated", "deleted": deleted, "mode": mode, "model": model_name}), 200
 
         if mode == "scope":
             if not (scope_name := str(payload.get("scope") or "").strip()):
                 return {"error": "scope is required for mode=scope"}, 400
             if scope_name not in cache_invalidation_service.scope_names:
-                return {"error": f"Unknown scope: {scope_name}"}, 400
+                return {"error": "Unknown scope"}, 400
             deleted = cache_invalidation_service.invalidate_scope(scope_name)
-            return {"message": "Frontend cache scope invalidated", "deleted": deleted, "mode": mode, "scope": scope_name}, 200
+            return jsonify({"message": "Frontend cache scope invalidated", "deleted": deleted, "mode": mode, "scope": scope_name}), 200
 
         return {"error": "Invalid mode"}, 400
 

@@ -89,7 +89,7 @@ class User(BaseModel):
     def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.to_detail_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def add(cls, data) -> "User":
@@ -102,7 +102,7 @@ class User(BaseModel):
     def update(cls, user_id, data) -> tuple[dict[str, Any], int]:
         user = cls.get(user_id)
         if not user:
-            return {"error": f"User {user_id} not found"}, 404
+            return {"error": "User not found"}, 404
         data.pop("id", None)
         if organization := data.pop("organization", None):
             organization_id = organization.get("id") if isinstance(organization, dict) else organization
@@ -118,7 +118,7 @@ class User(BaseModel):
             user.username = update_username
 
         db.session.commit()
-        return {"message": f"User {user_id} updated", "id": user_id}, 200
+        return {"message": "User updated", "id": user.id}, 200
 
     def get_permissions(self) -> list[str]:
         permissions = {permission for role in self.roles if role for permission in role.get_permissions()}
