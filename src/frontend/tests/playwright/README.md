@@ -10,7 +10,6 @@ From `src/frontend` folder run:
 pytest --e2e-ci
 ```
 
-The E2E harness starts and stops a dedicated Core/Postgres Docker Compose stack automatically for the test session.
 The E2E harness starts and stops a dedicated Docker Compose test stack for the session.
 Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
 You only need Docker/Compose available locally.

@@ -16,7 +16,7 @@ def dismiss_notifications(
     alerts = page.locator("#notification-bar [role='alert']")
     try:
         alerts.first.wait_for(state="visible", timeout=appear_timeout_ms)
-    except Exception:
+    except PlaywrightTimeoutError:
         pass
 
     while alerts.count():
