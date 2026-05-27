@@ -5,16 +5,23 @@
     "npm:@codemirror/commands@^6.10.3": "6.10.3",
     "npm:@codemirror/language@*": "6.12.3",
     "npm:@codemirror/language@^6.12.3": "6.12.3",
+    "npm:@codemirror/legacy-modes@*": "6.5.3",
     "npm:@codemirror/legacy-modes@^6.5.3": "6.5.3",
     "npm:@codemirror/merge@^6.12.1": "6.12.1",
     "npm:@codemirror/state@*": "6.6.0",
     "npm:@codemirror/state@^6.6.0": "6.6.0",
+    "npm:@codemirror/view@*": "6.43.0",
     "npm:@codemirror/view@^6.43.0": "6.43.0",
+    "npm:@tailwindcss/cli@*": "4.3.0",
     "npm:@tailwindcss/cli@^4.3.0": "4.3.0",
+    "npm:alpinejs@*": "3.15.12",
     "npm:alpinejs@^3.15.12": "3.15.12",
+    "npm:choices.js@*": "11.2.3",
     "npm:choices.js@^11.2.3": "11.2.3",
     "npm:codemirror@^6.0.2": "6.0.2",
     "npm:daisyui@^5.5.20": "5.5.20",
+    "npm:driver.js@*": "1.4.0",
+    "npm:driver.js@^1.4.0": "1.4.0",
     "npm:fuse.js@*": "7.3.0",
     "npm:fuse.js@^7.3.0": "7.3.0",
     "npm:highlight-search-term@*": "1.0.3",
@@ -384,6 +391,9 @@
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
     },
+    "driver.js@1.4.0": {
+      "integrity": "sha512-Gm64jm6PmcU+si21sQhBrTAM1JvUrR0QhNmjkprNLxohOBzul9+pNHXgQaT9lW84gwg9GMLB3NZGuGolsz5uew=="
+    },
     "enhanced-resolve@5.21.3": {
       "integrity": "sha512-QyL119InA+XXEkNLNTPCXPugSvOfhwv0JOlGNzvxs0hZaiHLNvXSpudUWsOlsXGWJh8G6ckCScEkVHfX3kw/2Q==",
       "dependencies": [
@@ -549,6 +559,7 @@
       "npm:choices.js@^11.2.3",
       "npm:codemirror@^6.0.2",
       "npm:daisyui@^5.5.20",
+      "npm:driver.js@^1.4.0",
       "npm:fuse.js@^7.3.0",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",

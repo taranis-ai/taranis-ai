@@ -48,6 +48,55 @@
     background-color: var(--color-primary) !important;
     color: var(--color-primary-content) !important;
   }
+
+  .driver-popover.taranis-driver-popover {
+    background-color: var(--color-base-100);
+    border: 1px solid color-mix(in oklab, var(--color-base-content) 15%, transparent);
+    border-radius: var(--radius-box);
+    box-shadow: 0 18px 48px color-mix(in oklab, var(--color-base-content) 16%, transparent);
+    color: var(--color-base-content);
+  }
+
+  .driver-popover.taranis-driver-popover .driver-popover-title,
+  .driver-popover.taranis-driver-popover .driver-popover-description,
+  .driver-popover.taranis-driver-popover .driver-popover-progress-text,
+  .driver-popover.taranis-driver-popover .driver-popover-close-btn {
+    color: var(--color-base-content);
+  }
+
+  .driver-popover.taranis-driver-popover .driver-popover-close-btn:hover {
+    color: color-mix(in oklab, var(--color-base-content) 80%, var(--color-primary));
+  }
+
+  .driver-popover.taranis-driver-popover .driver-popover-prev-btn,
+  .driver-popover.taranis-driver-popover .driver-popover-next-btn {
+    background: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-field);
+    color: var(--color-primary-content);
+    text-shadow: none;
+  }
+
+  .driver-popover.taranis-driver-popover .driver-popover-prev-btn:hover,
+  .driver-popover.taranis-driver-popover .driver-popover-next-btn:hover {
+    background: color-mix(in oklab, var(--color-primary) 88%, var(--color-base-100));
+  }
+
+  .driver-popover.taranis-driver-popover .driver-popover-arrow-side-left.driver-popover-arrow {
+    border-left-color: var(--color-base-100);
+  }
+
+  .driver-popover.taranis-driver-popover .driver-popover-arrow-side-right.driver-popover-arrow {
+    border-right-color: var(--color-base-100);
+  }
+
+  .driver-popover.taranis-driver-popover .driver-popover-arrow-side-top.driver-popover-arrow {
+    border-top-color: var(--color-base-100);
+  }
+
+  .driver-popover.taranis-driver-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+    border-bottom-color: var(--color-base-100);
+  }
 }
 
 @layer base {

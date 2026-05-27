@@ -5,6 +5,63 @@ function getCSRFToken() {
     ?.split("=")[1];
 }
 
+const defaultTourConfig = {
+  allowClose: true,
+  popoverClass: "taranis-driver-popover",
+  showProgress: true,
+  smoothScroll: true,
+};
+
+function resolveTourElement(element) {
+  if (!element) {
+    return null;
+  }
+
+  if (typeof element === "string") {
+    return document.querySelector(element);
+  }
+
+  if (typeof element === "function") {
+    const resolved = element();
+    return resolved instanceof Element ? resolved : null;
+  }
+
+  return element instanceof Element ? element : null;
+}
+
+function filterTourSteps(steps) {
+  if (!Array.isArray(steps)) {
+    return steps;
+  }
+
+  return steps.filter((step) => {
+    if (!step || !("element" in step) || step.element == null) {
+      return true;
+    }
+
+    return resolveTourElement(step.element) !== null;
+  });
+}
+
+function createTour(config = {}) {
+  if (typeof driver !== "function") {
+    throw new Error("Driver.js is not available in the current bundle.");
+  }
+
+  const resolvedConfig = {
+    ...defaultTourConfig,
+    ...config,
+    steps: filterTourSteps(config.steps),
+  };
+
+  return driver(resolvedConfig);
+}
+
+window.createTour = createTour;
+window.taranisTour = {
+  create: createTour,
+};
+
 function getConfirmOptions(el, question) {
   const title = el.getAttribute("data-confirm-title") || question;
   const confirmButtonText = el.getAttribute("data-confirm-confirm") || (el.hasAttribute("hx-delete") ? "Delete" : "OK");

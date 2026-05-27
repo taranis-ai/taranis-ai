@@ -59,6 +59,8 @@ class TestEndToEndUser(BaseE2ETest):
 
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+            assert page.evaluate("typeof window.driver === 'function'")
+            assert page.evaluate("typeof window.createTour === 'function'")
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
@@ -263,6 +265,10 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_count")).to_be_visible(timeout=30000)
             visible_count, total_count = self._get_assess_story_counts(page)
             assert total_count >= visible_count > 0
+            page.get_by_test_id("assess-tour-button").click()
+            expect(page.locator(".driver-popover")).to_be_visible()
+            expect(page.locator(".driver-popover-title")).to_contain_text("Search stories")
+            page.locator(".driver-popover-close-btn").click()
             page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
             return total_count
 

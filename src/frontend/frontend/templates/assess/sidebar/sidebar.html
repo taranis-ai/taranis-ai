@@ -84,6 +84,83 @@ document.addEventListener('htmx:afterSwap', function (event) {
   }
 });
 
+function getAssessTourSteps() {
+  return [
+    {
+      element: "#assess-search-form",
+      popover: {
+        title: "Search stories",
+        description: "Start with a keyword search. Ctrl+K focuses this field from anywhere on the Assess page.",
+        side: "right",
+        align: "start",
+      },
+    },
+    {
+      element: "#tag_search",
+      popover: {
+        title: "Filter by tags",
+        description: "Search tags here and add them to the selected tag list to narrow the story set.",
+        side: "right",
+        align: "start",
+      },
+    },
+    {
+      element: "#source-filter",
+      popover: {
+        title: "Scope by source",
+        description: "Choose individual OSINT sources or source groups to restrict the feed.",
+        side: "right",
+        align: "start",
+      },
+    },
+    {
+      element: "#assess-sidebar [aria-label='Time presets']",
+      popover: {
+        title: "Use time filters",
+        description: "Use quick presets or the From and To fields to focus on the period you care about.",
+        side: "right",
+        align: "start",
+      },
+    },
+    {
+      element: "[data-testid='assess_story_count']",
+      popover: {
+        title: "Track the result set",
+        description: "This counter shows how many stories are currently visible compared to the total matching set.",
+        side: "bottom",
+        align: "start",
+      },
+    },
+    {
+      element: "[data-testid='assess-select-all-button']",
+      popover: {
+        title: "Take bulk actions",
+        description: "Select visible stories here, then cluster them, add them to a report, or mark them in bulk.",
+        side: "bottom",
+        align: "start",
+      },
+    },
+  ];
+}
+
+function startAssessTour() {
+  if (window.assessSidebarTour && typeof window.assessSidebarTour.destroy === "function") {
+    window.assessSidebarTour.destroy();
+  }
+
+  const tour = createTour({
+    nextBtnText: "Next",
+    prevBtnText: "Back",
+    doneBtnText: "Done",
+    steps: getAssessTourSteps(),
+  });
+
+  window.assessSidebarTour = tour;
+  tour.drive();
+}
+
+window.startAssessTour = startAssessTour;
+
 </script>
 
 <div class="p-4 space-y-4">
@@ -295,6 +372,10 @@ document.addEventListener('htmx:afterSwap', function (event) {
     {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
     Create new item
   </a>
+  <button type="button" class="btn btn-accent btn-sm w-full" data-testid="assess-tour-button" onclick="startAssessTour()">
+    {{ heroicon_outline('sparkles', class='h-4 w-4') }}
+    Show Assess tour
+  </button>
 </div>
 
 {% include "partials/keyboard_hint.html" %}
