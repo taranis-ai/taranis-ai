@@ -1,4 +1,4 @@
-import copy
+from typing import Any
 
 from sqlalchemy.orm import Mapped
 
@@ -21,13 +21,22 @@ class Settings(BaseModel):
     def __init__(self, settings: dict | None = None):
         self.id = self.uuid7_str()
         self.singleton_key = self.SINGLETON_KEY
-        self.settings = settings or {
-            "default_collector_proxy": "",
-            "default_collector_interval": "0 */8 * * *",
-            "default_tlp_level": TLPLevel.CLEAR.value,
-            "default_story_conflict_retention": "200",
-            "default_news_item_conflict_retention": "200",
-        }
+        self.settings = self.with_defaults(settings)
+
+    @classmethod
+    def with_defaults(cls, settings: dict[str, Any] | None = None) -> dict[str, Any]:
+        merged = dict(settings) if isinstance(settings, dict) else {}
+        merged.setdefault("default_collector_proxy", "")
+        merged.setdefault("default_collector_interval", "0 */8 * * *")
+        merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
+        merged.setdefault("default_story_conflict_retention", "200")
+        merged.setdefault("default_news_item_conflict_retention", "200")
+        completed_tours = merged.setdefault("completed_onboarding_tours", {})
+        if isinstance(completed_tours, dict):
+            merged["completed_onboarding_tours"] = dict(completed_tours)
+        else:
+            merged["completed_onboarding_tours"] = {}
+        return merged
 
     @classmethod
     def update(cls, data) -> tuple[dict, int]:
@@ -36,10 +45,23 @@ class Settings(BaseModel):
             logger.debug("No Settings entry found")
             return {"error": "Error updating settings"}, 404
 
-        if update_data := data.get("settings"):
+        update_data = data.get("settings") or {}
+        reset_completed_onboarding_tours = data.get("reset_completed_onboarding_tours") in {True, "true", "1", "on"}
+        if update_data or reset_completed_onboarding_tours:
             logger.debug(f"Settings update data: {update_data}")
             logger.debug(f"Settings before update: {settings.settings}")
-            settings.settings = {**settings.settings, **update_data}
+            update_data = dict(update_data)
+            current_settings = cls.with_defaults(settings.settings)
+            completed_onboarding_tours = update_data.pop("completed_onboarding_tours", None)
+            current_settings.update(update_data)
+            if reset_completed_onboarding_tours:
+                current_settings["completed_onboarding_tours"] = {}
+            elif isinstance(completed_onboarding_tours, dict):
+                current_settings["completed_onboarding_tours"] = {
+                    **current_settings["completed_onboarding_tours"],
+                    **completed_onboarding_tours,
+                }
+            settings.settings = cls.with_defaults(current_settings)
         db.session.commit()
         logger.debug(f"Settings after update: {settings.settings}")
         return {"message": "Successfully updated settings", "settings": settings.settings}, 200
@@ -47,18 +69,7 @@ class Settings(BaseModel):
     @classmethod
     def initialize(cls):
         if settings := cls.get_settings_entry():
-            current_settings = copy.deepcopy(settings.settings)
-            if "default_collector_proxy" not in current_settings:
-                current_settings["default_collector_proxy"] = ""
-            if "default_collector_interval" not in current_settings:
-                current_settings["default_collector_interval"] = "0 */8 * * *"
-            if "default_tlp_level" not in current_settings:
-                current_settings["default_tlp_level"] = TLPLevel.CLEAR.value
-            if "default_story_conflict_retention" not in current_settings:
-                current_settings["default_story_conflict_retention"] = "200"
-            if "default_news_item_conflict_retention" not in current_settings:
-                current_settings["default_news_item_conflict_retention"] = "200"
-            settings.settings = current_settings
+            settings.settings = cls.with_defaults(settings.settings)
         else:
             db.session.add(Settings())
 
@@ -70,7 +81,7 @@ class Settings(BaseModel):
         if settings is None:
             logger.debug("No Settings entry found")
             return {}
-        return settings.settings
+        return cls.with_defaults(settings.settings)
 
     @classmethod
     def get_settings_entry(cls) -> "Settings | None":

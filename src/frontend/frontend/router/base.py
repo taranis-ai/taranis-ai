@@ -4,7 +4,7 @@ from flask.views import MethodView
 from frontend.auth import auth_required, logout
 from frontend.cache import get_cache_keys, get_cached_users
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.views import AuthView, DashboardView
+from frontend.views import AuthView, DashboardView, OnboardingPromptView
 
 
 class InvalidateCache(MethodView):
@@ -112,6 +112,7 @@ def init(app: Flask):
     base_bp.add_url_rule("/open_api", view_func=OpenAPIView.as_view("open_api"))
     base_bp.add_url_rule("/notification", view_func=NotificationView.as_view("notification"))
     base_bp.add_url_rule("/search", view_func=OmniSearch.as_view("omnisearch"))
+    base_bp.add_url_rule("/onboarding/prompt", view_func=OnboardingPromptView.as_view("onboarding_prompt"))
 
     base_bp.add_url_rule("/invalidate_cache", view_func=InvalidateCache.as_view("invalidate_cache"))
     base_bp.add_url_rule("/invalidate_cache/<string:suffix>", view_func=InvalidateCache.as_view("invalidate_cache_suffix"))

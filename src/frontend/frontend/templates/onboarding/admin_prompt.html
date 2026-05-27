@@ -1,0 +1,7 @@
+<div id="admin-onboarding-tour"
+     data-testid="admin-onboarding-tour"
+     data-settings-action="{{ url_for('admin_settings.settings_action', action='settings') }}"
+     data-welcome-tour-id="{{ welcome_tour_id }}"
+     data-advanced-tour-id="{{ advanced_tour_id }}"
+     data-advanced-completed="{{ 'true' if advanced_completed else 'false' }}"></div>
+<script>window.TaranisOnboarding?.startAdminTours(document.getElementById("admin-onboarding-tour"));</script>

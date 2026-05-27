@@ -1,9 +1,7 @@
 {% from "macros/variables.html" import tlp_levels %}
 {% from "macros/forms.html" import form_input %}
 
-{% set settings = settings | default([{}]) %}
-
-{% set current_settings = settings[0].settings | default({}) %}
+{% set current_settings = settings.settings | default({}) %}
 {% set links = {
   "delete_tags": "/api/settings/delete-tags",
   "delete_stories": "/api/settings/delete-stories",
@@ -11,7 +9,8 @@
   "reset_database": "/api/settings/reset-database",
   "clear_queues": "/api/settings/clear-queues",
   "export_stories": "/api/settings/export-stories",
-  "update_settings": "/api/settings/settings"
+  "update_settings": "/api/settings/settings",
+  "reset_onboarding_tours": url_for("admin_settings.reset_onboarding_tours")
 } %}
 
 <div class="container mx-auto p-2" id="settings-container" hx-target="#settings-container" hx-select="#settings-container" hx-swap="outerHTML">
@@ -69,6 +68,22 @@
           </div>
           <input type="submit" class="btn btn-primary w-full mt-4" value="Update Settings" data-testid="settings-submit" />
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding -->
+  <div class="w-full px-2 mt-4">
+    <div class="card bg-base-100 shadow-xl p-3">
+      <div class="card-body">
+        <h2 class="card-title">Onboarding Tours</h2>
+        <button type="button"
+                class="btn btn-outline"
+                hx-post="{{ links.reset_onboarding_tours }}"
+                hx-target="#settings-container"
+                hx-select="#settings-container"
+                hx-swap="outerHTML"
+                data-testid="settings-reset-onboarding-tours">Reset onboarding tours</button>
       </div>
     </div>
   </div>

@@ -8,6 +8,7 @@ from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Page, expect
 
+from frontend.onboarding import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -19,6 +20,31 @@ DASHBOARD_HEALTH_SERVICES = {
     "Workers": "up",
 }
 SCHEDULER_BASELINE_TOTAL_TEXT = "Total: 1 scheduled jobs"
+
+
+def reset_admin_onboarding_tours(core_request_client):
+    core_request_client.put(
+        "/settings/settings",
+        json_data={
+            "settings": {
+                "completed_onboarding_tours": {
+                    ADMIN_WELCOME_TOUR_ID: "",
+                    ADMIN_ADVANCED_TOUR_ID: "",
+                }
+            }
+        },
+    )
+
+
+def expect_driver_step(page: Page, title: str):
+    popover = page.locator(".driver-popover")
+    expect(popover).to_be_visible()
+    expect(popover).to_contain_text(title)
+
+
+def go_to_next_driver_step(page: Page, title: str):
+    page.get_by_role("button", name="Next").click()
+    expect_driver_step(page, title)
 
 
 def remove_tz(date_time: str) -> str:
@@ -39,6 +65,59 @@ class TestEndToEndAdmin(BaseE2ETest):
         page = taranis_frontend
         page.context.clear_cookies()
         self.login_with_credentials(page)
+
+    def test_admin_welcome_onboarding_tour_complete_now(self, logged_in_page: Page, core_request_client, forward_console_and_page_errors):
+        reset_admin_onboarding_tours(core_request_client)
+        page = logged_in_page
+        page.goto(url_for("admin.dashboard", _external=True))
+
+        expect_driver_step(page, "Admin Dashboard")
+        go_to_next_driver_step(page, "OSINT Source")
+        go_to_next_driver_step(page, "Bot")
+        go_to_next_driver_step(page, "Scheduler")
+        go_to_next_driver_step(page, "Role")
+        go_to_next_driver_step(page, "User")
+        go_to_next_driver_step(page, "Welcome tour complete")
+
+        with page.expect_response(url_for("admin_settings.settings_action", action="settings", _external=True)) as response_info:
+            page.get_by_role("button", name="Complete now").click()
+
+        assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+        expect(page.locator(".driver-popover")).not_to_be_visible()
+
+        page.reload()
+        expect(page.locator(".driver-popover")).not_to_be_visible()
+
+    def test_admin_advanced_onboarding_tour(self, logged_in_page: Page, core_request_client, forward_console_and_page_errors):
+        reset_admin_onboarding_tours(core_request_client)
+        page = logged_in_page
+        page.goto(url_for("admin.dashboard", _external=True))
+
+        expect_driver_step(page, "Admin Dashboard")
+        go_to_next_driver_step(page, "OSINT Source")
+        go_to_next_driver_step(page, "Bot")
+        go_to_next_driver_step(page, "Scheduler")
+        go_to_next_driver_step(page, "Role")
+        go_to_next_driver_step(page, "User")
+        go_to_next_driver_step(page, "Welcome tour complete")
+
+        with page.expect_response(url_for("admin_settings.settings_action", action="settings", _external=True)) as response_info:
+            page.get_by_test_id("admin-onboarding-advanced-tour").click()
+
+        assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+        expect_driver_step(page, "Report Item Type")
+        go_to_next_driver_step(page, "Template")
+        go_to_next_driver_step(page, "Product Type")
+        go_to_next_driver_step(page, "Publisher Preset")
+        go_to_next_driver_step(page, "Word List")
+
+        with page.expect_response(url_for("admin_settings.settings_action", action="settings", _external=True)) as advanced_response:
+            page.get_by_role("button", name="Complete advanced tour").click()
+
+        assert advanced_response.value.ok, f"Expected 2xx status, but got {advanced_response.value.status}"
+        expect(page.locator(".driver-popover")).not_to_be_visible()
+        page.reload()
+        expect(page.locator(".driver-popover")).not_to_be_visible()
 
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
