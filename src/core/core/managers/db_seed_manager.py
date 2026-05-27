@@ -101,6 +101,7 @@ def pre_seed_update(db_engine: Engine):
             ReportItemType.add(r)
 
     for p in product_types:
+        p = _resolve_seed_product_type_report_types(p)
         pt = ProductType.filter_by_title(p["title"])
         if not pt:
             ProductType.add(p)
@@ -345,7 +346,7 @@ def pre_seed_workers():
         Bot.add(b)
 
     for p in product_types:
-        ProductType.add(p)
+        ProductType.add(_resolve_seed_product_type_report_types(p))
 
 
 def pre_seed_permissions():
@@ -437,6 +438,22 @@ def pre_seed_report_items():
     for report_type in report_types:
         if not ReportItemType.get_by_title(title=report_type["title"]):
             ReportItemType.add(report_type)
+
+
+def _resolve_seed_product_type_report_types(product_type: dict) -> dict:
+    from core.model.report_item_type import ReportItemType
+
+    product_type_data = deepcopy(product_type)
+    report_type_refs = product_type_data.get("report_types", [])
+    resolved_report_type_ids = []
+
+    for report_type_ref in report_type_refs:
+        report_type = ReportItemType.get_by_title(report_type_ref)
+        if report_type:
+            resolved_report_type_ids.append(report_type.id)
+
+    product_type_data["report_types"] = resolved_report_type_ids
+    return product_type_data
 
 
 def pre_seed_default_user():

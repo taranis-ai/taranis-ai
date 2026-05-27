@@ -33,11 +33,11 @@ class Worker(BaseModel):
     @classmethod
     def add(cls, data) -> tuple[dict[str, str], int]:
         if cls.filter_by_type(data["type"]):
-            return {"error": f"Worker with type {data['type']} already exists"}, 409
+            return {"error": "Worker with this type already exists"}, 409
         worker = cls.from_dict(data)
         db.session.add(worker)
         db.session.commit()
-        return {"message": f"Worker {worker.name} added", "id": worker.id}, 201
+        return {"message": "Worker added", "id": worker.id}, 201
 
     @classmethod
     def get_type(cls, id) -> "WORKER_TYPES":

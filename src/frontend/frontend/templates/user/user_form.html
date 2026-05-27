@@ -28,9 +28,25 @@
     length = 20,
     characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz~!@-#$'
   ) {
-    return Array.from(crypto.getRandomValues(new Uint32Array(length)))
-      .map((x) => characters[x % characters.length])
-      .join('');
+    const characterCount = characters.length;
+    const maxValidByte = Math.floor(256 / characterCount) * characterCount - 1;
+    const randomBytes = new Uint8Array(length);
+    let password = '';
+
+    while (password.length < length) {
+      crypto.getRandomValues(randomBytes);
+      for (const byte of randomBytes) {
+        if (byte > maxValidByte) {
+          continue;
+        }
+        password += characters[byte % characterCount];
+        if (password.length === length) {
+          break;
+        }
+      }
+    }
+
+    return password;
   }
 </script>
 
