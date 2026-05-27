@@ -185,7 +185,7 @@ class NewsItem(BaseModel):
         logger.debug(f"Getting {cls.__name__} {item_id}")
         if item := cls.get(item_id):
             return item.to_detail_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     def to_detail_dict(self) -> dict[str, Any]:
         data = self.to_dict()
@@ -283,7 +283,7 @@ class NewsItem(BaseModel):
         if story := news_item.story:
             story.record_revision(note="update_news_item_attributes")
         db.session.commit()
-        return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
+        return {"message": "News item attributes updated"}, 200
 
     def add_attribute(self, attribute: NewsItemAttribute) -> None:
         if not self.has_attribute(attribute.key):
@@ -321,10 +321,10 @@ class NewsItem(BaseModel):
                 update_story=update_story,
                 commit=commit,
             )
-        except Exception as e:
+        except Exception:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
-            return {"error": str(e)}, 500
+            return {"error": "Update News Item Tags Failed"}, 500
 
     def _update_tags(
         self,
@@ -337,8 +337,8 @@ class NewsItem(BaseModel):
     ) -> tuple[dict, int]:
         try:
             parsed_tags = NewsItemTag.parse_tags(incoming_tags)
-        except (TypeError, ValueError) as exc:
-            return {"error": str(exc)}, 400
+        except (TypeError, ValueError):
+            return {"error": "Invalid tags"}, 400
 
         if incoming_tags and not parsed_tags:
             return {"error": "No valid tags provided"}, 400
@@ -361,7 +361,7 @@ class NewsItem(BaseModel):
             story.record_revision(user or Story.user_for_actor(actor), note="set_news_item_tags")
         if commit:
             db.session.commit()
-        return {"message": f"Successfully updated news item: {self.id}, with {len(self.tags)} tags"}, 200
+        return {"message": "News item tags updated"}, 200
 
     def patch_tags(self, tags: dict[str, NewsItemTag]):
         for tag in tags.values():
@@ -416,7 +416,7 @@ class NewsItem(BaseModel):
 
         self.updated = self.utcnow()
 
-        return {"message": f"News Item {self.id} updated", "id": self.id}, 200
+        return {"message": "News item updated", "id": self.id}, 200
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:

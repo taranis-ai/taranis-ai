@@ -115,6 +115,7 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 
 - The best code is no code.
 - Complexity is bad. Keep designs as simple as possible.
+- For settings JSON, prefer simple flat keys and direct values; do not add nested metadata structures, constants, validators, or helper layers unless they are clearly needed now.
 - Mocking is also bad. Use it only when it is absolutely necessary.
 - DRY matters, but do not force reuse if it hurts readability.
 - When creating branches, use only `fix/`, `feature/`, or `chore/` prefixes.

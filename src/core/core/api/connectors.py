@@ -35,7 +35,7 @@ class StoryConflicts(MethodView):
         conflict = StoryConflict.conflict_store.get(story_id)
         if conflict is None:
             logger.error(f"No conflict found for story {story_id}")
-            return {"error": "No conflict found", "id": story_id}, 404
+            return {"error": "No conflict found"}, 404
 
         response, code = conflict.resolve(resolved_story, user=current_user)
         if code != 200:

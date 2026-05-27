@@ -63,6 +63,10 @@ Core exposes two unauthenticated endpoints for monitoring:
 
 `/api/health` returns `200` when all required services are healthy and `503` when a required dependency is down. In local or test environments using an in-memory broker, broker and worker checks are reported as `n/a`.
 
+## API Error Responses
+
+Core API handlers return JSON responses for structured payloads. Unexpected failures should be logged server-side and exposed to clients as generic error messages, not raw exception text or stack traces. Keep public validation messages only when clients need them to correct a submitted value.
+
 ## Development Setup
 
 It is best to follow the [dev setup guide](../../dev/README.md)

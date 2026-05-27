@@ -86,9 +86,9 @@ class ReportItem(BaseModel):
         # sourcery skip: assign-if-exp, reintroduce-else, swap-if-else-branches, use-named-expression
         item = cls.get(item_id)
         if not item:
-            return {"error": f"{cls.__name__} {item_id} not found"}, 404
+            return {"error": f"{cls.__name__} not found"}, 404
         if user and not item.access_allowed(user, False):
-            return {"error": f"User {user.id} is not allowed to read Report {item.id}"}, 403
+            return {"error": "User is not allowed to read report"}, 403
 
         return item.to_detail_dict(), 200
 
@@ -307,7 +307,7 @@ class ReportItem(BaseModel):
         new_report.record_revision(user, note="cloned")
         db.session.commit()
         return {
-            "message": f"Successfully cloned Report '{new_report.title}'",
+            "message": "Report cloned",
             "report": new_report.to_detail_dict(),
             "id": new_report.id,
         }, 200
@@ -328,7 +328,7 @@ class ReportItem(BaseModel):
 
         if user:
             if not report_item.access_allowed(user, True):
-                return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
+                return {"error": "User is not allowed to create report"}, 403
 
             report_item.user_id = user.id
         report_item.add_attributes()
@@ -463,7 +463,7 @@ class ReportItem(BaseModel):
             return None, {"error": "Report Item not Found"}, 404
 
         if not report_item.access_allowed(user, True):
-            return None, {"error": f"User {user.id} is not allowed to update Report {report_item.id}"}, 403
+            return None, {"error": "User is not allowed to update report"}, 403
 
         return report_item, {}, 200
 
@@ -481,7 +481,7 @@ class ReportItem(BaseModel):
         db.session.commit()
 
         logger.debug(f"Added {story_ids} stories to Report Item {report_item.id}")
-        return {"message": f"Successfully added {len(story_ids)} stories to {report_item.title}"}, 200
+        return {"message": "Successfully added stories"}, 200
 
     @classmethod
     def remove_stories(cls, report_id: str, story_ids: list[int], user: User) -> tuple[dict, int]:
@@ -495,12 +495,12 @@ class ReportItem(BaseModel):
         report_item.record_revision(user, note="remove_stories")
         db.session.commit()
 
-        return {"message": f"Successfully removed {story_ids} from {report_item.id}"}, 200
+        return {"message": "Successfully removed stories"}, 200
 
     @classmethod
     def set_stories(cls, report_id: str, story_ids: list, user: User) -> tuple[dict, int]:
         new_report, status = cls.update_report_item(report_id, {"story_ids": story_ids}, user)
-        return {"message": f"Successfully updated Report Item {report_id}", "report": new_report}, status
+        return {"message": "Successfully updated Report Item", "report": new_report}, status
 
     def update_stories(self, story_ids: list[str]):
         new_stories = Story.get_bulk(story_ids)
@@ -588,7 +588,7 @@ class ReportItem(BaseModel):
         ReportStorySyncService.sync_report_membership(report, affected_stories, "detach")
         db.session.delete(report)
         db.session.commit()
-        return {"message": f"Successfully deleted report '{report.title}'"}, 200
+        return {"message": "Successfully deleted report"}, 200
 
     @classmethod
     def delete_all(cls) -> tuple[dict[str, Any], int]:

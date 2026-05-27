@@ -130,7 +130,7 @@ class UpdateNewsItemTags(MethodView):
     def put(self, news_item_id: str):
         item = news_item.NewsItem.get(news_item_id)
         if not item:
-            return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
+            return {"error": "NewsItem not found"}, 404
         if not item.allowed_with_acl(current_user, require_write_access=True):
             return {"error": "User does not have write access to this news item"}, 403
 
@@ -343,8 +343,9 @@ class Connectors(MethodView):
         try:
             response, code = queue_manager.queue_manager.push_to_connector(connector_id=connector_id, story_ids=story_ids)
             return response, code
-        except Exception as e:
-            return {"error": str(e)}, 500
+        except Exception:
+            logger.exception("Failed to push stories to connector %s", connector_id)
+            return {"error": "Failed to push stories to connector"}, 500
 
 
 class FilterLists(MethodView):

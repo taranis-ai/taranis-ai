@@ -85,9 +85,9 @@ class BaseModel(db.Model):
         if item := cls.get(id):
             db.session.delete(item)
             db.session.commit()
-            return {"message": f"{cls.__name__} {id} deleted"}, 200
+            return {"message": f"{cls.__name__} deleted"}, 200
         logger.warning(f"{cls.__name__} {id} not found")
-        return {"error": f"{cls.__name__} {id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def add(cls: Type[T], data) -> T:
@@ -143,7 +143,7 @@ class BaseModel(db.Model):
     def get_for_api(cls, item_id, **kwargs) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.to_detail_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:

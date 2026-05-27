@@ -1,4 +1,5 @@
 import base64
+import binascii
 import io
 from typing import Any
 
@@ -15,6 +16,7 @@ from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import (
+    InvalidPresenterTemplatePathError,
     delete_template,
     validate_presenter_template_id,
 )
@@ -62,7 +64,7 @@ def convert_integrity_error(error: IntegrityError) -> str:
             pretty_column = column.replace("_", " ")
             return f"A value for {pretty_column} is required."
         return "A required value is missing."
-    return str(error)
+    return "Database integrity error."
 
 
 def _invalidate_admin_cache(status_code: int) -> int:
@@ -88,7 +90,7 @@ class ACLEntries(MethodView):
     def post(self):
         acl = role_based_access.RoleBasedAccess.add(request.json)
         _invalidate_admin_cache(201)
-        return {"message": "ACL created", "id": acl.id}, 201
+        return jsonify({"message": "ACL created", "id": acl.id}), 201
 
     @auth_required("CONFIG_ACL_UPDATE")
     def put(self, acl_id: str | None = None):
@@ -178,7 +180,7 @@ class ReportItemTypes(MethodView):
         try:
             item = report_item_type.ReportItemType.add(request.json)
             _invalidate_admin_cache(201)
-            return {"message": f"ReportItemType {item.title} added", "id": item.id}, 201
+            return jsonify({"message": "Report item type added", "id": item.id}), 201
         except Exception:
             logger.exception("Failed to add report item type")
             return {"error": "Failed to add report item type"}, 500
@@ -189,8 +191,8 @@ class ReportItemTypes(MethodView):
             return {"error": "No type_id provided"}, 400
         if item := report_item_type.ReportItemType.update(type_id, request.json):
             _invalidate_admin_cache(200)
-            return {"message": f"Report item type {item.title} updated", "id": f"{item.id}"}, 200
-        return {"error": f"Report item type with ID: {type_id} not found"}, 404
+            return jsonify({"message": "Report item type updated", "id": f"{item.id}"}), 200
+        return {"error": "Report item type not found"}, 404
 
     @auth_required("CONFIG_REPORT_TYPE_DELETE")
     def delete(self, type_id: str | None = None):
@@ -214,9 +216,13 @@ class ProductTypes(MethodView):
         try:
             product = product_type.ProductType.add(request.json)
             _invalidate_admin_cache(201)
-            return {"message": "Product type created", "id": product.id}, 201
+            return jsonify({"message": "Product type created", "id": product.id}), 201
+        except InvalidPresenterTemplatePathError as e:
+            logger.warning("Invalid product type template path: %s", e)
+            return {"error": "Invalid presenter template path"}, 400
         except ValueError as e:
-            return {"error": str(e)}, 400
+            logger.warning("Invalid product type payload: %s", e)
+            return {"error": "Invalid product type payload"}, 400
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception as e:
@@ -231,8 +237,12 @@ class ProductTypes(MethodView):
             response, status = product_type.ProductType.update(type_id, request.json, current_user)
             _invalidate_admin_cache(status)
             return response, status
+        except InvalidPresenterTemplatePathError as e:
+            logger.warning("Invalid product type template path: %s", e)
+            return {"error": "Invalid presenter template path"}, 400
         except ValueError as e:
-            return {"error": str(e)}, 400
+            logger.warning("Invalid product type update payload: %s", e)
+            return {"error": "Invalid product type payload"}, 400
         except Exception as e:
             logger.error(f"Error updating product type: {e}")
             return {"error": "Failed to update product type"}, 500
@@ -285,7 +295,7 @@ class Roles(MethodView):
     def post(self):
         new_role = role.Role.add(request.json)
         _invalidate_admin_cache(201)
-        return {"message": "Role created", "id": new_role.id}, 201
+        return jsonify({"message": "Role created", "id": new_role.id}), 201
 
     @auth_required("CONFIG_ROLE_UPDATE")
     def put(self, role_id: str | None = None):
@@ -303,7 +313,7 @@ class Roles(MethodView):
             return {"error": "No role_id provided"}, 400
         if user.UserRole.has_assigned_user(role_id):
             logger.warning(f"Role {role_id} cannot be deleted, it has assigned users")
-            return {"error": f"Role {role_id} cannot be deleted, it has assigned users"}, 400
+            return {"error": "Role cannot be deleted, it has assigned users"}, 400
         response, status = role.Role.delete(role_id)
         _invalidate_admin_cache(status)
         return response, status
@@ -313,8 +323,7 @@ class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self, template_path: str | None = None):
         if template_path:
-            resp = build_template_response(template_path)
-            return jsonify(resp), 200
+            return jsonify(build_template_response(template_path)), 200
 
         # List all templates
         items = build_templates_list()
@@ -329,7 +338,9 @@ class Templates(MethodView):
         base64_content = request.json.get("content")
         response, status = create_or_update_template(template_id, base64_content)
         _invalidate_admin_cache(status)
-        return response, status
+        json_response = jsonify(response)
+        json_response.status_code = status
+        return json_response
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def put(self, template_path: str | None = None):
@@ -341,7 +352,9 @@ class Templates(MethodView):
         base64_content = request.json.get("content")
         response, status = create_or_update_template(template_path, base64_content)
         _invalidate_admin_cache(status)
-        return response, status
+        json_response = jsonify(response)
+        json_response.status_code = status
+        return json_response
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str | None = None):
@@ -350,10 +363,11 @@ class Templates(MethodView):
         try:
             validate_presenter_template_id(template_path)
         except ValueError as e:
-            return {"error": str(e)}, 400
+            logger.warning("Invalid presenter template path: %s", e)
+            return {"error": "Invalid presenter template path"}, 400
         if delete_template(template_path):
             _invalidate_admin_cache(200)
-            return {"message": "Template deleted", "path": template_path}, 200
+            return jsonify({"message": "Template deleted", "path": template_path}), 200
         return {"error": "Could not delete template"}, 500
 
 
@@ -373,7 +387,11 @@ class TemplateValidation(MethodView):
         try:
             # Decode base64 content if needed
             if request.json.get("is_base64", False):
-                template_content = base64.b64decode(template_content).decode("utf-8")
+                try:
+                    template_content = base64.b64decode(template_content, validate=True).decode("utf-8")
+                except (binascii.Error, UnicodeDecodeError) as e:
+                    logger.error("Failed to decode template content: %s", e)
+                    return {"error": "Failed to decode content"}, 400
 
             validation_result = validate_template_content(template_content)
             return {
@@ -385,7 +403,7 @@ class TemplateValidation(MethodView):
 
         except Exception as e:
             logger.error(f"Error validating template: {e}")
-            return {"error": f"Validation failed: {str(e)}"}, 500
+            return {"error": "Validation failed"}, 500
 
 
 class Organizations(MethodView):
@@ -400,7 +418,7 @@ class Organizations(MethodView):
     def post(self):
         org = organization.Organization.add(request.json)
         _invalidate_admin_cache(201)
-        return {"message": "Organization created", "id": org.id}, 201
+        return jsonify({"message": "Organization created", "id": org.id}), 201
 
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
     def put(self, organization_id: str | None = None):
@@ -427,7 +445,7 @@ class UsersImport(MethodView):
             return {"error": "Invalid data format"}, 400
         if users := user.User.import_users(user_list):
             _invalidate_admin_cache(200)
-            return {"users": users, "count": len(users), "message": "Successfully imported users"}
+            return jsonify({"users": users, "count": len(users), "message": "Successfully imported users"})
         return {"error": "Unable to import"}, 400
 
 
@@ -459,11 +477,11 @@ class Users(MethodView):
         try:
             new_user = user.User.add(request.json)
             _invalidate_admin_cache(201)
-            return {"message": f"User {new_user.username} created", "id": new_user.id}, 201
+            return {"message": "User created", "id": new_user.id}, 201
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception:
-            logger.exception()
+            logger.exception("Could not create user")
             return {"error": "Could not create user"}, 400
 
     @auth_required("CONFIG_USER_UPDATE")
@@ -477,7 +495,7 @@ class Users(MethodView):
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception:
-            logger.exception()
+            logger.exception("Could not update user %s", user_id)
             return {"error": "Could not update user"}, 400
 
     @auth_required("CONFIG_USER_DELETE")
@@ -489,7 +507,7 @@ class Users(MethodView):
             _invalidate_admin_cache(status)
             return response, status
         except Exception:
-            logger.exception()
+            logger.exception("Could not delete user %s", user_id)
             return {"error": "Could not delete user"}, 400
 
 
@@ -511,16 +529,17 @@ class Bots(MethodView):
             if updated_bot := bot.Bot.update(bot_id, update_data):
                 logger.debug(f"Successfully updated {updated_bot}")
                 _invalidate_admin_cache(200)
-                return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
+                return jsonify({"message": "Bot updated", "id": f"{updated_bot.id}"}), 200
         except ValueError as e:
-            return {"error": str(e)}, 400
-        return {"error": f"Bot with ID: {bot_id} not found"}, 404
+            logger.warning("Invalid bot update payload: %s", e)
+            return {"error": "Invalid bot update payload"}, 400
+        return {"error": "Bot not found"}, 404
 
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):
         new_bot = bot.Bot.add(request.json)
         _invalidate_admin_cache(201)
-        return {"message": f"Bot {new_bot.name} created", "id": new_bot.id}, 201
+        return jsonify({"message": "Bot created", "id": new_bot.id}), 201
 
     @auth_required("CONFIG_BOT_DELETE")
     def delete(self, bot_id: str | None = None):
@@ -626,7 +645,7 @@ class Schedule(MethodView):
 
             return queue_manager.queue_manager.get_scheduled_jobs()
         except Exception:
-            logger.exception()
+            logger.exception("Failed to get schedules")
             return {"error": "Failed to get schedules"}, 500
 
 
@@ -654,10 +673,11 @@ class Connectors(MethodView):
         try:
             if source := connector.Connector.update(connector_id, update_data):
                 _invalidate_admin_cache(200)
-                return {"message": f"Connector {source.name} updated", "id": f"{connector_id}"}, 200
+                return {"message": "Connector updated", "id": source.id}, 200
         except ValueError as e:
-            return {"error": str(e)}, 500
-        return {"error": f"Connector with ID: {connector_id} not found"}, 404
+            logger.warning("Invalid connector update payload: %s", e)
+            return {"error": "Invalid connector update payload"}, 400
+        return {"error": "Connector not found"}, 404
 
     @auth_required("CONFIG_CONNECTOR_DELETE")
     def delete(self, connector_id: str | None = None):
@@ -681,10 +701,11 @@ class Connectors(MethodView):
         try:
             if source := connector.Connector.update(connector_id, update_data):
                 _invalidate_admin_cache(200)
-                return {"message": f"Connector {source.name} updated", "id": f"{connector_id}"}, 200
+                return {"message": "Connector updated", "id": source.id}, 200
         except ValueError as e:
-            return {"error": str(e)}, 400
-        return {"error": f"Connector with ID: {connector_id} not found"}, 404
+            logger.warning("Invalid connector patch payload: %s", e)
+            return {"error": "Invalid connector update payload"}, 400
+        return {"error": "Connector not found"}, 404
 
 
 class ConnectorsPull(MethodView):
@@ -695,8 +716,9 @@ class ConnectorsPull(MethodView):
             collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id)
 
             return {"message": "Stories successfully collected.", "data": collected_stories}, 200
-        except Exception as e:
-            return {"error": str(e)}, 500
+        except Exception:
+            logger.exception("Failed to pull stories from connector %s", connector_id)
+            return {"error": "Failed to pull stories from connector"}, 500
 
 
 class OSINTSources(MethodView):
@@ -715,8 +737,12 @@ class OSINTSources(MethodView):
                 return {"id": source.id, "message": "OSINT source created successfully"}, 201
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
+        except osint_source.InvalidOSINTSourceIconError as exc:
+            logger.warning("Invalid OSINT source icon payload: %s", exc)
+            return {"error": exc.public_message}, 400
         except ValueError as exc:
-            return {"error": str(exc)}, 400
+            logger.warning("Invalid OSINT source payload: %s", exc)
+            return {"error": "Invalid OSINT source payload"}, 400
         return {"error": "OSINT source could not be created"}, 400
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
@@ -728,12 +754,16 @@ class OSINTSources(MethodView):
         try:
             if source := osint_source.OSINTSource.update(source_id, update_data):
                 _invalidate_admin_cache(200)
-                return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
+                return {"message": "OSINT Source updated", "id": source.id}, 200
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
+        except osint_source.InvalidOSINTSourceIconError as e:
+            logger.warning("Invalid OSINT source icon payload: %s", e)
+            return {"error": e.public_message}, 400
         except ValueError as e:
-            return {"error": str(e)}, 400
-        return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
+            logger.warning("Invalid OSINT source update payload: %s", e)
+            return {"error": "Invalid OSINT source payload"}, 400
+        return {"error": "OSINT Source not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id: str | None = None):
@@ -745,8 +775,7 @@ class OSINTSources(MethodView):
 
             if _NewsItemService.has_related_news_items(source_id):
                 return {
-                    "error": f"""OSINT Source with ID: {source_id} has related News Items.
-                To delete this item and all related News Items, set the 'force' flag."""
+                    "error": "OSINT Source has related News Items. To delete this item and all related News Items, set the 'force' flag."
                 }, 409
 
         response, status = osint_source.OSINTSource.delete(source_id, force=force)
@@ -773,7 +802,7 @@ class OSINTSourceCollect(MethodView):
         if source_id:
             if source := osint_source.OSINTSource.get(source_id):
                 return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id)
-            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
+            return {"error": "OSINT Source not found"}, 404
         return queue_manager.queue_manager.collect_all_osint_sources()
 
 
@@ -846,7 +875,7 @@ class OSINTSourceGroups(MethodView):
     def post(self):
         source_group = osint_source.OSINTSourceGroup.add(request.json)
         _invalidate_admin_cache(200)
-        return {"id": source_group.id, "message": "OSINT source group created successfully"}, 200
+        return jsonify({"id": source_group.id, "message": "OSINT source group created successfully"}), 200
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_UPDATE")
     def put(self, group_id: str | None = None):
@@ -897,7 +926,7 @@ class PublisherPresets(MethodView):
     def post(self):
         pub_result = publisher_preset.PublisherPreset.add(request.json)
         _invalidate_admin_cache(200)
-        return {"id": pub_result.id, "message": "Publisher preset created successfully"}, 200
+        return jsonify({"id": pub_result.id, "message": "Publisher preset created successfully"}), 200
 
     @auth_required("CONFIG_PUBLISHER_UPDATE")
     def put(self, preset_id: str | None = None):
@@ -928,7 +957,7 @@ class WordLists(MethodView):
     def post(self):
         wordlist = word_list.WordList.add(request.json)
         _invalidate_admin_cache(200)
-        return {"id": wordlist.id, "message": "Word list created successfully"}, 200
+        return jsonify({"id": wordlist.id, "message": "Word list created successfully"}), 200
 
     @auth_required("CONFIG_WORD_LIST_DELETE")
     def delete(self, word_list_id: str | None = None):
@@ -975,7 +1004,7 @@ class WordListImport(MethodView):
             return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
         except ValueError as exc:
             logger.warning(f"Invalid word list import payload: {exc}")
-            return {"error": str(exc)}, 400
+            return {"error": "Invalid word list import payload"}, 400
         except Exception:
             logger.exception("Exception occurred during Word List import")
             return {"error": "Unable to import Word Lists"}, 500

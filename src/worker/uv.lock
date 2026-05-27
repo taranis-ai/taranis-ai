@@ -12,6 +12,10 @@ required-markers = [
     "platform_machine == 'arm64' and sys_platform == 'darwin'",
 ]
 
+[options]
+exclude-newer = "2026-05-20T15:21:29.801176Z"
+exclude-newer-span = "P1W"
+
 [[package]]
 name = "annotated-types"
 version = "0.7.0"
