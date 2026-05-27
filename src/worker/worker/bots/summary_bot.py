@@ -32,7 +32,10 @@ class SummaryBot(BaseBot):
             try:
                 if summary := self.predict_summary(content_to_summarize):
                     self.core_api.update_story_summary(story["id"], summary)
-                self.core_api.update_story_attributes(story["id"], [{"key": self.type, "value": 1 if summary else 0}])
+                self.core_api.update_story_attributes(
+                    story["id"],
+                    [{"key": self.type, "value": 1 if summary else 0}],
+                )
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")
                 continue

@@ -12,7 +12,7 @@ from core.managers.data_manager import (
     validate_existing_presenter_template_id,
 )
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.report_item_type import ReportItemType
 from core.model.role_based_access import ItemType, RoleBasedAccess
@@ -23,7 +23,7 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 class ProductType(BaseModel):
     __tablename__ = "product_type"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[PRESENTER_TYPES] = db.Column(db.Enum(PRESENTER_TYPES))
@@ -34,8 +34,7 @@ class ProductType(BaseModel):
     report_types: Mapped[list["ReportItemType"]] = relationship("ReportItemType", secondary="product_type_report_type")
 
     def __init__(self, title, type, description="", parameters=None, report_types=None, id=None):
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
         self.title = title
         self.type = type
         self.description = description
@@ -102,15 +101,15 @@ class ProductType(BaseModel):
         return {"items": cls.to_list(items)}, 200
 
     @classmethod
-    def update(cls, product_type_id: int, data, user=None) -> tuple[dict, int]:
+    def update(cls, product_type_id: str, data, user=None) -> tuple[dict, int]:
         product_type = cls.get(product_type_id)
         logger.debug(f"Updating {cls.__name__} with id {product_type_id} and data {data}")
         if not product_type:
             logger.error(f"Could not find product type with id {product_type_id}")
-            return {"error": f"Could not find product type with id {product_type_id}"}, 404
+            return {"error": "Product type not found"}, 404
         if user and not product_type.allowed_with_acl(user, require_write_access=True):
             logger.error(f"User {user} does not have write access to product type {product_type_id}")
-            return {"error": f"User {user} does not have write access to product type {product_type_id}"}, 403
+            return {"error": "User does not have write access to this product type"}, 403
 
         parsed_parameters = None
         if type := data.get("type"):
@@ -128,7 +127,7 @@ class ProductType(BaseModel):
         if report_types is not None:
             product_type.report_types = ReportItemType.get_bulk(report_types)
         db.session.commit()
-        return {"message": f"Updated product type {product_type.title}", "id": product_type.id}, 200
+        return {"message": "Product type updated", "id": product_type.id}, 200
 
     @staticmethod
     def _parse_parameters(worker_type: str, parameters) -> list[ParameterValue]:
@@ -162,14 +161,14 @@ class ProductType(BaseModel):
     def get_detail_json(self):
         data = self.to_dict()
         if template := self.get_template():
-            data["template"] = get_template_as_base64(template)
+            data["template"] = get_template_as_base64(os.path.basename(template))
         return data
 
     @classmethod
     def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.get_detail_json(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def get_by_type(cls, product_type: PRESENTER_TYPES) -> "ProductType|None":
@@ -197,26 +196,26 @@ class ProductType(BaseModel):
         return "application/octet-stream"
 
     @classmethod
-    def delete(cls, product_id: int) -> tuple[dict[str, Any], int]:
+    def delete(cls, product_id: str) -> tuple[dict[str, Any], int]:
         from core.model.product import Product
 
         product_type = cls.get(product_id)
         if not product_type:
             return {"error": "Product type not found"}, 404
 
-        if product := Product.query.where(Product.product_type_id == product_id).first():
-            return {"error": f"Product type is used in a product - {product.title}"}, 409
+        if Product.query.where(Product.product_type_id == product_id).first():
+            return {"error": "Product type is used in a product"}, 409
 
         db.session.delete(product_type)
         db.session.commit()
-        return {"message": f"Product type {product_id} deleted"}, 200
+        return {"message": "Product type deleted"}, 200
 
 
 class ProductTypeParameterValue(BaseModel):
-    product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)
+    product_type_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
+    parameter_value_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id"), primary_key=True)
 
 
 class ProductTypeReportType(BaseModel):
-    product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
-    report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), primary_key=True)
+    product_type_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
+    report_item_type_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item_type.id"), primary_key=True)

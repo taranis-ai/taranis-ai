@@ -2,12 +2,14 @@ import base64
 import json
 from datetime import datetime
 from io import BytesIO
+from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import urlparse
 
 import pytest
 from flask import render_template
 from models.admin import OSINTSource
+from models.task import Task
 from models.types import COLLECTOR_TYPES
 
 from frontend.cache import add_user_to_cache, cache
@@ -141,6 +143,15 @@ class TestCRUDViews:
 
 
 class TestSourceView:
+    def test_source_menu_badge_uses_task_failure_count(self, monkeypatch):
+        fake_badges = SimpleNamespace(osint_source=4)
+        monkeypatch.setattr(
+            "frontend.views.admin_views.source_views.DataPersistenceLayer",
+            lambda: SimpleNamespace(get_object=lambda model: fake_badges),
+        )
+
+        assert SourceView.get_admin_menu_badge() == 4
+
     def test_import_post_view(self, authenticated_client, responses_mock):
         """
         Test that the import_post_view method correctly extracts the "sources" key
@@ -215,7 +226,7 @@ class TestSourceView:
                 data={"icon": (BytesIO(_VALID_PNG_BYTES), "icon.png", "image/png")},
                 content_type="multipart/form-data",
             ):
-                response, error = SourceView.process_form_data(0)
+                response, error = SourceView.process_form_data("0")
 
         assert error is None
         assert response == {"stored": True}
@@ -234,7 +245,7 @@ class TestSourceView:
                 data={"icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
                 content_type="multipart/form-data",
             ):
-                response, error = SourceView.process_form_data(0)
+                response, error = SourceView.process_form_data("0")
 
         assert response is None
         assert error == f"Icon file exceeds maximum size of {max_bytes} bytes."
@@ -248,7 +259,7 @@ class TestSourceView:
                 data={"icon": (BytesIO(b"not-an-image"), "icon.png", "image/png")},
                 content_type="multipart/form-data",
             ):
-                response, error = SourceView.process_form_data(0)
+                response, error = SourceView.process_form_data("0")
 
         assert response is None
         assert error == "Icon payload is not a valid image file."
@@ -261,7 +272,7 @@ class TestSourceView:
                 data={"delete_icon": "true"},
                 content_type="multipart/form-data",
             ):
-                response, error = SourceView.process_form_data(123)
+                response, error = SourceView.process_form_data("123")
 
         assert error is None
         assert response == {"stored": True}
@@ -281,13 +292,30 @@ class TestSourceView:
                 data={"delete_icon": "true", "icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
                 content_type="multipart/form-data",
             ):
-                response, error = SourceView.process_form_data(123)
+                response, error = SourceView.process_form_data("123")
 
         assert error is None
         assert response == {"stored": True}
         mock_store.assert_called_once()
         processed_data = mock_store.call_args.args[0]
         assert processed_data["icon"] == ""
+
+    def test_osint_source_preview_shows_failure_and_retrigger_action(self, app):
+        task_result = Task(id="source_preview_42", status="FAILURE", result="Connection refused")
+
+        with app.test_request_context("/"):
+            rendered = render_template(
+                "osint_source/osint_source_preview.html",
+                task_result=task_result,
+                osint_source_id="42",
+            )
+
+        assert "OSINT source preview failed." in rendered
+        assert "Connection refused" in rendered
+        assert "hx-post=" in rendered
+        assert "source_preview/42" in rendered
+        assert 'hx-target="#source_preview"' in rendered
+        assert "Retrigger preview" in rendered
 
 
 def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
@@ -350,6 +378,10 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
     assert 'value="3"' in html
     assert 'aria-label="3 stars"' in html
     assert "News items in database: 7" in html
+    assert "source_preview/source-with-icon" in html
+    assert "source_collect/source-with-icon" in html
+    assert "Preview" in html
+    assert "Collect" in html
     assert "checked" in html
 
 
@@ -387,6 +419,8 @@ def test_osint_source_form_disables_rank_for_manual_source(app):
     assert "News items in database: 13" in html
     assert html.count('name="rank"') == 7
     assert html.count("disabled") >= 6
+    assert "source_preview/manual" not in html
+    assert "source_collect/manual" not in html
 
 
 def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, responses_mock, monkeypatch):
@@ -418,7 +452,12 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
                             "workers": "down",
                         },
                     },
-                    "worker_status": {},
+                    "task_status_totals": {
+                        "successes": 3,
+                        "failures": 1,
+                        "total": 4,
+                        "success_pct": 75,
+                    },
                 }
             ]
         },
@@ -451,6 +490,8 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
     assert "front456" not in html
     assert "System Health" in html
     assert "Degraded" in html
+    assert "Task Status" in html
+    assert "Success rate: 75%" in html
     assert "Database" in html
     assert "Pre-seeded" in html
     assert "Redis" in html
@@ -488,7 +529,12 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
                             "workers": "up",
                         },
                     },
-                    "worker_status": {},
+                    "task_status_totals": {
+                        "successes": 3,
+                        "failures": 1,
+                        "total": 4,
+                        "success_pct": 75,
+                    },
                 }
             ]
         },
@@ -511,3 +557,4 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
     assert "front456" in html
     assert "master" in html
     assert "Unavailable" in html
+    assert "Task Status" in html

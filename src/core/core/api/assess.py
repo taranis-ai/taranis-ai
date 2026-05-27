@@ -50,7 +50,7 @@ class NewsItems(MethodView):
             return {"error": "No NewsItems in JSON Body"}, 422
 
         data_json["osint_source_id"] = "manual"
-        result, status = story.Story.add_single_news_item(data_json)
+        result, status = story.Story.add_single_news_item(data_json, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
         return result, status
@@ -112,8 +112,28 @@ class NewsItem(MethodView):
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self, news_item_id: str):
-        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json)
+        actor = story.Story.last_change_for_user(current_user)
+        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=actor)
         invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+        return response, status
+
+
+class UpdateNewsItemTags(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def put(self, news_item_id: str):
+        item = news_item.NewsItem.get(news_item_id)
+        if not item:
+            return {"error": "NewsItem not found"}, 404
+        if not item.allowed_with_acl(current_user, require_write_access=True):
+            return {"error": "User does not have write access to this news item"}, 403
+
+        tags = request.json
+        if not isinstance(tags, (list, dict)):
+            return {"error": "Tags must be a list or object"}, 400
+
+        response, status = item.set_tags(tags, user=current_user)
+        invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"), object_ids={"news_item": news_item_id})
         return response, status
 
 
@@ -129,6 +149,7 @@ class Stories(MethodView):
                 "cybersecurity",
                 "relevant",
                 "in_report",
+                "changed_by",
                 "range",
                 "sort",
                 "timefrom",
@@ -179,22 +200,6 @@ class Stories(MethodView):
         return result_dict, 200
 
 
-class StoryTags(MethodView):
-    @auth_required("ASSESS_ACCESS")
-    def get(self):
-        try:
-            search = request.args.get("search", None)
-            limit = min(int(request.args.get("limit", 20)), 200)
-            offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
-            default_min_size = 0 if search else 3
-            min_size = int(request.args.get("min_size", default_min_size))
-            filter_args = {"limit": limit, "offset": offset, "search": search, "min_size": min_size}
-            return news_item_tag.NewsItemTag.get_filtered_tags(filter_args)
-        except Exception:
-            logger.exception()
-            return {"error": "Failed to get Tags"}, 400
-
-
 class StoryTagList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
@@ -243,7 +248,8 @@ class UnGroupNewsItem(MethodView):
     def put(self):
         if not (newsitem_ids := request.json):
             return {"error": "No news item ids provided"}, 400
-        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user)
+        actor = story.Story.last_change_for_user(current_user)
+        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
@@ -267,7 +273,8 @@ class GroupAction(MethodView):
     def put(self):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
-        response, code = story.Story.group_stories(story_ids, current_user)
+        actor = story.Story.last_change_for_user(current_user)
+        response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
@@ -277,7 +284,8 @@ class GroupAction(MethodView):
     def post(self):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
-        response, code = story.Story.group_stories(story_ids, current_user)
+        actor = story.Story.last_change_for_user(current_user)
+        response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
         return response, code
@@ -325,8 +333,9 @@ class Connectors(MethodView):
         try:
             response, code = queue_manager.queue_manager.push_to_connector(connector_id=connector_id, story_ids=story_ids)
             return response, code
-        except Exception as e:
-            return {"error": str(e)}, 500
+        except Exception:
+            logger.exception("Failed to push stories to connector %s", connector_id)
+            return {"error": "Failed to push stories to connector"}, 500
 
 
 class FilterLists(MethodView):
@@ -377,7 +386,6 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
     assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
     assess_bp.add_url_rule("/osint-sources-list", view_func=OSINTSourcesList.as_view("osint_sources_list"))
-    assess_bp.add_url_rule("/tags", view_func=StoryTags.as_view("tags"))
     assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
     assess_bp.add_url_rule("/filter-lists", view_func=FilterLists.as_view("filter_lists"))
     assess_bp.add_url_rule("/import", view_func=AssessImport.as_view("import"))
@@ -387,6 +395,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule(
         "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")
     )
+    assess_bp.add_url_rule("/news-items/<string:news_item_id>/tags", view_func=UpdateNewsItemTags.as_view("update_news_item_tags"))
     assess_bp.add_url_rule("/stories/group", view_func=GroupAction.as_view("group_action"))
     assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
     assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))

@@ -128,6 +128,16 @@ class SchedulerDashboardData(TaranisBaseModel):
     failed_total_count: int = 0
 
 
+class AdminMenuBadges(TaranisBaseModel):
+    _core_endpoint = "/config/admin-menu-badges"
+    _cache_timeout = 300
+    _model_name = "admin_menu_badges"
+    _pretty_name = "Admin Menu Badges"
+
+    osint_source: int = 0
+    bot: int = 0
+
+
 class CronSpec(CronTaskSpec):
     job_id: str
 
@@ -143,7 +153,7 @@ class Organization(TaranisBaseModel):
     _core_endpoint = "/config/organizations"
     _model_name = "organization"
 
-    id: int | None = None
+    id: str | None = None
     name: str = ""
     description: str | None = ""
     address: Address = Field(default_factory=Address)
@@ -153,6 +163,7 @@ class Permission(TaranisBaseModel):
     _core_endpoint = "/config/permissions"
     _model_name = "permission"
     id: str | None = None
+    code: str | None = None
     name: str
     description: str = ""
 
@@ -162,13 +173,13 @@ class ACL(TaranisBaseModel):
     _model_name = "acl"
     _pretty_name = "ACL"
 
-    id: int | None = None
+    id: str | None = None
     name: str = ""
     description: str | None = ""
     item_type: ItemType | None = None
     item_id: str | None = None
 
-    roles: list[int] = Field(default_factory=list)
+    roles: list[str] = Field(default_factory=list)
 
     read_only: bool = True
     enabled: bool = True
@@ -177,7 +188,7 @@ class ACL(TaranisBaseModel):
 class ParameterValue(TaranisBaseModel):
     _core_endpoint = "/config/parameter-values"
     _model_name = "parameter_value"
-    id: int | None = None
+    id: str | None = None
     parameter: str = ""
     value: str | None = ""
 
@@ -200,7 +211,7 @@ class Role(TaranisBaseModel):
     _model_name = "role"
     _pretty_name = "Role"
 
-    id: int | None = None
+    id: str | None = None
     name: str = ""
     description: str | None = ""
     permissions: list[str] = Field(default_factory=list)
@@ -211,12 +222,12 @@ class User(TaranisBaseModel):
     _core_endpoint = "/config/users"
     _model_name = "user"
 
-    id: int | None = None
+    id: str | None = None
     name: str
-    organization: dict | int
+    organization: dict | str
     permissions: list[str] | None = None
     profile: dict | None = None
-    roles: list[int] | list[dict] = Field(default_factory=list)
+    roles: list[str] | list[dict] = Field(default_factory=list)
     username: str = ""
     password: SecretStr | None = None
     last_login: datetime | None = None
@@ -241,7 +252,7 @@ class Settings(TaranisBaseModel):
     _model_name = "settings"
     _pretty_name = "Settings"
     _cache_timeout = 30
-    id: int = Field(default=1, frozen=True, exclude=True)
+    id: str | None = Field(default=None, frozen=True, exclude=True)
     settings: TaranisConfig = Field(default_factory=TaranisConfig)
 
 
@@ -256,7 +267,7 @@ class WordList(TaranisBaseModel):
     _model_name = "word_list"
     _pretty_name = "Word List"
 
-    id: int | None = None
+    id: str | None = None
     name: str
     description: str | None = ""
     usage: list[str] = Field(default_factory=list)
@@ -270,6 +281,7 @@ class OSINTSource(TaranisBaseModel):
     _pretty_name = "OSINT Source"
 
     id: str | None = None
+    key: str | None = None
     name: str
     description: str = ""
     rank: int = Field(default=0, ge=0, le=5)
@@ -296,12 +308,13 @@ class OSINTSourceGroup(TaranisBaseModel):
     _pretty_name = "OSINT Source Group"
 
     id: str | None = None
+    key: str | None = None
     name: str
     description: str = ""
     default: bool = False
 
     osint_sources: list[str] = Field(default_factory=list)
-    word_lists: list[int] = Field(default_factory=list)
+    word_lists: list[str] = Field(default_factory=list)
 
 
 class ProductParameterValue(TaranisBaseModel):
@@ -313,12 +326,12 @@ class ProductType(TaranisBaseModel):
     _model_name = "product_type"
     _pretty_name = "Product Type"
 
-    id: int | None = None
+    id: str | None = None
     title: str
     description: str = ""
     type: PRESENTER_TYPES
     parameters: ProductParameterValue = Field(default_factory=ProductParameterValue)
-    report_types: list[int] = Field(default_factory=list)
+    report_types: list[str] = Field(default_factory=list)
     status: Task | None = None
 
 
@@ -336,10 +349,10 @@ class PublisherPreset(TaranisBaseModel):
 
 
 class ReportItemAttribute(TaranisBaseModel):
-    id: int | None = None
+    id: str | None = None
     attribute: dict[str, str] | None = None
-    attribute_id: int | None = None
-    attribute_group_id: int | None = None
+    attribute_id: str | None = None
+    attribute_group_id: str | None = None
     title: str | None = None
     description: str | None = None
     index: int | None = None
@@ -349,7 +362,7 @@ class ReportItemAttribute(TaranisBaseModel):
 
 
 class ReportItemAttributeGroup(TaranisBaseModel):
-    id: int | None = None
+    id: str | None = None
     title: str | None = None
     description: str | None = None
     index: int | None = None
@@ -361,7 +374,7 @@ class ReportItemType(TaranisBaseModel):
     _model_name = "report_item_type"
     _pretty_name = "Report Item Type"
 
-    id: int | None = None
+    id: str | None = None
     title: str
     description: str = ""
     attribute_groups: list[ReportItemAttributeGroup] | None = Field(default_factory=list)
@@ -378,12 +391,12 @@ class Template(TaranisBaseModel):
 
 
 class AttributeEnum(TaranisBaseModel):
-    id: int | None = None
+    id: str | None = None
     index: int | None = None
     value: str | None = None
     description: str | None = None
     imported: bool | None = None
-    attribute_id: int | None = None
+    attribute_id: str | None = None
 
 
 class Attribute(TaranisBaseModel):
@@ -391,7 +404,7 @@ class Attribute(TaranisBaseModel):
     _model_name = "attribute"
     _pretty_name = "Attribute"
 
-    id: int | None = None
+    id: str | None = None
     name: str
     description: str = ""
     type: AttributeType

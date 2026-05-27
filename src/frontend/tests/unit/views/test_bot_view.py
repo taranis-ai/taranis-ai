@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 from flask import render_template, url_for
 from lxml import html
@@ -38,38 +40,14 @@ def test_bot_parameters_include_optional_positive_integer_requests_timeout(authe
     assert response.text.index('name="parameters[ITEM_FILTER]"') < response.text.index('name="parameters[REQUESTS_TIMEOUT]"')
 
 
-def test_reorder_bot_parameters_uses_bot_specific_order_and_keeps_unknowns_stable():
-    parameters = [
-        {"name": "REFRESH_INTERVAL"},
-        {"name": "UNKNOWN_ONE"},
-        {"name": "BOT_API_KEY"},
-        {"name": "ITEM_FILTER"},
-        {"name": "UNKNOWN_TWO"},
-        {"name": "REQUESTS_TIMEOUT"},
-    ]
+def test_bot_menu_badge_uses_task_failure_count(monkeypatch):
+    fake_badges = SimpleNamespace(bot=7)
+    monkeypatch.setattr(
+        "frontend.views.admin_views.bot_views.DataPersistenceLayer",
+        lambda: SimpleNamespace(get_object=lambda model: fake_badges),
+    )
 
-    ordered = BotView._reorder_bot_parameters("story_bot", parameters)
-
-    assert [param["name"] for param in ordered] == [
-        "ITEM_FILTER",
-        "REQUESTS_TIMEOUT",
-        "BOT_API_KEY",
-        "REFRESH_INTERVAL",
-        "UNKNOWN_ONE",
-        "UNKNOWN_TWO",
-    ]
-
-
-def test_reorder_bot_parameters_returns_original_order_for_unknown_bot_type():
-    parameters = [{"name": "B"}, {"name": "A"}, {"name": "C"}]
-
-    ordered = BotView._reorder_bot_parameters("unknown_bot_type", parameters)
-
-    assert [param["name"] for param in ordered] == [
-        "B",
-        "A",
-        "C",
-    ]
+    assert BotView.get_admin_menu_badge() == 7
 
 
 def test_bot_form_renders_enabled_switch(app):

@@ -1,5 +1,5 @@
 from copy import deepcopy
-from uuid import uuid4
+from uuid import uuid4, uuid7
 
 import pytest
 
@@ -54,8 +54,8 @@ class TestAnalyzeApi(BaseTest):
         from core.model.report_item import ReportItem
 
         unique_suffix = uuid4().hex
-        empty_report_id = f"empty-{unique_suffix}"
-        linked_report_id = f"linked-{unique_suffix}"
+        empty_report_id = str(uuid7())
+        linked_report_id = str(uuid7())
 
         payloads = [
             {
@@ -100,8 +100,8 @@ class TestAnalyzeApi(BaseTest):
         from core.model.report_item import ReportItem
 
         unique_suffix = uuid4().hex
-        target_report_id = f"target-{unique_suffix}"
-        other_report_id = f"other-{unique_suffix}"
+        target_report_id = str(uuid7())
+        other_report_id = str(uuid7())
 
         payloads = [
             {
@@ -140,6 +140,131 @@ class TestAnalyzeApi(BaseTest):
         finally:
             with app.app_context():
                 for report_id in (target_report_id, other_report_id):
+                    if ReportItem.get(report_id):
+                        ReportItem.delete(report_id)
+
+    def test_get_reports_filters_by_report_item_type_id(self, client, auth_header, app):
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+
+        unique_suffix = uuid4().hex
+        created_report_ids: list[str] = []
+        primary_a_id = str(uuid7())
+        primary_b_id = str(uuid7())
+        secondary_id = str(uuid7())
+
+        with app.app_context():
+            report_types = ReportItemType.get_all_for_collector()
+            assert len(report_types) >= 2, "Expected at least two report types for filter testing"
+            primary_type_id = report_types[0].id
+            secondary_type_id = report_types[1].id
+
+            payloads = [
+                {
+                    "id": primary_a_id,
+                    "title": f"Type Filter Report {unique_suffix}",
+                    "completed": False,
+                    "report_item_type_id": primary_type_id,
+                    "stories": [],
+                },
+                {
+                    "id": primary_b_id,
+                    "title": f"Type Filter Report {unique_suffix}",
+                    "completed": True,
+                    "report_item_type_id": primary_type_id,
+                    "stories": [],
+                },
+                {
+                    "id": secondary_id,
+                    "title": f"Type Filter Report {unique_suffix}",
+                    "completed": False,
+                    "report_item_type_id": secondary_type_id,
+                    "stories": [],
+                },
+            ]
+
+            for payload in payloads:
+                report_item, status = ReportItem.add(payload)
+                assert status == 200
+                created_report_ids.append(report_item.id)
+
+        try:
+            response = self.assert_get_ok(
+                client,
+                f"report-items?search={unique_suffix}&report_item_type_id={primary_type_id}",
+                auth_header,
+            )
+            payload = response.get_json()
+
+            assert payload["total_count"] == 2
+            assert {item["id"] for item in payload["items"]} == {primary_a_id, primary_b_id}
+            assert {item["report_item_type_id"] for item in payload["items"]} == {primary_type_id}
+        finally:
+            with app.app_context():
+                for report_id in created_report_ids:
+                    if ReportItem.get(report_id):
+                        ReportItem.delete(report_id)
+
+    def test_get_reports_filters_by_report_item_type_id_and_completed(self, client, auth_header, app):
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+
+        unique_suffix = uuid4().hex
+        created_report_ids: list[str] = []
+        incomplete_primary_id = str(uuid7())
+        complete_primary_id = str(uuid7())
+        incomplete_secondary_id = str(uuid7())
+
+        with app.app_context():
+            report_types = ReportItemType.get_all_for_collector()
+            assert len(report_types) >= 2, "Expected at least two report types for combined filter testing"
+            primary_type_id = report_types[0].id
+            secondary_type_id = report_types[1].id
+
+            payloads = [
+                {
+                    "id": incomplete_primary_id,
+                    "title": f"Combined Filter Report {unique_suffix}",
+                    "completed": False,
+                    "report_item_type_id": primary_type_id,
+                    "stories": [],
+                },
+                {
+                    "id": complete_primary_id,
+                    "title": f"Combined Filter Report {unique_suffix}",
+                    "completed": True,
+                    "report_item_type_id": primary_type_id,
+                    "stories": [],
+                },
+                {
+                    "id": incomplete_secondary_id,
+                    "title": f"Combined Filter Report {unique_suffix}",
+                    "completed": False,
+                    "report_item_type_id": secondary_type_id,
+                    "stories": [],
+                },
+            ]
+
+            for payload in payloads:
+                report_item, status = ReportItem.add(payload)
+                assert status == 200
+                created_report_ids.append(report_item.id)
+
+        try:
+            response = self.assert_get_ok(
+                client,
+                f"report-items?search={unique_suffix}&report_item_type_id={primary_type_id}&completed=false",
+                auth_header,
+            )
+            payload = response.get_json()
+
+            assert payload["total_count"] == 1
+            assert [item["id"] for item in payload["items"]] == [incomplete_primary_id]
+            assert payload["items"][0]["report_item_type_id"] == primary_type_id
+            assert payload["items"][0]["completed"] is False
+        finally:
+            with app.app_context():
+                for report_id in created_report_ids:
                     if ReportItem.get(report_id):
                         ReportItem.delete(report_id)
 
@@ -201,14 +326,14 @@ class TestAnalyzeApi(BaseTest):
         report_id = cleanup_report_item["id"]
         response = self.assert_delete_ok(client, f"report-items/{report_id}", auth_header=auth_header)
         assert "message" in response.text
-        assert response.json["message"] == "Successfully deleted report 'Updated Report Title'"
+        assert response.json["message"] == "Successfully deleted report"
 
     def test_create_report_with_initial_stories_updates_story_tags_and_relevance(self, app, cleanup_report_item, stories):
         from core.model.report_item import ReportItem
         from core.model.story import Story
 
         report_payload = deepcopy(cleanup_report_item)
-        report_payload["id"] = "report-with-initial-stories"
+        report_payload["id"] = str(uuid7())
         report_payload["title"] = "Report With Initial Stories"
         report_payload["stories"] = stories[:2]
 
@@ -220,7 +345,7 @@ class TestAnalyzeApi(BaseTest):
             for story_id in stories[:2]:
                 story = Story.get(story_id)
                 assert story is not None
-                assert any(tag.tag_type == f"report_{report_payload['id']}" for tag in story.tags)
+                assert story.find_attribute_by_key(f"report_{report_payload['id']}") is not None
                 assert story.relevance_feedback == 3
                 assert story.relevance == story.relevance_source + 3 + (story.relevance_override or 0)
 
@@ -229,7 +354,7 @@ class TestAnalyzeApi(BaseTest):
         from core.model.story import Story
 
         report_payload = deepcopy(cleanup_report_item)
-        report_payload["id"] = "report-delete-all-cleanup"
+        report_payload["id"] = str(uuid7())
         report_payload["title"] = "Report Delete All Cleanup"
         report_payload["stories"] = stories[:1]
 
@@ -248,7 +373,7 @@ class TestAnalyzeApi(BaseTest):
 
             story_after_delete = Story.get(stories[0])
             assert story_after_delete is not None
-            assert all(tag.tag_type != f"report_{report_payload['id']}" for tag in story_after_delete.tags)
+            assert story_after_delete.find_attribute_by_key(f"report_{report_payload['id']}") is None
             assert story_after_delete.relevance_feedback == 0
             assert story_after_delete.relevance == story_after_delete.relevance_source + (story_after_delete.relevance_override or 0)
 
@@ -257,7 +382,7 @@ class TestAnalyzeApi(BaseTest):
         from core.model.story import Story
 
         report_payload = deepcopy(cleanup_report_item)
-        report_payload["id"] = "report-delete-keeps-stories"
+        report_payload["id"] = str(uuid7())
         report_payload["title"] = "Report Delete Keeps Stories"
         report_payload["stories"] = stories[:1]
 
@@ -268,11 +393,11 @@ class TestAnalyzeApi(BaseTest):
 
             result, delete_status = ReportItem.delete(report.id)
             assert delete_status == 200
-            assert result["message"] == "Successfully deleted report 'Report Delete Keeps Stories'"
+            assert result["message"] == "Successfully deleted report"
 
             story = Story.get(stories[0])
             assert story is not None
-            assert all(tag.tag_type != f"report_{report_payload['id']}" for tag in story.tags)
+            assert story.find_attribute_by_key(f"report_{report_payload['id']}") is None
             assert story.relevance_feedback == 0
 
     def test_create_report_and_publish_product_workflow(self, app, client, auth_header, stories, workflow_publish_resources, monkeypatch):
@@ -541,7 +666,7 @@ class TestAnalyzeApi(BaseTest):
         from core.model.role_based_access import ItemType, RoleBasedAccess
 
         acl_id = None
-        created_report_id = f"forged-report-{uuid4()}"
+        created_report_id = str(uuid7())
 
         visible_before_acl = client.get(self.concat_url("report-types"), headers=auth_header_user_permissions)
         assert visible_before_acl.status_code == 200
@@ -583,7 +708,7 @@ class TestAnalyzeApi(BaseTest):
                 headers=auth_header_user_permissions,
             )
             assert create_response.status_code == 403
-            assert "not allowed to create Report" in create_response.get_json()["error"]
+            assert create_response.get_json()["error"] == "User is not allowed to create report"
         finally:
             with app.app_context():
                 if ReportItem.get(created_report_id):

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.expression import Select, true
 
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.role import Role
 
 
@@ -21,7 +21,7 @@ class ItemType(StrEnum):
 class RoleBasedAccess(BaseModel):
     __tablename__ = "role_based_access"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
@@ -34,8 +34,7 @@ class RoleBasedAccess(BaseModel):
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
 
     def __init__(self, name: str, description: str, item_type, item_id: str, roles=None, read_only=None, enabled=None, id=None):
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
         self.name = name
         self.description = description
         self.item_type = item_type
@@ -81,7 +80,7 @@ class RoleBasedAccess(BaseModel):
         return "name_asc"
 
     @classmethod
-    def update(cls, acl_id: int, data) -> tuple[dict, int]:
+    def update(cls, acl_id: str, data) -> tuple[dict, int]:
         acl = cls.get(acl_id)
         if not acl:
             return {"error": "ACL not found"}, 404
@@ -95,11 +94,11 @@ class RoleBasedAccess(BaseModel):
             else:
                 setattr(acl, key, value)
         db.session.commit()
-        return {"message": f"Succussfully updated {acl.id}", "id": acl.id}, 201
+        return {"message": "Role based access updated", "id": acl.id}, 201
 
 
 class RBACRole(BaseModel):
     __tablename__ = "rbac_role"
 
-    acl_id = db.Column(db.Integer, db.ForeignKey("role_based_access.id", ondelete="SET NULL"), primary_key=True)
-    role_id = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="CASCADE"), primary_key=True)
+    acl_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("role_based_access.id", ondelete="SET NULL"), primary_key=True)
+    role_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("role.id", ondelete="CASCADE"), primary_key=True)

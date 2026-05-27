@@ -45,7 +45,7 @@ def check_seed_data() -> HealthStatus:
         from core.model.osint_source import OSINTSource
         from core.model.product_type import ProductType
 
-        manual_source_exists = OSINTSource.get("manual") is not None
+        manual_source_exists = OSINTSource.get_by_key("manual") is not None
         product_type_exists = ProductType.get_first(db.select(ProductType)) is not None
         return "up" if manual_source_exists and product_type_exists else "down"
     except SQLAlchemyError:

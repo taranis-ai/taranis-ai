@@ -4,7 +4,8 @@
 {% set form_error = form_error | default({}) %}
 {% set product = product | default({}) %}
 {% set product_types = product_types | default([]) %}
-{% set supported_reports = product.supported_reports | default([]) | tojson %}
+{% set supported_reports = supported_reports | default(product.supported_reports | default([])) | tojson %}
+{% set selected_report_items = selected_report_items | default(product.report_items | default([])) %}
 {% set rendered_product = product.render_result %}
 {% set rendered_mime_type = product.mime_type %}
 
@@ -81,7 +82,7 @@
 
           {% if product.product_type_id %}
             <div class="mt-2">
-              {{ datatable('Report Items', supported_reports, columns, selected_items=product.report_items | default([]) , input_name='report_items[]', headline='Report Items') }}
+              {{ datatable('Report Items', supported_reports, columns, selected_items=selected_report_items, input_name='report_items[]', headline='Report Items') }}
             </div>
           {% endif %}
 
@@ -152,7 +153,7 @@
               </div>
             {% else %}
               <div class="text-center">
-                {% if product.report_items %}
+                {% if selected_report_items %}
                   <h2 class="text-xl mb-2">No rendered Product Found</h2>
                   <button class="btn btn-outline mt-2" @click="triggerAction('render')">Render</button>
                 {% else %}

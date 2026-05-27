@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from typing import Any, Type
 
@@ -8,7 +7,7 @@ from sqlalchemy.orm import Mapped, deferred, relationship
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.news_item import NewsItem
 from core.model.parameter_value import ParameterValue
 from core.model.story import Story
@@ -18,7 +17,7 @@ from core.model.worker import Worker
 class Connector(BaseModel):
     __tablename__ = "connector"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
@@ -31,7 +30,7 @@ class Connector(BaseModel):
     last_error_message: Mapped[str | None] = db.Column(db.String, default=None, nullable=True)
 
     def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, id=None):
-        self.id = id or str(uuid.uuid4())
+        self.id = self.normalize_uuid_id(id)
         self.name = name
         self.description = description
         self.type = type if isinstance(type, CONNECTOR_TYPES) else CONNECTOR_TYPES(type.lower())
@@ -109,16 +108,16 @@ class Connector(BaseModel):
     @classmethod
     def delete(cls, connector_id: str, force: bool = False) -> tuple[dict, int]:
         if not (connector := cls.get(connector_id)):
-            return {"error": f"Connector with ID: {connector_id} not found"}, 404
+            return {"error": "Connector not found"}, 404
 
         try:
             connector.unschedule_connector()
             db.session.delete(connector)
             db.session.commit()
-            return {"message": f"Connecotor {connector.name} deleted", "id": f"{connector_id}"}, 200
+            return {"message": "Connector deleted", "id": connector.id}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
-            return {"error": f"Deleting Connector with ID: {connector_id} failed {str(e)}"}, 500
+            return {"error": "Deleting Connector failed"}, 500
 
     @staticmethod
     def _update_last_change(model_class: Type, data: dict[str, str]) -> tuple[dict[str, str], int]:
@@ -127,7 +126,7 @@ class Connector(BaseModel):
 
         for object_id, target_value in data.items():
             if target_value not in ["internal", "external"]:
-                return {"error": f"Invalid value {target_value} for ID {object_id}, must be 'internal' or 'external'"}, 400
+                return {"error": "Invalid last-change value"}, 400
 
             if instance := model_class.get(object_id):
                 instance.last_change = target_value
@@ -146,5 +145,7 @@ class Connector(BaseModel):
 
 
 class ConnectorParameterValue(BaseModel):
-    connector_id: Mapped[str] = db.Column(db.String, db.ForeignKey("connector.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True)
+    connector_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("connector.id", ondelete="CASCADE"), primary_key=True)
+    parameter_value_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True
+    )

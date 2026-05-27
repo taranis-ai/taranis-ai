@@ -12,12 +12,14 @@ Deployment options:
 Replace every `CHANGE_ME_...` value before deployment.
 
 Always required:
-- In `kubernetes/00-config.yaml` (or `helm/values.yaml`), set `GRANIAN_HOST`, `TARANIS_BASE_PATH`, `SSE_PATH`.
+- In `kubernetes/00-config.yaml` (or `helm/values.yaml`), set `GRANIAN_HOST`.
 - In `kubernetes/01-secrets.yaml` (or `helm/values.yaml`), set `JWT_SECRET_KEY`, `API_KEY`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `REDIS_URL`, `REDIS_PASSWORD`.
+- The raw manifest provides `TARANIS_BASE_PATH: /`; set it only when serving the application below a subpath.
+- The raw manifest provides `SSE_PATH: /sse`; keep it aligned with the ingress SSE route if you change it.
 
 Optional `llm-bot` overlay:
-- In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`, `LLM_MODEL` (and optionally `LLM_TIMEOUT`).
-- In `kubernetes/01-secrets.yaml`, set `BOT_API_KEY`, `LLM_API_KEY`.
+- In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`; optionally set `LLM_TIMEOUT` and `LLM_MODEL`.
+- In `kubernetes/01-secrets.yaml`, set `BOT_API_KEY`; optionally set `LLM_API_KEY` for providers that require one.
 - Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
 
 ## Images
@@ -25,6 +27,9 @@ Optional `llm-bot` overlay:
 Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `sse-broker`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`).
 Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
 Pin explicit tags for production.
+
+Published `core`, `frontend`, `worker`, and `ingress` images include registry SBOM attestations.
+GitHub releases attach CycloneDX JSON SBOM files for the Python application environments: `taranis_core_sbom.json`, `taranis_frontend_sbom.json`, and `taranis_worker_sbom.json`.
 
 ## Raw Kubernetes
 

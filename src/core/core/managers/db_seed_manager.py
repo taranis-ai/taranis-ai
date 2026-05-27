@@ -91,6 +91,8 @@ def pre_seed_update(db_engine: Engine):
     for b in bots:
         bot = Bot.filter_by_type(b["type"])
         if not bot:
+            b["enabled"] = False
+            logger.debug(f"Adding new bot type '{b['type']}' in disabled state")
             Bot.add(b)
 
     for r in report_types:
@@ -99,6 +101,7 @@ def pre_seed_update(db_engine: Engine):
             ReportItemType.add(r)
 
     for p in product_types:
+        p = _resolve_seed_product_type_report_types(p)
         pt = ProductType.filter_by_title(p["title"])
         if not pt:
             ProductType.add(p)
@@ -170,7 +173,7 @@ def _migrate_missing_story_revisions(batch_size: int) -> int:
             db.select(Story)
             .options(
                 selectinload(Story.attributes),
-                selectinload(Story.tags),
+                selectinload(Story.news_items).selectinload(NewsItem.tags),
                 selectinload(Story.news_items).selectinload(NewsItem.attributes),
             )
             .where(Story.revision == -1)
@@ -201,7 +204,7 @@ def _migrate_missing_report_revisions(batch_size: int) -> int:
             .options(
                 selectinload(ReportItem.report_item_type),
                 selectinload(ReportItem.attributes),
-                selectinload(ReportItem.stories).selectinload(Story.tags),
+                selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.tags),
                 selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.attributes),
             )
             .where(ReportItem.revision == -1)
@@ -310,14 +313,14 @@ def convert_interval_to_cron(interval: int) -> str:
 def pre_seed_source_groups():
     from core.model.osint_source import OSINTSourceGroup
 
-    if not OSINTSourceGroup.get("default"):
+    if not OSINTSourceGroup.get_by_key("default"):
         OSINTSourceGroup.add({"id": "default", "name": "Default", "description": "Default group for uncategorized sources", "default": True})
 
 
 def pre_seed_manual_source():
     from core.model.osint_source import OSINTSource
 
-    if not OSINTSource.get("manual"):
+    if not OSINTSource.get_by_key("manual"):
         OSINTSource.add(
             {
                 "id": "manual",
@@ -343,7 +346,7 @@ def pre_seed_workers():
         Bot.add(b)
 
     for p in product_types:
-        ProductType.add(p)
+        ProductType.add(_resolve_seed_product_type_report_types(p))
 
 
 def pre_seed_permissions():
@@ -437,6 +440,22 @@ def pre_seed_report_items():
             ReportItemType.add(report_type)
 
 
+def _resolve_seed_product_type_report_types(product_type: dict) -> dict:
+    from core.model.report_item_type import ReportItemType
+
+    product_type_data = deepcopy(product_type)
+    report_type_refs = product_type_data.get("report_types", [])
+    resolved_report_type_ids = []
+
+    for report_type_ref in report_type_refs:
+        report_type = ReportItemType.get_by_title(report_type_ref)
+        if report_type:
+            resolved_report_type_ids.append(report_type.id)
+
+    product_type_data["report_types"] = resolved_report_type_ids
+    return product_type_data
+
+
 def pre_seed_default_user():
     from core.model.organization import Organization
     from core.model.role import Role
@@ -446,9 +465,9 @@ def pre_seed_default_user():
     if user_count > 0:
         return
 
-    admin_organization = Organization.get(1)
+    admin_organization = Organization.find_by_name("The Earth")
     if not admin_organization:
-        Organization.add(
+        admin_organization = Organization.add(
             {
                 "name": "The Earth",
                 "description": "Earth is the third planet from the Sun and the only astronomical object known to harbor life.",
@@ -463,13 +482,14 @@ def pre_seed_default_user():
                     "username": "admin",
                     "name": "Arthur Dent",
                     "roles": [admin_role.id],
-                    "organization": {"id": 1},
+                    "organization": {"id": admin_organization.id},
                     "password": Config.PRE_SEED_PASSWORD_ADMIN,
                 }
             )
 
-    if not Organization.get(2):
-        Organization.add(
+    user_organization = Organization.find_by_name("The Clacks")
+    if not user_organization:
+        user_organization = Organization.add(
             {
                 "name": "The Clacks",
                 "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
@@ -489,7 +509,7 @@ def pre_seed_default_user():
                 "username": "user",
                 "name": "Terry Pratchett",
                 "roles": [user_role],
-                "organization": {"id": 2},
+                "organization": {"id": user_organization.id},
                 "password": Config.PRE_SEED_PASSWORD_USER,
             }
         )

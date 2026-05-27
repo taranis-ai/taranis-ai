@@ -131,7 +131,7 @@ uv venv
 source .venv/bin/activate
 
 # Install requirements
-uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv sync --all-extras --frozen --python 3.14 --no-install-package taranis-models
 uv pip install -e ../models
 
 # Run core
@@ -184,6 +184,29 @@ flask run
 Taranis AI should be reachable on _local.taranis.ai_.
 
 ## Development Tools
+
+### Migration Test Harness
+
+Use the migration harness to reproduce production-like upgrades from the current master schema to the current branch:
+
+```bash
+./dev/test_master_to_branch_migration.sh
+```
+
+This harness requires `podman`.
+
+The script creates a temporary git worktree from `origin/master`, starts a disposable PostgreSQL container with Podman, initializes and seeds a fresh master database, copies it, then starts the current branch against the copy so pending yoyo migrations are applied. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
+
+Useful options:
+
+```bash
+BASE_REF=master ./dev/test_master_to_branch_migration.sh
+KEEP_MIGRATION_TEST_DB=1 ./dev/test_master_to_branch_migration.sh
+PG_IMAGE=postgres:16-alpine ./dev/test_master_to_branch_migration.sh
+PYTEST_TARGET=tests ./dev/test_master_to_branch_migration.sh
+```
+
+`KEEP_MIGRATION_TEST_DB=1` leaves the temporary worktree and PostgreSQL container running for inspection. Do not point this harness at shared or production databases.
 
 ### RQ Cron Scheduler
 

@@ -1,5 +1,4 @@
 import mimetypes
-import uuid
 from base64 import b64decode
 from datetime import datetime, timedelta
 from typing import Any
@@ -10,7 +9,7 @@ from sqlalchemy.sql import Select
 from core.log import logger
 from core.managers import queue_manager
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.product_type import ProductType
 from core.model.report_item import ReportItem
 from core.model.role_based_access import ItemType
@@ -21,32 +20,32 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 class Product(BaseModel):
     __tablename__ = "product"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
     auto_publish: Mapped[bool] = db.Column(db.Boolean, default=False)
 
-    product_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("product_type.id"))
+    product_type_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("product_type.id"))
     product_type: Mapped["ProductType"] = relationship("ProductType")
 
     report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item")
-    default_publisher: Mapped[str | None] = db.Column(db.String(64), db.ForeignKey("publisher_preset.id"), nullable=True)
+    default_publisher: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("publisher_preset.id"), nullable=True)
     last_rendered: Mapped[datetime] = db.Column(db.DateTime)
     render_result = deferred(db.Column(db.Text))
 
     def __init__(
         self,
         title: str,
-        product_type_id: int,
+        product_type_id: str,
         description: str = "",
         auto_publish: bool = False,
         report_items: list[str] | None = None,
         default_publisher: str | None = None,
         id: str | None = None,
     ):
-        self.id = id or str(uuid.uuid4())
+        self.id = self.normalize_uuid_id(id)
         self.title = title
         self.description = description
         self.product_type_id = product_type_id
@@ -156,11 +155,11 @@ class Product(BaseModel):
     @classmethod
     def update_render_for_id(cls, product_id: str, render_result: str):
         if not (product := cls.get(product_id)):
-            return {"error": f"Product {product_id} not found"}, 404
+            return {"error": "Product not found"}, 404
         if product.update_render(render_result):
             logger.debug(f"Render result for Product {product_id} updated")
-            return {"message": f"Product {product_id} updated"}, 200
-        return {"error": f"Product {product_id} not updated"}, 500
+            return {"message": "Product updated"}, 200
+        return {"error": "Product not updated"}, 500
 
     def get_file_name(self) -> str:
         product_title = self.title
@@ -182,7 +181,7 @@ class Product(BaseModel):
     def update(cls, product_id: str, data) -> tuple[dict, int]:
         product = Product.get(product_id)
         if product is None:
-            return {"error": f"Product {product_id} not found"}, 404
+            return {"error": "Product not found"}, 404
 
         if title := data.get("title"):
             product.title = title
@@ -203,18 +202,18 @@ class Product(BaseModel):
 
         db.session.commit()
         queue_manager.queue_manager.generate_product(product.id)
-        return {"message": f"Product {product_id} updated", "id": product_id, "product": product.to_detail_dict()}, 200
+        return {"message": "Product updated", "id": product.id, "product": product.to_detail_dict()}, 200
 
     @classmethod
     def get_for_worker(cls, item_id: str) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.to_worker_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
 
 class ProductReportItem(BaseModel):
-    product_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
+    product_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
+    report_item_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
     def assigned(cls, report_id) -> bool:

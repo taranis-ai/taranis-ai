@@ -107,11 +107,13 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 - avoid inline fake classes or ad-hoc test doubles inside test functions; put shared fakes in the nearest `conftest.py` or a dedicated support module instead
 - avoid unit tests for orchestration methods whose collaborators are almost entirely monkeypatched or stubbed out; those tests tend to prove call wiring rather than behavior
 - for admin/frontend workflows that depend on cache invalidation, scheduling, seeding, or similar cross-component side effects, prefer frontend e2e coverage over heavily mocked unit tests
+- for e2e tests, prefer adding a `data-test-id` attribute as the selector when possible
 
 ## Development Guidelines
 
 - The best code is no code.
 - Complexity is bad. Keep designs as simple as possible.
+- For settings JSON, prefer simple flat keys and direct values; do not add nested metadata structures, constants, validators, or helper layers unless they are clearly needed now.
 - Mocking is also bad. Use it only when it is absolutely necessary.
 - DRY matters, but do not force reuse if it hurts readability.
 - When creating branches, use only `fix/`, `feature/`, or `chore/` prefixes.

@@ -3,17 +3,18 @@ from datetime import datetime
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
 
 class TokenBlacklist(BaseModel):
     __tablename__ = "token_blacklist"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     token: Mapped[str] = db.Column(db.String(), nullable=False)
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
 
     def __init__(self, token):
+        self.id = self.uuid7_str()
         self.token = token
 
     @classmethod

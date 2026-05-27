@@ -1,4 +1,4 @@
-from flask import Blueprint, Flask, Response, request, send_file
+from flask import Blueprint, Flask, Response, jsonify, request, send_file
 from flask.views import MethodView
 from werkzeug.datastructures import FileStorage
 
@@ -10,8 +10,9 @@ from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 from core.model.connector import Connector
+from core.model.news_item import NewsItem
 from core.model.news_item_tag import NewsItemTag
-from core.model.osint_source import OSINTSource
+from core.model.osint_source import InvalidOSINTSourceIconError, OSINTSource
 from core.model.product import Product
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
@@ -24,10 +25,14 @@ class AddNewsItems(MethodView):
     @api_key_required
     def post(self):
         json_data = request.json
+
         if not isinstance(json_data, list):
+            logger.debug(f"Received invalid news items payload type: {type(json_data).__name__}")
             return {"error": "Expected a list of news items"}, 400
+        logger.debug(f"Received {len(json_data)} news items for worker ingestion")
         result, status = Story.add_news_items(json_data)
-        sse_manager.news_items_updated()
+        if 200 <= status < 300:
+            sse_manager.news_items_updated()
         return result, status
 
 
@@ -42,7 +47,7 @@ class ProductsRender(MethodView):
     def get(self, product_id: str):
         if product_data := Product.get_render(product_id):
             return Response(product_data["blob"], headers={"Content-Type": product_data["mime_type"]}, status=200)
-        return {"error": f"Product {product_id} not found"}, 404
+        return {"error": "Product not found"}, 404
 
 
 class Presenters(MethodView):
@@ -52,9 +57,10 @@ class Presenters(MethodView):
             if pres := ProductType.get(presenter):
                 if tmpl := pres.get_template():
                     return send_file(tmpl)
-            return {"error": f"Presenter with id {presenter} not found"}, 404
+            return {"error": "Presenter not found"}, 404
         except Exception:
-            logger.exception()
+            logger.exception("Failed to get presenter %s", presenter)
+            return {"error": "Failed to get presenter"}, 500
 
 
 class Publishers(MethodView):
@@ -74,7 +80,7 @@ class Sources(MethodView):
 
             # Get specific source
             if not (source := OSINTSource.get(source_id)):
-                return {"error": f"Source with id {source_id} not found"}, 404
+                return {"error": "Source not found"}, 404
 
             data = source.to_worker_dict()
             data_with_defaults = OSINTSource.get_with_defaults(data)
@@ -99,13 +105,13 @@ class SourceIcon(MethodView):
                 file: FileStorage = request.files["file"]
                 try:
                     source.update_icon(file.read())
-                except ValueError as exc:
+                except InvalidOSINTSourceIconError as exc:
                     logger.error(f"Error updating icon for source {source_id}: {exc}")
-                    return {"error": str(exc)}, 400
+                    return {"error": exc.public_message}, 400
                 return {"message": "Icon uploaded"}, 200
-            return {"error": f"Source with id {source_id} not found"}, 404
+            return {"error": "Source not found"}, 404
         except Exception:
-            logger.exception()
+            logger.exception("Failed to update icon for source %s", source_id)
             return {"error": "Internal server error"}, 500
 
 
@@ -132,12 +138,15 @@ class Stories(MethodView):
             filter_args[key] = request.args.getlist(key)
 
         if story := Story.get_for_worker(filter_args):
-            return story, 200
+            return jsonify(story), 200
         return {"error": "No stories found"}, 404
 
     @api_key_required
     def post(self):
-        return Story.add_or_update(request.json)
+        response, status = Story.add_or_update(request.json)
+        json_response = jsonify(response)
+        json_response.status_code = status
+        return json_response
 
 
 class MISPStories(MethodView):
@@ -149,7 +158,9 @@ class MISPStories(MethodView):
             return {"error": "Expected a list of stories"}, 400
         result, status = Story.add_or_update_for_misp(data)
         sse_manager.news_items_updated()
-        return result, status
+        json_response = jsonify(result)
+        json_response.status_code = status
+        return json_response
 
     @api_key_required
     def put(self):
@@ -162,7 +173,9 @@ class MISPStories(MethodView):
         if news_item_ids := data.get("news_items"):
             result, code = Connector.update_news_item_last_change(news_item_ids)
         sse_manager.news_items_updated()
-        return result, code
+        json_response = jsonify(result)
+        json_response.status_code = code
+        return json_response
 
 
 class Tags(MethodView):
@@ -180,14 +193,19 @@ class Tags(MethodView):
         errors = {}
         if not isinstance(data, dict):
             return {"error": "Expected a dict for tags"}, 400
-        for story_id, tags in data.items():
-            story = Story.get(story_id)
-            if not story:
-                errors[story_id] = "Story not found"
+        for news_item_id, tags in data.items():
+            if not isinstance(tags, (list, dict)) or not tags:
+                errors[news_item_id] = f"Invalid tags for news item {news_item_id}"
                 continue
-            _, status = story.set_tags(tags)
+
+            news_item = NewsItem.get(news_item_id)
+            if not news_item:
+                errors[news_item_id] = "News item not found"
+                continue
+            actor = Story.resolve_actor(actor=news_item.story.last_change) if news_item.story else None
+            result, status = news_item.set_tags(tags, actor=actor)
             if status != 200:
-                errors[story_id] = status
+                errors[news_item_id] = result.get("error", status)
         if errors:
             return {"message": "Some tags failed to update", "errors": errors}, 207
         return {"message": "Tags updated"}, 200
@@ -210,11 +228,14 @@ class BotInfo(MethodView):
             return result.to_dict(), 200
         if result := Bot.filter_by_type(bot_id):
             return result.to_dict(), 200
-        return {"error": f"Bot with id {bot_id} not found"}, 404
+        return {"error": "Bot not found"}, 404
 
     @api_key_required
     def put(self, bot_id):
-        return Bot.update(bot_id, request.json)
+        response, status = Bot.update(bot_id, request.json)
+        json_response = jsonify(response)
+        json_response.status_code = status
+        return json_response
 
 
 class PostCollectionBots(MethodView):
@@ -257,7 +278,7 @@ class Connectors(MethodView):
     def get(self, connector_id: str):
         if connector := Connector.get(connector_id):
             return connector.to_dict(), 200
-        return {"error": f"Connector with id {connector_id} not found"}, 404
+        return {"error": "Connector not found"}, 404
 
 
 class Reports(MethodView):
@@ -287,6 +308,6 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/misp/stories", view_func=MISPStories.as_view("misp_stories_worker"))
     worker_bp.add_url_rule("/misp/last-change", view_func=MISPStories.as_view("last_change"))
     worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
-    worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
+    worker_bp.add_url_rule("/word-list/<string:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
     worker_bp.add_url_rule("/report-items/<string:report_id>", view_func=Reports.as_view("report_by_id_worker"))
     app.register_blueprint(worker_bp)

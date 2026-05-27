@@ -52,6 +52,7 @@ class Task(TaranisBaseModel):
     _cache_timeout = 1
 
     id: str
+    job_id: str | None = None
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
@@ -66,7 +67,7 @@ class TaskSubmission(TaranisBaseModel):
     _model_name = "task_submission"
     _pretty_name = "Task Submission"
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, coerce_numbers_to_str=False)
 
     id: str = Field(min_length=1, validation_alias=AliasChoices("id", "task_id"), serialization_alias="id")
     task: str | None = None
@@ -103,6 +104,7 @@ class TaskSubmission(TaranisBaseModel):
 
 class TaskHistoryEntry(TaranisBaseModel):
     id: str
+    job_id: str | None = None
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None

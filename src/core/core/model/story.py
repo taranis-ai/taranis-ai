@@ -1,5 +1,4 @@
 import re
-import uuid
 from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any
@@ -17,7 +16,7 @@ from sqlalchemy.sql.expression import false, null, true
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_conflict import NewsItemConflict
@@ -35,7 +34,7 @@ from core.service.story_operations import StoryOperationsService
 class Story(BaseModel):
     __tablename__ = "story"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
     created: Mapped[datetime] = db.Column(db.DateTime)
@@ -57,7 +56,6 @@ class Story(BaseModel):
     attributes: Mapped[list["NewsItemAttribute"]] = relationship(
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
-    tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete")
     search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), server_default="")
 
     def __init__(
@@ -76,36 +74,165 @@ class Story(BaseModel):
         comments: str = "",
         revision: int = 0,
         attributes: list[dict[str, Any]] | None = None,
-        tags: list[dict[str, Any]] | None = None,
         news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None = None,
-        last_change: str = "external",
+        last_change: str | None = None,
+        updated: datetime | str | None = None,
     ):
-        self.id = id or str(uuid.uuid4())
+        self.id = self.normalize_uuid_id(id)
         self.likes = likes
         self.dislikes = dislikes
         self.relevance = 0
         self.title = title
         self.description = description
-        self.created = self.get_creation_date(created)
         self.read = read
         self.important = important
         self.summary = summary
         self.comments = comments
         self.revision = revision
         self.news_items = self.load_news_items(news_items)
-        self.last_change = "external" if last_change is None else last_change
+        self.last_change = last_change or "internal"
         self.relevance_override = relevance if relevance_override is None else relevance_override
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
-        if tags:
-            self.tags = NewsItemTag.load_multiple(tags)
+        self.created, self.updated = self.get_story_dates(created, updated)
         self.recompute_relevance(in_reports_count=0)
 
-    def get_creation_date(self, created: datetime | str | None):
-        payload = StoryPayload.model_validate({"created": created})
-        return payload.created or self.utcnow()
+    @classmethod
+    def _is_actor_change(cls, last_change: str | None) -> bool:
+        return isinstance(last_change, str) and last_change.startswith(("user_", "collector_", "bot", "connector_", "system_"))
 
-    def load_news_items(self, news_items) -> list["NewsItem"]:
+    @classmethod
+    def last_change_for_user(cls, user: User | None) -> str | None:
+        if not user:
+            return None
+        return f"user_{user.username}_{user.id}"
+
+    @classmethod
+    def user_for_actor(cls, actor: str | None) -> User | None:
+        if not isinstance(actor, str) or not actor.startswith("user_"):
+            return None
+
+        _, _, user_id = actor.rpartition("_")
+        if not (user := User.get(user_id)):
+            return None
+
+        return user if cls.last_change_for_user(user) == actor else None
+
+    @classmethod
+    def last_change_for_connector(cls, connector_id: str | None) -> str | None:
+        if not connector_id:
+            return None
+        return f"connector_{connector_id}"
+
+    @classmethod
+    def last_change_for_worker(cls, worker_kind: str, worker_type: str | None, worker_id: str | None) -> str | None:
+        if not worker_type or not worker_id:
+            return None
+        normalized_kind = worker_kind.strip().lower()
+        normalized_type = worker_type.strip().lower()
+        return f"{normalized_kind}_{normalized_type}_{worker_id}"
+
+    @classmethod
+    def last_change_for_collector(cls, collector_type: str | None, collector_id: str | None) -> str | None:
+        return cls.last_change_for_worker("collector", collector_type, collector_id)
+
+    @classmethod
+    def resolve_actor(cls, user: User | None = None, actor: str | None = None) -> str | None:
+        if actor and cls._is_actor_change(actor):
+            return actor
+        return cls.last_change_for_user(user)
+
+    @classmethod
+    def last_change_for_source(cls, source: OSINTSource | None) -> str | None:
+        if not source:
+            return None
+        source_type = getattr(source.type, "value", source.type)
+        return cls.last_change_for_collector(str(source_type) if source_type is not None else None, source.id)
+
+    @staticmethod
+    def _is_manual_source(source: OSINTSource | None) -> bool:
+        if not source:
+            return False
+        source_type = getattr(source.type, "value", source.type)
+        return "manual" in str(source_type).lower()
+
+    @classmethod
+    def _resolve_actor(
+        cls,
+        *,
+        user: User | None = None,
+        actor: str | None = None,
+        source: OSINTSource | None = None,
+        connector_id: str | None = None,
+    ) -> str | None:
+        if resolved_actor := cls.resolve_actor(user=user, actor=actor):
+            return resolved_actor
+        if connector_id is not None:
+            return cls.last_change_for_connector(connector_id)
+        if source is not None and not cls._is_manual_source(source):
+            return cls.last_change_for_source(source)
+        return None
+
+    @classmethod
+    def _determine_actor_for_update(
+        cls,
+        *,
+        story: "Story",
+        user: User | None = None,
+        external: bool = False,
+        actor: str | None = None,
+    ) -> str | None:
+        if user is not None:
+            return cls.last_change_for_user(user)
+        if external and not cls._is_actor_change(actor):
+            return story.last_change if cls._is_actor_change(story.last_change) else "external"
+        if not cls._is_actor_change(actor) and cls._is_actor_change(story.last_change):
+            return story.last_change
+        return actor
+
+    @staticmethod
+    def _first_news_item_source(news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None) -> OSINTSource | None:
+        if not news_items:
+            return None
+        first_item = news_items[0]
+        news_item_id = None
+        if isinstance(first_item, dict):
+            news_item_id = first_item.get("id")
+            source_id = first_item.get("osint_source_id")
+            if source_id and (source := OSINTSource.get(source_id)):
+                return source
+            if news_item_id and (news_item := NewsItem.get(news_item_id)) and news_item.osint_source:
+                return news_item.osint_source
+        elif isinstance(first_item, str):
+            if news_item := NewsItem.get(first_item):
+                return news_item.osint_source
+        elif isinstance(first_item, NewsItem):
+            return first_item.osint_source
+        return None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Story":
+        return cls(**StoryPayload.model_validate(data).to_core_dict())
+
+    def get_story_dates(self, created: datetime | str | None, updated: datetime | str | None) -> tuple[datetime, datetime]:
+        payload = StoryPayload.model_validate({"created": created, "updated": updated})
+        if payload.created:
+            created_date = payload.created
+            return created_date, payload.updated or created_date
+
+        published_dates = self._published_dates()
+        if not published_dates:
+            created_date = self.utcnow()
+            return created_date, payload.updated or created_date
+
+        created_date = min(published_dates, key=self._comparison_timestamp)
+        updated_date = payload.updated or max(published_dates, key=self._comparison_timestamp)
+        return created_date, updated_date
+
+    def _published_dates(self) -> list[datetime]:
+        return [news_item.published for news_item in self.news_items if news_item.published]
+
+    def load_news_items(self, news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None) -> list["NewsItem"]:
         if not news_items:
             return []
         elif isinstance(news_items[0], dict):
@@ -120,6 +247,15 @@ class Story(BaseModel):
     @property
     def links(self) -> list[str]:
         return [item.link for item in self.news_items if getattr(item, "link", None)]
+
+    @property
+    def tags(self) -> list["NewsItemTag"]:
+        tags_by_identity: dict[tuple[str, str], NewsItemTag] = {}
+        for news_item in self.news_items:
+            for tag in news_item.tags:
+                if tag.name:
+                    tags_by_identity[(tag.name, tag.tag_type or "misc")] = tag
+        return [tags_by_identity[identity] for identity in sorted(tags_by_identity)]
 
     @property
     def relevance_source(self) -> int:
@@ -149,7 +285,7 @@ class Story(BaseModel):
 
         if item := db.session.execute(query).scalar():
             return item.to_detail_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def get_additional_counts(cls, filter_query):
@@ -245,8 +381,21 @@ class Story(BaseModel):
 
         if tags := filter_args.get("tags"):
             for tag in tags:
-                alias = aliased(NewsItemTag)
-                query = query.join(alias, Story.id == alias.story_id).filter(or_(alias.name == tag, alias.tag_type == tag))
+                item_alias = aliased(NewsItem)
+                tag_alias = aliased(NewsItemTag)
+                query = (
+                    query.join(item_alias, item_alias.story_id == Story.id)
+                    .join(tag_alias, item_alias.id == tag_alias.news_item_id)
+                    .filter(or_(tag_alias.name == tag, tag_alias.tag_type == tag))
+                )
+
+        if changed_by := filter_args.get("changed_by"):
+            if changed_by == "me" and (user := filter_args.get("_user")):
+                actor = cls.last_change_for_user(user)
+                if actor:
+                    query = query.filter(cls.last_change == actor)
+            elif changed_by:
+                query = query.filter(cls.last_change == changed_by)
 
         if filter_range := filter_args.get("range", "").lower():
             date_limit = cls.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -385,7 +534,7 @@ class Story(BaseModel):
         return RoleBasedAccessService.filter_query_with_tlp(query, user)
 
     @classmethod
-    def enhance_with_user_votes(cls, query: Select, user_id: int) -> Select:
+    def enhance_with_user_votes(cls, query: Select, user_id: str) -> Select:
         vote_subquery = (
             db.select(NewsItemVote.item_id, NewsItemVote.user_vote_expr.label("user_vote")).filter(NewsItemVote.user_id == user_id).subquery()
         )
@@ -411,6 +560,8 @@ class Story(BaseModel):
 
     @classmethod
     def get_by_filter(cls, filter_args: dict[str, Any], user: User | None = None) -> tuple[list[dict[str, Any]], dict[str, int] | None]:
+        if user:
+            filter_args = {**filter_args, "_user": user}
         base_query = cls.get_filter_query(filter_args)
         if user:
             base_query = cls._add_ACL_check(base_query, user)
@@ -496,7 +647,7 @@ class Story(BaseModel):
         if code != 200 and message.get("error") == "Story already exists":
             logger.warning(f"Story being added {data['id']} contains existing content. A news item conflict is raised.")
             cls.handle_conflicting_news_items(data)
-            return {"error": f"Story being added {data['id']} contains existing content. A news item conflict is raised."}, 409
+            return {"error": "Story contains existing content. A news item conflict is raised."}, 409
         return message, code
 
     @classmethod
@@ -542,21 +693,27 @@ class Story(BaseModel):
                 story.delete(story_id)
 
     @classmethod
-    def add(cls, data) -> "tuple[dict[str, Any], int]":
+    def add(cls, data, user: User | None = None, actor: str | None = None) -> "tuple[dict[str, Any], int]":
         try:
-            if tags := data.get("tags"):
-                data["tags"] = NewsItemTag.unify_tags(tags)
             if attributes := data.get("attributes"):
                 data["attributes"] = NewsItemAttribute.unify_attributes_to_old_format(attributes)
+            source = cls._first_news_item_source(data.get("news_items"))
+            resolved_actor = cls._resolve_actor(user=user, actor=actor, source=source)
+            if resolved_actor is None and cls._is_actor_change(data.get("last_change")):
+                resolved_actor = data.get("last_change")
+            if resolved_actor is not None:
+                data = {**data, "last_change": resolved_actor}
             story = cls.from_dict(data)
+            for news_item in story.news_items:
+                source = news_item.osint_source or OSINTSource.get(news_item.osint_source_id)
+                if source and cls._is_manual_source(source):
+                    news_item.last_change = "internal"
+                    continue
+                if source and (actor := cls.last_change_for_source(source)):
+                    news_item.last_change = actor
             db.session.add(story)
             db.session.flush()
-            if (
-                story.news_items[0].osint_source_id == "manual"
-            ):  # TODO: This is a suboptimal check covering normal use cases, but should be redesigned
-                story.update_status()
-            else:
-                story.update_status(change="external")
+            story.update_status(change=resolved_actor, refresh_timestamps=False)
             story.record_revision(note="created")
             db.session.commit()
 
@@ -577,7 +734,7 @@ class Story(BaseModel):
             return {"error": "Failed to add story"}, 400
 
     @classmethod
-    def add_from_news_item(cls, news_item: AssessNewsItem) -> "tuple[dict, int]":
+    def add_from_news_item(cls, news_item: AssessNewsItem, user: User | None = None) -> "tuple[dict, int]":
         if news_item_obj := NewsItem.get_by_hash(news_item.hash):
             logger.warning("Identical news item found. Skipping...")
             return {
@@ -588,11 +745,10 @@ class Story(BaseModel):
         data = {
             "title": news_item.title,
             "created": news_item.published,
-            "news_items": [NewsItem.from_payload(news_item)],
-            "last_change": "internal" if news_item.osint_source_id == "manual" else "external",
+            "news_items": [news_item.to_core_dict()],
         }
 
-        return cls.add(data)
+        return cls.add(data, user=user)
 
     @classmethod
     def add_or_update_for_misp(cls, data: list[dict[str, Any]], force: bool = False) -> "tuple[dict[str, Any], int]":
@@ -622,7 +778,7 @@ class Story(BaseModel):
             return None, AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data")
 
     @classmethod
-    def add_single_news_item(cls, news_item: dict) -> tuple[dict, int]:
+    def add_single_news_item(cls, news_item: dict, user: User | None = None) -> tuple[dict, int]:
         normalized_news_item, err = cls.check_news_item_data(news_item)
         if err:
             logger.error(err)
@@ -630,13 +786,13 @@ class Story(BaseModel):
         if normalized_news_item is None:
             return {"error": "Invalid news item data"}, 400
         try:
-            return cls.add_from_news_item(normalized_news_item)
-        except Exception as e:
+            return cls.add_from_news_item(normalized_news_item, user=user)
+        except Exception:
             logger.exception("Failed to add news items")
-            return {"error": f"Failed to add news items: {e}"}, 400
+            return {"error": "Failed to add news items"}, 400
 
     @classmethod
-    def add_news_items(cls, news_items_list: list[dict]):
+    def add_news_items(cls, news_items_list: list[dict], user: User | None = None):
         story_ids = []
         news_item_ids = []
         skipped_items = []
@@ -650,16 +806,16 @@ class Story(BaseModel):
                 if normalized_news_item is None:
                     skipped_items.append(news_item.get("title", "Unknown Title"))
                     continue
-                message, status = cls.add_from_news_item(normalized_news_item)
+                message, status = cls.add_from_news_item(normalized_news_item, user=user)
                 if status > 299:
                     skipped_items.append(normalized_news_item.title or news_item.get("title", "Unknown Title"))
                     continue
                 story_ids.append(message["story_id"])
                 news_item_ids += message["news_item_ids"]
             db.session.commit()
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to add news items")
-            return {"error": f"Failed to add news items: {e}"}, 400
+            return {"error": "Failed to add news items"}, 400
 
         result = {"story_ids": story_ids, "news_item_ids": news_item_ids, "message": f"{len(news_item_ids)} News items added successfully"}
         if len(skipped_items) == len(news_items_list):
@@ -673,11 +829,11 @@ class Story(BaseModel):
         return result, 200
 
     @classmethod
-    def update(cls, story_id: str, data, user=None, external: bool = False) -> tuple[dict, int]:
+    def update(cls, story_id: str, data, user=None, external: bool = False, actor: str | None = None) -> tuple[dict, int]:
         story: "Story | None" = cls.get(story_id)
         logger.debug(f"Updating story {story_id} with data: {data}")
         if not story:
-            return {"error": "Story not found", "id": f"{story_id}"}, 404
+            return {"error": "Story not found"}, 404
 
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
@@ -697,9 +853,6 @@ class Story(BaseModel):
         if "comments" in data:
             story.comments = data["comments"]
 
-        if "tags" in data:
-            story.tags = story.get_tags(data["tags"])
-
         if "summary" in data:
             story.summary = data["summary"]
 
@@ -711,13 +864,16 @@ class Story(BaseModel):
         elif "relevance" in data:
             story.relevance_override = data["relevance"] or 0
 
-        story.last_change = "external" if external else "internal"
+        actor = cls._determine_actor_for_update(story=story, user=user, external=external, actor=actor)
+
+        if actor is not None:
+            story.last_change = actor
 
         story.update_timestamps()
         story.recompute_relevance()
         story.record_revision(user, note="update")
         db.session.commit()
-        return {"message": "Story updated successfully", "id": f"{story_id}", "story": story.to_detail_dict()}, 200
+        return {"message": "Story updated successfully", "id": story.id, "story": story.to_detail_dict()}, 200
 
     @classmethod
     def update_with_conflicts(cls, story_id: str, upstream_data: dict[str, Any]) -> tuple[dict[str, Any], int]:
@@ -887,11 +1043,11 @@ class Story(BaseModel):
         story = cls.get(story_id)
         if not story:
             logger.debug(f"Story with id: {story_id} not found")
-            return {"error": f"Story with id: {story_id} not found"}, 404
+            return {"error": "Story not found"}, 404
 
         if cls.is_assigned_to_report([story_id]):
             logger.debug(f"Story with: {story_id} assigned to a report")
-            return {"error": f"Story with: {story_id} assigned to a report"}, 500
+            return {"error": "Story is assigned to a report"}, 500
 
         for news_item in story.news_items[:]:
             if news_item.allowed_with_acl(user, True):
@@ -899,13 +1055,13 @@ class Story(BaseModel):
                 news_item.delete_item()
             else:
                 logger.debug(f"User {user.id} not allowed to remove news item {news_item.id}")
-                return {"error": f"User {user.id} not allowed to remove news item {news_item.id}"}, 403
+                return {"error": "User is not allowed to remove news item"}, 403
 
         story.update_status()
 
         db.session.commit()
 
-        return {"message": f"Successfully deleted story: {story_id}"}, 200
+        return {"message": "Successfully deleted story"}, 200
 
     def delete(self, user):
         return self.delete_by_id(self.id, user)
@@ -914,67 +1070,22 @@ class Story(BaseModel):
     def is_assigned_to_report(cls, story_ids: list) -> bool:
         return any(ReportItemStory.is_assigned(story_id) for story_id in story_ids)
 
-    def get_tags_to_remove(self, tags: dict[str, NewsItemTag]) -> set[str]:
-        incoming_tag_names = set(tags.keys())
-        existing_tag_names = {tag.name for tag in self.tags}
-        return existing_tag_names - incoming_tag_names
-
     @classmethod
-    def get_tags(cls, incoming_tags: list | dict) -> list[NewsItemTag]:
-        return list(NewsItemTag.parse_tags(incoming_tags).values())
-
-    def set_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
-        try:
-            return self._update_tags(incoming_tags, change_by_bot=change_by_bot)
-        except Exception as e:
-            logger.exception("Update News Item Tags Failed")
-            db.session.rollback()
-            return {"error": str(e)}, 500
-
-    def _update_tags(self, incoming_tags: list | dict, change_by_bot: bool = False) -> tuple[dict, int]:
-        parsed_tags = NewsItemTag.parse_tags(incoming_tags)
-        if not parsed_tags:
-            return {"error": "No valid tags provided"}, 400
-
-        if change_by_bot:
-            self.patch_tags(parsed_tags)
-        else:
-            tags_to_remove = self.get_tags_to_remove(parsed_tags)
-            self.patch_tags(parsed_tags)
-            self.remove_tags(tags_to_remove)
-
-        self.record_revision(note="set_tags")
-        db.session.commit()
-        return {"message": f"Successfully updated story: {self.id}, with {len(self.tags)} new tags"}, 200
-
-    def patch_tags(self, tags: dict[str, NewsItemTag]):
-        for tag in tags.values():
-            self.upsert_tag(tag)
-
-    def remove_tags(self, keys: set[str]):
-        for key in keys:
-            if tag := self.find_tag_by_name(key):
-                self.tags.remove(tag)
-                db.session.delete(tag)
-
-    def upsert_tag(self, tag: NewsItemTag) -> None:
-        if existing_tag := self.find_tag_by_name(tag.name):
-            existing_tag.tag_type = tag.tag_type
-        else:
-            self.tags.append(tag)
-
-    def find_tag_by_name(self, name: str) -> NewsItemTag | None:
-        return next((tag for tag in self.tags if tag.name == name), None)
-
-    @classmethod
-    def group_multiple_stories(cls, story_mappings: list[list[str]]):
-        results = [cls.group_stories(story_ids) for story_ids in story_mappings]
+    def group_multiple_stories(cls, story_mappings: list[list[str]], user: User | None = None, actor: str | None = None):
+        results = [cls.group_stories(story_ids, user=user, actor=actor) for story_ids in story_mappings]
         if any(result[1] == 500 for result in results):
             return {"error": "grouping failed"}, 500
         return {"message": "success"}, 200
 
     @classmethod
-    def move_items_to_story(cls, story_id: str, news_item_ids: list[str], user: User | None = None):
+    def move_items_to_story(
+        cls,
+        story_id: str,
+        news_item_ids: list[str],
+        user: User | None = None,
+        actor: str | None = None,
+    ):
+        actor = cls.resolve_actor(user=user, actor=actor)
         try:
             story = cls.get(story_id)
             if not story:
@@ -982,7 +1093,11 @@ class Story(BaseModel):
             source_stories_by_id: dict[str, Story] = {}
             for news_item in [NewsItem.get(item_id) for item_id in news_item_ids]:
                 StoryOperationsService.transfer_news_item_to_story(story, news_item, source_stories_by_id, user)
-            processed_stories = StoryOperationsService.finalize_story_merge(story, list(source_stories_by_id.values()))
+            processed_stories = StoryOperationsService.finalize_story_merge(
+                story,
+                list(source_stories_by_id.values()),
+                actor=actor,
+            )
             for processed_story in processed_stories:
                 processed_story.record_revision(user, note="move_items_to_story")
             db.session.commit()
@@ -992,7 +1107,8 @@ class Story(BaseModel):
             return {"error": "grouping failed"}, 500
 
     @classmethod
-    def group_stories(cls, story_ids: list[str], user: User | None = None):
+    def group_stories(cls, story_ids: list[str], user: User | None = None, actor: str | None = None):
+        actor = cls.resolve_actor(user=user, actor=actor)
         try:
             if not isinstance(story_ids, list):
                 return {"error": "story_ids must be a list"}, 400
@@ -1010,18 +1126,21 @@ class Story(BaseModel):
                 if not source_story:
                     continue
 
-                StoryOperationsService.merge_story_tags(first_story, source_story)
                 for news_item in source_story.news_items[:]:
                     StoryOperationsService.transfer_news_item_to_story(first_story, news_item, source_stories_by_id, user)
 
-            processed_stories = StoryOperationsService.finalize_story_merge(first_story, list(source_stories_by_id.values()))
+            processed_stories = StoryOperationsService.finalize_story_merge(
+                first_story,
+                list(source_stories_by_id.values()),
+                actor=actor,
+            )
             for story in processed_stories:
                 story.record_revision(user, note="group_stories")
             db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
-        except Exception as e:
-            logger.exception(f"Grouping Stories Failed - {str(e)}")
-            return {"error": f"Grouping Stories Failed - {str(e)}"}, 500
+        except Exception:
+            logger.exception("Grouping Stories Failed")
+            return {"error": "Grouping Stories Failed"}, 500
 
     @classmethod
     def ungroup_multiple_stories(cls, story_ids: list[str], user: User | None = None):
@@ -1033,32 +1152,37 @@ class Story(BaseModel):
         return {"message": "Ungrouping Stories successful"}, 200
 
     @classmethod
-    def ungroup_story(cls, story_id: str, user: User | None = None):
+    def ungroup_story(cls, story_id: str, user: User | None = None, actor: str | None = None):
+        actor = cls.resolve_actor(user=user, actor=actor)
         try:
             if ReportItemStory.is_assigned(story_id):
-                return {"error": f"Story {story_id} is assigned to a report"}, 400
+                return {"error": "Story is assigned to a report"}, 400
             story = cls.get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404
-            for tag in story.tags:
-                if tag.to_dict().get("tag_type", "").startswith("report"):
-                    return {"error": f"Story {story.id} is part of a report, you need to remove the news items manually"}, 500
             for news_item in story.news_items[:]:
                 if user is None or news_item.allowed_with_acl(user, True):
-                    cls.create_from_item(news_item, commit=False)
-            story.update_status()
+                    cls.create_from_item(news_item, commit=False, actor=actor)
+            story.update_status(change=actor)
             story.record_revision(user, note="ungroup_story")
             db.session.commit()
             return {"message": "Ungrouping Stories successful"}, 200
-        except Exception as e:
-            logger.exception(f"Ungrouping Stories Failed - {str(e)}")
-            return {"error": f"Ungrouping Stories failed - {str(e)}"}, 500
+        except Exception:
+            logger.exception("Ungrouping Stories Failed")
+            return {"error": "Ungrouping Stories failed"}, 500
 
     @classmethod
-    def ungroup_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
+    def ungroup_news_items_from_story(
+        cls,
+        newsitem_ids: list,
+        user: User | None = None,
+        actor: str | None = None,
+    ):
+        actor = cls.resolve_actor(user=user, actor=actor)
         try:
             processed_stories = set()
             new_stories_ids = []
+            removed_titles_by_story: dict[Story, set[str]] = {}
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
                 if not news_item or not user:
@@ -1068,11 +1192,14 @@ class Story(BaseModel):
                 story = Story.get(news_item.story_id)
                 if not story:
                     continue
+                removed_titles_by_story.setdefault(story, set()).add(news_item.title)
                 story.news_items.remove(news_item)
                 processed_stories.add(story)
-                new_stories_ids.append(cls.create_from_item(news_item, commit=False))
+                new_stories_ids.append(cls.create_from_item(news_item, commit=False, actor=actor))
             for story in processed_stories:
-                story.update_status()
+                if story.news_items and story.title in removed_titles_by_story.get(story, set()):
+                    story.title = story.news_items[0].title
+                story.update_status(change=actor)
             for story in processed_stories:
                 story.record_revision(user, note="ungroup_news_items")
             db.session.commit()
@@ -1082,10 +1209,10 @@ class Story(BaseModel):
             return {"error": "ungroup failed"}, 500
 
     @classmethod
-    def update_stories(cls, stories: set["Story"]):
+    def update_stories(cls, stories: set["Story"], actor: str | None = None):
         for story in stories:
             try:
-                story.update_status()
+                story.update_status(change=actor)
             except Exception:
                 logger.exception(f"Update Story: {story.id} Failed")
 
@@ -1111,7 +1238,12 @@ class Story(BaseModel):
 
     @classmethod
     def check_internal_changes(cls, existing_story: dict) -> bool:
-        return existing_story.get("last_change") == "internal"
+        last_change = existing_story.get("last_change")
+        if last_change is None:
+            return False
+        if last_change in {"internal", "external"}:
+            return last_change == "internal"
+        return not last_change.startswith(("collector_", "connector_"))
 
     @classmethod
     def get_news_items_to_delete(cls, new_story: dict, existing_story: dict) -> list[str]:
@@ -1124,8 +1256,8 @@ class Story(BaseModel):
         return list(existing_ids - new_ids)
 
     @classmethod
-    def create_from_item(cls, news_item: NewsItem, commit: bool = True) -> str | None:
-        change = "internal"
+    def create_from_item(cls, news_item: NewsItem, commit: bool = True, actor: str | None = None) -> str | None:
+        change = actor or news_item.last_change or "internal"
         if source_story := cls.get(news_item.story_id):
             if news_item in source_story.news_items:
                 source_story.news_items.remove(news_item)
@@ -1140,7 +1272,7 @@ class Story(BaseModel):
         db.session.add(new_story)
         db.session.flush()
 
-        new_story.update_status(change=change)
+        new_story.update_status(change=change, refresh_timestamps=False)
         new_story.record_revision(note="created")
         if commit:
             db.session.commit()
@@ -1184,13 +1316,24 @@ class Story(BaseModel):
             return True
         return False
 
-    def update_status(self, change: str = "internal"):
+    def update_status(self, change: str | None = None, refresh_timestamps: bool = True):
         if self.remove_empty_story():
             return
-        self.update_timestamps()
+        if refresh_timestamps:
+            self.update_timestamps()
         self.update_status_attributes()
         self.recompute_relevance()
-        self.last_change = change
+        if change is not None:
+            self.last_change = change
+        elif not self._is_actor_change(self.last_change):
+            if self.news_items:
+                source = self.news_items[0].osint_source if self.news_items[0] else None
+                if self._is_manual_source(source):
+                    self.last_change = self.last_change or "internal"
+                else:
+                    self.last_change = self.last_change_for_source(source) or self.last_change or "external"
+            else:
+                self.last_change = self.last_change or "internal"
 
     def update_status_attributes(self):
         attributes = [
@@ -1281,11 +1424,11 @@ class Story(BaseModel):
 class NewsItemVote(BaseModel):
     __tablename__ = "news_item_vote"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     like: Mapped[bool] = db.Column(db.Boolean, default=False)
     dislike: Mapped[bool] = db.Column(db.Boolean, default=False)
-    item_id: Mapped[str] = db.Column(db.String(64))
-    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
+    item_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH))
+    user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
 
     @hybrid_property
     def user_vote(self):
@@ -1304,17 +1447,18 @@ class NewsItemVote(BaseModel):
         )
 
     def __init__(self, item_id, user_id, like=False, dislike=False):
+        self.id = self.uuid7_str()
         self.item_id = item_id
         self.user_id = user_id
         self.like = like
         self.dislike = dislike
 
     @classmethod
-    def get_by_filter(cls, item_id: str, user_id: int):
+    def get_by_filter(cls, item_id: str, user_id: str):
         return cls.get_first(db.select(cls).filter_by(item_id=item_id, user_id=user_id))
 
     @classmethod
-    def get_user_vote(cls, item_id: str, user_id: int):
+    def get_user_vote(cls, item_id: str, user_id: str):
         if vote := cls.get_by_filter(item_id, user_id):
             return {"like": vote.like, "dislike": vote.dislike}
         return {"like": False, "dislike": False}
@@ -1323,17 +1467,17 @@ class NewsItemVote(BaseModel):
 class StoryNewsItemAttribute(BaseModel):
     __tablename__ = "story_news_item_attribute"
 
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
     news_item_attribute_id: Mapped[str] = db.Column(
-        db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
+        db.String(UUID_STR_LENGTH), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
     )
 
 
 class ReportItemStory(BaseModel):
     __tablename__ = "report_item_story"
 
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
+    report_item_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
     def is_assigned(cls, story_id: str) -> bool:

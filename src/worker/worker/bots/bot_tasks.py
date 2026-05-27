@@ -40,7 +40,7 @@ def bot_task(payload: WorkerTaskPayload):
             raise ValueError(f"Bot with id {bot_id} not found")
 
         worker_type = bot_config.get("type", worker_type).upper()
-        bot_result = _execute_by_config(bot_config, filter)
+        bot_result = _execute_by_config(bot_config, filter, bot_id)
         core_api.save_task_result(task_id, task_name, bot_result, "SUCCESS", worker_id=bot_id, worker_type=worker_type)
         return (
             {"worker_id": bot_id, "worker_type": worker_type, **bot_result}
@@ -55,7 +55,7 @@ def bot_task(payload: WorkerTaskPayload):
         raise
 
 
-def _execute_by_config(bot_config: dict, filter: dict | None = None):
+def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str | None = None):
     """Execute a bot based on its configuration.
 
     Args:
@@ -85,7 +85,6 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None):
     bot = bots.get(bot_type)
     if not bot:
         raise ValueError(f"Bot type '{bot_type}' not implemented")
-
     bot_params = bot_config.get("parameters")
     if not bot_params:
         raise ValueError("Bot has no parameters")

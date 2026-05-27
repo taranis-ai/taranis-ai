@@ -7,6 +7,7 @@ from models.admin import WordList
 from frontend.auth import admin_required
 from frontend.config import Config
 from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count
 from frontend.log import logger
 from frontend.views.admin_views.admin_mixin import AdminMixin
@@ -64,6 +65,7 @@ class WordListView(AdminMixin, BaseView):
     @classmethod
     @admin_required()
     def load_default_word_lists(cls):
+        dpl = DataPersistenceLayer()
         response = CoreApi().load_default_word_lists()
         if not response:
             logger.error("Failed to load default word lists")
@@ -71,7 +73,13 @@ class WordListView(AdminMixin, BaseView):
 
         core_response = CoreApi().import_word_lists(response)
 
+        if not core_response.ok:
+            return cls.get_notification_from_response(core_response), core_response.status_code
+
         response = cls.get_notification_from_response(core_response)
+
+        dpl.invalidate_cache_by_object(cls.model)
+        dpl.invalidate_model_cache_locally(cls.model)
 
         table, table_response = cls.render_list()
         if table_response == 200:
@@ -80,9 +88,17 @@ class WordListView(AdminMixin, BaseView):
 
     @classmethod
     @admin_required()
-    def update_word_lists(cls, word_list_id: int | None = None):
+    def update_word_lists(cls, word_list_id: str | None = None):
+        dpl = DataPersistenceLayer()
         core_response = CoreApi().update_word_lists(word_list_id)
+        if not core_response.ok:
+            response = cls.get_notification_from_response(core_response)
+            return response, core_response.status_code
+
         response = cls.get_notification_from_response(core_response)
+
+        dpl.invalidate_cache_by_object(cls.model)
+        dpl.invalidate_model_cache_locally(cls.model)
 
         table, table_response = cls.render_list()
         if table_response == 200:

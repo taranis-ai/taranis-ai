@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
@@ -28,7 +28,7 @@ class AssetGroups(MethodView):
         data["organization"] = current_user.organization
         asset_result = asset.AssetGroup.add(data)
         invalidate_frontend_cache_on_success(201, models=("asset_group",))
-        return {"message": "Asset Group added", "id": asset_result.id}, 201
+        return jsonify({"message": "Asset Group added", "id": asset_result.id}), 201
 
     @auth_required("ASSETS_CONFIG")
     def delete(self, group_id: str | None = None):
@@ -66,7 +66,7 @@ class Assets(MethodView):
         return response, status
 
     @auth_required("ASSETS_CREATE")
-    def put(self, asset_id: int | None = None):
+    def put(self, asset_id: str | None = None):
         if asset_id is None:
             return {"error": "No asset_id provided"}, 400
         response, status = asset.Asset.update(current_user.organization, asset_id, request.json)
@@ -74,7 +74,7 @@ class Assets(MethodView):
         return response, status
 
     @auth_required("ASSETS_CREATE")
-    def delete(self, asset_id: int | None = None):
+    def delete(self, asset_id: str | None = None):
         if asset_id is None:
             return {"error": "No asset_id provided"}, 400
         response, status = asset.Asset.delete(current_user.organization, asset_id)
@@ -96,9 +96,9 @@ class AssetVulnerability(MethodView):
 def initialize(app: Flask):
     base_route = f"{Config.APPLICATION_ROOT}api"
     app.add_url_rule(f"{base_route}/assets", view_func=Assets.as_view("assets"))
-    app.add_url_rule(f"{base_route}/assets/<int:asset_id>", view_func=Assets.as_view("asset"), methods=["GET", "PUT", "DELETE"])
+    app.add_url_rule(f"{base_route}/assets/<string:asset_id>", view_func=Assets.as_view("asset"), methods=["GET", "PUT", "DELETE"])
     app.add_url_rule(
-        f"{base_route}/assets/<int:asset_id>/vulnerabilities/<int:vulnerability_id>",
+        f"{base_route}/assets/<string:asset_id>/vulnerabilities/<string:vulnerability_id>",
         view_func=AssetVulnerability.as_view("asset_vulnerability"),
     )
     app.add_url_rule(f"{base_route}/asset-groups", view_func=AssetGroups.as_view("asset_groups"))
