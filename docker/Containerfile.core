@@ -11,22 +11,20 @@ ENV SETUPTOOLS_SCM_PRETEND_VERSION=${build_version}
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install --no-install-recommends -y \
-    libpq-dev \
     build-essential \
     python3-dev && \
     rm -rf /var/lib/apt/lists/*
 
 COPY ./src/core/pyproject.toml ./src/core/uv.lock ./src/core/README.md /app/
-COPY ./src/models/pyproject.toml ./src/models/README.md /models/
-COPY ./src/models/models /models/models
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
-    uv sync --frozen --no-editable --no-dev --no-install-project
+    uv sync --frozen --no-editable --no-dev --no-install-project --no-install-package taranis-models
 
 COPY ./src/core/. /app/
-COPY ./src/models/. /models/
+COPY ./src/models/pyproject.toml ./src/models/README.md /models/
+COPY ./src/models/models /models/models
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     export PATH="/app/.venv/bin:$PATH" && \
