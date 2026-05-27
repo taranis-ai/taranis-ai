@@ -17,7 +17,7 @@
     "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
     "npm:htmx.org@^2.0.10": "2.0.10",
     "npm:sortablejs@^1.15.7": "1.15.7",
-    "npm:sweetalert2@^11.26.24": "11.26.24",
+    "npm:sweetalert2@^11.26.25": "11.26.25",
     "npm:tailwindcss@^4.3.0": "4.3.0"
   },
   "npm": {
@@ -514,8 +514,8 @@
     "style-mod@4.1.3": {
       "integrity": "sha512-i/n8VsZydrugj3Iuzll8+x/00GH2vnYsk1eomD8QiRrSAeW6ItbCQDtfXCeJHd0iwiNagqjQkvpvREEPtW3IoQ=="
     },
-    "sweetalert2@11.26.24": {
-      "integrity": "sha512-SLgukW4wicewpW5VOukSXY5Z6DL/z7HCOK2ODSjmQPiSphCN8gJAmh9npoceXOtBRNoDN0xIz+zHYthtfiHmjg=="
+    "sweetalert2@11.26.25": {
+      "integrity": "sha512-+hunCOJdJ6FLj04T9YSLvvZXRjsvIkTeTKP2e4VF8CaBias961BTnWiSFAy7F/CM5eq3QK2Rraoc5Gzftslvkg=="
     },
     "tailwindcss@4.3.0": {
       "integrity": "sha512-y6nxMGB1nMW9R6k96e5gdIFzcfL/gTJRNaqGes1YvkLnPVXzWgbqFF2yLC0T8G774n24cx3Pe8XrKoniCOAH+Q=="
@@ -545,7 +545,7 @@
       "npm:htmx-ext-response-targets@^2.0.4",
       "npm:htmx.org@^2.0.10",
       "npm:sortablejs@^1.15.7",
-      "npm:sweetalert2@^11.26.24",
+      "npm:sweetalert2@^11.26.25",
       "npm:tailwindcss@^4.3.0"
     ]
   }
