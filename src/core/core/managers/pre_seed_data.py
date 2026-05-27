@@ -625,7 +625,7 @@ product_types = [
             {"parameter": "CONVERT_FROM", "type": "text", "value": "md", "rules": "one_of:html|md"},
             {"parameter": "CONVERT_TO", "type": "text", "value": "odt", "rules": "one_of:docx|odt"},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "Default .html -> .docx Presenter",
@@ -636,7 +636,7 @@ product_types = [
             {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
             {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "Default html tailwindcss Presenter",
@@ -648,7 +648,7 @@ product_types = [
             {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
             {"parameter": "render_options", "type": "text", "value": ""},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "Default html chartjs Presenter",
@@ -660,7 +660,7 @@ product_types = [
             {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
             {"parameter": "render_options", "type": "text", "value": ""},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "Default PDF Presenter",
@@ -669,7 +669,7 @@ product_types = [
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "pdf_template.html"},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "Default TEXT Presenter",
@@ -678,7 +678,7 @@ product_types = [
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "text_template.txt"},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "CERT Daily Report",
@@ -688,13 +688,13 @@ product_types = [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "cert_at_daily_report.html"},
             {"parameter": "render_options", "type": "text", "value": ""},
         ],
-        "report_types": [4],
+        "report_types": ["CERT Report"],
     },
     {
         "title": "STIXv2.1 Report Exporter",
         "description": "STIXv2.1 Report Exporter",
         "type": "STIX_PRESENTER",
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
 ]
 

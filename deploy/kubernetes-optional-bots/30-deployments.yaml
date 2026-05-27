@@ -25,6 +25,7 @@ spec:
                 configMapKeyRef:
                   name: taranis-config
                   key: DEBUG
+                  optional: true
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
@@ -40,16 +41,19 @@ spec:
                 configMapKeyRef:
                   name: taranis-config
                   key: LLM_MODEL
+                  optional: true
             - name: LLM_TIMEOUT
               valueFrom:
                 configMapKeyRef:
                   name: taranis-config
                   key: LLM_TIMEOUT
+                  optional: true
             - name: LLM_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: taranis-secrets
                   key: LLM_API_KEY
+                  optional: true
           ports:
             - containerPort: 8000
               name: http

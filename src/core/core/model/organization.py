@@ -61,7 +61,7 @@ class Organization(BaseModel):
         logger.debug(f"Updating organization {organization_id} with data: {data}")
         organization = cls.get(organization_id)
         if organization is None:
-            return {"error": f"Organization {organization_id} not found"}, 404
+            return {"error": "Organization not found"}, 404
 
         update_organization = cls.from_dict(data)
         organization.name = update_organization.name
@@ -70,4 +70,4 @@ class Organization(BaseModel):
             organization.address = update_organization.address
 
         db.session.commit()
-        return {"message": f"Successfully updated {organization.name}", "id": f"{organization.id}"}, 200
+        return {"message": "Organization updated", "id": organization.id}, 200

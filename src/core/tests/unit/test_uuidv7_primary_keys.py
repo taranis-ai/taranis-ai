@@ -96,6 +96,21 @@ def test_representative_converted_seeded_models_use_string_ids(app):
         assert admin.roles[0].id == role.id
 
 
+def test_seeded_product_types_resolve_legacy_report_type_references(app):
+    with app.app_context():
+        product_type = ProductType.filter_by_title("Default PDF Presenter")
+
+        assert product_type is not None
+        assert len(product_type.report_types) == 4
+        assert {report_type.title for report_type in product_type.report_types} == {
+            "OSINT Report",
+            "Disinformation",
+            "Vulnerability Report",
+            "CERT Report",
+        }
+        assert all(isinstance(report_type.id, str) for report_type in product_type.report_types)
+
+
 def test_task_lookup_supports_preserved_legacy_job_id(app, session):
     with app.app_context():
         task = Task(id="legacy-job-for-uuid-test")
