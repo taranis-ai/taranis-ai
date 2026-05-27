@@ -1,4 +1,4 @@
-from flask import Blueprint, Flask, request
+from flask import Blueprint, Flask, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
@@ -41,7 +41,7 @@ class Products(MethodView):
     def post(self):
         new_product = product.Product.add(request.json)
         invalidate_frontend_cache_on_success(201, models=("product",))
-        return {"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict()}, 201
+        return jsonify({"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict()}), 201
 
     @auth_required("PUBLISH_UPDATE")
     def put(self, product_id: str | None = None):

@@ -20,12 +20,12 @@ class TestRBAC:
 
         read_error, read_status = ReportItem.get_for_api(report_item_amber.id, clear_user)
         assert read_status == 403
-        assert read_error == {"error": f"User {clear_user.id} is not allowed to read Report {report_item_amber.id}"}
+        assert read_error == {"error": "User is not allowed to read report"}
 
         blocked_report, update_error, update_status = ReportItem.get_report_item_and_check_permission(report_item_amber.id, clear_user)
         assert blocked_report is None
         assert update_status == 403
-        assert update_error == {"error": f"User {clear_user.id} is not allowed to update Report {report_item_amber.id}"}
+        assert update_error == {"error": "User is not allowed to update report"}
 
         read_data, read_status = ReportItem.get_for_api(report_item_amber.id, amber_user)
         assert read_status == 200

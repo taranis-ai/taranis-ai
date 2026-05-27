@@ -123,6 +123,7 @@ reportIncompatibleMethodOverride = "none"
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
+exclude-newer = "1 week"
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",

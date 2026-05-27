@@ -1,9 +1,11 @@
 import base64
+import binascii
 from typing import TypedDict
 
 from jinja2 import DebugUndefined, TemplateSyntaxError, UndefinedError
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 
+from core.log import logger
 from core.managers.data_manager import (
     InvalidPresenterTemplatePathError,
     get_template_content,
@@ -38,9 +40,10 @@ def create_or_update_template(template_id, base64_content):
 
     # Decode content
     try:
-        template_content = base64.b64decode(base64_content).decode("utf-8")
-    except Exception as e:
-        return {"error": f"Failed to decode content: {e}"}, 400
+        template_content = base64.b64decode(base64_content, validate=True).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError) as e:
+        logger.error("Failed to decode template content: %s", e)
+        return {"error": "Failed to decode content"}, 400
 
     # Validate
     validation_status = validate_template_content(template_content)
@@ -48,10 +51,11 @@ def create_or_update_template(template_id, base64_content):
     # Store in file
     try:
         save_template_content(template_id, template_content)
-    except InvalidPresenterTemplatePathError as e:
-        return {"error": str(e)}, 400
-    except Exception as e:
-        return {"error": f"Failed to save template: {e}"}, 500
+    except InvalidPresenterTemplatePathError:
+        return {"error": "Invalid presenter template path"}, 400
+    except Exception:
+        logger.exception("Failed to save template %s", template_id)
+        return {"error": "Failed to save template"}, 500
 
     response = {
         "message": "Template updated or created",
@@ -94,17 +98,23 @@ def validate_template_content(template_content: str) -> ValidationStatus:
         except UndefinedError:
             # Ignore undefined variable errors - these are expected with empty context
             pass
-        except Exception as e:
+        except Exception:
             # Catch other rendering errors (e.g., filter errors, logic errors)
-            return {"is_valid": False, "error_message": str(e), "error_type": type(e).__name__}
+            logger.exception("Template render validation failed")
+            return {"is_valid": False, "error_message": "Template render validation failed.", "error_type": "TemplateRenderError"}
 
         # Template is valid
         return {"is_valid": True, "error_message": "", "error_type": ""}
 
-    except TemplateSyntaxError as e:
-        return {"is_valid": False, "error_message": str(e), "error_type": "TemplateSyntaxError"}
-    except Exception as e:
-        return {"is_valid": False, "error_message": str(e), "error_type": type(e).__name__}
+    except TemplateSyntaxError:
+        return {
+            "is_valid": False,
+            "error_message": "Expected an expression in template syntax.",
+            "error_type": "TemplateSyntaxError",
+        }
+    except Exception:
+        logger.exception("Template validation failed")
+        return {"is_valid": False, "error_message": "Template validation failed.", "error_type": "TemplateValidationError"}
 
 
 def _build_validation_and_content(content: TemplateContent) -> tuple[str | None, ValidationStatus]:

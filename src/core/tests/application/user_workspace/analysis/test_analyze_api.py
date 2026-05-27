@@ -326,7 +326,7 @@ class TestAnalyzeApi(BaseTest):
         report_id = cleanup_report_item["id"]
         response = self.assert_delete_ok(client, f"report-items/{report_id}", auth_header=auth_header)
         assert "message" in response.text
-        assert response.json["message"] == "Successfully deleted report 'Updated Report Title'"
+        assert response.json["message"] == "Successfully deleted report"
 
     def test_create_report_with_initial_stories_updates_story_tags_and_relevance(self, app, cleanup_report_item, stories):
         from core.model.report_item import ReportItem
@@ -393,7 +393,7 @@ class TestAnalyzeApi(BaseTest):
 
             result, delete_status = ReportItem.delete(report.id)
             assert delete_status == 200
-            assert result["message"] == "Successfully deleted report 'Report Delete Keeps Stories'"
+            assert result["message"] == "Successfully deleted report"
 
             story = Story.get(stories[0])
             assert story is not None
@@ -708,7 +708,7 @@ class TestAnalyzeApi(BaseTest):
                 headers=auth_header_user_permissions,
             )
             assert create_response.status_code == 403
-            assert "not allowed to create Report" in create_response.get_json()["error"]
+            assert create_response.get_json()["error"] == "User is not allowed to create report"
         finally:
             with app.app_context():
                 if ReportItem.get(created_report_id):

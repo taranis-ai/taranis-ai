@@ -106,10 +106,10 @@ class ProductType(BaseModel):
         logger.debug(f"Updating {cls.__name__} with id {product_type_id} and data {data}")
         if not product_type:
             logger.error(f"Could not find product type with id {product_type_id}")
-            return {"error": f"Could not find product type with id {product_type_id}"}, 404
+            return {"error": "Product type not found"}, 404
         if user and not product_type.allowed_with_acl(user, require_write_access=True):
             logger.error(f"User {user} does not have write access to product type {product_type_id}")
-            return {"error": f"User {user} does not have write access to product type {product_type_id}"}, 403
+            return {"error": "User does not have write access to this product type"}, 403
 
         parsed_parameters = None
         if type := data.get("type"):
@@ -127,7 +127,7 @@ class ProductType(BaseModel):
         if report_types is not None:
             product_type.report_types = ReportItemType.get_bulk(report_types)
         db.session.commit()
-        return {"message": f"Updated product type {product_type.title}", "id": product_type.id}, 200
+        return {"message": "Product type updated", "id": product_type.id}, 200
 
     @staticmethod
     def _parse_parameters(worker_type: str, parameters) -> list[ParameterValue]:
@@ -161,14 +161,14 @@ class ProductType(BaseModel):
     def get_detail_json(self):
         data = self.to_dict()
         if template := self.get_template():
-            data["template"] = get_template_as_base64(template)
+            data["template"] = get_template_as_base64(os.path.basename(template))
         return data
 
     @classmethod
     def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.get_detail_json(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def get_by_type(cls, product_type: PRESENTER_TYPES) -> "ProductType|None":
@@ -203,12 +203,12 @@ class ProductType(BaseModel):
         if not product_type:
             return {"error": "Product type not found"}, 404
 
-        if product := Product.query.where(Product.product_type_id == product_id).first():
-            return {"error": f"Product type is used in a product - {product.title}"}, 409
+        if Product.query.where(Product.product_type_id == product_id).first():
+            return {"error": "Product type is used in a product"}, 409
 
         db.session.delete(product_type)
         db.session.commit()
-        return {"message": f"Product type {product_id} deleted"}, 200
+        return {"message": "Product type deleted"}, 200
 
 
 class ProductTypeParameterValue(BaseModel):

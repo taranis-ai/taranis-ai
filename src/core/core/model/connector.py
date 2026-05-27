@@ -108,16 +108,16 @@ class Connector(BaseModel):
     @classmethod
     def delete(cls, connector_id: str, force: bool = False) -> tuple[dict, int]:
         if not (connector := cls.get(connector_id)):
-            return {"error": f"Connector with ID: {connector_id} not found"}, 404
+            return {"error": "Connector not found"}, 404
 
         try:
             connector.unschedule_connector()
             db.session.delete(connector)
             db.session.commit()
-            return {"message": f"Connecotor {connector.name} deleted", "id": f"{connector_id}"}, 200
+            return {"message": "Connector deleted", "id": connector.id}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
-            return {"error": f"Deleting Connector with ID: {connector_id} failed {str(e)}"}, 500
+            return {"error": "Deleting Connector failed"}, 500
 
     @staticmethod
     def _update_last_change(model_class: Type, data: dict[str, str]) -> tuple[dict[str, str], int]:
@@ -126,7 +126,7 @@ class Connector(BaseModel):
 
         for object_id, target_value in data.items():
             if target_value not in ["internal", "external"]:
-                return {"error": f"Invalid value {target_value} for ID {object_id}, must be 'internal' or 'external'"}, 400
+                return {"error": "Invalid last-change value"}, 400
 
             if instance := model_class.get(object_id):
                 instance.last_change = target_value
