@@ -72,7 +72,7 @@ class ReportPublishWorkflowService:
 
         report_item = ReportItem.from_dict(sanitized_report)
         if user and not report_item.access_allowed(user, True):
-            return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
+            return {"error": "User is not allowed to create report"}, 403
 
         if user:
             report_item.user_id = user.id

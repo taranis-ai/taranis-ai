@@ -471,6 +471,7 @@ class BaseView(MethodView):
 
     @classmethod
     def redirect_htmx(cls, target: str) -> ResponseReturnValue:
+        target = "/" + target.replace("\\", "/").lstrip("/")
         if is_htmx_request():
             response = make_response("", 204)
             response.headers["HX-Redirect"] = target

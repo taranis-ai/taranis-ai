@@ -155,11 +155,11 @@ class Product(BaseModel):
     @classmethod
     def update_render_for_id(cls, product_id: str, render_result: str):
         if not (product := cls.get(product_id)):
-            return {"error": f"Product {product_id} not found"}, 404
+            return {"error": "Product not found"}, 404
         if product.update_render(render_result):
             logger.debug(f"Render result for Product {product_id} updated")
-            return {"message": f"Product {product_id} updated"}, 200
-        return {"error": f"Product {product_id} not updated"}, 500
+            return {"message": "Product updated"}, 200
+        return {"error": "Product not updated"}, 500
 
     def get_file_name(self) -> str:
         product_title = self.title
@@ -181,7 +181,7 @@ class Product(BaseModel):
     def update(cls, product_id: str, data) -> tuple[dict, int]:
         product = Product.get(product_id)
         if product is None:
-            return {"error": f"Product {product_id} not found"}, 404
+            return {"error": "Product not found"}, 404
 
         if title := data.get("title"):
             product.title = title
@@ -202,13 +202,13 @@ class Product(BaseModel):
 
         db.session.commit()
         queue_manager.queue_manager.generate_product(product.id)
-        return {"message": f"Product {product_id} updated", "id": product_id, "product": product.to_detail_dict()}, 200
+        return {"message": "Product updated", "id": product.id, "product": product.to_detail_dict()}, 200
 
     @classmethod
     def get_for_worker(cls, item_id: str) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.to_worker_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
 
 class ProductReportItem(BaseModel):

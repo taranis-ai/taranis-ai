@@ -94,7 +94,7 @@ class RoleBasedAccess(BaseModel):
             else:
                 setattr(acl, key, value)
         db.session.commit()
-        return {"message": f"Succussfully updated {acl.id}", "id": acl.id}, 201
+        return {"message": "Role based access updated", "id": acl.id}, 201
 
 
 class RBACRole(BaseModel):

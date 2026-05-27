@@ -59,7 +59,7 @@ class PublisherPreset(BaseModel):
         preset = cls.get(preset_id)
         if not preset:
             logger.error(f"Could not find preset with id {preset_id}")
-            return {"error": f"Could not find preset with id {preset_id}"}, 404
+            return {"error": "Preset not found"}, 404
         if name := data.get("name"):
             preset.name = name
 
@@ -88,7 +88,7 @@ class PublisherPreset(BaseModel):
     def get_for_publish_api(cls, preset_id: str) -> tuple[dict[str, Any], int]:
         if preset := cls.get(preset_id):
             return preset.to_user_dict(), 200
-        return {"error": f"{cls.__name__} {preset_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def get_all_for_publish_api(cls, filter_args: dict[str, Any] | None) -> tuple[dict[str, Any], int]:

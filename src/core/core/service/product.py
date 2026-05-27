@@ -30,7 +30,7 @@ class ProductService:
                 headers={"Content-Disposition": f'attachment; filename="{product_data["filename"]}"'},
                 status=200,
             )
-        return {"error": f"Product {product_id} not found"}, 404
+        return {"error": "Product not found"}, 404
 
     @classmethod
     def autopublish_product(cls, report_item_id: str):
