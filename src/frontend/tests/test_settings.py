@@ -72,7 +72,7 @@ def test_settings_page_renders_onboarding_reset_button(app):
                     "default_tlp_level": "clear",
                     "default_story_conflict_retention": "200",
                     "default_news_item_conflict_retention": "200",
-                    "completed_onboarding_tours": {
+                    "onboarding_tours": {
                         "admin_welcome_v1": "completed",
                         "admin_advanced_v1": "dismissed",
                     },
@@ -83,7 +83,7 @@ def test_settings_page_renders_onboarding_reset_button(app):
 
     assert 'data-testid="settings-reset-onboarding-tours"' in body
     assert f'hx-post="{url_for("admin_settings.reset_onboarding_tours")}"' in body
-    assert 'name="reset_completed_onboarding_tours"' not in body
+    assert 'name="reset_onboarding_tours"' not in body
     assert body.count('name="settings[default_collector_interval]"') == 1
 
 
@@ -117,7 +117,7 @@ def test_settings_reset_onboarding_tours_patches_core(app, monkeypatch):
         body, status = settings_views.SettingsView.reset_onboarding_tours()
 
     assert status == 200
-    assert calls == [("/settings/settings", {"reset_completed_onboarding_tours": True})]
+    assert calls == [("/settings/settings", {"reset_onboarding_tours": True})]
     assert '<span id="notification-message">Successfully updated settings</span>' in body
 
 
@@ -150,7 +150,7 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
     with app.test_request_context(
         "/admin/settings/settings",
         method="PATCH",
-        data={"settings[completed_onboarding_tours][admin_welcome_v1]": "completed"},
+        data={"settings[onboarding_tours][admin_welcome_v1]": "completed"},
     ):
         body, status = settings_views.SettingsView.settings_action("/settings/settings", method="patch")
 
@@ -158,13 +158,13 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
     assert calls == [
         (
             "/settings/settings",
-            {"settings": {"completed_onboarding_tours": {"admin_welcome_v1": "completed"}}},
+            {"settings": {"onboarding_tours": {"admin_welcome_v1": "completed"}}},
         )
     ]
     assert '<span id="notification-message">Successfully updated settings</span>' in body
 
 
-def test_settings_form_payload_does_not_include_completed_onboarding_tours_when_absent():
+def test_settings_form_payload_does_not_include_onboarding_tours_when_absent():
     settings = Settings(
         settings={
             "default_collector_proxy": "",
@@ -177,4 +177,4 @@ def test_settings_form_payload_does_not_include_completed_onboarding_tours_when_
 
     dumped = settings.model_dump(mode="json")
 
-    assert "completed_onboarding_tours" not in dumped["settings"]
+    assert "onboarding_tours" not in dumped["settings"]

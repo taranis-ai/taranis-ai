@@ -1,10 +1,10 @@
 from core.model.settings import Settings
 
 
-def test_settings_defaults_include_onboarding_completed_tours():
+def test_settings_defaults_include_onboarding_tours():
     settings = Settings()
 
-    assert settings.settings["completed_onboarding_tours"] == {}
+    assert settings.settings["onboarding_tours"] == {}
 
 
 def test_settings_initialize_adds_onboarding_without_losing_existing_values(app, session):
@@ -12,7 +12,7 @@ def test_settings_initialize_adds_onboarding_without_losing_existing_values(app,
         settings = Settings.get_settings_entry()
         settings.settings = {
             "default_collector_proxy": "http://proxy.example",
-            "completed_onboarding_tours": {"existing_tour": "dismissed"},
+            "onboarding_tours": {"existing_tour": "dismissed"},
         }
         session.flush()
 
@@ -20,32 +20,32 @@ def test_settings_initialize_adds_onboarding_without_losing_existing_values(app,
 
         assert settings.settings["default_collector_proxy"] == "http://proxy.example"
         assert settings.settings["default_collector_interval"] == "0 */8 * * *"
-        assert settings.settings["completed_onboarding_tours"]["existing_tour"] == "dismissed"
+        assert settings.settings["onboarding_tours"]["existing_tour"] == "dismissed"
 
 
 def test_settings_update_preserves_existing_onboarding_tours(app, session):
     with app.app_context():
         settings = Settings.get_settings_entry()
-        settings.settings = Settings.with_defaults({"completed_onboarding_tours": {"admin_welcome_v1": "completed"}})
+        settings.settings = Settings.with_defaults({"onboarding_tours": {"admin_welcome_v1": "completed"}})
         session.flush()
 
-        response, status = Settings.update({"settings": {"default_collector_proxy": "http://proxy.test", "completed_onboarding_tours": {}}})
+        response, status = Settings.update({"settings": {"default_collector_proxy": "http://proxy.test", "onboarding_tours": {}}})
 
         assert status == 200
         assert response["settings"]["default_collector_proxy"] == "http://proxy.test"
-        assert response["settings"]["completed_onboarding_tours"]["admin_welcome_v1"] == "completed"
+        assert response["settings"]["onboarding_tours"]["admin_welcome_v1"] == "completed"
 
 
 def test_settings_update_merges_onboarding_tours(app, session):
     with app.app_context():
         settings = Settings.get_settings_entry()
-        settings.settings = Settings.with_defaults({"completed_onboarding_tours": {"existing_tour": "dismissed"}})
+        settings.settings = Settings.with_defaults({"onboarding_tours": {"existing_tour": "dismissed"}})
         session.flush()
 
-        response, status = Settings.update({"settings": {"completed_onboarding_tours": {"admin_welcome_v1": "completed"}}})
+        response, status = Settings.update({"settings": {"onboarding_tours": {"admin_welcome_v1": "completed"}}})
 
         assert status == 200
-        assert response["settings"]["completed_onboarding_tours"] == {
+        assert response["settings"]["onboarding_tours"] == {
             "existing_tour": "dismissed",
             "admin_welcome_v1": "completed",
         }
@@ -56,7 +56,7 @@ def test_settings_update_can_reset_existing_onboarding_tour_flags(app, session):
         settings = Settings.get_settings_entry()
         settings.settings = Settings.with_defaults(
             {
-                "completed_onboarding_tours": {
+                "onboarding_tours": {
                     "admin_welcome_v1": "completed",
                     "admin_advanced_v1": "dismissed",
                 }
@@ -66,7 +66,7 @@ def test_settings_update_can_reset_existing_onboarding_tour_flags(app, session):
 
         response, status = Settings.update(
             {
-                "reset_completed_onboarding_tours": "true",
+                "reset_onboarding_tours": "true",
                 "settings": {
                     "default_collector_interval": "0 */8 * * *",
                 },
@@ -74,7 +74,7 @@ def test_settings_update_can_reset_existing_onboarding_tour_flags(app, session):
         )
 
         assert status == 200
-        assert response["settings"]["completed_onboarding_tours"] == {}
+        assert response["settings"]["onboarding_tours"] == {}
 
 
 def test_settings_update_can_reset_onboarding_tours_without_settings_payload(app, session):
@@ -83,7 +83,7 @@ def test_settings_update_can_reset_onboarding_tours_without_settings_payload(app
         settings.settings = Settings.with_defaults(
             {
                 "default_collector_proxy": "http://proxy.test",
-                "completed_onboarding_tours": {
+                "onboarding_tours": {
                     "admin_welcome_v1": "completed",
                     "admin_advanced_v1": "dismissed",
                 },
@@ -91,8 +91,8 @@ def test_settings_update_can_reset_onboarding_tours_without_settings_payload(app
         )
         session.flush()
 
-        response, status = Settings.update({"reset_completed_onboarding_tours": True})
+        response, status = Settings.update({"reset_onboarding_tours": True})
 
         assert status == 200
         assert response["settings"]["default_collector_proxy"] == "http://proxy.test"
-        assert response["settings"]["completed_onboarding_tours"] == {}
+        assert response["settings"]["onboarding_tours"] == {}

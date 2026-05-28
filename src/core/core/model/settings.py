@@ -31,11 +31,11 @@ class Settings(BaseModel):
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
-        completed_tours = merged.setdefault("completed_onboarding_tours", {})
-        if isinstance(completed_tours, dict):
-            merged["completed_onboarding_tours"] = dict(completed_tours)
+        onboarding_tours = merged.setdefault("onboarding_tours", {})
+        if isinstance(onboarding_tours, dict):
+            merged["onboarding_tours"] = dict(onboarding_tours)
         else:
-            merged["completed_onboarding_tours"] = {}
+            merged["onboarding_tours"] = {}
         return merged
 
     @classmethod
@@ -46,20 +46,20 @@ class Settings(BaseModel):
             return {"error": "Error updating settings"}, 404
 
         update_data = data.get("settings") or {}
-        reset_completed_onboarding_tours = data.get("reset_completed_onboarding_tours") in {True, "true", "1", "on"}
-        if update_data or reset_completed_onboarding_tours:
+        reset_onboarding_tours = data.get("reset_onboarding_tours") in {True, "true", "1", "on"}
+        if update_data or reset_onboarding_tours:
             logger.debug(f"Settings update data: {update_data}")
             logger.debug(f"Settings before update: {settings.settings}")
             update_data = dict(update_data)
             current_settings = cls.with_defaults(settings.settings)
-            completed_onboarding_tours = update_data.pop("completed_onboarding_tours", None)
+            onboarding_tours = update_data.pop("onboarding_tours", None)
             current_settings.update(update_data)
-            if reset_completed_onboarding_tours:
-                current_settings["completed_onboarding_tours"] = {}
-            elif isinstance(completed_onboarding_tours, dict):
-                current_settings["completed_onboarding_tours"] = {
-                    **current_settings["completed_onboarding_tours"],
-                    **completed_onboarding_tours,
+            if reset_onboarding_tours:
+                current_settings["onboarding_tours"] = {}
+            elif isinstance(onboarding_tours, dict) and onboarding_tours:
+                current_settings["onboarding_tours"] = {
+                    **current_settings["onboarding_tours"],
+                    **onboarding_tours,
                 }
             settings.settings = cls.with_defaults(current_settings)
         db.session.commit()

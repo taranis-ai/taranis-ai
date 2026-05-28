@@ -1,29 +1,20 @@
 from flask import Response, render_template
 from flask.views import MethodView
-from models.admin import Settings
 
 from frontend.auth import admin_required
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
-from frontend.onboarding import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID
+from frontend.onboarding import get_admin_onboarding_context, needs_admin_onboarding
 
 
 class OnboardingPromptView(MethodView):
     @admin_required()
     def get(self):
-        settings = DataPersistenceLayer().get_first(Settings)
-        if not settings:
+        onboarding_context = get_admin_onboarding_context()
+        if not onboarding_context:
             return Response(status=204)
 
-        completed_tours = settings.settings.completed_onboarding_tours or {}
-        if completed_tours.get(ADMIN_WELCOME_TOUR_ID):
-            logger.debug("Admin has already completed the welcome tour. No need to show onboarding prompt.")
+        if not needs_admin_onboarding(onboarding_context):
+            logger.debug("Admin has already completed onboarding tours. No need to show onboarding prompt.")
             return Response(status=204)
 
-        return render_template(
-            "onboarding/admin_prompt.html",
-            welcome_tour_id=ADMIN_WELCOME_TOUR_ID,
-            advanced_tour_id=ADMIN_ADVANCED_TOUR_ID,
-            advanced_completed=bool(completed_tours.get(ADMIN_ADVANCED_TOUR_ID)),
-            current_settings=settings.settings,
-        ), 200
+        return render_template("onboarding/admin_prompt.html", admin_onboarding=onboarding_context), 200

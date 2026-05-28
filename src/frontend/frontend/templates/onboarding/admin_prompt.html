@@ -1,7 +1,9 @@
 <div id="admin-onboarding-tour"
      data-testid="admin-onboarding-tour"
      data-settings-action="{{ url_for('admin_settings.settings_action', action='settings') }}"
-     data-welcome-tour-id="{{ welcome_tour_id }}"
-     data-advanced-tour-id="{{ advanced_tour_id }}"
-     data-advanced-completed="{{ 'true' if advanced_completed else 'false' }}"></div>
-<script>window.TaranisOnboarding?.startAdminTours(document.getElementById("admin-onboarding-tour"));</script>
+     data-autostart-route="{{ url_for('admin.dashboard') }}"
+     data-welcome-tour-id="{{ admin_onboarding.welcome_tour_id }}"
+     data-advanced-tour-id="{{ admin_onboarding.advanced_tour_id }}"
+     data-welcome-completed="{{ 'true' if admin_onboarding.welcome_completed else 'false' }}"
+     data-advanced-completed="{{ 'true' if admin_onboarding.advanced_completed else 'false' }}"></div>
+<script>self.TaranisOnboarding?.startAdminTours(document.getElementById("admin-onboarding-tour"));</script>

@@ -4,7 +4,7 @@ from frontend.config import Config
 from frontend.onboarding import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID
 
 
-def settings_response(completed_tours=None):
+def settings_response(onboarding_tours=None):
     return {
         "items": [
             {
@@ -15,7 +15,7 @@ def settings_response(completed_tours=None):
                     "default_tlp_level": "clear",
                     "default_story_conflict_retention": "200",
                     "default_news_item_conflict_retention": "200",
-                    "completed_onboarding_tours": completed_tours or {},
+                    "onboarding_tours": onboarding_tours or {},
                 },
             }
         ]
@@ -40,13 +40,29 @@ def test_onboarding_prompt_renders_when_welcome_tour_is_pending(app, authenticat
     assert f'data-settings-action="{url_for("admin_settings.settings_action", action="settings")}"' in body
     assert 'name="settings[default_collector_interval]"' not in body
     assert "data-onboarding-settings-form" not in body
-    assert "window.TaranisOnboarding?.startAdminTours" in body
+    assert "self.TaranisOnboarding?.startAdminTours" in body
 
 
-def test_onboarding_prompt_returns_no_content_when_welcome_tour_is_completed(app, authenticated_client, responses):
+def test_onboarding_prompt_renders_when_advanced_tour_is_pending(app, authenticated_client, responses):
     responses.get(
         f"{Config.TARANIS_CORE_URL}/settings/settings",
-        json=settings_response({ADMIN_WELCOME_TOUR_ID: "dismissed"}),
+        json=settings_response({ADMIN_WELCOME_TOUR_ID: "completed"}),
+        status=200,
+        content_type="application/json",
+    )
+
+    response = authenticated_client.get(url_for("base.onboarding_prompt"))
+
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert 'data-welcome-completed="true"' in body
+    assert 'data-advanced-completed="false"' in body
+
+
+def test_onboarding_prompt_returns_no_content_when_all_tours_are_completed(app, authenticated_client, responses):
+    responses.get(
+        f"{Config.TARANIS_CORE_URL}/settings/settings",
+        json=settings_response({ADMIN_WELCOME_TOUR_ID: "completed", ADMIN_ADVANCED_TOUR_ID: "completed"}),
         status=200,
         content_type="application/json",
     )
@@ -55,6 +71,22 @@ def test_onboarding_prompt_returns_no_content_when_welcome_tour_is_completed(app
 
     assert response.status_code == 204
     assert response.get_data(as_text=True) == ""
+
+
+def test_onboarding_prompt_treats_non_completed_values_as_pending(app, authenticated_client, responses):
+    responses.get(
+        f"{Config.TARANIS_CORE_URL}/settings/settings",
+        json=settings_response({ADMIN_WELCOME_TOUR_ID: "dismissed", ADMIN_ADVANCED_TOUR_ID: "dismissed"}),
+        status=200,
+        content_type="application/json",
+    )
+
+    response = authenticated_client.get(url_for("base.onboarding_prompt"))
+
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert 'data-welcome-completed="false"' in body
+    assert 'data-advanced-completed="false"' in body
 
 
 def test_onboarding_prompt_marks_advanced_tour_completed_in_partial(app, authenticated_client, responses):

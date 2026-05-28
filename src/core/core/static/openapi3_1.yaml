@@ -8375,6 +8375,34 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+    patch:
+      security:
+      - UserAuth: []
+      tags:
+      - config
+      description: update settings
+      operationId: settings.settings.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /settings/ungroup-stories:
     post:
       security:

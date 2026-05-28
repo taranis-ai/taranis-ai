@@ -15,6 +15,7 @@ from frontend.cache import add_user_to_cache, get_user_from_cache
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.log import logger
+from frontend.onboarding import clear_admin_onboarding_session
 from frontend.utils.router_helpers import is_htmx_request
 
 
@@ -149,6 +150,7 @@ def logout() -> tuple[str, int] | Response:
 
     response.delete_cookie("access_token")
     unset_jwt_cookies(response)
+    clear_admin_onboarding_session()
     return response
 
 

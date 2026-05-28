@@ -9,6 +9,7 @@ from frontend.auth import is_safe_redirect_target, logout, render_login_page
 from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.log import logger
+from frontend.onboarding import clear_admin_onboarding_session
 
 
 class AuthView(MethodView):
@@ -59,6 +60,7 @@ class AuthView(MethodView):
         for h in core_response.raw.headers.getlist("Set-Cookie"):
             response.headers.add("Set-Cookie", h)
 
+        clear_admin_onboarding_session()
         return response
 
     def get(self):
