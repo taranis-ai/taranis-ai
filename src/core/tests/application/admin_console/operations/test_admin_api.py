@@ -34,17 +34,6 @@ class TestAdminApi(BaseTest):
         assert response_settings["message"] == "Successfully updated settings"
         for key, value in test_settings["settings"].items():
             assert response_settings["settings"][key] == value
-        assert response_settings["settings"]["onboarding_tours"] == {}
-
-    def test_settings_update_marks_onboarding_tour_completed(self, client, auth_header):
-        response = self.assert_put_ok(
-            client,
-            "settings",
-            {"settings": {"onboarding_tours": {"admin_welcome_v1": "completed"}}},
-            auth_header,
-        )
-
-        assert response.get_json()["settings"]["onboarding_tours"]["admin_welcome_v1"] == "completed"
 
     def test_settings_patch_updates_single_field(self, client, auth_header):
         initial_settings = {

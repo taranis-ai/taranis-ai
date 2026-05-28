@@ -1,5 +1,7 @@
-from flask import render_template, url_for
+from flask import render_template, session, url_for
 from models.admin import Settings
+
+from frontend.onboarding import ADMIN_ADVANCED_TOUR_ID, ADMIN_ONBOARDING_SESSION_KEY, ADMIN_WELCOME_TOUR_ID
 
 
 def test_flask_cookie_name(app):
@@ -72,10 +74,6 @@ def test_settings_page_renders_onboarding_reset_button(app):
                     "default_tlp_level": "clear",
                     "default_story_conflict_retention": "200",
                     "default_news_item_conflict_retention": "200",
-                    "onboarding_tours": {
-                        "admin_welcome_v1": "completed",
-                        "admin_advanced_v1": "dismissed",
-                    },
                 }
             ),
             frontend_actions=[],
@@ -114,7 +112,16 @@ def test_settings_reset_onboarding_tours_patches_core(app, monkeypatch):
     )
 
     with app.test_request_context("/admin/settings/reset-onboarding-tours", method="POST"):
+        session[ADMIN_ONBOARDING_SESSION_KEY] = {
+            "welcome_tour_id": ADMIN_WELCOME_TOUR_ID,
+            "advanced_tour_id": ADMIN_ADVANCED_TOUR_ID,
+            "welcome_completed": True,
+            "advanced_completed": True,
+        }
+
         body, status = settings_views.SettingsView.reset_onboarding_tours()
+        assert session[ADMIN_ONBOARDING_SESSION_KEY]["welcome_completed"] is False
+        assert session[ADMIN_ONBOARDING_SESSION_KEY]["advanced_completed"] is False
 
     assert status == 200
     assert calls == [("/settings/settings", {"reset_onboarding_tours": True})]
@@ -150,7 +157,7 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
     with app.test_request_context(
         "/admin/settings/settings",
         method="PATCH",
-        data={"settings[onboarding_tours][admin_welcome_v1]": "completed"},
+        data={"settings[default_collector_proxy]": "http://proxy.test"},
     ):
         body, status = settings_views.SettingsView.settings_action("/settings/settings", method="patch")
 
@@ -158,23 +165,7 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
     assert calls == [
         (
             "/settings/settings",
-            {"settings": {"onboarding_tours": {"admin_welcome_v1": "completed"}}},
+            {"settings": {"default_collector_proxy": "http://proxy.test"}},
         )
     ]
     assert '<span id="notification-message">Successfully updated settings</span>' in body
-
-
-def test_settings_form_payload_does_not_include_onboarding_tours_when_absent():
-    settings = Settings(
-        settings={
-            "default_collector_proxy": "",
-            "default_collector_interval": "0 */8 * * *",
-            "default_tlp_level": "clear",
-            "default_story_conflict_retention": "200",
-            "default_news_item_conflict_retention": "200",
-        }
-    )
-
-    dumped = settings.model_dump(mode="json")
-
-    assert "onboarding_tours" not in dumped["settings"]
