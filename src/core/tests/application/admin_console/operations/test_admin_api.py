@@ -227,4 +227,4 @@ def test_cache_invalidate_scope_endpoint_rejects_unknown_scope(client, auth_head
     response = client.post("/api/admin/cache/invalidate", json={"mode": "scope", "scope": "unknown"}, headers=auth_header)
 
     assert response.status_code == 400
-    assert response.get_json()["error"] == "Unknown scope: unknown"
+    assert response.get_json()["error"] == "Unknown scope"

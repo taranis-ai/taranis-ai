@@ -129,16 +129,16 @@ class Role(BaseModel):
         permissions = data.get("permissions", [])
         role.permissions = Permission.get_bulk(permissions)
         db.session.commit()
-        return {"message": f"Successfully updated {role.name}", "id": f"{role.id}"}, 201
+        return {"message": "Role updated", "id": f"{role.id}"}, 201
 
     @classmethod
     def delete(cls, role_id: str) -> tuple[dict[str, str], int]:
         if item := cls.get(role_id):
             db.session.delete(item)
             db.session.commit()
-            return {"message": f"{cls.__name__} {role_id} deleted"}, 200
+            return {"message": f"{cls.__name__} deleted"}, 200
         logger.warning(f"{cls.__name__} {role_id} not found")
-        return {"error": f"{cls.__name__} {role_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
 
 class RolePermission(BaseModel):

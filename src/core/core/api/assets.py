@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
@@ -28,7 +28,7 @@ class AssetGroups(MethodView):
         data["organization"] = current_user.organization
         asset_result = asset.AssetGroup.add(data)
         invalidate_frontend_cache_on_success(201, models=("asset_group",))
-        return {"message": "Asset Group added", "id": asset_result.id}, 201
+        return jsonify({"message": "Asset Group added", "id": asset_result.id}), 201
 
     @auth_required("ASSETS_CONFIG")
     def delete(self, group_id: str | None = None):
