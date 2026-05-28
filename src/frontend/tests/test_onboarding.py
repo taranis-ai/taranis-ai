@@ -1,7 +1,12 @@
-from flask import url_for
+from flask import session, url_for
 
 from frontend.config import Config
-from frontend.onboarding import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID
+from frontend.onboarding import (
+    ADMIN_ADVANCED_TOUR_ID,
+    ADMIN_ONBOARDING_SESSION_KEY,
+    ADMIN_WELCOME_TOUR_ID,
+    update_admin_onboarding_session_from_settings_payload,
+)
 
 
 def settings_response(onboarding_tours=None):
@@ -100,4 +105,22 @@ def test_onboarding_prompt_marks_advanced_tour_completed_in_partial(app, authent
     response = authenticated_client.get(url_for("base.onboarding_prompt"))
 
     assert response.status_code == 200
-    assert 'data-advanced-completed="true"' in response.get_data(as_text=True)
+    body = response.get_data(as_text=True)
+    assert 'data-advanced-completed="true"' in body
+    assert 'data-welcome-completed="false"' in body
+
+
+def test_update_admin_onboarding_session_handles_reset_payload(app):
+    with app.test_request_context("/"):
+        session[ADMIN_ONBOARDING_SESSION_KEY] = {
+            "welcome_tour_id": ADMIN_WELCOME_TOUR_ID,
+            "advanced_tour_id": ADMIN_ADVANCED_TOUR_ID,
+            "welcome_completed": True,
+            "advanced_completed": True,
+        }
+
+        update_admin_onboarding_session_from_settings_payload({"reset_onboarding_tours": True})
+
+        context = session[ADMIN_ONBOARDING_SESSION_KEY]
+        assert context["welcome_completed"] is False
+        assert context["advanced_completed"] is False

@@ -14,6 +14,8 @@ The E2E harness starts and stops a dedicated Core Docker Compose service automat
 Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
 You only need Docker/Compose available locally.
 The same frontend-owned test root also contains the RQ/Redis integration E2E suite.
+The Playwright bootstrap selects the `fork` multiprocessing start method when available because `pytest-flask`'s live server is
+not compatible with Python 3.14's default pickling-based start methods.
 
 ### Run tests in headful mode
 

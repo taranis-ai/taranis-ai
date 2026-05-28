@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy.orm import Mapped
@@ -24,44 +25,57 @@ class Settings(BaseModel):
         self.settings = self.with_defaults(settings)
 
     @classmethod
-    def with_defaults(cls, settings: dict[str, Any] | None = None) -> dict[str, Any]:
-        merged = dict(settings) if isinstance(settings, dict) else {}
+    def with_defaults(cls, settings: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        merged = dict(settings) if isinstance(settings, Mapping) else {}
         merged.setdefault("default_collector_proxy", "")
         merged.setdefault("default_collector_interval", "0 */8 * * *")
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
-        onboarding_tours = merged.setdefault("onboarding_tours", {})
-        if isinstance(onboarding_tours, dict):
-            merged["onboarding_tours"] = dict(onboarding_tours)
-        else:
-            merged["onboarding_tours"] = {}
+        merged.setdefault("onboarding_tours", {})
+        return merged
+
+    @classmethod
+    def _merge_onboarding_tours(cls, current: Any, delta: Any, reset: bool) -> dict[str, Any]:
+        if reset:
+            return {}
+
+        merged = dict(current) if isinstance(current, Mapping) else {}
+        if isinstance(delta, Mapping) and delta:
+            merged.update(delta)
         return merged
 
     @classmethod
     def update(cls, data) -> tuple[dict, int]:
+        if not isinstance(data, dict):
+            return {"error": "Invalid settings payload"}, 400
+
         settings = cls.get_settings_entry()
         if settings is None:
             logger.debug("No Settings entry found")
             return {"error": "Error updating settings"}, 404
 
-        update_data = data.get("settings") or {}
+        raw_update_data = data.get("settings")
+        if raw_update_data is None:
+            update_data = {}
+        elif not isinstance(raw_update_data, dict):
+            return {"error": "settings must be a JSON object"}, 400
+        else:
+            update_data = dict(raw_update_data)
+
         reset_onboarding_tours = data.get("reset_onboarding_tours") in {True, "true", "1", "on"}
         if update_data or reset_onboarding_tours:
             logger.debug(f"Settings update data: {update_data}")
             logger.debug(f"Settings before update: {settings.settings}")
-            update_data = dict(update_data)
             current_settings = cls.with_defaults(settings.settings)
             onboarding_tours = update_data.pop("onboarding_tours", None)
             current_settings.update(update_data)
-            if reset_onboarding_tours:
-                current_settings["onboarding_tours"] = {}
-            elif isinstance(onboarding_tours, dict) and onboarding_tours:
-                current_settings["onboarding_tours"] = {
-                    **current_settings["onboarding_tours"],
-                    **onboarding_tours,
-                }
-            settings.settings = cls.with_defaults(current_settings)
+            current_settings["onboarding_tours"] = cls._merge_onboarding_tours(
+                current=current_settings.get("onboarding_tours"),
+                delta=onboarding_tours,
+                reset=reset_onboarding_tours,
+            )
+            settings.settings = current_settings
         db.session.commit()
         logger.debug(f"Settings after update: {settings.settings}")
         return {"message": "Successfully updated settings", "settings": settings.settings}, 200

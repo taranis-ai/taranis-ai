@@ -96,3 +96,11 @@ def test_settings_update_can_reset_onboarding_tours_without_settings_payload(app
         assert status == 200
         assert response["settings"]["default_collector_proxy"] == "http://proxy.test"
         assert response["settings"]["onboarding_tours"] == {}
+
+
+def test_settings_update_rejects_non_object_settings_payload(app):
+    with app.app_context():
+        response, status = Settings.update({"settings": ["not", "an", "object"]})
+
+        assert status == 400
+        assert response == {"error": "settings must be a JSON object"}

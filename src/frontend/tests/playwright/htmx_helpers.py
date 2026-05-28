@@ -212,6 +212,7 @@ def wait_for_htmx_settled(
 
 
 def with_htmx_wait(page: Page, action: Callable[[], T], timeout: int = HTMX_WAIT_TIMEOUT_MS) -> T:
+    wait_for_htmx_settled(page, timeout=timeout)
     reset_htmx_state(page)
     result = action()
     wait_for_htmx_settled(page, timeout=timeout)

@@ -7,7 +7,7 @@ from models.admin import WorkerParameter, WorkerParameterValue
 
 from frontend.auth import admin_required
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.onboarding import get_cached_admin_onboarding_context
+from frontend.onboarding import get_cached_admin_onboarding_context, needs_admin_onboarding
 
 
 class AdminMixin:
@@ -24,7 +24,7 @@ class AdminMixin:
     def _common_context(cls, error: str | None = None, object_id: str = "0") -> dict[str, Any]:
         context = super(AdminMixin, cls)._common_context(error=error, object_id=object_id)
         admin_onboarding = get_cached_admin_onboarding_context()
-        context["needs_onboarding"] = bool(admin_onboarding)
+        context["needs_onboarding"] = needs_admin_onboarding(admin_onboarding)
         if admin_onboarding:
             context["admin_onboarding"] = admin_onboarding
         return context

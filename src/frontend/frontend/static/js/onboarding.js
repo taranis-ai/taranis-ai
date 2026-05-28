@@ -438,6 +438,15 @@ function startAdminOnboardingTour(root, tourName, startStepId) {
 
   function closeTour(status, options = {}) {
     markTour(status, options);
+    destroyTour();
+  }
+
+  let destroyStarted = false;
+  function destroyTour() {
+    if (destroyStarted) {
+      return;
+    }
+    destroyStarted = true;
     driverObj.destroy();
   }
 
@@ -493,7 +502,7 @@ function startAdminOnboardingTour(root, tourName, startStepId) {
     onCloseClick: () => closeTour("dismissed"),
     onDestroyStarted: () => {
       markTour("dismissed");
-      driverObj.destroy();
+      destroyTour();
     },
     onPopoverRender: (popover) => {
       if (tourName === "advanced" || !driverObj.isLastStep()) {

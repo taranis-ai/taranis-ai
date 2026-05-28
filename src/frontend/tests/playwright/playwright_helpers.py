@@ -118,11 +118,10 @@ class PlaywrightHelpers:
             except Exception as e:
                 raise AssertionError(f"❌ Expected test ID '{test_id}' to be visible, but it was not.") from e
 
-    def select_dynamic_type_and_wait(self, page: Page, option: str, parameter_route_fragment: str, ready_locator: Locator):
+    def select_dynamic_type_and_wait(self, page: Page, option: str, ready_locator: Locator):
         """Select a type that loads extra parameters over HTMX and wait for the new controls."""
         type_select = page.locator('select[name="type"]')
         expect(type_select).to_have_attribute("required", "")
-        assert parameter_route_fragment, "select_dynamic_type_and_wait requires a parameter route fragment"
         with_htmx_wait(page, lambda: type_select.select_option(option))
         expect(ready_locator).to_be_visible()
 

@@ -337,7 +337,7 @@ class TestEndToEndUser(BaseE2ETest):
                 load_more_button = page.locator("#infinite-scroll-trigger")
                 if load_more_button.count() == 0:
                     break
-                with_htmx_wait(page, lambda: load_more_button.click())
+                with_htmx_wait(page, lambda btn=load_more_button: btn.click())
                 final_visible_count, final_total = self._get_assess_story_counts(page)
                 assert final_total == expected_total
                 assert final_visible_count >= initial_visible_count

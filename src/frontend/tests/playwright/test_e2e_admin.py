@@ -23,7 +23,7 @@ SCHEDULER_BASELINE_TOTAL_TEXT = "Total: 1 scheduled jobs"
 
 
 def reset_admin_onboarding_tours(core_request_client):
-    core_request_client.put(
+    response = core_request_client.put(
         "/settings/settings",
         json_data={
             "settings": {
@@ -34,6 +34,12 @@ def reset_admin_onboarding_tours(core_request_client):
             }
         },
     )
+    assert response.ok, f"Failed to reset onboarding tours: {response.status_code}"
+
+
+def expect_settings_patch_response(page: Page):
+    settings_url = url_for("admin_settings.settings_action", action="settings", _external=True)
+    return page.expect_response(lambda response: response.url == settings_url and response.request.method == "PATCH")
 
 
 def expect_driver_step(page: Page, title: str):
@@ -84,7 +90,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         go_to_next_driver_step(page, "User table")
         go_to_next_driver_step(page, "Welcome tour complete")
 
-        with page.expect_response(url_for("admin_settings.settings_action", action="settings", _external=True)) as response_info:
+        with expect_settings_patch_response(page) as response_info:
             page.get_by_role("button", name="Complete now").click()
 
         assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
@@ -111,7 +117,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         go_to_next_driver_step(page, "User table")
         go_to_next_driver_step(page, "Welcome tour complete")
 
-        with page.expect_response(url_for("admin_settings.settings_action", action="settings", _external=True)) as response_info:
+        with expect_settings_patch_response(page) as response_info:
             page.get_by_test_id("admin-onboarding-advanced-tour").click()
 
         assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
@@ -126,7 +132,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         go_to_next_driver_step(page, "Word List")
         go_to_next_driver_step(page, "Word list table")
 
-        with page.expect_response(url_for("admin_settings.settings_action", action="settings", _external=True)) as advanced_response:
+        with expect_settings_patch_response(page) as advanced_response:
             page.get_by_role("button", name="Complete advanced tour").click()
 
         assert advanced_response.value.ok, f"Expected 2xx status, but got {advanced_response.value.status}"
@@ -380,7 +386,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_label("Description").fill("Test description of an OSINT source")
             page.locator('input[name="rank"][value="4"]').check()
             feed_url_input = page.locator('input[name="parameters[FEED_URL]"]')
-            self.select_dynamic_type_and_wait(page, "rss_collector", "/admin/source_parameters/0", feed_url_input)
+            self.select_dynamic_type_and_wait(page, "rss_collector", feed_url_input)
             expect(feed_url_input).to_have_attribute("required", "")
             feed_url_input.fill("http://example.com/feed")
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources_add.png")
@@ -943,7 +949,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Title", exact=True).fill(product_type_name)
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a product type")
             template_path_select = page.locator('select[name="parameters[TEMPLATE_PATH]"]')
-            self.select_dynamic_type_and_wait(page, "html_presenter", "/admin/product_type_parameters/0", template_path_select)
+            self.select_dynamic_type_and_wait(page, "html_presenter", template_path_select)
             expect(template_path_select).to_have_attribute("required", "")
             template_path_select.select_option("cert_at_daily_report.html")
 
@@ -994,7 +1000,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Description").fill("test bot description")
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("21")
-            self.select_dynamic_type_and_wait(page, "nlp_bot", "/admin/bot_parameters/0", refresh_interval_input)
+            self.select_dynamic_type_and_wait(page, "nlp_bot", refresh_interval_input)
 
             page.get_by_role("textbox", name="ITEM_FILTER").fill("1")
             page.get_by_role("textbox", name="BOT_API_KEY").fill("2")
@@ -1054,7 +1060,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(connector_name)
-            self.select_dynamic_type_and_wait(page, "misp_connector", "/admin/connector_parameters/0", refresh_interval_input)
+            self.select_dynamic_type_and_wait(page, "misp_connector", refresh_interval_input)
 
             expect(page.get_by_role("textbox", name="URL")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="URL").fill("test.url")
@@ -1108,7 +1114,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test")
-            self.select_dynamic_type_and_wait(page, "ftp_publisher", "/admin/publisher_parameters/0", ftp_url_input)
+            self.select_dynamic_type_and_wait(page, "ftp_publisher", ftp_url_input)
             expect(ftp_url_input).to_have_attribute("required", "")
             ftp_url_input.fill("testurl")
             page.get_by_role("button", name="Create Publisher Preset").click()

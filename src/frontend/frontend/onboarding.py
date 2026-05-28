@@ -2,6 +2,8 @@ from typing import Any
 
 from flask import session
 from models.admin import Settings
+from pydantic import ValidationError
+from requests import RequestException
 
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
@@ -30,24 +32,16 @@ def needs_admin_onboarding(context: dict[str, bool | str] | None) -> bool:
     return bool(context and (not context.get("welcome_completed") or not context.get("advanced_completed")))
 
 
-def _store_admin_onboarding_context(
-    context: dict[str, bool | str] | None,
-    *,
-    needs_onboarding: bool | None = None,
-) -> dict[str, bool | str] | None:
-    needs = needs_admin_onboarding(context) if needs_onboarding is None else needs_onboarding
-    session[ADMIN_ONBOARDING_SESSION_KEY] = {
-        "needs_onboarding": needs,
-        "context": context if needs else None,
-    }
-    return context if needs else None
+def _store_admin_onboarding_context(context: dict[str, bool | str] | None) -> dict[str, bool | str] | None:
+    session[ADMIN_ONBOARDING_SESSION_KEY] = context if isinstance(context, dict) else None
+    return session[ADMIN_ONBOARDING_SESSION_KEY]
 
 
 def get_admin_onboarding_context() -> dict[str, bool | str] | None:
     try:
         settings = DataPersistenceLayer().get_first(Settings)
-    except Exception:
-        logger.exception("Failed to load admin onboarding settings")
+    except (RequestException, ValueError, ValidationError) as error:
+        logger.exception(f"Failed to load admin onboarding settings: {error}")
         return None
 
     if not settings:
@@ -61,19 +55,15 @@ def get_admin_onboarding_context() -> dict[str, bool | str] | None:
 
 
 def get_cached_admin_onboarding_context() -> dict[str, bool | str] | None:
-    cached = session.get(ADMIN_ONBOARDING_SESSION_KEY)
-    if isinstance(cached, dict):
-        if not cached.get("needs_onboarding"):
-            return None
-        context = cached.get("context")
-        if isinstance(context, dict):
-            return context
+    if ADMIN_ONBOARDING_SESSION_KEY in session:
+        cached = session.get(ADMIN_ONBOARDING_SESSION_KEY)
+        return cached if isinstance(cached, dict) else None
 
     return _store_admin_onboarding_context(get_admin_onboarding_context())
 
 
 def reset_admin_onboarding_session() -> None:
-    _store_admin_onboarding_context(_base_admin_onboarding_context(), needs_onboarding=True)
+    _store_admin_onboarding_context(_base_admin_onboarding_context())
 
 
 def clear_admin_onboarding_session() -> None:
@@ -81,13 +71,18 @@ def clear_admin_onboarding_session() -> None:
 
 
 def update_admin_onboarding_session_from_settings_payload(payload: dict[str, Any] | None, *, continue_onboarding: bool = False) -> None:
+    reset_requested = isinstance(payload, dict) and payload.get("reset_onboarding_tours") in {True, "true", "1", "on"}
+    if reset_requested:
+        _store_admin_onboarding_context(_base_admin_onboarding_context())
+        return
+
     settings_payload = payload.get("settings") if isinstance(payload, dict) else None
     onboarding_tours = settings_payload.get("onboarding_tours") if isinstance(settings_payload, dict) else None
     if not isinstance(onboarding_tours, dict):
         return
 
     cached = session.get(ADMIN_ONBOARDING_SESSION_KEY)
-    context = cached.get("context") if isinstance(cached, dict) else None
+    context = cached if isinstance(cached, dict) else None
     if not isinstance(context, dict):
         context = _base_admin_onboarding_context()
 
@@ -96,5 +91,4 @@ def update_admin_onboarding_session_from_settings_payload(payload: dict[str, Any
     if ADMIN_ADVANCED_TOUR_ID in onboarding_tours:
         context["advanced_completed"] = onboarding_tours[ADMIN_ADVANCED_TOUR_ID] == ONBOARDING_COMPLETED_STATUS
 
-    needs_onboarding = continue_onboarding or needs_admin_onboarding(context)
-    _store_admin_onboarding_context(context, needs_onboarding=needs_onboarding)
+    _store_admin_onboarding_context(context if continue_onboarding or needs_admin_onboarding(context) else None)

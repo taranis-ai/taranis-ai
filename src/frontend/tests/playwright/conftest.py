@@ -1,5 +1,6 @@
 import base64
 import copy
+import multiprocessing
 import os
 import random
 import re
@@ -26,6 +27,18 @@ from tests.playwright.fixtures.test_news_item_list import news_items_list  # noq
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
 from tests.playwright.htmx_helpers import install_htmx_support
 from tests.playwright.notification_helpers import dismiss_notifications
+
+
+def _configure_live_server_start_method() -> None:
+    if "fork" not in multiprocessing.get_all_start_methods():
+        return
+
+    current_method = multiprocessing.get_start_method(allow_none=True)
+    if current_method is None:
+        multiprocessing.set_start_method("fork")
+
+
+_configure_live_server_start_method()
 
 
 def _wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interval: float = 0.5):
