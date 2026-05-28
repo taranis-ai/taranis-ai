@@ -18,15 +18,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     rm -rf /var/lib/apt/lists/*
 
 COPY ./src/worker/pyproject.toml ./src/worker/uv.lock ./src/worker/README.md /app/
+COPY ./src/models/. /models/
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
-    uv sync --frozen --no-editable --no-dev --no-install-project --no-install-package taranis-models
+    uv sync --frozen --no-editable --no-dev --no-install-project
 
 COPY ./src/worker/. /app/
-COPY ./src/models/pyproject.toml ./src/models/README.md /models/
-COPY ./src/models/models /models/models
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     export PATH="/app/.venv/bin:$PATH" && \

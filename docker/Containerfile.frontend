@@ -21,11 +21,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     rm -rf /var/lib/apt/lists/*
 
 COPY ./src/frontend/pyproject.toml ./src/frontend/uv.lock ./src/frontend/README.md /app/
+COPY ./src/models/. /models/
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
-    uv sync --frozen --no-editable --no-dev --no-install-project --no-install-package taranis-models
+    uv sync --frozen --no-editable --no-dev --no-install-project
 
 COPY ./src/frontend/build_tailwindcss.sh ./src/frontend/deno.json ./src/frontend/deno.lock ./src/frontend/tailwind.config.js ./src/frontend/vendor.js ./src/frontend/vendor_codemirror.js /app/
 COPY ./src/frontend/frontend/templates /app/frontend/templates
@@ -35,8 +36,6 @@ COPY ./src/core/core/static/openapi3_1.yaml /app/frontend/static/assets/openapi3
 RUN /app/build_tailwindcss.sh
 
 COPY ./src/frontend/. /app/
-COPY ./src/models/pyproject.toml ./src/models/README.md /models/
-COPY ./src/models/models /models/models
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     export PATH="/app/.venv/bin:$PATH" && \
