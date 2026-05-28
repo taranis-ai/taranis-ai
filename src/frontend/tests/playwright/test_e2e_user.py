@@ -6,6 +6,7 @@ import uuid
 import pytest
 from base_e2e_test import BaseE2ETest
 from flask import url_for
+from htmx_helpers import with_htmx_wait
 from playwright.sync_api import Error, Page, expect
 
 from tests.playwright.notification_helpers import dismiss_notifications
@@ -333,8 +334,10 @@ class TestEndToEndUser(BaseE2ETest):
             assert initial_visible_count > 0
             final_visible_count = initial_visible_count
             for _ in range(6):
-                page.mouse.wheel(0, 5500)
-                page.wait_for_timeout(300)
+                load_more_button = page.locator("#infinite-scroll-trigger")
+                if load_more_button.count() == 0:
+                    break
+                with_htmx_wait(page, lambda: load_more_button.click())
                 final_visible_count, final_total = self._get_assess_story_counts(page)
                 assert final_total == expected_total
                 assert final_visible_count >= initial_visible_count
@@ -543,6 +546,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("link", name="Analyze").click()
                 refreshed_search = page.get_by_test_id("report-search-input")
                 refreshed_search.fill(filter_prefix)
+                expect(page).to_have_url(re.compile(rf"search={filter_prefix}"))
                 expect(page.get_by_test_id("report-table").get_by_role("link", name=title, exact=True)).not_to_be_visible()
 
             def create_filter_report(title: str, report_type_label: str, completed: bool = False):
@@ -568,21 +572,22 @@ class TestEndToEndUser(BaseE2ETest):
             reset_button = page.get_by_test_id("reset-report-filters")
 
             search_input.fill(filter_prefix)
+            expect(page).to_have_url(re.compile(rf"search={filter_prefix}"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
 
-            completed_filter.select_option("false")
+            with_htmx_wait(page, lambda: completed_filter.select_option("false"))
             expect(page).to_have_url(
                 re.compile(rf"/analyze.*search={filter_prefix}.*completed=false|/analyze.*completed=false.*search={filter_prefix}")
             )
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).not_to_be_visible()
 
-            completed_filter.select_option("true")
+            with_htmx_wait(page, lambda: completed_filter.select_option("true"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).not_to_be_visible()
 
-            completed_filter.select_option("")
+            with_htmx_wait(page, lambda: completed_filter.select_option(""))
             expect(page).to_have_url(re.compile(r"completed=&report_item_type_id="))
             report_type_filter = page.get_by_test_id("report-type-filter")
             expect(report_type_filter).to_have_value("")
@@ -594,18 +599,19 @@ class TestEndToEndUser(BaseE2ETest):
                 self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL,
             )
             assert all_attribute_report_type_value is not None
-            report_type_filter.select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
+            with_htmx_wait(page, lambda: report_type_filter.select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL))
             expect(page).to_have_url(re.compile(rf"report_item_type_id={all_attribute_report_type_value}"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).not_to_be_visible()
 
-            reset_button.click()
+            with_htmx_wait(page, lambda: reset_button.click())
             expect(search_input).to_have_value("")
             expect(completed_filter).to_have_value("")
             expect(report_type_filter).to_have_value("")
             expect(page).not_to_have_url(re.compile(r"(search=|completed=|report_item_type_id=)"))
 
             search_input.fill(filter_prefix)
+            expect(page).to_have_url(re.compile(rf"search={filter_prefix}"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
             delete_filtered_report(completed_title)

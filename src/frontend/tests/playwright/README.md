@@ -64,6 +64,22 @@ PWDEBUG=1 pytest <--flag>
 
 To halt a test at a certain point, use classic breakpoints, or place `page.pause()` where you want the debugger to stop (works also without `PWDEBUG=1`).
 
+## Waiting for HTMX updates
+
+Prefer Playwright locator assertions when the expected visible result fully describes the wait:
+
+```python
+expect(page.get_by_test_id("assess")).to_be_visible()
+```
+
+Use `with_htmx_wait(page, action)` when an action triggers HTMX and the next step reads or clicks DOM that may be swapped:
+
+```python
+with_htmx_wait(page, lambda: page.locator("#infinite-scroll-trigger").click())
+```
+
+Keep `page.expect_response(...)` for tests where the response itself is the behavior under test, such as downloads, imports, or settings submissions.
+
 ## Pictures for documentation
 
 To generate most of the pictures for documentation, run:

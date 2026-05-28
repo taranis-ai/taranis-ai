@@ -24,6 +24,7 @@ from tests.playwright.e2e_harness import (
 )
 from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
+from tests.playwright.htmx_helpers import install_htmx_support
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -149,6 +150,7 @@ def configure_playwright_assertion_timeout(request):
 @pytest.fixture(scope="class")
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
+    install_htmx_support(context)
     # Drop action timeout from 30s to 5s.
     timeout = int(request.config.getoption("--e2e-timeout"))
     context.set_default_timeout(timeout)
