@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 from core.managers.db_manager import db
 
@@ -12,7 +12,7 @@ class FilterData:
             "tags": cls._build_tags(),
             "sources": cls._build_sources(user=user),
             "groups": cls._build_groups(user=user),
-            "languages": cls._build_languages(),
+            "languages": cls._build_languages(user=user),
         }
 
     @classmethod
@@ -45,17 +45,26 @@ class FilterData:
         return [group.to_assess_dict() for group in groups if getattr(group, "id", None)]
 
     @classmethod
-    def _build_languages(cls) -> list[str]:
+    def _build_languages(cls, user=None) -> list[str]:
         from core.model.news_item import NewsItem
+        from core.model.osint_source import OSINTSource
+        from core.model.role_based_access import ItemType
+        from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
-        languages = db.session.scalars(
-            db.select(NewsItem.language)
+        normalized_language = func.lower(func.trim(NewsItem.language)).label("language")
+        query = (
+            db.select(normalized_language)
+            .join(OSINTSource, NewsItem.osint_source_id == OSINTSource.id)
             .where(
                 NewsItem.language.is_not(None),
-                NewsItem.language != "",
+                func.trim(NewsItem.language) != "",
             )
             .distinct()
-            .order_by(NewsItem.language)
-        ).all()
+            .order_by(normalized_language)
+        )
+        if user:
+            rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
+            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+        languages = db.session.scalars(query).all()
 
         return [language for language in languages if language]

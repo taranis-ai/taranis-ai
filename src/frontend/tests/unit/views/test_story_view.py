@@ -363,6 +363,26 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     assert source_input[0].get("required") is None
 
 
+def test_manual_news_item_validation_error_targets_notification_bar(authenticated_client):
+    response = authenticated_client.post(
+        url_for("assess.create_news_item"),
+        data={
+            "title": "Invalid language test",
+            "link": "http://blubb.xxx",
+            "language": "xx",
+            "osint_source_id": "manual",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.headers["HX-Retarget"] == "#notification-bar"
+    assert response.headers["HX-Reswap"] == "outerHTML"
+    tree = html.fromstring(response.text)
+    notification_bar = tree.xpath('//section[@id="notification-bar"]')[0]
+    assert notification_bar.get("hx-swap-oob") is None
+    assert "Invalid BCP 47 language tag" in notification_bar.text_content()
+
+
 def test_story_edit_renders_news_item_tag_editor(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     mock_story_for_edit(responses_mock, story_payload)

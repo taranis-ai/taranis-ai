@@ -9,7 +9,7 @@ from core.managers.auth_manager import auth_required
 from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
 from core.model.revision import ReportRevision
-from core.service.cache_invalidation import SCOPE_REPORT_VIEWS, invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import SCOPE_PUBLISH_VIEWS, SCOPE_REPORT_VIEWS, invalidate_frontend_cache_on_success
 from core.service.product import ProductService
 from core.service.report_publish_workflow import ReportPublishWorkflowService
 
@@ -107,7 +107,7 @@ class ReportItem(MethodView):
             ProductService.autopublish_product(report_item_id)
             invalidate_frontend_cache_on_success(
                 status,
-                scopes=(SCOPE_REPORT_VIEWS,),
+                scopes=(SCOPE_REPORT_VIEWS, SCOPE_PUBLISH_VIEWS),
                 object_ids={"report": report_item_id},
             )
 

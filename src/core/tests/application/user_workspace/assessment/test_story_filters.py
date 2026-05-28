@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from uuid import uuid4
 
 import pytest
 
@@ -128,13 +129,134 @@ class TestStoryFilters(BaseTest):
         from core.managers.db_manager import db
         from core.model.story import Story
 
+        source_only_id = story_filter_data["stories"]["source_only"]
         with app.app_context():
-            source_only = Story.get(story_filter_data["stories"]["source_only"])
+            source_only = Story.get(source_only_id)
             assert source_only is not None
-            source_only.news_items[0].language = "es"
+            original_language = source_only.news_items[0].language
+            source_only.news_items[0].language = "ES"
             db.session.commit()
 
-        response = client.get(self.concat_url("filter-lists"), headers=auth_header)
-        payload = self.assert_json_ok(response).get_json()
+        try:
+            response = client.get(self.concat_url("filter-lists"), headers=auth_header)
+            payload = self.assert_json_ok(response).get_json()
 
-        assert set(payload["languages"]) == {"de", "en", "es"}
+            assert set(payload["languages"]) == {"de", "en", "es"}
+        finally:
+            with app.app_context():
+                source_only = Story.get(source_only_id)
+                assert source_only is not None
+                source_only.news_items[0].language = original_language
+                db.session.commit()
+
+    def test_language_filter_matches_legacy_case_variants(self, app, client, auth_header, story_filter_data):
+        from core.managers.db_manager import db
+        from core.model.story import Story
+
+        source_only_id = story_filter_data["stories"]["source_only"]
+        with app.app_context():
+            source_only = Story.get(source_only_id)
+            assert source_only is not None
+            original_language = source_only.news_items[0].language
+            source_only.news_items[0].language = "ES"
+            db.session.commit()
+
+        try:
+            self._assert_filtered_story_ids(client, auth_header, story_filter_data, {"language": ("es",)}, {"source_only"})
+        finally:
+            with app.app_context():
+                source_only = Story.get(source_only_id)
+                assert source_only is not None
+                source_only.news_items[0].language = original_language
+                db.session.commit()
+
+    def test_filter_lists_languages_respect_source_acl(self, app, client, auth_header_user_permissions, fake_source, story_filter_data):
+        from core.managers.db_manager import db
+        from core.model.news_item import NewsItem
+        from core.model.osint_source import OSINTSource
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType, RoleBasedAccess
+        from core.model.story import Story
+
+        acl_ids = []
+        restricted_source_id = str(uuid4())
+        restricted_news_item_id = str(uuid4())
+        restricted_story_id = None
+
+        with app.app_context():
+            restricted_source = OSINTSource(
+                id=restricted_source_id,
+                name="Restricted Language Source",
+                description="Source restricted to admin role",
+                type="rss_collector",
+                parameters={"FEED_URL": "https://example.invalid/restricted-language.xml"},
+            )
+            db.session.add(restricted_source)
+            db.session.commit()
+
+            result, status = Story.add(
+                {
+                    "title": "Restricted Language Story",
+                    "news_items": [
+                        {
+                            "id": restricted_news_item_id,
+                            "title": "Restricted Language Story",
+                            "content": "Restricted language content",
+                            "source": "unit-test",
+                            "link": "https://example.invalid/restricted-language",
+                            "osint_source_id": restricted_source_id,
+                            "language": "it",
+                            "hash": NewsItem.get_hash(
+                                title="Restricted Language Story",
+                                link="https://example.invalid/restricted-language",
+                            ),
+                        }
+                    ],
+                }
+            )
+            assert status == 200
+            restricted_story_id = result["story_id"]
+
+            user_role = Role.filter_by_name("User")
+            admin_role = Role.filter_by_name("Admin")
+            assert user_role is not None
+            assert admin_role is not None
+
+            acl_specs = (
+                ("visible-test-source", fake_source, user_role.id),
+                ("visible-extra-source", story_filter_data["sources"]["source_only"], user_role.id),
+                ("visible-manual-source", "manual", user_role.id),
+                ("restricted-language-source", restricted_source_id, admin_role.id),
+            )
+            for name, item_id, role_id in acl_specs:
+                acl = RoleBasedAccess(
+                    name=f"{name}-{uuid4()}",
+                    description="Filter-list language ACL test",
+                    item_type=ItemType.OSINT_SOURCE,
+                    item_id=item_id,
+                    roles=[role_id],
+                    read_only=True,
+                    enabled=True,
+                )
+                db.session.add(acl)
+                db.session.flush()
+                acl_ids.append(acl.id)
+            db.session.commit()
+
+        try:
+            response = client.get(self.concat_url("filter-lists"), headers=auth_header_user_permissions)
+            payload = self.assert_json_ok(response).get_json()
+
+            assert "it" not in payload["languages"]
+            assert set(payload["languages"]) >= {"de", "en", "fr"}
+        finally:
+            with app.app_context():
+                for acl_id in acl_ids:
+                    RoleBasedAccess.delete(acl_id)
+                if news_item := NewsItem.get(restricted_news_item_id):
+                    db.session.delete(news_item)
+                if restricted_story_id and (story := Story.get(restricted_story_id)):
+                    db.session.delete(story)
+                if source := OSINTSource.get(restricted_source_id):
+                    db.session.delete(source)
+                db.session.commit()

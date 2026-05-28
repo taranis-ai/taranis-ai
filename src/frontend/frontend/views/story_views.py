@@ -730,6 +730,16 @@ class StoryView(BaseView):
         return make_response(notification + content, status)
 
     @classmethod
+    def _validation_error_notification(cls, exc: ValidationError, model: type) -> ResponseReturnValue:
+        logger.exception(format_pydantic_errors(exc, model))
+        notification = {"message": format_pydantic_errors(exc, model), "error": True}
+        notification_html = render_template("notification/index.html", notification=notification, oob=False)
+        response = make_response(notification_html, 400)
+        response.headers["HX-Retarget"] = "#notification-bar"
+        response.headers["HX-Reswap"] = "outerHTML"
+        return response
+
+    @classmethod
     def news_item_edit_view(cls, core_response) -> ResponseReturnValue:
         return cls._handle_news_item_response(core_response, redirect_on_story=True)
 
@@ -749,10 +759,7 @@ class StoryView(BaseView):
         try:
             news_item = NewsItem(**item_data)
         except ValidationError as e:
-            logger.exception(format_pydantic_errors(e, NewsItem))
-            notification = {"message": format_pydantic_errors(e, NewsItem), "error": True}
-            notification_html = render_template("notification/index.html", notification=notification)
-            return make_response(notification_html, 400)
+            return cls._validation_error_notification(e, NewsItem)
         core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.to_core_dict())
         return cls.news_item_edit_view(core_response)
 
@@ -763,10 +770,7 @@ class StoryView(BaseView):
         try:
             news_item = NewsItem(**form_data)
         except ValidationError as e:
-            logger.exception(format_pydantic_errors(e, NewsItem))
-            notification = {"message": format_pydantic_errors(e, NewsItem), "error": True}
-            notification_html = render_template("notification/index.html", notification=notification)
-            return make_response(notification_html, 400)
+            return cls._validation_error_notification(e, NewsItem)
 
         core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.to_core_dict())
 
@@ -1058,10 +1062,7 @@ class StoryView(BaseView):
             form_data = parse_formdata(request.form)
             story_update = StoryUpdatePayload(**form_data)
         except ValidationError as exc:
-            logger.exception(format_pydantic_errors(exc, StoryUpdatePayload))
-            notification = {"message": format_pydantic_errors(exc, StoryUpdatePayload), "error": True}
-            notification_html = render_template("notification/index.html", notification=notification)
-            return make_response(notification_html, 400)
+            return cls._validation_error_notification(exc, StoryUpdatePayload)
 
         response = CoreApi().api_patch(f"/assess/stories/{story_id}", json_data=story_update.model_dump(mode="json"))
         notification_html = cls.get_notification_from_response(response)
