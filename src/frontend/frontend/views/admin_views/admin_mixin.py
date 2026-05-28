@@ -2,6 +2,7 @@ from typing import Any, cast
 
 from flask import current_app
 from flask.typing import ResponseReturnValue
+from flask_jwt_extended import current_user
 from jinja2 import TemplateNotFound
 from models.admin import WorkerParameter, WorkerParameterValue
 
@@ -23,7 +24,7 @@ class AdminMixin:
     @classmethod
     def _common_context(cls, error: str | None = None, object_id: str = "0") -> dict[str, Any]:
         context = super(AdminMixin, cls)._common_context(error=error, object_id=object_id)
-        admin_onboarding = get_cached_admin_onboarding_context()
+        admin_onboarding = get_cached_admin_onboarding_context(current_user)
         context["needs_onboarding"] = needs_admin_onboarding(admin_onboarding)
         if admin_onboarding:
             context["admin_onboarding"] = admin_onboarding

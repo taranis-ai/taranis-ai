@@ -9,7 +9,6 @@ from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.core_api import CoreApi
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
@@ -65,7 +64,9 @@ class UserProfileView(BaseView):
         if not core_response or error:
             return render_template(
                 "user_profile/settings.html",
-                **cls.get_update_context("0", error=error),
+                user=current_user,
+                language_options=LANGUAGE_OPTIONS,
+                notification={"message": error or "Failed to update profile settings.", "error": True},
             ), 400
 
         notification_response = cls.get_notification_from_dict(core_response)
@@ -79,9 +80,10 @@ class UserProfileView(BaseView):
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: str = "0"):
         try:
-            obj = ProfileSettings(**processed_data)
-            dpl = DataPersistenceLayer()
-            result = dpl.store_object(obj)
+            if not processed_data:
+                return {"message": "Profile unchanged", "user_profile": cls._current_profile_data()}, None
+            payload = cls._validated_profile_payload(processed_data)
+            result = CoreApi().api_post(ProfileSettings._core_endpoint, json_data=payload)
             return (result.json(), None) if result.ok else (None, result.json())
         except ValidationError as exc:
             logger.error(format_pydantic_errors(exc, cls.model))
@@ -91,6 +93,31 @@ class UserProfileView(BaseView):
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
+
+    @classmethod
+    def _validated_profile_payload(cls, updates: dict[str, Any]) -> dict[str, Any]:
+        validated = ProfileSettings(**cls._merged_profile_data(updates)).model_dump(mode="json")
+        return {key: validated[key] for key in updates}
+
+    @classmethod
+    def _current_profile_data(cls) -> dict[str, Any]:
+        profile = getattr(current_user, "profile", None)
+        if hasattr(profile, "model_dump"):
+            return profile.model_dump(mode="json")
+        if isinstance(profile, dict):
+            return dict(profile)
+        return {}
+
+    @classmethod
+    def _merged_profile_data(cls, updates: dict[str, Any]) -> dict[str, Any]:
+        merged = cls._current_profile_data()
+        for key, value in updates.items():
+            if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key] = {**merged[key], **value}
+            else:
+                merged[key] = value
+
+        return merged
 
     def get(self, **kwargs) -> tuple[str, int]:
         return render_template("user_profile/profile.html", user=current_user), 200

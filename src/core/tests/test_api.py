@@ -1,5 +1,6 @@
 import importlib
 import os
+from copy import deepcopy
 
 
 def _reload_external_auth_modules():
@@ -129,6 +130,101 @@ def test_user_profile(client, auth_header):
     assert response.json
     assert response.data
     assert response.status_code == 200
+
+
+def _onboarding_task_ids(payload: dict, scope: str | None = None) -> set[str]:
+    return {task["id"] for task in payload.get("pending_onboarding_tasks", []) if scope is None or task.get("scope") == scope}
+
+
+def test_user_info_includes_pending_global_onboarding_for_admin(client, auth_header):
+    from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID, USER_PRODUCT_OVERVIEW_TASK_ID
+
+    response = client.get("/api/users/", headers=auth_header)
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert {ADMIN_WELCOME_TOUR_ID, ADMIN_ADVANCED_TOUR_ID}.issubset(_onboarding_task_ids(payload, "global"))
+    assert USER_PRODUCT_OVERVIEW_TASK_ID in _onboarding_task_ids(payload, "user")
+
+
+def test_user_info_excludes_global_onboarding_for_non_admin(client, auth_header_user_permissions):
+    from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID, USER_PRODUCT_OVERVIEW_TASK_ID
+
+    response = client.get("/api/users/", headers=auth_header_user_permissions)
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert ADMIN_WELCOME_TOUR_ID not in _onboarding_task_ids(payload, "global")
+    assert ADMIN_ADVANCED_TOUR_ID not in _onboarding_task_ids(payload, "global")
+    assert USER_PRODUCT_OVERVIEW_TASK_ID in _onboarding_task_ids(payload, "user")
+
+
+def test_user_info_excludes_completed_user_onboarding_task(app, client, auth_header_user_permissions):
+    from models.user import USER_PRODUCT_OVERVIEW_TASK_ID
+
+    from core.managers.db_manager import db
+    from core.model.user import User
+
+    with app.app_context():
+        user = User.find_by_name("user")
+        assert user is not None
+        original_profile = deepcopy(user.profile)
+
+    try:
+        update_response = client.post(
+            "/api/users/profile",
+            json={"onboarding_tasks": {USER_PRODUCT_OVERVIEW_TASK_ID: "completed"}},
+            headers=auth_header_user_permissions,
+        )
+        assert update_response.status_code == 200
+
+        response = client.get("/api/users/", headers=auth_header_user_permissions)
+
+        assert response.status_code == 200
+        assert USER_PRODUCT_OVERVIEW_TASK_ID not in _onboarding_task_ids(response.get_json(), "user")
+    finally:
+        with app.app_context():
+            user = User.find_by_name("user")
+            assert user is not None
+            user.profile = original_profile
+            db.session.commit()
+
+
+def test_settings_onboarding_update_invalidates_user_profile_cache(app, client, auth_header, monkeypatch):
+    from models.user import ADMIN_WELCOME_TOUR_ID
+
+    from core.api import settings as settings_api
+    from core.managers.db_manager import db
+    from core.model.settings import Settings
+
+    calls = []
+
+    def fake_invalidate_frontend_cache_on_success(status_code, **kwargs):
+        calls.append((status_code, kwargs))
+        return 0
+
+    with app.app_context():
+        settings_entry = Settings.get_settings_entry()
+        assert settings_entry is not None
+        original_settings = deepcopy(settings_entry.settings)
+
+    monkeypatch.setattr(settings_api, "invalidate_frontend_cache_on_success", fake_invalidate_frontend_cache_on_success)
+
+    try:
+        response = client.patch(
+            "/api/settings/settings",
+            json={"settings": {"onboarding_tours": {ADMIN_WELCOME_TOUR_ID: "completed"}}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 200
+        assert calls[-1] == (200, {"models": ("settings",), "user_profiles": ("*",)})
+    finally:
+        with app.app_context():
+            settings_entry = Settings.get_settings_entry()
+            assert settings_entry is not None
+            settings_entry.settings = original_settings
+            db.session.commit()
 
 
 def test_auth_logout(app, client, auth_header):

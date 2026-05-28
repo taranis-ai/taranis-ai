@@ -40,6 +40,14 @@ Frontend caching now uses Redis directly and falls back to a no-op cache when di
 - when the cache-specific settings are unset, frontend falls back to `REDIS_URL` and `REDIS_PASSWORD`
 - unit tests disable caching by default unless `CACHE_ENABLED=true` is explicitly set in the test app config
 
+### Onboarding data flow
+
+The frontend reads onboarding state from the cached `UserProfile` returned by core's `/api/users/` request. `current_user.pending_onboarding_tasks` is the single frontend read model for both global admin onboarding and per-user onboarding.
+
+- global admin task status is still written through settings as `settings.onboarding_tours`
+- per-user task status is written through the user profile as `profile.onboarding_tasks`
+- `frontend/static/js/onboarding.js` dispatches completion writes by task scope, but discovers pending tasks only from the injected user profile payload
+
 ## Development Setup
 
 ### 0. Read the documentation

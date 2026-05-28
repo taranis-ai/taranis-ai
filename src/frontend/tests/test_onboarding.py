@@ -1,67 +1,113 @@
-import pytest
-from flask import url_for
+import json
 
-from frontend.config import Config
-from frontend.onboarding import (
+import pytest
+from flask import render_template, url_for
+from models.user import (
     ADMIN_ADVANCED_TOUR_ID,
     ADMIN_WELCOME_TOUR_ID,
-    is_onboarding_tour_completed,
+    USER_PRODUCT_OVERVIEW_TASK_ID,
+    OnboardingTask,
+    ProfileSettings,
 )
 
-
-def settings_response(onboarding_tours=None):
-    return {
-        "items": [
-            {
-                "id": "settings",
-                "settings": {
-                    "default_collector_proxy": "",
-                    "default_collector_interval": "0 */8 * * *",
-                    "default_tlp_level": "clear",
-                    "default_story_conflict_retention": "200",
-                    "default_news_item_conflict_retention": "200",
-                    "onboarding_tours": onboarding_tours or {},
-                },
-            }
-        ]
-    }
+from frontend.cache import add_user_to_cache
+from frontend.config import Config
+from frontend.onboarding import is_onboarding_tour_completed
 
 
-def test_onboarding_prompt_renders_pending_context(app, authenticated_client, responses):
-    responses.get(
-        f"{Config.TARANIS_CORE_URL}/settings/settings",
-        json=settings_response({ADMIN_ADVANCED_TOUR_ID: "completed"}),
-        status=200,
-        content_type="application/json",
+def _cache_user_with_pending_tasks(user, pending_tasks):
+    updated_user = user.model_copy(update={"pending_onboarding_tasks": pending_tasks})
+    add_user_to_cache(updated_user.model_dump(mode="json"))
+
+
+def test_onboarding_prompt_renders_pending_context(app, authenticated_client, auth_user, responses):
+    _cache_user_with_pending_tasks(
+        auth_user,
+        [
+            OnboardingTask(id=ADMIN_WELCOME_TOUR_ID, scope="global"),
+            OnboardingTask(id=USER_PRODUCT_OVERVIEW_TASK_ID, scope="user"),
+        ],
     )
 
     response = authenticated_client.get(url_for("base.onboarding_prompt"))
 
     assert response.status_code == 200
+    assert len(responses.calls) == 0
     body = response.get_data(as_text=True)
-    assert 'data-testid="admin-onboarding-tour"' in body
-    assert f'data-welcome-tour-id="{ADMIN_WELCOME_TOUR_ID}"' in body
-    assert f'data-advanced-tour-id="{ADMIN_ADVANCED_TOUR_ID}"' in body
+    assert 'data-testid="onboarding-root"' in body
     assert f'data-settings-action="{url_for("admin_settings.settings_action", action="settings")}"' in body
-    assert 'data-welcome-completed="false"' in body
-    assert 'data-advanced-completed="true"' in body
-    assert 'name="settings[default_collector_interval]"' not in body
-    assert "data-onboarding-settings-form" not in body
-    assert "self.TaranisOnboarding?.startAdminTours" in body
+    assert f'data-profile-action="{url_for("user.settings")}"' in body
+    assert "data-pending-tasks=" in body
+    assert ADMIN_WELCOME_TOUR_ID in body
+    assert USER_PRODUCT_OVERVIEW_TASK_ID in body
+    assert ADMIN_ADVANCED_TOUR_ID not in body
+    assert "settings[default_collector_interval]" not in body
 
 
-def test_onboarding_prompt_returns_no_content_when_all_tours_are_completed(app, authenticated_client, responses):
-    responses.get(
-        f"{Config.TARANIS_CORE_URL}/settings/settings",
-        json=settings_response({ADMIN_WELCOME_TOUR_ID: "completed", ADMIN_ADVANCED_TOUR_ID: "completed"}),
-        status=200,
-        content_type="application/json",
-    )
+def test_onboarding_prompt_returns_no_content_when_all_tasks_completed(app, authenticated_client, auth_user, responses):
+    _cache_user_with_pending_tasks(auth_user, [])
 
     response = authenticated_client.get(url_for("base.onboarding_prompt"))
 
     assert response.status_code == 204
     assert response.get_data(as_text=True) == ""
+    assert len(responses.calls) == 0
+
+
+def test_base_template_can_render_without_pending_onboarding(app):
+    with app.test_request_context("/"):
+        body = render_template("base.html")
+
+    assert "onboarding-root" not in body
+
+
+def test_user_onboarding_completion_posts_profile_task(authenticated_client_basic, responses, monkeypatch):
+    from frontend.views import user_views
+
+    monkeypatch.setattr(user_views, "update_current_user_cache", lambda: None)
+    responses.post(
+        f"{Config.TARANIS_CORE_URL}/users/profile",
+        json={"message": "Profile updated", "user_profile": {"onboarding_tasks": {USER_PRODUCT_OVERVIEW_TASK_ID: "completed"}}},
+        status=200,
+        content_type="application/json",
+    )
+
+    response = authenticated_client_basic.post(
+        url_for("user.update_settings"),
+        data={f"onboarding_tasks[{USER_PRODUCT_OVERVIEW_TASK_ID}]": "completed"},
+    )
+
+    assert response.status_code == 200
+    assert len(responses.calls) == 1
+    request_body = json.loads(responses.calls[0].request.body)
+    assert set(request_body) == {"onboarding_tasks"}
+    assert request_body["onboarding_tasks"][USER_PRODUCT_OVERVIEW_TASK_ID] == "completed"
+
+
+def test_user_settings_update_preserves_onboarding_task_status(authenticated_client_basic, auth_user_basic, responses, monkeypatch):
+    from frontend.views import user_views
+
+    monkeypatch.setattr(user_views, "update_current_user_cache", lambda: None)
+    _cache_user_with_pending_tasks(
+        auth_user_basic.model_copy(update={"profile": ProfileSettings(onboarding_tasks={USER_PRODUCT_OVERVIEW_TASK_ID: "completed"})}),
+        [],
+    )
+    responses.post(
+        f"{Config.TARANIS_CORE_URL}/users/profile",
+        json={"message": "Profile updated", "user_profile": {"compact_view": True}},
+        status=200,
+        content_type="application/json",
+    )
+
+    response = authenticated_client_basic.post(
+        url_for("user.update_settings"),
+        data={"compact_view": "true"},
+    )
+
+    assert response.status_code == 200
+    request_body = json.loads(responses.calls[0].request.body)
+    assert request_body["compact_view"] is True
+    assert "onboarding_tasks" not in request_body
 
 
 @pytest.mark.parametrize(

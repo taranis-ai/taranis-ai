@@ -15,8 +15,10 @@ import pytest
 import requests
 import responses
 from flask import json, url_for
+from models.user import USER_PRODUCT_OVERVIEW_TASK_ID
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 
+from tests.core_requests import CoreRequestClient
 from tests.playwright.e2e_harness import (
     docker_cleanup_commands,
     docker_setup_commands,
@@ -253,6 +255,14 @@ def authenticated_page_factory(taranis_frontend: Page, e2e_server, access_token_
     return _create
 
 
+def complete_user_product_overview_task(core_url: str, access_token: str):
+    response = CoreRequestClient(base_url=core_url, access_token=access_token).post(
+        "/users/profile",
+        json_data={"onboarding_tasks": {USER_PRODUCT_OVERVIEW_TASK_ID: "completed"}},
+    )
+    assert response.ok, f"Failed to complete user onboarding task: {response.status_code}"
+
+
 @pytest.fixture
 def logged_in_page(authenticated_page_factory):
     """Returns a Playwright Page with admin authentication."""
@@ -265,8 +275,9 @@ def logged_in_page(authenticated_page_factory):
 
 
 @pytest.fixture
-def non_admin_logged_in_page(authenticated_page_factory):
+def non_admin_logged_in_page(authenticated_page_factory, run_core, access_token_basic):
     """Returns a Playwright Page with basic user authentication."""
+    complete_user_product_overview_task(run_core, access_token_basic)
     page = authenticated_page_factory("basic")
     try:
         yield page
