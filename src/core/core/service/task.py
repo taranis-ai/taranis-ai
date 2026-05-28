@@ -45,7 +45,7 @@ class TaskService:
         task_kind = cls._resolve_task_kind(submission.id, submission.task)
         payload: dict[str, Any] = {
             "id": submission.id,
-            "result": submission.result,
+            "kwargs": submission.kwargs,
             "status": submission.status,
         }
         if submission.task is not None:
@@ -56,7 +56,7 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
-        if submission.status == "SUCCESS" and submission.result is not None:
+        if submission.status in TaskModel.SUCCESS_STATUSES:
             cls._handle_success_result(submission)
         elif task_kind == "collector_task":
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
@@ -96,24 +96,20 @@ class TaskService:
             return
 
         if task_kind == "collector_task":
-            logger.info(f"Collector task {submission.id} completed with result: {submission.result}")
+            logger.info(f"Collector task {submission.id} completed with kwargs: {submission.kwargs}")
             cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
             return
 
         if task_kind == "connector_task":
-            handle_misp_connector_result(submission.result)  # type: ignore TODO: validate result before handling
-            return
-
-        if not isinstance(submission.result, dict):
-            logger.error(f"Invalid {task_kind} result type: {type(submission.result)}. Expected dict.")
+            handle_misp_connector_result(submission.kwargs)
             return
 
         if task_kind == "gather_word_list":
-            WordList.update_word_list(**submission.result)
+            WordList.update_word_list(**submission.kwargs)
             return
 
         if task_kind == "presenter_task":
-            cls._handle_presenter_result(submission.result)
+            cls._handle_presenter_result(submission.kwargs)
             return
 
         if task_kind == "bot_task":
@@ -134,10 +130,7 @@ class TaskService:
     def _handle_bot_result(submission: TaskSubmission) -> None:
         worker_type = submission.worker_type or ""
         worker_id = submission.worker_id or "UNKNOWN_ID"
-        bot_result = submission.result
-        if not isinstance(bot_result, dict):
-            logger.error("Invalid bot task result payload")
-            return
+        bot_result = submission.kwargs
 
         if worker_type in TAGGING_BOTS:
             NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")

@@ -38,12 +38,7 @@ from typing import Any
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from flask import Flask
 from models.admin import CronSpec
-from models.task_submission_meta import (
-    WorkerTaskPayload,
-    build_task_submission_meta,
-    build_worker_task_payload,
-    is_worker_task_payload,
-)
+from models.task_submission_meta import TaskSubmissionMeta, build_task_submission_meta
 from redis import Redis
 from rq import Queue
 from rq.exceptions import NoSuchJobError
@@ -200,15 +195,36 @@ def _compute_next_timestamp(cron: str | None, interval: int | None, base_ts: flo
     raise ValueError("CronSpec must provide either cron or interval")
 
 
-def _build_enqueue_kwargs(payload: WorkerTaskPayload, kwargs: dict[str, Any]) -> dict[str, Any]:
+def _get_task_submission_meta(task_name: str, args: tuple[Any, ...]) -> TaskSubmissionMeta | None:
+    if task_name == "collector_task" and args:
+        return build_task_submission_meta("collector_task", str(args[0]))
+    if task_name == "collector_preview" and args:
+        return build_task_submission_meta("collector_preview", str(args[0]))
+    if task_name == "fetch_single_news_item" and args and isinstance(args[0], dict):
+        worker_id = str(args[0].get("parameters", {}).get("WEB_URL") or args[0].get("id") or "fetch_single_news_item")
+        return build_task_submission_meta("fetch_single_news_item", worker_id, "simple_web_collector")
+    if task_name == "bot_task" and args:
+        bot_id = str(args[0])
+        return build_task_submission_meta(f"bot_{bot_id}", bot_id, "BOT_TASK")
+    if task_name == "presenter_task" and args:
+        return build_task_submission_meta("presenter_task", str(args[0]))
+    if task_name == "publisher_task" and len(args) >= 2:
+        return build_task_submission_meta("publisher_task", str(args[1]))
+    if task_name == "connector_task" and args:
+        return build_task_submission_meta("connector_task", str(args[0]))
+    if task_name == "gather_word_list" and args:
+        return build_task_submission_meta("gather_word_list", str(args[0]))
+    if task_name == TOKEN_CLEANUP_JOB_ID:
+        return build_task_submission_meta(TOKEN_CLEANUP_JOB_ID, TOKEN_CLEANUP_JOB_ID)
+    return None
+
+
+def _build_enqueue_kwargs(task_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, Any]:
     meta = dict(kwargs.get("meta") or {})
     # Preserve scheduler dashboard labels where available.
-    meta["task_submission"] = build_task_submission_meta(payload)
+    if task_submission := _get_task_submission_meta(task_name, args):
+        meta["task_submission"] = task_submission
     return {**kwargs, "meta": meta}
-
-
-def _cleanup_task_payload() -> WorkerTaskPayload:
-    return build_worker_task_payload(TOKEN_CLEANUP_JOB_ID, TOKEN_CLEANUP_JOB_ID)
 
 
 class QueueManager:
@@ -331,7 +347,7 @@ class QueueManager:
             job_id=TOKEN_CLEANUP_JOB_ID,
             cron=TOKEN_CLEANUP_CRON,
             func_path="cleanup_token_blacklist",
-            args=[_cleanup_task_payload()],
+            args=[],
             queue_name="misc",
         )
         return {spec.job_id: spec}
@@ -471,7 +487,7 @@ class QueueManager:
             self.enqueue_task(
                 "misc",
                 "gather_word_list",
-                build_worker_task_payload("gather_word_list", str(word_list.id), fields={"word_list_id": word_list.id}),
+                word_list.id,
                 job_id=f"gather_word_list_{word_list.id}",
             )
         logger.info(f"Gathering for {len(word_lists)} empty WordLists scheduled")
@@ -488,7 +504,7 @@ class QueueManager:
             self.enqueue_task(
                 "misc",
                 "gather_word_list",
-                build_worker_task_payload("gather_word_list", str(word_list.id), fields={"word_list_id": word_list.id}),
+                word_list.id,
                 job_id=f"gather_word_list_{word_list.id}",
             )
         return {"message": "Gathering for all WordLists scheduled"}, 200
@@ -533,8 +549,7 @@ class QueueManager:
         self,
         queue_name: str,
         task_name: str,
-        payload: WorkerTaskPayload,
-        *,
+        *args,
         job_id: str | None = None,
         **kwargs,
     ):
@@ -553,11 +568,7 @@ class QueueManager:
                 logger.error(f"Unknown task: {task_name}")
                 return False
 
-            if not is_worker_task_payload(payload):
-                logger.error(f"Invalid worker payload for task {task_name}: {payload!r}")
-                return False
-
-            return queue.enqueue(task_func, payload, job_id=job_id, **_build_enqueue_kwargs(payload, kwargs))
+            return queue.enqueue(task_func, *args, job_id=job_id, **_build_enqueue_kwargs(task_name, args, kwargs))
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
             return False
@@ -579,8 +590,7 @@ class QueueManager:
         queue_name: str,
         task_name: str,
         scheduled_time: datetime,
-        payload: WorkerTaskPayload,
-        *,
+        *args,
         job_id: str | None = None,
         **kwargs,
     ):
@@ -599,16 +609,12 @@ class QueueManager:
                 logger.error(f"Unknown task: {task_name}")
                 return False
 
-            if not is_worker_task_payload(payload):
-                logger.error(f"Invalid worker payload for task {task_name}: {payload!r}")
-                return False
-
             job = queue.enqueue_at(
                 scheduled_time,
                 task_func,
-                payload,
+                *args,
                 job_id=job_id,
-                **_build_enqueue_kwargs(payload, kwargs),
+                **_build_enqueue_kwargs(task_name, args, kwargs),
             )
             logger.info(f"Scheduled {task_name} on {queue_name} as job {job.id} for {scheduled_time}")
             return job
@@ -701,7 +707,8 @@ class QueueManager:
         if self.enqueue_task(
             "collectors",
             "collector_task",
-            build_worker_task_payload("collector_task", source_id, fields={"manual": True}),
+            source_id,
+            True,
             job_id=task_id,
         ):
             logger.info(f"Collect for source {source_id} scheduled")
@@ -716,7 +723,7 @@ class QueueManager:
         if job := self.enqueue_task(
             "collectors",
             "collector_preview",
-            build_worker_task_payload("collector_preview", source_id, "collector_task"),
+            source_id,
             job_id=task_id,
         ):
             logger.info(f"Preview for source {source_id} scheduled")
@@ -760,7 +767,7 @@ class QueueManager:
         job = self.enqueue_task(
             "collectors",
             "fetch_single_news_item",
-            build_worker_task_payload("fetch_single_news_item", url, "simple_web_collector", fields=parameters),
+            parameters,
             job_id=self._get_single_fetch_job_id(parameters),
         )
         if not job:
@@ -788,7 +795,8 @@ class QueueManager:
             self.enqueue_task(
                 "collectors",
                 "collector_task",
-                build_worker_task_payload("collector_task", source.id, fields={"manual": True}),
+                source.id,
+                True,
                 job_id=source.task_id,
             )
             logger.info(f"Collect for source {source.id} scheduled")
@@ -799,7 +807,8 @@ class QueueManager:
         if self.enqueue_task(
             "connectors",
             "connector_task",
-            build_worker_task_payload("connector_task", connector_id, fields={"story_ids": story_ids}),
+            connector_id,
+            story_ids,
         ):
             logger.info(f"Connector with id: {connector_id} scheduled")
             return {"message": "Connector scheduled"}, 200
@@ -810,7 +819,8 @@ class QueueManager:
         if self.enqueue_task(
             "connectors",
             "connector_task",
-            build_worker_task_payload("connector_task", connector_id, fields={"story_ids": None}),
+            connector_id,
+            None,
         ):
             logger.info(f"Connector with id: {connector_id} scheduled")
             return {"message": "Connector scheduled"}, 200
@@ -821,7 +831,7 @@ class QueueManager:
         if self.enqueue_task(
             "misc",
             "gather_word_list",
-            build_worker_task_payload("gather_word_list", str(word_list_id), fields={"word_list_id": word_list_id}),
+            word_list_id,
             job_id=f"gather_word_list_{word_list_id}",
         ):
             logger.info(f"Gathering for WordList {word_list_id} scheduled")
@@ -832,7 +842,8 @@ class QueueManager:
         if self.enqueue_task(
             "bots",
             "bot_task",
-            build_worker_task_payload(f"bot_{bot_id}", bot_id, "BOT_TASK", fields={"filter": filter} if filter else None),
+            bot_id,
+            filter,
             job_id=f"bot_{bot_id}",
         ):
             logger.info(f"Executing Bot {bot_id} scheduled")
@@ -840,22 +851,22 @@ class QueueManager:
         return {"error": "Could not reach Redis"}, 500
 
     @staticmethod
-    def _build_presenter_task_payload(product_id: str) -> WorkerTaskPayload | None:
+    def _build_presenter_task_args(product_id: str) -> tuple[str] | None:
         from core.model.product import Product
 
         product = Product.get(product_id)
         if not product:
-            logger.error(f"Product {product_id} not found, cannot build presenter task payload")
+            logger.error(f"Product {product_id} not found, cannot build presenter task args")
             return None
 
-        return build_worker_task_payload("presenter_task", str(product.product_type_id), fields={"product_id": product_id})
+        return (product_id,)
 
     def generate_product(self, product_id: str, countdown: int = 0):
         """Generate product"""
         from datetime import timedelta
 
-        payload = self._build_presenter_task_payload(product_id)
-        if payload is None:
+        task_args = self._build_presenter_task_args(product_id)
+        if task_args is None:
             return {"error": f"Product {product_id} not found"}, 404
 
         if countdown > 0:
@@ -864,14 +875,14 @@ class QueueManager:
                 "presenters",
                 "presenter_task",
                 scheduled_time,
-                payload,
+                *task_args,
                 job_id=f"presenter_task_{product_id}",
             )
         else:
             job = self.enqueue_task(
                 "presenters",
                 "presenter_task",
-                payload,
+                *task_args,
                 job_id=f"presenter_task_{product_id}",
             )
 
@@ -885,7 +896,8 @@ class QueueManager:
         if self.enqueue_task(
             "publishers",
             "publisher_task",
-            build_worker_task_payload("publisher_task", publisher_id, fields={"product_id": product_id}),
+            product_id,
+            publisher_id,
             job_id=f"publisher_task_{product_id}",
         ):
             logger.info(f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled")
@@ -907,7 +919,8 @@ class QueueManager:
             job = self.enqueue_task(
                 "bots",
                 "bot_task",
-                build_worker_task_payload(f"bot_{bot_id}", bot_id, "BOT_TASK", bot_args),
+                bot_id,
+                bot_args["filter"],
                 job_id=f"bot_{bot_id}_{source_id}",
                 depends_on=previous_job,
             )
@@ -1138,7 +1151,7 @@ class QueueManager:
                     {
                         "task": "collector_task",
                         "queue": "collectors",
-                        "args": [build_worker_task_payload("collector_task", source.id, fields={"manual": False})],
+                        "args": [source.id, False],
                         "cron": cron_schedule,
                         "task_id": source.task_id,
                         "name": source.name,
@@ -1153,7 +1166,7 @@ class QueueManager:
                     {
                         "task": "bot_task",
                         "queue": "bots",
-                        "args": [build_worker_task_payload(f"bot_{bot_item.id}", bot_item.id, "BOT_TASK")],
+                        "args": [bot_item.id],
                         "cron": cron_schedule,
                         "task_id": bot_item.task_id,
                         "name": bot_item.name,
@@ -1164,7 +1177,7 @@ class QueueManager:
                 {
                     "task": TOKEN_CLEANUP_JOB_ID,
                     "queue": "misc",
-                    "args": [_cleanup_task_payload()],
+                    "args": [],
                     "cron": TOKEN_CLEANUP_CRON,
                     "task_id": TOKEN_CLEANUP_JOB_ID,
                     "name": "Cleanup Token Blacklist",
@@ -1306,8 +1319,8 @@ class QueueManager:
             logger.error("QueueManager not initialized, cannot autopublish product %s", product_id)
             return {"error": "QueueManager not initialized"}, 500
 
-        presenter_payload = self._build_presenter_task_payload(product_id)
-        if presenter_payload is None:
+        presenter_task_args = self._build_presenter_task_args(product_id)
+        if presenter_task_args is None:
             logger.error("Product %s not found, cannot schedule presenter job", product_id)
             return {"error": f"Product {product_id} not found"}, 404
 
@@ -1315,7 +1328,7 @@ class QueueManager:
         presenter_job = self.enqueue_task(
             "presenters",
             "presenter_task",
-            presenter_payload,
+            *presenter_task_args,
             job_id=presenter_job_id,
         )
 
@@ -1327,7 +1340,8 @@ class QueueManager:
         publisher_job = self.enqueue_task(
             "publishers",
             "publisher_task",
-            build_worker_task_payload("publisher_task", auto_publisher_id, fields={"product_id": product_id}),
+            product_id,
+            auto_publisher_id,
             job_id=publisher_job_id,
             depends_on=presenter_job,
         )

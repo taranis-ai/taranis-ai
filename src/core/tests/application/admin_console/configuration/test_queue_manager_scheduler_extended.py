@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from typing import Any, cast
 
 import rq.registry as rq_registry
-from models.task_submission_meta import build_worker_task_payload
 
 from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
@@ -376,16 +375,16 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
     monkeypatch.setattr(qm, "_build_unique_job_id", lambda _task_name, _worker_id: next(job_ids))
     monkeypatch.setattr(
         qm,
-        "_build_presenter_task_payload",
-        lambda product_id: build_worker_task_payload("presenter_task", "7", fields={"product_id": product_id}),
+        "_build_presenter_task_args",
+        lambda product_id: (product_id,),
     )
 
-    def fake_enqueue_task(queue_name: str, task_name: str, payload: dict[str, Any], **kwargs):
+    def fake_enqueue_task(queue_name: str, task_name: str, *args: Any, **kwargs: Any):
         calls.append(
             {
                 "queue_name": queue_name,
                 "task_name": task_name,
-                "payload": payload,
+                "args": args,
                 "kwargs": kwargs,
             }
         )
@@ -404,18 +403,13 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
     assert calls[0] == {
         "queue_name": "presenters",
         "task_name": "presenter_task",
-        "payload": build_worker_task_payload("presenter_task", "7", fields={"product_id": "product-1"}),
+        "args": ("product-1",),
         "kwargs": {"job_id": "presenter_task_product-1_101"},
     }
     assert calls[1] == {
         "queue_name": "publishers",
         "task_name": "publisher_task",
-        "payload": {
-            "task": "publisher_task",
-            "worker_id": "publisher-1",
-            "worker_type": "publisher_task",
-            "product_id": "product-1",
-        },
+        "args": ("product-1", "publisher-1"),
         "kwargs": {
             "job_id": "publisher_task_product-1_202",
             "depends_on": presenter_job,
@@ -431,7 +425,8 @@ def test_enqueue_task_attaches_task_submission_meta_and_preserves_display_name()
     result = qm.enqueue_task(
         "collectors",
         "collector_task",
-        build_worker_task_payload("collector_task", "source-1", fields={"manual": True}),
+        "source-1",
+        True,
         job_id="collect_rss_collector_source-1",
         meta={"name": "Collector: Source 1"},
     )
@@ -440,7 +435,7 @@ def test_enqueue_task_attaches_task_submission_meta_and_preserves_display_name()
     assert queue.enqueued == [
         {
             "task": "worker.collectors.collector_tasks.collector_task",
-            "args": (build_worker_task_payload("collector_task", "source-1", fields={"manual": True}),),
+            "args": ("source-1", True),
             "job_id": "collect_rss_collector_source-1",
             "kwargs": {
                 "meta": {
@@ -466,7 +461,7 @@ def test_enqueue_at_attaches_task_submission_meta_and_preserves_display_name():
         "presenters",
         "presenter_task",
         scheduled_time,
-        build_worker_task_payload("presenter_task", "product-1"),
+        "product-1",
         job_id="presenter_task_product-1",
         meta={"name": "Presenter: Product 1"},
     )
@@ -489,8 +484,8 @@ def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypa
     monkeypatch.setattr(qm, "_build_unique_job_id", lambda _task_name, _worker_id: "presenter_task_product-2_303")
     monkeypatch.setattr(
         qm,
-        "_build_presenter_task_payload",
-        lambda product_id: build_worker_task_payload("presenter_task", "9", fields={"product_id": product_id}),
+        "_build_presenter_task_args",
+        lambda product_id: (product_id,),
     )
     monkeypatch.setattr(qm, "enqueue_task", lambda *args, **kwargs: False)
 

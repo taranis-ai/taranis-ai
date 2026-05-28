@@ -29,21 +29,21 @@ def persist_work_horse_killed_failure(job: Job, retpid: int, ret_val: int, _rusa
     if not task_submission:
         return
 
-    result: dict[str, Any] = {
+    failure_kwargs: dict[str, Any] = {
         "reason": "work_horse_killed",
         "retpid": retpid,
         "ret_val": ret_val,
     }
     if signal_value := _get_signal_value(ret_val):
-        result["signal"] = signal_value
+        failure_kwargs["signal"] = signal_value
 
     CoreApi().save_task_result(
         job.id,
         task_submission["task"],
-        result,
         "FAILURE",
         worker_id=task_submission["worker_id"],
         worker_type=task_submission["worker_type"],
+        **failure_kwargs,
     )
 
 

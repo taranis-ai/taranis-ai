@@ -6,7 +6,6 @@ Functions for generating products/reports in various formats.
 from base64 import b64encode
 from typing import Any
 
-from models.task_submission_meta import WorkerTaskPayload
 from niquests.exceptions import ConnectionError
 from rq import get_current_job
 
@@ -16,7 +15,7 @@ from worker.log import logger
 from worker.presenters.base_presenter import BasePresenter
 
 
-def presenter_task(payload: WorkerTaskPayload):
+def presenter_task(product_id: str):
     """Generate a product/report in the specified format.
 
     Args:
@@ -30,8 +29,6 @@ def presenter_task(payload: WorkerTaskPayload):
         ConnectionError: If unable to connect to core API
     """
     job = get_current_job()
-    presenter_id = payload["worker_id"]
-    product_id = str(payload["product_id"])
     core_api = CoreApi()
     worker_type = "presenter_task"
 
@@ -68,10 +65,10 @@ def presenter_task(payload: WorkerTaskPayload):
             core_api.save_task_result(
                 job.id,
                 "presenter_task",
-                result_data,
                 "SUCCESS",
-                worker_id=presenter_id,
+                worker_id=product_id,
                 worker_type=worker_type,
+                **result_data,
             )
 
         return result_data
@@ -82,10 +79,12 @@ def presenter_task(payload: WorkerTaskPayload):
         core_api.save_task_result(
             job.id,
             "presenter_task",
-            error_msg,
             "FAILURE",
-            worker_id=presenter_id,
+            worker_id=product_id,
             worker_type=worker_type,
+            product_id=product_id,
+            reason="presenter_empty_result",
+            error=error_msg,
         )
 
     raise ValueError(f"Presenter {presenter.type} returned no content")

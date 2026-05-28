@@ -301,7 +301,7 @@ class TestSourceView:
         assert processed_data["icon"] == ""
 
     def test_osint_source_preview_shows_failure_and_retrigger_action(self, app):
-        task_result = Task(id="source_preview_42", status="FAILURE", result="Connection refused")
+        task_result = Task(id="source_preview_42", status="FAILURE", kwargs={"error": "Connection refused"})
 
         with app.test_request_context("/"):
             rendered = render_template(

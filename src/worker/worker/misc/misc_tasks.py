@@ -6,7 +6,6 @@ Miscellaneous worker tasks including cleanup and wordlist updates.
 from datetime import datetime, timezone
 
 from croniter import croniter
-from models.task_submission_meta import WorkerTaskPayload
 from rq import get_current_job
 
 from worker.core_api import CoreApi
@@ -17,7 +16,7 @@ from worker.misc.wordlist_update import update_wordlist
 TOKEN_CLEANUP_TASK_ID = "cleanup_token_blacklist"
 
 
-def cleanup_token_blacklist(payload: WorkerTaskPayload | None = None):
+def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
     """Clean up expired tokens from the blacklist.
 
     When executed by the RQ cron scheduler this task reports completion to
@@ -32,8 +31,6 @@ def cleanup_token_blacklist(payload: WorkerTaskPayload | None = None):
         str: Status message describing the action.
     """
     logger.info("Running token blacklist cleanup")
-    reschedule = bool(payload and payload.get("reschedule", False))
-
     if reschedule:
         _reschedule_cleanup()
 
@@ -45,10 +42,11 @@ def cleanup_token_blacklist(payload: WorkerTaskPayload | None = None):
         core_api.save_task_result(
             job.id,
             "cleanup_token_blacklist",
-            message,
             "SUCCESS",
-            worker_id=payload["worker_id"] if payload else TOKEN_CLEANUP_TASK_ID,
-            worker_type=payload["worker_type"] if payload else TOKEN_CLEANUP_TASK_ID,
+            worker_id=job.id,
+            worker_type=TOKEN_CLEANUP_TASK_ID,
+            message=message,
+            reason="cleanup_triggered",
         )
 
     return message
@@ -88,7 +86,7 @@ def _reschedule_cleanup():
         logger.error(f"Failed to reschedule token cleanup: {e}")
 
 
-def gather_word_list(payload: WorkerTaskPayload):
+def gather_word_list(word_list_id: str):
     """Gather and update a word list.
 
     Args:
@@ -97,6 +95,21 @@ def gather_word_list(payload: WorkerTaskPayload):
     Returns:
         Result from wordlist update
     """
-    word_list_id = int(payload.get("word_list_id", payload["worker_id"]))
     logger.info(f"Gathering word list {word_list_id}")
-    return update_wordlist(word_list_id)
+    result = update_wordlist(word_list_id)
+    if job := get_current_job():
+        core_api = CoreApi()
+        result_kwargs = {"word_list_id": word_list_id}
+        if isinstance(result, dict):
+            result_kwargs.update(result)
+        else:
+            result_kwargs["message"] = str(result)
+        core_api.save_task_result(
+            job.id,
+            "gather_word_list",
+            "SUCCESS",
+            worker_id=word_list_id,
+            worker_type="gather_word_list",
+            **result_kwargs,
+        )
+    return result

@@ -113,10 +113,9 @@ def gather_fields_from_model(model: type[BaseModel]) -> tuple[set[str], set[str]
 
         info: FieldInfo = info
         ann = info.annotation
-        field_required = True
+        field_required = info.is_required()
         if nested_origin := unwrap_annotation(ann):
             ann = nested_origin[0]
-            field_required = nested_origin[1]
 
         key = f"{name}[]" if get_origin(ann) is list else name
 
@@ -132,10 +131,10 @@ def unwrap_annotation(field_annotation: type | None) -> tuple[type, bool] | None
         return None
     ann: type = field_annotation
     field_required = True
-    if field_annotation is Union or isinstance(field_annotation, types.UnionType):
+    if get_origin(field_annotation) in {Union, types.UnionType} or isinstance(field_annotation, types.UnionType):
         if args := get_args(field_annotation):
-            ann = args[0]
-            if None not in args:
+            ann = next((arg for arg in args if arg is not type(None)), args[0])
+            if type(None) in args:
                 field_required = False
 
     return ann, field_required

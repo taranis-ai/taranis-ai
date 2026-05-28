@@ -3,7 +3,6 @@
 Functions for executing bots to process news items.
 """
 
-from models.task_submission_meta import WorkerTaskPayload
 from rq import get_current_job
 
 import worker.bots
@@ -11,7 +10,7 @@ from worker.core_api import CoreApi
 from worker.log import logger
 
 
-def bot_task(payload: WorkerTaskPayload):
+def bot_task(bot_id: str, filter: dict | None = None):
     """Execute a bot to process news items.
 
     Args:
@@ -25,10 +24,8 @@ def bot_task(payload: WorkerTaskPayload):
         ValueError: If bot not found or misconfigured
     """
     job = get_current_job()
-    bot_id = payload["worker_id"]
-    filter = payload.get("filter")
     core_api = CoreApi()
-    task_name = payload["task"]
+    task_name = f"bot_{bot_id}"
     task_id = job.id if job else task_name
     worker_type = "BOT_TASK"
 
@@ -41,7 +38,12 @@ def bot_task(payload: WorkerTaskPayload):
 
         worker_type = bot_config.get("type", worker_type).upper()
         bot_result = _execute_by_config(bot_config, filter, bot_id)
-        core_api.save_task_result(task_id, task_name, bot_result, "SUCCESS", worker_id=bot_id, worker_type=worker_type)
+        result_kwargs = {"bot_id": bot_id}
+        if isinstance(bot_result, dict):
+            result_kwargs.update(bot_result)
+        else:
+            result_kwargs["message"] = str(bot_result)
+        core_api.save_task_result(task_id, task_name, "SUCCESS", worker_id=bot_id, worker_type=worker_type, **result_kwargs)
         return (
             {"worker_id": bot_id, "worker_type": worker_type, **bot_result}
             if isinstance(bot_result, dict)
@@ -51,7 +53,18 @@ def bot_task(payload: WorkerTaskPayload):
         error_message = str(exc)
         if not (isinstance(exc, ValueError) and error_message == f"Bot with id {bot_id} not found"):
             error_message = f"Bot execution failed: {error_message}"
-        core_api.save_task_result(task_id, task_name, {"error": error_message}, "FAILURE", worker_id=bot_id, worker_type=worker_type)
+        core_api.save_task_result(
+            task_id,
+            task_name,
+            "FAILURE",
+            worker_id=bot_id,
+            worker_type=worker_type,
+            bot_id=bot_id,
+            reason="bot_not_found"
+            if isinstance(exc, ValueError) and str(exc) == f"Bot with id {bot_id} not found"
+            else "bot_execution_failed",
+            error=error_message,
+        )
         raise
 
 

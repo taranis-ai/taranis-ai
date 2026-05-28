@@ -7,11 +7,11 @@ def test_persist_work_horse_killed_failure_reports_failure(monkeypatch):
     recorded = {}
 
     class DummyApi:
-        def save_task_result(self, job_id, task_name, result, status, *, worker_id=None, worker_type=None):
+        def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, **task_kwargs):
             recorded["payload"] = {
                 "id": job_id,
                 "task": task_name,
-                "result": result,
+                "kwargs": task_kwargs,
                 "status": status,
                 "worker_id": worker_id,
                 "worker_type": worker_type,
@@ -36,7 +36,7 @@ def test_persist_work_horse_killed_failure_reports_failure(monkeypatch):
     assert recorded["payload"] == {
         "id": "job-123",
         "task": "collector_task",
-        "result": {
+        "kwargs": {
             "reason": "work_horse_killed",
             "retpid": 456,
             "ret_val": 256,
@@ -51,8 +51,8 @@ def test_persist_work_horse_killed_failure_includes_signal(monkeypatch):
     recorded = {}
 
     class DummyApi:
-        def save_task_result(self, job_id, task_name, result, status, *, worker_id=None, worker_type=None):
-            recorded["result"] = result
+        def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, **task_kwargs):
+            recorded["kwargs"] = task_kwargs
             return True
 
     monkeypatch.setattr("worker.worker_runtime.CoreApi", lambda: DummyApi())
@@ -70,7 +70,7 @@ def test_persist_work_horse_killed_failure_includes_signal(monkeypatch):
 
     persist_work_horse_killed_failure(job, 789, 15, None)
 
-    assert recorded["result"] == {
+    assert recorded["kwargs"] == {
         "reason": "work_horse_killed",
         "retpid": 789,
         "ret_val": 15,
@@ -82,7 +82,7 @@ def test_persist_work_horse_killed_failure_skips_invalid_metadata(monkeypatch):
     recorded = {"called": False}
 
     class DummyApi:
-        def save_task_result(self, job_id, task_name, result, status, *, worker_id=None, worker_type=None):
+        def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, **task_kwargs):
             recorded["called"] = True
             return True
 

@@ -111,11 +111,10 @@ def form_formats_from_models():
             field_name: str = field_name
 
             ann = field_info.annotation
-            field_required = True
+            field_required = field_info.is_required()
 
             if nested_origin := unwrap_annotation(ann):
                 ann = nested_origin[0]
-                field_required = nested_origin[1]
 
             origin = get_origin(ann)
 
@@ -213,7 +212,7 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
                     "worker_type": "rss_collector",
                     "worker_id": "source-1",
                     "status": "SUCCESS",
-                    "result": None,
+                    "kwargs": {},
                     "last_run": "2024-01-01T00:00:00Z",
                     "last_success": "2024-01-01T00:00:00Z",
                 },
@@ -223,7 +222,7 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
                     "worker_type": "WORDLIST_BOT",
                     "worker_id": "bot-1",
                     "status": "FAILURE",
-                    "result": {"error": "timeout"},
+                    "kwargs": {"error": "timeout"},
                     "last_run": "2024-01-02T12:00:00Z",
                     "last_success": "2024-01-02T10:00:00Z",
                 },

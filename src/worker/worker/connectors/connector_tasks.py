@@ -7,7 +7,6 @@ import json
 import re
 from typing import Any
 
-from models.task_submission_meta import WorkerTaskPayload
 from rq import get_current_job
 
 from worker.connectors import MispConnector
@@ -15,7 +14,7 @@ from worker.core_api import CoreApi
 from worker.log import logger
 
 
-def connector_task(payload: WorkerTaskPayload) -> dict[str, Any] | None:
+def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, Any] | None:
     """Push stories to an external connector system.
 
     Args:
@@ -29,8 +28,6 @@ def connector_task(payload: WorkerTaskPayload) -> dict[str, Any] | None:
         RuntimeError: If connector not found or execution fails
     """
     job = get_current_job()
-    connector_id = payload["worker_id"]
-    story_ids = payload.get("story_ids", "")
     core_api = CoreApi()
 
     logger.info(f"Running connector with id: {connector_id}, job id: {job.id if job else 'manual'}")
@@ -54,18 +51,34 @@ def connector_task(payload: WorkerTaskPayload) -> dict[str, Any] | None:
                 raise RuntimeError(f"Connector {connector.type} returned an invalid result payload")
 
             logger.info(f"Connector with id: {connector_id} executed successfully")
-            return {
+            result = {
                 "connector_id": connector_id,
                 "connector_type": connector.type,
                 "action": connector_result.get("action", "mixed"),
                 "message": connector_result.get("message", ""),
                 "sync_results": connector_result.get("sync_results", []),
+                "story_ids": story_ids,
             }
+            if job:
+                core_api.save_task_result(job.id, "connector_task", "SUCCESS", worker_id=connector_id, worker_type=connector.type, **result)
+            return result
         else:
             logger.warning(f"Connector with id: {connector_id} was not found")
             return None
     except Exception as e:
         logger.exception(f"Error executing connector with id: {connector_id}")
+        if job:
+            core_api.save_task_result(
+                job.id,
+                "connector_task",
+                "FAILURE",
+                worker_id=connector_id,
+                worker_type=connector_config.get("type", "connector_task"),
+                connector_id=connector_id,
+                story_ids=story_ids,
+                reason="connector_execution_failed",
+                error=f"Error executing connector with id: {connector_id}",
+            )
         raise RuntimeError(f"Error executing connector with id: {connector_id}") from e
 
 

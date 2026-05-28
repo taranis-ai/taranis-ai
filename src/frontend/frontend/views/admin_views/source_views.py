@@ -261,6 +261,8 @@ class SourceView(AdminMixin, BaseView):
     def get_osint_source_preview_view(cls, osint_source_id: str):
         task_result = None
         if response := CoreApi().get_osint_source_preview(osint_source_id):
+            if "kwargs" not in response and "result" in response:
+                response = {**response, "kwargs": {"result": response.get("result")}}
             task_result = Task(**response)
         return render_template("osint_source/osint_source_preview.html", task_result=task_result, osint_source_id=osint_source_id)
 
@@ -269,6 +271,8 @@ class SourceView(AdminMixin, BaseView):
     def retrigger_osint_source_preview_view(cls, osint_source_id: str):
         task_result = None
         if response := CoreApi().retrigger_osint_source_preview(osint_source_id):
+            if "kwargs" not in response and "result" in response:
+                response = {**response, "kwargs": {"result": response.get("result")}}
             task_result = Task(**response)
         return render_template("osint_source/osint_source_preview.html", task_result=task_result, osint_source_id=osint_source_id)
 

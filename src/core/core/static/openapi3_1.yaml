@@ -10213,10 +10213,13 @@ components:
         status:
           type: string
           minLength: 1
-        result:
+        kwargs:
+          type: object
+          additionalProperties: true
           description: JSON-serializable task payload
       required:
       - status
+      - kwargs
       anyOf:
       - required:
         - id
@@ -10231,7 +10234,17 @@ components:
           type:
           - string
           - 'null'
-        result:
+        worker_id:
+          type:
+          - string
+          - 'null'
+        worker_type:
+          type:
+          - string
+          - 'null'
+        kwargs:
+          type: object
+          additionalProperties: true
           description: JSON payload stored as provided by the worker
         status:
           type:
@@ -10258,7 +10271,17 @@ components:
           type:
           - string
           - 'null'
-        result:
+        worker_id:
+          type:
+          - string
+          - 'null'
+        worker_type:
+          type:
+          - string
+          - 'null'
+        kwargs:
+          type: object
+          additionalProperties: true
           description: JSON payload stored as provided by the worker
         status:
           type:

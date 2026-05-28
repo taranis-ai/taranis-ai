@@ -380,7 +380,7 @@ class TestSourcesConfigApi(BaseTest):
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "rss_collector",
-            "result": "No changes: feed was not modified",
+            "kwargs": {"message": "No changes: feed was not modified", "source_id": source_id},
             "status": "NOT_MODIFIED",
         }
 
@@ -763,7 +763,7 @@ class TestBotConfigApi(BaseTest):
             "task": f"bot_{bot_id}",
             "worker_id": bot_id,
             "worker_type": cleanup_bot["type"].upper(),
-            "result": {"message": "Bot completed"},
+            "kwargs": {"bot_id": bot_id, "message": "Bot completed"},
             "status": "SUCCESS",
         }
 
@@ -821,7 +821,7 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "kwargs": {"error": "boom"},
                 }
             )
             Task.add(
@@ -831,7 +831,7 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
                     "worker_id": "bot-1",
                     "worker_type": "WORDLIST_BOT",
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "kwargs": {"error": "boom"},
                 }
             )
 

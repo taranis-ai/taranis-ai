@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from croniter import croniter
 import pytest
 import redis
+from croniter import croniter
 from rq import Queue
 from rq.job import Job
 from rq.results import Result
@@ -310,7 +310,7 @@ def test_rq_scheduled_collector_cron(
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
     assert payload.get("status") == "SUCCESS"
-    assert source_payload["name"] in (payload.get("result") or "")
+    assert source_payload["name"] in ((payload.get("kwargs") or {}).get("message") or "")
     _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
     assert next_run_after_execution > forced_due_timestamp
 

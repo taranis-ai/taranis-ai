@@ -20,12 +20,12 @@ class Task(BaseModel):
     task: Mapped[str] = db.Column(db.String, nullable=True)
     worker_id: Mapped[str] = db.Column(db.String, nullable=True)
     worker_type: Mapped[str] = db.Column(db.String, nullable=True)
-    result: Mapped[str] = db.Column(db.String, nullable=True)
+    kwargs: Mapped[str] = db.Column(db.String, nullable=True)
     status: Mapped[str] = db.Column(db.String, nullable=True)
     last_run: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     last_success: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, result=None, status=None, id=None, task=None, worker_id=None, worker_type=None):
+    def __init__(self, kwargs=None, status=None, id=None, task=None, worker_id=None, worker_type=None):
         if id:
             try:
                 self.id = self.normalize_uuid_id(id)
@@ -44,7 +44,7 @@ class Task(BaseModel):
             self.worker_id = worker_id
         if worker_type is not None:
             self.worker_type = worker_type
-        self.result = json.dumps(result) if result is not None else ""
+        self.kwargs = json.dumps(kwargs or {})
         if status in self.SUCCESS_STATUSES:
             self.last_success = datetime.now(timezone.utc)
         self.last_run = datetime.now(timezone.utc)
@@ -52,7 +52,7 @@ class Task(BaseModel):
     @classmethod
     def add_or_update(cls, entry_data):
         if entry := cls.get_by_job_id(entry_data["id"]):
-            entry.result = json.dumps(entry_data["result"]) if entry_data["result"] is not None else ""
+            entry.kwargs = json.dumps(entry_data.get("kwargs") or {})
             entry.status = entry_data.get("status")
             entry.task = entry_data.get("task", entry.task)
             entry.worker_id = entry_data.get("worker_id", entry.worker_id)
@@ -66,11 +66,11 @@ class Task(BaseModel):
         return new_entry.to_dict(), 201
 
     def to_dict(self):
-        result = json.loads(self.result) if self.result else None
+        kwargs = json.loads(self.kwargs) if self.kwargs else {}
         return {
             "id": self.id,
             "job_id": self.job_id,
-            "result": result,
+            "kwargs": kwargs,
             "task": self.task,
             "worker_id": self.worker_id,
             "worker_type": self.worker_type,

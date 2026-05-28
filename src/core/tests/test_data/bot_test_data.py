@@ -3,7 +3,7 @@ wordlist_bot_result = {
     "status": "SUCCESS",
     "worker_id": "d23ae855-362c-423f-af37-04e7d209883d",
     "worker_type": "WORDLIST_BOT",
-    "result": {
+    "kwargs": {
         "25a442ec-54ad-4ab6-a028-3e4fbb2c25ca": {
             "Debian": "CVE_VENDOR",
             "All in One SEO": "CVE_PRODUCT",
@@ -38,7 +38,7 @@ ioc_bot_result = {
     "status": "SUCCESS",
     "worker_id": "9abf0d62-4ddd-4fed-959a-c0ff74234f26",
     "worker_type": "IOC_BOT",
-    "result": {
+    "kwargs": {
         "2707afc6-2e7d-48fa-9d05-5ff114282417": {
             "CVE-2026-0613": "cves",
             "CVE-2026-0612": "cves",
@@ -58,7 +58,7 @@ nlp_bot = {
     "status": "SUCCESS",
     "worker_id": "0a460779-a240-4b05-8277-31195f58882c",
     "worker_type": "NLP_BOT",
-    "result": {
+    "kwargs": {
         "25a442ec-54ad-4ab6-a028-3e4fbb2c25ca": {
             "404 Media": "Organization",
             "AlmaLinux": "Product",

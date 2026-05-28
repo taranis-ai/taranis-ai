@@ -76,11 +76,11 @@ class CoreApi:
         self,
         job_id: str,
         task_name: str,
-        result: Any,
         status: str,
         *,
         worker_id: str | None = None,
         worker_type: str | None = None,
+        **task_kwargs: Any,
     ) -> bool:
         """Persist task execution result to the Core task API.
 
@@ -90,7 +90,7 @@ class CoreApi:
             payload: dict[str, Any] = {
                 "id": job_id,
                 "task": task_name,
-                "result": result,
+                "kwargs": task_kwargs,
                 "status": status,
             }
             if worker_id is not None:
@@ -193,12 +193,12 @@ class CoreApi:
         response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return response.text if response.ok else None
 
-    def get_word_list(self, word_list_id: int) -> dict | None:
+    def get_word_list(self, word_list_id: str) -> dict | None:
         return self.api_get(
             url=f"/worker/word-list/{word_list_id}",
         )
 
-    def update_word_list(self, word_list_id: int, content: str | dict | list, content_type: str) -> dict | None:
+    def update_word_list(self, word_list_id: str, content: str | dict | list, content_type: str) -> dict | None:
         """Update a word list with new content.
 
         Args:

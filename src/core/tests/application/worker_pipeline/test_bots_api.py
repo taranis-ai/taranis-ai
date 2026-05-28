@@ -119,7 +119,7 @@ class TestTaggingBotsResults(BaseTest):
 
             expected_tags = {}
             for news_item in response.get_json().get("news_items", []):
-                expected_tags |= wordlist_bot_result["result"].get(news_item["id"], {})
+                expected_tags |= wordlist_bot_result["kwargs"].get(news_item["id"], {})
             assert structured_tags == expected_tags
 
             attr_by_key = {a.get("key"): a.get("value") for a in response.get_json().get("attributes", [])}
@@ -144,8 +144,8 @@ class TestTaggingBotsResults(BaseTest):
 
             expected = {}
             for news_item in response.get_json().get("news_items", []):
-                expected |= wordlist_bot_result["result"].get(news_item["id"], {})
-                expected |= ioc_bot_result["result"].get(news_item["id"], {})
+                expected |= wordlist_bot_result["kwargs"].get(news_item["id"], {})
+                expected |= ioc_bot_result["kwargs"].get(news_item["id"], {})
 
             assert structured_tags == expected
 
@@ -169,9 +169,9 @@ class TestTaggingBotsResults(BaseTest):
 
             expected = {}
             for news_item in response.get_json().get("news_items", []):
-                expected |= wordlist_bot_result["result"].get(news_item["id"], {})
-                expected |= ioc_bot_result["result"].get(news_item["id"], {})
-                expected |= nlp_bot_result["result"].get(news_item["id"], {})
+                expected |= wordlist_bot_result["kwargs"].get(news_item["id"], {})
+                expected |= ioc_bot_result["kwargs"].get(news_item["id"], {})
+                expected |= nlp_bot_result["kwargs"].get(news_item["id"], {})
 
             assert structured_tags == expected
 
@@ -189,7 +189,7 @@ class TestConnectorTaskResults(BaseTest):
         return {
             "task_id": "connector_task_320d4589-cd71-4722-aa28-ea5530e99830",
             "status": "SUCCESS",
-            "result": {
+            "kwargs": {
                 "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
                 "connector_type": "MISP_CONNECTOR",
                 "action": "synced",
@@ -211,7 +211,7 @@ class TestConnectorTaskResults(BaseTest):
         return {
             "task_id": "connector_task_proposal_320d4589-cd71-4722-aa28-ea5530e99830",
             "status": "SUCCESS",
-            "result": {
+            "kwargs": {
                 "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
                 "connector_type": "MISP_CONNECTOR",
                 "action": "proposed",
@@ -297,7 +297,7 @@ class TestConnectorTaskResults(BaseTest):
 
         response = client.get(f"/api/tasks/{task_id}", headers=api_header)
         self.assert_json_ok(response)
-        task_result = response.get_json()["result"]
+        task_result = response.get_json()["kwargs"]
 
         assert task_result["action"] == "proposed"
         assert task_result["message"] == "1 proposals submitted to MISP"
@@ -323,7 +323,7 @@ class TestConnectorTaskResults(BaseTest):
             json={
                 "task_id": "connector_task_unknown",
                 "status": "SUCCESS",
-                "result": {
+                "kwargs": {
                     "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
                     "connector_type": "MISP_CONNECTOR",
                     "action": "mixed",

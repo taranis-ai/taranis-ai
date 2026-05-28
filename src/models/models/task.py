@@ -13,7 +13,7 @@ class CronTaskSpec(TaranisBaseModel):
     cron: str | None = None
     interval: int | None = None
     args: list[Any] = Field(default_factory=list)
-    kwargs: dict[str, Any] = Field(default_factory=dict)
+    kwargs: dict[str, Any] | None = None
     job_options: dict[str, Any] = Field(default_factory=dict)
     meta: dict[str, Any] = Field(default_factory=dict)
 
@@ -56,10 +56,20 @@ class Task(TaranisBaseModel):
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: Any | None = None
+    kwargs: dict[str, Any] = Field(default_factory=dict)
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_task_payload(cls, value: Any):
+        if not isinstance(value, dict):
+            return value
+
+        normalized = dict(value)
+        normalized["kwargs"] = dict(normalized.get("kwargs") or {})
+        return normalized
 
 
 class TaskSubmission(TaranisBaseModel):
@@ -73,7 +83,7 @@ class TaskSubmission(TaranisBaseModel):
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: Any | None = None
+    kwargs: dict[str, Any]
     status: str = Field(min_length=1)
 
     @field_validator("id", "status", mode="after")
@@ -92,13 +102,13 @@ class TaskSubmission(TaranisBaseModel):
         stripped = value.strip()
         return stripped or None
 
-    @field_validator("result")
+    @field_validator("kwargs")
     @classmethod
-    def ensure_json_serializable_result(cls, value: Any) -> Any:
+    def ensure_json_serializable_kwargs(cls, value: Any) -> Any:
         try:
             json.dumps(value)
         except (TypeError, ValueError) as exc:
-            raise ValueError("result must be JSON serializable") from exc
+            raise ValueError("kwargs must be JSON serializable") from exc
         return value
 
 
@@ -108,7 +118,7 @@ class TaskHistoryEntry(TaranisBaseModel):
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: Any | None = None
+    kwargs: dict[str, Any] = Field(default_factory=dict)
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None

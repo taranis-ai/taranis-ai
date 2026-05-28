@@ -6,7 +6,6 @@ Functions for collecting news from OSINT sources.
 from contextlib import contextmanager
 from typing import Any
 
-from models.task_submission_meta import WorkerTaskPayload
 from rq import get_current_job
 
 import worker.collectors
@@ -59,9 +58,11 @@ def _persist_and_return_result(
     core_api: CoreApi,
     result_message: str,
     *,
+    reason: str | None = None,
     worker_id: str | None = None,
     worker_type: str | None = None,
     meta_status: str | None = None,
+    **task_kwargs: Any,
 ) -> str:
     if not job:
         return result_message
@@ -73,18 +74,22 @@ def _persist_and_return_result(
         job.meta["message"] = result_message
         job.save_meta()
 
+    result_kwargs = {"message": result_message, **task_kwargs}
+    if reason is not None:
+        result_kwargs["reason"] = reason
+
     core_api.save_task_result(
         job.id,
         "collector_task",
-        result_message,
         persisted_status,
         worker_id=worker_id,
         worker_type=worker_type,
+        **result_kwargs,
     )
     return result_message
 
 
-def collector_task(payload: WorkerTaskPayload):
+def collector_task(osint_source_id: str, manual: bool = False):
     """Collect news from an OSINT source.
 
     Args:
@@ -99,8 +104,6 @@ def collector_task(payload: WorkerTaskPayload):
         RuntimeError: If collection fails
     """
     job = get_current_job()
-    osint_source_id = payload["worker_id"]
-    manual = bool(payload.get("manual", False))
     core_api = CoreApi()
     collector = Collector()
 
@@ -113,9 +116,13 @@ def collector_task(payload: WorkerTaskPayload):
             job,
             core_api,
             result_message,
+            reason="source_not_found",
             worker_id=osint_source_id,
             worker_type="collector_task",
             meta_status="FAILURE",
+            source_id=osint_source_id,
+            manual=manual,
+            error=result_message,
         )
 
     collector_impl = collector.get_collector(source)
@@ -144,6 +151,8 @@ def collector_task(payload: WorkerTaskPayload):
                 worker_id=osint_source_id,
                 worker_type=worker_type,
                 meta_status="NOT_MODIFIED",
+                source_id=osint_source_id,
+                manual=manual,
             )
         except Exception as e:
             logger.error(f"Collector task failed: {task_description}")
@@ -155,10 +164,13 @@ def collector_task(payload: WorkerTaskPayload):
                 core_api.save_task_result(
                     job.id,
                     "collector_task",
-                    result_message,
                     task_status,
                     worker_id=osint_source_id,
                     worker_type=worker_type,
+                    source_id=osint_source_id,
+                    manual=manual,
+                    reason="collection_failed",
+                    error=result_message,
                 )
 
             raise RuntimeError(e) from e
@@ -171,16 +183,18 @@ def collector_task(payload: WorkerTaskPayload):
         core_api.save_task_result(
             job.id,
             "collector_task",
-            result_message,
             task_status,
             worker_id=osint_source_id,
             worker_type=worker_type,
+            message=result_message,
+            source_id=osint_source_id,
+            manual=manual,
         )
 
     return result_message
 
 
-def collector_preview(payload: WorkerTaskPayload):
+def collector_preview(osint_source_id: str):
     """Preview collection from an OSINT source without saving.
 
     Args:
@@ -190,7 +204,6 @@ def collector_preview(payload: WorkerTaskPayload):
         Preview data from the collector
     """
     job = get_current_job()
-    osint_source_id = payload["worker_id"]
     collector = Collector()
     source = collector.get_source(osint_source_id)
     collector_impl = collector.get_collector(source)
@@ -210,21 +223,22 @@ def collector_preview(payload: WorkerTaskPayload):
         except Exception as e:
             logger.error(f"Collector preview task failed: {task_description}")
             if job:
-                collector.core_api.save_task_result(job.id, "collector_preview", str(e), "FAILURE")
+                collector.core_api.save_task_result(job.id, "collector_preview", "FAILURE", error=str(e), source_id=osint_source_id)
             raise RuntimeError(e) from e
 
     if job:
-        collector.core_api.save_task_result(job.id, "collector_preview", preview_result, "PREVIEW")
+        collector.core_api.save_task_result(job.id, "collector_preview", "PREVIEW", result=preview_result, source_id=osint_source_id)
 
     return preview_result
 
 
-def fetch_single_news_item(payload: WorkerTaskPayload):
+def fetch_single_news_item(parameters: dict[str, Any]):
     job = get_current_job()
     collector = worker.collectors.SimpleWebCollector()
-    worker_type = payload["worker_type"]
-    parameters = {key: value for key, value in payload.items() if key not in {"task", "worker_id", "worker_type"}}
-    worker_id = payload["worker_id"]
+    worker_type = "simple_web_collector"
+    collector_parameters = parameters["parameters"]
+    web_url = collector_parameters.get("WEB_URL")
+    worker_id = str(web_url or (job.id if job else "preview"))
     formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector.name} {job.id if job else 'preview'}")
     task_description = f"Fetching news item with {parameters=} and {job.id if job else 'preview'}"
     logger.info(f"Starting collector task: {task_description}")
@@ -246,10 +260,11 @@ def fetch_single_news_item(payload: WorkerTaskPayload):
                 core_api.save_task_result(
                     job.id,
                     "collector_task",
-                    result_message,
                     "NOT_MODIFIED",
                     worker_id=worker_id,
                     worker_type=worker_type,
+                    message=result_message,
+                    source_id=worker_id,
                 )
 
             return result_message

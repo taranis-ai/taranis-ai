@@ -4,7 +4,6 @@ Functions for publishing products to external systems.
 """
 
 from models.product import WorkerProduct as Product
-from models.task_submission_meta import WorkerTaskPayload
 from rq import get_current_job
 
 import worker.publishers
@@ -13,7 +12,7 @@ from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
 
 
-def publisher_task(payload: WorkerTaskPayload):
+def publisher_task(product_id: str, publisher_id: str):
     """Publish a product to an external system.
 
     Args:
@@ -28,8 +27,6 @@ def publisher_task(payload: WorkerTaskPayload):
         RuntimeError: If product or publisher lookup fails
     """
     job = get_current_job()
-    publisher_id = payload["worker_id"]
-    product_id = str(payload["product_id"])
     core_api = CoreApi()
     task_name = "publisher_task"
     task_id = job.id if job else f"{task_name}_{publisher_id}_{product_id}"
@@ -57,16 +54,24 @@ def publisher_task(payload: WorkerTaskPayload):
         publisher_impl = _get_publisher_impl(pub_type)
 
         result = publisher_impl.publish(publisher, product, rendered_product)
-        core_api.save_task_result(task_id, task_name, result, "SUCCESS", worker_id=publisher_id, worker_type=worker_type)
+        result_kwargs = {"product_id": product_id, "publisher_id": publisher_id}
+        if isinstance(result, dict):
+            result_kwargs.update(result)
+        else:
+            result_kwargs["message"] = str(result)
+        core_api.save_task_result(task_id, task_name, "SUCCESS", worker_id=publisher_id, worker_type=worker_type, **result_kwargs)
         return result
     except Exception as exc:
         core_api.save_task_result(
             task_id,
             task_name,
-            {"error": str(exc)},
             "FAILURE",
             worker_id=publisher_id,
             worker_type=worker_type,
+            product_id=product_id,
+            publisher_id=publisher_id,
+            reason="publisher_failed",
+            error=str(exc),
         )
         raise
 
