@@ -6,7 +6,7 @@ on:
     - 'src/worker/**'
     - 'src/models/**'
     - 'docker/Containerfile.worker'
-    - 'docker/build_version.sh'
+    - 'docker/git_info.sh'
     - '.dockerignore'
     - '.github/workflows/build_worker.yaml'
     branches:
@@ -124,7 +124,7 @@ jobs:
       - name: set build env
         run: |
           echo "GIT_INFO=$(./docker/git_info.sh)" >>${GITHUB_ENV}
-          echo "BUILD_VERSION=$(./docker/build_version.sh)" >>${GITHUB_ENV}
+          echo "BUILD_VERSION=$(./docker/git_info.sh build-version)" >>${GITHUB_ENV}
 
       - name: Set metadata for container build
         id: meta

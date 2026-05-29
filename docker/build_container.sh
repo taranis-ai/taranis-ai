@@ -8,7 +8,7 @@ IMAGE_REGISTRY=${IMAGE_REGISTRY:-"ghcr.io"}
 REPO_NAMESPACE=${GITHUB_REPOSITORY_OWNER:-"taranis-ai"}
 REPO="${IMAGE_REGISTRY}/${REPO_NAMESPACE}"
 GIT_INFO=$(./docker/git_info.sh)
-BUILD_VERSION=${BUILD_VERSION:-$(./docker/build_version.sh)}
+BUILD_VERSION=${BUILD_VERSION:-$(./docker/git_info.sh build-version)}
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD | sed 's/[^a-zA-Z0-9_.-]/_/g')
 
 echo "Building containers for branch ${CURRENT_BRANCH} on ${REPO} with git info ${GIT_INFO} and build version ${BUILD_VERSION}"
