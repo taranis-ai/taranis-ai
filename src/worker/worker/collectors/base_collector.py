@@ -24,6 +24,7 @@ class BaseCollector:
         self.description = "Base abstract type for all collectors"
 
         self.core_api = CoreApi()
+        self.collection_run_id: str | None = None
 
     def filter_by_word_list(self, news_items: list[NewsItem], word_lists: list) -> list[NewsItem]:
         if not word_lists:
@@ -95,7 +96,7 @@ class BaseCollector:
         news_items_dicts = [item.model_dump(mode="json") for item in news_items]
         if not news_items_dicts:
             return None
-        if core_response := self.core_api.add_news_items(news_items_dicts):
+        if core_response := self.core_api.add_news_items(news_items_dicts, collection_run_id=self.collection_run_id):
             if core_message := core_response.get("message"):
                 logger.info(core_message)
                 if core_message == "All news items were skipped":

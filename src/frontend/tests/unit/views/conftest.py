@@ -310,6 +310,22 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
         status=200,
         content_type="application/json",
     )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/osint-source-statistics",
+        json={
+            "items_24h": 3,
+            "stored_kb_24h": 12.0,
+            "peak_hour_started_at": "2025-01-01T10:00:00",
+            "peak_hour_items": 2,
+            "peak_hour_stored_kb": 8.0,
+            "latency_avg_seconds": 11.5,
+            "latency_p95_seconds": 18.0,
+            "latency_max_seconds": 20,
+            "latency_sample_runs": 2,
+        },
+        status=200,
+        content_type="application/json",
+    )
     yield core_payloads
 
 

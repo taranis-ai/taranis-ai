@@ -1,6 +1,8 @@
 import pytest
+from models.assess import NewsItem
 
 from worker.collectors import collector_tasks
+from worker.collectors.base_collector import BaseCollector
 from worker.config import Config
 
 
@@ -49,6 +51,14 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
 
     monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
     monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/collection-runs",
+        json={"id": "run-123"},
+    )
+    requests_mock.put(
+        f"{Config.TARANIS_CORE_URL}/worker/collection-runs/run-123",
+        json={"id": "run-123"},
+    )
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
     result = collector_tasks.collector_task("source-1", manual=False)
@@ -67,6 +77,89 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
         "result": result,
         "status": "NOT_MODIFIED",
     }
+
+    put_calls = [req for req in requests_mock.request_history if req.method == "PUT" and "/worker/collection-runs/run-123" in req.url]
+    assert len(put_calls) == 1
+    assert put_calls[0].json() == {"collector_status": "NOT_MODIFIED", "expected_post_collection_bots": 0}
+
+
+def test_collector_task_success_records_collection_run_and_post_collection_bot_expectation(current_job, requests_mock, monkeypatch):
+    source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {"FEED_URL": "https://example.com/feed"}}
+
+    class FakeCollector:
+        name = "RSS Collector"
+
+        def collect(self, source_data, manual):
+            return "1 News items added successfully"
+
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/collection-runs", json={"id": "run-456"})
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/collection-runs/run-456", json={"id": "run-456"})
+    requests_mock.put(
+        f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots",
+        json={"message": "Post collection bots scheduled", "expected_post_collection_bots": 2},
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    result = collector_tasks.collector_task("source-1", manual=True)
+
+    assert result == "'Source 1': 1 News items added successfully"
+
+    post_collection_calls = [
+        req for req in requests_mock.request_history if req.method == "PUT" and req.url.endswith("/worker/post-collection-bots")
+    ]
+    assert len(post_collection_calls) == 1
+    assert post_collection_calls[0].json() == {"source_id": "source-1", "collection_run_id": "run-456"}
+
+    finish_calls = [
+        req for req in requests_mock.request_history if req.method == "PUT" and req.url.endswith("/worker/collection-runs/run-456")
+    ]
+    assert len(finish_calls) == 1
+    assert finish_calls[0].json() == {"collector_status": "SUCCESS", "expected_post_collection_bots": 2}
+
+
+def test_collector_task_passes_collection_run_id_to_news_item_publish(current_job, requests_mock, monkeypatch):
+    source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {"FEED_URL": "https://example.com/feed"}}
+
+    class FakeCollector(BaseCollector):
+        name = "RSS Collector"
+
+        def collect(self, source_data, manual):
+            return self.publish(
+                [
+                    NewsItem(
+                        title="Collected item",
+                        content="Some content",
+                        osint_source_id=source_data["id"],
+                    )
+                ],
+                source_data,
+            )
+
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/collection-runs", json={"id": "run-telemetry"})
+    requests_mock.post(
+        f"{Config.TARANIS_CORE_URL}/worker/news-items",
+        json={"message": "1 News items added successfully", "accepted_news_items_count": 1, "stored_bytes": 24},
+    )
+    requests_mock.put(
+        f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots",
+        json={"message": "No post collection bots found", "expected_post_collection_bots": 0},
+    )
+    requests_mock.put(
+        f"{Config.TARANIS_CORE_URL}/worker/collection-runs/run-telemetry",
+        json={"id": "run-telemetry"},
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    result = collector_tasks.collector_task("source-1", manual=False)
+
+    assert result == "'Source 1': 1 News items added successfully"
+    ingestion_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/worker/news-items")]
+    assert len(ingestion_calls) == 1
+    assert ingestion_calls[0].json()["collection_run_id"] == "run-telemetry"
 
 
 def test_fetch_single_news_item_accepts_simple_web_source_payload(current_job, monkeypatch):

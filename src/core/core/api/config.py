@@ -39,6 +39,7 @@ from core.model import (
 )
 from core.model.permission import Permission
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.collection_run import CollectionRunService
 from core.service.template_service import build_template_response, build_templates_list, create_or_update_template, validate_template_content
 
 
@@ -584,6 +585,12 @@ class WorkerStats(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
         return queue_manager.queue_manager.get_worker_stats()
+
+
+class OSINTCollectionStatistics(MethodView):
+    @auth_required("CONFIG_ACCESS")
+    def get(self):
+        return CollectionRunService.get_statistics_summary(source_id=request.args.get("source_id"))
 
 
 class AdminMenuBadges(MethodView):
@@ -1143,6 +1150,10 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/workers/active", view_func=ActiveJobs.as_view(f"{name}_active_jobs"))
     config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view(f"{name}_failed_jobs"))
     config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view(f"{name}_worker_stats"))
+    config_bp.add_url_rule(
+        "/osint-source-statistics",
+        view_func=OSINTCollectionStatistics.as_view(f"{name}_osint_collection_statistics"),
+    )
     config_bp.add_url_rule("/admin-menu-badges", view_func=AdminMenuBadges.as_view(f"{name}_admin_menu_badges"))
     config_bp.add_url_rule("/workers/dashboard", view_func=SchedulerDashboard.as_view(f"{name}_scheduler_dashboard"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view(f"{name}_queue_schedule"))

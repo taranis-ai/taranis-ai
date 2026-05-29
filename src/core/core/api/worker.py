@@ -9,6 +9,7 @@ from core.managers.auth_manager import api_key_required
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
+from core.model.collection_run import CollectionRun
 from core.model.connector import Connector
 from core.model.news_item import NewsItem
 from core.model.news_item_tag import NewsItemTag
@@ -24,13 +25,23 @@ from core.model.word_list import WordList
 class AddNewsItems(MethodView):
     @api_key_required
     def post(self):
-        json_data = request.json
+        if not isinstance(request.json, dict):
+            logger.debug(f"Received invalid news items payload type: {type(request.json).__name__}")
+            return {"error": "Expected an object containing items"}, 400
 
-        if not isinstance(json_data, list):
-            logger.debug(f"Received invalid news items payload type: {type(json_data).__name__}")
-            return {"error": "Expected a list of news items"}, 400
-        logger.debug(f"Received {len(json_data)} news items for worker ingestion")
-        result, status = Story.add_news_items(json_data)
+        collection_run_id = request.json.get("collection_run_id")
+        news_items = request.json.get("items")
+        if not isinstance(news_items, list):
+            logger.debug(f"Received invalid news items payload type: {type(news_items).__name__}")
+            return {"error": "Expected items to be a list of news items"}, 400
+        logger.debug(f"Received {len(news_items)} news items for worker ingestion")
+        result, status = Story.add_news_items(news_items)
+        if collection_run_id and 200 <= status < 300:
+            CollectionRun.increment_ingested_news_items(
+                collection_run_id,
+                news_items_count=int(result.get("accepted_news_items_count", 0) or 0),
+                stored_bytes=int(result.get("stored_bytes", 0) or 0),
+            )
         if 200 <= status < 300:
             sse_manager.news_items_updated()
         return result, status
@@ -244,8 +255,76 @@ class PostCollectionBots(MethodView):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
         if source_id := data.get("source_id", None):
-            return queue_manager.queue_manager.post_collection_bots(source_id=source_id)
+            return queue_manager.queue_manager.post_collection_bots(
+                source_id=source_id,
+                collection_run_id=data.get("collection_run_id"),
+            )
         return {"error": "No source_id provided"}, 400
+
+
+class CollectionRuns(MethodView):
+    @api_key_required
+    def post(self):
+        if not isinstance(request.json, dict):
+            return {"error": "No data provided"}, 400
+
+        data = request.json
+        source_id = data.get("osint_source_id")
+        collector_job_id = data.get("collector_job_id")
+        collector_type = data.get("collector_type")
+        if not source_id or not collector_job_id or not collector_type:
+            return {"error": "osint_source_id, collector_job_id and collector_type are required"}, 400
+
+        run = CollectionRun.start_run(
+            osint_source_id=source_id,
+            collector_job_id=collector_job_id,
+            collector_type=collector_type,
+            manual=bool(data.get("manual", False)),
+        )
+        return run.to_dict(), 201
+
+    @api_key_required
+    def put(self, run_id: str):
+        if not isinstance(request.json, dict):
+            return {"error": "No data provided"}, 400
+
+        data = request.json
+        collector_status = data.get("collector_status")
+        if not collector_status:
+            return {"error": "collector_status is required"}, 400
+
+        run = CollectionRun.finish_collector(
+            run_id,
+            collector_status=collector_status,
+            expected_post_collection_bots=data.get("expected_post_collection_bots"),
+        )
+        if run is None:
+            return {"error": "Collection run not found"}, 404
+        return run.to_dict(), 200
+
+
+class CollectionRunBotCompletions(MethodView):
+    @api_key_required
+    def post(self, run_id: str):
+        if not isinstance(request.json, dict):
+            return {"error": "No data provided"}, 400
+
+        data = request.json
+        bot_id = data.get("bot_id")
+        bot_type = data.get("bot_type")
+        status = data.get("status")
+        if not bot_id or not bot_type or not status:
+            return {"error": "bot_id, bot_type and status are required"}, 400
+
+        run = CollectionRun.record_bot_completion(
+            run_id,
+            bot_id=bot_id,
+            bot_type=bot_type,
+            status=status,
+        )
+        if run is None:
+            return {"error": "Collection run not found"}, 404
+        return run.to_dict(), 200
 
 
 class WordLists(MethodView):
@@ -300,6 +379,13 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
     worker_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connectors_worker"))
     worker_bp.add_url_rule("/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
+    worker_bp.add_url_rule("/collection-runs", view_func=CollectionRuns.as_view("collection_runs_worker"), methods=["POST"])
+    worker_bp.add_url_rule("/collection-runs/<string:run_id>", view_func=CollectionRuns.as_view("collection_run_worker"), methods=["PUT"])
+    worker_bp.add_url_rule(
+        "/collection-runs/<string:run_id>/bot-completions",
+        view_func=CollectionRunBotCompletions.as_view("collection_run_bot_completions_worker"),
+        methods=["POST"],
+    )
     worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))
     worker_bp.add_url_rule("/tags", view_func=Tags.as_view("tags_worker"))
     worker_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))

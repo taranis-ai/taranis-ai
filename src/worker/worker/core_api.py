@@ -282,13 +282,6 @@ class CoreApi:
         except Exception:
             return None
 
-    def run_post_collection_bots(self, source_id) -> dict | None:
-        try:
-            return self.api_put("/worker/post-collection-bots", json_data={"source_id": source_id})
-        except Exception:
-            logger.exception("Can't run Post Collection Bots")
-            return None
-
     def update_osint_source_icon(self, osint_source_id: str, icon) -> dict | None:
         try:
             url = f"{self.api_url}/worker/osint-sources/{osint_source_id}/icon"
@@ -322,9 +315,78 @@ class CoreApi:
         except Exception:
             return None
 
-    def add_news_items(self, news_items) -> dict | None:
+    def start_collection_run(
+        self,
+        *,
+        osint_source_id: str,
+        collector_job_id: str,
+        collector_type: str,
+        manual: bool = False,
+    ) -> dict | None:
+        payload = {
+            "osint_source_id": osint_source_id,
+            "collector_job_id": collector_job_id,
+            "collector_type": collector_type,
+            "manual": manual,
+        }
         try:
-            return self.api_post(url="/worker/news-items", json_data=news_items)
+            return self.api_post(url="/worker/collection-runs", json_data=payload)
+        except Exception:
+            logger.exception("Cannot start collection run")
+            return None
+
+    def finish_collection_run(
+        self,
+        run_id: str,
+        *,
+        collector_status: str,
+        expected_post_collection_bots: int = 0,
+    ) -> dict | None:
+        payload = {
+            "collector_status": collector_status,
+            "expected_post_collection_bots": expected_post_collection_bots,
+        }
+        try:
+            return self.api_put(url=f"/worker/collection-runs/{run_id}", json_data=payload)
+        except Exception:
+            logger.exception("Cannot finish collection run")
+            return None
+
+    def record_collection_bot_completion(
+        self,
+        run_id: str,
+        *,
+        bot_id: str,
+        bot_type: str,
+        status: str,
+    ) -> dict | None:
+        payload = {
+            "bot_id": bot_id,
+            "bot_type": bot_type,
+            "status": status,
+        }
+        try:
+            return self.api_post(url=f"/worker/collection-runs/{run_id}/bot-completions", json_data=payload)
+        except Exception:
+            logger.exception("Cannot record collection bot completion")
+            return None
+
+    def run_post_collection_bots(self, source_id, collection_run_id: str | None = None) -> dict | None:
+        payload = {"source_id": source_id}
+        if collection_run_id:
+            payload["collection_run_id"] = collection_run_id
+        try:
+            return self.api_put("/worker/post-collection-bots", json_data=payload)
+        except Exception:
+            logger.exception("Can't run Post Collection Bots")
+            return None
+
+    def add_news_items(self, news_items, collection_run_id: str | None = None) -> dict | None:
+        try:
+            payload = {"items": news_items}
+            if collection_run_id:
+                payload["collection_run_id"] = collection_run_id
+            return self.api_post(url="/worker/news-items", json_data=payload)
         except Exception:
             logger.exception("Cannot add Newsitem")
             return None

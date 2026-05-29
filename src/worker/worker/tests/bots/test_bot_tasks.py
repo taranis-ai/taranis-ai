@@ -156,6 +156,57 @@ class TestBotTask:
         task_data = put_calls[0].json()
         assert task_data["id"] == "bot_bot-789"
 
+    def test_bot_task_records_collection_run_completion_on_success(self, current_job, requests_mock, bot_config, stub_bots):
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+        requests_mock.post(
+            f"{Config.TARANIS_CORE_URL}/worker/collection-runs/run-123/bot-completions",
+            json={"message": "saved"},
+        )
+        stub_bots._execute_impl = staticmethod(lambda params: {"result": "success"})
+
+        bot_task("bot-456", collection_run_id="run-123")
+
+        completion_calls = [
+            req
+            for req in requests_mock.request_history
+            if req.method == "POST" and req.url.endswith("/worker/collection-runs/run-123/bot-completions")
+        ]
+        assert len(completion_calls) == 1
+        assert completion_calls[0].json() == {
+            "bot_id": "bot-456",
+            "bot_type": "WORDLIST_BOT",
+            "status": "SUCCESS",
+        }
+
+    def test_bot_task_records_collection_run_completion_on_failure(self, current_job, requests_mock, bot_config, stub_bots):
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+        requests_mock.post(
+            f"{Config.TARANIS_CORE_URL}/worker/collection-runs/run-999/bot-completions",
+            json={"message": "saved"},
+        )
+
+        def _raise(*_):
+            raise RuntimeError("Bot execution crashed")
+
+        stub_bots._execute_impl = staticmethod(_raise)
+
+        with pytest.raises(RuntimeError, match="Bot execution crashed"):
+            bot_task("bot-456", collection_run_id="run-999")
+
+        completion_calls = [
+            req
+            for req in requests_mock.request_history
+            if req.method == "POST" and req.url.endswith("/worker/collection-runs/run-999/bot-completions")
+        ]
+        assert len(completion_calls) == 1
+        assert completion_calls[0].json() == {
+            "bot_id": "bot-456",
+            "bot_type": "WORDLIST_BOT",
+            "status": "FAILURE",
+        }
+
 
 class TestSaveTaskResult:
     """Tests for CoreApi.save_task_result helper."""

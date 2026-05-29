@@ -117,6 +117,17 @@ def collector_task(osint_source_id: str, manual: bool = False):
 
     collector_impl = collector.get_collector(source)
     worker_type = source.get("type") or "collector_task"
+    collection_run_id = None
+    if job:
+        collection_run = core_api.start_collection_run(
+            osint_source_id=osint_source_id,
+            collector_job_id=job.id,
+            collector_type=worker_type,
+            manual=manual,
+        )
+        if isinstance(collection_run, dict):
+            collection_run_id = collection_run.get("id")
+    collector_impl.collection_run_id = collection_run_id
     formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector_impl.name} {job.id if job else 'preview'}")
     task_description = (
         f"Collect: source '{source.get('name')}' with id {source.get('id')} using collector: '{collector_impl.name}' "
@@ -134,6 +145,8 @@ def collector_task(osint_source_id: str, manual: bool = False):
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             result_message = f"No changes: {e}"
+            if collection_run_id:
+                core_api.finish_collection_run(collection_run_id, collector_status="NOT_MODIFIED", expected_post_collection_bots=0)
             return _persist_and_return_result(
                 job,
                 core_api,
@@ -146,6 +159,8 @@ def collector_task(osint_source_id: str, manual: bool = False):
             logger.error(f"Collector task failed: {task_description}")
             task_status = "FAILURE"
             result_message = f"Error: {str(e)}"
+            if collection_run_id:
+                core_api.finish_collection_run(collection_run_id, collector_status=task_status, expected_post_collection_bots=0)
 
             # Save failure to database
             if job:
@@ -160,8 +175,17 @@ def collector_task(osint_source_id: str, manual: bool = False):
 
             raise RuntimeError(e) from e
 
-    # Run post-collection bots
-    core_api.run_post_collection_bots(osint_source_id)
+    expected_post_collection_bots = 0
+    post_collection_result = core_api.run_post_collection_bots(osint_source_id, collection_run_id=collection_run_id)
+    if isinstance(post_collection_result, dict):
+        expected_post_collection_bots = int(post_collection_result.get("expected_post_collection_bots", 0) or 0)
+
+    if collection_run_id:
+        core_api.finish_collection_run(
+            collection_run_id,
+            collector_status=task_status,
+            expected_post_collection_bots=expected_post_collection_bots,
+        )
 
     # Save task result to database
     if job:

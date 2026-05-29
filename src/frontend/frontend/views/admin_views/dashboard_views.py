@@ -1,4 +1,5 @@
 from flask import abort, render_template
+from models.admin import OSINTCollectionStatistics
 from models.dashboard import Dashboard
 from werkzeug.exceptions import HTTPException
 
@@ -29,10 +30,12 @@ class AdminDashboardView(AdminMixin, BaseView):
         data_persistence = DataPersistenceLayer()
         try:
             dashboard = data_persistence.get_first(Dashboard)
+            collection_stats = data_persistence.get_object(OSINTCollectionStatistics)
         except HTTPException:
             raise
         except Exception as exc:
             dashboard = None
+            collection_stats = None
             error = str(exc)
 
         if error or not dashboard:
@@ -41,6 +44,7 @@ class AdminDashboardView(AdminMixin, BaseView):
         template = cls.get_list_template()
         context = {
             "data": dashboard,
+            "collection_stats": collection_stats,
             "dashboard_health": cls.get_dashboard_health(dashboard),
             "release_info": cls.get_release_info(data_persistence),
             "health_badge_classes": cls.get_health_badge_classes(),

@@ -796,6 +796,7 @@ class Story(BaseModel):
         story_ids = []
         news_item_ids = []
         skipped_items = []
+        stored_bytes = 0
         try:
             for news_item in news_items_list:
                 normalized_news_item, err = cls.check_news_item_data(news_item)
@@ -812,12 +813,23 @@ class Story(BaseModel):
                     continue
                 story_ids.append(message["story_id"])
                 news_item_ids += message["news_item_ids"]
+                stored_bytes += len(
+                    f"{normalized_news_item.title or ''}{normalized_news_item.review or ''}{normalized_news_item.content or ''}".encode(
+                        "utf-8"
+                    )
+                )
             db.session.commit()
         except Exception:
             logger.exception("Failed to add news items")
             return {"error": "Failed to add news items"}, 400
 
-        result = {"story_ids": story_ids, "news_item_ids": news_item_ids, "message": f"{len(news_item_ids)} News items added successfully"}
+        result = {
+            "story_ids": story_ids,
+            "news_item_ids": news_item_ids,
+            "accepted_news_items_count": len(news_item_ids),
+            "stored_bytes": stored_bytes,
+            "message": f"{len(news_item_ids)} News items added successfully",
+        }
         if len(skipped_items) == len(news_items_list):
             result["message"] = "All news items were skipped"
             logger.warning(result)

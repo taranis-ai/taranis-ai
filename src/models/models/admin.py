@@ -112,6 +112,23 @@ class WorkerStats(TaranisBaseModel):
     idle_workers: int = 0
 
 
+class OSINTCollectionStatistics(TaranisBaseModel):
+    _core_endpoint = "/config/osint-source-statistics"
+    _cache_timeout = 30
+    _model_name = "osint_collection_statistics"
+    _pretty_name = "OSINT Collection Statistics"
+
+    items_24h: int = 0
+    stored_kb_24h: float = 0
+    peak_hour_started_at: datetime | None = None
+    peak_hour_items: int = 0
+    peak_hour_stored_kb: float = 0
+    latency_avg_seconds: float | None = None
+    latency_p95_seconds: float | None = None
+    latency_max_seconds: int | None = None
+    latency_sample_runs: int = 0
+
+
 class SchedulerDashboardData(TaranisBaseModel):
     _core_endpoint = "/config/workers/dashboard"
     _cache_timeout = 1

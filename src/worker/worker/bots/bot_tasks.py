@@ -10,7 +10,7 @@ from worker.core_api import CoreApi
 from worker.log import logger
 
 
-def bot_task(bot_id: str, filter: dict | None = None):
+def bot_task(bot_id: str, filter: dict | None = None, collection_run_id: str | None = None):
     """Execute a bot to process news items.
 
     Args:
@@ -39,6 +39,13 @@ def bot_task(bot_id: str, filter: dict | None = None):
         worker_type = bot_config.get("type", worker_type).upper()
         bot_result = _execute_by_config(bot_config, filter, bot_id)
         core_api.save_task_result(task_id, task_name, bot_result, "SUCCESS", worker_id=bot_id, worker_type=worker_type)
+        if collection_run_id:
+            core_api.record_collection_bot_completion(
+                collection_run_id,
+                bot_id=bot_id,
+                bot_type=worker_type,
+                status="SUCCESS",
+            )
         return (
             {"worker_id": bot_id, "worker_type": worker_type, **bot_result}
             if isinstance(bot_result, dict)
@@ -49,6 +56,13 @@ def bot_task(bot_id: str, filter: dict | None = None):
         if not (isinstance(exc, ValueError) and error_message == f"Bot with id {bot_id} not found"):
             error_message = f"Bot execution failed: {error_message}"
         core_api.save_task_result(task_id, task_name, {"error": error_message}, "FAILURE", worker_id=bot_id, worker_type=worker_type)
+        if collection_run_id:
+            core_api.record_collection_bot_completion(
+                collection_run_id,
+                bot_id=bot_id,
+                bot_type=worker_type,
+                status="FAILURE",
+            )
         raise
 
 

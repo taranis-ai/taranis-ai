@@ -777,21 +777,26 @@ class QueueManager:
         logger.error(f"Could not schedule publishing for product {product_id} with publisher {publisher_id}")
         return {"error": "Could not reach Redis"}, 500
 
-    def post_collection_bots(self, source_id: str):
+    def post_collection_bots(self, source_id: str, collection_run_id: str | None = None):
         """Run post-collection bots"""
         from core.model.bot import Bot
 
         post_collection_bots = list(Bot.get_post_collection())
         if not post_collection_bots:
-            return {"message": "No post collection bots found"}, 200
+            return {"message": "No post collection bots found", "expected_post_collection_bots": 0}, 200
 
         previous_job = None
         for bot_id in post_collection_bots:
             bot_args = {"bot_id": bot_id, "filter": {"SOURCE": source_id}}
+            if collection_run_id:
+                bot_args["collection_run_id"] = collection_run_id
+                job_id = f"bot_{bot_id}_{source_id}_{collection_run_id}"
+            else:
+                job_id = f"bot_{bot_id}_{source_id}"
             job = self.enqueue_task(
                 "bots",
                 "bot_task",
-                job_id=f"bot_{bot_id}_{source_id}",
+                job_id=job_id,
                 depends_on=previous_job,
                 **bot_args,
             )
@@ -799,7 +804,7 @@ class QueueManager:
                 return {"error": "Could not schedule post collection bot"}, 500
             previous_job = job
 
-        return {"message": "Post collection bots scheduled"}, 200
+        return {"message": "Post collection bots scheduled", "expected_post_collection_bots": len(post_collection_bots)}, 200
 
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""

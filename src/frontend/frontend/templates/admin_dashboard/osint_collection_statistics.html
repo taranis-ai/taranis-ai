@@ -1,0 +1,46 @@
+{% if collection_stats %}
+  {% call dashboard_card('OSINT Collection', None) %}
+    <div class="flex flex-col gap-3 text-sm">
+      <div>
+        <div class="text-xs uppercase tracking-wide text-base-content/60">24h Collected</div>
+        <div>
+          <b>{{ collection_stats.items_24h }}</b> news items
+          <span class="text-base-content/60">/</span>
+          <b>{{ collection_stats.stored_kb_24h }}</b> KB
+        </div>
+      </div>
+
+      <div>
+        <div class="text-xs uppercase tracking-wide text-base-content/60">Peak Hour (24h)</div>
+        <div>
+          {% if collection_stats.peak_hour_started_at %}
+            <b>{{ collection_stats.peak_hour_started_at | format_datetime }}</b>
+          {% else %}
+            <span class="text-base-content/60">No data</span>
+          {% endif %}
+        </div>
+        <div>
+          <b>{{ collection_stats.peak_hour_items }}</b> news items
+          <span class="text-base-content/60">/</span>
+          <b>{{ collection_stats.peak_hour_stored_kb }}</b> KB
+        </div>
+      </div>
+
+      <div>
+        <div class="text-xs uppercase tracking-wide text-base-content/60">Collector to Bots Delay</div>
+        {% if collection_stats.latency_sample_runs %}
+          <div>
+            avg <b>{{ collection_stats.latency_avg_seconds | round(1) }}s</b>
+            <span class="text-base-content/60">/</span>
+            p95 <b>{{ collection_stats.latency_p95_seconds | round(1) }}s</b>
+            <span class="text-base-content/60">/</span>
+            max <b>{{ collection_stats.latency_max_seconds }}s</b>
+          </div>
+          <div class="text-[0.7rem] text-base-content/60">Sample runs: {{ collection_stats.latency_sample_runs }}</div>
+        {% else %}
+          <div class="text-base-content/60">No completed runs in the last 24h.</div>
+        {% endif %}
+      </div>
+    </div>
+  {% endcall %}
+{% endif %}

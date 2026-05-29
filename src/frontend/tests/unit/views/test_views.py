@@ -475,6 +475,22 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
         status=200,
         content_type="application/json",
     )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/osint-source-statistics",
+        json={
+            "items_24h": 12,
+            "stored_kb_24h": 48.5,
+            "peak_hour_started_at": "2025-01-14T20:00:00+00:00",
+            "peak_hour_items": 5,
+            "peak_hour_stored_kb": 20.0,
+            "latency_avg_seconds": 12.4,
+            "latency_p95_seconds": 22.0,
+            "latency_max_seconds": 30,
+            "latency_sample_runs": 6,
+        },
+        status=200,
+        content_type="application/json",
+    )
 
     response = authenticated_client.get(AdminDashboardView.get_base_route())
 
@@ -496,6 +512,9 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
     assert "Pre-seeded" in html
     assert "Redis" in html
     assert "Workers" in html
+    assert "OSINT Collection" in html
+    assert "24h Collected" in html
+    assert "avg" in html
 
 
 def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fails(
@@ -547,6 +566,22 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
         status=503,
         content_type="application/json",
     )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/config/osint-source-statistics",
+        json={
+            "items_24h": 0,
+            "stored_kb_24h": 0.0,
+            "peak_hour_started_at": None,
+            "peak_hour_items": 0,
+            "peak_hour_stored_kb": 0.0,
+            "latency_avg_seconds": None,
+            "latency_p95_seconds": None,
+            "latency_max_seconds": None,
+            "latency_sample_runs": 0,
+        },
+        status=200,
+        content_type="application/json",
+    )
 
     response = authenticated_client.get(AdminDashboardView.get_base_route())
 
@@ -558,3 +593,4 @@ def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fail
     assert "master" in html
     assert "Unavailable" in html
     assert "Task Status" in html
+    assert "No completed runs in the last 24h." in html
