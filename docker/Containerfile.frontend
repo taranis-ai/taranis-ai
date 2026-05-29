@@ -28,16 +28,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     export PATH="/app/.venv/bin:$PATH" && \
     uv sync --frozen --no-editable --no-dev --no-install-project
 
-COPY ./src/frontend/build_tailwindcss.sh ./src/frontend/deno.json ./src/frontend/deno.lock ./src/frontend/tailwind.config.js ./src/frontend/vendor.js ./src/frontend/vendor_codemirror.js /app/
-COPY ./src/frontend/frontend/templates /app/frontend/templates
-COPY ./src/frontend/frontend/static /app/frontend/static
+COPY ./src/frontend/. /app/
 COPY ./src/core/core/static/openapi3_1.yaml /app/frontend/static/assets/openapi3_1.yaml
 
-RUN /app/build_tailwindcss.sh
-
-COPY ./src/frontend/. /app/
-
 RUN --mount=type=cache,target=/root/.cache/uv \
+    /app/build_tailwindcss.sh && \
     export PATH="/app/.venv/bin:$PATH" && \
     uv sync --frozen --no-editable --no-dev
 
