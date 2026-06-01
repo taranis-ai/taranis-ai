@@ -36,6 +36,10 @@ FILTER_CASES = [
     pytest.param({"in_report": "false"}, {"grouped_plain", "manual_important", "source_only"}, id="in-report-false"),
     pytest.param({"tags": ("alpha",)}, {"grouped_flagged"}, id="tag-alpha"),
     pytest.param({"tags": ("beta",)}, {"grouped_plain"}, id="tag-beta"),
+    pytest.param({"language": ("english",)}, {"grouped_flagged", "manual_important"}, id="language-english"),
+    pytest.param({"language": ("german", "french")}, {"grouped_plain", "source_only"}, id="language-multiple"),
+    pytest.param({"language": ("spanish",)}, set(), id="language-unknown"),
+    pytest.param({"language": ("",)}, set(), id="language-empty"),
     pytest.param({"story_ids": ("grouped_flagged", "manual_important")}, {"grouped_flagged", "manual_important"}, id="story-ids"),
     pytest.param({"search": "Story Filter Extra Source Story"}, {"source_only"}, id="search-extra-title"),
     pytest.param({"search": "Anonymous News Item"}, {"manual_important"}, id="search-anonymous-title"),
@@ -45,7 +49,7 @@ FILTER_CASES = [
 
 class TestStoryFilters(BaseTest):
     base_uri = "/api/assess"
-    _multi_value_filters = {"source", "group", "story_ids", "tags"}
+    _multi_value_filters = frozenset({"source", "group", "story_ids", "tags", "language"})
 
     @classmethod
     def _resolve_filter_values(cls, key: str, raw_values: Iterable[str], story_filter_data: dict) -> list[str]:
@@ -54,6 +58,7 @@ class TestStoryFilters(BaseTest):
             "group": story_filter_data["groups"],
             "story_ids": story_filter_data["stories"],
             "tags": story_filter_data["tags"],
+            "language": story_filter_data["languages"],
         }.get(key, {})
         return [lookup.get(value, value) for value in raw_values]
 
@@ -93,3 +98,74 @@ class TestStoryFilters(BaseTest):
     @pytest.mark.parametrize(("filters", "expected_story_keys"), FILTER_CASES)
     def test_story_filters(self, client, auth_header, story_filter_data, filters, expected_story_keys):
         self._assert_filtered_story_ids(client, auth_header, story_filter_data, filters, expected_story_keys)
+
+    def test_filter_lists_include_news_item_languages(self, client, auth_header, story_filter_data):
+        response = client.get(self.concat_url("filter-lists"), headers=auth_header)
+        payload = self.assert_json_ok(response).get_json()
+
+        assert payload["languages"] == sorted(story_filter_data["languages"].values())
+        source_ids = {item["id"] for item in payload["sources"]}
+        assert set(payload["languages"]) == {"de", "en", "fr"}
+        assert "filter-alpha" in payload["tags"]
+        assert story_filter_data["sources"]["source_only"] in source_ids
+
+    def test_filter_lists_include_untyped_tags(self, app, client, auth_header, story_filter_data):
+        from core.managers.db_manager import db
+        from core.model.news_item_tag import NewsItemTag
+
+        with app.app_context():
+            tag = NewsItemTag.find_by_name(story_filter_data["tags"]["alpha"])
+            assert tag is not None
+            tag.tag_type = None
+            db.session.commit()
+
+        response = client.get(self.concat_url("filter-lists"), headers=auth_header)
+        payload = self.assert_json_ok(response).get_json()
+
+        assert story_filter_data["tags"]["alpha"] in payload["tags"]
+
+    def test_filter_lists_reflect_language_changes_immediately(self, app, client, auth_header, story_filter_data):
+        from core.managers.db_manager import db
+        from core.model.story import Story
+
+        source_only_id = story_filter_data["stories"]["source_only"]
+        with app.app_context():
+            source_only = Story.get(source_only_id)
+            assert source_only is not None
+            original_language = source_only.news_items[0].language
+            source_only.news_items[0].language = "ES"
+            db.session.commit()
+
+        try:
+            response = client.get(self.concat_url("filter-lists"), headers=auth_header)
+            payload = self.assert_json_ok(response).get_json()
+
+            assert set(payload["languages"]) == {"de", "en", "es"}
+        finally:
+            with app.app_context():
+                source_only = Story.get(source_only_id)
+                assert source_only is not None
+                source_only.news_items[0].language = original_language
+                db.session.commit()
+
+    def test_language_filter_matches_legacy_case_variants(self, app, client, auth_header, story_filter_data):
+        from core.managers.db_manager import db
+        from core.model.story import Story
+
+        source_only_id = story_filter_data["stories"]["source_only"]
+        with app.app_context():
+            source_only = Story.get(source_only_id)
+            assert source_only is not None
+            original_language = source_only.news_items[0].language
+            source_only.news_items[0].language = "ES"
+            db.session.commit()
+
+        try:
+            self._assert_filtered_story_ids(client, auth_header, story_filter_data, {"language": ("es",)}, {"source_only"})
+        finally:
+            with app.app_context():
+                source_only = Story.get(source_only_id)
+                assert source_only is not None
+                source_only.news_items[0].language = original_language
+                db.session.commit()
+

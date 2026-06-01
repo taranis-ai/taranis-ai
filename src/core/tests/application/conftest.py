@@ -297,6 +297,10 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
 
         source_only.read = True
         source_only.important = False
+        grouped_flagged.news_items[0].language = "en"
+        grouped_plain.news_items[0].language = "de"
+        manual_important.news_items[0].language = "en"
+        source_only.news_items[0].language = "fr"
 
         for story in (grouped_flagged, grouped_plain, manual_important, source_only):
             story.recompute_relevance(in_reports_count=0)
@@ -334,6 +338,11 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
                 "beta": "filter-beta",
                 "gamma": "filter-gamma",
                 "delta": "filter-delta",
+            },
+            "languages": {
+                "english": "en",
+                "german": "de",
+                "french": "fr",
             },
             "actors": {
                 "admin": admin_actor,

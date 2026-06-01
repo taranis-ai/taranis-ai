@@ -342,15 +342,17 @@ class QueueManager:
 
     @staticmethod
     def _get_housekeeping_cron_specs() -> dict[str, CronSpec]:
-        spec = CronSpec(
-            meta={"name": TOKEN_CLEANUP_DISPLAY_NAME},
-            job_id=TOKEN_CLEANUP_JOB_ID,
-            cron=TOKEN_CLEANUP_CRON,
-            func_path="cleanup_token_blacklist",
-            args=[],
-            queue_name="misc",
+        specs = (
+            CronSpec(
+                meta={"name": TOKEN_CLEANUP_DISPLAY_NAME},
+                job_id=TOKEN_CLEANUP_JOB_ID,
+                cron=TOKEN_CLEANUP_CRON,
+                func_path="cleanup_token_blacklist",
+                args=[],
+                queue_name="misc",
+            ),
         )
-        return {spec.job_id: spec}
+        return {spec.job_id: spec for spec in specs}
 
     def _get_registered_cron_job_ids(self) -> set[str]:
         if self.error or not self._redis:
@@ -462,9 +464,9 @@ class QueueManager:
             logger.error(f"Failed to clear queues: {e}")
 
     def publish_schedule_cache_invalidation(self) -> int:
-        from core.service.cache_invalidation import cache_invalidation_service
+        from core.service.cache_invalidation import SCOPE_SCHEDULE, cache_invalidation_service
 
-        return cache_invalidation_service.invalidate_scope("schedule")
+        return cache_invalidation_service.invalidate_scope(SCOPE_SCHEDULE)
 
     @property
     def redis(self) -> Redis | None:
@@ -999,6 +1001,7 @@ class QueueManager:
                     last_status=cleanup_result.status if cleanup_result else None,
                 )
             )
+
         except Exception as e:
             logger.warning(f"Failed to fetch cron schedules: {e}")
             # Don't fail the whole request if cron scheduler is not available
@@ -1183,7 +1186,6 @@ class QueueManager:
                     "name": "Cleanup Token Blacklist",
                 }
             )
-
             return {"cron_jobs": cron_jobs}, 200
         except Exception:
             logger.exception("Failed to get cron job configurations")

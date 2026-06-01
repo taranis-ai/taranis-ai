@@ -106,6 +106,16 @@ class TestBotsApi(BaseTest):
 
         assert attributes == expected_attributes
 
+    def test_news_item_language_update_rejects_invalid_language(self, client, stories, auth_header, api_header):
+        response = client.get(f"/api/assess/story/{stories[0]}", headers=auth_header)
+        self.assert_json_ok(response)
+        news_item_id = response.get_json()["news_items"][0]["id"]
+
+        response = client.put(f"{self.base_uri}/news-item/{news_item_id}", json={"language": "invalid_language"}, headers=api_header)
+
+        assert response.status_code == 400
+        assert "Invalid BCP 47 language tag" in response.get_json()["error"]
+
 
 class TestTaggingBotsResults(BaseTest):
     base_uri = "/api/tasks"

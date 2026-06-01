@@ -59,17 +59,48 @@ jobs:
           git_info=$(printf '{"branch":"master","HEAD":"%s","tag":"%s"}' "${short_sha}" "${TAG}")
 
           for image in "${images[@]}"; do
-            printf "FROM ghcr.io/%s/%s:latest\nARG git_info\nENV GIT_INFO=\${git_info}\n" \
-              "${REPOSITORY_OWNER}" "${image}" \
-            | docker buildx build \
+            case "${image}" in
+              taranis-core)
+                file="docker/Containerfile.core"
+                build_args=(
+                  --build-arg "git_info=${git_info}"
+                  --build-arg "build_version=${TAG}"
+                )
+                ;;
+              taranis-worker)
+                file="docker/Containerfile.worker"
+                build_args=(
+                  --build-arg "git_info=${git_info}"
+                  --build-arg "build_version=${TAG}"
+                )
+                ;;
+              taranis-ingress)
+                file="docker/Containerfile.ingress"
+                build_args=(
+                  --build-arg "git_info=${git_info}"
+                )
+                ;;
+              taranis-frontend)
+                file="docker/Containerfile.frontend"
+                build_args=(
+                  --build-arg "git_info=${git_info}"
+                  --build-arg "build_version=${TAG}"
+                )
+                ;;
+            esac
+
+            docker buildx build \
+              --file "${file}" \
+              "${build_args[@]}" \
               --platform linux/amd64,linux/arm64 \
-              --build-arg "git_info=${git_info}" \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:${TAG}" \
               --tag "ghcr.io/${REPOSITORY_OWNER}/${image}:stable" \
               --metadata-file "${{ runner.temp }}/${image}-meta.json" \
               --sbom=true \
+              --cache-from "type=registry,ref=ghcr.io/${REPOSITORY_OWNER}/${image}-cache-amd64:latest" \
+              --cache-from "type=registry,ref=ghcr.io/${REPOSITORY_OWNER}/${image}-cache-arm64:latest" \
               --push \
-              -
+              .
           done
 
       - name: Attest images

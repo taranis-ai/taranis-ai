@@ -325,6 +325,16 @@ class TestAssessStories(BaseTest):
         assert "revision_count" in items[stories[0]]
         assert items[stories[0]]["revision_count"] > 0
 
+    def test_bulk_story_update_returns_404_for_unknown_story(self, client, stories, auth_header):
+        response = client.post(
+            "/api/assess/stories/bulk_action",
+            json={"story_ids": ["missing-story", stories[0]], "payload": {"read": True}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 404
+        assert response.get_json() == {"error": "Story not found"}
+
     def test_delete_story(self, client, stories, auth_header):
         response = self.assert_delete_ok(client, f"story/{stories[0]}", auth_header)
 

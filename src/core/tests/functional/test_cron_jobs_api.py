@@ -37,10 +37,9 @@ class TestCronJobsAPI:
         for job in collector_jobs:
             assert job["queue"] == "collectors"
             assert isinstance(job["args"], list)
-            assert len(job["args"]) == 1
-            assert job["args"][0]["task"] == "collector_task"
-            assert job["args"][0]["worker_type"] == "collector_task"
-            assert job["args"][0]["manual"] is False
+            assert len(job["args"]) == 2
+            assert isinstance(job["args"][0], str)
+            assert job["args"][1] is False
             assert job["cron"]  # Should have a cron schedule
             assert job["task_id"].startswith("collect_")
 
@@ -60,7 +59,7 @@ class TestCronJobsAPI:
             assert job["queue"] == "bots"
             assert isinstance(job["args"], list)
             assert len(job["args"]) == 1
-            assert job["args"][0]["task"].startswith("bot_")
+            assert isinstance(job["args"][0], str)
             assert job["cron"]  # Should have a cron schedule
             assert job["task_id"].startswith("bot_")
 
@@ -77,13 +76,7 @@ class TestCronJobsAPI:
 
         cleanup_job = housekeeping_jobs[0]
         assert cleanup_job["queue"] == "misc"
-        assert cleanup_job["args"] == [
-            {
-                "task": "cleanup_token_blacklist",
-                "worker_id": "cleanup_token_blacklist",
-                "worker_type": "cleanup_token_blacklist",
-            }
-        ]
+        assert cleanup_job["args"] == []
         assert cleanup_job["cron"] == "0 2 * * *"
         assert cleanup_job["task_id"] == "cleanup_token_blacklist"
         assert cleanup_job["name"] == "Cleanup Token Blacklist"
@@ -138,7 +131,7 @@ class TestCronJobsAPI:
 
         data = response.get_json()
         assert "cron_jobs" in data
-        # Should at least have housekeeping tasks even if no sources/bots
+        # Should at least have the cleanup housekeeping task even if no sources/bots
         housekeeping_jobs = [job for job in data["cron_jobs"] if job["task"] == "cleanup_token_blacklist"]
         assert len(housekeeping_jobs) == 1
 

@@ -19,6 +19,7 @@ from core.model.publisher_preset import PublisherPreset
 from core.model.report_item import ReportItem
 from core.model.story import Story
 from core.model.word_list import WordList
+from core.service.cache_invalidation import SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS, invalidate_frontend_cache_on_success
 
 
 class AddNewsItems(MethodView):
@@ -33,6 +34,7 @@ class AddNewsItems(MethodView):
         result, status = Story.add_news_items(json_data)
         if 200 <= status < 300:
             sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return result, status
 
 
