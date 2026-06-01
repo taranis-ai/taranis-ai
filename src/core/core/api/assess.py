@@ -12,8 +12,14 @@ from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args, validate_json
 from core.managers.sse_manager import sse_manager
 from core.model import connector, news_item, news_item_tag, osint_source, story
+from core.model.filter_data import FilterData
 from core.model.story_conflict import StoryConflict
-from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import (
+    SCOPE_ASSESS_VIEWS,
+    SCOPE_STORY_REPORT_VIEWS,
+    SCOPE_STORY_VIEWS,
+    invalidate_frontend_cache_on_success,
+)
 from core.service.news_item import NewsItemService
 from core.service.simple_web_collector import get_simple_web_collector_url
 from core.service.story import StoryService
@@ -52,7 +58,7 @@ class NewsItems(MethodView):
         data_json["osint_source_id"] = "manual"
         result, status = story.Story.add_single_news_item(data_json, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return result, status
 
 
@@ -76,7 +82,7 @@ class NewsItemFetch(MethodView):
         response, status = StoryService.fetch_and_create_story(parameters)
         if 200 <= status < 300:
             sse_manager.news_items_updated()
-            invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"))
+            invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return response, status
 
 
@@ -90,7 +96,7 @@ class NewsItem(MethodView):
     def put(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
 
     @auth_required("ASSESS_UPDATE")
@@ -98,14 +104,14 @@ class NewsItem(MethodView):
     def patch(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
 
     @auth_required("ASSESS_DELETE")
     def delete(self, item_id: str):
         response, code = NewsItemService.delete(item_id, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"news_item": item_id})
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
 
 
@@ -114,7 +120,7 @@ class UpdateNewsItemAttributes(MethodView):
     def put(self, news_item_id: str):
         actor = story.Story.last_change_for_user(current_user)
         response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=actor)
-        invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
         return response, status
 
 
@@ -124,7 +130,7 @@ class UpdateNewsItemTags(MethodView):
     def put(self, news_item_id: str):
         item = news_item.NewsItem.get(news_item_id)
         if not item:
-            return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
+            return {"error": "NewsItem not found"}, 404
         if not item.allowed_with_acl(current_user, require_write_access=True):
             return {"error": "User does not have write access to this news item"}, 403
 
@@ -158,7 +164,7 @@ class Stories(MethodView):
                 "exclude_attr",
             ]
             filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
-            filter_list_keys = ["source", "group", "story_ids"]
+            filter_list_keys = ["source", "group", "story_ids", "language"]
             for key in filter_list_keys:
                 filter_args[key] = request.args.getlist(key)
 
@@ -184,9 +190,13 @@ class Stories(MethodView):
             return {"error": "No story ids provided"}, 400
         if payload is not None and not isinstance(payload, dict):
             return {"error": "Invalid payload provided"}, 400
+
         result_dict = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
-        for s in [story.Story.get(sid) for sid in story_ids if sid]:
-            if not s:
+        for story_id in story_ids:
+            if not story_id:
+                continue
+            s = story.Story.get(story_id)
+            if s is None:
                 return {"error": "Story not found"}, 404
             response, code = story.Story.update(s.id, payload, current_user)
             if code != 200:
@@ -224,21 +234,21 @@ class Story(MethodView):
     def put(self, story_id):
         response, code = story.Story.update(story_id, request.json, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "report_item"), object_ids={"story": story_id})
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return response, code
 
     @auth_required("ASSESS_DELETE")
     def delete(self, story_id):
         response, code = story.Story.delete_by_id(story_id, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "report_item"), object_ids={"story": story_id})
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return response, code
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def patch(self, story_id):
         response, code = story.Story.update(story_id, request.json, current_user)
-        invalidate_frontend_cache_on_success(code, models=("story", "report_item"), object_ids={"story": story_id})
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return response, code
 
 
@@ -251,7 +261,7 @@ class UnGroupNewsItem(MethodView):
         actor = story.Story.last_change_for_user(current_user)
         response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
 
@@ -263,7 +273,7 @@ class UnGroupStories(MethodView):
             return {"error": "No story ids provided"}, 400
         response, code = story.Story.ungroup_multiple_stories(story_ids, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
 
@@ -276,7 +286,7 @@ class GroupAction(MethodView):
         actor = story.Story.last_change_for_user(current_user)
         response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
     @auth_required("ASSESS_UPDATE")
@@ -287,7 +297,7 @@ class GroupAction(MethodView):
         actor = story.Story.last_change_for_user(current_user)
         response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
 
@@ -333,17 +343,15 @@ class Connectors(MethodView):
         try:
             response, code = queue_manager.queue_manager.push_to_connector(connector_id=connector_id, story_ids=story_ids)
             return response, code
-        except Exception as e:
-            return {"error": str(e)}, 500
+        except Exception:
+            logger.exception("Failed to push stories to connector %s", connector_id)
+            return {"error": "Failed to push stories to connector"}, 500
 
 
 class FilterLists(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        tag_list = news_item_tag.NewsItemTag.get_list({})
-        source_list = osint_source.OSINTSource.get_all_for_assess_api(user=current_user)[0]["items"]
-        group_list = osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)[0]["items"]
-        return {"tags": tag_list, "sources": source_list, "groups": group_list}, 200
+        return FilterData.get_assess_filterlists(user=current_user), 200
 
 
 class Proposals(MethodView):

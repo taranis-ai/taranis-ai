@@ -7,7 +7,8 @@ function getCSRFToken() {
 
 function getConfirmOptions(el, question) {
   const title = el.getAttribute("data-confirm-title") || question;
-  const confirmButtonText = el.getAttribute("data-confirm-confirm") || (el.hasAttribute("hx-delete") ? "Delete" : "OK");
+  const confirmButtonText = el.getAttribute("data-confirm-confirm") ||
+    (el.hasAttribute("hx-delete") ? "Delete" : "OK");
   return {
     title,
     text: title === question ? "" : question,
@@ -145,7 +146,10 @@ if (document.readyState === "loading") {
 document.body.addEventListener("htmx:confirm", function (evt) {
   const triggerElement = evt.detail.elt;
 
-  if (!(triggerElement instanceof Element) || !triggerElement.hasAttribute("hx-confirm")) {
+  if (
+    !(triggerElement instanceof Element) ||
+    !triggerElement.hasAttribute("hx-confirm")
+  ) {
     return;
   }
 
@@ -164,6 +168,30 @@ document.body.addEventListener("htmx:confirm", function (evt) {
 
 document.body.addEventListener("htmx:configRequest", function (evt) {
   evt.detail.headers["X-CSRF-TOKEN"] = getCSRFToken(); // add CSRF to every request
+});
+
+function replaceNotificationBarFromResponse(responseText) {
+  const currentNotificationBar = document.getElementById("notification-bar");
+
+  if (!currentNotificationBar || !responseText) {
+    return;
+  }
+
+  const template = document.createElement("template");
+  template.innerHTML = responseText.trim();
+  const nextNotificationBar = template.content.querySelector(
+    "#notification-bar",
+  );
+
+  if (!nextNotificationBar || !nextNotificationBar.textContent.trim()) {
+    return;
+  }
+
+  currentNotificationBar.replaceWith(nextNotificationBar);
+}
+
+document.body.addEventListener("htmx:responseError", function (evt) {
+  replaceNotificationBarFromResponse(evt.detail.xhr?.responseText || "");
 });
 
 function initChoices(elementID, placeholder = "items", config = {}) {

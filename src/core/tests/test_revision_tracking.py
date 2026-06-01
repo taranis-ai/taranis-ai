@@ -92,7 +92,7 @@ def test_news_item_set_tags_creates_created_and_update_revisions(admin_user):
     response, status = story.news_items[0].set_tags(["apt29"], actor=expected_actor)
 
     assert status == 200
-    assert response["message"].startswith("Successfully updated news item")
+    assert response["message"] == "News item tags updated"
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 2
@@ -111,7 +111,7 @@ def test_news_item_set_tags_preserves_worker_actor():
     response, status = story.news_items[0].set_tags(["apt29"], actor=story.last_change)
 
     assert status == 200
-    assert response["message"].startswith("Successfully updated news item")
+    assert response["message"] == "News item tags updated"
     db.session.refresh(story)
     revisions = _fetch_story_revisions(story.id)
     assert story.revision == 2

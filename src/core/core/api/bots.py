@@ -10,7 +10,13 @@ from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model import bot, news_item, story
-from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import (
+    SCOPE_ASSESS_VIEWS,
+    SCOPE_SCHEDULE,
+    SCOPE_STORY_REPORT_VIEWS,
+    SCOPE_STORY_VIEWS,
+    invalidate_frontend_cache_on_success,
+)
 
 
 def _bot_actor() -> str:
@@ -26,7 +32,7 @@ class BotGroupAction(MethodView):
             return {"error": "No story ids provided"}, 400
         response, code = story.Story.group_stories(story_ids, actor=_bot_actor())
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
 
@@ -39,7 +45,7 @@ class BotGroupMultipleAction(MethodView):
             return {"error": "No stories provided"}, 400
         response, code = story.Story.group_multiple_stories(story_ids, actor=_bot_actor())
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
 
@@ -52,7 +58,7 @@ class BotUnGroupAction(MethodView):
             return {"error": "No news items provided"}, 400
         response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, actor=_bot_actor())
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
 
@@ -64,30 +70,30 @@ class NewsItem(MethodView):
                 return news_item.NewsItem.get_for_api(news_item_id)
             filtre_args = {"limit": request.args.get("limit", default=(datetime.now() - timedelta(weeks=1)).isoformat())}
             return news_item.NewsItem.get_all_for_api(filtre_args)
-        except Exception as e:
-            logger.error((e))
-            return {"error": str(e)}, 400
+        except Exception:
+            logger.exception("Failed to get bot news item data")
+            return {"error": "Failed to get news item data"}, 400
 
     @api_key_required
     def put(self, news_item_id):
         try:
             if not request.json:
-                return {"Not update data provided"}
+                return {"error": "No update data provided"}, 400
             if language := request.json.get("language"):
                 response, status = news_item.NewsItem.update_news_item_lang(news_item_id, language, actor=_bot_actor())
-                invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+                invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
                 return response, status
-            return {"Not implemented"}
-        except Exception as e:
-            logger.error(str(e))
-            return {"error": str(e)}, 400
+            return {"error": "Not implemented"}, 501
+        except Exception:
+            logger.exception("Failed to update bot news item %s", news_item_id)
+            return {"error": "Failed to update news item"}, 400
 
 
 class UpdateNewsItemAttributes(MethodView):
     @api_key_required
     def put(self, news_item_id):
         response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=_bot_actor())
-        invalidate_frontend_cache_on_success(status, models=("story", "news_item"), object_ids={"news_item": news_item_id})
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
         return response, status
 
 
@@ -96,7 +102,7 @@ class StoryAttributes(MethodView):
     def get(self, story_id):
         if current_story := story.Story.get(story_id):
             return current_story.attributes
-        return {"message": f"Story {story_id} not found"}, 404
+        return {"message": "Story not found"}, 404
 
     @api_key_required
     def patch(self, story_id):
@@ -112,9 +118,9 @@ class StoryAttributes(MethodView):
             current_story.update_status(change=_bot_actor())
             current_story.record_revision(note="update_story_attributes")
             db.session.commit()
-            invalidate_frontend_cache_on_success(200, models=("story", "report_item"), object_ids={"story": story_id})
-            return {"message": f"Story {story_id} updated successfully"}, 200
-        return {"error": f"Story {story_id} not found"}, 404
+            invalidate_frontend_cache_on_success(200, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
+            return {"message": "Story updated successfully"}, 200
+        return {"error": "Story not found"}, 404
 
 
 class UpdateStory(MethodView):
@@ -126,7 +132,7 @@ class UpdateStory(MethodView):
     def put(self, story_id: str):
         result = story.Story.update(story_id, request.json, actor=_bot_actor())
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(result[1], models=("story", "report_item"), object_ids={"story": story_id})
+        invalidate_frontend_cache_on_success(result[1], scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return result
 
 
@@ -141,9 +147,9 @@ class BotsInfo(MethodView):
     @api_key_required
     def put(self, bot_id):
         if bot_result := bot.Bot.update(bot_id, request.json):
-            invalidate_frontend_cache_on_success(200, models=("bot",), scopes=("schedule",), object_ids={"bot": bot_id})
-            return {"message": f"Bot {bot_result.name} updated", "id": bot_result.id}, 200
-        return {"message": f"Bot {bot_id} not found"}, 404
+            invalidate_frontend_cache_on_success(200, models=("bot",), scopes=(SCOPE_SCHEDULE,), object_ids={"bot": bot_id})
+            return {"message": "Bot updated", "id": bot_result.id}, 200
+        return {"message": "Bot not found"}, 404
 
 
 def initialize(app: Flask):

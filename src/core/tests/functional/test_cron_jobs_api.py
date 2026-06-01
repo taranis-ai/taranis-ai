@@ -129,7 +129,7 @@ class TestCronJobsAPI:
 
         data = response.get_json()
         assert "cron_jobs" in data
-        # Should at least have housekeeping tasks even if no sources/bots
+        # Should at least have the cleanup housekeeping task even if no sources/bots
         housekeeping_jobs = [job for job in data["cron_jobs"] if job["task"] == "cleanup_token_blacklist"]
         assert len(housekeeping_jobs) == 1
 

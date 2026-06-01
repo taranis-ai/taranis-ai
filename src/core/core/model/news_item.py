@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as AssessStory
+from models.assess import validate_bcp47
 from pydantic import ValidationError
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -83,27 +84,52 @@ class NewsItem(BaseModel):
         story_id: str = "",
         tags: list | dict | None = None,
     ):
-        self.id = self.normalize_uuid_id(id)
-        self.title = title
-        self.review = review
-        self.content = content
-        if osint_source := OSINTSource.get_by_key(osint_source_id) or OSINTSource.get(osint_source_id):
+        normalized_published = self.get_date_field(published)
+        normalized_collected = self.get_date_field(collected)
+        normalized_id = self.normalize_uuid_id(id)
+
+        payload = AssessNewsItem.from_input(
+            {
+                "title": title,
+                "source": source,
+                "content": content,
+                "osint_source_id": osint_source_id,
+                "review": review,
+                "author": author,
+                "link": link,
+                "language": language,
+                "hash": hash,
+                "id": normalized_id,
+                "attributes": attributes,
+                "last_change": last_change,
+                "published": normalized_published,
+                "collected": normalized_collected,
+                "story_id": story_id,
+                "tags": tags,
+            }
+        )
+
+        self.id = payload.id or normalized_id
+        self.title = payload.title or ""
+        self.review = payload.review or ""
+        self.content = payload.content or ""
+        if osint_source := OSINTSource.get(payload.osint_source_id):
             with db.session.no_autoflush:
                 self.osint_source = osint_source
         else:
-            logger.warning(f"OSINT Source {osint_source_id} not found. Setting osint_source_id to manual.")
+            logger.warning(f"OSINT Source {payload.osint_source_id} not found. Setting osint_source_id to manual.")
             self.osint_source = OSINTSource.get_by_key("manual")
-        self.source = source
-        self.link = link
-        self.author = author
-        self.language = language
-        self.last_change = last_change
-        self.hash = hash or self.get_hash(title, link, content)
-        self.collected = self.get_date_field(collected)
-        self.published = self.get_date_field(published)
-        self.story_id = story_id
-        self.attributes = NewsItemAttribute.load_multiple(attributes or [])
-        self.tags = list(NewsItemTag.parse_tags(tags or {}).values())
+        self.source = payload.source or ""
+        self.link = payload.link or ""
+        self.author = payload.author or ""
+        self.language = payload.language or ""
+        self.last_change = payload.last_change or last_change
+        self.hash = payload.hash or self.get_hash(title=self.title, link=self.link, content=self.content)
+        self.collected = payload.collected or normalized_collected
+        self.published = payload.published or normalized_published
+        self.story_id = payload.story_id or story_id
+        self.attributes = NewsItemAttribute.load_multiple(payload.attributes or [])
+        self.tags = list(NewsItemTag.parse_tags(payload.tags or {}).values())
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "NewsItem":
@@ -159,7 +185,7 @@ class NewsItem(BaseModel):
         logger.debug(f"Getting {cls.__name__} {item_id}")
         if item := cls.get(item_id):
             return item.to_detail_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     def to_detail_dict(self) -> dict[str, Any]:
         data = self.to_dict()
@@ -219,12 +245,19 @@ class NewsItem(BaseModel):
         if self.story:
             self.story.update_status(change=change)
 
+    @staticmethod
+    def _normalize_language(lang: str | None) -> str:
+        return validate_bcp47(lang) or ""
+
     @classmethod
     def update_news_item_lang(cls, news_item_id, lang, actor: str | None = None):
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
-        news_item.language = lang
+        try:
+            news_item.language = cls._normalize_language(lang)
+        except (TypeError, ValueError) as exc:
+            return {"error": f"Invalid news item data: language: {exc}"}, 400
         news_item._update_status(actor or "internal")
         if story := news_item.story:
             story.record_revision(note="update_news_item_lang")
@@ -250,7 +283,7 @@ class NewsItem(BaseModel):
         if story := news_item.story:
             story.record_revision(note="update_news_item_attributes")
         db.session.commit()
-        return {"message": f"Attributes of news item with id '{news_item_id}' updated"}, 200
+        return {"message": "News item attributes updated"}, 200
 
     def add_attribute(self, attribute: NewsItemAttribute) -> None:
         if not self.has_attribute(attribute.key):
@@ -288,10 +321,10 @@ class NewsItem(BaseModel):
                 update_story=update_story,
                 commit=commit,
             )
-        except Exception as e:
+        except Exception:
             logger.exception("Update News Item Tags Failed")
             db.session.rollback()
-            return {"error": str(e)}, 500
+            return {"error": "Update News Item Tags Failed"}, 500
 
     def _update_tags(
         self,
@@ -304,8 +337,8 @@ class NewsItem(BaseModel):
     ) -> tuple[dict, int]:
         try:
             parsed_tags = NewsItemTag.parse_tags(incoming_tags)
-        except (TypeError, ValueError) as exc:
-            return {"error": str(exc)}, 400
+        except (TypeError, ValueError):
+            return {"error": "Invalid tags"}, 400
 
         if incoming_tags and not parsed_tags:
             return {"error": "No valid tags provided"}, 400
@@ -328,7 +361,7 @@ class NewsItem(BaseModel):
             story.record_revision(user or Story.user_for_actor(actor), note="set_news_item_tags")
         if commit:
             db.session.commit()
-        return {"message": f"Successfully updated news item: {self.id}, with {len(self.tags)} tags"}, 200
+        return {"message": "News item tags updated"}, 200
 
     def patch_tags(self, tags: dict[str, NewsItemTag]):
         for tag in tags.values():
@@ -375,7 +408,7 @@ class NewsItem(BaseModel):
         self.author = payload.author or ""
         self.link = payload.link or ""
         self.content = payload.content or ""
-        self.language = str(payload.language or "")
+        self.language = payload.language or ""
         self.published = payload.published or self.published
         self.hash = payload.hash or self.hash
 
@@ -383,7 +416,7 @@ class NewsItem(BaseModel):
 
         self.updated = self.utcnow()
 
-        return {"message": f"News Item {self.id} updated", "id": self.id}, 200
+        return {"message": "News item updated", "id": self.id}, 200
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:

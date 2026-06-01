@@ -154,7 +154,7 @@ class Bot(BaseModel):
         )
         db.session.delete(bot)
         db.session.commit()
-        return {"message": f"Bot {bot.name} deleted"}, 200
+        return {"message": "Bot deleted"}, 200
 
     def get_schedule(self) -> str:
         return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")

@@ -193,6 +193,7 @@ def test_publish_schedule_cache_invalidation_notifies_scheduler_views(monkeypatc
 
 def test_get_task_returns_live_rq_status(monkeypatch):
     class FakeJob:
+        id = "source_preview_123"
         is_finished = False
         is_failed = False
 
@@ -212,6 +213,7 @@ def test_get_task_returns_live_rq_status(monkeypatch):
 
 def test_get_task_returns_success_payload(monkeypatch):
     class FakeJob:
+        id = "source_preview_123"
         is_finished = True
         is_failed = False
         result = [{"title": "Preview item"}]
@@ -248,7 +250,7 @@ def test_preview_osint_source_purges_existing_preview_artifacts(monkeypatch):
 
     assert purged_calls == [({"source_preview_123"}, [])]
     assert status == 201
-    assert response == {"message": "Preview for source 123 scheduled", "id": "source_preview_123", "status": "STARTED"}
+    assert response == {"message": "Preview for source scheduled", "id": "source_preview_123", "status": "STARTED"}
 
 
 def test_get_active_jobs_uses_registry(monkeypatch):
@@ -400,7 +402,7 @@ def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypa
     payload, status = qm.autopublish_product("product-2", "publisher-2")
 
     assert status == 500
-    assert payload == {"error": "Could not schedule presenter job for product product-2"}
+    assert payload == {"error": "Could not schedule presenter job for product"}
 
 
 def test_osint_schedule_entries_include_metadata(monkeypatch):
@@ -513,7 +515,7 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
         schedules, status = qm.get_scheduled_jobs()
 
     assert status == 200
-    # 120 OSINT cron jobs + housekeeping cleanup cron
+    # 120 OSINT cron jobs + cleanup housekeeping cron
     assert schedules["total_count"] == 121
 
 

@@ -132,7 +132,7 @@ class TestSourcesConfigApi(BaseTest):
                 json_data={"icon": _VALID_WIDE_PNG_ICON_BASE64},
                 auth_header=auth_header,
             )
-            assert update_response.json["id"] == source_id
+            assert uuid.UUID(update_response.json["id"]).hex == source_id
 
             updated_source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
             self._assert_normalized_icon(updated_source_response.json["icon"])
@@ -406,7 +406,7 @@ class TestSourcesConfigApi(BaseTest):
     def test_delete_source(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]
         response = self.assert_delete_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
-        assert response.json["message"] == f"OSINT Source {cleanup_sources['name']} deleted"
+        assert response.json["message"] == "OSINT Source deleted"
 
     def test_create_source_group(self, client, auth_header, cleanup_source_groups):
         response = self.assert_post_ok(client, uri="osint-source-groups", json_data=cleanup_source_groups, auth_header=auth_header)
@@ -435,7 +435,7 @@ class TestSourcesConfigApi(BaseTest):
     def test_delete_source_group(self, client, auth_header, cleanup_source_groups):
         source_group_id = cleanup_source_groups["id"]
         response = self.assert_delete_ok(client, uri=f"osint-source-groups/{source_group_id}", auth_header=auth_header)
-        assert response.json["message"] == f"Successfully deleted {source_group_id}"
+        assert response.json["message"] == "OSINT source group deleted"
 
 
 class TestWorkerSourceIcon(BaseTest):
@@ -550,7 +550,7 @@ class TestWordListConfigApi(BaseTest):
     def test_delete_word_list(self, client, auth_header, cleanup_word_lists):
         word_list_id = cleanup_word_lists["id"]
         response = self.assert_delete_ok(client, uri=f"word-lists/{word_list_id}", auth_header=auth_header)
-        assert response.json["message"] == f"WordList {word_list_id} deleted"
+        assert response.json["message"] == "WordList deleted"
 
 
 class TestUserConfigApi(BaseTest):
@@ -558,7 +558,7 @@ class TestUserConfigApi(BaseTest):
 
     def test_create_user(self, client, auth_header, cleanup_user):
         response = self.assert_post_ok(client, uri="users", json_data=cleanup_user, auth_header=auth_header)
-        assert response.json["message"] == f"User {cleanup_user['username']} created"
+        assert response.json["message"] == "User created"
 
     def test_modify_user(self, client, auth_header, cleanup_user):
         user_id = cleanup_user["id"]
@@ -567,7 +567,7 @@ class TestUserConfigApi(BaseTest):
             "name": "Testy McTestFace",
         }
         response = self.assert_put_ok(client, uri=f"users/{user_id}", json_data=user_data, auth_header=auth_header)
-        assert response.json["message"] == f"User {user_id} updated"
+        assert response.json["message"] == "User updated"
 
     def test_get_user(self, client, auth_header, cleanup_user):
         user_id = cleanup_user["id"]
@@ -583,7 +583,7 @@ class TestUserConfigApi(BaseTest):
     def test_delete_user(self, client, auth_header, cleanup_user):
         user_id = cleanup_user["id"]
         response = self.assert_delete_ok(client, uri=f"users/{user_id}", auth_header=auth_header)
-        assert response.json["message"] == f"User {user_id} deleted"
+        assert response.json["message"] == "User deleted"
 
 
 class TestRoleConfigApi(BaseTest):
@@ -615,7 +615,7 @@ class TestRoleConfigApi(BaseTest):
     def test_delete_role(self, client, auth_header, cleanup_role):
         role_id = cleanup_role["id"]
         response = self.assert_delete_ok(client, uri=f"roles/{role_id}", auth_header=auth_header)
-        assert response.json["message"] == f"Role {role_id} deleted"
+        assert response.json["message"] == "Role deleted"
 
 
 class TestOrganizationConfigApi(BaseTest):
@@ -646,7 +646,7 @@ class TestOrganizationConfigApi(BaseTest):
     def test_delete_organization(self, client, auth_header, cleanup_organization):
         organization_id = cleanup_organization["id"]
         response = self.assert_delete_ok(client, uri=f"organizations/{organization_id}", auth_header=auth_header)
-        assert response.json["message"] == f"Organization {organization_id} deleted"
+        assert response.json["message"] == "Organization deleted"
 
 
 class TestBotConfigApi(BaseTest):
@@ -654,7 +654,7 @@ class TestBotConfigApi(BaseTest):
 
     def test_create_bot(self, client, auth_header, cleanup_bot):
         response = self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
-        assert response.json["message"] == f"Bot {cleanup_bot['name']} created"
+        assert response.json["message"] == "Bot created"
         assert response.json["id"] == cleanup_bot["id"]
 
     def test_modify_bot(self, client, auth_header, cleanup_bot, app):
@@ -799,7 +799,7 @@ class TestBotConfigApi(BaseTest):
         self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
 
         response = self.assert_delete_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
-        assert response.json["message"] == f"Bot {cleanup_bot['name']} deleted"
+        assert response.json["message"] == "Bot deleted"
 
 
 class TestAdminMenuBadgesConfigApi(BaseTest):
@@ -866,7 +866,7 @@ class TestReportTypeConfigApi(BaseTest):
 
     def test_create_report_item_type(self, client, auth_header, cleanup_report_item_type):
         response = self.assert_post_ok(client, uri="report-item-types", json_data=cleanup_report_item_type, auth_header=auth_header)
-        assert response.json["message"] == f"ReportItemType {cleanup_report_item_type['title']} added"
+        assert response.json["message"] == "Report item type added"
         assert response.json["id"] == cleanup_report_item_type["id"]
 
     def test_modify_report_item_type(self, client, auth_header, cleanup_report_item_type):
@@ -890,7 +890,7 @@ class TestReportTypeConfigApi(BaseTest):
     def test_delete_report_item_type(self, client, auth_header, cleanup_report_item_type):
         report_item_type_id = cleanup_report_item_type["id"]
         response = self.assert_delete_ok(client, uri=f"report-item-types/{report_item_type_id}", auth_header=auth_header)
-        assert response.json["message"] == f"ReportItemType {report_item_type_id} deleted"
+        assert response.json["message"] == "ReportItemType deleted"
 
 
 class TestProductTypes(BaseTest):
@@ -920,7 +920,7 @@ class TestProductTypes(BaseTest):
         product_type_data = {"title": "Producty McProductFace"}
         product_type_id = cleanup_product_types["id"]
         response = self.assert_put_ok(client, uri=f"product-types/{product_type_id}", json_data=product_type_data, auth_header=auth_header)
-        assert response.json["message"] == f"Updated product type {product_type_data['title']}"
+        assert response.json["message"] == "Product type updated"
 
     def test_modify_product_type_rejects_invalid_template_path(self, client, auth_header):
         payload = {
@@ -958,7 +958,7 @@ class TestProductTypes(BaseTest):
     def test_delete_product_type(self, client, auth_header, cleanup_product_types):
         product_type_id = cleanup_product_types["id"]
         response = self.assert_delete_ok(client, uri=f"product-types/{product_type_id}", auth_header=auth_header)
-        assert response.json["message"] == f"Product type {product_type_id} deleted"
+        assert response.json["message"] == "Product type deleted"
 
 
 class TestPermissions(BaseTest):
@@ -996,7 +996,7 @@ class TestAcls(BaseTest):
     def test_delete_acl(self, client, auth_header, cleanup_acls):
         acl_id = cleanup_acls["id"]
         response = self.assert_delete_ok(client, uri=f"acls/{acl_id}", auth_header=auth_header)
-        assert response.json["message"] == f"RoleBasedAccess {acl_id} deleted"
+        assert response.json["message"] == "RoleBasedAccess deleted"
 
 
 class TestPublisherPreset(BaseTest):
@@ -1031,7 +1031,7 @@ class TestPublisherPreset(BaseTest):
             if not PublisherPreset.get(publisher_preset_id):
                 PublisherPreset.add(cleanup_publisher_preset)
         response = self.assert_delete_ok(client, uri=f"publishers-presets/{publisher_preset_id}", auth_header=auth_header)
-        assert response.json["message"] == f"PublisherPreset {publisher_preset_id} deleted"
+        assert response.json["message"] == "PublisherPreset deleted"
 
 
 class TestAttributes(BaseTest):
@@ -1066,7 +1066,7 @@ class TestAttributes(BaseTest):
             if not Attribute.get(attribute_id):
                 Attribute.add(cleanup_attribute.copy())
         response = self.assert_delete_ok(client, uri=f"attributes/{attribute_id}", auth_header=auth_header)
-        assert response.json["message"] == f"Attribute {attribute_id} deleted"
+        assert response.json["message"] == "Attribute deleted"
 
 
 class TestWorkerTypes(BaseTest):

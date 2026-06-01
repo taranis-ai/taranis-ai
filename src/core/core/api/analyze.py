@@ -1,4 +1,4 @@
-from flask import Blueprint, Flask, abort, request
+from flask import Blueprint, Flask, abort, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
@@ -9,7 +9,7 @@ from core.managers.auth_manager import auth_required
 from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
 from core.model.revision import ReportRevision
-from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import SCOPE_PUBLISH_VIEWS, SCOPE_REPORT_VIEWS, invalidate_frontend_cache_on_success
 from core.service.product import ProductService
 from core.service.report_publish_workflow import ReportPublishWorkflowService
 
@@ -34,10 +34,12 @@ class ReportStories(MethodView):
         response, status = report_item.ReportItem.set_stories(report_item_id, request_data, current_user)
         invalidate_frontend_cache_on_success(
             status,
-            models=("report", "story", "product"),
+            scopes=(SCOPE_REPORT_VIEWS,),
             object_ids={"report": report_item_id},
         )
-        return response, status
+        json_response = jsonify(response)
+        json_response.status_code = status
+        return json_response
 
     @auth_required("ANALYZE_UPDATE")
     def post(self, report_item_id: str):
@@ -48,10 +50,12 @@ class ReportStories(MethodView):
         response, status = report_item.ReportItem.add_stories(report_item_id, request_data, current_user)
         invalidate_frontend_cache_on_success(
             status,
-            models=("report", "story", "product"),
+            scopes=(SCOPE_REPORT_VIEWS,),
             object_ids={"report": report_item_id},
         )
-        return response, status
+        json_response = jsonify(response)
+        json_response.status_code = status
+        return json_response
 
 
 class ReportItem(MethodView):
@@ -72,18 +76,22 @@ class ReportItem(MethodView):
                 return {"error": "No data in request"}, 400
             new_report_item, status = report_item.ReportItem.add(request.json, current_user)
             if status != 200 or not isinstance(new_report_item, report_item.ReportItem):
-                return new_report_item, status
+                json_response = jsonify(new_report_item)
+                json_response.status_code = status
+                return json_response
         except Exception as ex:
-            logger.exception()
-            return abort(400, f"Error adding report item: {ex}")
+            logger.exception("Error adding report item: %s", ex)
+            return {"error": "Error adding report item"}, 400
         if status == 401:
             return abort(401, "Unauthorized")
         if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
             sse_manager.report_item_updated(new_report_item.id)
-            invalidate_frontend_cache_on_success(status, models=("report", "story", "product"))
+            invalidate_frontend_cache_on_success(status, scopes=(SCOPE_REPORT_VIEWS,))
 
-        return {"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}, status
+        json_response = jsonify({"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()})
+        json_response.status_code = status
+        return json_response
 
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id: str | None = None):
@@ -99,11 +107,13 @@ class ReportItem(MethodView):
             ProductService.autopublish_product(report_item_id)
             invalidate_frontend_cache_on_success(
                 status,
-                models=("report", "story", "product"),
+                scopes=(SCOPE_REPORT_VIEWS, SCOPE_PUBLISH_VIEWS),
                 object_ids={"report": report_item_id},
             )
 
-        return {"message": "Report item updated", "id": report_item_id, "report": updated_report}, status
+        json_response = jsonify({"message": "Report item updated", "id": updated_report.get("id"), "report": updated_report})
+        json_response.status_code = status
+        return json_response
 
     @auth_required("ANALYZE_DELETE")
     def delete(self, report_item_id: str | None = None):
@@ -114,10 +124,12 @@ class ReportItem(MethodView):
             sse_manager.report_item_updated(report_item_id)
             invalidate_frontend_cache_on_success(
                 code,
-                models=("report", "story", "product"),
+                scopes=(SCOPE_REPORT_VIEWS,),
                 object_ids={"report": report_item_id},
             )
-        return result, code
+        json_response = jsonify(result)
+        json_response.status_code = code
+        return json_response
 
 
 class ReportItemPublishProduct(MethodView):
@@ -127,7 +139,10 @@ class ReportItemPublishProduct(MethodView):
         user_permissions = set(current_user.get_permissions()) if current_user else set()
         if not required_permissions.issubset(user_permissions):
             return {"error": "forbidden"}, 403
-        return ReportPublishWorkflowService.create_and_publish(request.json, current_user)
+        response, status = ReportPublishWorkflowService.create_and_publish(request.json, current_user)
+        json_response = jsonify(response)
+        json_response.status_code = status
+        return json_response
 
 
 class CloneReportItem(MethodView):
@@ -136,19 +151,21 @@ class CloneReportItem(MethodView):
         try:
             result, status = report_item.ReportItem.clone(report_item_id, current_user)
         except Exception as ex:
-            logger.exception()
-            return abort(400, f"Error cloning report item: {ex}")
+            logger.exception("Error cloning report item: %s", ex)
+            return {"error": "Error cloning report item"}, 400
         if status == 200:
             sse_manager.report_item_updated(result["id"])
-            invalidate_frontend_cache_on_success(status, models=("report", "story", "product"))
+            invalidate_frontend_cache_on_success(status, scopes=(SCOPE_REPORT_VIEWS,))
 
-        return result, status
+        json_response = jsonify(result)
+        json_response.status_code = status
+        return json_response
 
 
 class ReportItemLocks(MethodView):
     @auth_required("ANALYZE_UPDATE")
     def get(self, report_item_id: str):
-        return sse_manager.to_report_item_json(report_item_id)
+        return jsonify(sse_manager.to_report_item_json(report_item_id))
 
 
 class ReportItemLock(MethodView):
@@ -158,10 +175,13 @@ class ReportItemLock(MethodView):
         if not user:
             return abort(401, "User not found")
         try:
-            return sse_manager.report_item_lock(report_item_id, user.id)
+            response, status = sse_manager.report_item_lock(report_item_id, user.id)
+            json_response = jsonify(response)
+            json_response.status_code = status
+            return json_response
         except Exception as ex:
-            logger.exception()
-            return str(ex), 500
+            logger.exception("Failed to lock report item %s: %s", report_item_id, ex)
+            return {"error": "Failed to lock report item"}, 500
 
     @auth_required("ANALYZE_UPDATE")
     def delete(self, report_item_id: str):
@@ -169,10 +189,13 @@ class ReportItemLock(MethodView):
         if not user:
             return abort(401, "User not found")
         try:
-            return sse_manager.report_item_unlock(report_item_id, user.id)
+            response, status = sse_manager.report_item_unlock(report_item_id, user.id)
+            json_response = jsonify(response)
+            json_response.status_code = status
+            return json_response
         except Exception as ex:
-            logger.exception()
-            return str(ex), 500
+            logger.exception("Failed to unlock report item %s: %s", report_item_id, ex)
+            return {"error": "Failed to unlock report item"}, 500
 
 
 class ReportItemRevisions(MethodView):
@@ -183,7 +206,9 @@ class ReportItemRevisions(MethodView):
 
         access_response, access_status = report_item.ReportItem.get_for_api(report_item_id, current_user)
         if access_status != 200:
-            return access_response, access_status
+            json_response = jsonify(access_response)
+            json_response.status_code = access_status
+            return json_response
 
         revisions = (
             db.session.execute(

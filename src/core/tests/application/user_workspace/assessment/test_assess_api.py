@@ -168,7 +168,7 @@ class TestAssessNewsItems(BaseTest):
             [{"name": tag_name, "tag_type": "endpoint"}],
             auth_header,
         )
-        assert response.get_json()["message"].startswith("Successfully updated news item")
+        assert response.get_json()["message"] == "News item tags updated"
 
         item_response = self.assert_get_ok(client, f"news-items/{item_id}", auth_header)
         assert item_response.get_json()["tags"] == [{"name": tag_name, "tag_type": "endpoint"}]
@@ -191,7 +191,7 @@ class TestAssessNewsItems(BaseTest):
         assert item_response.get_json()["tags"] == [{"name": tag_name, "tag_type": "endpoint"}]
 
         clear_response = self.assert_put_ok(client, f"news-items/{item_id}/tags", [], auth_header)
-        assert clear_response.get_json()["message"].startswith("Successfully updated news item")
+        assert clear_response.get_json()["message"] == "News item tags updated"
 
         item_response = self.assert_get_ok(client, f"news-items/{item_id}", auth_header)
         assert item_response.get_json()["tags"] == []
@@ -325,6 +325,16 @@ class TestAssessStories(BaseTest):
         assert "revision_count" in items[stories[0]]
         assert items[stories[0]]["revision_count"] > 0
 
+    def test_bulk_story_update_returns_404_for_unknown_story(self, client, stories, auth_header):
+        response = client.post(
+            "/api/assess/stories/bulk_action",
+            json={"story_ids": ["missing-story", stories[0]], "payload": {"read": True}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 404
+        assert response.get_json() == {"error": "Story not found"}
+
     def test_delete_story(self, client, stories, auth_header):
         response = self.assert_delete_ok(client, f"story/{stories[0]}", auth_header)
 
@@ -442,7 +452,7 @@ class TestAssessStoriesGrouping(BaseTest):
 
             response = client.put(f"{self.base_uri}/stories/ungroup", json=[story_id], headers=auth_header)
             assert response.status_code == 400
-            assert response.get_json()["error"] == f"Story {story_id} is assigned to a report"
+            assert response.get_json()["error"] == "Story is assigned to a report"
         finally:
             with app.app_context():
                 if ReportItem.get(report_id):
