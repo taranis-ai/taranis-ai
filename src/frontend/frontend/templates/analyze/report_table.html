@@ -24,8 +24,8 @@
             hx-push-url="true"
             hx-select="#{{ table_container }}"
             hx-target="#{{ table_container }}"
-            hx-swap="outerHTML"
-            hx-trigger="change from:select, input changed delay:500ms from:input">
+            hx-swap="outerHTML settle:0ms"
+            hx-trigger="change, input changed delay:500ms">
         <input type="hidden" name="page" value="1">
         {% if request.args.get('limit') %}<input type="hidden" name="limit" value="{{ request.args.get('limit') }}">{% endif %}
         {% if request.args.get('order') %}<input type="hidden" name="order" value="{{ request.args.get('order') }}">{% endif %}

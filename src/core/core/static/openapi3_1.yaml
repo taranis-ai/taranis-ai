@@ -990,6 +990,11 @@ paths:
         description: Filter based on OSINT source group
         schema:
           type: string
+      - name: language
+        in: query
+        description: Filter based on NewsItem language
+        schema:
+          type: string
       - name: read
         in: query
         description: Filter for news_items that are read

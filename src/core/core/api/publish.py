@@ -7,7 +7,7 @@ from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args
 from core.model import product, product_type, publisher_preset
-from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import SCOPE_PUBLISH_VIEWS, invalidate_frontend_cache_on_success
 from core.service.product import ProductService
 
 
@@ -40,7 +40,7 @@ class Products(MethodView):
     @auth_required("PUBLISH_CREATE")
     def post(self):
         new_product = product.Product.add(request.json)
-        invalidate_frontend_cache_on_success(201, models=("product",))
+        invalidate_frontend_cache_on_success(201, scopes=(SCOPE_PUBLISH_VIEWS,))
         return jsonify({"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict()}), 201
 
     @auth_required("PUBLISH_UPDATE")
@@ -48,7 +48,7 @@ class Products(MethodView):
         if not product_id:
             return {"error": "No product_id provided"}, 400
         response, status = product.Product.update(product_id, request.json)
-        invalidate_frontend_cache_on_success(status, models=("product",), object_ids={"product": product_id})
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status
 
     @auth_required("PUBLISH_DELETE")
@@ -56,7 +56,7 @@ class Products(MethodView):
         if not product_id:
             return {"error": "No product_id provided"}, 400
         response, status = product.Product.delete(product_id)
-        invalidate_frontend_cache_on_success(status, models=("product",), object_ids={"product": product_id})
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status
 
 
@@ -64,7 +64,7 @@ class PublishProduct(MethodView):
     @auth_required("PUBLISH_PRODUCT")
     def post(self, product_id: str, publisher_id: str):
         response, status = queue_manager.queue_manager.publish_product(product_id, publisher_id)
-        invalidate_frontend_cache_on_success(status, models=("product",), object_ids={"product": product_id})
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status
 
 
@@ -72,7 +72,7 @@ class ProductsRender(MethodView):
     @auth_required("PUBLISH_ACCESS")
     def post(self, product_id: str):
         response, status = queue_manager.queue_manager.generate_product(product_id)
-        invalidate_frontend_cache_on_success(status, models=("product",), object_ids={"product": product_id})
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status
 
     @auth_required("PUBLISH_ACCESS")

@@ -336,6 +336,14 @@ class Story(BaseModel):
         if source_group_filters:
             query = query.filter(or_(*source_group_filters))
 
+        if language := filter_args.get("language"):
+            languages = language if isinstance(language, list) else [language]
+            languages = [str(lang).strip().lower() for lang in languages if lang is not None and str(lang).strip()]
+            if languages:
+                query = query.filter(func.lower(NewsItem.language).in_(languages))
+            else:
+                query = query.filter(false())
+
         if search := filter_args.get("search"):
             sort: bool = "relevance" in filter_args.get("sort", "").lower()
             query = cls._add_search_to_query(search, query, sort=sort)
