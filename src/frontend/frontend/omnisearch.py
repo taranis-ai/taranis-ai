@@ -250,22 +250,24 @@ def build_omnisearch_target_url(query: str, filter_lists: FilterLists | None = N
 
 def build_omnisearch_navigation(query: str, filter_lists: FilterLists) -> OmniSearchNavigation:
     parsed_query = parse_omnisearch_query(query)
-    if parsed_query.scope == "product":
-        return OmniSearchNavigation(url=build_omnisearch_search_url(parsed_query.scope, parsed_query.term), errors=[])
-    if parsed_query.scope == "report":
+    if parsed_query.scope in {"product", "report"}:
         return OmniSearchNavigation(url=build_omnisearch_search_url(parsed_query.scope, parsed_query.term), errors=[])
 
     if parsed_query.scope == "story":
-        if is_assess_omnisearch_query(parsed_query.term):
-            translation = translate_assess_omnisearch(parsed_query.term, filter_lists)
-            return OmniSearchNavigation(url=_build_assess_url(translation.params), errors=translation.errors)
-        return OmniSearchNavigation(url=build_omnisearch_search_url(parsed_query.scope, parsed_query.term), errors=[])
+        return _build_story_navigation(parsed_query.term, filter_lists)
 
     if is_assess_omnisearch_query(query):
         translation = translate_assess_omnisearch(query, filter_lists)
         return OmniSearchNavigation(url=_build_assess_url(translation.params), errors=translation.errors)
 
     return OmniSearchNavigation(errors=[])
+
+
+def _build_story_navigation(query: str, filter_lists: FilterLists) -> OmniSearchNavigation:
+    if is_assess_omnisearch_query(query):
+        translation = translate_assess_omnisearch(query, filter_lists)
+        return OmniSearchNavigation(url=_build_assess_url(translation.params), errors=translation.errors)
+    return OmniSearchNavigation(url=build_omnisearch_search_url("story", query), errors=[])
 
 
 def build_omnisearch_context(
@@ -276,7 +278,8 @@ def build_omnisearch_context(
 ) -> OmniSearchContext:
     parsed_query = parse_omnisearch_query(query)
     filter_lists = filter_lists or FilterLists(tags=[], sources=[], groups=[])
-    assess_suggestions = build_assess_omnisearch_suggestions(query, filter_lists, limit=8)
+    assess_query = _assess_feature_query(parsed_query, query)
+    assess_suggestions = build_assess_omnisearch_suggestions(assess_query, filter_lists, limit=8) if assess_query is not None else []
     assess_filter_query = _is_assess_filter_query(parsed_query, query)
     quick_links = _build_quick_links(parsed_query, query, filter_lists, assess_filter_query)
     scope_definitions = _matching_scopes(parsed_query)
@@ -299,6 +302,12 @@ def _matching_scopes(parsed_query: ParsedOmniSearchQuery) -> tuple[OmniSearchSco
     if parsed_query.scope:
         return (get_omnisearch_scope(parsed_query.scope),)
     return OMNISEARCH_SCOPES
+
+
+def _assess_feature_query(parsed_query: ParsedOmniSearchQuery, query: str) -> str | None:
+    if parsed_query.scope == "story":
+        return parsed_query.term
+    return query if parsed_query.scope is None else None
 
 
 def _build_quick_links(
@@ -331,6 +340,8 @@ def _quick_link_from_scope(scope_definition: OmniSearchScopeDefinition, search_u
 def _is_assess_filter_query(parsed_query: ParsedOmniSearchQuery, query: str) -> bool:
     if parsed_query.scope == "story":
         return is_assess_omnisearch_query(parsed_query.term)
+    if parsed_query.scope is not None:
+        return False
     return is_assess_omnisearch_query(query)
 
 
@@ -344,33 +355,17 @@ def needs_assess_filter_lists(query: str) -> bool:
     return _parse_result_needs_filter_lists(parse_assess_omnisearch_full(assess_query))
 
 
-def parse_assess_omnisearch(query: str) -> tuple[list[AssessOmniSearchToken], list[str]]:
-    result = parse_assess_omnisearch_full(query)
-    return list(result.tokens), list(result.errors)
-
-
 def parse_assess_omnisearch_full(query: str) -> AssessOmniSearchParseResult:
     raw_tokens, errors = _tokenize_raw(query)
     tokens: list[AssessOmniSearchToken] = []
     known_keywords: list[str] = []
 
     for raw_token in raw_tokens:
-        colon_index = _find_unquoted_colon(raw_token)
-        if colon_index > 0:
-            keyword_text = _decode_token_text(raw_token[:colon_index]).strip().casefold()
-            value = _decode_token_text(raw_token[colon_index + 1 :]).strip()
-            if keyword_text in ASSESS_OMNISEARCH_KEYWORD_INDEX:
-                tokens.append(AssessOmniSearchToken(keyword=keyword_text, value=value))
-                known_keywords.append(keyword_text)
-            else:
-                value = _decode_token_text(raw_token).strip()
-                if value:
-                    tokens.append(AssessOmniSearchToken(value=value))
-            continue
-
-        value = _decode_token_text(raw_token).strip()
-        if value:
-            tokens.append(AssessOmniSearchToken(value=value))
+        token, known_keyword = _parse_assess_omnisearch_token(raw_token)
+        if token:
+            tokens.append(token)
+        if known_keyword:
+            known_keywords.append(known_keyword)
 
     return AssessOmniSearchParseResult(
         tokens=tokens,
@@ -378,6 +373,20 @@ def parse_assess_omnisearch_full(query: str) -> AssessOmniSearchParseResult:
         active_token=get_active_assess_omnisearch_token(query),
         known_keywords=known_keywords,
     )
+
+
+def _parse_assess_omnisearch_token(raw_token: str) -> tuple[AssessOmniSearchToken | None, str | None]:
+    colon_index = _find_unquoted_colon(raw_token)
+    if colon_index > 0:
+        keyword_text = _decode_token_text(raw_token[:colon_index]).strip().casefold()
+        value = _decode_token_text(raw_token[colon_index + 1 :]).strip()
+        if keyword_text in ASSESS_OMNISEARCH_KEYWORD_INDEX:
+            return AssessOmniSearchToken(keyword=keyword_text, value=value), keyword_text
+
+    value = _decode_token_text(raw_token).strip()
+    if not value:
+        return None, None
+    return AssessOmniSearchToken(value=value), None
 
 
 def translate_assess_omnisearch(query: str, filter_lists: FilterLists) -> AssessOmniSearchTranslation:
@@ -588,10 +597,6 @@ def _should_suppress_global_buckets(query: str, assess_suggestions: list[AssessO
     return active_token.mode == "value" or bool(assess_suggestions and active_token.fragment)
 
 
-def _known_assess_keyword_tokens(query: str) -> list[str]:
-    return parse_assess_omnisearch_full(query).known_keywords
-
-
 def _parse_result_needs_filter_lists(parse_result: AssessOmniSearchParseResult) -> bool:
     for token in parse_result.tokens:
         if token.keyword is None:
@@ -786,23 +791,9 @@ def _build_value_suggestions(
 def _iter_value_candidates(keyword: AssessOmniSearchKeyword, filter_lists: FilterLists) -> list[tuple[str, str, str]]:
     match keyword.value_type:
         case "source":
-            return [
-                (
-                    _get_filter_list_item_field(source, "name") or _get_filter_list_item_field(source, "id"),
-                    _get_filter_list_item_field(source, "name") or _get_filter_list_item_field(source, "id"),
-                    _get_filter_list_item_field(source, "id"),
-                )
-                for source in filter_lists.sources
-            ]
+            return [_filter_list_candidate(source) for source in filter_lists.sources]
         case "group":
-            return [
-                (
-                    _get_filter_list_item_field(group, "name") or _get_filter_list_item_field(group, "id"),
-                    _get_filter_list_item_field(group, "name") or _get_filter_list_item_field(group, "id"),
-                    _get_filter_list_item_field(group, "id"),
-                )
-                for group in filter_lists.groups
-            ]
+            return [_filter_list_candidate(group) for group in filter_lists.groups]
         case "tag":
             return [(tag, tag, "tags") for tag in filter_lists.tags]
         case "boolean" | "changed_by" | "cybersecurity" | "range" | "sort":
@@ -810,6 +801,12 @@ def _iter_value_candidates(keyword: AssessOmniSearchKeyword, filter_lists: Filte
         case "datetime":
             return []
     return []
+
+
+def _filter_list_candidate(item: Any) -> tuple[str, str, str]:
+    item_id = _get_filter_list_item_field(item, "id")
+    value = _get_filter_list_item_field(item, "name") or item_id
+    return value, value, item_id
 
 
 def _replace_active_token(query: str, active_token: ActiveAssessOmniSearchToken, replacement: str) -> str:

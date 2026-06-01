@@ -145,10 +145,6 @@ class StoryView(BaseView):
         return FilterLists(tags=[], sources=[], groups=[])
 
     @staticmethod
-    def _get_filter_lists() -> FilterLists:
-        return StoryView.get_filter_lists()
-
-    @staticmethod
     def _normalize_assess_filter_values(values: Any) -> list[str]:
         if values in (None, ""):
             return []

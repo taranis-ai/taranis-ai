@@ -182,6 +182,25 @@ def test_omnisearch_assess_filter_suggestions_are_story_only(app):
     assert not tree.xpath('//*[@data-testid="omnisearch-scope-product"]')
 
 
+def test_omnisearch_explicit_non_story_scopes_do_not_show_assess_suggestions(app):
+    with app.test_request_context("/frontend/search/suggestions?q=report:"):
+        report_context = build_omnisearch_context("report:", filter_lists=_filter_lists())
+        report_markup = render_template("partials/omnisearch/suggestions.html", search_context=report_context)
+
+    with app.test_request_context("/frontend/search/suggestions?q=product:"):
+        product_context = build_omnisearch_context("product:", filter_lists=_filter_lists())
+        product_markup = render_template("partials/omnisearch/suggestions.html", search_context=product_context)
+
+    assert report_context.assess_suggestions == []
+    assert product_context.assess_suggestions == []
+    assert [bucket.scope for bucket in report_context.buckets] == ["report"]
+    assert [bucket.scope for bucket in product_context.buckets] == ["product"]
+    assert "tag:" not in html.fromstring(report_markup).text_content()
+    assert "read:" not in html.fromstring(report_markup).text_content()
+    assert "tag:" not in html.fromstring(product_markup).text_content()
+    assert "read:" not in html.fromstring(product_markup).text_content()
+
+
 def test_omnisearch_suggestions_surface_validation_errors(authenticated_client):
     with authenticated_client.application.test_request_context("/"):
         suggestions_url = url_for("base.omnisearch_suggestions", q="read:maybe")
