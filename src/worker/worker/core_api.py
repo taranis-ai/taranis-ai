@@ -63,9 +63,8 @@ class CoreApi:
         response = requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
-    def submit_task_result(self, task_data: TaskSubmission | dict) -> dict | None:
+    def submit_task_result(self, submission: TaskSubmission) -> dict | None:
         try:
-            submission = task_data if isinstance(task_data, TaskSubmission) else TaskSubmission.model_validate(task_data)
             payload = submission.model_dump(mode="json", by_alias=True)
         except ValidationError as exc:
             logger.error(f"Invalid task payload: {exc}")
@@ -87,23 +86,24 @@ class CoreApi:
         Returns True when persistence succeeds, otherwise False.
         """
         try:
-            payload: dict[str, Any] = {
-                "id": job_id,
-                "task": task_name,
-                "kwargs": task_kwargs,
-                "status": status,
-            }
-            if worker_id is not None:
-                payload["worker_id"] = worker_id
-            if worker_type is not None:
-                payload["worker_type"] = worker_type
-            response = self.submit_task_result(payload)
+            submission = TaskSubmission(
+                id=job_id,
+                task=task_name,
+                worker_id=worker_id,
+                worker_type=worker_type,
+                result=task_kwargs,
+                status=status,
+            )
+            response = self.submit_task_result(submission)
             if not response:
                 logger.warning(f"Failed to save task result for {job_id}")
                 return False
 
             logger.debug(f"Saved task result for {task_name}: {status}")
             return True
+        except ValidationError as exc:
+            logger.error(f"Invalid task payload for {job_id}: {exc}")
+            return False
         except Exception as exc:
             logger.error(f"Failed to save task result for {job_id}: {exc}")
             return False

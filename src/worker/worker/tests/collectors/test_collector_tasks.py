@@ -33,7 +33,7 @@ def test_collector_task_missing_source_is_recorded_as_failure(current_job, reque
         "task": "collector_task",
         "worker_id": "source-missing",
         "worker_type": "collector_task",
-        "kwargs": {
+        "result": {
             "message": result,
             "reason": "source_not_found",
             "source_id": "source-missing",
@@ -70,7 +70,7 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
         "task": "collector_task",
         "worker_id": "source-1",
         "worker_type": "rss_collector",
-        "kwargs": {"message": result, "source_id": "source-1", "manual": False},
+        "result": {"message": result, "source_id": "source-1", "manual": False},
         "status": "NOT_MODIFIED",
     }
 
@@ -126,7 +126,7 @@ def test_collector_preview_persists_with_preview_status(current_job, requests_mo
     assert post_calls[0].json() == {
         "id": "test-job-123",
         "task": "collector_preview",
-        "kwargs": {"result": preview_items, "source_id": "source-1"},
+        "result": {"result": preview_items, "source_id": "source-1"},
         "status": "PREVIEW",
     }
 
@@ -151,4 +151,4 @@ def test_collector_preview_persists_failure_on_exception(current_job, requests_m
     assert len(post_calls) == 1
     assert post_calls[0].json()["status"] == "FAILURE"
     assert post_calls[0].json()["task"] == "collector_preview"
-    assert post_calls[0].json()["kwargs"]["error"] == "connection refused"
+    assert post_calls[0].json()["result"]["error"] == "connection refused"

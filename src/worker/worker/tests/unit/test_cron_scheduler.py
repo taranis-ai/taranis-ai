@@ -108,6 +108,7 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
             "func_path": "collector_task",
             "cron": "*/5 * * * *",
             "args": ["source-1", False],
+            "job_options": {"result_ttl": 300, "failure_ttl": 600},
             "meta": {"name": "Collector: Source 1"},
         },
         now_ts=1000.0,
@@ -120,6 +121,8 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
             "args": ("source-1", False),
             "job_id": "cron_osint_source_source-1_1000",
             "kwargs": {
+                "result_ttl": 300,
+                "failure_ttl": 600,
                 "kwargs": {},
                 "meta": {
                     "name": "Collector: Source 1",

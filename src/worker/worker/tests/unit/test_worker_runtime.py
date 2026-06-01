@@ -11,7 +11,7 @@ def test_persist_work_horse_killed_failure_reports_failure(monkeypatch):
             recorded["payload"] = {
                 "id": job_id,
                 "task": task_name,
-                "kwargs": task_kwargs,
+                "result": task_kwargs,
                 "status": status,
                 "worker_id": worker_id,
                 "worker_type": worker_type,
@@ -36,7 +36,7 @@ def test_persist_work_horse_killed_failure_reports_failure(monkeypatch):
     assert recorded["payload"] == {
         "id": "job-123",
         "task": "collector_task",
-        "kwargs": {
+        "result": {
             "reason": "work_horse_killed",
             "retpid": 456,
             "ret_val": 256,
@@ -52,7 +52,7 @@ def test_persist_work_horse_killed_failure_includes_signal(monkeypatch):
 
     class DummyApi:
         def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, **task_kwargs):
-            recorded["kwargs"] = task_kwargs
+            recorded["result"] = task_kwargs
             return True
 
     monkeypatch.setattr("worker.worker_runtime.CoreApi", lambda: DummyApi())
@@ -70,7 +70,7 @@ def test_persist_work_horse_killed_failure_includes_signal(monkeypatch):
 
     persist_work_horse_killed_failure(job, 789, 15, None)
 
-    assert recorded["kwargs"] == {
+    assert recorded["result"] == {
         "reason": "work_horse_killed",
         "retpid": 789,
         "ret_val": 15,

@@ -10218,13 +10218,13 @@ components:
         status:
           type: string
           minLength: 1
-        kwargs:
+        result:
           type: object
           additionalProperties: true
           description: JSON-serializable task payload
       required:
       - status
-      - kwargs
+      - result
       anyOf:
       - required:
         - id
@@ -10247,7 +10247,7 @@ components:
           type:
           - string
           - 'null'
-        kwargs:
+        result:
           type: object
           additionalProperties: true
           description: JSON payload stored as provided by the worker
@@ -10284,7 +10284,7 @@ components:
           type:
           - string
           - 'null'
-        kwargs:
+        result:
           type: object
           additionalProperties: true
           description: JSON payload stored as provided by the worker

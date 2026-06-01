@@ -87,8 +87,8 @@ class TestBotTask:
         assert task_data["worker_id"] == "bot-456"
         assert task_data["worker_type"] == "WORDLIST_BOT"
         # Verify the full result dict is passed, not just a message string
-        assert isinstance(task_data["kwargs"], dict)
-        assert task_data["kwargs"] == {"bot_id": "bot-456", **bot_execution_result}
+        assert isinstance(task_data["result"], dict)
+        assert task_data["result"] == {"bot_id": "bot-456", **bot_execution_result}
 
         # Verify return value includes worker metadata
         assert result["worker_id"] == "bot-456"
@@ -112,10 +112,10 @@ class TestBotTask:
         assert task_data["status"] == "FAILURE"
         assert task_data["worker_id"] == "bot-999"
         assert task_data["worker_type"] == "BOT_TASK"
-        assert isinstance(task_data["kwargs"], dict)
-        assert task_data["kwargs"]["error"] == "Bot with id bot-999 not found"
-        assert task_data["kwargs"]["reason"] == "bot_not_found"
-        assert task_data["kwargs"]["bot_id"] == "bot-999"
+        assert isinstance(task_data["result"], dict)
+        assert task_data["result"]["error"] == "Bot with id bot-999 not found"
+        assert task_data["result"]["reason"] == "bot_not_found"
+        assert task_data["result"]["bot_id"] == "bot-999"
 
     def test_bot_task_exception_wraps_error_in_dict(self, current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task wraps exception messages in dict."""
@@ -138,9 +138,9 @@ class TestBotTask:
         assert task_data["status"] == "FAILURE"
         assert task_data["worker_id"] == "bot-456"
         assert task_data["worker_type"] == "WORDLIST_BOT"
-        assert isinstance(task_data["kwargs"], dict)
-        assert "Bot execution failed: Bot execution crashed" in task_data["kwargs"]["error"]
-        assert task_data["kwargs"]["reason"] == "bot_execution_failed"
+        assert isinstance(task_data["result"], dict)
+        assert "Bot execution failed: Bot execution crashed" in task_data["result"]["error"]
+        assert task_data["result"]["reason"] == "bot_execution_failed"
 
     def test_bot_task_without_job_uses_fallback_id(self, no_current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task uses fallback task_id when no RQ job exists."""
@@ -178,7 +178,7 @@ class TestSaveTaskResult:
             "task": "bot_ioc",
             "worker_id": "bot-123",
             "worker_type": "IOC_BOT",
-            "kwargs": result_dict,
+            "result": result_dict,
             "status": "SUCCESS",
         }
 
@@ -194,7 +194,7 @@ class TestSaveTaskResult:
         task_data = put_calls[0].json()
         assert task_data["id"] == "job-456"
         assert task_data["task"] == "bot_test"
-        assert task_data["kwargs"] == result
+        assert task_data["result"] == result
         assert task_data["status"] == "FAILURE"
 
     def test_save_task_result_handles_api_failure_gracefully(self, requests_mock, caplog):

@@ -154,12 +154,14 @@ def _enqueue_due_job(
     due_slot = int(now_ts)
     rq_job_id = f"cron_{job_id}_{due_slot}"
 
+    job_options.pop("meta", None)
     queue.enqueue_call(
         func=task,
         args=args,
         kwargs=kwargs,
         job_id=rq_job_id,
         meta=meta or None,
+        **job_options,
     )
 
     next_ts = compute_next(spec, now_ts)

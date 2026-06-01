@@ -73,7 +73,7 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "SUCCESS",
-                    "kwargs": {"message": "ok"},
+                    "result": {"message": "ok"},
                 }
             )
             Task.add(
@@ -83,7 +83,7 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     "worker_id": "source-2",
                     "worker_type": "rss_collector",
                     "status": "SUCCESS",
-                    "kwargs": {"message": "ok"},
+                    "result": {"message": "ok"},
                 }
             )
             Task.add(
@@ -93,7 +93,7 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "kwargs": {"error": "boom"},
+                    "result": {"error": "boom"},
                 }
             )
 
@@ -139,7 +139,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "SUCCESS",
-                    "kwargs": {"message": "ok"},
+                    "result": {"message": "ok"},
                 }
             )
             Task.add(
@@ -149,7 +149,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "worker_id": "bot-1",
                     "worker_type": test_worker_type,
                     "status": "SUCCESS",
-                    "kwargs": {"message": "ok"},
+                    "result": {"message": "ok"},
                 }
             )
             Task.add(
@@ -159,7 +159,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "worker_id": "bot-1",
                     "worker_type": test_worker_type,
                     "status": "FAILURE",
-                    "kwargs": {"error": "boom"},
+                    "result": {"error": "boom"},
                 }
             )
             Task.add(
@@ -169,7 +169,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "worker_id": "bot-2",
                     "worker_type": test_worker_type,
                     "status": "STARTED",
-                    "kwargs": {"message": "running"},
+                    "result": {"message": "running"},
                 }
             )
 

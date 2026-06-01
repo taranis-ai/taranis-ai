@@ -14,7 +14,7 @@ info
 
 {% macro worker_status(status) %}
   {% set result_class = status_class(status.status) %}
-  {% set task_message = status.kwargs.message or status.kwargs.error or "" %}
+  {% set task_message = status.result.message or status.result.error or "" %}
   <div class="alert alert-{{ result_class }} flex flex-col gap-1 items-start">
     <div class="flex flex-row items-center">
       <p class="text-base-content/60 text-[0.7rem]">
@@ -35,7 +35,7 @@ info
 
 {% macro worker_status_badge(status) %}
   {% set result_class = status_class(status.status) %}
-  {% set task_message = status.kwargs.message or status.kwargs.error or "" %}
+  {% set task_message = status.result.message or status.result.error or "" %}
   <div class="tooltip" data-tip="{{ task_message }}">
     <div title="{{ status.status }}" class="badge badge-{{ result_class }}">{{ status.status }}</div>
   </div>

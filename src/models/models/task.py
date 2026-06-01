@@ -56,7 +56,7 @@ class Task(TaranisBaseModel):
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    kwargs: dict[str, Any] = Field(default_factory=dict)
+    result: dict[str, Any] = Field(default_factory=dict)
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None
@@ -68,7 +68,7 @@ class Task(TaranisBaseModel):
             return value
 
         normalized = dict(value)
-        normalized["kwargs"] = dict(normalized.get("kwargs") or {})
+        normalized["result"] = dict(normalized.get("result") or {})
         return normalized
 
 
@@ -83,7 +83,7 @@ class TaskSubmission(TaranisBaseModel):
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    kwargs: dict[str, Any]
+    result: dict[str, Any]
     status: str = Field(min_length=1)
 
     @field_validator("id", "status", mode="after")
@@ -102,13 +102,13 @@ class TaskSubmission(TaranisBaseModel):
         stripped = value.strip()
         return stripped or None
 
-    @field_validator("kwargs")
+    @field_validator("result")
     @classmethod
-    def ensure_json_serializable_kwargs(cls, value: Any) -> Any:
+    def ensure_json_serializable_result(cls, value: Any) -> Any:
         try:
             json.dumps(value)
         except (TypeError, ValueError) as exc:
-            raise ValueError("kwargs must be JSON serializable") from exc
+            raise ValueError("result must be JSON serializable") from exc
         return value
 
 
@@ -118,10 +118,20 @@ class TaskHistoryEntry(TaranisBaseModel):
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    kwargs: dict[str, Any] = Field(default_factory=dict)
+    result: dict[str, Any] = Field(default_factory=dict)
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_task_history_payload(cls, value: Any):
+        if not isinstance(value, dict):
+            return value
+
+        normalized = dict(value)
+        normalized["result"] = dict(normalized.get("result") or {})
+        return normalized
 
 
 class TaskHistoryStats(TaranisBaseModel):

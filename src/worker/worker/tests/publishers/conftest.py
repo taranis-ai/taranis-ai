@@ -66,7 +66,7 @@ class RecordingCoreApi:
                     "task": task_name,
                     "worker_id": worker_id,
                     "worker_type": worker_type,
-                    "kwargs": task_kwargs,
+                    "result": task_kwargs,
                     "status": status,
                 },
             }

@@ -30,7 +30,7 @@ class TestWorkerApi:
             "task": "presenter_task",
             "worker_id": presenter_id,
             "worker_type": "html_presenter",
-            "kwargs": {},
+            "result": {},
             "status": "SUCCESS",
         }
 
@@ -41,12 +41,12 @@ class TestWorkerApi:
             assert response.get_json()["task"] == "presenter_task"
             assert response.get_json()["worker_id"] == presenter_id
             assert response.get_json()["worker_type"] == "html_presenter"
-            assert response.get_json()["kwargs"] == {}
+            assert response.get_json()["result"] == {}
 
             with app.app_context():
                 stored = Task.get(task_id)
                 assert stored is not None
-                assert stored.to_dict()["kwargs"] == {}
+                assert stored.to_dict()["result"] == {}
                 assert stored.to_dict()["worker_id"] == presenter_id
                 assert stored.to_dict()["worker_type"] == "html_presenter"
                 assert stored.task == "presenter_task"
@@ -413,12 +413,12 @@ class TestWorkerTaskResults:
     @pytest.mark.parametrize(
         ("payload", "expected_error"),
         [
-            ({"status": "SUCCESS", "kwargs": {}}, "id"),
-            ({"id": "task-1", "kwargs": {}}, "status"),
-            ({"id": 123, "status": "SUCCESS", "kwargs": {}}, "id"),
-            ({"id": "task-1", "status": 123, "kwargs": {}}, "status"),
-            ({"id": "task-1", "status": "SUCCESS"}, "kwargs"),
-            ({"id": "task-1", "status": "SUCCESS", "result": {}}, "kwargs"),
+            ({"status": "SUCCESS", "result": {}}, "id"),
+            ({"id": "task-1", "result": {}}, "status"),
+            ({"id": 123, "status": "SUCCESS", "result": {}}, "id"),
+            ({"id": "task-1", "status": 123, "result": {}}, "status"),
+            ({"id": "task-1", "status": "SUCCESS"}, "result"),
+            ({"id": "task-1", "status": "SUCCESS", "kwargs": {}}, "result"),
         ],
     )
     def test_worker_task_results_rejects_missing_or_invalid_required_fields(self, client, api_header, payload, expected_error):
@@ -430,7 +430,7 @@ class TestWorkerTaskResults:
     def test_worker_task_results_rejects_invalid_task_field(self, client, api_header):
         response = client.post(
             self.base_uri,
-            json={"id": "task-1", "task": ["bad"], "kwargs": {}, "status": "SUCCESS"},
+            json={"id": "task-1", "task": ["bad"], "result": {}, "status": "SUCCESS"},
             headers=api_header,
         )
 
@@ -451,7 +451,7 @@ class TestWorkerTaskResults:
         payload = {
             "id": task_id,
             "task": "presenter_task",
-            "kwargs": {"product_id": product_id, "render_result": render_result, "message": "ok"},
+            "result": {"product_id": product_id, "render_result": render_result, "message": "ok"},
             "status": "SUCCESS",
         }
 
@@ -479,7 +479,7 @@ class TestWorkerTaskResults:
             "task": f"bot_{wordlist_bot_result['worker_id']}",
             "worker_id": wordlist_bot_result["worker_id"],
             "worker_type": wordlist_bot_result["worker_type"],
-            "kwargs": wordlist_bot_result["kwargs"],
+            "result": wordlist_bot_result["result"],
             "status": "SUCCESS",
         }
 
@@ -496,7 +496,7 @@ class TestWorkerTaskResults:
                 structured_tags = {tag["name"]: tag["tag_type"] for tag in story_data.get("tags", [])}
                 expected_tags = {}
                 for news_item in story_data.get("news_items", []):
-                    expected_tags |= wordlist_bot_result["kwargs"].get(news_item["id"], {})
+                    expected_tags |= wordlist_bot_result["result"].get(news_item["id"], {})
 
                 assert structured_tags == expected_tags
                 attr_by_key = {attribute.get("key"): attribute.get("value") for attribute in story_data.get("attributes", [])}
@@ -513,7 +513,7 @@ class TestWorkerTaskResults:
         payload = {
             "task_id": task_id,
             "task": "collector_task",
-            "kwargs": {"message": "ok"},
+            "result": {"message": "ok"},
             "status": "SUCCESS",
         }
 
@@ -571,7 +571,7 @@ class TestWorkerTaskResults:
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "rss_collector",
-            "kwargs": {"message": result_message, "source_id": source_id},
+            "result": {"message": result_message, "source_id": source_id},
             "status": status,
         }
 
@@ -634,7 +634,7 @@ class TestWorkerTaskResults:
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "rss_collector",
-            "kwargs": {"message": "Collected 3 new items", "source_id": source_id},
+            "result": {"message": "Collected 3 new items", "source_id": source_id},
             "status": "SUCCESS",
         }
 
@@ -659,7 +659,7 @@ class TestWorkerTaskResults:
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "rss_collector",
-            "kwargs": {"message": "No changes: feed was not modified", "source_id": source_id},
+            "result": {"message": "No changes: feed was not modified", "source_id": source_id},
             "status": "NOT_MODIFIED",
         }
 
@@ -709,7 +709,7 @@ class TestWorkerTaskResults:
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "collector_task",
-            "kwargs": {
+            "result": {
                 "reason": "work_horse_killed",
                 "retpid": 456,
                 "ret_val": 9,
@@ -773,7 +773,7 @@ class TestWorkerTaskResults:
                         "worker_id": source_id,
                         "worker_type": "rss_collector",
                         "status": "FAILURE",
-                        "kwargs": {"error": "boom"},
+                        "result": {"error": "boom"},
                     }
                 )
 
@@ -784,7 +784,7 @@ class TestWorkerTaskResults:
                     "task": "collector_task",
                     "worker_id": source_id,
                     "worker_type": "rss_collector",
-                    "kwargs": {"message": "No changes: feed was not modified", "source_id": source_id},
+                    "result": {"message": "No changes: feed was not modified", "source_id": source_id},
                     "status": "NOT_MODIFIED",
                 },
                 headers=api_header,
@@ -817,7 +817,7 @@ class TestWorkerTaskResults:
 
         task_id = f"delete-task-{uuid.uuid4().hex}"
         with app.app_context():
-            Task.add({"id": task_id, "task": "collector_task", "kwargs": {"message": "ok"}, "status": "SUCCESS"})
+            Task.add({"id": task_id, "task": "collector_task", "result": {"message": "ok"}, "status": "SUCCESS"})
 
         response = client.delete(f"{self.base_uri}/{task_id}", headers=auth_header)
         assert response.status_code == 200

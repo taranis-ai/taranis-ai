@@ -16,7 +16,7 @@ def test_cleanup_token_blacklist_reports_task(monkeypatch):
                 "task": task_name,
                 "worker_id": worker_id,
                 "worker_type": worker_type,
-                "kwargs": task_kwargs,
+                "result": task_kwargs,
                 "status": status,
             }
             return True
@@ -33,7 +33,7 @@ def test_cleanup_token_blacklist_reports_task(monkeypatch):
         "task": "cleanup_token_blacklist",
         "worker_id": DummyJob.id,
         "worker_type": "cleanup_token_blacklist",
-        "kwargs": {"message": "Token blacklist cleanup triggered", "reason": "cleanup_triggered"},
+        "result": {"message": "Token blacklist cleanup triggered", "reason": "cleanup_triggered"},
         "status": "SUCCESS",
     }
 
