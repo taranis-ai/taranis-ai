@@ -105,6 +105,8 @@ class User(BaseModel):
             return {"error": "User not found"}, 404
         data.pop("id", None)
         if organization := data.pop("organization", None):
+            if isinstance(organization, dict):
+                organization = organization.get("id") or organization.get("name")
             if update_org := Organization.get(organization):
                 user.organization = update_org
         if (roles := data.pop("roles", None)) is not None:

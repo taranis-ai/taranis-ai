@@ -14,7 +14,7 @@ def get_health_response() -> tuple[dict[str, bool | dict[str, HealthStatus]], in
     database_status = check_database()
     services: dict[str, HealthStatus] = {
         "database": database_status,
-        "seed_data": check_seed_data() if database_status == "up" else "down",
+        "seed_data": check_seed_data() if database_status == "up" else "n/a",
     }
     if broker_health_applicable():
         broker_status = check_broker()
@@ -49,7 +49,7 @@ def check_seed_data() -> HealthStatus:
         manual_source_exists = OSINTSource.get_by_key("manual") is not None
         product_type_exists = ProductType.get_first(db.select(ProductType)) is not None
         return "up" if manual_source_exists and product_type_exists else "down"
-    except (SQLAlchemyError, Exception):
+    except Exception:
         return "down"
 
 
