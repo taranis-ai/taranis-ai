@@ -5,12 +5,18 @@ from typing import Any
 import requests
 
 from testsupport.load_testing.seed_data import (
+    DEFAULT_REPORT_COUNT,
+    DEFAULT_REPORT_TYPE_COUNT,
+    DEFAULT_SOURCE_COUNT,
     DEFAULT_STORY_SOURCE_ID,
+    DEFAULT_STORY_COUNT,
     LOAD_TEST_REPORT_TITLE_PREFIX,
     LOAD_TEST_REPORT_TYPE_DEFINITION,
     LOAD_TEST_REPORT_TYPE_TITLE,
-    build_fake_source_payload,
     build_report_payload,
+    build_fake_source_payload,
+    build_report_type_titles,
+    build_source_ids,
     load_story_seed_payloads,
 )
 
@@ -23,6 +29,19 @@ def require_env(name: str, default: str | None = None) -> str:
         return value
     else:
         raise RuntimeError(f"Missing required environment variable: {name}")
+
+
+def require_positive_int(name: str, default: int) -> int:
+    raw_value = require_env(name, str(default))
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"Environment variable {name} must be an integer, got {raw_value!r}"
+        ) from exc
+    if value < 1:
+        raise RuntimeError(f"Environment variable {name} must be at least 1, got {value}")
+    return value
 
 
 def ensure_ok(response: requests.Response, context: str) -> dict[str, Any]:
@@ -52,58 +71,75 @@ def login_session(core_api_url: str, username: str, password: str) -> requests.S
     return session
 
 
-def ensure_osint_source(
-    session: requests.Session, core_api_url: str, source_id: str
-) -> None:
+def ensure_osint_sources(
+    session: requests.Session, core_api_url: str, source_ids: list[str]
+) -> list[str]:
     response = session.get(
         f"{core_api_url}/config/osint-sources",
-        params={"search": source_id, "fetch_all": "true"},
+        params={"fetch_all": "true"},
         timeout=REQUEST_TIMEOUT,
     )
     payload = ensure_ok(response, "fetch osint sources")
-    for item in payload.get("items", []):
-        if str(item.get("id")) == source_id:
-            return
+    existing_ids = {str(item.get("id")) for item in payload.get("items", [])}
 
-    create_response = session.post(
-        f"{core_api_url}/config/osint-sources",
-        json=build_fake_source_payload(source_id),
-        timeout=REQUEST_TIMEOUT,
-    )
-    ensure_ok(create_response, f"create osint source {source_id}")
+    ensured_ids: list[str] = []
+    for index, source_id in enumerate(source_ids, start=1):
+        if source_id not in existing_ids:
+            create_response = session.post(
+                f"{core_api_url}/config/osint-sources",
+                json=build_fake_source_payload(source_id, index=index),
+                timeout=REQUEST_TIMEOUT,
+            )
+            ensure_ok(create_response, f"create osint source {source_id}")
+        ensured_ids.append(source_id)
+    return ensured_ids
 
 
-def ensure_report_type(session: requests.Session, core_api_url: str, title: str) -> str:
+def ensure_report_types(
+    session: requests.Session, core_api_url: str, titles: list[str]
+) -> list[str]:
     response = session.get(
         f"{core_api_url}/config/report-item-types",
-        params={"search": title, "fetch_all": "true"},
+        params={"fetch_all": "true"},
         timeout=REQUEST_TIMEOUT,
     )
     payload = ensure_ok(response, "fetch report item types")
-    for item in payload.get("items", []):
-        if item.get("title") == title:
-            return str(item["id"])
+    existing_by_title = {
+        str(item.get("title")): str(item.get("id"))
+        for item in payload.get("items", [])
+        if item.get("title") is not None and item.get("id") is not None
+    }
 
-    report_type_definition = deepcopy(LOAD_TEST_REPORT_TYPE_DEFINITION)
-    report_type_definition["title"] = title
-    create_response = session.post(
-        f"{core_api_url}/config/report-item-types",
-        json=report_type_definition,
-        timeout=REQUEST_TIMEOUT,
-    )
-    create_payload = ensure_ok(create_response, "create load test report item type")
-    report_type_id = create_payload.get("id")
-    if report_type_id is None:
-        raise RuntimeError(
-            f"Load test report item type was created without an id: {create_payload}"
+    report_type_ids: list[str] = []
+    for title in titles:
+        existing_id = existing_by_title.get(title)
+        if existing_id is not None:
+            report_type_ids.append(existing_id)
+            continue
+
+        report_type_definition = deepcopy(LOAD_TEST_REPORT_TYPE_DEFINITION)
+        report_type_definition["title"] = title
+        create_response = session.post(
+            f"{core_api_url}/config/report-item-types",
+            json=report_type_definition,
+            timeout=REQUEST_TIMEOUT,
         )
-    return str(report_type_id)
+        create_payload = ensure_ok(create_response, "create load test report item type")
+        report_type_id = create_payload.get("id")
+        if report_type_id is None:
+            raise RuntimeError(
+                f"Load test report item type was created without an id: {create_payload}"
+            )
+        report_type_ids.append(str(report_type_id))
+    return report_type_ids
 
 
-def seed_stories(core_api_url: str, api_key: str, source_id: str) -> list[str]:
+def seed_stories(
+    core_api_url: str, api_key: str, source_ids: list[str], story_count: int
+) -> list[str]:
     headers = {"Authorization": f"Bearer {api_key}"}
     story_ids: list[str] = []
-    for story_payload in load_story_seed_payloads(source_id):
+    for story_payload in load_story_seed_payloads(source_ids, story_count):
         response = requests.post(
             f"{core_api_url}/worker/stories",
             json=story_payload,
@@ -118,15 +154,22 @@ def seed_stories(core_api_url: str, api_key: str, source_id: str) -> list[str]:
 def seed_reports(
     session: requests.Session,
     core_api_url: str,
-    report_type_id: str,
+    report_type_ids: list[str],
     story_ids: list[str],
     title_prefix: str,
+    report_count: int,
 ) -> list[str]:
     report_ids: list[str] = []
-    for index in range(1, 4):
+    story_count = len(story_ids)
+    for index in range(1, report_count + 1):
+        story_start = (index - 1) % story_count
+        selected_story_ids = [
+            story_ids[story_start],
+            story_ids[(story_start + 1) % story_count],
+        ]
         payload = build_report_payload(
-            story_ids=story_ids[index - 1 : index + 1],
-            report_type_id=report_type_id,
+            story_ids=selected_story_ids,
+            report_type_id=report_type_ids[(index - 1) % len(report_type_ids)],
             title=f"{title_prefix} {index}",
         )
         response = session.post(
@@ -151,20 +194,41 @@ def main() -> int:
     report_title_prefix = require_env(
         "SEED_REPORT_TITLE_PREFIX", LOAD_TEST_REPORT_TITLE_PREFIX
     )
+    source_count = require_positive_int("SEED_SOURCE_COUNT", DEFAULT_SOURCE_COUNT)
+    story_count = require_positive_int("SEED_STORY_COUNT", DEFAULT_STORY_COUNT)
+    report_type_count = require_positive_int(
+        "SEED_REPORT_TYPE_COUNT", DEFAULT_REPORT_TYPE_COUNT
+    )
+    report_count = require_positive_int("SEED_REPORT_COUNT", DEFAULT_REPORT_COUNT)
 
     session = login_session(core_api_url, admin_username, admin_password)
-    ensure_osint_source(session, core_api_url, source_id)
-    report_type_id = ensure_report_type(session, core_api_url, report_type_title)
-    story_ids = seed_stories(core_api_url, api_key, source_id)
+    source_ids = ensure_osint_sources(
+        session,
+        core_api_url,
+        build_source_ids(source_id, source_count),
+    )
+    report_type_ids = ensure_report_types(
+        session,
+        core_api_url,
+        build_report_type_titles(report_type_title, report_type_count),
+    )
+    story_ids = seed_stories(core_api_url, api_key, source_ids, story_count)
     report_ids = seed_reports(
-        session, core_api_url, report_type_id, story_ids, report_title_prefix
+        session,
+        core_api_url,
+        report_type_ids,
+        story_ids,
+        report_title_prefix,
+        report_count,
     )
 
     print(
         {
+            "seeded_source_count": len(source_ids),
             "seeded_story_count": len(story_ids),
+            "seeded_report_type_count": len(report_type_ids),
             "seeded_report_count": len(report_ids),
-            "report_type_id": report_type_id,
+            "report_type_id": report_type_ids[0],
             "expected_report_title": f"{report_title_prefix} 1",
         }
     )

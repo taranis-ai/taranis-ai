@@ -11,6 +11,10 @@ PLAYWRIGHT_STORY_FIXTURE = REPO_ROOT / "src/frontend/tests/playwright/test_stori
 DEFAULT_STORY_SOURCE_ID = "99"
 LOAD_TEST_REPORT_TYPE_TITLE = "Load Testing Report Type"
 LOAD_TEST_REPORT_TITLE_PREFIX = "Load Test Report"
+DEFAULT_SOURCE_COUNT = 10
+DEFAULT_STORY_COUNT = 1000
+DEFAULT_REPORT_TYPE_COUNT = 5
+DEFAULT_REPORT_COUNT = 250
 
 LOAD_TEST_REPORT_TYPE_DEFINITION: dict = {
     "title": LOAD_TEST_REPORT_TYPE_TITLE,
@@ -45,14 +49,35 @@ LOAD_TEST_REPORT_TYPE_DEFINITION: dict = {
 }
 
 
-def build_fake_source_payload(source_id: str = DEFAULT_STORY_SOURCE_ID) -> dict:
+def build_fake_source_payload(source_id: str = DEFAULT_STORY_SOURCE_ID, *, index: int = 1) -> dict:
+    source_name = "Load Test Source" if index == 1 else f"Load Test Source {index}"
     return {
         "id": source_id,
         "description": "Synthetic OSINT source used by browser load tests",
-        "name": "Load Test Source",
+        "name": source_name,
         "parameters": {"FEED_URL": "https://example.invalid/load-testing-feed.xml"},
         "type": "rss_collector",
     }
+
+
+def build_source_ids(source_id: str = DEFAULT_STORY_SOURCE_ID, count: int = DEFAULT_SOURCE_COUNT) -> list[str]:
+    if count < 1:
+        raise ValueError("source count must be at least 1")
+    if count == 1:
+        return [source_id]
+    if source_id.isdigit():
+        start = int(source_id)
+        return [str(start + offset) for offset in range(count)]
+    return [source_id] + [f"{source_id}-{index}" for index in range(2, count + 1)]
+
+
+def build_report_type_titles(
+    base_title: str = LOAD_TEST_REPORT_TYPE_TITLE,
+    count: int = DEFAULT_REPORT_TYPE_COUNT,
+) -> list[str]:
+    if count < 1:
+        raise ValueError("report type count must be at least 1")
+    return [base_title] + [f"{base_title} {index}" for index in range(2, count + 1)]
 
 
 def _normalize_story_payload(raw_story: dict, source_id: str) -> dict:
@@ -108,27 +133,73 @@ def _normalize_story_payload(raw_story: dict, source_id: str) -> dict:
     return story
 
 
-def load_story_seed_payloads(source_id: str = DEFAULT_STORY_SOURCE_ID, limit: int = 36) -> list[dict]:
+def _build_story_identifier(index: int) -> str:
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"taranis-load-story-{index}"))
+
+
+def _build_news_item_identifier(story_index: int, news_item_index: int) -> str:
+    return str(
+        uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"taranis-load-news-item-{story_index}-{news_item_index}",
+        )
+    )
+
+
+def _build_news_item_hash(story_index: int, news_item_index: int) -> str:
+    return f"load-hash-{story_index}-{news_item_index}"
+
+
+def load_story_seed_payloads(
+    source_ids: list[str] | None = None,
+    limit: int = DEFAULT_STORY_COUNT,
+) -> list[dict]:
+    if limit < 1:
+        raise ValueError("story count must be at least 1")
+
     raw_stories = json.loads(PLAYWRIGHT_STORY_FIXTURE.read_text(encoding="utf-8"))
-    stories = [_normalize_story_payload(raw_story, source_id) for raw_story in raw_stories[:limit]]
+    if not raw_stories:
+        raise RuntimeError(f"No load-test story fixtures found in {PLAYWRIGHT_STORY_FIXTURE}")
+
+    if source_ids is None:
+        source_ids = build_source_ids(DEFAULT_STORY_SOURCE_ID, 1)
+    if not source_ids:
+        raise ValueError("source_ids must not be empty")
 
     now = datetime.now(timezone.utc).replace(microsecond=0)
-    important_indices = {0, 8, 13, 17, 21}
     fresh_story_count = max(limit - 5, 1)
+    stories: list[dict] = []
 
-    for index, story in enumerate(stories):
-        story["important"] = index in important_indices
+    for index in range(limit):
+        template = raw_stories[index % len(raw_stories)]
+        source_id = source_ids[index % len(source_ids)]
+        story = _normalize_story_payload(template, source_id)
+        story["id"] = _build_story_identifier(index + 1)
+        story["important"] = index % 10 == 0
+
+        if index >= len(raw_stories):
+            story["title"] = f"{story['title']} #{index + 1}"
+
         for news_item_offset, news_item in enumerate(story["news_items"]):
+            news_item["id"] = _build_news_item_identifier(index + 1, news_item_offset + 1)
+            news_item["hash"] = _build_news_item_hash(index + 1, news_item_offset + 1)
+            news_item["story_id"] = story["id"]
+            news_item["osint_source_id"] = source_id
             if index < fresh_story_count:
                 published_at = now - timedelta(hours=index + news_item_offset + 1)
             else:
-                published_at = now - timedelta(days=(index - fresh_story_count + 2), hours=news_item_offset)
+                published_at = now - timedelta(
+                    days=(index - fresh_story_count + 2),
+                    hours=news_item_offset,
+                )
             published_iso = published_at.replace(tzinfo=None).isoformat()
             news_item["published"] = published_iso
             news_item["collected"] = published_iso
+            news_item["link"] = f"https://example.invalid/load-testing/story/{index + 1}/item/{news_item_offset + 1}"
 
         if story["news_items"]:
             story["created"] = story["news_items"][0]["published"]
+        stories.append(story)
     return stories
 
 

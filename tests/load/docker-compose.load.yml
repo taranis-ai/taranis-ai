@@ -123,6 +123,10 @@ services:
       SEED_REPORT_TYPE_TITLE: Load Testing Report Type
       SEED_REPORT_TITLE_PREFIX: Load Test Report
       SEED_STORY_SOURCE_ID: "99"
+      SEED_SOURCE_COUNT: ${SEED_SOURCE_COUNT:-10}
+      SEED_STORY_COUNT: ${SEED_STORY_COUNT:-1000}
+      SEED_REPORT_TYPE_COUNT: ${SEED_REPORT_TYPE_COUNT:-5}
+      SEED_REPORT_COUNT: ${SEED_REPORT_COUNT:-250}
     volumes:
       - ../..:/workspace
       - ${LOAD_ARTIFACT_DIR:?set LOAD_ARTIFACT_DIR}:/artifacts

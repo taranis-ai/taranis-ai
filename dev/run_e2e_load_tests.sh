@@ -18,6 +18,10 @@ USERS=""
 SPAWN_RATE=""
 RUN_TIME=""
 FLOWS=""
+STORY_COUNT="${LOAD_TEST_STORY_COUNT:-1000}"
+SOURCE_COUNT="${LOAD_TEST_SOURCE_COUNT:-10}"
+REPORT_TYPE_COUNT="${LOAD_TEST_REPORT_TYPE_COUNT:-5}"
+REPORT_COUNT="${LOAD_TEST_REPORT_COUNT:-250}"
 RUN_ID="${LOAD_RUN_ID:-load-$(date +%Y%m%d-%H%M%S)}"
 ARTIFACT_DIR="${LOAD_ARTIFACT_DIR:-$ARTIFACTS_ROOT/$RUN_ID}"
 LOCUST_STATS_PATH="$ARTIFACT_DIR/locust_stats.csv"
@@ -31,7 +35,7 @@ LATEST_ARTIFACT_LINK="$ARTIFACTS_ROOT/latest"
 usage() {
   cat <<'EOF'
 Usage:
-  ./dev/run_e2e_load_tests.sh [--profile smoke|browser_load] [--users N] [--spawn-rate N] [--run-time 2m] [--flows login,dashboard] [--report-port N]
+  ./dev/run_e2e_load_tests.sh [--profile smoke|browser_load] [--users N] [--spawn-rate N] [--run-time 2m] [--flows login,dashboard] [--report-port N] [--assess-count N] [--report-count N] [--source-count N] [--report-type-count N]
   ./dev/run_e2e_load_tests.sh --stop-report-server
 EOF
 }
@@ -56,6 +60,22 @@ while [[ $# -gt 0 ]]; do
       ;;
     --flows)
       FLOWS="$2"
+      shift 2
+      ;;
+    --assess-count|--story-count)
+      STORY_COUNT="$2"
+      shift 2
+      ;;
+    --report-count)
+      REPORT_COUNT="$2"
+      shift 2
+      ;;
+    --source-count)
+      SOURCE_COUNT="$2"
+      shift 2
+      ;;
+    --report-type-count)
+      REPORT_TYPE_COUNT="$2"
       shift 2
       ;;
     --report-port)
@@ -211,6 +231,10 @@ export LOCUST_SPAWN_RATE="${SPAWN_RATE:-$DEFAULT_SPAWN_RATE}"
 export LOCUST_RUN_TIME="${RUN_TIME:-$DEFAULT_RUN_TIME}"
 export COMPOSE_PROJECT_NAME="$PROJECT_NAME"
 export TARANIS_LOAD_FLOWS="$FLOWS"
+export SEED_STORY_COUNT="$STORY_COUNT"
+export SEED_SOURCE_COUNT="$SOURCE_COUNT"
+export SEED_REPORT_TYPE_COUNT="$REPORT_TYPE_COUNT"
+export SEED_REPORT_COUNT="$REPORT_COUNT"
 
 mkdir -p "$ARTIFACT_DIR"
 mkdir -p "$ARTIFACTS_ROOT"
@@ -343,6 +367,10 @@ echo "Profile: $PROFILE"
 echo "Users: $LOCUST_USERS"
 echo "Spawn rate: $LOCUST_SPAWN_RATE"
 echo "Run time: $LOCUST_RUN_TIME"
+echo "Seed stories (Assess): $SEED_STORY_COUNT"
+echo "Seed reports: $SEED_REPORT_COUNT"
+echo "Seed sources: $SEED_SOURCE_COUNT"
+echo "Seed report types: $SEED_REPORT_TYPE_COUNT"
 if [[ -n "$TARANIS_LOAD_FLOWS" ]]; then
   echo "Flows: $TARANIS_LOAD_FLOWS"
 else

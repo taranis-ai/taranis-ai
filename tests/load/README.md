@@ -5,7 +5,7 @@ Manual browser end-to-end load testing for Taranis AI using Locust and `locust-p
 ## What it does
 
 - starts a disposable Docker stack with `ingress`, `core`, `frontend`, PostgreSQL, and Redis
-- seeds deterministic stories and reports
+- seeds deterministic synthetic sources, stories, report types, and reports
 - runs low-concurrency browser flows against `/frontend/login`, `/frontend/`, `/frontend/assess`, and `/frontend/analyze`
 - stores Locust reports, compose logs, recovery checks, and page-ready timing summaries under `tests/load/artifacts/`
 
@@ -17,6 +17,7 @@ From the repository root:
 ./dev/run_e2e_load_tests.sh --profile smoke
 ./dev/run_e2e_load_tests.sh --profile browser_load --users 4 --spawn-rate 1 --run-time 10m
 ./dev/run_e2e_load_tests.sh --profile smoke --flows login,dashboard
+./dev/run_e2e_load_tests.sh --profile browser_load --assess-count 2000 --report-count 500
 ./dev/run_e2e_load_tests.sh --stop-report-server
 ```
 
@@ -29,6 +30,23 @@ Defaults:
 
 - `smoke`: `1` browser user, `1/s`, `2m`
 - `browser_load`: `4` browser users, `1/s`, `10m`
+- seeded data:
+  - `1000` stories for Assess
+  - `250` reports for Analyze
+  - `10` OSINT sources
+  - `5` report types
+
+Optional seed sizing:
+
+- `--assess-count N` or `--story-count N`
+- `--report-count N`
+- `--source-count N`
+- `--report-type-count N`
+- environment overrides:
+  - `LOAD_TEST_STORY_COUNT`
+  - `LOAD_TEST_REPORT_COUNT`
+  - `LOAD_TEST_SOURCE_COUNT`
+  - `LOAD_TEST_REPORT_TYPE_COUNT`
 
 Optional E2E-derived flow selection:
 
