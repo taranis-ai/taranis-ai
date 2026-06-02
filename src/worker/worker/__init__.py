@@ -14,12 +14,11 @@ Usage:
 import sys
 
 import redis
-from rq import Queue, Worker
+from rq import Queue, SpawnWorker, Worker
 
 from worker.config import Config
 from worker.core_api import CoreApi
 from worker.log import logger
-from worker.worker_runtime import ReportingSpawnWorker, ReportingWorker
 
 
 def get_redis_connection():
@@ -64,15 +63,15 @@ def resolve_worker_class() -> type[Worker]:
     worker_class = Config.RQ_WORKER_CLASS
 
     if worker_class == "spawn":
-        return ReportingSpawnWorker
+        return SpawnWorker
 
     if worker_class == "fork":
-        return ReportingWorker
+        return Worker
 
     if sys.platform == "darwin":
-        return ReportingSpawnWorker
+        return SpawnWorker
 
-    return ReportingWorker
+    return Worker
 
 
 def start_worker():

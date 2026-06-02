@@ -38,7 +38,6 @@ from typing import Any
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from flask import Flask
 from models.admin import CronSpec
-from models.task_submission_meta import TaskSubmissionMeta, build_task_submission_meta
 from redis import Redis
 from rq import Queue
 from rq.exceptions import NoSuchJobError
@@ -197,38 +196,6 @@ def _compute_next_timestamp(cron: str | None, interval: int | None, base_ts: flo
     if interval is not None:
         return base_ts + int(interval)
     raise ValueError("CronSpec must provide either cron or interval")
-
-
-def _get_task_submission_meta(task_name: str, args: tuple[Any, ...]) -> TaskSubmissionMeta | None:
-    if task_name == "collector_task" and args:
-        return build_task_submission_meta("collector_task", str(args[0]))
-    if task_name == "collector_preview" and args:
-        return build_task_submission_meta("collector_preview", str(args[0]))
-    if task_name == "fetch_single_news_item" and args and isinstance(args[0], dict):
-        worker_id = str(args[0].get("parameters", {}).get("WEB_URL") or args[0].get("id") or "fetch_single_news_item")
-        return build_task_submission_meta("fetch_single_news_item", worker_id, "simple_web_collector")
-    if task_name == "bot_task" and args:
-        bot_id = str(args[0])
-        return build_task_submission_meta(f"bot_{bot_id}", bot_id, "BOT_TASK")
-    if task_name == "presenter_task" and args:
-        return build_task_submission_meta("presenter_task", str(args[0]))
-    if task_name == "publisher_task" and len(args) >= 2:
-        return build_task_submission_meta("publisher_task", str(args[1]))
-    if task_name == "connector_task" and args:
-        return build_task_submission_meta("connector_task", str(args[0]))
-    if task_name == "gather_word_list" and args:
-        return build_task_submission_meta("gather_word_list", str(args[0]))
-    if task_name == TOKEN_CLEANUP_JOB_ID:
-        return build_task_submission_meta(TOKEN_CLEANUP_JOB_ID, TOKEN_CLEANUP_JOB_ID)
-    return None
-
-
-def _build_enqueue_kwargs(task_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, Any]:
-    meta = dict(kwargs.get("meta") or {})
-    # Preserve scheduler dashboard labels where available.
-    if task_submission := _get_task_submission_meta(task_name, args):
-        meta["task_submission"] = task_submission
-    return {**kwargs, "meta": meta}
 
 
 class QueueManager:
@@ -569,7 +536,7 @@ class QueueManager:
                 logger.error(f"Unknown task: {task_name}")
                 return False
 
-            return queue.enqueue(task_func, *args, job_id=job_id, **_build_enqueue_kwargs(task_name, args, kwargs))
+            return queue.enqueue(task_func, *args, job_id=job_id, **kwargs)
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
             return False
@@ -615,7 +582,7 @@ class QueueManager:
                 task_func,
                 *args,
                 job_id=job_id,
-                **_build_enqueue_kwargs(task_name, args, kwargs),
+                **kwargs,
             )
             logger.info(f"Scheduled {task_name} on {queue_name} as job {job.id} for {scheduled_time}")
             return job

@@ -417,7 +417,7 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
     }
 
 
-def test_enqueue_task_attaches_task_submission_meta_and_preserves_display_name():
+def test_enqueue_task_preserves_display_name():
     qm = _make_queue_manager()
     queue = _RecordingQueue("collectors")
     qm._queues = {"collectors": queue}  # type: ignore[assignment]
@@ -437,21 +437,12 @@ def test_enqueue_task_attaches_task_submission_meta_and_preserves_display_name()
             "task": "worker.collectors.collector_tasks.collector_task",
             "args": ("source-1", True),
             "job_id": "collect_rss_collector_source-1",
-            "kwargs": {
-                "meta": {
-                    "name": "Collector: Source 1",
-                    "task_submission": {
-                        "task": "collector_task",
-                        "worker_id": "source-1",
-                        "worker_type": "collector_task",
-                    },
-                }
-            },
+            "kwargs": {"meta": {"name": "Collector: Source 1"}},
         }
     ]
 
 
-def test_enqueue_at_attaches_task_submission_meta_and_preserves_display_name():
+def test_enqueue_at_preserves_display_name():
     qm = _make_queue_manager()
     queue = _RecordingQueue("presenters")
     qm._queues = {"presenters": queue}  # type: ignore[assignment]
@@ -467,16 +458,7 @@ def test_enqueue_at_attaches_task_submission_meta_and_preserves_display_name():
     )
 
     assert result is not False
-    assert queue.enqueued_at[0]["kwargs"] == {
-        "meta": {
-            "name": "Presenter: Product 1",
-            "task_submission": {
-                "task": "presenter_task",
-                "worker_id": "product-1",
-                "worker_type": "presenter_task",
-            },
-        }
-    }
+    assert queue.enqueued_at[0]["kwargs"] == {"meta": {"name": "Presenter: Product 1"}}
 
 
 def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypatch):

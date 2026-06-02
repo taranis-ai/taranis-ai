@@ -124,14 +124,7 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
                 "result_ttl": 300,
                 "failure_ttl": 600,
                 "kwargs": {},
-                "meta": {
-                    "name": "Collector: Source 1",
-                    "task_submission": {
-                        "task": "collector_task",
-                        "worker_id": "source-1",
-                        "worker_type": "collector_task",
-                    },
-                },
+                "meta": {"name": "Collector: Source 1"},
             },
         }
     ]

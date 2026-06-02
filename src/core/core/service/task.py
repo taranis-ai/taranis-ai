@@ -42,7 +42,6 @@ class TaskService:
 
     @classmethod
     def save_task_result(cls, submission: TaskSubmission) -> tuple[dict[str, Any], int]:
-        task_kind = cls._resolve_task_kind(submission.id, submission.task)
         payload: dict[str, Any] = {
             "id": submission.id,
             "result": submission.result,
@@ -56,14 +55,12 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
-        cls._handle_task_result(
-            task_kind=task_kind,
-            status=submission.status,
-            result=submission.result,
-            worker_id=submission.worker_id,
-            worker_type=submission.worker_type,
-            job_id=submission.id,
-        )
+        task_kind = cls._resolve_task_kind(submission.id, submission.task)
+        if submission.status == "SUCCESS" and submission.result is not None:
+            cls._handle_success_result(submission, task_kind)
+        elif task_kind == "collector_task":
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
         validated = TaskResponseModel.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), 200
 
@@ -77,68 +74,48 @@ class TaskService:
             return "cleanup_token_blacklist"
         if task_name == "presenter_task" or task_id.startswith("presenter_task"):
             return "presenter_task"
-        if task_name == "collector_preview" or task_id.startswith("source_preview_"):
-            return "collector_preview"
         if task_name == "collector_task" or task_name.startswith("collect_") or task_id.startswith("collect_"):
             return "collector_task"
         if task_name == "bot_task" or task_name.startswith("bot_") or task_id.startswith("bot"):
             return "bot_task"
         if task_name == "connector_task":
             return "connector_task"
-        if task_name == "publisher_task" or task_id.startswith("publisher_task"):
-            return "publisher_task"
 
         return None
 
     @classmethod
-    def _handle_task_result(
-        cls,
-        *,
-        task_kind: str | None,
-        status: str,
-        result: dict[str, Any],
-        worker_id: str | None,
-        worker_type: str | None,
-        job_id: str,
-    ) -> None:
-        if task_kind == "collector_task" and status not in TaskModel.SUCCESS_STATUSES:
-            cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
-            cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", worker_id)
-            return
-
-        if status not in TaskModel.SUCCESS_STATUSES or not task_kind:
-            return
-
+    def _handle_success_result(cls, submission: TaskSubmission, task_kind: str | None) -> None:
         cache_invalidation_module.invalidate_frontend_cache_on_success(200, full=True)
-        handler = cls._SUCCESS_RESULT_HANDLERS.get(task_kind)
-        if handler is not None:
-            handler(cls, result=result, worker_id=worker_id, worker_type=worker_type, job_id=job_id)
+        if not task_kind:
+            return
+
+        if task_kind == "cleanup_token_blacklist":
+            check_time = datetime.now(timezone.utc).replace(tzinfo=None) - Config.JWT_ACCESS_TOKEN_EXPIRES
+            TokenBlacklist.delete_older(check_time)
+            return
+
+        if task_kind == "collector_task":
+            logger.info("Collector task %s completed with result: %s", submission.id, submission.result)
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
+            return
+
+        if task_kind == "connector_task":
+            handle_misp_connector_result(submission.result)
+            return
+
+        if task_kind == "gather_word_list":
+            WordList.update_word_list(**submission.result)
+            return
+
+        if task_kind == "presenter_task":
+            cls._handle_presenter_result(submission.result)
+            return
+
+        if task_kind == "bot_task":
+            cls._handle_bot_result(submission)
 
     @classmethod
-    def _handle_cleanup_result(cls, *, result: dict[str, Any], **_: Any) -> None:
-        del result
-        check_time = datetime.now(timezone.utc).replace(tzinfo=None) - Config.JWT_ACCESS_TOKEN_EXPIRES
-        TokenBlacklist.delete_older(check_time)
-
-    @classmethod
-    def _handle_collector_result(cls, *, result: dict[str, Any], worker_id: str | None, job_id: str, **_: Any) -> None:
-        logger.info("Collector task %s completed with result: %s", job_id, result)
-        cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", worker_id)
-
-    @classmethod
-    def _handle_connector_result(cls, *, result: dict[str, Any], **_: Any) -> None:
-        handle_misp_connector_result(result)
-
-    @classmethod
-    def _handle_word_list_result(cls, *, result: dict[str, Any], **_: Any) -> None:
-        WordList.update_word_list(
-            word_list_id=result["word_list_id"],
-            content=result["content"],
-            content_type=result["content_type"],
-        )
-
-    @classmethod
-    def _handle_presenter_result(cls, *, result: dict[str, Any], **_: Any) -> None:
+    def _handle_presenter_result(cls, result: dict[str, Any]) -> None:
         product_id = result.get("product_id")
         rendered_product = result.get("render_result")
 
@@ -149,30 +126,16 @@ class TaskService:
         Product.update_render_for_id(product_id, rendered_product)
 
     @classmethod
-    def _handle_bot_result(
-        cls,
-        *,
-        result: dict[str, Any],
-        worker_id: str | None,
-        worker_type: str | None,
-        **_: Any,
-    ) -> None:
-        worker_type = worker_type or ""
-        worker_id = worker_id or "UNKNOWN_ID"
+    def _handle_bot_result(cls, submission: TaskSubmission) -> None:
+        worker_type = submission.worker_type or ""
+        worker_id = submission.worker_id or "UNKNOWN_ID"
         bot_result = {
-            key: value for key, value in result.items() if key not in {"bot_id", "message", "tagged_items", "tags_applied", "news_items"}
+            key: value
+            for key, value in submission.result.items()
+            if key not in {"bot_id", "message", "tagged_items", "tags_applied", "news_items"}
         }
 
         if worker_type in TAGGING_BOTS:
             NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
 
         NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
-
-    _SUCCESS_RESULT_HANDLERS = {
-        "cleanup_token_blacklist": _handle_cleanup_result.__func__,
-        "collector_task": _handle_collector_result.__func__,
-        "connector_task": _handle_connector_result.__func__,
-        "gather_word_list": _handle_word_list_result.__func__,
-        "presenter_task": _handle_presenter_result.__func__,
-        "bot_task": _handle_bot_result.__func__,
-    }

@@ -8,7 +8,6 @@ from typing import Any, TypeVar, cast
 
 from croniter import croniter
 from models.task import CronTaskSpec
-from models.task_submission_meta import build_task_submission_meta
 from pydantic import ValidationError
 from redis import Redis
 from rq import Queue
@@ -30,28 +29,6 @@ TASK_FUNCTION_MAP = {
 }
 
 T = TypeVar("T")
-
-
-def _build_task_submission_from_spec(func_path: str, args: list[Any], kwargs: dict[str, Any]) -> dict[str, str] | None:
-    if func_path == "collector_task" and args:
-        return build_task_submission_meta("collector_task", str(args[0]))
-    if func_path == "bot_task" and args:
-        bot_id = str(args[0])
-        return build_task_submission_meta(f"bot_{bot_id}", bot_id, "BOT_TASK")
-    if func_path == "cleanup_token_blacklist":
-        return build_task_submission_meta("cleanup_token_blacklist", "cleanup_token_blacklist")
-    if func_path == "presenter_task" and args:
-        return build_task_submission_meta("presenter_task", str(args[0]))
-    if func_path == "publisher_task" and len(args) >= 2:
-        return build_task_submission_meta("publisher_task", str(args[1]))
-    if func_path == "connector_task" and args:
-        return build_task_submission_meta("connector_task", str(args[0]))
-    if func_path == "gather_word_list" and args:
-        return build_task_submission_meta("gather_word_list", str(args[0]))
-    if func_path == "fetch_single_news_item" and args and isinstance(args[0], dict):
-        worker_id = str(args[0].get("parameters", {}).get("WEB_URL") or args[0].get("id") or "fetch_single_news_item")
-        return build_task_submission_meta("fetch_single_news_item", worker_id, "simple_web_collector")
-    return None
 
 
 def _sync_response(value: T | Awaitable[T], operation: str) -> T:
@@ -148,8 +125,6 @@ def _enqueue_due_job(
     if job_meta := job_options.get("meta"):
         # Preserve scheduler dashboard labels where available.
         meta.update(dict(job_meta))
-    if task_submission := _build_task_submission_from_spec(func_path, args, kwargs):
-        meta["task_submission"] = task_submission
     # Deterministic enough for queue dedupe while still carrying the logical cron job id.
     due_slot = int(now_ts)
     rq_job_id = f"cron_{job_id}_{due_slot}"

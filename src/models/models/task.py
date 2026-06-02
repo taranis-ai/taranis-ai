@@ -68,7 +68,8 @@ class Task(TaranisBaseModel):
             return value
 
         normalized = dict(value)
-        normalized["result"] = dict(normalized.get("result") or {})
+        if normalized.get("result") is None:
+            normalized["result"] = {}
         return normalized
 
 
@@ -130,7 +131,8 @@ class TaskHistoryEntry(TaranisBaseModel):
             return value
 
         normalized = dict(value)
-        normalized["result"] = dict(normalized.get("result") or {})
+        if normalized.get("result") is None:
+            normalized["result"] = {}
         return normalized
 
 
