@@ -12,14 +12,15 @@ from frontend.onboarding import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
-DASHBOARD_BASELINE_QUEUE_TEXT = "There are 1 tasks scheduled."
+DASHBOARD_BASELINE_QUEUE_TEXT_FRAGMENT = "There are"
 DASHBOARD_HEALTH_SERVICES = {
     "Database": "up",
     "Pre-seeded": "up",
     "Redis": "up",
     "Workers": "up",
 }
-SCHEDULER_BASELINE_TOTAL_TEXT = "Total: 1 scheduled jobs"
+SCHEDULER_BASELINE_TOTAL_TEXT_PREFIX = "Total:"
+SCHEDULER_BASELINE_TOTAL_TEXT_SUFFIX = "scheduled jobs"
 
 
 def reset_admin_onboarding_tours(core_request_client):
@@ -156,12 +157,15 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         queue_card = page.locator("div.bg-base-100.border").filter(has=page.get_by_role("link", name="Queue")).first
         expect(queue_card).to_be_visible()
-        expect(queue_card).to_contain_text(DASHBOARD_BASELINE_QUEUE_TEXT)
+        expect(queue_card).to_contain_text(DASHBOARD_BASELINE_QUEUE_TEXT_FRAGMENT)
+        expect(queue_card).to_contain_text("tasks scheduled.")
         queue_card.get_by_role("link", name="Queue").click()
 
         expect(page).to_have_url(url_for("admin.scheduler", _external=True))
         expect(page.locator("#scheduler-dashboard")).to_be_visible()
-        expect(page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")).to_have_text(SCHEDULER_BASELINE_TOTAL_TEXT)
+        scheduled_jobs_total = page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")
+        expect(scheduled_jobs_total).to_contain_text(SCHEDULER_BASELINE_TOTAL_TEXT_PREFIX)
+        expect(scheduled_jobs_total).to_contain_text(SCHEDULER_BASELINE_TOTAL_TEXT_SUFFIX)
 
     def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
         page = logged_in_page

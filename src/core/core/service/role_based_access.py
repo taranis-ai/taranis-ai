@@ -86,7 +86,7 @@ class RoleBasedAccessService:
         role_based_access_alias = aliased(RoleBasedAccess)
 
         # Query to find item_ids accessible by any of the roles or check for wildcard access
-        access_check_subquery = (
+        access_check_query = (
             select(role_based_access_alias.item_id)
             .join(rbac_role_alias, role_based_access_alias.id == rbac_role_alias.acl_id)
             .where(
@@ -95,7 +95,8 @@ class RoleBasedAccessService:
                 rbac_role_alias.role_id.in_(role_ids),
             )
             .distinct()
-        ).subquery()
+        )
+        access_check_subquery = access_check_query.subquery()
 
         if db.session.execute(select(db.exists().where(access_check_subquery.c.item_id == "*"))).scalar():
             return query
@@ -105,7 +106,7 @@ class RoleBasedAccessService:
         else:
             id_field = model_class.id
 
-        return query.where(id_field.in_(access_check_subquery))  # type: ignore
+        return query.where(id_field.in_(access_check_query))  # type: ignore
 
     @classmethod
     def get_model_class(cls, resource_type: str):

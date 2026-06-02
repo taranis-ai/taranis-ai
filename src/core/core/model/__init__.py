@@ -2,6 +2,7 @@ __all__ = [
     "user",
     "role",
     "permission",
+    "filter_data",
     "news_item",
     "osint_source",
     "parameter",

@@ -89,7 +89,9 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 **Important Notes:**
 
 - You must run commands separately in each src directory to ensure all dependencies are installed
-- For `src/core` migration work, first launch core once so it bootstraps the current database state; only after that should you apply migrations
+- Do not create migration files for new tables. New SQLAlchemy tables are created from model metadata during core startup through `src/core/core/managers/db_manager.py` (`db.init_app(app)` followed by metadata setup).
+- Create core migration files only when changing existing tables or deleting existing tables.
+- For `src/core` migration work on existing tables, first launch core once so it bootstraps the current database state; only after that should you apply migrations
 - If the latest core migration was only marked as applied, undo or unmark that last migration first and then reapply it
 - Always execute test and lint commands from within the corresponding component directory (`cd src/<component>`), then run `uv run ...`
 - E2E tests require the application to be running (they start their own test server)

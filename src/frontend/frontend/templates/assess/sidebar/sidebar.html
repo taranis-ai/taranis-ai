@@ -1,9 +1,8 @@
 {% from "assess/sidebar/tri_state_filter.html" import tri_state_filter %}
+{% from "assess/sidebar/filter_token_select.html" import filter_token_select_assets %}
 {% from "macros/htmx.html" import search_trigger %}
 {% set base_url = routes.base_route %}
 {% set request_args = assess_request_args | default({}) %}
-{% set selected_groups = request_args.get('group', []) %}
-{% set selected_sources = request_args.get('source', []) %}
 {% set selected_tags = request_args.get('tags', []) %}
 {% set current_search = request_args.get('search', ['']) | first %}
 {% set current_limit = request_args.get('limit', [20]) | first %}
@@ -39,31 +38,14 @@
   {'name': 'relevant', 'label': 'Relevance', 'value': relevant_filter}
 ] %}
 
+{{ filter_token_select_assets() }}
+
 <script type="text/javascript">
-const classNames = {
-  containerOuter: ['choices', '!bg-base-200'],
-  containerInner: ['choices__inner', '!bg-base-200'],
-  input: ['choices__input', '!bg-base-200'],
-  inputCloned: ['choices__input--cloned', '!bg-base-200'],
-  list: ['choices__list', '!bg-base-200'],
-  itemSelectable: ['choices__item--selectable', 'choices-item-selectable-primary'],
-  itemChoice: ['choices__item--choice', '!bg-base-200', '!truncate', '!w-54'],
-  selectedState: ['is-selected', 'choices-selected-primary'],
-};
-
-const choicesConfig = {
-  itemSelectText: '✓',
-  appendGroupInSearch: true,
-  classNames: classNames
-}
-
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    initChoices('source-filter', 'sources', choicesConfig);
     highlightSearch({{ current_search | tojson }});
   });
 } else {
-  initChoices('source-filter', 'sources', choicesConfig);
   highlightSearch({{ current_search | tojson }});
 }
 
@@ -207,8 +189,9 @@ document.addEventListener('htmx:afterSwap', function (event) {
     </div>
   </section>
 
-  <div class="divider text-xs">Status</div>
-  <section class="space-y-3">
+  <section class="space-y-3 mt-2">
+    {% include "assess/sidebar/language_select.html" %}
+
     {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
     <label class="select w-full">
       <span class="label">Changed by</span>

@@ -572,6 +572,7 @@ class TestEndToEndUser(BaseE2ETest):
             reset_button = page.get_by_test_id("reset-report-filters")
 
             search_input.fill(filter_prefix)
+            self.wait_for_htmx_settled(page)
             expect(page).to_have_url(re.compile(rf"search={filter_prefix}"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
@@ -611,6 +612,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page).not_to_have_url(re.compile(r"(search=|completed=|report_item_type_id=)"))
 
             search_input.fill(filter_prefix)
+            self.wait_for_htmx_settled(page)
             expect(page).to_have_url(re.compile(rf"search={filter_prefix}"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
