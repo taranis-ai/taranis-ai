@@ -31,6 +31,7 @@ INGRESS_PORT="${LOAD_TEST_INGRESS_PORT:-18080}"
 PROJECT_NAME="taranis-load-${RUN_ID//[^a-zA-Z0-9]/}"
 PROJECT_NAME="$(printf '%s' "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')"
 LATEST_ARTIFACT_LINK="$ARTIFACTS_ROOT/latest"
+REPORT_SERVER_MODULE="tests.load.load_support.report_server"
 
 usage() {
   cat <<'EOF'
@@ -102,6 +103,11 @@ clear_report_server_state() {
   rm -f "$REPORT_SERVER_PID_FILE" "$REPORT_SERVER_PORT_FILE"
 }
 
+report_server_command_matches() {
+  local command="$1"
+  [[ -n "$command" && "$command" == *"$REPORT_SERVER_MODULE"* && "$command" == *"--bind $REPORT_SERVER_HOST"* && "$command" == *"--directory $ARTIFACTS_ROOT"* ]]
+}
+
 discover_report_server() {
   local line pid command port
 
@@ -113,18 +119,12 @@ discover_report_server() {
     command="${line#"$pid"}"
     command="${command#" "}"
 
-    if [[ "$command" != *"http.server"* ]]; then
-      continue
-    fi
-    if [[ "$command" != *"--bind $REPORT_SERVER_HOST"* ]]; then
-      continue
-    fi
-    if [[ "$command" != *"--directory $ARTIFACTS_ROOT"* ]]; then
+    if ! report_server_command_matches "$command"; then
       continue
     fi
 
     port=""
-    if [[ "$command" =~ http\.server[[:space:]]+([0-9]+) ]]; then
+    if [[ "$command" =~ $REPORT_SERVER_MODULE[[:space:]]+([0-9]+) ]]; then
       port="${BASH_REMATCH[1]}"
     fi
 
@@ -139,7 +139,7 @@ report_server_matches() {
   local pid="$1"
   local command
   command="$(ps -p "$pid" -o command= 2>/dev/null || true)"
-  [[ -n "$command" && "$command" == *"http.server"* && "$command" == *"--bind $REPORT_SERVER_HOST"* && "$command" == *"--directory $ARTIFACTS_ROOT"* ]]
+  report_server_command_matches "$command"
 }
 
 resolve_report_server() {
@@ -277,7 +277,7 @@ ensure_report_server() {
 
   if read -r existing_pid existing_port < <(resolve_report_server); then
     REPORT_SERVER_PORT="$existing_port"
-    REPORT_URL="http://$REPORT_SERVER_HOST:$REPORT_SERVER_PORT/latest/locust-report.html"
+    REPORT_URL="http://$REPORT_SERVER_HOST:$REPORT_SERVER_PORT/latest/locust-report.html?run=$RUN_ID"
     return 0
   fi
 
@@ -287,7 +287,7 @@ ensure_report_server() {
       continue
     fi
 
-    nohup python3 -m http.server "$port" --bind "$REPORT_SERVER_HOST" --directory "$ARTIFACTS_ROOT" >"$REPORT_SERVER_LOG" 2>&1 &
+    nohup python3 -m "$REPORT_SERVER_MODULE" "$port" --bind "$REPORT_SERVER_HOST" --directory "$ARTIFACTS_ROOT" >"$REPORT_SERVER_LOG" 2>&1 &
     local pid=$!
     sleep 1
 
@@ -295,7 +295,7 @@ ensure_report_server() {
       printf '%s\n' "$pid" >"$REPORT_SERVER_PID_FILE"
       printf '%s\n' "$port" >"$REPORT_SERVER_PORT_FILE"
       REPORT_SERVER_PORT="$port"
-      REPORT_URL="http://$REPORT_SERVER_HOST:$REPORT_SERVER_PORT/latest/locust-report.html"
+      REPORT_URL="http://$REPORT_SERVER_HOST:$REPORT_SERVER_PORT/latest/locust-report.html?run=$RUN_ID"
       return 0
     fi
   done
