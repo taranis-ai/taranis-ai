@@ -109,7 +109,7 @@
       </select>
     </div>
 
-    {{ form_select('Organization', 'organization', user.organization, organizations, width="w-3/4") }}
+    {{ form_select(label='Organization', name='organization', value=user.organization.id, options=organizations, width="w-3/4") }}
 
     <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
   </form>
