@@ -43,7 +43,7 @@ jobs:
           LOAD_RUN_ID: github-${{ github.run_id }}
           LOAD_ARTIFACT_DIR: ${{ github.workspace }}/tests/load/artifacts/github-${{ github.run_id }}
         run: |
-          chmod +x ./dev/run_load_tests.sh
+          chmod +x ./dev/run_e2e_load_tests.sh
           args=(--profile "${{ inputs.profile }}")
 
           if [ -n "${{ inputs.users }}" ]; then
@@ -58,7 +58,7 @@ jobs:
             args+=(--run-time "${{ inputs.run_time }}")
           fi
 
-          ./dev/run_load_tests.sh "${args[@]}"
+          ./dev/run_e2e_load_tests.sh "${args[@]}"
 
       - name: Upload load test artifacts
         if: always()

@@ -22,6 +22,9 @@ class FrontendFlowsTest(unittest.TestCase):
             [FLOW_LOGIN, FLOW_DASHBOARD, FLOW_ASSESS_LIST],
         )
 
+    def test_parse_selected_flow_names_treats_empty_string_as_default(self) -> None:
+        self.assertIsNone(parse_selected_flow_names(""))
+
     def test_parse_selected_flow_names_rejects_empty_values(self) -> None:
         with self.assertRaisesRegex(ValueError, "no valid flow names"):
             parse_selected_flow_names(" , ")

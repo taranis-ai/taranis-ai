@@ -76,7 +76,7 @@ The runner also writes:
 ## Reading the Locust report
 
 - In this browser harness, the Locust HTML `Aggregated` row combines all recorded Locust events, not just one page type.
-- That means it includes coarse `TASK` rows such as `FrontendBrowserUser.assess_flow` and custom `PAGE` rows such as `assess:ready`.
+- That means it includes coarse `TASK` rows such as `FrontendSelectedE2EFlowUser.assess_list_flow` and custom `PAGE` rows such as `assess:list_ready`.
 - The `Aggregated Min` value is the single fastest recorded event across the full report. It is not an average of per-row minimums.
 - The `Aggregated RPS` value is total recorded Locust events per second over the whole run.
 - In this harness, `RPS` is therefore not backend HTTP requests per second and not “browser sessions per second”.
@@ -95,13 +95,8 @@ cd tests/load && uv run pytest test_frontend_flows.py
 - This harness is intentionally browser-first and user-workspace-only.
 - Seed data is treated as disposable for this harness. Rerunning the seed step against the same database may create additional rows instead of updating previous seeded records.
 - It does not include `worker` or `cron` in the baseline stack.
-- The original PoC Locust tasks remain available; `--flows` adds an optional E2E-derived flow layer instead of replacing them.
-- Locust keeps the coarse `TASK` rows and additionally records user-facing page readiness as `PAGE` rows:
-  - `login:dashboard_ready`
-  - `dashboard:ready`
-  - `assess:ready`
-  - `analyze:ready`
-- When `--flows` is used, the load-enabled E2E-derived flows emit:
+- The Locust user class is generated from the same E2E-derived flow registry used by frontend workflow tests.
+- By default, all load-enabled flows emit:
   - `login:ready`
   - `dashboard:ready`
   - `assess:list_ready`

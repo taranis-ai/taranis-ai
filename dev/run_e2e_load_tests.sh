@@ -467,17 +467,23 @@ run_and_capture \
   compose run --rm --entrypoint python check_recovery -m tests.load.load_support.check_recovery record-baseline
 
 locust_status=0
-if ! run_and_capture "$ARTIFACT_DIR/locust-console.log" compose run --rm locust; then
+if run_and_capture "$ARTIFACT_DIR/locust-console.log" compose run --rm locust; then
+  locust_status=0
+else
   locust_status=$?
 fi
 
 recovery_status=0
-if ! run_and_capture "$ARTIFACT_DIR/recovery.log" compose run --rm check_recovery; then
+if run_and_capture "$ARTIFACT_DIR/recovery.log" compose run --rm check_recovery; then
+  recovery_status=0
+else
   recovery_status=$?
 fi
 
 summary_status=0
-if ! generate_page_summary; then
+if generate_page_summary; then
+  summary_status=0
+else
   summary_status=$?
 fi
 
