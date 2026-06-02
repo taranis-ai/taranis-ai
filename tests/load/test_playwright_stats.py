@@ -137,10 +137,15 @@ def test_page_event_records_partial_bytes_on_failure() -> None:
         user = FakeUser(page)
         collector = ensure_byte_collector(user)
 
-        async with event(user, "assess:list_ready", "PAGE"):
-            page.emit_response(FakeResponse(b"partial"))
-            await collector.settle()
-            raise RuntimeError("boom")
+        try:
+            async with event(user, "assess:list_ready", "PAGE"):
+                page.emit_response(FakeResponse(b"partial"))
+                await collector.settle()
+                raise RuntimeError("boom")
+        except RuntimeError as exc:
+            assert str(exc) == "boom"
+        else:
+            raise AssertionError("event should re-raise flow failures")
 
         request_call = user.environment.events.request.calls[0]
         assert request_call["name"] == "assess:list_ready"
@@ -175,5 +180,31 @@ def test_task_and_page_windows_record_separate_byte_totals() -> None:
         assert page.waited_ms == 1000
         assert page.closed is True
         assert user.browser.contexts[0].closed is True
+
+    asyncio.run(scenario())
+
+
+def test_failed_page_event_records_failed_task() -> None:
+    async def scenario() -> None:
+        page = FakePage()
+        user = FakeUser(page)
+
+        async def measured_task(task_user, task_page: FakePage) -> None:
+            collector = ensure_byte_collector(task_user)
+            async with event(task_user, "assess:list_ready", "PAGE"):
+                task_page.emit_response(FakeResponse(b"partial"))
+                await collector.settle()
+                raise RuntimeError("boom")
+
+        await run_task(user, measured_task)
+
+        page_call, task_call = user.environment.events.request.calls
+        assert page_call["request_type"] == "PAGE"
+        assert page_call["response_length"] == 7
+        assert isinstance(page_call["exception"], RuntimeError)
+        assert task_call["request_type"] == "TASK"
+        assert task_call["name"] == "FakeUser.measured_task"
+        assert task_call["response_length"] == 7
+        assert isinstance(task_call["exception"], RuntimeError)
 
     asyncio.run(scenario())

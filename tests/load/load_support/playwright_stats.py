@@ -147,7 +147,9 @@ async def event(
             response_length=collector.finish_window(window_id),
             exception=error,
         )
-    await asyncio.sleep(0.1)
+        raise
+    finally:
+        await asyncio.sleep(0.1)
 
 
 async def run_task(user: PlaywrightUser, func: Callable[[PlaywrightUser, Any], Awaitable[None]]) -> None:

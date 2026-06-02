@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from load_support.browser_flows import parse_selected_flow_names
+from load_support.browser_flows import build_selected_e2e_flow_user_class, parse_selected_flow_names
 from testsupport.load_testing.frontend_flows import (
     FLOW_ANALYZE_LIST,
     FLOW_ASSESS_LIST,
@@ -45,6 +45,15 @@ class FrontendFlowsTest(unittest.TestCase):
             getattr(wrapper, LOAD_MEASURED_FLOW_ATTR),
             (FLOW_LOGIN, FLOW_ASSESS_LIST),
         )
+
+    def test_generated_flow_tasks_keep_flow_specific_inner_names(self) -> None:
+        user_class = build_selected_e2e_flow_user_class()
+
+        wrapped_task = getattr(user_class, f"{FLOW_DASHBOARD}_flow")
+        sync_wrapped_task = wrapped_task.__closure__[0].cell_contents
+        measured_task = sync_wrapped_task.__closure__[0].cell_contents
+
+        self.assertEqual(measured_task.__name__, f"{FLOW_DASHBOARD}_flow")
 
 
 if __name__ == "__main__":

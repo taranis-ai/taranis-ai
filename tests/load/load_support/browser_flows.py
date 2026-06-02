@@ -57,6 +57,7 @@ def build_selected_e2e_flow_user_class() -> type[PlaywrightUser]:
         async def flow_task(self, page, flow_definition=flow_definition):
             await _run_selected_flow(self, page, flow_definition)
 
+        flow_task.__name__ = f"{flow_definition.name}_flow"
         attributes[f"{flow_definition.name}_flow"] = task(flow_definition.locust_weight)(
             pw(flow_task)
         )

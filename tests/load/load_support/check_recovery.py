@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -95,7 +96,7 @@ def verify_recovery(baseline_path: Path, output_path: Path, timeout_seconds: int
 
 
 def main() -> int:
-    mode = os.sys.argv[1] if len(os.sys.argv) > 1 else "verify"
+    mode = sys.argv[1] if len(sys.argv) > 1 else "verify"
     baseline_path = Path(read_env("RECOVERY_BASELINE_PATH", "/artifacts/recovery-baseline.json"))
     output_path = Path(read_env("RECOVERY_OUTPUT_PATH", "/artifacts/recovery-results.json"))
     timeout_seconds = int(read_env("RECOVERY_TIMEOUT_SECONDS", "60"))
