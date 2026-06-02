@@ -78,6 +78,10 @@ def _decode_redis_value(value: bytes | str) -> str:
     return value.decode() if isinstance(value, bytes) else str(value)
 
 
+def _get_queue_job_ids(queue: Queue) -> list[str]:
+    return list(queue.get_job_ids())
+
+
 def _format_duration(delta: timedelta) -> str:
     total_seconds = int(delta.total_seconds())
     if total_seconds < 60:
@@ -395,12 +399,7 @@ class QueueManager:
         for queue in self._queues.values():
             queued_ids: list[str] = []
             with contextlib.suppress(Exception):
-                if hasattr(queue, "get_job_ids"):
-                    queued_ids = list(queue.get_job_ids())  # pyright: ignore[reportAttributeAccessIssue, reportArgumentType]
-                elif callable(getattr(queue, "job_ids", None)):
-                    queued_ids = list(queue.job_ids())  # pyright: ignore[reportAttributeAccessIssue, reportArgumentType]
-                elif getattr(queue, "job_ids", None) is not None:
-                    queued_ids = list(queue.job_ids)  # pyright: ignore[reportAttributeAccessIssue, reportArgumentType]
+                queued_ids = _get_queue_job_ids(queue)
 
             for job_id in queued_ids:
                 if not matches(job_id) or job_id in removed_ids:
