@@ -12,7 +12,7 @@
     "npm:choices.js@^11.2.3": "11.2.3",
     "npm:codemirror@^6.0.2": "6.0.2",
     "npm:daisyui@^5.5.20": "5.5.20",
-    "npm:fuse.js@^7.3.0": "7.3.0",
+    "npm:fuse.js@^7.4.1": "7.4.1",
     "npm:highlight-search-term@^1.0.3": "1.0.3",
     "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
     "npm:htmx.org@^2.0.10": "2.0.10",
@@ -382,8 +382,8 @@
         "tapable"
       ]
     },
-    "fuse.js@7.3.0": {
-      "integrity": "sha512-plz8RVjfcDedTGfVngWH1jmJvBvAwi1v2jecfDerbEnMcmOYUEEwKFTHbNoCiYyzaK2Ws8lABkTCcRSqCY1q4w=="
+    "fuse.js@7.4.1": {
+      "integrity": "sha512-AY7lKAXK71hi3WgUvDy6oZL67UEHOOtvCAwVdOXHyJd6ZzftBy7QqxuXt4HxmmAhYjmp/YCuOELZtIvAdlZ+fw=="
     },
     "graceful-fs@4.2.11": {
       "integrity": "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="
@@ -540,7 +540,7 @@
       "npm:choices.js@^11.2.3",
       "npm:codemirror@^6.0.2",
       "npm:daisyui@^5.5.20",
-      "npm:fuse.js@^7.3.0",
+      "npm:fuse.js@^7.4.1",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",
       "npm:htmx.org@^2.0.10",
