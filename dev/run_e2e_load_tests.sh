@@ -18,6 +18,8 @@ USERS=""
 SPAWN_RATE=""
 RUN_TIME=""
 FLOWS=""
+DEVICE_READ_IOPS=""
+DEVICE_WRITE_IOPS=""
 STORY_COUNT="${LOAD_TEST_STORY_COUNT:-1000}"
 SOURCE_COUNT="${LOAD_TEST_SOURCE_COUNT:-10}"
 REPORT_TYPE_COUNT="${LOAD_TEST_REPORT_TYPE_COUNT:-5}"
@@ -32,11 +34,13 @@ PROJECT_NAME="taranis-load-${RUN_ID//[^a-zA-Z0-9]/}"
 PROJECT_NAME="$(printf '%s' "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')"
 LATEST_ARTIFACT_LINK="$ARTIFACTS_ROOT/latest"
 REPORT_SERVER_MODULE="tests.load.load_support.report_server"
+COMPOSE_OVERRIDE_FILE="$ARTIFACT_DIR/docker-compose.database-iops.override.yml"
+COMPOSE_ARGS=(-f "$COMPOSE_FILE")
 
 usage() {
   cat <<'EOF'
 Usage:
-  ./dev/run_e2e_load_tests.sh [--profile smoke|browser_load] [--users N] [--spawn-rate N] [--run-time 2m] [--flows login,dashboard] [--report-port N] [--assess-count N] [--report-count N] [--source-count N] [--report-type-count N]
+  ./dev/run_e2e_load_tests.sh [--profile smoke|browser_load] [--users N] [--spawn-rate N] [--run-time 2m] [--flows login,dashboard] [--report-port N] [--assess-count N] [--report-count N] [--source-count N] [--report-type-count N] [--device-read-iops /dev/sda:500] [--device-write-iops /dev/sda:500]
   ./dev/run_e2e_load_tests.sh --stop-report-server
 EOF
 }
@@ -62,6 +66,22 @@ while [[ $# -gt 0 ]]; do
     --flows)
       FLOWS="$2"
       shift 2
+      ;;
+    --device-read-iops)
+      DEVICE_READ_IOPS="$2"
+      shift 2
+      ;;
+    --device-read-iops=*)
+      DEVICE_READ_IOPS="${1#*=}"
+      shift
+      ;;
+    --device-write-iops)
+      DEVICE_WRITE_IOPS="$2"
+      shift 2
+      ;;
+    --device-write-iops=*)
+      DEVICE_WRITE_IOPS="${1#*=}"
+      shift
       ;;
     --assess-count|--story-count)
       STORY_COUNT="$2"
@@ -246,7 +266,59 @@ update_latest_artifacts() {
 }
 
 compose() {
-  docker compose -f "$COMPOSE_FILE" "$@"
+  docker compose "${COMPOSE_ARGS[@]}" "$@"
+}
+
+validate_iops_limit() {
+  local option_name="$1"
+  local value="$2"
+
+  if [[ ! "$value" =~ ^[^:]+:[1-9][0-9]*$ ]]; then
+    echo "$option_name must use PATH:RATE with a positive integer rate, got: $value" >&2
+    exit 1
+  fi
+
+  local device_path="${value%%:*}"
+  if [[ ! -b "$device_path" ]]; then
+    echo "$option_name device path does not exist as a block device on this host: $device_path" >&2
+    exit 1
+  fi
+}
+
+write_compose_override() {
+  if [[ -z "$DEVICE_READ_IOPS" && -z "$DEVICE_WRITE_IOPS" ]]; then
+    return 0
+  fi
+
+  if [[ -n "$DEVICE_READ_IOPS" ]]; then
+    validate_iops_limit "--device-read-iops" "$DEVICE_READ_IOPS"
+  fi
+  if [[ -n "$DEVICE_WRITE_IOPS" ]]; then
+    validate_iops_limit "--device-write-iops" "$DEVICE_WRITE_IOPS"
+  fi
+
+  local read_path="${DEVICE_READ_IOPS%%:*}"
+  local read_rate="${DEVICE_READ_IOPS##*:}"
+  local write_path="${DEVICE_WRITE_IOPS%%:*}"
+  local write_rate="${DEVICE_WRITE_IOPS##*:}"
+
+  {
+    echo "services:"
+    echo "  database:"
+    echo "    blkio_config:"
+    if [[ -n "$DEVICE_READ_IOPS" ]]; then
+      echo "      device_read_iops:"
+      echo "        - path: $read_path"
+      echo "          rate: $read_rate"
+    fi
+    if [[ -n "$DEVICE_WRITE_IOPS" ]]; then
+      echo "      device_write_iops:"
+      echo "        - path: $write_path"
+      echo "          rate: $write_rate"
+    fi
+  } >"$COMPOSE_OVERRIDE_FILE"
+
+  COMPOSE_ARGS+=(-f "$COMPOSE_OVERRIDE_FILE")
 }
 
 port_is_available() {
@@ -348,6 +420,8 @@ cleanup() {
   compose down -v --remove-orphans || true
 }
 
+write_compose_override
+
 trap cleanup EXIT
 
 report_server_status="unavailable"
@@ -371,6 +445,12 @@ echo "Seed stories (Assess): $SEED_STORY_COUNT"
 echo "Seed reports: $SEED_REPORT_COUNT"
 echo "Seed sources: $SEED_SOURCE_COUNT"
 echo "Seed report types: $SEED_REPORT_TYPE_COUNT"
+if [[ -n "$DEVICE_READ_IOPS" ]]; then
+  echo "Database device read IOPS: $DEVICE_READ_IOPS"
+fi
+if [[ -n "$DEVICE_WRITE_IOPS" ]]; then
+  echo "Database device write IOPS: $DEVICE_WRITE_IOPS"
+fi
 if [[ -n "$TARANIS_LOAD_FLOWS" ]]; then
   echo "Flows: $TARANIS_LOAD_FLOWS"
 else

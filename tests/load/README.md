@@ -18,6 +18,7 @@ From the repository root:
 ./dev/run_e2e_load_tests.sh --profile browser_load --users 4 --spawn-rate 1 --run-time 10m
 ./dev/run_e2e_load_tests.sh --profile smoke --flows login,dashboard
 ./dev/run_e2e_load_tests.sh --profile browser_load --assess-count 2000 --report-count 500
+./dev/run_e2e_load_tests.sh --profile browser_load --device-read-iops=/dev/sda:500 --device-write-iops=/dev/sda:500
 ./dev/run_e2e_load_tests.sh --stop-report-server
 ```
 
@@ -47,6 +48,12 @@ Optional seed sizing:
   - `LOAD_TEST_REPORT_COUNT`
   - `LOAD_TEST_SOURCE_COUNT`
   - `LOAD_TEST_REPORT_TYPE_COUNT`
+
+Optional PostgreSQL IOPS throttling:
+
+- `--device-read-iops=/dev/sda:500`
+- `--device-write-iops=/dev/sda:500`
+- use the real host block device path; one could use  `lsblk`, `/dev/sda` is only an example
 
 Optional E2E-derived flow selection:
 
