@@ -147,16 +147,24 @@ function replaceNotificationBarFromResponse(responseText) {
     return;
   }
 
-  const template = document.createElement("template");
-  template.innerHTML = responseText.trim();
-  const nextNotificationBar = template.content.querySelector(
-    "#notification-bar",
-  );
+  const responseDoc = new DOMParser().parseFromString(responseText, "text/html");
+  const message = responseDoc
+    .querySelector("#notification-bar #notification-message")
+    ?.textContent.trim();
 
-  if (!nextNotificationBar || !nextNotificationBar.textContent.trim()) {
+  if (!message) {
     return;
   }
 
+  const nextNotificationBar = currentNotificationBar.cloneNode(false);
+  const alert = document.createElement("div");
+  alert.className = responseDoc.querySelector("#notification-bar .alert-error")
+    ? "alert alert-error"
+    : "alert alert-info";
+  alert.setAttribute("role", "alert");
+  alert.textContent = message;
+
+  nextNotificationBar.append(alert);
   currentNotificationBar.replaceWith(nextNotificationBar);
 }
 
