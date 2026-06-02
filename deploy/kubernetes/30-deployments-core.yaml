@@ -120,7 +120,7 @@ spec:
             - name: TARANIS_CORE_URL
               value: http://core:8080/api
             - name: APPLICATION_ROOT
-              value: /frontend
+              value: "$(TARANIS_BASE_PATH)frontend"
             - name: JWT_SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -252,21 +252,17 @@ spec:
             - containerPort: 8080
               name: http
           readinessProbe:
-            exec:
-              command:
-                - /usr/bin/curl
-                - --fail
-                - http://localhost:8080
+            httpGet:
+              path: /
+              port: 8080
             initialDelaySeconds: 30
             periodSeconds: 90
             timeoutSeconds: 30
             failureThreshold: 5
           livenessProbe:
-            exec:
-              command:
-                - /usr/bin/curl
-                - --fail
-                - http://localhost:8080
+            httpGet:
+              path: /
+              port: 8080
             initialDelaySeconds: 30
             periodSeconds: 90
             timeoutSeconds: 30
