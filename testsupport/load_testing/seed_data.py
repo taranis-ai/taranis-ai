@@ -4,6 +4,8 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from uuid_extensions import uuid7str
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PLAYWRIGHT_STORY_FIXTURE = REPO_ROOT / "src/frontend/tests/playwright/test_stories.json"
@@ -133,17 +135,12 @@ def _normalize_story_payload(raw_story: dict, source_id: str) -> dict:
     return story
 
 
-def _build_story_identifier(index: int) -> str:
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"taranis-load-story-{index}"))
+def _build_story_identifier() -> str:
+    return uuid7str()
 
 
-def _build_news_item_identifier(story_index: int, news_item_index: int) -> str:
-    return str(
-        uuid.uuid5(
-            uuid.NAMESPACE_URL,
-            f"taranis-load-news-item-{story_index}-{news_item_index}",
-        )
-    )
+def _build_news_item_identifier() -> str:
+    return uuid7str()
 
 
 def _build_news_item_hash(story_index: int, news_item_index: int) -> str:
@@ -174,14 +171,14 @@ def load_story_seed_payloads(
         template = raw_stories[index % len(raw_stories)]
         source_id = source_ids[index % len(source_ids)]
         story = _normalize_story_payload(template, source_id)
-        story["id"] = _build_story_identifier(index + 1)
+        story["id"] = _build_story_identifier()
         story["important"] = index % 10 == 0
 
         if index >= len(raw_stories):
             story["title"] = f"{story['title']} #{index + 1}"
 
         for news_item_offset, news_item in enumerate(story["news_items"]):
-            news_item["id"] = _build_news_item_identifier(index + 1, news_item_offset + 1)
+            news_item["id"] = _build_news_item_identifier()
             news_item["hash"] = _build_news_item_hash(index + 1, news_item_offset + 1)
             news_item["story_id"] = story["id"]
             news_item["osint_source_id"] = source_id
@@ -210,7 +207,7 @@ def build_report_payload(
     report_id: str | None = None,
 ) -> dict:
     return {
-        "id": report_id or str(uuid.uuid4()),
+        "id": report_id or uuid7str(),
         "title": title,
         "report_item_type_id": report_type_id,
         "completed": False,

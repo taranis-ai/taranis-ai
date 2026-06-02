@@ -8,6 +8,7 @@ dependencies = [
     "locust-plugins[playwright]>=4.7,<5",
     "playwright>=1.55,<2",
     "requests>=2.32,<3",
+    "uuid7",
 ]
 
 [build-system]

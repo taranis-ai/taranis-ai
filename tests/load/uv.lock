@@ -681,6 +681,7 @@ dependencies = [
     { name = "locust-plugins", extra = ["playwright"] },
     { name = "playwright" },
     { name = "requests" },
+    { name = "uuid7" },
 ]
 
 [package.metadata]
@@ -689,6 +690,7 @@ requires-dist = [
     { name = "locust-plugins", extras = ["playwright"], specifier = ">=4.7,<5" },
     { name = "playwright", specifier = ">=1.55,<2" },
     { name = "requests", specifier = ">=2.32,<3" },
+    { name = "uuid7" },
 ]
 
 [[package]]
@@ -707,6 +709,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c7/24/5f1b3bdffd70275f6661c76461e25f024d5a38a46f04aaca912426a2b1d3/urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed", size = 435556, upload-time = "2026-01-07T16:24:43.925Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4", size = 131584, upload-time = "2026-01-07T16:24:42.685Z" },
+]
+
+[[package]]
+name = "uuid7"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5c/19/7472bd526591e2192926247109dbf78692e709d3e56775792fec877a7720/uuid7-0.1.0.tar.gz", hash = "sha256:8c57aa32ee7456d3cc68c95c4530bc571646defac01895cfc73545449894a63c", size = 14052, upload-time = "2021-12-29T01:38:21.897Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b5/77/8852f89a91453956582a85024d80ad96f30a41fed4c2b3dce0c9f12ecc7e/uuid7-0.1.0-py2.py3-none-any.whl", hash = "sha256:5e259bb63c8cb4aded5927ff41b444a80d0c7124e8a0ced7cf44efa1f5cccf61", size = 7477, upload-time = "2021-12-29T01:38:20.418Z" },
 ]
 
 [[package]]

@@ -5,7 +5,7 @@ Manual browser end-to-end load testing for Taranis AI using Locust and `locust-p
 ## What it does
 
 - starts a disposable Docker stack with `ingress`, `core`, `frontend`, PostgreSQL, and Redis
-- seeds deterministic synthetic sources, stories, report types, and reports
+- seeds synthetic sources, stories, report types, and reports
 - runs low-concurrency browser flows against `/frontend/login`, `/frontend/`, `/frontend/assess`, and `/frontend/analyze`
 - stores Locust reports, compose logs, recovery checks, and page-ready timing summaries under `tests/load/artifacts/`
 
@@ -86,6 +86,7 @@ cd tests/load && uv run pytest test_frontend_flows.py
 ## Notes
 
 - This harness is intentionally browser-first and user-workspace-only.
+- Seed data is treated as disposable for this harness. Rerunning the seed step against the same database may create additional rows instead of updating previous seeded records.
 - It does not include `worker` or `cron` in the baseline stack.
 - The original PoC Locust tasks remain available; `--flows` adds an optional E2E-derived flow layer instead of replacing them.
 - Locust keeps the coarse `TASK` rows and additionally records user-facing page readiness as `PAGE` rows:
