@@ -1,9 +1,9 @@
 import os
 
 from locust import between, task
-from locust_plugins.users.playwright import PlaywrightUser, event, pw
 from playwright.async_api import expect
 
+from load_support.playwright_stats import event, pw
 from testsupport.load_testing.browser_contract import (
     ANALYZE_PATH,
     ANALYZE_READY_EVENT,
@@ -32,6 +32,7 @@ from testsupport.load_testing.frontend_flows import (
     FrontendFlowConfig,
     get_load_enabled_flows,
 )
+from locust_plugins.users.playwright import PlaywrightUser
 
 
 EXPECTED_REPORT_TITLE = os.getenv("TARANIS_EXPECTED_REPORT_TITLE", "Load Test Report 1")
