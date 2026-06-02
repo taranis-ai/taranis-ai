@@ -515,7 +515,7 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
         schedules, status = qm.get_scheduled_jobs()
 
     assert status == 200
-    # 120 OSINT cron jobs + housekeeping cleanup cron
+    # 120 OSINT cron jobs + cleanup housekeeping cron
     assert schedules["total_count"] == 121
 
 

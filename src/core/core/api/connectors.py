@@ -11,7 +11,7 @@ from core.managers.sse_manager import sse_manager
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.story import Story
 from core.model.story_conflict import StoryConflict
-from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS, invalidate_frontend_cache_on_success
 
 
 class StoryConflicts(MethodView):
@@ -42,7 +42,7 @@ class StoryConflicts(MethodView):
             Story.add_or_update(incoming_story_original)
         else:
             NewsItemConflict.reevaluate_conflicts()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"), object_ids={"story": story_id})
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"story": story_id})
         return response, code
 
 
@@ -64,7 +64,7 @@ class NewsItemConflicts(MethodView):
             return result, code
 
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return result, 200
 
     @auth_required("ASSESS_UPDATE")
@@ -75,7 +75,7 @@ class NewsItemConflicts(MethodView):
             return {"error": "Missing story_ids or news_item_ids"}, 400
         result, code = NewsItemConflict.ingest_incoming_ungroup_internal_clear_store(data, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story", "news_item", "report_item"))
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return result, code
 
 
