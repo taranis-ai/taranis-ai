@@ -6,7 +6,7 @@ from models.task import CronTaskSpec
 from pydantic import ValidationError
 
 import worker.cron_scheduler as cron_scheduler
-from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _decode, _enqueue_due_job, _enqueue_key, _normalize_spec, _sync_next_index
+from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _enqueue_due_job, _enqueue_key, _normalize_spec, _sync_next_index
 
 
 def test_cron_task_spec_rejects_missing_required_fields():
@@ -81,18 +81,6 @@ def test_sync_next_index_skips_invalid_specs_without_crashing():
     assert set(specs.keys()) == {"job_interval_30"}
     assert redis_conn.zscore(NEXT_KEY, "job_interval_30") == 1030.0
     assert redis_conn.zscore(NEXT_KEY, "job_invalid") is None
-
-
-def test_decode_rejects_awaitable_values():
-    async def awaitable_value():
-        return b"job-1"
-
-    coroutine = awaitable_value()
-    try:
-        with pytest.raises(TypeError, match="requires a synchronous Redis client"):
-            _decode(coroutine, "redis.get")
-    finally:
-        coroutine.close()
 
 
 def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fake_queue):

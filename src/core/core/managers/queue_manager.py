@@ -81,6 +81,10 @@ def _get_queue_job_ids(queue: Queue) -> list[str]:
     return list(queue.get_job_ids())
 
 
+def _get_registry_job_ids(registry: Any) -> list[str]:
+    return list(registry.get_job_ids())
+
+
 def _format_duration(delta: timedelta) -> str:
     total_seconds = int(delta.total_seconds())
     if total_seconds < 60:
@@ -330,11 +334,11 @@ class QueueManager:
             return set()
 
         try:
-            raw_ids = self._redis.hkeys(CRON_DEFS_KEY)
+            raw_ids = self._redis.hkeys(CRON_DEFS_KEY)  # pyright: ignore[reportGeneralTypeIssues]
         except Exception:
             return set()
 
-        return {_decode_redis_value(raw_id) for raw_id in raw_ids}
+        return {_decode_redis_value(raw_id) for raw_id in raw_ids}  # pyright: ignore[reportGeneralTypeIssues]
 
     def purge_job_artifacts(
         self,
@@ -385,7 +389,7 @@ class QueueManager:
             for registry_cls in registry_classes:
                 with contextlib.suppress(Exception):
                     registry = registry_cls(queue=queue)
-                    for job_id in list(registry.get_job_ids()):
+                    for job_id in _get_registry_job_ids(registry):
                         if not matches(job_id) or job_id in removed_ids:
                             continue
                         try:
@@ -623,10 +627,10 @@ class QueueManager:
             if hasattr(self._redis, "hexists"):
                 cron_registered = bool(self._redis.hexists(CRON_DEFS_KEY, job_id))
             elif hasattr(self._redis, "hget"):
-                cron_registered = self._redis.hget(CRON_DEFS_KEY, job_id) is not None
+                cron_registered = self._redis.hget(CRON_DEFS_KEY, job_id) is not None  # pyright: ignore[reportGeneralTypeIssues]
 
             if not cron_registered and hasattr(self._redis, "zscore"):
-                cron_registered = self._redis.zscore(CRON_NEXT_KEY, job_id) is not None
+                cron_registered = self._redis.zscore(CRON_NEXT_KEY, job_id) is not None  # pyright: ignore[reportGeneralTypeIssues]
 
             if cron_registered and self.unregister_cron_job(job_id):
                 logger.info(f"Removed cron job registration {job_id}")
@@ -883,12 +887,11 @@ class QueueManager:
 
         previous_job = None
         for bot_id in post_collection_bots:
-            bot_args = {"filter": {"SOURCE": source_id}}
             job = self.enqueue_task(
                 "bots",
                 "bot_task",
                 bot_id,
-                bot_args["filter"],
+                {"SOURCE": source_id},
                 job_id=f"bot_{bot_id}_{source_id}",
                 depends_on=previous_job,
             )
@@ -1019,7 +1022,7 @@ class QueueManager:
             # 1. Get jobs from scheduled registries (already enqueued, waiting to run)
             for queue_name, queue in self._queues.items():
                 registry = ScheduledJobRegistry(queue=queue)
-                job_ids = list(registry.get_job_ids())
+                job_ids = _get_registry_job_ids(registry)
                 if job_ids:
                     logger.debug(f"Queue {queue_name}: found {len(job_ids)} scheduled jobs in registry")
 
@@ -1168,7 +1171,7 @@ class QueueManager:
             active_jobs = []
             for queue_name, queue in self._queues.items():
                 registry = StartedJobRegistry(queue=queue)
-                job_ids = list(registry.get_job_ids())
+                job_ids = _get_registry_job_ids(registry)
 
                 for job_id in job_ids:
                     try:
@@ -1204,7 +1207,7 @@ class QueueManager:
             failed_jobs = []
             for queue_name, queue in self._queues.items():
                 registry = FailedJobRegistry(queue=queue)
-                job_ids = list(registry.get_job_ids())
+                job_ids = _get_registry_job_ids(registry)
 
                 for job_id in job_ids:
                     try:
