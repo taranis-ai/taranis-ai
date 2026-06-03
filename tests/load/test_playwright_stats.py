@@ -7,11 +7,14 @@ from load_support.playwright_stats import NetworkByteCollector, ensure_byte_coll
 
 
 class FakeResponse:
-    def __init__(self, payload: bytes = b"", exc: Exception | None = None) -> None:
+    def __init__(self, payload: bytes = b"", exc: Exception | None = None, delay_seconds: float = 0) -> None:
         self.payload = payload
         self.exc = exc
+        self.delay_seconds = delay_seconds
 
     async def body(self) -> bytes:
+        if self.delay_seconds:
+            await asyncio.sleep(self.delay_seconds)
         if self.exc is not None:
             raise self.exc
         return self.payload
@@ -127,6 +130,21 @@ def test_network_byte_collector_isolates_windows() -> None:
         page.emit_response(FakeResponse(b"hello"))
         await collector.settle()
         assert collector.finish_window(second_window) == 5
+
+    asyncio.run(scenario())
+
+
+def test_network_byte_collector_checkpoint_drains_pending_responses() -> None:
+    async def scenario() -> None:
+        page = FakePage()
+        collector = NetworkByteCollector(page)
+        collector.attach()
+
+        window_id = collector.start_window()
+        page.emit_response(FakeResponse(b"delayed", delay_seconds=0.01))
+        await collector.checkpoint()
+
+        assert collector.finish_window(window_id) == 7
 
     asyncio.run(scenario())
 

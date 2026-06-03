@@ -57,6 +57,7 @@ class TestUserWorkflow(BaseE2ETest):
     ):
         page = non_admin_logged_in_page
         run_sync_frontend_flow(FLOW_ASSESS_DETAIL, page, FrontendFlowConfig())
+        assert page.get_by_role("link", name="Administration").count() == 0
 
     @load_measured_flow(FLOW_ANALYZE_LIST)
     def test_analyze_list_read_only(
@@ -71,6 +72,7 @@ class TestUserWorkflow(BaseE2ETest):
             page,
             FrontendFlowConfig(expected_report_title=load_measured_report_seed["report_title"]),
         )
+        assert page.get_by_role("link", name="Administration").count() == 0
 
     @load_measured_flow(FLOW_ANALYZE_REPORT_DETAIL)
     def test_analyze_report_detail_read_only(
@@ -85,6 +87,7 @@ class TestUserWorkflow(BaseE2ETest):
             page,
             FrontendFlowConfig(expected_report_title=load_measured_report_seed["report_title"]),
         )
+        assert page.get_by_role("link", name="Administration").count() == 0
 
     def test_assess(
         self,

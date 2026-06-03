@@ -41,7 +41,7 @@ class NetworkByteCollector:
             await asyncio.gather(*pending, return_exceptions=True)
 
     async def checkpoint(self) -> None:
-        await asyncio.sleep(0)
+        await self.settle()
 
     def _handle_response(self, response) -> None:
         task = asyncio.create_task(self._consume_response(response))

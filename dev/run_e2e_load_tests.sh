@@ -144,7 +144,7 @@ discover_report_server() {
     fi
 
     port=""
-    if [[ "$command" =~ $REPORT_SERVER_MODULE[[:space:]]+([0-9]+) ]]; then
+    if [[ "$command" =~ ${REPORT_SERVER_MODULE}[[:space:]]+([0-9]+) ]]; then
       port="${BASH_REMATCH[1]}"
     fi
 
