@@ -156,7 +156,12 @@ services:
         --run-time "${LOCUST_RUN_TIME:-2m}"
         --html "/artifacts/locust-report.html"
         --csv "/artifacts/locust"
-        -f /workspace/tests/load/locustfile.py
+        -f /workspace/tests/load/locustfile.py;
+        locust_status=$$?;
+        if [ -f /artifacts/locust-report.html ]; then
+          python3 -m tests.load.load_support.format_locust_report /artifacts/locust-report.html || exit $$?;
+        fi;
+        exit "$$locust_status"
     environment:
       PYTHONPATH: /workspace
       PWHEADLESS: "1"
