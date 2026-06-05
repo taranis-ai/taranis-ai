@@ -104,6 +104,37 @@ function initViewportWarningBar() {
   });
 }
 
+function omniSearch(searchUrl) {
+  return {
+    searchUrl,
+    open: false,
+    applyOmniSearch(query) {
+      const input = this.$refs.omniInput;
+      input.value = query;
+      this.open = true;
+      input.focus();
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    },
+    submitOmniSearch() {
+      const query = this.$refs.omniInput.value.trim();
+      if (query) {
+        window.location.href = `${this.searchUrl}?q=${encodeURIComponent(query)}`;
+      }
+    },
+    focusShortcut(event) {
+      if (event.key !== "/") {
+        return;
+      }
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) {
+        return;
+      }
+      event.preventDefault();
+      this.$refs.omniInput.focus();
+      this.$refs.omniInput.select();
+    },
+  };
+}
+
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initViewportWarningBar, {
     once: true,
