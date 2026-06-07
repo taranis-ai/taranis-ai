@@ -559,6 +559,19 @@ def test_assess_selection_key_ignores_paging_params():
     assert selection_key == "search=incident&sort=date_desc&tags=one&tags=two"
 
 
+def test_bulk_state_buttons_queue_assess_selection_prune(app):
+    with app.test_request_context("/assess"):
+        markup = render_template_string(
+            '{% include "assess/assess_top_bar.html" %}',
+            stories=SimpleNamespace(total_count=2),
+            story_ids=["story-1", "story-2"],
+        )
+
+    assert markup.count("pruneToVisibleOnNextInit: true") == 2
+    assert ":hx-vals='action_vals(\"read\", !selectedItemsAreRead())'" in markup
+    assert ":hx-vals='action_vals(\"important\", !selectedItemsAreImportant())'" in markup
+
+
 def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, auth_user, responses_mock):
     saved_user = auth_user.model_copy(deep=True)
     saved_user.profile.assess_default_filters = {

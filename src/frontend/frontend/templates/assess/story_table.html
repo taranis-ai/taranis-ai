@@ -14,10 +14,12 @@
       storyIds: [],
       storyImportantMap: {},
       storyReadMap: {},
+      pruneToVisibleOnNextInit: false,
       showHints: false,
       init() {
         this.restoreSelection();
         this.refreshStoryMeta();
+        this.pruneSelectionToVisible();
         const storyList = this.$refs.storyList || document.querySelector("#story-list");
         if (storyList) {
           const observer = new MutationObserver(() => {
@@ -39,6 +41,7 @@
         this.selectedItems = Array.isArray(state.selectedItems) ? [...new Set(state.selectedItems)] : [];
         this.storyImportantMap = state.storyImportantMap || {};
         this.storyReadMap = state.storyReadMap || {};
+        this.pruneToVisibleOnNextInit = state.pruneToVisibleOnNextInit === true;
       },
       persistSelection() {
         window.assessSelectionState = {
@@ -46,7 +49,15 @@
           selectedItems: [...new Set(this.selectedItems)],
           storyImportantMap: this.storyImportantMap,
           storyReadMap: this.storyReadMap,
+          pruneToVisibleOnNextInit: this.pruneToVisibleOnNextInit,
         };
+      },
+      pruneSelectionToVisible() {
+        if (!this.pruneToVisibleOnNextInit) return;
+        const visibleIds = new Set(this.storyIds);
+        this.selectedItems = this.selectedItems.filter(id => visibleIds.has(id));
+        this.pruneToVisibleOnNextInit = false;
+        this.persistSelection();
       },
       toggleSelection(id) {
         if (this.selectedItems.includes(id)) {
@@ -117,9 +128,7 @@
 
     {% if stories %}
       {% include "assess/assess_top_bar.html" %}
-      <div id="story-list" x-ref="storyList">
-        {% for story in stories %}{{ story_card(story) }}{% endfor %}
-      </div>
+      <div id="story-list" x-ref="storyList">{% for story in stories %}{{ story_card(story) }}{% endfor %}</div>
       {% if pagination %}
         {% set hx_target = request.headers.get("HX-Target") %}
         <div id="story-pagination" {% if pagination.infinite_scroll and hx_target == 'story-list' %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>
