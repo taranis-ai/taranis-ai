@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: timedelta = timedelta(hours=4)
+    JWT_DECODE_LEEWAY: int = 5
     JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
 
     DB_URL: str = "localhost"

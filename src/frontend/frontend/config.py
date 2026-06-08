@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
+    JWT_DECODE_LEEWAY: int = 5
     JWT_TOKEN_LOCATION: list[str] = ["headers", "cookies"]
     JWT_CSRF_CHECK_FORM: bool = True
     JWT_ACCESS_COOKIE_NAME: str = "access_token_cookie"
