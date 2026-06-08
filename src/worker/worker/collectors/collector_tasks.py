@@ -10,7 +10,7 @@ from rq import get_current_job
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
-from worker.core_api import CoreApi, build_task_result
+from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
 
 
@@ -80,7 +80,7 @@ def _persist_and_return_result(
         persisted_status,
         worker_id=worker_id,
         worker_type=worker_type,
-        result=build_task_result(
+        result=build_failure_task_result(
             result_message,
             reason=reason,
             data=data,
@@ -165,7 +165,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
                     task_status,
                     worker_id=osint_source_id,
                     worker_type=worker_type,
-                    result=build_task_result(
+                    result=build_failure_task_result(
                         result_message,
                         reason="collection_failed",
                         data={"source_id": osint_source_id, "manual": manual},
@@ -185,8 +185,8 @@ def collector_task(osint_source_id: str, manual: bool = False):
             task_status,
             worker_id=osint_source_id,
             worker_type=worker_type,
-            result=build_task_result(
-                result_message,
+            result=build_success_task_result(
+                default_message=result_message,
                 data={"source_id": osint_source_id, "manual": manual},
             ),
         )
@@ -227,7 +227,7 @@ def collector_preview(osint_source_id: str):
                     job.id,
                     "collector_preview",
                     "FAILURE",
-                    result=build_task_result(
+                    result=build_failure_task_result(
                         str(e),
                         reason="preview_failed",
                         data={"source_id": osint_source_id},
@@ -240,8 +240,8 @@ def collector_preview(osint_source_id: str):
             job.id,
             "collector_preview",
             "PREVIEW",
-            result=build_task_result(
-                f"Preview for source {osint_source_id} collected",
+            result=build_success_task_result(
+                default_message=f"Preview for source {osint_source_id} collected",
                 data=preview_result,
             ),
         )
@@ -280,7 +280,7 @@ def fetch_single_news_item(parameters: dict[str, Any]):
                     "NOT_MODIFIED",
                     worker_id=worker_id,
                     worker_type=worker_type,
-                    result=build_task_result(
+                    result=build_failure_task_result(
                         result_message,
                         reason="collector_not_modified",
                         data={"source_id": worker_id},

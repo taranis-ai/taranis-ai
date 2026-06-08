@@ -103,8 +103,8 @@ class TaskService:
             cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
             return
 
+        result_data = cls._get_result_dict_data(submission.result)
         if task_kind == "connector_task":
-            result_data = cls._get_result_dict_data(submission.result)
             if result_data is None:
                 logger.error("Invalid connector task result payload")
                 return
@@ -112,7 +112,6 @@ class TaskService:
             return
 
         if task_kind == "gather_word_list":
-            result_data = cls._get_result_dict_data(submission.result)
             if result_data is None:
                 logger.error("Invalid gather_word_list result payload")
                 return
@@ -120,15 +119,14 @@ class TaskService:
             return
 
         if task_kind == "presenter_task":
-            cls._handle_presenter_result(submission.result)
+            cls._handle_presenter_result(result_data)
             return
 
         if task_kind == "bot_task":
-            cls._handle_bot_result(submission)
+            cls._handle_bot_result(submission, result_data)
 
     @staticmethod
-    def _handle_presenter_result(result: TaskResultEnvelope) -> None:
-        result_data = TaskService._get_result_dict_data(result)
+    def _handle_presenter_result(result_data: dict[str, Any] | None) -> None:
         if result_data is None:
             logger.error("Invalid presenter task result payload")
             return
@@ -143,10 +141,9 @@ class TaskService:
         Product.update_render_for_id(product_id, rendered_product)
 
     @staticmethod
-    def _handle_bot_result(submission: TaskSubmission) -> None:
+    def _handle_bot_result(submission: TaskSubmission, result_data: dict[str, Any] | None) -> None:
         worker_type = submission.worker_type or ""
         worker_id = submission.worker_id or "UNKNOWN_ID"
-        result_data = TaskService._get_result_dict_data(submission.result)
         if result_data is None:
             logger.error("Invalid bot task result payload")
             return

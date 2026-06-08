@@ -28,6 +28,70 @@ def build_task_result(
     ).model_dump(mode="json", exclude_none=False)
 
 
+def build_success_task_result(
+    *,
+    default_message: str,
+    output: Any = _MISSING_RESULT,
+    data: Any = _MISSING_RESULT,
+    base_data: dict[str, Any] | None = None,
+    result_key: str = "result",
+    merge_dict_data: bool = True,
+    retryable: bool = False,
+    none_message: str | None = None,
+) -> dict[str, Any]:
+    if output is not _MISSING_RESULT and data is not _MISSING_RESULT:
+        raise ValueError("build_success_task_result accepts either output=... or data=..., not both")
+
+    if data is not _MISSING_RESULT:
+        return build_task_result(
+            default_message,
+            retryable=retryable,
+            data=data,
+        )
+
+    normalized_data = dict(base_data or {})
+    message = default_message
+
+    if isinstance(output, dict):
+        message_value = output.get("message")
+        if message_value not in (None, ""):
+            message = str(message_value)
+        if merge_dict_data:
+            normalized_data.update(output)
+        else:
+            normalized_data[result_key] = output
+    elif output is None:
+        message = none_message or default_message
+        if base_data:
+            normalized_data = dict(base_data)
+    elif output is not _MISSING_RESULT:
+        message = str(output)
+        normalized_data[result_key] = output
+
+    result_data = normalized_data if normalized_data else None
+
+    return build_task_result(
+        message,
+        retryable=retryable,
+        data=result_data,
+    )
+
+
+def build_failure_task_result(
+    message: str,
+    *,
+    reason: str | None = None,
+    retryable: bool = False,
+    data: Any = None,
+) -> dict[str, Any]:
+    return build_task_result(
+        message,
+        reason=reason,
+        retryable=retryable,
+        data=data,
+    )
+
+
 class CoreApi:
     def __init__(self):
         self.api_url = Config.TARANIS_CORE_URL

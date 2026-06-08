@@ -5,7 +5,7 @@ import pytest
 import worker.bots
 from worker.bots.bot_tasks import bot_task
 from worker.config import Config
-from worker.core_api import CoreApi
+from worker.core_api import CoreApi, build_success_task_result
 
 
 BOT_CLASS_NAMES = [
@@ -146,6 +146,27 @@ class TestBotTask:
         assert "Bot execution failed: Bot execution crashed" in task_data["result"]["message"]
         assert task_data["result"]["reason"] == "bot_execution_failed"
 
+    def test_bot_task_none_result_is_reported_as_failure(self, current_job, requests_mock, bot_config, stub_bots):
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+        stub_bots._execute_impl = staticmethod(lambda params: None)
+
+        with pytest.raises(RuntimeError, match="Bot bot-456 returned no result"):
+            bot_task("bot-456")
+
+        put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+        assert len(put_calls) == 1
+        task_data = put_calls[0].json()
+        assert task_data["status"] == "FAILURE"
+        assert task_data["worker_id"] == "bot-456"
+        assert task_data["worker_type"] == "WORDLIST_BOT"
+        assert task_data["result"] == {
+            "message": "Bot execution failed: Bot bot-456 returned no result",
+            "reason": "bot_empty_result",
+            "retryable": False,
+            "data": {"bot_id": "bot-456"},
+        }
+
     def test_bot_task_without_job_uses_fallback_id(self, no_current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task uses fallback task_id when no RQ job exists."""
         requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-789", json=bot_config)
@@ -234,3 +255,54 @@ class TestSaveTaskResult:
         # Verify API was called
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
         assert len(put_calls) == 1
+
+    def test_build_success_task_result_merges_dict_output(self):
+        task_result = build_success_task_result(
+            default_message="Published product",
+            output={"message": "Published", "url": "https://example.com"},
+            base_data={"product_id": "product-1"},
+        )
+
+        assert task_result == {
+            "message": "Published",
+            "reason": None,
+            "retryable": False,
+            "data": {
+                "product_id": "product-1",
+                "message": "Published",
+                "url": "https://example.com",
+            },
+        }
+
+    def test_build_success_task_result_keeps_nested_result_when_requested(self):
+        task_result = build_success_task_result(
+            default_message="Bot finished",
+            output={"tagged_items": 5},
+            base_data={"bot_id": "bot-1"},
+            merge_dict_data=False,
+        )
+
+        assert task_result == {
+            "message": "Bot finished",
+            "reason": None,
+            "retryable": False,
+            "data": {
+                "bot_id": "bot-1",
+                "result": {"tagged_items": 5},
+            },
+        }
+
+    def test_build_success_task_result_handles_none_output(self):
+        task_result = build_success_task_result(
+            default_message="Done",
+            output=None,
+            base_data={"bot_id": "bot-1"},
+            none_message="Bot finished without details",
+        )
+
+        assert task_result == {
+            "message": "Bot finished without details",
+            "reason": None,
+            "retryable": False,
+            "data": {"bot_id": "bot-1"},
+        }

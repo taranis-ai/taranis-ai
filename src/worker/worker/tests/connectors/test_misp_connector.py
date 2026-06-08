@@ -140,6 +140,34 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, cap
     assert sync_result["news_item_ids_to_mark_external"] == ["06cc6fd0-a775-4923-bdef-8cd5381164ce"]
 
 
+def test_connector_task_unknown_type_persists_failure(requests_mock, mock_job, monkeypatch):
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        json={"id": "connector-1", "type": "unknown_connector"},
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
+
+    with pytest.raises(RuntimeError, match="Failed to get connector with id: connector-1"):
+        connector_tasks.connector_task("connector-1", ["story-1"])
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    assert post_calls[0].json() == {
+        "id": "test-job-123",
+        "task": "connector_task",
+        "worker_id": "connector-1",
+        "worker_type": "unknown_connector",
+        "result": {
+            "message": "Connector type 'unknown_connector' not implemented",
+            "reason": "connector_not_implemented",
+            "retryable": False,
+            "data": {"connector_id": "connector-1", "story_ids": ["story-1"]},
+        },
+        "status": "FAILURE",
+    }
+
+
 def test_misp_sender_returns_sync_payload_after_successful_event(monkeypatch):
     from pymisp import MISPEvent
 

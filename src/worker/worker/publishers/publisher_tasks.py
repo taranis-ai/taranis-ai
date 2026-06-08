@@ -7,7 +7,7 @@ from models.product import WorkerProduct as Product
 from rq import get_current_job
 
 import worker.publishers
-from worker.core_api import CoreApi, build_task_result
+from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
 
@@ -54,20 +54,18 @@ def publisher_task(product_id: str, publisher_id: str):
         publisher_impl = _get_publisher_impl(pub_type)
 
         publish_result = publisher_impl.publish(publisher, product, rendered_product)
-        result_data: dict[str, object] = {"product_id": product_id, "publisher_id": publisher_id}
-        if isinstance(publish_result, dict):
-            result_data.update(dict(publish_result))
-            result_message = str(publish_result.get("message") or f"Published product {product_id}")
-        else:
-            result_message = str(publish_result)
-            result_data["result"] = publish_result
         core_api.save_task_result(
             task_id,
             task_name,
             "SUCCESS",
             worker_id=publisher_id,
             worker_type=worker_type,
-            result=build_task_result(result_message, data=result_data),
+            result=build_success_task_result(
+                default_message=f"Published product {product_id}",
+                output=publish_result,
+                base_data={"product_id": product_id, "publisher_id": publisher_id},
+                none_message=f"Publisher {publisher_id} completed without returning a result",
+            ),
         )
         return publish_result
     except Exception as exc:
@@ -77,7 +75,7 @@ def publisher_task(product_id: str, publisher_id: str):
             "FAILURE",
             worker_id=publisher_id,
             worker_type=worker_type,
-            result=build_task_result(
+            result=build_failure_task_result(
                 str(exc),
                 reason="publisher_failed",
                 data={"product_id": product_id, "publisher_id": publisher_id},
