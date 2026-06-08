@@ -21,7 +21,7 @@
             :aria-hidden="(selectedItems.length !== 1).toString()">Select one more to cluster</span>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess">
+      <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess" hx-swap="outerHTML">
         <button type="button"
                 class="btn btn-outline btn-sm"
                 x-show="selectedItems.length === 1"

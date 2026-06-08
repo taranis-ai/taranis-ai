@@ -568,6 +568,8 @@ def test_bulk_state_buttons_queue_assess_selection_prune(app):
         )
 
     assert markup.count("pruneToVisibleOnNextInit: true") == 2
+    assert 'hx-target="#assess"' in markup
+    assert 'hx-swap="outerHTML"' in markup
     assert ":hx-vals='action_vals(\"read\", !selectedItemsAreRead())'" in markup
     assert ":hx-vals='action_vals(\"important\", !selectedItemsAreImportant())'" in markup
 
@@ -580,6 +582,82 @@ def test_assess_parent_syncs_selected_card_visual_state(app):
     assert 'node.classList.toggle("bg-primary/5", selected);' in story_table_source
     assert 'node.classList.toggle("border-base-200", !selected && read);' in story_table_source
     assert "isSelected('{{ story_id }}')" not in story_card_source
+
+
+def test_bulk_state_rerender_keeps_visible_selected_story_styling(authenticated_client, responses_mock):
+    selected_story_id = "story-1"
+    unselected_story_id = "story-2"
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/bulk_action",
+        json={"message": "Stories updated"},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={"tags": [], "sources": [], "groups": []},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={
+            "items": [
+                {
+                    "id": selected_story_id,
+                    "title": "Selected Story",
+                    "read": True,
+                    "important": False,
+                    "links": [],
+                    "news_items": [
+                        {
+                            "id": "news-1",
+                            "story_id": selected_story_id,
+                            "osint_source_id": "manual",
+                            "title": "News 1",
+                            "content": "Selected",
+                        }
+                    ],
+                },
+                {
+                    "id": unselected_story_id,
+                    "title": "Unselected Story",
+                    "read": True,
+                    "important": False,
+                    "links": [],
+                    "news_items": [
+                        {
+                            "id": "news-2",
+                            "story_id": unselected_story_id,
+                            "osint_source_id": "manual",
+                            "title": "News 2",
+                            "content": "Unselected",
+                        }
+                    ],
+                },
+            ],
+            "total_count": 2,
+        },
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.bulk_action"),
+        data=MultiDict([("story_ids", selected_story_id), ("action", "read"), ("value", "true")]),
+        headers={"HX-Request": "true", "HX-Current-URL": "http://localhost/frontend/assess"},
+    )
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    selected_card = tree.xpath(f'//article[@data-story-id="{selected_story_id}"]')[0]
+    selected_classes = selected_card.get("class").split()
+    assert selected_card.get("aria-selected") == "true"
+    assert "bg-primary/5" in selected_classes
+    assert "shadow-md" in selected_classes
+    assert "border-primary" in selected_classes
+    assert "border-base-200" not in selected_classes
+
+    unselected_card = tree.xpath(f'//article[@data-story-id="{unselected_story_id}"]')[0]
+    unselected_classes = unselected_card.get("class").split()
+    assert unselected_card.get("aria-selected") == "false"
+    assert "bg-primary/5" not in unselected_classes
+    assert "shadow-md" not in unselected_classes
+    assert "border-base-200" in unselected_classes
 
 
 def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, auth_user, responses_mock):
