@@ -24,5 +24,7 @@ repos:
         name: djlint
         language: system
         files: ^src/frontend/frontend/templates
-        entry: uvx --from djlint==1.36.4 djlint --profile=jinja --reformat
+        entry: >-
+          bash -c 'files=(); for file in "$@"; do files+=("${file#src/frontend/}"); done;
+          cd src/frontend && uv run --frozen --all-extras djlint --profile=jinja --reformat "${files[@]}"' --
         types_or: [jinja, html]
