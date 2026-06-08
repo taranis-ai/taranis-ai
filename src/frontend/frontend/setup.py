@@ -1,6 +1,7 @@
 import re
 from typing import Any
 
+import sentry_sdk
 from flask import Flask, g, redirect, render_template, url_for
 from flask.json.provider import DefaultJSONProvider
 from flask_htmx import HTMX
@@ -130,7 +131,21 @@ def inject_current_user() -> dict[str, Any]:
     return {"current_user": None, "is_admin": False}
 
 
+def setup_sentry():
+    if not Config.TARANIS_SENTRY_DSN:
+        return
+
+    sentry_sdk.init(
+        dsn=Config.TARANIS_SENTRY_DSN,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+        enable_logs=True,
+        send_default_pii=True,
+    )
+
+
 def init(app: Flask):
+    setup_sentry()
     app.json_provider_class = TaranisJSONProvider
     app.json = app.json_provider_class(app)
     HTMX(app)
