@@ -6,7 +6,7 @@ from models.task import CronTaskSpec
 from pydantic import ValidationError
 
 import worker.cron_scheduler as cron_scheduler
-from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _enqueue_due_job, _enqueue_key, _normalize_spec, _sync_next_index
+from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _decode, _enqueue_due_job, _enqueue_key, _normalize_spec, _sync_next_index
 
 
 def test_cron_task_spec_rejects_missing_required_fields():
@@ -83,6 +83,18 @@ def test_sync_next_index_skips_invalid_specs_without_crashing():
     assert redis_conn.zscore(NEXT_KEY, "job_invalid") is None
 
 
+def test_decode_rejects_awaitable_values():
+    async def awaitable_value():
+        return b"job-1"
+
+    coroutine = awaitable_value()
+    try:
+        with pytest.raises(TypeError, match="requires a synchronous Redis client"):
+            _decode(coroutine, "redis.get")
+    finally:
+        coroutine.close()
+
+
 def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fake_queue):
     redis_conn = fakeredis.FakeRedis(decode_responses=False)
     monkeypatch.setattr(cron_scheduler, "Queue", fake_queue)
@@ -96,7 +108,6 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
             "func_path": "collector_task",
             "cron": "*/5 * * * *",
             "args": ["source-1", False],
-            "job_options": {"result_ttl": 300, "failure_ttl": 600},
             "meta": {"name": "Collector: Source 1"},
         },
         now_ts=1000.0,
@@ -108,12 +119,7 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
             "task": "worker.collectors.collector_tasks.collector_task",
             "args": ("source-1", False),
             "job_id": "cron_osint_source_source-1_1000",
-            "kwargs": {
-                "result_ttl": 300,
-                "failure_ttl": 600,
-                "kwargs": {},
-                "meta": {"name": "Collector: Source 1"},
-            },
+            "kwargs": {"meta": {"name": "Collector: Source 1"}},
         }
     ]
     assert redis_conn.zscore(NEXT_KEY, "osint_source_source-1") is not None

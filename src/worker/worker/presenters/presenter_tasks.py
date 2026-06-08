@@ -10,7 +10,7 @@ from niquests.exceptions import ConnectionError
 from rq import get_current_job
 
 import worker.presenters
-from worker.core_api import CoreApi
+from worker.core_api import CoreApi, build_task_result
 from worker.log import logger
 from worker.presenters.base_presenter import BasePresenter
 
@@ -68,7 +68,10 @@ def presenter_task(product_id: str):
                 "SUCCESS",
                 worker_id=product_id,
                 worker_type=worker_type,
-                **result_data,
+                result=build_task_result(
+                    result_data["message"],
+                    data={"product_id": product_id, "render_result": rendered_product},
+                ),
             )
 
         return result_data
@@ -82,9 +85,11 @@ def presenter_task(product_id: str):
             "FAILURE",
             worker_id=product_id,
             worker_type=worker_type,
-            product_id=product_id,
-            reason="presenter_empty_result",
-            error=error_msg,
+            result=build_task_result(
+                error_msg,
+                reason="presenter_empty_result",
+                data={"product_id": product_id},
+            ),
         )
 
     raise ValueError(f"Presenter {presenter.type} returned no content")

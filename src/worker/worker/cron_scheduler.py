@@ -1,9 +1,10 @@
-# pyright: reportGeneralTypeIssues=false, reportAssignmentType=false, reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false
+import inspect
 import json
 import os
 import time
+from collections.abc import Awaitable
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from croniter import croniter
 from models.task import CronTaskSpec
@@ -27,9 +28,17 @@ TASK_FUNCTION_MAP = {
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
 }
 
+T = TypeVar("T")
 
-def _decode(value: bytes | str, operation: str = "Redis response") -> str:
-    decoded_value = value
+
+def _sync_response(value: T | Awaitable[T], operation: str) -> T:
+    if inspect.isawaitable(value):
+        raise TypeError(f"{operation} returned an awaitable; cron scheduler requires a synchronous Redis client")
+    return cast(T, value)
+
+
+def _decode(value: bytes | str | Awaitable[bytes | str], operation: str = "Redis response") -> str:
+    decoded_value = _sync_response(value, operation)
     if isinstance(decoded_value, bytes):
         return decoded_value.decode()
     if isinstance(decoded_value, (bytearray, memoryview)):
@@ -46,7 +55,7 @@ def _normalize_spec(spec: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _load_spec(redis: Redis, job_id: str) -> dict[str, Any] | None:
-    raw_spec = redis.hget(DEFS_KEY, job_id)  # pyright: ignore[reportGeneralTypeIssues]
+    raw_spec = cast(bytes | str | None, _sync_response(redis.hget(DEFS_KEY, job_id), "redis.hget"))
     if not raw_spec:
         return None
     parsed = json.loads(_decode(raw_spec, "redis.hget"))
@@ -54,7 +63,7 @@ def _load_spec(redis: Redis, job_id: str) -> dict[str, Any] | None:
 
 
 def _sync_next_index(redis: Redis, base_ts: float) -> dict[str, dict[str, Any]]:
-    raw_specs = redis.hgetall(DEFS_KEY)  # pyright: ignore[reportGeneralTypeIssues]
+    raw_specs = cast(dict[bytes | str, bytes | str], _sync_response(redis.hgetall(DEFS_KEY), "redis.hgetall"))
     specs: dict[str, dict[str, Any]] = {}
 
     for raw_job_id, raw_spec in raw_specs.items():
@@ -62,8 +71,10 @@ def _sync_next_index(redis: Redis, base_ts: float) -> dict[str, dict[str, Any]]:
         if parsed := _normalize_spec(json.loads(_decode(raw_spec, "redis.hgetall value"))):
             specs[job_id] = parsed
 
-    raw_next_ids = redis.zrange(NEXT_KEY, 0, -1)  # pyright: ignore[reportGeneralTypeIssues]
-    next_ids = {_decode(raw_id, "redis.zrange item") for raw_id in raw_next_ids}
+    next_ids = {
+        _decode(raw_id, "redis.zrange item")
+        for raw_id in cast(list[bytes | str], _sync_response(redis.zrange(NEXT_KEY, 0, -1), "redis.zrange"))
+    }
     spec_ids = set(specs.keys())
 
     if stale_ids := next_ids - spec_ids:
@@ -104,27 +115,23 @@ def _enqueue_due_job(
 ) -> str:
     queue_name = spec["queue_name"]
     queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
-    func_path = str(spec["func_path"])
-    task = TASK_FUNCTION_MAP[func_path] if func_path in TASK_FUNCTION_MAP else func_path
+    task = TASK_FUNCTION_MAP.get(spec["func_path"], spec["func_path"])
     job_options = dict(spec.get("job_options") or {})
     kwargs = dict(spec.get("kwargs") or {})
-    args = list(spec.get("args", []))
-    meta = dict(spec.get("meta") or {})
 
-    if job_meta := job_options.get("meta"):
-        # Preserve scheduler dashboard labels where available.
-        meta.update(dict(job_meta))
+    # Preserve scheduler dashboard labels where available.
+    if spec.get("meta") and "meta" not in job_options:
+        job_options["meta"] = spec["meta"]
+
     # Deterministic enough for queue dedupe while still carrying the logical cron job id.
     due_slot = int(now_ts)
     rq_job_id = f"cron_{job_id}_{due_slot}"
 
-    job_options.pop("meta", None)
-    queue.enqueue_call(
-        func=task,
-        args=args,
-        kwargs=kwargs,
+    queue.enqueue(
+        task,
+        *spec.get("args", []),
         job_id=rq_job_id,
-        meta=meta or None,
+        **kwargs,
         **job_options,
     )
 
@@ -142,7 +149,7 @@ def acquire_leader(redis: Redis, node_id: str, ttl_seconds: int = 10) -> bool:
 
 
 def renew_leader(redis: Redis, node_id: str, ttl_seconds: int = 10) -> bool:
-    owner = redis.get(LOCK_KEY)  # pyright: ignore[reportGeneralTypeIssues]
+    owner = cast(bytes | str | None, _sync_response(redis.get(LOCK_KEY), "redis.get"))
     if owner and _decode(owner, "redis.get") == node_id:
         redis.expire(LOCK_KEY, ttl_seconds)
         return True
@@ -168,12 +175,9 @@ def run_scheduler(
 
         now_ts = time.time()
         specs = _sync_next_index(redis, now_ts)
-        due_ids = redis.zrangebyscore(  # pyright: ignore[reportGeneralTypeIssues]
-            NEXT_KEY,
-            min=0,
-            max=now_ts,
-            start=0,
-            num=100,
+        due_ids = cast(
+            list[bytes | str],
+            _sync_response(redis.zrangebyscore(NEXT_KEY, min=0, max=now_ts, start=0, num=100), "redis.zrangebyscore"),
         )
 
         for raw_job_id in due_ids:

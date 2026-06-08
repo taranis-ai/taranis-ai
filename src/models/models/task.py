@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import AliasChoices, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel as PydanticBaseModel
 
 from models.base import TaranisBaseModel
 
@@ -13,7 +14,7 @@ class CronTaskSpec(TaranisBaseModel):
     cron: str | None = None
     interval: int | None = None
     args: list[Any] = Field(default_factory=list)
-    kwargs: dict[str, Any] | None = None
+    kwargs: dict[str, Any] = Field(default_factory=dict)
     job_options: dict[str, Any] = Field(default_factory=dict)
     meta: dict[str, Any] = Field(default_factory=dict)
 
@@ -43,6 +44,13 @@ class CronTaskSpec(TaranisBaseModel):
         return self
 
 
+class TaskResultEnvelope(TaranisBaseModel):
+    message: str
+    reason: str | None = None
+    retryable: bool = False
+    data: Any = None
+
+
 class Task(TaranisBaseModel):
     """Task execution result model"""
 
@@ -56,21 +64,10 @@ class Task(TaranisBaseModel):
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: dict[str, Any] = Field(default_factory=dict)
+    result: TaskResultEnvelope
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def normalize_task_payload(cls, value: Any):
-        if not isinstance(value, dict):
-            return value
-
-        normalized = dict(value)
-        if normalized.get("result") is None:
-            normalized["result"] = {}
-        return normalized
 
 
 class TaskSubmission(TaranisBaseModel):
@@ -84,7 +81,7 @@ class TaskSubmission(TaranisBaseModel):
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: dict[str, Any]
+    result: TaskResultEnvelope
     status: str = Field(min_length=1)
 
     @field_validator("id", "status", mode="after")
@@ -103,9 +100,11 @@ class TaskSubmission(TaranisBaseModel):
         stripped = value.strip()
         return stripped or None
 
-    @field_validator("result")
+    @field_validator("result", mode="before")
     @classmethod
     def ensure_json_serializable_result(cls, value: Any) -> Any:
+        if isinstance(value, PydanticBaseModel):
+            value = value.model_dump(mode="json", exclude_none=False)
         try:
             json.dumps(value)
         except (TypeError, ValueError) as exc:
@@ -119,21 +118,10 @@ class TaskHistoryEntry(TaranisBaseModel):
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: dict[str, Any] = Field(default_factory=dict)
+    result: TaskResultEnvelope
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def normalize_task_history_payload(cls, value: Any):
-        if not isinstance(value, dict):
-            return value
-
-        normalized = dict(value)
-        if normalized.get("result") is None:
-            normalized["result"] = {}
-        return normalized
 
 
 class TaskHistoryStats(TaranisBaseModel):

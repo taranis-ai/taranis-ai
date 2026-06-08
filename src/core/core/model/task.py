@@ -44,7 +44,7 @@ class Task(BaseModel):
             self.worker_id = worker_id
         if worker_type is not None:
             self.worker_type = worker_type
-        self.result = json.dumps(result or {})
+        self.result = json.dumps(result) if result is not None else ""
         if status in self.SUCCESS_STATUSES:
             self.last_success = datetime.now(timezone.utc)
         self.last_run = datetime.now(timezone.utc)
@@ -52,7 +52,7 @@ class Task(BaseModel):
     @classmethod
     def add_or_update(cls, entry_data):
         if entry := cls.get_by_job_id(entry_data["id"]):
-            entry.result = json.dumps(entry_data.get("result") or {})
+            entry.result = json.dumps(entry_data["result"]) if entry_data["result"] is not None else ""
             entry.status = entry_data.get("status")
             entry.task = entry_data.get("task", entry.task)
             entry.worker_id = entry_data.get("worker_id", entry.worker_id)
@@ -66,7 +66,7 @@ class Task(BaseModel):
         return new_entry.to_dict(), 201
 
     def to_dict(self):
-        result = json.loads(self.result) if self.result else {}
+        result = json.loads(self.result) if self.result else None
         return {
             "id": self.id,
             "job_id": self.job_id,

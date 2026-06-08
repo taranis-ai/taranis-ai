@@ -3,11 +3,29 @@ from urllib.parse import urlencode
 
 import niquests as requests
 from models.product import WorkerProduct as Product
-from models.task import TaskSubmission
+from models.task import TaskResultEnvelope, TaskSubmission
 from pydantic import ValidationError
 
 from worker.config import Config
 from worker.log import logger
+
+
+_MISSING_RESULT = object()
+
+
+def build_task_result(
+    message: str,
+    *,
+    reason: str | None = None,
+    retryable: bool = False,
+    data: Any = None,
+) -> dict[str, Any]:
+    return TaskResultEnvelope(
+        message=message,
+        reason=reason,
+        retryable=retryable,
+        data=data,
+    ).model_dump(mode="json", exclude_none=False)
 
 
 class CoreApi:
@@ -66,6 +84,7 @@ class CoreApi:
     def submit_task_result(self, submission: TaskSubmission) -> dict | None:
         try:
             payload = submission.model_dump(mode="json", by_alias=True)
+            payload["result"] = submission.result.model_dump(mode="json", exclude_none=False)
         except ValidationError as exc:
             logger.error(f"Invalid task payload: {exc}")
             return None
@@ -79,6 +98,7 @@ class CoreApi:
         *,
         worker_id: str | None = None,
         worker_type: str | None = None,
+        result: Any = _MISSING_RESULT,
         **task_kwargs: Any,
     ) -> bool:
         """Persist task execution result to the Core task API.
@@ -86,12 +106,23 @@ class CoreApi:
         Returns True when persistence succeeds, otherwise False.
         """
         try:
+            if result is not _MISSING_RESULT and task_kwargs:
+                raise ValueError("save_task_result accepts either result=... or keyword result fields, not both")
+
+            raw_task_result = task_kwargs if result is _MISSING_RESULT else result
+            task_result_payload = (
+                raw_task_result.model_dump(mode="json", exclude_none=False)
+                if isinstance(raw_task_result, TaskResultEnvelope)
+                else raw_task_result
+            )
+            task_result = TaskResultEnvelope.model_validate(task_result_payload)
+
             submission = TaskSubmission(
                 id=job_id,
                 task=task_name,
                 worker_id=worker_id,
                 worker_type=worker_type,
-                result=task_kwargs,
+                result=task_result,
                 status=status,
             )
             response = self.submit_task_result(submission)
@@ -180,7 +211,10 @@ class CoreApi:
             if not response.ok:
                 logger.error(f"Call to {url} failed {response.status_code}")
                 return None
-            return Product.from_response(response)
+            mime_type = response.headers.get("Content-Type", "")
+            if isinstance(mime_type, bytes):
+                mime_type = mime_type.decode()
+            return Product(data=response.content, mime_type=mime_type)
         except Exception:
             logger.exception("Can't get Product Render")
             return None

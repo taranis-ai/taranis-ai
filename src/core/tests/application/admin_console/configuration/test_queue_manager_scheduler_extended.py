@@ -75,24 +75,6 @@ class _DummyQueue:
         self.connection = object()
 
 
-class _RecordingQueue(_DummyQueue):
-    def __init__(self, name: str):
-        super().__init__(name)
-        self.enqueued: list[dict[str, Any]] = []
-        self.enqueued_at: list[dict[str, Any]] = []
-
-    def enqueue(self, task, *args, job_id=None, **kwargs):
-        self.enqueued.append({"task": task, "args": args, "job_id": job_id, "kwargs": kwargs})
-        return object()
-
-    def enqueue_at(self, scheduled_time, task, *args, job_id=None, **kwargs):
-        job = type("Job", (), {"id": job_id})()
-        self.enqueued_at.append(
-            {"scheduled_time": scheduled_time, "task": task, "args": args, "job_id": job_id, "kwargs": kwargs, "job": job}
-        )
-        return job
-
-
 def _make_queue_manager() -> QueueManager:
     qm = QueueManager.__new__(QueueManager)
     qm.error = ""
@@ -373,13 +355,8 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
     calls: list[dict[str, Any]] = []
 
     monkeypatch.setattr(qm, "_build_unique_job_id", lambda _task_name, _worker_id: next(job_ids))
-    monkeypatch.setattr(
-        qm,
-        "_build_presenter_task_args",
-        lambda product_id: (product_id,),
-    )
 
-    def fake_enqueue_task(queue_name: str, task_name: str, *args: Any, **kwargs: Any):
+    def fake_enqueue_task(queue_name: str, task_name: str, *args, **kwargs):
         calls.append(
             {
                 "queue_name": queue_name,
@@ -417,58 +394,9 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
     }
 
 
-def test_enqueue_task_preserves_display_name():
-    qm = _make_queue_manager()
-    queue = _RecordingQueue("collectors")
-    qm._queues = {"collectors": queue}  # type: ignore[assignment]
-
-    result = qm.enqueue_task(
-        "collectors",
-        "collector_task",
-        "source-1",
-        True,
-        job_id="collect_rss_collector_source-1",
-        meta={"name": "Collector: Source 1"},
-    )
-
-    assert result is not False
-    assert queue.enqueued == [
-        {
-            "task": "worker.collectors.collector_tasks.collector_task",
-            "args": ("source-1", True),
-            "job_id": "collect_rss_collector_source-1",
-            "kwargs": {"meta": {"name": "Collector: Source 1"}},
-        }
-    ]
-
-
-def test_enqueue_at_preserves_display_name():
-    qm = _make_queue_manager()
-    queue = _RecordingQueue("presenters")
-    qm._queues = {"presenters": queue}  # type: ignore[assignment]
-    scheduled_time = datetime(2025, 1, 1, 12, 0, 0)
-
-    result = qm.enqueue_at(
-        "presenters",
-        "presenter_task",
-        scheduled_time,
-        "product-1",
-        job_id="presenter_task_product-1",
-        meta={"name": "Presenter: Product 1"},
-    )
-
-    assert result is not False
-    assert queue.enqueued_at[0]["kwargs"] == {"meta": {"name": "Presenter: Product 1"}}
-
-
 def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypatch):
     qm = _make_queue_manager()
     monkeypatch.setattr(qm, "_build_unique_job_id", lambda _task_name, _worker_id: "presenter_task_product-2_303")
-    monkeypatch.setattr(
-        qm,
-        "_build_presenter_task_args",
-        lambda product_id: (product_id,),
-    )
     monkeypatch.setattr(qm, "enqueue_task", lambda *args, **kwargs: False)
 
     payload, status = qm.autopublish_product("product-2", "publisher-2")

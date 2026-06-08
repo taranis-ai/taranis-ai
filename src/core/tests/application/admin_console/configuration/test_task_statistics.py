@@ -73,7 +73,7 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "SUCCESS",
-                    "result": {"message": "ok"},
+                    "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
                 }
             )
             Task.add(
@@ -83,7 +83,7 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     "worker_id": "source-2",
                     "worker_type": "rss_collector",
                     "status": "SUCCESS",
-                    "result": {"message": "ok"},
+                    "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-2"}},
                 }
             )
             Task.add(
@@ -93,7 +93,7 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": "source-1"}},
                 }
             )
 
@@ -139,7 +139,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "SUCCESS",
-                    "result": {"message": "ok"},
+                    "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
                 }
             )
             Task.add(
@@ -149,7 +149,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "worker_id": "bot-1",
                     "worker_type": test_worker_type,
                     "status": "SUCCESS",
-                    "result": {"message": "ok"},
+                    "result": {"message": "ok", "retryable": False, "data": {"bot_id": "bot-1", "result": {}}},
                 }
             )
             Task.add(
@@ -159,7 +159,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "worker_id": "bot-1",
                     "worker_type": test_worker_type,
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": "bot-1"}},
                 }
             )
             Task.add(
@@ -169,7 +169,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "worker_id": "bot-2",
                     "worker_type": test_worker_type,
                     "status": "STARTED",
-                    "result": {"message": "running"},
+                    "result": {"message": "running", "retryable": False, "data": {"bot_id": "bot-2"}},
                 }
             )
 

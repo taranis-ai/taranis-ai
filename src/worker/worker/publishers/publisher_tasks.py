@@ -7,7 +7,7 @@ from models.product import WorkerProduct as Product
 from rq import get_current_job
 
 import worker.publishers
-from worker.core_api import CoreApi
+from worker.core_api import CoreApi, build_task_result
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
 
@@ -53,14 +53,23 @@ def publisher_task(product_id: str, publisher_id: str):
         worker_type = pub_type
         publisher_impl = _get_publisher_impl(pub_type)
 
-        result = publisher_impl.publish(publisher, product, rendered_product)
-        result_kwargs = {"product_id": product_id, "publisher_id": publisher_id}
-        if isinstance(result, dict):
-            result_kwargs.update(result)
+        publish_result = publisher_impl.publish(publisher, product, rendered_product)
+        result_data: dict[str, object] = {"product_id": product_id, "publisher_id": publisher_id}
+        if isinstance(publish_result, dict):
+            result_data.update(dict(publish_result))
+            result_message = str(publish_result.get("message") or f"Published product {product_id}")
         else:
-            result_kwargs["message"] = str(result)
-        core_api.save_task_result(task_id, task_name, "SUCCESS", worker_id=publisher_id, worker_type=worker_type, **result_kwargs)
-        return result
+            result_message = str(publish_result)
+            result_data["result"] = publish_result
+        core_api.save_task_result(
+            task_id,
+            task_name,
+            "SUCCESS",
+            worker_id=publisher_id,
+            worker_type=worker_type,
+            result=build_task_result(result_message, data=result_data),
+        )
+        return publish_result
     except Exception as exc:
         core_api.save_task_result(
             task_id,
@@ -68,10 +77,11 @@ def publisher_task(product_id: str, publisher_id: str):
             "FAILURE",
             worker_id=publisher_id,
             worker_type=worker_type,
-            product_id=product_id,
-            publisher_id=publisher_id,
-            reason="publisher_failed",
-            error=str(exc),
+            result=build_task_result(
+                str(exc),
+                reason="publisher_failed",
+                data={"product_id": product_id, "publisher_id": publisher_id},
+            ),
         )
         raise
 

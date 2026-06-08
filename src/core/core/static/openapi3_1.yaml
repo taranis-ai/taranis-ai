@@ -10219,9 +10219,7 @@ components:
           type: string
           minLength: 1
         result:
-          type: object
-          additionalProperties: true
-          description: JSON-serializable task payload
+          $ref: '#/components/schemas/task_result_envelope'
       required:
       - status
       - result
@@ -10248,9 +10246,7 @@ components:
           - string
           - 'null'
         result:
-          type: object
-          additionalProperties: true
-          description: JSON payload stored as provided by the worker
+          $ref: '#/components/schemas/task_result_envelope'
         status:
           type:
           - string
@@ -10285,9 +10281,7 @@ components:
           - string
           - 'null'
         result:
-          type: object
-          additionalProperties: true
-          description: JSON payload stored as provided by the worker
+          $ref: '#/components/schemas/task_result_envelope'
         status:
           type:
           - string
@@ -10304,6 +10298,24 @@ components:
           format: date-time
       required:
       - id
+    task_result_envelope:
+      type: object
+      additionalProperties: false
+      properties:
+        message:
+          type: string
+        reason:
+          type:
+          - string
+          - 'null'
+        retryable:
+          type: boolean
+          default: false
+        data:
+          description: Task-specific payload
+      required:
+      - message
+      - retryable
     task_history_stats:
       type: object
       properties:

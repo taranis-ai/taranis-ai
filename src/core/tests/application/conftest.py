@@ -876,14 +876,14 @@ def remap_result_keys(payload: dict, stories) -> dict:
 
     payload = deepcopy(payload)
 
-    old = payload["result"]
+    old = payload["result"]["data"]["result"]
     news_item_ids = []
     for story_ref in stories:
         story_id = str(getattr(story_ref, "id", story_ref))
         if story := Story.get(story_id):
             news_item_ids.extend(news_item.id for news_item in story.news_items[:1])
 
-    payload["result"] = {news_item_id: tags_dict for news_item_id, tags_dict in zip(news_item_ids, old.values())}
+    payload["result"]["data"]["result"] = {news_item_id: tags_dict for news_item_id, tags_dict in zip(news_item_ids, old.values())}
     return payload
 
 

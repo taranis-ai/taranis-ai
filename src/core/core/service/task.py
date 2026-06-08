@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from models.task import Task as TaskResponseModel
-from models.task import TaskHistoryResponse, TaskSubmission
+from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission
 
 from core.config import Config
 from core.log import logger
@@ -42,9 +42,11 @@ class TaskService:
 
     @classmethod
     def save_task_result(cls, submission: TaskSubmission) -> tuple[dict[str, Any], int]:
+        task_kind = cls._resolve_task_kind(submission.id, submission.task)
+        result_payload = submission.result.model_dump(mode="json", exclude_none=False)
         payload: dict[str, Any] = {
             "id": submission.id,
-            "result": submission.result,
+            "result": result_payload,
             "status": submission.status,
         }
         if submission.task is not None:
@@ -55,9 +57,8 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
-        task_kind = cls._resolve_task_kind(submission.id, submission.task)
         if submission.status == "SUCCESS" and submission.result is not None:
-            cls._handle_success_result(submission, task_kind)
+            cls._handle_success_result(submission)
         elif task_kind == "collector_task":
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
             cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
@@ -84,8 +85,9 @@ class TaskService:
         return None
 
     @classmethod
-    def _handle_success_result(cls, submission: TaskSubmission, task_kind: str | None) -> None:
+    def _handle_success_result(cls, submission: TaskSubmission) -> None:
         cache_invalidation_module.invalidate_frontend_cache_on_success(200, full=True)
+        task_kind = cls._resolve_task_kind(submission.id, submission.task)
         if not task_kind:
             return
 
@@ -95,16 +97,26 @@ class TaskService:
             return
 
         if task_kind == "collector_task":
-            logger.info("Collector task %s completed with result: %s", submission.id, submission.result)
+            logger.info(
+                f"Collector task {submission.id} completed with result: {submission.result.model_dump(mode='json', exclude_none=False)}"
+            )
             cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
             return
 
         if task_kind == "connector_task":
-            handle_misp_connector_result(submission.result)
+            result_data = cls._get_result_dict_data(submission.result)
+            if result_data is None:
+                logger.error("Invalid connector task result payload")
+                return
+            handle_misp_connector_result(result_data)
             return
 
         if task_kind == "gather_word_list":
-            WordList.update_word_list(**submission.result)
+            result_data = cls._get_result_dict_data(submission.result)
+            if result_data is None:
+                logger.error("Invalid gather_word_list result payload")
+                return
+            WordList.update_word_list(**result_data)
             return
 
         if task_kind == "presenter_task":
@@ -114,10 +126,15 @@ class TaskService:
         if task_kind == "bot_task":
             cls._handle_bot_result(submission)
 
-    @classmethod
-    def _handle_presenter_result(cls, result: dict[str, Any]) -> None:
-        product_id = result.get("product_id")
-        rendered_product = result.get("render_result")
+    @staticmethod
+    def _handle_presenter_result(result: TaskResultEnvelope) -> None:
+        result_data = TaskService._get_result_dict_data(result)
+        if result_data is None:
+            logger.error("Invalid presenter task result payload")
+            return
+
+        product_id = result_data.get("product_id")
+        rendered_product = result_data.get("render_result")
 
         if not isinstance(product_id, str) or not isinstance(rendered_product, str):
             logger.error(f"Product {product_id} not found or no render result")
@@ -125,17 +142,25 @@ class TaskService:
 
         Product.update_render_for_id(product_id, rendered_product)
 
-    @classmethod
-    def _handle_bot_result(cls, submission: TaskSubmission) -> None:
+    @staticmethod
+    def _handle_bot_result(submission: TaskSubmission) -> None:
         worker_type = submission.worker_type or ""
         worker_id = submission.worker_id or "UNKNOWN_ID"
-        bot_result = {
-            key: value
-            for key, value in submission.result.items()
-            if key not in {"bot_id", "message", "tagged_items", "tags_applied", "news_items"}
-        }
+        result_data = TaskService._get_result_dict_data(submission.result)
+        if result_data is None:
+            logger.error("Invalid bot task result payload")
+            return
+
+        bot_result = result_data.get("result")
+        if not isinstance(bot_result, dict):
+            logger.error("Invalid bot task result data payload")
+            return
 
         if worker_type in TAGGING_BOTS:
             NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
 
         NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
+
+    @staticmethod
+    def _get_result_dict_data(result: TaskResultEnvelope) -> dict[str, Any] | None:
+        return result.data if isinstance(result.data, dict) else None

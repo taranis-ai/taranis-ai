@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from croniter import croniter
 from rq import get_current_job
 
-from worker.core_api import CoreApi
+from worker.core_api import CoreApi, build_task_result
 from worker.log import logger
 from worker.misc.wordlist_update import update_wordlist
 
@@ -45,8 +45,7 @@ def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
             "SUCCESS",
             worker_id=job.id,
             worker_type=TOKEN_CLEANUP_TASK_ID,
-            message=message,
-            reason="cleanup_triggered",
+            result=build_task_result(message),
         )
 
     return message
@@ -99,17 +98,19 @@ def gather_word_list(word_list_id: str):
     result = update_wordlist(word_list_id)
     if job := get_current_job():
         core_api = CoreApi()
-        result_kwargs = {"word_list_id": word_list_id}
+        result_data = {"word_list_id": word_list_id}
         if isinstance(result, dict):
-            result_kwargs.update(result)
+            result_data.update(result)
+            result_message = str(result.get("message") or f"Word list {word_list_id} updated")
         else:
-            result_kwargs["message"] = str(result)
+            result_message = str(result)
+            result_data["result"] = result
         core_api.save_task_result(
             job.id,
             "gather_word_list",
             "SUCCESS",
             worker_id=word_list_id,
             worker_type="gather_word_list",
-            **result_kwargs,
+            result=build_task_result(result_message, data=result_data),
         )
     return result

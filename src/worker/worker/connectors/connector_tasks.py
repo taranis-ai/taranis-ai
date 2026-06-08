@@ -10,7 +10,7 @@ from typing import Any
 from rq import get_current_job
 
 from worker.connectors import MispConnector
-from worker.core_api import CoreApi
+from worker.core_api import CoreApi, build_task_result
 from worker.log import logger
 
 
@@ -55,12 +55,21 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
                 "connector_id": connector_id,
                 "connector_type": connector.type,
                 "action": connector_result.get("action", "mixed"),
-                "message": connector_result.get("message", ""),
                 "sync_results": connector_result.get("sync_results", []),
                 "story_ids": story_ids,
             }
             if job:
-                core_api.save_task_result(job.id, "connector_task", "SUCCESS", worker_id=connector_id, worker_type=connector.type, **result)
+                core_api.save_task_result(
+                    job.id,
+                    "connector_task",
+                    "SUCCESS",
+                    worker_id=connector_id,
+                    worker_type=connector.type,
+                    result=build_task_result(
+                        connector_result.get("message", "Connector executed successfully"),
+                        data=result,
+                    ),
+                )
             return result
         else:
             logger.warning(f"Connector with id: {connector_id} was not found")
@@ -74,10 +83,11 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
                 "FAILURE",
                 worker_id=connector_id,
                 worker_type=connector_config.get("type", "connector_task"),
-                connector_id=connector_id,
-                story_ids=story_ids,
-                reason="connector_execution_failed",
-                error=f"Error executing connector with id: {connector_id}",
+                result=build_task_result(
+                    f"Error executing connector with id: {connector_id}",
+                    reason="connector_execution_failed",
+                    data={"connector_id": connector_id, "story_ids": story_ids},
+                ),
             )
         raise RuntimeError(f"Error executing connector with id: {connector_id}") from e
 
@@ -144,7 +154,12 @@ def _get_connector(connector_type: str) -> MispConnector | None:
     return connectors.get(connector_type)
 
 
-def _get_connector_data(core_api: CoreApi, connector_id: str, connector_config: dict[str, Any], story_ids: list[str]) -> dict[str, Any]:
+def _get_connector_data(
+    core_api: CoreApi,
+    connector_id: str,
+    connector_config: dict[str, Any],
+    story_ids: list[str] | None,
+) -> dict[str, Any]:
     """Fetch and prepare data for connector execution.
 
     Args:
@@ -160,13 +175,14 @@ def _get_connector_data(core_api: CoreApi, connector_id: str, connector_config: 
         RuntimeError: If stories not found
     """
     connector_data: dict[str, Any] = {"connector_config": connector_config}
-    logger.info(f"Sending story {story_ids} to connector {connector_id}")
+    normalized_story_ids = story_ids or []
+    logger.info(f"Sending story {normalized_story_ids} to connector {connector_id}")
 
     try:
-        connector_data["story"] = get_story_by_id(core_api, story_ids)
+        connector_data["story"] = get_story_by_id(core_api, normalized_story_ids)
     except Exception as e:
-        logger.exception(f"Failed to get stories with id: {story_ids}")
-        raise RuntimeError(f"Failed to get stories with id: {story_ids}") from e
+        logger.exception(f"Failed to get stories with id: {normalized_story_ids}")
+        raise RuntimeError(f"Failed to get stories with id: {normalized_story_ids}") from e
 
     return connector_data
 

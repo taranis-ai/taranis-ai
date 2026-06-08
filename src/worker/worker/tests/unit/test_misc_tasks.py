@@ -9,14 +9,14 @@ def test_cleanup_token_blacklist_reports_task(monkeypatch):
     recorded = {}
 
     class DummyApi:
-        def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, **task_kwargs):
+        def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, result=None, **task_kwargs):
             recorded["url"] = "/tasks"
             recorded["payload"] = {
                 "id": job_id,
                 "task": task_name,
                 "worker_id": worker_id,
                 "worker_type": worker_type,
-                "result": task_kwargs,
+                "result": task_kwargs if result is None else result,
                 "status": status,
             }
             return True
@@ -33,7 +33,12 @@ def test_cleanup_token_blacklist_reports_task(monkeypatch):
         "task": "cleanup_token_blacklist",
         "worker_id": DummyJob.id,
         "worker_type": "cleanup_token_blacklist",
-        "result": {"message": "Token blacklist cleanup triggered", "reason": "cleanup_triggered"},
+        "result": {
+            "message": "Token blacklist cleanup triggered",
+            "reason": None,
+            "retryable": False,
+            "data": None,
+        },
         "status": "SUCCESS",
     }
 
@@ -42,7 +47,7 @@ def test_cleanup_token_blacklist_reschedules_when_requested(monkeypatch):
     ran = {"rescheduled": False}
 
     class DummyApi:
-        def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, **task_kwargs):
+        def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, result=None, **task_kwargs):
             return True
 
     def mark_rescheduled():
