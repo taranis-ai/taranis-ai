@@ -119,10 +119,10 @@ def _as_naive_utc(value: datetime | None) -> datetime | None:
 
 
 def _format_utc_timestamp(value: datetime | None) -> str | None:
-    normalized = _as_naive_utc(value)
-    if not normalized:
+    if normalized := _as_naive_utc(value):
+        return f"{normalized.strftime('%Y-%m-%d %H:%M:%S')} UTC"
+    else:
         return None
-    return f"{normalized.strftime('%Y-%m-%d %H:%M:%S')} UTC"
 
 
 def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run_dt: datetime | None) -> bool:
