@@ -1,6 +1,12 @@
 import fakeredis
 
-from core.service.cache_invalidation import FrontendCacheInvalidationService
+from core.service.cache_invalidation import (
+    SCOPE_ASSESS_VIEWS,
+    SCOPE_SCHEDULE,
+    SCOPE_SCHEDULE_STATUS,
+    SCOPE_USER_VIEWS,
+    FrontendCacheInvalidationService,
+)
 
 
 def _build_service(keys: list[str]) -> FrontendCacheInvalidationService:
@@ -61,7 +67,7 @@ def test_invalidate_scope_schedule_clears_scheduler_related_models(monkeypatch):
         ]
     )
 
-    deleted = service.invalidate_scope("schedule")
+    deleted = service.invalidate_scope(SCOPE_SCHEDULE)
 
     assert deleted == 3
     assert set(service._client.scan_iter(match="*")) == {"taranis_frontend:user:alice:model:story:list:one"}
@@ -82,7 +88,7 @@ def test_invalidate_scope_schedule_status_keeps_queue_runtime_models(monkeypatch
         ]
     )
 
-    deleted = service.invalidate_scope("schedule_status")
+    deleted = service.invalidate_scope(SCOPE_SCHEDULE_STATUS)
 
     assert deleted == 3
     assert set(service._client.scan_iter(match="*")) == {
@@ -91,3 +97,48 @@ def test_invalidate_scope_schedule_status_keeps_queue_runtime_models(monkeypatch
         "taranis_frontend:user:alice:model:queue_status:list:one",
         "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
     }
+
+
+def test_invalidate_scope_uses_object_ids_for_scoped_models(monkeypatch):
+    monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_ENABLED", True)
+    monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_KEY_PREFIX", "taranis_frontend")
+    service = _build_service(
+        [
+            "taranis_frontend:user:alice:model:story:list:one",
+            "taranis_frontend:user:alice:model:news_item:list:one",
+            "taranis_frontend:user:alice:model:news_item:detail:1",
+            "taranis_frontend:user:alice:model:news_item:detail:2",
+            "taranis_frontend:user:alice:model:filter_lists:detail:singleton",
+        ]
+    )
+
+    deleted = service.invalidate_scope(SCOPE_ASSESS_VIEWS, object_ids={"news_item": "1"})
+
+    assert deleted == 4
+    assert set(service._client.scan_iter(match="*")) == {"taranis_frontend:user:alice:model:news_item:detail:2"}
+
+
+def test_invalidate_scope_user_views_clears_user_facing_content_models(monkeypatch):
+    monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_ENABLED", True)
+    monkeypatch.setattr("core.service.cache_invalidation.Config.CACHE_KEY_PREFIX", "taranis_frontend")
+    service = _build_service(
+        [
+            "taranis_frontend:user:alice:model:dashboard:detail:singleton",
+            "taranis_frontend:user:alice:model:trending_clusters:list:one",
+            "taranis_frontend:user:alice:model:clusters:list:one",
+            "taranis_frontend:user:alice:model:story_conflicts:list:one",
+            "taranis_frontend:user:alice:model:news_item_conflict:list:one",
+            "taranis_frontend:user:alice:model:story:list:one",
+            "taranis_frontend:user:alice:model:news_item:list:one",
+            "taranis_frontend:user:alice:model:report_item:list:one",
+            "taranis_frontend:user:alice:model:filter_lists:detail:singleton",
+            "taranis_frontend:user:alice:model:report:list:one",
+            "taranis_frontend:user:alice:model:product:list:one",
+            "taranis_frontend:user:alice:model:asset:list:one",
+        ]
+    )
+
+    deleted = service.invalidate_scope(SCOPE_USER_VIEWS)
+
+    assert deleted == 11
+    assert set(service._client.scan_iter(match="*")) == {"taranis_frontend:user:alice:model:asset:list:one"}

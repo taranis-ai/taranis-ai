@@ -82,10 +82,13 @@ def validate_bcp47(value: str | None) -> str | None:
     if value is None:
         return None
     if not isinstance(value, str):
-        raise TypeError("BCP47 language tag must be a string")
-    if not language_tags.tags.check(value):
-        raise ValueError(f"Invalid BCP 47 language tag: {value}")
-    return value
+        raise TypeError("BCP 47 language tag must be a string")
+    normalized = value.strip().lower()
+    if not normalized:
+        return None
+    if not language_tags.tags.check(normalized):
+        raise ValueError(f"Invalid BCP 47 language tag: {normalized}")
+    return normalized
 
 
 BCP47 = Annotated[str | None, BeforeValidator(validate_bcp47)]
@@ -269,9 +272,10 @@ class FilterLists(TaranisBaseModel):
     _model_name = "filter_lists"
     _pretty_name = "Filter Lists"
 
-    tags: list[str] = []
-    sources: list[AssessSource] = []
-    groups: list[dict[str, Any]] = []
+    tags: list[str] = Field(default_factory=list)
+    sources: list[AssessSource] = Field(default_factory=list)
+    groups: list[dict[str, str | None]] = Field(default_factory=list)
+    languages: list[str] = Field(default_factory=list)
 
 
 class StoryUpdatePayload(TaranisBaseModel):

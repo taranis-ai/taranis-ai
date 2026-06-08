@@ -101,7 +101,7 @@ kubectl logs deploy/cron --tail=200
 ## Notes
 
 - These manifests expect a reachable PostgreSQL service and a reachable Redis service, but they do not create those workloads.
-- `STORY_API_ENDPOINT` now defaults to `http://llm-bot:5500/cluster`; ensure your `llm-bot` image exposes that route if you enable story clustering.
+- `STORY_API_ENDPOINT` now defaults to `http://llm-bot:8000/cluster`; ensure your `llm-bot` image exposes that route if you enable story clustering.
 - The `core` PVC is included because the application writes persistent data under `/app/data`.
 - The `core` readiness and liveness probes run every 15 minutes after a 15-second startup delay.
 - The default ingress policy assumes the stock k3s Traefik deployment runs in `kube-system` with label `app.kubernetes.io/name=traefik`. Adjust [`05-network-policies.yaml`](./kubernetes/05-network-policies.yaml) or the Helm values if your ingress controller differs.

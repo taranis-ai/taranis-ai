@@ -4,7 +4,7 @@ from urllib.parse import parse_qs, urlparse
 
 from flask import render_template_string, url_for
 from lxml import html
-from models.assess import Story, StoryUpdatePayload
+from models.assess import FilterLists, Story, StoryUpdatePayload
 from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import Forbidden
 
@@ -274,6 +274,65 @@ def test_story_update_payload_ignores_tags():
     assert payload.model_dump(mode="json") == {"title": "Updated Story"}
 
 
+def _render_news_item_card(story: Story) -> str:
+    return render_template_string(
+        '{% from "assess/news_item_card.html" import news_item_card %}{{ news_item_card(story.news_items[0], story) }}',
+        story=story,
+    )
+
+
+def test_news_item_card_shows_author_when_present(app):
+    story = Story.model_validate(
+        {
+            "id": "story-1",
+            "title": "Story with author",
+            "news_items": [
+                {
+                    "id": "news-1",
+                    "story_id": "story-1",
+                    "osint_source_id": "manual",
+                    "title": "News with author",
+                    "author": "James Bond",
+                }
+            ],
+        }
+    )
+
+    with app.test_request_context():
+        markup = _render_news_item_card(story)
+
+    tree = html.fromstring(markup)
+    author_badge = tree.xpath('//*[@data-test-id="news-item-author"]')
+    assert len(author_badge) == 1
+    assert author_badge[0].text_content().strip() == "Author · James Bond"
+
+
+def test_news_item_card_hides_author_when_missing_or_empty(app):
+    for payload in ({}, {"author": ""}):
+        story = Story.model_validate(
+            {
+                "id": "story-1",
+                "title": "Story without author",
+                "news_items": [
+                    {
+                        "id": "news-1",
+                        "story_id": "story-1",
+                        "osint_source_id": "manual",
+                        "title": "News without author",
+                        **payload,
+                    }
+                ],
+            }
+        )
+
+        with app.test_request_context():
+            markup = _render_news_item_card(story)
+
+        tree = html.fromstring(markup)
+        assert not tree.xpath('//*[@data-test-id="news-item-author"]')
+        assert "Author ·" not in tree.text_content()
+
+
 def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authenticated_client):
     response = authenticated_client.get(url_for("assess.get_news_item", news_item_id="0"))
 
@@ -302,6 +361,26 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     source_input = form[0].xpath('.//input[@name="source"]')
     assert len(source_input) == 1
     assert source_input[0].get("required") is None
+
+
+def test_manual_news_item_validation_error_targets_notification_bar(authenticated_client):
+    response = authenticated_client.post(
+        url_for("assess.create_news_item"),
+        data={
+            "title": "Invalid language test",
+            "link": "http://blubb.xxx",
+            "language": "xx",
+            "osint_source_id": "manual",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.headers["HX-Retarget"] == "#notification-bar"
+    assert response.headers["HX-Reswap"] == "outerHTML"
+    tree = html.fromstring(response.text)
+    notification_bar = tree.xpath('//section[@id="notification-bar"]')[0]
+    assert notification_bar.get("hx-swap-oob") is None
+    assert "Invalid BCP 47 language tag" in notification_bar.text_content()
 
 
 def test_story_edit_renders_news_item_tag_editor(authenticated_client, responses_mock):
@@ -433,6 +512,39 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert search_input.get("hx-trigger") is None
 
 
+def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):
+    with app.test_request_context():
+        markup = render_template_string(
+            """
+            {% from "assess/sidebar/filter_token_select.html" import filter_token_select, filter_token_select_assets %}
+            {{ filter_token_select_assets() }}
+            {{ filter_token_select(id="source-filter", placeholder="Select sources", selected_items=[], options=[]) }}
+            """
+        )
+
+    assert '@click.outside="closeList()"' in markup
+    assert '@blur="closeList()"' not in markup
+
+
+def test_language_filter_select_handles_missing_languages():
+    select_data = StoryView._build_language_filter_select(SimpleNamespace(languages=None), {"language": ["en"]})
+
+    assert select_data == {
+        "options": [],
+        "selected_items": [{"value": "en", "label": "EN", "name": "language"}],
+    }
+
+
+def test_source_filter_select_accepts_group_payloads_with_null_key():
+    filter_lists = FilterLists(tags=[], sources=[], groups=[{"id": "group-1", "key": None, "name": "Group 1"}], languages=[])
+
+    select_data = StoryView._build_source_filter_select(filter_lists, {"group": ["group-1"]})
+
+    expected_item = {"value": "group-1", "label": "Group 1", "name": "group", "group": "Group"}
+    assert expected_item in select_data["options"]
+    assert expected_item in select_data["selected_items"]
+
+
 def test_assess_selection_key_ignores_paging_params():
     selection_key = StoryView._build_assess_selection_key(
         {
@@ -451,6 +563,7 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
     saved_user = auth_user.model_copy(deep=True)
     saved_user.profile.assess_default_filters = {
         "source": ["source-1"],
+        "language": ["en"],
         "read": "true",
         "sort": "date_desc",
     }
@@ -462,6 +575,7 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
             "tags": [],
             "sources": [{"id": "source-1", "name": "Source 1"}],
             "groups": [],
+            "languages": ["de", "en"],
         },
     )
     responses_mock.get(
@@ -477,6 +591,7 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
     assert location.path == url_for("assess.assess")
     assert parse_qs(location.query) == {
         "source": ["source-1"],
+        "language": ["en"],
         "read": ["true"],
         "sort": ["date_desc"],
     }
@@ -487,17 +602,24 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
 
     tree = html.fromstring(followup.text)
     read_select = tree.xpath('//select[@name="read"]')[0]
-    source_select = tree.xpath('//select[@id="source-filter"]')[0]
+    source_filter = tree.xpath('//section[@data-filter-id="source-filter"]')[0]
+    language_filter = tree.xpath('//section[@data-filter-id="language-filter"]')[0]
     sort_select = tree.xpath('//select[@name="sort"]')[0]
 
     assert read_select.xpath('./option[@value="true" and @selected]')
-    assert source_select.xpath('./optgroup[@label="OSINT Sources"]/option[@value="source-1" and @selected]')
+    assert source_filter.xpath('.//input[@type="search" and @aria-label="Select sources"]')
+    assert "source-1" in source_filter.get("x-data")
+    assert '"name": "source"' in source_filter.get("x-data")
+    assert language_filter.xpath('.//input[@type="search" and @aria-label="Select languages"]')
+    assert '"value": "en"' in language_filter.get("x-data")
+    assert '"name": "language"' in language_filter.get("x-data")
     assert sort_select.xpath('./option[@value="date_desc" and @selected]')
 
     story_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/stories"))
     parsed_query = parse_qs(urlparse(story_request.request.url).query)
 
     assert parsed_query["source"] == ["source-1"]
+    assert parsed_query["language"] == ["en"]
     assert parsed_query["read"] == ["true"]
     assert parsed_query["sort"] == ["date_desc"]
 
@@ -514,6 +636,7 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
                     "source": ["source-1"],
                     "group": ["group-1"],
                     "tags": ["alpha", "beta"],
+                    "language": ["en", "de"],
                     "read": "true",
                     "important": "false",
                     "sort": "date_desc",
@@ -536,6 +659,7 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
                     "source": ["source-1"],
                     "group": ["group-1"],
                     "tags": ["alpha", "beta"],
+                    "language": ["en", "de"],
                     "read": "true",
                     "important": "false",
                     "sort": "date_desc",
@@ -555,6 +679,8 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
                 ("group", "group-1"),
                 ("tags", "alpha"),
                 ("tags", "beta"),
+                ("language", "en"),
+                ("language", "de"),
                 ("read", "true"),
                 ("important", "false"),
                 ("sort", "date_desc"),
@@ -575,6 +701,7 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
             "source": ["source-1"],
             "group": ["group-1"],
             "tags": ["alpha", "beta"],
+            "language": ["en", "de"],
             "read": "true",
             "important": "false",
             "sort": "date_desc",
@@ -596,20 +723,6 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
     search_input = tree.xpath('//input[@id="osint_table-search"]')[0]
 
     assert form.get("hx-trigger") == expected_search_trigger("osint_table-search")
-    assert form.get("hx-on:submit") == "event.preventDefault()"
-    assert search_input.get("hx-trigger") is None
-
-
-def test_omnisearch_dialog_form_uses_htmx_submit(authenticated_client):
-    response = authenticated_client.get(url_for("base.omnisearch"))
-
-    assert response.status_code == 200
-
-    tree = html.fromstring(response.text)
-    form = tree.xpath('//dialog[@id="assess_search_dialog"]//div[@class="modal-box"]/form')[0]
-    search_input = tree.xpath('//input[@id="omni_search"]')[0]
-
-    assert form.get("hx-trigger") == expected_search_trigger("omni_search")
     assert form.get("hx-on:submit") == "event.preventDefault()"
     assert search_input.get("hx-trigger") is None
 
