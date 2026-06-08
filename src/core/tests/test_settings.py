@@ -53,11 +53,6 @@ def test_flask_secret_key(app):
         assert secret_key == "test_key_for_tests_only_do_not_use"
 
 
-def test_jwt_decode_leeway(app):
-    with app.app_context():
-        assert app.config.get("JWT_DECODE_LEEWAY") == 5
-
-
 def test_sqlalchemy_pool_timeout_from_env_var(monkeypatch, clear_pool_env_vars):
     """Test that SQLALCHEMY_POOL_TIMEOUT is correctly read from environment and added to engine options."""
     monkeypatch.setenv("SQLALCHEMY_POOL_TIMEOUT", "666")

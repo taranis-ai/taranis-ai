@@ -24,7 +24,6 @@ repos:
         name: djlint
         language: system
         files: ^src/frontend/frontend/templates
-        entry: >-
-          bash -c 'files=(); for file in "$@"; do files+=("${file#src/frontend/}"); done;
-          cd src/frontend && uv run --frozen --all-extras djlint --profile=jinja --reformat "${files[@]}"' --
+        pass_filenames: false
+        entry: uv run --directory src/frontend --frozen --all-extras djlint --profile=jinja --reformat frontend/templates
         types_or: [jinja, html]
