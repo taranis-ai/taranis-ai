@@ -82,6 +82,9 @@ def test_summary_bot_uses_configured_summary_endpoint_and_optional_title_endpoin
     assert len(summary_calls) == len(stories)
     assert len(title_calls) == len(stories)
     assert len(update_calls) == len(stories)
+    assert all("news_items" in call.json() for call in summary_calls)
+    assert all("news_items" in call.json() for call in title_calls)
+    assert all(all(set(item.keys()) == {"title", "content"} for item in call.json()["news_items"]) for call in summary_calls + title_calls)
     assert all("summary" in call.json() and "title" in call.json() for call in update_calls)
     assert story_attribute_update_mock.call_count >= len(stories)
 
@@ -107,6 +110,8 @@ def test_summary_bot_skips_title_generation_when_title_endpoint_is_unset(
     assert story_get_mock.call_count == 1
     summary_calls = [req for req in requests_mock.request_history if req.url == Config.SUMMARY_API_ENDPOINT]
     assert len(summary_calls) == len(stories)
+    assert all("news_items" in call.json() for call in summary_calls)
+    assert all(all(set(item.keys()) == {"title", "content"} for item in call.json()["news_items"]) for call in summary_calls)
     assert story_update_mock.call_count == len(stories)
     assert all(list(call.json().keys()) == ["summary"] for call in story_update_mock.request_history if call.method == "PUT")
     assert story_attribute_update_mock.call_count >= len(stories)

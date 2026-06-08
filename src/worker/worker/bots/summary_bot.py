@@ -23,12 +23,12 @@ class SummaryBot(BaseBot):
 
         for story in data:
             news_items = story.get("news_items", [])
-            content_to_summarize = "".join(news_item["content"] for news_item in news_items)
+            story_payload = self._build_story_payload(news_items)
 
-            logger.debug(f"Summarizing {story['id']} with {len(content_to_summarize)} characters")
+            logger.debug(f"Summarizing {story['id']} with {len(news_items)} news items")
             try:
-                summary = self.predict_summary(summary_api, content_to_summarize)
-                title = self.predict_title(title_api, content_to_summarize)
+                summary = self.predict_summary(summary_api, story_payload)
+                title = self.predict_title(title_api, story_payload)
 
                 story_update_data = {}
                 if summary:
@@ -50,6 +50,18 @@ class SummaryBot(BaseBot):
         return {"message": f"Summarized {len(data)} stories"}
 
     @staticmethod
+    def _build_story_payload(news_items: list[dict]) -> dict[str, list[dict[str, str]]]:
+        return {
+            "news_items": [
+                {
+                    "title": news_item.get("title", ""),
+                    "content": news_item.get("content", ""),
+                }
+                for news_item in news_items
+            ]
+        }
+
+    @staticmethod
     def _build_bot_api(parameters: dict, endpoint_parameter: str, default_endpoint: str | None) -> BotApi | None:
         endpoint = parameters.get(endpoint_parameter) or default_endpoint
         if not endpoint:
@@ -61,18 +73,18 @@ class SummaryBot(BaseBot):
             requests_timeout=parameters.get("REQUESTS_TIMEOUT"),
         )
 
-    def predict_summary(self, bot_api: BotApi | None, text_to_summarize: str) -> str:
+    def predict_summary(self, bot_api: BotApi | None, story_payload: dict[str, list[dict[str, str]]]) -> str:
         if not bot_api:
             return ""
 
-        if response := bot_api.api_post("", {"text": text_to_summarize}):
+        if response := bot_api.api_post("", story_payload):
             return response.get("summary", "")
         return ""
 
-    def predict_title(self, bot_api: BotApi | None, text_to_title: str) -> str:
+    def predict_title(self, bot_api: BotApi | None, story_payload: dict[str, list[dict[str, str]]]) -> str:
         if not bot_api:
             return ""
 
-        if response := bot_api.api_post("", {"text": text_to_title}):
+        if response := bot_api.api_post("", story_payload):
             return response.get("title", "")
         return ""
