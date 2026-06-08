@@ -572,6 +572,16 @@ def test_bulk_state_buttons_queue_assess_selection_prune(app):
     assert ":hx-vals='action_vals(\"important\", !selectedItemsAreImportant())'" in markup
 
 
+def test_assess_parent_syncs_selected_card_visual_state(app):
+    story_table_source = app.jinja_loader.get_source(app.jinja_env, "assess/story_table.html")[0]
+    story_card_source = app.jinja_loader.get_source(app.jinja_env, "assess/story_card.html")[0]
+
+    assert "syncSelectedCardState()" in story_table_source
+    assert 'node.classList.toggle("bg-primary/5", selected);' in story_table_source
+    assert 'node.classList.toggle("border-base-200", !selected && read);' in story_table_source
+    assert "isSelected('{{ story_id }}')" not in story_card_source
+
+
 def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, auth_user, responses_mock):
     saved_user = auth_user.model_copy(deep=True)
     saved_user.profile.assess_default_filters = {

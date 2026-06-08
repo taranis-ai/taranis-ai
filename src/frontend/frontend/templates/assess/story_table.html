@@ -20,6 +20,7 @@
         this.restoreSelection();
         this.refreshStoryMeta();
         this.pruneSelectionToVisible();
+        this.$nextTick(() => this.syncSelectedCardState());
         const storyList = this.$refs.storyList || document.querySelector("#story-list");
         if (storyList) {
           const observer = new MutationObserver(() => {
@@ -27,7 +28,10 @@
           });
           observer.observe(storyList, { childList: true, subtree: true });
         }
-        this.$watch("selectedItems", () => this.persistSelection());
+        this.$watch("selectedItems", () => {
+          this.persistSelection();
+          this.syncSelectedCardState();
+        });
       },
       selectionKey() {
         return this.$root.dataset.selectionKey || "";
@@ -58,6 +62,20 @@
         this.selectedItems = this.selectedItems.filter(id => visibleIds.has(id));
         this.pruneToVisibleOnNextInit = false;
         this.persistSelection();
+      },
+      syncSelectedCardState() {
+        const storyList = this.$refs.storyList || document.querySelector("#story-list");
+        if (!storyList) return;
+        const selectedIds = new Set(this.selectedItems);
+        storyList.querySelectorAll("article[data-story-id]").forEach(node => {
+          const selected = selectedIds.has(node.dataset.storyId);
+          const read = node.dataset.storyRead === "true";
+          node.classList.toggle("bg-primary/5", selected);
+          node.classList.toggle("border-primary", selected || !read);
+          node.classList.toggle("border-base-200", !selected && read);
+          node.classList.toggle("shadow-md", selected);
+          node.setAttribute("aria-selected", selected.toString());
+        });
       },
       toggleSelection(id) {
         if (this.selectedItems.includes(id)) {
@@ -96,6 +114,7 @@
         this.storyImportantMap = { ...this.storyImportantMap, ...importantMap };
         this.storyReadMap = { ...this.storyReadMap, ...readMap };
         this.persistSelection();
+        this.syncSelectedCardState();
       },
       selectAll() {
         this.refreshStoryMeta();
