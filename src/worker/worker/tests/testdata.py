@@ -161,7 +161,7 @@ news_items = [
 
 include_list = [
     {
-        "id": 1,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df206",
         "name": "includelist",
         "description": "dummy test data",
         "usage": ["COLLECTOR_INCLUDELIST", "TAGGING_BOT"],
@@ -176,7 +176,7 @@ include_list = [
 
 exclude_list = [
     {
-        "id": 2,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df207",
         "name": "excludelist",
         "description": "dummy test data",
         "usage": ["COLLECTOR_EXCLUDELIST", "TAGGING_BOT"],
@@ -190,7 +190,7 @@ exclude_list = [
 
 include_exclude_list = [
     {
-        "id": 1,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df208",
         "name": "includelist",
         "description": "dummy test data",
         "usage": ["COLLECTOR_INCLUDELIST", "TAGGING_BOT"],
@@ -202,7 +202,7 @@ include_exclude_list = [
         ],
     },
     {
-        "id": 2,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df209",
         "name": "excludelist",
         "description": "dummy test data",
         "usage": ["COLLECTOR_EXCLUDELIST", "TAGGING_BOT"],
@@ -216,7 +216,7 @@ include_exclude_list = [
 
 multiple_include_exclude_list = [
     {
-        "id": 1,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df20a",
         "name": "includelist",
         "description": "dummy test data",
         "usage": ["COLLECTOR_INCLUDELIST", "TAGGING_BOT"],
@@ -224,7 +224,7 @@ multiple_include_exclude_list = [
         "entries": [{"value": "Azure Data Explorer", "category": "CVE_PRODUCT", "description": ""}],
     },
     {
-        "id": 2,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df20b",
         "name": "includelist2",
         "description": "dummy test data 2",
         "usage": ["COLLECTOR_INCLUDELIST", "TAGGING_BOT"],
@@ -232,7 +232,7 @@ multiple_include_exclude_list = [
         "entries": [{"value": "Bing", "category": "MISC", "description": ""}],
     },
     {
-        "id": 3,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df20c",
         "name": "excludelist",
         "description": "dummy test data",
         "usage": ["COLLECTOR_EXCLUDELIST", "TAGGING_BOT"],
@@ -240,7 +240,7 @@ multiple_include_exclude_list = [
         "entries": [{"value": "iPhone-Event", "category": "MISC", "description": ""}],
     },
     {
-        "id": 4,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df20d",
         "name": "excludelist2",
         "description": "dummy test data",
         "usage": ["COLLECTOR_EXCLUDELIST", "TAGGING_BOT"],
@@ -251,7 +251,7 @@ multiple_include_exclude_list = [
 
 include_multiple_list = [
     {
-        "id": 1,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df20e",
         "name": "includelist",
         "description": "dummy test data",
         "usage": ["COLLECTOR_INCLUDELIST", "TAGGING_BOT"],
@@ -259,7 +259,7 @@ include_multiple_list = [
         "entries": [{"value": "Azure Data Explorer", "category": "CVE_PRODUCT", "description": ""}],
     },
     {
-        "id": 2,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df20f",
         "name": "includelist2",
         "description": "dummy test data 2",
         "usage": ["COLLECTOR_INCLUDELIST", "TAGGING_BOT"],
@@ -270,7 +270,7 @@ include_multiple_list = [
 
 exclude_multiple_list = [
     {
-        "id": 1,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df210",
         "name": "excludelist",
         "description": "dummy test data",
         "usage": ["COLLECTOR_EXCLUDELIST", "TAGGING_BOT"],
@@ -278,7 +278,7 @@ exclude_multiple_list = [
         "entries": [{"value": "iPhone-Event", "category": "MISC", "description": ""}],
     },
     {
-        "id": 2,
+        "id": "0a428364-3af6-7a35-95fe-9c6f1f9df211",
         "name": "excludelist2",
         "description": "dummy test data",
         "usage": ["COLLECTOR_EXCLUDELIST", "TAGGING_BOT"],
@@ -291,15 +291,15 @@ web_collector_url = "https://raw.example.com/testweb.html"
 web_collector_ref_url = "https://raw.example.com/test/url/index.html"
 web_collector_result_content = "In an era where digital security is paramount, the role of National Computer Emergency Response Teams (CERTs) has never been more critical."
 web_collector_fav_icon_url = "https://raw.example.com/favicon.ico"
-web_collector_source_data = {"id": 1, "parameters": {"WEB_URL": "https://raw.example.com/testweb.html"}}
+web_collector_source_data = {"id": "0a428364-3af6-7a35-95fe-9c6f1f9df212", "parameters": {"WEB_URL": "https://raw.example.com/testweb.html"}}
 web_collector_source_xpath = "/html/body/div/div[3]"
 web_collector_result_title = "National CERT Importance"
 
 rss_collector_url = "https://rss.example.com/en/category/security-news/feed/"
-rss_collector_source_data = {"id": 1, "parameters": {"FEED_URL": f"{rss_collector_url}"}}
+rss_collector_source_data = {"id": "0a428364-3af6-7a35-95fe-9c6f1f9df213", "parameters": {"FEED_URL": f"{rss_collector_url}"}}
 rss_collector_source_data_complex = {
     "description": "",
-    "id": "1",
+    "id": "0a428364-3af6-7a35-95fe-9c6f1f9df214",
     "last_attempted": "2000-01-01T00:00:00.000000",
     "last_collected": "2000-01-01T00:00:00.000000",
     "last_error_message": None,
@@ -314,10 +314,16 @@ rss_collector_source_data_complex = {
     "word_lists": [],
 }
 rss_collector_url_not_modified = "https://rss.example.com/en/archive/feed/"
-rss_collector_source_data_not_modified = {"id": 1, "parameters": {"FEED_URL": f"{rss_collector_url_not_modified}"}}
+rss_collector_source_data_not_modified = {
+    "id": "0a428364-3af6-7a35-95fe-9c6f1f9df215",
+    "parameters": {"FEED_URL": f"{rss_collector_url_not_modified}"},
+}
 
 rss_collector_url_no_content = "https://rss.example.com/en/wrong-feed"
-rss_collector_source_data_no_content = {"id": 1, "parameters": {"FEED_URL": f"{rss_collector_url_no_content}"}}
+rss_collector_source_data_no_content = {
+    "id": "0a428364-3af6-7a35-95fe-9c6f1f9df216",
+    "parameters": {"FEED_URL": f"{rss_collector_url_no_content}"},
+}
 
 rss_collector_fav_icon_url = "https://rss.example.com/favicon.ico"
 rss_collector_targets = [
