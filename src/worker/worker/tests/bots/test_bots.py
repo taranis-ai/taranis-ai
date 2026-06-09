@@ -80,12 +80,13 @@ def test_summary_bot_uses_configured_summary_endpoint_and_optional_title_endpoin
     update_calls = [req for req in story_update_mock.request_history if req.method == "PUT"]
 
     assert len(summary_calls) == len(stories)
-    assert len(title_calls) == len(stories)
+    assert not title_calls
     assert len(update_calls) == len(stories)
     assert all("news_items" in call.json() for call in summary_calls)
     assert all("news_items" in call.json() for call in title_calls)
     assert all(all(set(item.keys()) == {"title", "content"} for item in call.json()["news_items"]) for call in summary_calls + title_calls)
-    assert all("summary" in call.json() and "title" in call.json() for call in update_calls)
+    assert all("summary" in call.json() for call in update_calls)
+    assert not any("title" in call.json() for call in update_calls)
     assert story_attribute_update_mock.call_count >= len(stories)
 
 
