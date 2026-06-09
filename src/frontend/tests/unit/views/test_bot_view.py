@@ -56,6 +56,17 @@ def test_summary_bot_parameters_include_split_summary_and_title_endpoints(authen
     assert summary_endpoint_fields[0].get("required") is None
     assert title_endpoint_fields[0].get("required") is None
 
+    # Ensure ordering matches Worker._order_parameters: BOT_API_KEY, SUMMARY_ENDPOINT,
+    # TITLE_ENDPOINT, RUN_AFTER_COLLECTOR
+    bot_api_key_index = response.text.index('name="parameters[BOT_API_KEY]"')
+    summary_endpoint_index = response.text.index('name="parameters[SUMMARY_ENDPOINT]"')
+    title_endpoint_index = response.text.index('name="parameters[TITLE_ENDPOINT]"')
+    run_after_collector_index = response.text.index('name="parameters[RUN_AFTER_COLLECTOR]"')
+
+    assert bot_api_key_index < summary_endpoint_index
+    assert summary_endpoint_index < title_endpoint_index
+    assert title_endpoint_index < run_after_collector_index
+
 
 def test_bot_menu_badge_uses_task_failure_count(monkeypatch):
     fake_badges = SimpleNamespace(bot=7)
