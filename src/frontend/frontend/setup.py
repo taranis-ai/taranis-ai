@@ -135,13 +135,17 @@ def setup_sentry():
     if not Config.TARANIS_SENTRY_DSN:
         return
 
-    sentry_sdk.init(
-        dsn=Config.TARANIS_SENTRY_DSN,
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
-        enable_logs=True,
-        send_default_pii=True,
-    )
+    sentry_options = {
+        "dsn": Config.TARANIS_SENTRY_DSN,
+        "traces_sample_rate": 1.0,
+        "profiles_sample_rate": 1.0,
+    }
+    if Config.SENTRY_ENABLE_LOGS:
+        sentry_options["enable_logs"] = True
+    if Config.SENTRY_SEND_DEFAULT_PII:
+        sentry_options["send_default_pii"] = True
+
+    sentry_sdk.init(**sentry_options)
 
 
 def init(app: Flask):

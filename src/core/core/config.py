@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
     TARANIS_SENTRY_DSN: str | None = None
+    TARANIS_CORE_SENTRY_DSN: str | None = None
+    SENTRY_ENABLE_LOGS: bool = False
+    SENTRY_SEND_DEFAULT_PII: bool = False
+    SENTRY_ENABLE_DB_QUERY_SOURCE: bool = False
     DISABLE_PPN_COLLECTOR: bool = True
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
     OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
@@ -74,6 +78,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
+        if not self.TARANIS_SENTRY_DSN and self.TARANIS_CORE_SENTRY_DSN:
+            self.TARANIS_SENTRY_DSN = self.TARANIS_CORE_SENTRY_DSN
+
         if not self.SQLALCHEMY_DATABASE_URI or len(self.SQLALCHEMY_DATABASE_URI) < 1:
             self.SQLALCHEMY_DATABASE_URI = (
                 f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD.get_secret_value()}@{self.DB_URL}/{self.DB_DATABASE}"

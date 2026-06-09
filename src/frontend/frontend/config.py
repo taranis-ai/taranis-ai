@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
     TARANIS_SENTRY_DSN: str | None = None
+    SENTRY_ENABLE_LOGS: bool = False
+    SENTRY_SEND_DEFAULT_PII: bool = False
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:
