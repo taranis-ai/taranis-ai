@@ -130,6 +130,7 @@ class PUBLISHER_TYPES(StrEnum):
     WORDPRESS_PUBLISHER = auto()
     MISP_PUBLISHER = auto()
     TAXII_PUBLISHER = auto()
+    KAFKA_PUBLISHER = auto()
 
     @classmethod
     def _missing_(cls, value):
@@ -167,6 +168,7 @@ class WORKER_TYPES(StrEnum):
     FTP_PUBLISHER = auto()
     SFTP_PUBLISHER = auto()
     S3_PUBLISHER = auto()
+    KAFKA_PUBLISHER = auto()
     EMAIL_PUBLISHER = auto()
     WORDPRESS_PUBLISHER = auto()
     MISP_PUBLISHER = auto()
