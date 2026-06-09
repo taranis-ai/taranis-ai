@@ -195,6 +195,9 @@ services:
       BOT_API_KEY: "${BOT_API_KEY}"
       REDIS_URL: "redis://redis:6379/0"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+      SUMMARY_API_ENDPOINT: "${SUMMARY_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/summarize}"
+      NLP_API_ENDPOINT: "${NLP_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/ner}"
+      STORY_API_ENDPOINT: "${STORY_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/cluster}"
       WORKER_TYPES: '${WORKER_TYPES:-["Presenters", "Publishers", "Bots", "Connectors", "Misc"]}'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
@@ -210,16 +213,16 @@ services:
         max-file: "10"
 
 
-  summary_bot:
+  llm-bot:
     depends_on:
       workers:
         condition: service_healthy
     deploy:
       restart_policy:
         condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-summarize-bot:${TARANIS_BOT_TAG:-stable}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-llm-bot:${TARANIS_BOT_TAG:-stable}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:${LLM_BOT_PORT:-8000}/health', timeout=5).raise_for_status()\""]
       interval: 1m30s
       timeout: 30s
       retries: 5
@@ -227,54 +230,11 @@ services:
     environment:
       API_KEY: "${BOT_API_KEY}"
       DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  nlp_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-natural-language-processing:${TARANIS_BOT_TAG:-stable}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-
-  story_bot:
-    depends_on:
-      workers:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: always
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-story-clustering:${TARANIS_BOT_TAG:-stable}"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()\""]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    environment:
-      API_KEY: "${BOT_API_KEY}"
-      DEBUG: "${DEBUG:-False}"
+      GRANIAN_PORT: "${LLM_BOT_PORT:-8000}"
+      LLM_BASE_URL: "${LLM_BASE_URL:-}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      LLM_MODEL: "${LLM_MODEL:-}"
+      LLM_TIMEOUT: "${LLM_TIMEOUT:-120}"
     logging:
       driver: "json-file"
       options:
