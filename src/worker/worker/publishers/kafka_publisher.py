@@ -62,7 +62,7 @@ class KafkaPublisher(BasePublisher):
 
         producer_config = {
             "bootstrap.servers": parameters["KAFKA_BOOTSTRAP_SERVERS"],
-            "client.id": parameters.get("KAFKA_CLIENT_ID", "worker-kafka-publisher"),
+            "client.id": "taranis-kafka-publisher",
             "acks": parameters.get("KAFKA_ACKS", "all"),
             "retries": int(parameters.get("KAFKA_RETRIES", 3)),
             "security.protocol": security_protocol,
@@ -82,13 +82,11 @@ class KafkaPublisher(BasePublisher):
             if missing:
                 raise ValueError(f"KAFKA_SECURITY_PROTOCOL is 'SASL_PLAINTEXT', but these parameters are missing: {', '.join(missing)}")
 
-            producer_config.update(
-                {
-                    "sasl.mechanism": parameters["KAFKA_SASL_MECHANISM"],
-                    "sasl.username": parameters["KAFKA_SASL_USERNAME"],
-                    "sasl.password": parameters["KAFKA_SASL_PASSWORD"],
-                }
-            )
+            producer_config |= {
+                "sasl.mechanism": parameters["KAFKA_SASL_MECHANISM"],
+                "sasl.username": parameters["KAFKA_SASL_USERNAME"],
+                "sasl.password": parameters["KAFKA_SASL_PASSWORD"],
+            }
 
         return Producer(producer_config)
 
