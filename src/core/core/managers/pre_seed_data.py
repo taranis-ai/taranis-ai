@@ -178,11 +178,12 @@ workers = [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
-            {"parameter": "BOT_ENDPOINT", "value": "http://summary_bot:8000"},
+            {"parameter": "SUMMARY_ENDPOINT", "value": "http://summary_bot:8000"},
+            {"parameter": "TITLE_ENDPOINT"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
-        "description": "Bot for summarizing stories",
+        "description": "Bot for summarizing stories & generating titles",
     },
     {
         "type": "WORDLIST_BOT",
@@ -404,7 +405,7 @@ bots = [
     },
     {
         "name": "Summary Bot",
-        "description": "Bot for summarizing stories",
+        "description": "Bot for summarizing stories & generating titles",
         "type": "SUMMARY_BOT",
     },
     {

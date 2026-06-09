@@ -318,7 +318,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_text("Cybersecurity · Not Classified").click()
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity · Not Classified")
             expect(page.get_by_role("complementary")).to_contain_text("AI assisted actions")
-            expect(page.get_by_role("complementary")).to_contain_text("Generate AI summary")
+            expect(page.get_by_role("complementary")).to_contain_text("Generate summary & title")
             expect(page.get_by_role("complementary")).to_contain_text("Run sentiment analysis")
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
             page.get_by_role("link", name="Return to story").click()
