@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from kafka import KafkaProducer
+from confluent_kafka import Producer
 from models.product import WorkerProduct as Product
 
 from .base_publisher import BasePublisher
@@ -38,40 +38,34 @@ class KafkaPublisher(BasePublisher):
             object_name=key,
         )
 
-        future = producer.send(
+        producer.produce(
             topic=topic,
-            key=key,
-            value=message,
+            key=key.encode("utf-8"),
+            value=json.dumps(message).encode("utf-8"),
         )
 
-        record_metadata = future.get(timeout=parameters.get("KAFKA_SEND_TIMEOUT", 30))
-
-        producer.flush()
+        producer.flush(timeout=float(parameters.get("KAFKA_SEND_TIMEOUT", 30)))
 
         return {
             "status": "success",
-            "topic": record_metadata.topic,
-            "partition": record_metadata.partition,
-            "offset": record_metadata.offset,
+            "topic": topic,
             "key": key,
             "message": f"Product {key} published to Kafka topic {topic}.",
         }
 
     @staticmethod
-    def _create_producer(parameters: dict[str, Any]) -> KafkaProducer:
+    def _create_producer(parameters: dict[str, Any]) -> Producer:
         security_protocol = str(parameters.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")).upper()
 
         if security_protocol not in {"PLAINTEXT", "SASL_PLAINTEXT"}:
             raise ValueError("Invalid KAFKA_SECURITY_PROTOCOL. Only 'PLAINTEXT' and 'SASL_PLAINTEXT' are supported.")
 
         producer_config = {
-            "bootstrap_servers": parameters["KAFKA_BOOTSTRAP_SERVERS"],
-            "client_id": parameters.get("KAFKA_CLIENT_ID", "worker-kafka-publisher"),
-            "key_serializer": lambda key: key.encode("utf-8"),
-            "value_serializer": lambda value: json.dumps(value).encode("utf-8"),
+            "bootstrap.servers": parameters["KAFKA_BOOTSTRAP_SERVERS"],
+            "client.id": parameters.get("KAFKA_CLIENT_ID", "worker-kafka-publisher"),
             "acks": parameters.get("KAFKA_ACKS", "all"),
             "retries": int(parameters.get("KAFKA_RETRIES", 3)),
-            "security_protocol": security_protocol,
+            "security.protocol": security_protocol,
         }
 
         if security_protocol == "SASL_PLAINTEXT":
@@ -90,13 +84,13 @@ class KafkaPublisher(BasePublisher):
 
             producer_config.update(
                 {
-                    "sasl_mechanism": parameters["KAFKA_SASL_MECHANISM"],
-                    "sasl_plain_username": parameters["KAFKA_SASL_USERNAME"],
-                    "sasl_plain_password": parameters["KAFKA_SASL_PASSWORD"],
+                    "sasl.mechanism": parameters["KAFKA_SASL_MECHANISM"],
+                    "sasl.username": parameters["KAFKA_SASL_USERNAME"],
+                    "sasl.password": parameters["KAFKA_SASL_PASSWORD"],
                 }
             )
 
-        return KafkaProducer(**producer_config)
+        return Producer(producer_config)
 
     @staticmethod
     def _create_message(
