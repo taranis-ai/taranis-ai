@@ -28,7 +28,10 @@ class SummaryBot(BaseBot):
             logger.debug(f"Summarizing {story['id']} with {len(news_items)} news items")
             try:
                 summary = self.predict_summary(summary_api, story_payload)
-                title = self.predict_title(title_api, story_payload)
+                if len(news_items) == 1:
+                    title = ""
+                else:
+                    title = self.predict_title(title_api, story_payload)
 
                 story_update_data = {}
                 if summary:
