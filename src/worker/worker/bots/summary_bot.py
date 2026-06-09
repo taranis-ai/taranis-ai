@@ -29,9 +29,9 @@ class SummaryBot(BaseBot):
             try:
                 summary = self.predict_summary(summary_api, story_payload)
                 if len(news_items) > 1:
-                    title = ""
-                else:
                     title = self.predict_title(title_api, story_payload)
+                else:
+                    title = ""
 
                 story_update_data = {}
                 if summary:
