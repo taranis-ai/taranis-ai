@@ -251,6 +251,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             osint_table = page.get_by_test_id("osint_source-table")
             all_rows = osint_table.locator("tbody tr")
             expect(all_rows).to_have_count(10)
+            dismiss_notifications(page)
 
             first_source_name = osint_table.locator("[data-testid='osint_source-table_name']").first.inner_text().strip()
             page.get_by_placeholder("Search...").fill(first_source_name)
