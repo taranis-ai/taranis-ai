@@ -59,14 +59,44 @@ class KafkaPublisher(BasePublisher):
 
     @staticmethod
     def _create_producer(parameters: dict[str, Any]) -> KafkaProducer:
-        return KafkaProducer(
-            bootstrap_servers=parameters["KAFKA_BOOTSTRAP_SERVERS"],
-            key_serializer=lambda key: key.encode("utf-8"),
-            value_serializer=lambda value: json.dumps(value).encode("utf-8"),
-            acks=parameters.get("KAFKA_ACKS", "all"),
-            retries=parameters.get("KAFKA_RETRIES", 3),
-            linger_ms=parameters.get("KAFKA_LINGER_MS", 0),
-        )
+        security_protocol = str(parameters.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")).upper()
+
+        if security_protocol not in {"PLAINTEXT", "SASL_PLAINTEXT"}:
+            raise ValueError("Invalid KAFKA_SECURITY_PROTOCOL. Only 'PLAINTEXT' and 'SASL_PLAINTEXT' are supported.")
+
+        producer_config = {
+            "bootstrap_servers": parameters["KAFKA_BOOTSTRAP_SERVERS"],
+            "client_id": parameters.get("KAFKA_CLIENT_ID", "worker-kafka-publisher"),
+            "key_serializer": lambda key: key.encode("utf-8"),
+            "value_serializer": lambda value: json.dumps(value).encode("utf-8"),
+            "acks": parameters.get("KAFKA_ACKS", "all"),
+            "retries": int(parameters.get("KAFKA_RETRIES", 3)),
+            "security_protocol": security_protocol,
+        }
+
+        if security_protocol == "SASL_PLAINTEXT":
+            missing = [
+                parameter
+                for parameter in (
+                    "KAFKA_SASL_MECHANISM",
+                    "KAFKA_SASL_USERNAME",
+                    "KAFKA_SASL_PASSWORD",
+                )
+                if not parameters.get(parameter)
+            ]
+
+            if missing:
+                raise ValueError(f"KAFKA_SECURITY_PROTOCOL is 'SASL_PLAINTEXT', but these parameters are missing: {', '.join(missing)}")
+
+            producer_config.update(
+                {
+                    "sasl_mechanism": parameters["KAFKA_SASL_MECHANISM"],
+                    "sasl_plain_username": parameters["KAFKA_SASL_USERNAME"],
+                    "sasl_plain_password": parameters["KAFKA_SASL_PASSWORD"],
+                }
+            )
+
+        return KafkaProducer(**producer_config)
 
     @staticmethod
     def _create_message(
