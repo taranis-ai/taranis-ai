@@ -28,7 +28,7 @@ class SummaryBot(BaseBot):
             logger.debug(f"Summarizing {story['id']} with {len(news_items)} news items")
             try:
                 summary = self.predict_summary(summary_api, story_payload)
-                if len(news_items) == 1:
+                if len(news_items) > 1:
                     title = ""
                 else:
                     title = self.predict_title(title_api, story_payload)
@@ -40,11 +40,13 @@ class SummaryBot(BaseBot):
                     story_update_data["title"] = title
 
                 if story_update_data:
-                    self.core_api.update_story(story["id"], story_update_data)
-                self.core_api.update_story_attributes(
-                    story["id"],
-                    [{"key": self.type, "value": 1 if summary or title else 0}],
-                )
+                    if self.core_api.update_story(story["id"], story_update_data):
+                        self.core_api.update_story_attributes(
+                            story["id"],
+                            [{"key": self.type, "value": 1}],
+                        )
+                    else:
+                        logger.warning(f"Failed to update story {story['id']}, skipping attribute update")
             except Exception:
                 logger.exception(f"Could not generate summary for {story['id']}")
                 continue
