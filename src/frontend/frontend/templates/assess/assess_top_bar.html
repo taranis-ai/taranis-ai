@@ -21,7 +21,7 @@
             :aria-hidden="(selectedItems.length !== 1).toString()">Select one more to cluster</span>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess">
+      <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess" hx-swap="outerHTML">
         <button type="button"
                 class="btn btn-outline btn-sm"
                 x-show="selectedItems.length === 1"
@@ -83,6 +83,7 @@
                       class="btn btn-outline btn-sm"
                       hx-trigger="click, keyup[shiftKey && code == 'Space'] from:body"
                       hx-post="{{ url_for('assess.bulk_action') }}"
+                      hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"
                       :hx-vals='action_vals("read", !selectedItemsAreRead())'>
                 {{ heroicon_mini("eye") }}
                 <span class="text-sm" x-text="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"></span>
@@ -95,6 +96,7 @@
                       class="btn btn-outline btn-sm"
                       hx-trigger="click, keyup[shiftKey && key == 'I'] from:body"
                       hx-post="{{ url_for('assess.bulk_action') }}"
+                      hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"
                       :hx-vals='action_vals("important", !selectedItemsAreImportant())'>
                 {{ heroicon_mini("star") }}
                 <span class="text-sm" x-text="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"></span>
