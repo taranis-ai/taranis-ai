@@ -1,6 +1,7 @@
 from worker.publishers.base_publisher import BasePublisher
 from worker.publishers.email_publisher import EMAILPublisher
 from worker.publishers.ftp_publisher import FTPPublisher
+from worker.publishers.kafka_publisher import KafkaPublisher
 from worker.publishers.misp_publisher import MISPPublisher
 from worker.publishers.s3_publisher import S3Publisher
 from worker.publishers.sftp_publisher import SFTPPublisher
@@ -16,5 +17,6 @@ __all__ = [
     "FTPPublisher",
     "SFTPPublisher",
     "S3Publisher",
+    "KafkaPublisher",
     "TAXIIPublisher",
 ]
