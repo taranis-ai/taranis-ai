@@ -111,18 +111,50 @@ class TestStoryFilters(BaseTest):
 
     def test_filter_lists_include_untyped_tags(self, app, client, auth_header, story_filter_data):
         from core.managers.db_manager import db
-        from core.model.news_item_tag import NewsItemTag
+        from core.model.news_item_tag import NewsItemTag, NewsItemTagCluster
 
         with app.app_context():
             tag = NewsItemTag.find_by_name(story_filter_data["tags"]["alpha"])
             assert tag is not None
+            summary_keys = {(tag.name, NewsItemTag.summary_tag_type_key(tag.tag_type)), (tag.name, "")}
             tag.tag_type = None
+            db.session.flush()
+            NewsItemTagCluster.refresh_for_keys(summary_keys)
             db.session.commit()
 
         response = client.get(self.concat_url("filter-lists"), headers=auth_header)
         payload = self.assert_json_ok(response).get_json()
 
         assert story_filter_data["tags"]["alpha"] in payload["tags"]
+
+    def test_filter_lists_use_tag_summaries_for_names(self, app, client, auth_header, story_filter_data):
+        from core.managers.db_manager import db
+        from core.model.news_item_tag import NewsItemTag, NewsItemTagCluster
+        from core.model.story import Story
+
+        with app.app_context():
+            grouped_plain = Story.get(story_filter_data["stories"]["grouped_plain"])
+            source_only = Story.get(story_filter_data["stories"]["source_only"])
+            assert grouped_plain is not None
+            assert source_only is not None
+
+            grouped_plain.news_items[0].set_tags([{"name": story_filter_data["tags"]["alpha"], "tag_type": "misc"}], replace=False)
+            source_only.news_items[0].set_tags([{"name": "filter-report-only", "tag_type": "report_auto"}], replace=False)
+
+            tag = NewsItemTag.find_by_name(story_filter_data["tags"]["alpha"])
+            assert tag is not None
+            summary_keys = {(tag.name, NewsItemTag.summary_tag_type_key(tag.tag_type)), (tag.name, "")}
+            tag.tag_type = None
+            db.session.flush()
+            NewsItemTagCluster.refresh_for_keys(summary_keys)
+            db.session.commit()
+
+        response = client.get(self.concat_url("filter-lists"), headers=auth_header)
+        payload = self.assert_json_ok(response).get_json()
+
+        assert payload["tags"].count(story_filter_data["tags"]["alpha"]) == 1
+        assert story_filter_data["tags"]["alpha"] in payload["tags"]
+        assert "filter-report-only" not in payload["tags"]
 
     def test_filter_lists_reflect_language_changes_immediately(self, app, client, auth_header, story_filter_data):
         from core.managers.db_manager import db
@@ -168,4 +200,3 @@ class TestStoryFilters(BaseTest):
                 assert source_only is not None
                 source_only.news_items[0].language = original_language
                 db.session.commit()
-

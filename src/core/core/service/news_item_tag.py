@@ -7,7 +7,7 @@ from core.log import logger
 from core.managers.db_manager import db
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
-from core.model.news_item_tag import NewsItemTag
+from core.model.news_item_tag import NewsItemTag, NewsItemTagCluster
 from core.model.story import Story
 
 
@@ -74,24 +74,37 @@ class NewsItemTagService:
     @classmethod
     def get_tag_types(cls) -> list[str]:
         items = db.session.execute(
-            db.select(NewsItemTag.tag_type)
-            .join(NewsItemTag.news_item)
-            .group_by(NewsItemTag.tag_type)
-            .order_by(func.count(func.distinct(NewsItem.story_id)).desc())
+            db.select(NewsItemTagCluster.tag_type)
+            .group_by(NewsItemTagCluster.tag_type, NewsItemTagCluster.tag_type_key)
+            .order_by(func.sum(NewsItemTagCluster.story_count).desc())
         ).all()
         return [row[0] for row in items] if items else []
 
     @classmethod
     def get_largest_tag_types(cls, days: int) -> dict:
-        tag_types = cls.get_tag_types()
+        start_date = datetime.now() - timedelta(days=days) if days > 0 else None
+        stmt = db.select(
+            NewsItemTagCluster.tag_type,
+            NewsItemTagCluster.tag_type_key,
+            NewsItemTagCluster.name,
+            NewsItemTagCluster.story_count,
+        )
+        if start_date:
+            stmt = stmt.where(NewsItemTagCluster.last_story_created >= start_date)
+
+        stmt = stmt.order_by(NewsItemTagCluster.tag_type_key, NewsItemTagCluster.story_count.desc())
+
         largest_tag_types = {}
-        for tag_type in tag_types:
-            if tags := cls.get_n_biggest_tags_by_type(tag_type, 5, days=days):
-                cluster_size = sum(tag["size"] for tag in tags)
-                largest_tag_types[tag_type] = {"size": cluster_size, "tags": tags, "name": tag_type}
+        for tag_type, tag_type_key, tag_name, story_count in db.session.execute(stmt).all():
+            cluster = largest_tag_types.setdefault(tag_type_key, {"size": 0, "tags": [], "name": tag_type})
+            if len(cluster["tags"]) >= 5:
+                continue
+            tag = {"name": tag_name, "size": story_count}
+            cluster["tags"].append(tag)
+            cluster["size"] += story_count
 
         logger.debug(f"Found {len(largest_tag_types)} tag clusters")
-        return largest_tag_types
+        return dict(sorted(largest_tag_types.items(), key=lambda item: item[1]["size"], reverse=True))
 
     @staticmethod
     def set_found_bot_tags(found_tags: dict[str, Any], *, actor: str | None = None):
@@ -128,5 +141,7 @@ class NewsItemTagService:
     @classmethod
     def delete_tags_by_name(cls, tag_name: str):
         # TODO: Record StoryRevision entries for affected stories before bulk tag deletion.
+        tag_keys = NewsItemTag.get_summary_keys_for_name(tag_name)
         db.session.execute(db.delete(NewsItemTag).where(NewsItemTag.name == tag_name))
+        NewsItemTagCluster.refresh_for_keys(tag_keys)
         db.session.commit()
