@@ -4,7 +4,7 @@ from worker.core_api import CoreApi
 from worker.log import logger
 
 
-def update_wordlist(word_list_id: int):
+def update_wordlist(word_list_id: str):
     core_api = CoreApi()
 
     if not word_list_id:
