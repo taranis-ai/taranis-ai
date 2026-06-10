@@ -23,10 +23,10 @@
 <script type="text/javascript">
   if (typeof htmx !== 'undefined' && htmx.onLoad) {
     htmx.onLoad(function (elt) {
-      initChoices('user-role-select', 'roles');
+      initChoices('user-role-select');
     });
   } else {
-    initChoices('user-role-select', 'roles');
+    initChoices('user-role-select');
   }
 
   function generatePassword(
@@ -105,7 +105,13 @@
     </div>
 
     <div class="mb-5 w-3/4">
-      <select name="roles[]" multiple required id="user-role-select">
+      <select name="roles[]"
+              multiple
+              required
+              id="user-role-select"
+              data-choices-placeholder-value="{{ _('Select roles') }}"
+              data-choices-no-results-text="{{ _('No roles found') }}"
+              data-choices-no-choices-text="{{ _('No roles to choose from') }}">
         {% for role in roles %}
           <option value="{{ role.id }}" {% if role.id | string in user_role_ids %}selected{% endif %}>
             {{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}

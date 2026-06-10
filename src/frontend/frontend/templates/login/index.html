@@ -17,7 +17,7 @@
     {% endblock head %}
   </head>
 
-  <body>
+  <body data-confirm-ok="{{ _('OK') }}" data-confirm-delete="{{ _('Delete') }}" data-confirm-cancel="{{ _('Cancel') }}">
     {% include "partials/viewport_notice.html" %}
     <main class="min-h-screen flex flex-col" style="padding-top: var(--viewport-warning-height);">
       {% include "notification/index.html" %}

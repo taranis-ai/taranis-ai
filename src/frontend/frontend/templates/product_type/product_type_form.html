@@ -4,10 +4,10 @@
 <script type="text/javascript">
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    initChoices('report_types-select', 'report types');
+    initChoices('report_types-select');
   });
 } else {
-  initChoices('report_types-select', 'report types');
+  initChoices('report_types-select');
 }
 </script>
 
@@ -21,7 +21,14 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
     {{ form_input('Description', 'description', product_type.description, form_error.description, required=false, width="w-3/4") }}
 
     <div class="w-3/4 mb-5">
-      <select name="report_types[]" multiple required type="number" id="report_types-select">
+      <select name="report_types[]"
+              multiple
+              required
+              type="number"
+              id="report_types-select"
+              data-choices-placeholder-value="{{ _('Select report types') }}"
+              data-choices-no-results-text="{{ _('No report types found') }}"
+              data-choices-no-choices-text="{{ _('No report types to choose from') }}">
         {% for report_type in report_types %}
           <option value="{{ report_type.id }}" {% if report_type.id in product_type.report_types %}selected{% endif %}>{{ report_type.title }}</option>
         {% endfor %}

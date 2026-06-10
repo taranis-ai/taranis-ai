@@ -108,7 +108,9 @@
                 multiple
                 data-choice-type="story"
                 data-choice-placeholder="{{ label }}"
-                data-choice-item-text="Add Story">
+                data-choice-item-text="{{ _('Add Story') }}"
+                data-choices-no-results-text="{{ _('No stories found') }}"
+                data-choices-no-choices-text="{{ _('No stories to choose from') }}">
           {% for story in story_choices %}
             <option value="{{ story.id }}" {% if story.id in selected_values %}selected{% endif %}>{{ story.title or story.id }}</option>
           {% endfor %}

@@ -35,6 +35,7 @@ def test_authenticated_user_profile_language_selects_german(app, test_cache_back
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'lang="de"' in html
+    assert 'data-confirm-cancel="Abbrechen"' in html
     assert "Änderungen speichern" in html
     assert "Benutzereinstellungen" in html
 
@@ -55,6 +56,7 @@ def test_anonymous_login_page_uses_accept_language(app):
         html = render_login_page()
 
     assert 'lang="de"' in html
+    assert 'data-confirm-cancel="Abbrechen"' in html
     assert "Benutzername" in html
     assert "Anmelden" in html
 

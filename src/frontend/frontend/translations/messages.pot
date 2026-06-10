@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-10 12:22+0200\n"
+"POT-Creation-Date: 2026-06-10 15:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: frontend/i18n.py:54
+#: frontend/i18n.py:66
 msgid "English"
 msgstr ""
 
-#: frontend/i18n.py:55
+#: frontend/i18n.py:67
 msgid "German"
 msgstr ""
 
@@ -29,11 +29,59 @@ msgstr ""
 msgid "Taranis AI - Open-Source Intelligence leveraging AI"
 msgstr ""
 
+#: frontend/templates/base.html:22 frontend/templates/login/index.html:20
+msgid "OK"
+msgstr ""
+
+#: frontend/templates/base.html:23 frontend/templates/login/index.html:21
+msgid "Delete"
+msgstr ""
+
+#: frontend/templates/base.html:24 frontend/templates/login/index.html:22
+msgid "Cancel"
+msgstr ""
+
+#: frontend/templates/analyze/attribute_macros.html:111
+msgid "Add Story"
+msgstr ""
+
+#: frontend/templates/analyze/attribute_macros.html:112
+msgid "No stories found"
+msgstr ""
+
+#: frontend/templates/analyze/attribute_macros.html:113
+msgid "No stories to choose from"
+msgstr ""
+
+#: frontend/templates/attribute/attribute_form.html:52
+msgid "Select attributes"
+msgstr ""
+
+#: frontend/templates/attribute/attribute_form.html:53
+msgid "No attributes found"
+msgstr ""
+
+#: frontend/templates/attribute/attribute_form.html:54
+msgid "No attributes to choose from"
+msgstr ""
+
+#: frontend/templates/dashboard/edit.html:34
+msgid "Select tags"
+msgstr ""
+
+#: frontend/templates/dashboard/edit.html:35
+msgid "No tags found"
+msgstr ""
+
+#: frontend/templates/dashboard/edit.html:36
+msgid "No tags to choose from"
+msgstr ""
+
 #: frontend/templates/login/index.html:6
 msgid "Taranis AI - Your AI-powered assistant platform."
 msgstr ""
 
-#: frontend/templates/login/index.html:28
+#: frontend/templates/login/index.html:30
 msgid "Error contacting Core API"
 msgstr ""
 
@@ -114,6 +162,30 @@ msgstr ""
 
 #: frontend/templates/partials/viewport_notice.html:5
 msgid "Resolutions below WXGA+ are not supported"
+msgstr ""
+
+#: frontend/templates/product_type/product_type_form.html:29
+msgid "Select report types"
+msgstr ""
+
+#: frontend/templates/product_type/product_type_form.html:30
+msgid "No report types found"
+msgstr ""
+
+#: frontend/templates/product_type/product_type_form.html:31
+msgid "No report types to choose from"
+msgstr ""
+
+#: frontend/templates/user/user_form.html:112
+msgid "Select roles"
+msgstr ""
+
+#: frontend/templates/user/user_form.html:113
+msgid "No roles found"
+msgstr ""
+
+#: frontend/templates/user/user_form.html:114
+msgid "No roles to choose from"
 msgstr ""
 
 #: frontend/templates/user_profile/hotkey_kbd.html:7
@@ -311,7 +383,7 @@ msgid "tracks progress on making them configurable."
 msgstr ""
 
 #: frontend/views/auth_views.py:43 frontend/views/auth_views.py:47
-#: frontend/views/auth_views.py:93
+#: frontend/views/auth_views.py:95
 msgid "Login failed, no response from server"
 msgstr ""
 
@@ -323,12 +395,12 @@ msgstr ""
 msgid "Missing required authentication headers - contact your admin"
 msgstr ""
 
-#: frontend/views/auth_views.py:79
+#: frontend/views/auth_views.py:80
 #, python-format
 msgid "API is not reachable - %(url)s"
 msgstr ""
 
-#: frontend/views/auth_views.py:86
+#: frontend/views/auth_views.py:88
 msgid "Username and password are required"
 msgstr ""
 

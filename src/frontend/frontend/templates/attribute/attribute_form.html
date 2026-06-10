@@ -5,10 +5,10 @@
 
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    initChoices('attribute_enum-input', 'attributes');
+    initChoices('attribute_enum-input');
   });
 } else {
-    initChoices('attribute_enum-input', 'attributes');
+    initChoices('attribute_enum-input');
 }
 </script>
 
@@ -44,7 +44,14 @@ if (typeof htmx !== 'undefined' && htmx.onLoad) {
           <span>Warning: Creating Attribute Enums is not yet supported</span>
         </div>
 
-        <input disabled type="text" id="attribute_enum-input" name="attribute_enums[]" value="{{ attribute.attribute_enum }}" />
+        <input disabled
+               type="text"
+               id="attribute_enum-input"
+               name="attribute_enums[]"
+               value="{{ attribute.attribute_enum }}"
+               data-choices-placeholder-value="{{ _('Select attributes') }}"
+               data-choices-no-results-text="{{ _('No attributes found') }}"
+               data-choices-no-choices-text="{{ _('No attributes to choose from') }}" />
       </div>
     </div>
 

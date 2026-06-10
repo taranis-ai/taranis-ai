@@ -19,6 +19,9 @@
   </head>
 
   <body class="flex bg-base-300 min-h-screen"
+        data-confirm-ok="{{ _('OK') }}"
+        data-confirm-delete="{{ _('Delete') }}"
+        data-confirm-cancel="{{ _('Cancel') }}"
         hx-ext="response-targets"
         x-data="{ sidebarOpen: {{ 'true' if _show_sidebar else 'false' }}, init() { if (window.self !== window.top) this.sidebarOpen = false } }">
     {% include "partials/viewport_notice.html" %}
