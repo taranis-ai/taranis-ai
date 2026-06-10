@@ -7,11 +7,15 @@ from worker.tests.publishers.publishers_data import product_text
 
 
 class FakeKafkaProducer:
-    def __init__(self):
+    def __init__(self, *, produce_error=None, delivery_error=None):
         self.produce_calls = []
         self.flush_calls = []
+        self.produce_error = produce_error
+        self.delivery_error = delivery_error
 
-    def produce(self, topic, key=None, value=None):
+    def produce(self, topic, key=None, value=None, on_delivery=None):
+        if self.produce_error is not None:
+            raise self.produce_error
         self.produce_calls.append(
             {
                 "topic": topic,
@@ -19,9 +23,12 @@ class FakeKafkaProducer:
                 "value": value,
             }
         )
+        self.on_delivery = on_delivery
 
     def flush(self, timeout=None):
         self.flush_calls.append({"timeout": timeout})
+        if hasattr(self, "on_delivery") and self.on_delivery is not None:
+            self.on_delivery(self.delivery_error, object())
         return 0
 
 
@@ -129,3 +136,33 @@ def test_kafka_publisher_create_producer_uses_defaults_for_empty_optional_parame
     assert captured_config["security.protocol"] == "PLAINTEXT"
     assert captured_config["acks"] == "all"
     assert captured_config["retries"] == 3
+
+
+def test_kafka_publisher_publish_raises_on_produce_buffer_error(
+    kafka_publisher_testdata,
+    get_product_mock,
+):
+    producer = FakeKafkaProducer(produce_error=BufferError("queue full"))
+    publisher = KafkaPublisher(producer=producer)
+
+    with pytest.raises(RuntimeError, match="Failed to queue Kafka message"):
+        publisher.publish(
+            kafka_publisher_testdata,
+            product_text,
+            get_product_mock,
+        )
+
+
+def test_kafka_publisher_publish_raises_on_delivery_error(
+    kafka_publisher_testdata,
+    get_product_mock,
+):
+    producer = FakeKafkaProducer(delivery_error="broker unavailable")
+    publisher = KafkaPublisher(producer=producer)
+
+    with pytest.raises(RuntimeError, match="Kafka delivery failed"):
+        publisher.publish(
+            kafka_publisher_testdata,
+            product_text,
+            get_product_mock,
+        )

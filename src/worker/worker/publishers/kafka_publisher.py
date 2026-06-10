@@ -37,14 +37,25 @@ class KafkaPublisher(BasePublisher):
             rendered_product=rendered_product,
             object_name=key,
         )
+        delivery_result: dict[str, str | None] = {"error": None}
 
-        producer.produce(
-            topic=topic,
-            key=key.encode("utf-8"),
-            value=json.dumps(message).encode("utf-8"),
-        )
+        def on_delivery(err, msg):
+            if err is not None:
+                delivery_result["error"] = str(err)
+
+        try:
+            producer.produce(
+                topic=topic,
+                key=key.encode("utf-8"),
+                value=json.dumps(message).encode("utf-8"),
+                on_delivery=on_delivery,
+            )
+        except BufferError as exc:
+            raise RuntimeError(f"Failed to queue Kafka message for topic {topic}: {exc}") from exc
 
         producer.flush(timeout=float(parameters.get("KAFKA_SEND_TIMEOUT") or 30))
+        if delivery_result["error"] is not None:
+            raise RuntimeError(f"Kafka delivery failed for topic {topic}: {delivery_result['error']}")
 
         return {
             "status": "success",
