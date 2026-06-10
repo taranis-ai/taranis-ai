@@ -89,17 +89,17 @@ class ExportStories(MethodView):
 
 class SettingsView(MethodView):
     @staticmethod
-    def _updates_onboarding_tours(data) -> bool:
+    def _should_invalidate_user_profiles(data) -> bool:
         if not isinstance(data, dict):
             return False
-        if data.get("reset_onboarding_tours") in {True, "true", "1", "on"}:
+        if data.get("reset_onboarding_tours") == "true":
             return True
         settings_payload = data.get("settings")
         return isinstance(settings_payload, dict) and "onboarding_tours" in settings_payload
 
     @classmethod
     def _invalidate_settings_cache(cls, status: int, data) -> None:
-        user_profiles = ("*",) if cls._updates_onboarding_tours(data) else ()
+        user_profiles = ("*",) if cls._should_invalidate_user_profiles(data) else ()
         invalidate_frontend_cache_on_success(status, models=("settings",), user_profiles=user_profiles)
 
     @auth_required("ADMIN_OPERATIONS")

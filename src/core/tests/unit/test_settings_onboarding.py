@@ -55,7 +55,7 @@ def test_settings_update_can_reset_onboarding_tours_without_settings_payload(app
         )
         session.flush()
 
-        response, status = Settings.update({"reset_onboarding_tours": True})
+        response, status = Settings.update({"reset_onboarding_tours": "true"})
 
         assert status == 200
         assert response["settings"]["default_collector_proxy"] == "http://proxy.test"

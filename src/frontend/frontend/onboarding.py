@@ -123,7 +123,7 @@ def clear_admin_onboarding_session() -> None:
 
 
 def update_admin_onboarding_session_from_settings_payload(payload: dict[str, Any] | None, *, continue_onboarding: bool = False) -> None:
-    reset_requested = isinstance(payload, dict) and payload.get("reset_onboarding_tours") in {True, "true", "1", "on"}
+    reset_requested = isinstance(payload, dict) and payload.get("reset_onboarding_tours") == "true"
     if reset_requested:
         _store_admin_onboarding_context(_base_admin_onboarding_context())
         return

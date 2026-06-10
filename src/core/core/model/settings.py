@@ -36,7 +36,7 @@ class Settings(BaseModel):
         return merged
 
     @classmethod
-    def _merge_onboarding_tours(cls, current: Any, delta: Any, reset: bool) -> dict[str, Any]:
+    def _merge_onboarding_tours(cls, current: object, delta: object, reset: bool) -> dict[str, Any]:
         if reset:
             return {}
 
@@ -55,15 +55,12 @@ class Settings(BaseModel):
             logger.debug("No Settings entry found")
             return {"error": "Error updating settings"}, 404
 
-        raw_update_data = data.get("settings")
-        if raw_update_data is None:
-            update_data = {}
-        elif not isinstance(raw_update_data, dict):
+        raw_update_data = data.get("settings", {})
+        if not isinstance(raw_update_data, Mapping):
             return {"error": "settings must be a JSON object"}, 400
-        else:
-            update_data = dict(raw_update_data)
+        update_data = dict(raw_update_data)
 
-        reset_onboarding_tours = data.get("reset_onboarding_tours") in {True, "true", "1", "on"}
+        reset_onboarding_tours = data.get("reset_onboarding_tours") == "true"
         if update_data or reset_onboarding_tours:
             logger.debug(f"Settings update data: {update_data}")
             logger.debug(f"Settings before update: {settings.settings}")

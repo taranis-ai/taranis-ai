@@ -124,7 +124,7 @@ def test_settings_reset_onboarding_tours_patches_core(app, monkeypatch):
         assert session[ADMIN_ONBOARDING_SESSION_KEY]["advanced_completed"] is False
 
     assert status == 200
-    assert calls == [("/settings/settings", {"reset_onboarding_tours": True})]
+    assert calls == [("/settings/settings", {"reset_onboarding_tours": "true"})]
     assert '<span id="notification-message">Successfully updated settings</span>' in body
 
 

@@ -81,7 +81,7 @@ class UserProfileView(BaseView):
     def store_form_data(cls, processed_data: dict[str, Any], object_id: str = "0"):
         try:
             if not processed_data:
-                return {"message": "Profile unchanged", "user_profile": cls._current_profile_data()}, None
+                return {"message": "Profile unchanged", "user_profile": cls._get_current_profile_data()}, None
             payload = cls._validated_profile_payload(processed_data)
             result = CoreApi().api_post(ProfileSettings._core_endpoint, json_data=payload)
             return (result.json(), None) if result.ok else (None, result.json())
@@ -96,11 +96,11 @@ class UserProfileView(BaseView):
 
     @classmethod
     def _validated_profile_payload(cls, updates: dict[str, Any]) -> dict[str, Any]:
-        validated = ProfileSettings(**cls._merged_profile_data(updates)).model_dump(mode="json")
+        validated = ProfileSettings(**cls._get_merged_profile_data(updates)).model_dump(mode="json")
         return {key: validated[key] for key in updates}
 
     @classmethod
-    def _current_profile_data(cls) -> dict[str, Any]:
+    def _get_current_profile_data(cls) -> dict[str, Any]:
         profile = getattr(current_user, "profile", None)
         if hasattr(profile, "model_dump"):
             return profile.model_dump(mode="json")
@@ -109,15 +109,14 @@ class UserProfileView(BaseView):
         return {}
 
     @classmethod
-    def _merged_profile_data(cls, updates: dict[str, Any]) -> dict[str, Any]:
-        merged = cls._current_profile_data()
-        for key, value in updates.items():
-            if isinstance(value, dict) and isinstance(merged.get(key), dict):
-                merged[key] = {**merged[key], **value}
-            else:
-                merged[key] = value
-
-        return merged
+    def _get_merged_profile_data(cls, updates: dict[str, Any]) -> dict[str, Any]:
+        current_profile = cls._get_current_profile_data()
+        merged_updates = dict(updates)
+        onboarding_updates = updates.get("onboarding_tasks")
+        current_onboarding_tasks = current_profile.get("onboarding_tasks")
+        if isinstance(onboarding_updates, dict) and isinstance(current_onboarding_tasks, dict):
+            merged_updates["onboarding_tasks"] = {**current_onboarding_tasks, **onboarding_updates}
+        return {**current_profile, **merged_updates}
 
     def get(self, **kwargs) -> tuple[str, int]:
         return render_template("user_profile/profile.html", user=current_user), 200

@@ -56,7 +56,7 @@ class SettingsView(AdminMixin, BaseView):
             payload = parse_formdata(request.form) if request.form else None
             continue_onboarding = False
             if isinstance(payload, dict):
-                continue_onboarding = payload.pop("continue_admin_onboarding", False) in {True, "true", "1", "on"}
+                continue_onboarding = payload.pop("continue_admin_onboarding", False) == "true"
             response = CoreApi().api_patch(action_url, json_data=payload)
             if response.ok and action_url == "/settings/settings":
                 update_admin_onboarding_session_from_settings_payload(payload, continue_onboarding=continue_onboarding)
@@ -79,7 +79,7 @@ class SettingsView(AdminMixin, BaseView):
 
     @classmethod
     def reset_onboarding_tours(cls):
-        response = CoreApi().api_patch("/settings/settings", json_data={"reset_onboarding_tours": True})
+        response = CoreApi().api_patch("/settings/settings", json_data={"reset_onboarding_tours": "true"})
         if response.ok:
             reset_admin_onboarding_session()
         notification = cls.get_notification_from_response(response)
