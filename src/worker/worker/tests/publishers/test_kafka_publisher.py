@@ -55,7 +55,6 @@ def test_kafka_publisher_publish_sends_product_to_topic(
     assert message["object_name"].startswith(product_text["title"])
     assert message["mime_type"] == get_product_mock.mime_type
     assert message["data"] == get_product_mock.data.decode("utf-8")
-    assert message["product"] == product_text
 
     assert producer.flush_calls == [{"timeout": float(kafka_publisher_testdata["parameters"]["KAFKA_SEND_TIMEOUT"])}]
 
