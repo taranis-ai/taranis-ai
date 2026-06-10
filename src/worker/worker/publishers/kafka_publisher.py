@@ -44,7 +44,7 @@ class KafkaPublisher(BasePublisher):
             value=json.dumps(message).encode("utf-8"),
         )
 
-        producer.flush(timeout=float(parameters.get("KAFKA_SEND_TIMEOUT", 30)))
+        producer.flush(timeout=float(parameters.get("KAFKA_SEND_TIMEOUT") or 30))
 
         return {
             "status": "success",
@@ -55,7 +55,7 @@ class KafkaPublisher(BasePublisher):
 
     @staticmethod
     def _create_producer(parameters: dict[str, Any]) -> Producer:
-        security_protocol = str(parameters.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")).upper()
+        security_protocol = str(parameters.get("KAFKA_SECURITY_PROTOCOL") or "PLAINTEXT").upper()
 
         if security_protocol not in {"PLAINTEXT", "SASL_PLAINTEXT"}:
             raise ValueError("Invalid KAFKA_SECURITY_PROTOCOL. Only 'PLAINTEXT' and 'SASL_PLAINTEXT' are supported.")
@@ -63,8 +63,8 @@ class KafkaPublisher(BasePublisher):
         producer_config = {
             "bootstrap.servers": parameters["KAFKA_BOOTSTRAP_SERVERS"],
             "client.id": "taranis-kafka-publisher",
-            "acks": parameters.get("KAFKA_ACKS", "all"),
-            "retries": int(parameters.get("KAFKA_RETRIES", 3)),
+            "acks": parameters.get("KAFKA_ACKS") or "all",
+            "retries": int(parameters.get("KAFKA_RETRIES") or 3),
             "security.protocol": security_protocol,
         }
 

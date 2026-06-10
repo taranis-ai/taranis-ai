@@ -103,3 +103,30 @@ def test_kafka_publisher_create_producer_sasl_requires_credentials():
 
     with pytest.raises(ValueError, match="parameters are missing"):
         KafkaPublisher._create_producer(parameters)
+
+
+def test_kafka_publisher_create_producer_uses_defaults_for_empty_optional_parameters(monkeypatch):
+    captured_config = {}
+
+    class FakeProducer:
+        def __init__(self, config):
+            captured_config.update(config)
+
+    monkeypatch.setattr(
+        "worker.publishers.kafka_publisher.Producer",
+        FakeProducer,
+    )
+
+    parameters = {
+        "KAFKA_BOOTSTRAP_SERVERS": "localhost:9092",
+        "KAFKA_TOPIC": "test-topic",
+        "KAFKA_SECURITY_PROTOCOL": "",
+        "KAFKA_ACKS": "",
+        "KAFKA_RETRIES": "",
+    }
+
+    KafkaPublisher._create_producer(parameters)
+
+    assert captured_config["security.protocol"] == "PLAINTEXT"
+    assert captured_config["acks"] == "all"
+    assert captured_config["retries"] == 3
