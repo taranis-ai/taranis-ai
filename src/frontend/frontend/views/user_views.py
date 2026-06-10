@@ -2,6 +2,7 @@ from typing import Any
 
 from flask import render_template, request
 from flask.typing import ResponseReturnValue
+from flask_babel import gettext
 from flask_jwt_extended import current_user
 from models.user import ProfileSettings, UserProfile
 from pydantic import ValidationError
@@ -10,6 +11,7 @@ from werkzeug.exceptions import HTTPException
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.i18n import get_supported_language_options
 from frontend.log import logger
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
@@ -28,10 +30,7 @@ class UserProfileView(BaseView):
     @classmethod
     @auth_required()
     def get_settings_view(cls):
-        LANGUAGE_OPTIONS = [
-            {"id": "en", "name": "English"},
-        ]
-        return render_template("user_profile/settings.html", user=current_user, language_options=LANGUAGE_OPTIONS)
+        return render_template("user_profile/settings.html", user=current_user, language_options=get_supported_language_options())
 
     @classmethod
     @auth_required()
@@ -48,7 +47,7 @@ class UserProfileView(BaseView):
             except Exception:
                 error_message = result.text
         if not error_message:
-            error_message = "Failed to change password."
+            error_message = gettext("Failed to change password.")
         logger.error(error_message)
         return (
             render_template("notification/index.html", notification={"message": error_message, "error": True}, oob=False),
@@ -58,9 +57,6 @@ class UserProfileView(BaseView):
     @classmethod
     @auth_required()
     def post_settings_view(cls):
-        LANGUAGE_OPTIONS = [
-            {"id": "en", "name": "English"},
-        ]
         core_response, error = cls.process_form_data("0")
         if not core_response or error:
             return render_template(
@@ -73,7 +69,10 @@ class UserProfileView(BaseView):
         logger.debug(f"Profile settings updated: {core_response}")
 
         return render_template(
-            "user_profile/settings.html", user=current_user, language_options=LANGUAGE_OPTIONS, notification=notification_response
+            "user_profile/settings.html",
+            user=current_user,
+            language_options=get_supported_language_options(),
+            notification=notification_response,
         ), 200
 
     @classmethod

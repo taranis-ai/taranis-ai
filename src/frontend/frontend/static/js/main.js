@@ -6,15 +6,19 @@ function getCSRFToken() {
 }
 
 function getConfirmOptions(el, question) {
+  const documentLabels = document.body?.dataset || {};
   const title = el.getAttribute("data-confirm-title") || question;
   const confirmButtonText = el.getAttribute("data-confirm-confirm") ||
-    (el.hasAttribute("hx-delete") ? "Delete" : "OK");
+    (el.hasAttribute("hx-delete")
+      ? documentLabels.confirmDelete
+      : documentLabels.confirmOk);
   return {
     title,
     text: title === question ? "" : question,
     icon: el.getAttribute("data-confirm-icon") || "question",
     confirmButtonText,
-    cancelButtonText: el.getAttribute("data-confirm-cancel") || "Cancel",
+    cancelButtonText: el.getAttribute("data-confirm-cancel") ||
+      documentLabels.confirmCancel,
   };
 }
 
@@ -194,10 +198,13 @@ document.body.addEventListener("htmx:responseError", function (evt) {
   replaceNotificationBarFromResponse(evt.detail.xhr?.responseText || "");
 });
 
-function initChoices(elementID, placeholder = "items", config = {}) {
+function initChoices(elementID, config = {}) {
   const select = document.getElementById(elementID);
   if (!select || select.classList.contains("choices__input")) {
     return;
+  }
+  if (!config || typeof config !== "object") {
+    config = {};
   }
 
   const classNames = {
@@ -216,9 +223,10 @@ function initChoices(elementID, placeholder = "items", config = {}) {
 
   const defaultConfig = {
     removeItemButton: true,
-    placeholderValue: "Select " + placeholder,
-    noResultsText: "No " + placeholder + " found",
-    noChoicesText: "No " + placeholder + " to choose from",
+    placeholderValue: select.dataset.choicesPlaceholderValue,
+    noResultsText: select.dataset.choicesNoResultsText,
+    noChoicesText: select.dataset.choicesNoChoicesText,
+    itemSelectText: select.dataset.choicesItemSelectText,
     classNames: classNames,
   };
 
