@@ -17,5 +17,6 @@ __all__ = [
     "FTPPublisher",
     "SFTPPublisher",
     "S3Publisher",
+    "KafkaPublisher",
     "TAXIIPublisher",
 ]
