@@ -83,7 +83,7 @@ def _reschedule_cleanup():
         logger.error(f"Failed to reschedule token cleanup: {e}")
 
 
-def gather_word_list(word_list_id: int):
+def gather_word_list(word_list_id: str):
     """Gather and update a word list.
 
     Args:

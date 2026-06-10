@@ -188,17 +188,17 @@ class CoreApi:
     def get_publisher(self, publisher_id: str) -> dict | None:
         return self.api_get(f"/worker/publishers/{publisher_id}")
 
-    def get_template(self, presenter: int) -> str | None:
-        url = f"{self.api_url}/worker/presenters/{presenter}"
+    def get_template(self, presenter_id: str) -> str | None:
+        url = f"{self.api_url}/worker/presenters/{presenter_id}"
         response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return response.text if response.ok else None
 
-    def get_word_list(self, word_list_id: int) -> dict | None:
+    def get_word_list(self, word_list_id: str) -> dict | None:
         return self.api_get(
             url=f"/worker/word-list/{word_list_id}",
         )
 
-    def update_word_list(self, word_list_id: int, content: str | dict | list, content_type: str) -> dict | None:
+    def update_word_list(self, word_list_id: str, content: str | dict | list, content_type: str) -> dict | None:
         """Update a word list with new content.
 
         Args:

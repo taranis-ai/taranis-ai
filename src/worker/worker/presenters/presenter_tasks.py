@@ -42,7 +42,7 @@ def presenter_task(product_id: str):
     worker_type = presenter.type
 
     # Get template if needed
-    type_id: int = int(product["type_id"])
+    type_id = str(product["type_id"])
     if "TEMPLATE_PATH" in product.get("parameters", {}):
         template = _get_template(core_api, type_id)
     else:
@@ -113,7 +113,7 @@ def _get_product(core_api: CoreApi, product_id: str) -> dict[str, Any]:
     return product
 
 
-def _get_template(core_api: CoreApi, presenter_id: int) -> str:
+def _get_template(core_api: CoreApi, presenter_id: str) -> str:
     """Fetch template from core API.
 
     Args:
