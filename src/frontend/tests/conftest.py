@@ -2,12 +2,19 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import cast
 
 import pytest
 from dotenv import load_dotenv
 from models.user import UserProfile
 
 from tests.core_requests import CoreRequestClient
+from tests.external_e2e import (
+    configure_external_frontend_environment,
+    external_auth_credentials,
+    external_core_api_url,
+    login_to_core,
+)
 from tests.support.cache_backend import InMemoryRedisClient
 
 
@@ -79,6 +86,8 @@ def _build_authenticated_client(app, access_token):
 def app():
     from frontend.__init__ import create_app
 
+    external_config = configure_external_frontend_environment()
+
     app = create_app(
         {
             "TESTING": True,
@@ -87,12 +96,22 @@ def app():
         }
     )
 
+    if external_config:
+        external_server_name, external_application_root, external_scheme = external_config
+        app.config.update(
+            {
+                "SERVER_NAME": external_server_name,
+                "APPLICATION_ROOT": external_application_root,
+                "PREFERRED_URL_SCHEME": external_scheme,
+            }
+        )
+
     yield app
 
 
 @pytest.fixture(scope="session")
 def auth_user():
-    debug_user = UserProfile(
+    return UserProfile(
         id="1",
         username="admin",
         name="Arthur Dent",
@@ -102,12 +121,10 @@ def auth_user():
         roles=[{"id": "1", "name": "Admin"}],
     )
 
-    yield debug_user
-
 
 @pytest.fixture(scope="session")
 def auth_user_basic():
-    basic_user = UserProfile(
+    return UserProfile(
         id="2",
         username="user",
         name="Ford Prefect",
@@ -117,48 +134,62 @@ def auth_user_basic():
         roles=[{"id": "2", "name": "User"}],
     )
 
-    yield basic_user
-
 
 @pytest.fixture(scope="session")
 def access_token(app, auth_user):
-    yield _create_access_token(app, auth_user)
+    return _create_access_token(app, auth_user)
+
+
+@pytest.fixture(scope="session")
+def core_request_access_token(app, auth_user):
+    if external_core_url := external_core_api_url():
+        username, password = external_auth_credentials()
+        token = login_to_core(external_core_url, username, password).json().get("access_token")
+        if not token:
+            raise RuntimeError("External core login response does not contain 'access_token'")
+        return token
+    return _create_access_token(app, auth_user)
 
 
 @pytest.fixture(scope="session")
 def access_token_basic(app, auth_user_basic):
-    yield _create_access_token(app, auth_user_basic)
+    return _create_access_token(app, auth_user_basic)
 
 
 @pytest.fixture(scope="session")
 def api_header():
-    return {"Authorization": f"Bearer {os.getenv('API_KEY')}", "Content-type": "application/json"}
+    api_key = os.getenv("TARANIS_E2E_EXTERNAL_API_KEY", "").strip() or os.getenv("API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("Missing API key for e2e tests")
+    return {"Authorization": f"Bearer {api_key}", "Content-type": "application/json"}
 
 
 @pytest.fixture(scope="session")
-def core_request_client(run_core, access_token):
-    return CoreRequestClient(base_url=run_core, access_token=access_token)
+def core_request_client(run_core, core_request_access_token):
+    return CoreRequestClient(base_url=run_core, access_token=core_request_access_token)
 
 
 @pytest.fixture
 def access_token_response(app, auth_user, run_core):
-    yield _build_access_token_response(app, auth_user)
+    return _build_access_token_response(app, auth_user)
 
 
 @pytest.fixture
 def access_token_response_basic(app, auth_user_basic, run_core):
-    yield _build_access_token_response(app, auth_user_basic)
+    return _build_access_token_response(app, auth_user_basic)
 
 
 @pytest.fixture
 def test_cache_backend(app):
+    from redis import Redis
+
     from frontend.cache import cache
 
     backend = InMemoryRedisClient()
     original_client = cache.client
     original_prefix = cache.key_prefix
     original_timeout = cache.default_timeout
-    cache.client = backend
+    cache.client = cast(Redis, backend)
     cache.key_prefix = app.config["CACHE_KEY_PREFIX"]
     cache.default_timeout = app.config["CACHE_DEFAULT_TIMEOUT"]
     try:
@@ -189,7 +220,7 @@ def authenticated_client_basic(app, access_token_basic, auth_user_basic, test_ca
 
 @pytest.fixture(scope="session")
 def client(app):
-    yield app.test_client()
+    return app.test_client()
 
 
 @pytest.fixture
@@ -274,7 +305,6 @@ def pytest_collection_modifyitems(config, items):
     }
 
     config.option.headed = True
-
     for option, (keyword, reason) in options.items():
         if config.getoption(option):
             if option == "--e2e-ci":

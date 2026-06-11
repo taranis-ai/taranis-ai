@@ -10,7 +10,7 @@ From `src/frontend` folder run:
 pytest --e2e-ci
 ```
 
-The E2E harness starts and stops a dedicated Core Docker Compose service automatically for the test session.
+The E2E harness starts and stops a dedicated Docker Compose test stack for the session.
 Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
 You only need Docker/Compose available locally.
 The same frontend-owned test root also contains the RQ/Redis integration E2E suite.
@@ -82,7 +82,7 @@ It takes two arguments:
 
 Script has variables to influence dest. subdirectories of respective pictures. Change as needed.
 
-## DB file for E2E
+## Database for E2E
 
-The Core service uses an internal SQLite file inside its container for each test session.
+The local Playwright E2E stack runs Core against an ephemeral SQLite database and Redis-backed worker services.
 No manual cleanup is required.
