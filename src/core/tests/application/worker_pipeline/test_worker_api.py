@@ -2,6 +2,7 @@ import importlib.util
 import sys
 import uuid
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -522,6 +523,84 @@ class TestWorkerTaskResults:
             response = client.post(self.base_uri, json=payload, headers=api_header)
             assert response.status_code == 200
             assert response.get_json()["job_id"] == task_id
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_gather_word_list_success_result_replays_with_canonical_result_data(self, client, api_header, app, monkeypatch):
+        from core.model.task import Task
+        from core.model.word_list import WordList
+
+        task_id = f"gather-word-list-{uuid.uuid4().hex}"
+        update_word_list = Mock(return_value=None)
+        monkeypatch.setattr(WordList, "update_word_list", update_word_list)
+
+        payload = {
+            "id": task_id,
+            "task": "gather_word_list",
+            "worker_id": "word-list-1",
+            "worker_type": "gather_word_list",
+            "result": {
+                "message": "Successfully updated wordlist",
+                "reason": None,
+                "retryable": False,
+                "data": {
+                    "word_list_id": "word-list-1",
+                    "content": "alpha,beta",
+                    "content_type": "text/csv",
+                },
+            },
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            update_word_list.assert_called_once_with(
+                word_list_id="word-list-1",
+                content="alpha,beta",
+                content_type="text/csv",
+            )
+            assert "message" not in response.get_json()["result"]["data"]
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_tasks_get_returns_strict_canonical_rows_only(self, client, api_header, app):
+        from core.model.task import Task
+
+        task_id = f"strict-task-{uuid.uuid4().hex}"
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "worker_id": "source-1",
+            "worker_type": "rss_collector",
+            "result": {
+                "message": "Collected 1 item",
+                "reason": None,
+                "retryable": False,
+                "data": {"source_id": "source-1"},
+            },
+            "status": "SUCCESS",
+        }
+
+        try:
+            create_response = client.post(self.base_uri, json=payload, headers=api_header)
+            assert create_response.status_code == 200
+
+            history_response = client.get(self.base_uri, headers=api_header)
+            assert history_response.status_code == 200
+
+            history = history_response.get_json()
+            task_row = next(item for item in history["items"] if item["job_id"] == task_id)
+            assert task_row["result"] == payload["result"]
+
+            detail_response = client.get(f"{self.base_uri}/{task_id}", headers=api_header)
+            assert detail_response.status_code == 200
+            assert detail_response.get_json()["result"] == payload["result"]
         finally:
             with app.app_context():
                 if Task.get(task_id):

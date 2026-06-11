@@ -98,6 +98,11 @@ def gather_word_list(word_list_id: str):
     result = update_wordlist(word_list_id)
     if job := get_current_job():
         core_api = CoreApi()
+        result_data = {
+            "word_list_id": word_list_id,
+            "content": result.get("content") if isinstance(result, dict) else None,
+            "content_type": result.get("content_type") if isinstance(result, dict) else None,
+        }
         core_api.save_task_result(
             job.id,
             "gather_word_list",
@@ -105,10 +110,10 @@ def gather_word_list(word_list_id: str):
             worker_id=word_list_id,
             worker_type="gather_word_list",
             result=build_success_task_result(
-                default_message=f"Word list {word_list_id} updated",
-                output=result,
-                base_data={"word_list_id": word_list_id},
-                none_message=f"Word list {word_list_id} updated without returning details",
+                default_message=str(result.get("message"))
+                if isinstance(result, dict) and result.get("message")
+                else f"Word list {word_list_id} updated",
+                data=result_data,
             ),
         )
     return result

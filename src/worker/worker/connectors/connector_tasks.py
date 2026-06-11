@@ -56,7 +56,23 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
         raise RuntimeError(f"Failed to get connector with id: {connector_id}") from e
 
     # Get connector data (stories)
-    connector_data = _get_connector_data(core_api, connector_id, connector_config, story_ids)
+    try:
+        connector_data = _get_connector_data(core_api, connector_id, connector_config, story_ids)
+    except Exception as e:
+        if job:
+            core_api.save_task_result(
+                job.id,
+                "connector_task",
+                "FAILURE",
+                worker_id=connector_id,
+                worker_type=connector_config.get("type", "connector_task"),
+                result=build_failure_task_result(
+                    str(e),
+                    reason="connector_data_load_failed",
+                    data={"connector_id": connector_id, "story_ids": story_ids},
+                ),
+            )
+        raise
 
     # Execute connector
     try:
