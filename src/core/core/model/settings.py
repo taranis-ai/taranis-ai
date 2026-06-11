@@ -27,7 +27,6 @@ class Settings(BaseModel):
     @classmethod
     def with_defaults(cls, settings: Mapping[str, Any] | None = None) -> dict[str, Any]:
         merged = dict(settings) if isinstance(settings, Mapping) else {}
-        merged.pop("onboarding_tours", None)
         merged.setdefault("default_collector_proxy", "")
         merged.setdefault("default_collector_interval", "0 */8 * * *")
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
@@ -49,7 +48,6 @@ class Settings(BaseModel):
         if not isinstance(raw_update_data, Mapping):
             return {"error": "settings must be a JSON object"}, 400
         update_data = dict(raw_update_data)
-        update_data.pop("onboarding_tours", None)
 
         if update_data:
             logger.debug(f"Settings update data: {update_data}")
