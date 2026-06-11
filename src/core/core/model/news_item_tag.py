@@ -90,7 +90,7 @@ class NewsItemTag(BaseModel):
     @classmethod
     def apply_sort(cls, query, sort_str: str):
         if sort_str == "size_desc":
-            return query.order_by(literal_column("size").desc(), literal_column("name").desc())
+            return query.order_by(literal_column("size").desc(), literal_column("name").asc())
         elif sort_str == "size_asc":
             return query.order_by(literal_column("size").asc(), literal_column("name").asc())
         elif sort_str == "name_asc":

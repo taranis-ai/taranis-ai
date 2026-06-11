@@ -1,5 +1,5 @@
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 
 def dismiss_notifications(
@@ -7,15 +7,26 @@ def dismiss_notifications(
     *,
     click_timeout_ms: int = 500,
     settle_timeout_ms: int = 100,
+    appear_timeout_ms: int = 1000,
     modal_timeout_ms: int = 5000,
 ) -> None:
     if page.is_closed():
         return
 
     alerts = page.locator("#notification-bar [role='alert']")
+    try:
+        alerts.first.wait_for(state="visible", timeout=appear_timeout_ms)
+    except PlaywrightTimeoutError:
+        pass
+
     while alerts.count():
         alert = alerts.first
-        previous_count = alerts.count()
+        try:
+            if not alert.is_visible():
+                break
+        except Exception:
+            break
+
         try:
             alert.click(timeout=click_timeout_ms)
         except Exception:
@@ -26,7 +37,7 @@ def dismiss_notifications(
         except Exception:
             page.wait_for_timeout(settle_timeout_ms)
             try:
-                if alerts.count() >= previous_count and alert.is_visible():
+                if alert.is_visible():
                     break
             except Exception:
                 break

@@ -517,6 +517,44 @@ class TestWordListConfigApi(BaseTest):
         assert test_word_list
         assert test_word_list["description"] == "Test wordlist."
         assert len(test_word_list["entries"]) == 17
+        exported_values = [entry["value"] for entry in test_word_list["entries"]]
+        assert exported_values == sorted(exported_values)
+
+    def test_export_word_lists_orders_word_lists_by_name(self, client, auth_header, app):
+        from core.model.word_list import WordList
+
+        first_word_list = {
+            "id": str(uuid.uuid7()),
+            "name": "Zulu Wordlist",
+            "description": "last",
+            "usage": ["TAGGING_BOT"],
+            "link": "",
+            "entries": [],
+        }
+        second_word_list = {
+            "id": str(uuid.uuid7()),
+            "name": "Alpha Wordlist",
+            "description": "first",
+            "usage": ["TAGGING_BOT"],
+            "link": "",
+            "entries": [],
+        }
+
+        with app.app_context():
+            WordList.add(first_word_list)
+            WordList.add(second_word_list)
+
+        try:
+            response = self.assert_get_ok(client, "export-word-lists", auth_header)
+            exported_word_lists = response.json["data"]
+            exported_names = [
+                word_list["name"] for word_list in exported_word_lists if word_list["name"] in {"Zulu Wordlist", "Alpha Wordlist"}
+            ]
+            assert exported_names == ["Alpha Wordlist", "Zulu Wordlist"]
+        finally:
+            with app.app_context():
+                WordList.delete(first_word_list["id"])
+                WordList.delete(second_word_list["id"])
 
     def test_create_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_post_ok(client, uri="word-lists", json_data=cleanup_word_lists, auth_header=auth_header)
