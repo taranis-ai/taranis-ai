@@ -394,6 +394,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(feed_url_input).to_have_attribute("required", "")
             feed_url_input.fill("http://example.com/feed")
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources_add.png")
+            dismiss_notifications(page)
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page.locator("#osint_source-form")).to_be_visible()
             expect(page.get_by_label("Name")).to_have_value(osint_source_name)

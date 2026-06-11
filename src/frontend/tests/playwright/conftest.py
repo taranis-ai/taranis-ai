@@ -92,9 +92,20 @@ def run_core(docker_services):
 
 @pytest.fixture(scope="session")
 def build_tailwindcss(app):
-    # build the tailwind css
+    def assets_need_rebuild() -> bool:
+        vendor_bundle = Path("frontend/static/vendor/vendor.bundle.js")
+        vendor_css = Path("frontend/static/vendor/vendor.bundle.css")
+        return (
+            os.getenv("TARANIS_E2E_TEST_TAILWIND_REBUILD") == "true"
+            or not os.path.isfile("frontend/static/css/tailwind.css")
+            or not vendor_bundle.is_file()
+            or "window.driver" not in vendor_bundle.read_text()
+            or not vendor_css.is_file()
+            or "driver-popover" not in vendor_css.read_text()
+        )
+
     try:
-        if os.getenv("TARANIS_E2E_TEST_TAILWIND_REBUILD") == "true" or not os.path.isfile("frontend/static/css/tailwind.css"):
+        if assets_need_rebuild():
             result = subprocess.call(["./build_tailwindcss.sh"])
             assert result == 0, f"Install failed with status code: {result}"
     except Exception as e:
