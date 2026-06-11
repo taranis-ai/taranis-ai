@@ -918,6 +918,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field*").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field*").fill("1")
+                dismiss_notifications(page)
                 page.get_by_test_id("save-report").click()
                 expect(page.get_by_test_id("save-report")).to_be_visible()
                 dismiss_notifications(page)
