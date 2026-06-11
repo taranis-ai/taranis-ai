@@ -172,13 +172,10 @@
         <h3 class="card-title text-2xl">Onboarding Tours</h3>
         <p class="text-sm text-base-content/70">Reset your completed onboarding tours and show them again.</p>
       </div>
-      <button type="button"
-              class="btn btn-outline"
-              hx-post="{{ url_for('user.reset_onboarding_tours') }}"
-              hx-target="#user-settings-page"
-              hx-select="#user-settings-page"
-              hx-swap="outerHTML"
-              data-testid="user-reset-onboarding-tours">Reset onboarding tours</button>
+      <form method="post" hx-post="{{ url_for('user.settings') }}" hx-target="#user-settings-page" hx-select="#user-settings-page" hx-swap="outerHTML">
+        <input type="hidden" name="reset_onboarding_tasks" value="true">
+        <button type="submit" class="btn btn-outline" data-testid="user-reset-onboarding-tours">Reset onboarding tours</button>
+      </form>
     </div>
   </div>
 </div>

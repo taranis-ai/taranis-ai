@@ -92,13 +92,14 @@ def test_user_onboarding_reset_posts_empty_profile_tasks(authenticated_client, r
         content_type="application/json",
     )
 
-    response = authenticated_client.post(url_for("user.reset_onboarding_tours"))
+    response = authenticated_client.post(url_for("user.update_settings"), data={"reset_onboarding_tasks": "true"})
 
     assert response.status_code == 200
     assert len(responses.calls) == 1
     request_body = json.loads(responses.calls[0].request.body)
     assert request_body == {"onboarding_tasks": {}}
     assert 'data-testid="user-reset-onboarding-tours"' in response.get_data(as_text=True)
+    assert '<span id="notification-message">Profile updated</span>' in response.get_data(as_text=True)
 
 
 def test_user_settings_update_preserves_onboarding_task_status(authenticated_client_basic, auth_user_basic, responses, monkeypatch):

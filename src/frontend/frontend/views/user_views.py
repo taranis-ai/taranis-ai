@@ -75,19 +75,6 @@ class UserProfileView(BaseView):
         ), 200
 
     @classmethod
-    @auth_required()
-    def reset_onboarding_tours(cls):
-        response = CoreApi().api_post(ProfileSettings._core_endpoint, json_data={"onboarding_tasks": {}})
-        notification = cls.get_notification_from_response(response)
-        user = update_current_user_cache() if response and response.ok else current_user
-        return render_template(
-            "user_profile/settings.html",
-            user=user or current_user,
-            language_options=cls.LANGUAGE_OPTIONS,
-            notification=notification,
-        ), 200 if response and response.ok else 400
-
-    @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: str = "0"):
         try:
             if not processed_data:
@@ -103,6 +90,12 @@ class UserProfileView(BaseView):
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)
+
+    @classmethod
+    def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:
+        if form_data.pop("reset_onboarding_tasks", None) == "true":
+            form_data["onboarding_tasks"] = {}
+        return form_data
 
     @classmethod
     def _validated_profile_payload(cls, updates: dict[str, Any]) -> dict[str, Any]:
@@ -124,7 +117,7 @@ class UserProfileView(BaseView):
         merged_updates = dict(updates)
         onboarding_updates = updates.get("onboarding_tasks")
         current_onboarding_tasks = current_profile.get("onboarding_tasks")
-        if isinstance(onboarding_updates, dict) and isinstance(current_onboarding_tasks, dict):
+        if isinstance(onboarding_updates, dict) and onboarding_updates and isinstance(current_onboarding_tasks, dict):
             merged_updates["onboarding_tasks"] = {**current_onboarding_tasks, **onboarding_updates}
         return {**current_profile, **merged_updates}
 
