@@ -3,7 +3,6 @@ from typing import Any
 from models.user import (
     ADMIN_ADVANCED_TOUR_ID,
     ADMIN_WELCOME_TOUR_ID,
-    ONBOARDING_COMPLETED_STATUS,
     USER_PRODUCT_OVERVIEW_TASK_ID,
 )
 
@@ -21,10 +20,6 @@ def _task_to_dict(task: Any) -> dict[str, str] | None:
     if isinstance(task_id, str) and isinstance(scope, str):
         return {"id": task_id, "scope": scope}
     return None
-
-
-def is_onboarding_tour_completed(onboarding_tasks: dict[str, str], tour_id: str) -> bool:
-    return onboarding_tasks.get(tour_id) == ONBOARDING_COMPLETED_STATUS
 
 
 def _sort_onboarding_tasks(tasks: list[dict[str, str]]) -> list[dict[str, str]]:

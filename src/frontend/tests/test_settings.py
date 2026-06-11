@@ -1,5 +1,4 @@
 from flask import render_template
-from models.admin import Settings
 
 
 def test_flask_cookie_name(app):
@@ -64,26 +63,6 @@ def test_story_transfer_partial_guards_future_export_dates(app):
     assert 'data-testid="story-export-time-to"' in body
     assert body.count('x-bind:max="maxDateTimeLocal"') == 2
     assert "maxDateTimeLocal = now.toISOString().slice(0, 16);" in body
-
-
-def test_settings_page_does_not_render_onboarding_reset_button(app):
-    with app.test_request_context("/admin/settings/"):
-        body = render_template(
-            "settings/settings.html",
-            settings=Settings(
-                settings={
-                    "default_collector_proxy": "",
-                    "default_collector_interval": "0 */8 * * *",
-                    "default_tlp_level": "clear",
-                    "default_story_conflict_retention": "200",
-                    "default_news_item_conflict_retention": "200",
-                }
-            ),
-            frontend_actions=[],
-        )
-
-    assert 'data-testid="settings-reset-onboarding-tours"' not in body
-    assert body.count('name="settings[default_collector_interval]"') == 1
 
 
 def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):

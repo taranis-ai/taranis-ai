@@ -73,23 +73,15 @@ function buildOnboardingFormData(task, status) {
   return formData;
 }
 
-function actionForTask(root) {
-  return root.dataset.profileAction;
-}
-
-function methodForTask() {
-  return "POST";
-}
-
 function saveOnboardingTask(root, task, status) {
-  const action = actionForTask(root);
+  const action = root.dataset.profileAction;
   if (!action) {
     return Promise.resolve();
   }
 
   const body = buildOnboardingFormData(task, status);
   return fetch(action, {
-    method: methodForTask(),
+    method: "POST",
     body,
     credentials: "same-origin",
     headers: {

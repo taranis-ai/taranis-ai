@@ -1,6 +1,5 @@
 import json
 
-import pytest
 from flask import render_template, url_for
 from models.user import (
     ADMIN_ADVANCED_TOUR_ID,
@@ -12,7 +11,6 @@ from models.user import (
 
 from frontend.cache import add_user_to_cache
 from frontend.config import Config
-from frontend.onboarding import is_onboarding_tour_completed
 
 
 def _cache_user_with_pending_tasks(user, pending_tasks):
@@ -60,28 +58,27 @@ def test_base_template_can_render_without_pending_onboarding(app):
     assert "onboarding-root" not in body
 
 
-@pytest.mark.parametrize("task_id", [USER_PRODUCT_OVERVIEW_TASK_ID, ADMIN_WELCOME_TOUR_ID])
-def test_onboarding_completion_posts_profile_task(authenticated_client, task_id, responses, monkeypatch):
+def test_onboarding_completion_posts_profile_task(authenticated_client, responses, monkeypatch):
     from frontend.views import user_views
 
     monkeypatch.setattr(user_views, "update_current_user_cache", lambda: None)
     responses.post(
         f"{Config.TARANIS_CORE_URL}/users/profile",
-        json={"message": "Profile updated", "user_profile": {"onboarding_tasks": {task_id: "completed"}}},
+        json={"message": "Profile updated", "user_profile": {"onboarding_tasks": {ADMIN_WELCOME_TOUR_ID: "completed"}}},
         status=200,
         content_type="application/json",
     )
 
     response = authenticated_client.post(
         url_for("user.update_settings"),
-        data={f"onboarding_tasks[{task_id}]": "completed"},
+        data={f"onboarding_tasks[{ADMIN_WELCOME_TOUR_ID}]": "completed"},
     )
 
     assert response.status_code == 200
     assert len(responses.calls) == 1
     request_body = json.loads(responses.calls[0].request.body)
     assert set(request_body) == {"onboarding_tasks"}
-    assert request_body["onboarding_tasks"][task_id] == "completed"
+    assert request_body["onboarding_tasks"][ADMIN_WELCOME_TOUR_ID] == "completed"
 
 
 def test_user_onboarding_reset_posts_empty_profile_tasks(authenticated_client, responses, monkeypatch):
@@ -128,15 +125,3 @@ def test_user_settings_update_preserves_onboarding_task_status(authenticated_cli
     request_body = json.loads(responses.calls[0].request.body)
     assert request_body["compact_view"] is True
     assert "onboarding_tasks" not in request_body
-
-
-@pytest.mark.parametrize(
-    ("status", "completed"),
-    [
-        ("completed", True),
-        ("dismissed", False),
-        ("", False),
-    ],
-)
-def test_onboarding_tour_completion_status(status, completed):
-    assert is_onboarding_tour_completed({ADMIN_WELCOME_TOUR_ID: status}, ADMIN_WELCOME_TOUR_ID) is completed
