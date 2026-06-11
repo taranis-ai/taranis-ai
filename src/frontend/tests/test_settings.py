@@ -1,7 +1,5 @@
-from flask import render_template, session, url_for
+from flask import render_template
 from models.admin import Settings
-
-from frontend.onboarding import ADMIN_ADVANCED_TOUR_ID, ADMIN_ONBOARDING_SESSION_KEY, ADMIN_WELCOME_TOUR_ID
 
 
 def test_flask_cookie_name(app):
@@ -68,7 +66,7 @@ def test_story_transfer_partial_guards_future_export_dates(app):
     assert "maxDateTimeLocal = now.toISOString().slice(0, 16);" in body
 
 
-def test_settings_page_renders_onboarding_reset_button(app):
+def test_settings_page_does_not_render_onboarding_reset_button(app):
     with app.test_request_context("/admin/settings/"):
         body = render_template(
             "settings/settings.html",
@@ -84,53 +82,8 @@ def test_settings_page_renders_onboarding_reset_button(app):
             frontend_actions=[],
         )
 
-    assert 'data-testid="settings-reset-onboarding-tours"' in body
-    assert f'hx-post="{url_for("admin_settings.reset_onboarding_tours")}"' in body
-    assert 'name="reset_onboarding_tours"' not in body
+    assert 'data-testid="settings-reset-onboarding-tours"' not in body
     assert body.count('name="settings[default_collector_interval]"') == 1
-
-
-def test_settings_reset_onboarding_tours_patches_core(app, monkeypatch):
-    from frontend.views.admin_views import settings_views
-
-    calls = []
-
-    class FakeResponse:
-        ok = True
-        content = b'{"message": "Successfully updated settings"}'
-        status_code = 200
-
-        @staticmethod
-        def json():
-            return {"message": "Successfully updated settings"}
-
-    class FakeCoreApi:
-        def api_patch(self, action_url, json_data=None):
-            calls.append((action_url, json_data))
-            return FakeResponse()
-
-    monkeypatch.setattr(settings_views, "CoreApi", FakeCoreApi)
-    monkeypatch.setattr(
-        settings_views.SettingsView,
-        "static_view",
-        classmethod(lambda cls: ('<div id="settings-container"></div>', 200)),
-    )
-
-    with app.test_request_context("/admin/settings/reset-onboarding-tours", method="POST"):
-        session[ADMIN_ONBOARDING_SESSION_KEY] = {
-            "welcome_tour_id": ADMIN_WELCOME_TOUR_ID,
-            "advanced_tour_id": ADMIN_ADVANCED_TOUR_ID,
-            "welcome_completed": True,
-            "advanced_completed": True,
-        }
-
-        body, status = settings_views.SettingsView.reset_onboarding_tours()
-        assert session[ADMIN_ONBOARDING_SESSION_KEY]["welcome_completed"] is False
-        assert session[ADMIN_ONBOARDING_SESSION_KEY]["advanced_completed"] is False
-
-    assert status == 200
-    assert calls == [("/settings/settings", {"reset_onboarding_tours": "true"})]
-    assert '<span id="notification-message">Successfully updated settings</span>' in body
 
 
 def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):

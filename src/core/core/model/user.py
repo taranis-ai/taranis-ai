@@ -8,6 +8,7 @@ from models.user import (
     ADMIN_ADVANCED_TOUR_ID,
     ADMIN_WELCOME_TOUR_ID,
     ONBOARDING_COMPLETED_STATUS,
+    ONBOARDING_DISMISSED_STATUS,
     ONBOARDING_SCOPE_GLOBAL,
     ONBOARDING_SCOPE_USER,
     USER_PRODUCT_OVERVIEW_TASK_ID,
@@ -82,8 +83,8 @@ class User(BaseModel):
         return self.to_user_profile().model_dump(mode="json")
 
     @staticmethod
-    def _is_onboarding_task_completed(status: Any) -> bool:
-        return status == ONBOARDING_COMPLETED_STATUS
+    def _is_onboarding_task_finished(status: Any) -> bool:
+        return status in {ONBOARDING_COMPLETED_STATUS, ONBOARDING_DISMISSED_STATUS}
 
     @staticmethod
     def _has_any_permission(permissions: Sequence[str], required_permissions: frozenset[str]) -> bool:
@@ -91,20 +92,14 @@ class User(BaseModel):
         return "ALL" in permission_set or bool(permission_set.intersection(required_permissions))
 
     @classmethod
-    def _pending_global_onboarding_tasks(cls, permissions: Sequence[str]) -> list[OnboardingTask]:
+    def _pending_global_onboarding_tasks(cls, profile: ProfileSettings, permissions: Sequence[str]) -> list[OnboardingTask]:
         if not cls._has_any_permission(permissions, frozenset({"ADMIN_OPERATIONS"})):
             return []
-
-        from core.model.settings import Settings
-
-        onboarding_tours = Settings.get_settings().get("onboarding_tours") or {}
-        if not isinstance(onboarding_tours, dict):
-            onboarding_tours = {}
 
         return [
             OnboardingTask(id=task_id, scope=ONBOARDING_SCOPE_GLOBAL)
             for task_id in ADMIN_ONBOARDING_TASK_IDS
-            if not cls._is_onboarding_task_completed(onboarding_tours.get(task_id))
+            if not cls._is_onboarding_task_finished(profile.onboarding_tasks.get(task_id))
         ]
 
     @classmethod
@@ -112,7 +107,7 @@ class User(BaseModel):
         if not cls._has_any_permission(permissions, USER_PRODUCT_OVERVIEW_PERMISSIONS):
             return []
 
-        if cls._is_onboarding_task_completed(profile.onboarding_tasks.get(USER_PRODUCT_OVERVIEW_TASK_ID)):
+        if cls._is_onboarding_task_finished(profile.onboarding_tasks.get(USER_PRODUCT_OVERVIEW_TASK_ID)):
             return []
 
         return [OnboardingTask(id=USER_PRODUCT_OVERVIEW_TASK_ID, scope=ONBOARDING_SCOPE_USER)]
@@ -120,7 +115,7 @@ class User(BaseModel):
     @classmethod
     def _pending_onboarding_tasks(cls, profile: ProfileSettings, permissions: Sequence[str]) -> list[OnboardingTask]:
         return [
-            *cls._pending_global_onboarding_tasks(permissions),
+            *cls._pending_global_onboarding_tasks(profile, permissions),
             *cls._pending_user_onboarding_tasks(profile, permissions),
         ]
 

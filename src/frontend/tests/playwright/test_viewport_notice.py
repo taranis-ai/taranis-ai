@@ -21,14 +21,12 @@ class TestViewportNotice(PlaywrightHelpers):
         return context, page
 
     def test_warning_bar_tracks_wxga_plus_threshold(self, browser: Browser, e2e_server, core_request_client):
-        response = core_request_client.put(
-            "/settings/settings",
+        response = core_request_client.post(
+            "/users/profile",
             json_data={
-                "settings": {
-                    "onboarding_tours": {
-                        ADMIN_WELCOME_TOUR_ID: ONBOARDING_COMPLETED_STATUS,
-                        ADMIN_ADVANCED_TOUR_ID: ONBOARDING_COMPLETED_STATUS,
-                    }
+                "onboarding_tasks": {
+                    ADMIN_WELCOME_TOUR_ID: ONBOARDING_COMPLETED_STATUS,
+                    ADMIN_ADVANCED_TOUR_ID: ONBOARDING_COMPLETED_STATUS,
                 }
             },
         )

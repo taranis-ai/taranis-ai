@@ -165,6 +165,24 @@
   </div>
 </form>
 
+<div class="card bg-base-100 shadow my-6">
+  <div class="card-body gap-4">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div>
+        <h3 class="card-title text-2xl">Onboarding Tours</h3>
+        <p class="text-sm text-base-content/70">Reset your completed onboarding tours and show them again.</p>
+      </div>
+      <button type="button"
+              class="btn btn-outline"
+              hx-post="{{ url_for('user.reset_onboarding_tours') }}"
+              hx-target="#user-settings-page"
+              hx-select="#user-settings-page"
+              hx-swap="outerHTML"
+              data-testid="user-reset-onboarding-tours">Reset onboarding tours</button>
+    </div>
+  </div>
+</div>
+
 <form id="user-password-form"
       class="grid gap-4 my-6"
       method="post"

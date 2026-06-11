@@ -88,20 +88,6 @@ class ExportStories(MethodView):
 
 
 class SettingsView(MethodView):
-    @staticmethod
-    def _should_invalidate_user_profiles(data) -> bool:
-        if not isinstance(data, dict):
-            return False
-        if data.get("reset_onboarding_tours") == "true":
-            return True
-        settings_payload = data.get("settings")
-        return isinstance(settings_payload, dict) and "onboarding_tours" in settings_payload
-
-    @classmethod
-    def _invalidate_settings_cache(cls, status: int, data) -> None:
-        user_profiles = ("*",) if cls._should_invalidate_user_profiles(data) else ()
-        invalidate_frontend_cache_on_success(status, models=("settings",), user_profiles=user_profiles)
-
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
         settings_data, return_code = Settings.get_all_for_api({})
@@ -122,7 +108,7 @@ class SettingsView(MethodView):
     def put(self):
         if data := request.json:
             response, status = Settings.update(data)
-            self._invalidate_settings_cache(status, data)
+            invalidate_frontend_cache_on_success(status, models=("settings",))
             return response, status
         return {"error": "No data provided"}, 400
 
@@ -130,7 +116,7 @@ class SettingsView(MethodView):
     def post(self):
         if data := request.json:
             response, status = Settings.update(data)
-            self._invalidate_settings_cache(status, data)
+            invalidate_frontend_cache_on_success(status, models=("settings",))
             return response, status
         return {"error": "No data provided"}, 400
 
@@ -138,7 +124,7 @@ class SettingsView(MethodView):
     def patch(self):
         if data := request.json:
             response, status = Settings.update(data)
-            self._invalidate_settings_cache(status, data)
+            invalidate_frontend_cache_on_success(status, models=("settings",))
             return response, status
         return {"error": "No data provided"}, 400
 

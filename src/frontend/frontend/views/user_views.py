@@ -18,6 +18,9 @@ class UserProfileView(BaseView):
     model = UserProfile
     icon = "user"
     _index = 20
+    LANGUAGE_OPTIONS = [
+        {"id": "en", "name": "English"},
+    ]
 
     @classmethod
     def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
@@ -27,10 +30,7 @@ class UserProfileView(BaseView):
     @classmethod
     @auth_required()
     def get_settings_view(cls):
-        LANGUAGE_OPTIONS = [
-            {"id": "en", "name": "English"},
-        ]
-        return render_template("user_profile/settings.html", user=current_user, language_options=LANGUAGE_OPTIONS)
+        return render_template("user_profile/settings.html", user=current_user, language_options=cls.LANGUAGE_OPTIONS)
 
     @classmethod
     @auth_required()
@@ -57,15 +57,12 @@ class UserProfileView(BaseView):
     @classmethod
     @auth_required()
     def post_settings_view(cls):
-        LANGUAGE_OPTIONS = [
-            {"id": "en", "name": "English"},
-        ]
         core_response, error = cls.process_form_data("0")
         if not core_response or error:
             return render_template(
                 "user_profile/settings.html",
                 user=current_user,
-                language_options=LANGUAGE_OPTIONS,
+                language_options=cls.LANGUAGE_OPTIONS,
                 notification={"message": error or "Failed to update profile settings.", "error": True},
             ), 400
 
@@ -74,8 +71,21 @@ class UserProfileView(BaseView):
         logger.debug(f"Profile settings updated: {core_response}")
 
         return render_template(
-            "user_profile/settings.html", user=current_user, language_options=LANGUAGE_OPTIONS, notification=notification_response
+            "user_profile/settings.html", user=current_user, language_options=cls.LANGUAGE_OPTIONS, notification=notification_response
         ), 200
+
+    @classmethod
+    @auth_required()
+    def reset_onboarding_tours(cls):
+        response = CoreApi().api_post(ProfileSettings._core_endpoint, json_data={"onboarding_tasks": {}})
+        notification = cls.get_notification_from_response(response)
+        user = update_current_user_cache() if response and response.ok else current_user
+        return render_template(
+            "user_profile/settings.html",
+            user=user or current_user,
+            language_options=cls.LANGUAGE_OPTIONS,
+            notification=notification,
+        ), 200 if response and response.ok else 400
 
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: str = "0"):

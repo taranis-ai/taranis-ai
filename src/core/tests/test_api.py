@@ -159,7 +159,7 @@ def test_user_info_excludes_global_onboarding_for_non_admin(client, auth_header_
     assert USER_PRODUCT_OVERVIEW_TASK_ID in _onboarding_task_ids(payload, "user")
 
 
-def test_user_info_excludes_completed_user_onboarding_task(app, client, auth_header_user_permissions):
+def test_user_info_excludes_finished_user_onboarding_task(app, client, auth_header_user_permissions):
     from models.user import USER_PRODUCT_OVERVIEW_TASK_ID
 
     from core.managers.db_manager import db
@@ -173,7 +173,7 @@ def test_user_info_excludes_completed_user_onboarding_task(app, client, auth_hea
     try:
         update_response = client.post(
             "/api/users/profile",
-            json={"onboarding_tasks": {USER_PRODUCT_OVERVIEW_TASK_ID: "completed"}},
+            json={"onboarding_tasks": {USER_PRODUCT_OVERVIEW_TASK_ID: "dismissed"}},
             headers=auth_header_user_permissions,
         )
         assert update_response.status_code == 200
@@ -190,40 +190,36 @@ def test_user_info_excludes_completed_user_onboarding_task(app, client, auth_hea
             db.session.commit()
 
 
-def test_settings_onboarding_update_invalidates_user_profile_cache(app, client, auth_header, monkeypatch):
-    from models.user import ADMIN_WELCOME_TOUR_ID
+def test_user_info_excludes_finished_admin_onboarding_task(app, client, auth_header):
+    from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID
 
-    from core.api import settings as settings_api
     from core.managers.db_manager import db
-    from core.model.settings import Settings
-
-    calls = []
-
-    def fake_invalidate_frontend_cache_on_success(status_code, **kwargs):
-        calls.append((status_code, kwargs))
-        return 0
+    from core.model.user import User
 
     with app.app_context():
-        settings_entry = Settings.get_settings_entry()
-        assert settings_entry is not None
-        original_settings = deepcopy(settings_entry.settings)
-
-    monkeypatch.setattr(settings_api, "invalidate_frontend_cache_on_success", fake_invalidate_frontend_cache_on_success)
+        user = User.find_by_name("admin")
+        assert user is not None
+        original_profile = deepcopy(user.profile)
 
     try:
-        response = client.patch(
-            "/api/settings/settings",
-            json={"settings": {"onboarding_tours": {ADMIN_WELCOME_TOUR_ID: "completed"}}},
+        update_response = client.post(
+            "/api/users/profile",
+            json={"onboarding_tasks": {ADMIN_WELCOME_TOUR_ID: "dismissed"}},
             headers=auth_header,
         )
+        assert update_response.status_code == 200
+
+        response = client.get("/api/users/", headers=auth_header)
 
         assert response.status_code == 200
-        assert calls[-1] == (200, {"models": ("settings",), "user_profiles": ("*",)})
+        payload = response.get_json()
+        assert ADMIN_WELCOME_TOUR_ID not in _onboarding_task_ids(payload, "global")
+        assert ADMIN_ADVANCED_TOUR_ID in _onboarding_task_ids(payload, "global")
     finally:
         with app.app_context():
-            settings_entry = Settings.get_settings_entry()
-            assert settings_entry is not None
-            settings_entry.settings = original_settings
+            user = User.find_by_name("admin")
+            assert user is not None
+            user.profile = original_profile
             db.session.commit()
 
 

@@ -1,4 +1,5 @@
 const onboardingResumeKey = "taranis.onboarding.resume";
+const onboardingTriggerKey = "taranis.onboarding.trigger";
 const onboardingStatusCompleted = "completed";
 const onboardingScopeGlobal = "global";
 const onboardingScopeUser = "user";
@@ -68,38 +69,27 @@ function hasAnyPermission(root, permissions) {
 
 function buildOnboardingFormData(task, status) {
   const formData = new FormData();
-  if (task.scope === onboardingScopeUser) {
-    formData.set(`onboarding_tasks[${task.id}]`, status);
-    return formData;
-  }
-
-  formData.set(`settings[onboarding_tours][${task.id}]`, status);
+  formData.set(`onboarding_tasks[${task.id}]`, status);
   return formData;
 }
 
-function actionForTask(root, task) {
-  return task.scope === onboardingScopeUser
-    ? root.dataset.profileAction
-    : root.dataset.settingsAction;
+function actionForTask(root) {
+  return root.dataset.profileAction;
 }
 
-function methodForTask(task) {
-  return task.scope === onboardingScopeUser ? "POST" : "PATCH";
+function methodForTask() {
+  return "POST";
 }
 
-function saveOnboardingTask(root, task, status, options = {}) {
-  const action = actionForTask(root, task);
+function saveOnboardingTask(root, task, status) {
+  const action = actionForTask(root);
   if (!action) {
     return Promise.resolve();
   }
 
   const body = buildOnboardingFormData(task, status);
-  if (task.scope === onboardingScopeGlobal && options.continueOnboarding) {
-    body.set("continue_admin_onboarding", "true");
-  }
-
   return fetch(action, {
-    method: methodForTask(task),
+    method: methodForTask(),
     body,
     credentials: "same-origin",
     headers: {
@@ -205,6 +195,33 @@ function writeResumeState(taskId, stepId) {
 function clearResumeState() {
   try {
     self.sessionStorage.removeItem(onboardingResumeKey);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function readTriggerState() {
+  try {
+    return JSON.parse(self.sessionStorage.getItem(onboardingTriggerKey));
+  } catch {
+    return null;
+  }
+}
+
+function writeTriggerState(taskId) {
+  try {
+    self.sessionStorage.setItem(
+      onboardingTriggerKey,
+      JSON.stringify({ taskId }),
+    );
+  } catch {
+    // Storage can be unavailable in restricted browser modes. The click still navigates normally.
+  }
+}
+
+function clearTriggerState() {
+  try {
+    self.sessionStorage.removeItem(onboardingTriggerKey);
   } catch {
     // Ignore storage failures.
   }
@@ -519,7 +536,7 @@ function getTaskSteps(root, taskId) {
     return [];
   }
   return definition.steps().filter((step) =>
-    hasAnyPermission(root, step.requiredPermissions),
+    hasAnyPermission(root, step.requiredPermissions)
   );
 }
 
@@ -534,19 +551,59 @@ function makeAdvancedTourButton(root) {
   button.textContent = "Advanced tour";
   button.dataset.testid = "admin-onboarding-advanced-tour";
   button.addEventListener("click", () => {
-    closeActiveTour(root, adminWelcomeTourId, onboardingStatusCompleted, {
-      continueOnboarding: true,
-    });
+    closeActiveTour(root, adminWelcomeTourId, onboardingStatusCompleted);
     setTimeout(() => startOnboardingTask(root, adminAdvancedTourId), 150);
   });
   return button;
 }
 
+function pendingAdminTaskId(root) {
+  if (isTaskPending(root, adminWelcomeTourId, onboardingScopeGlobal)) {
+    return adminWelcomeTourId;
+  }
+  return isTaskPending(root, adminAdvancedTourId, onboardingScopeGlobal)
+    ? adminAdvancedTourId
+    : null;
+}
+
+function matchesAnySelector(element, selectors) {
+  return selectors.some((selector) => element?.closest?.(selector));
+}
+
+function installOnboardingClickTriggers(root) {
+  if (!root || root.dataset.triggersInstalled === "true") {
+    return;
+  }
+  root.dataset.triggersInstalled = "true";
+
+  document.addEventListener("click", (event) => {
+    const link = getTourLink(event.target);
+    if (!link) {
+      return;
+    }
+
+    const triggeredTaskId = matchesAnySelector(link, [
+        '[data-tour-target="nav-admin"]',
+        '[data-tour-target="admin-menu-admin-dashboard"]',
+      ])
+      ? pendingAdminTaskId(root)
+      : matchesAnySelector(link, ['[data-tour-target="nav-assess"]'])
+      ? (isTaskPending(root, userProductOverviewTaskId, onboardingScopeUser)
+        ? userProductOverviewTaskId
+        : null)
+      : null;
+
+    if (triggeredTaskId) {
+      writeTriggerState(triggeredTaskId);
+    }
+  });
+}
+
 let activeCloseTour = null;
 
-function closeActiveTour(root, taskId, status, options = {}) {
+function closeActiveTour(root, taskId, status) {
   if (typeof activeCloseTour === "function") {
-    activeCloseTour(status, options);
+    activeCloseTour(status);
     return;
   }
 
@@ -554,11 +611,9 @@ function closeActiveTour(root, taskId, status, options = {}) {
   if (!task) {
     return;
   }
-  if (status === onboardingStatusCompleted) {
-    removePendingTask(root, task.id, task.scope);
-  }
+  removePendingTask(root, task.id, task.scope);
   clearResumeState();
-  void saveOnboardingTask(root, task, status, options);
+  void saveOnboardingTask(root, task, status);
 }
 
 function startOnboardingTask(root, taskId, startStepId) {
@@ -589,20 +644,18 @@ function startOnboardingTask(root, taskId, startStepId) {
   }
 
   let persisted = false;
-  function markTask(status, options = {}) {
+  function markTask(status) {
     if (persisted) {
       return;
     }
     persisted = true;
-    if (status === onboardingStatusCompleted) {
-      removePendingTask(root, task.id, task.scope);
-    }
+    removePendingTask(root, task.id, task.scope);
     clearResumeState();
-    void saveOnboardingTask(root, task, status, options);
+    void saveOnboardingTask(root, task, status);
   }
 
-  function closeTour(status, options = {}) {
-    markTask(status, options);
+  function closeTour(status) {
+    markTask(status);
     destroyTour();
   }
   activeCloseTour = closeTour;
@@ -690,30 +743,11 @@ function startOnboardingTask(root, taskId, startStepId) {
   driverObj.drive(startIndex);
 }
 
-function isAutostartRoute(root) {
-  if (!root.dataset.autostartRoute) {
-    return false;
-  }
-  const autostartUrl = new URL(root.dataset.autostartRoute, self.location.href);
-  return urlsShareRoute(autostartUrl, currentTourUrl());
-}
-
-function shouldAutostartAtFirstStep(root, taskId) {
-  const steps = getTaskSteps(root, taskId);
-  return Boolean(steps[0] && isCurrentTourRoute(steps[0]));
-}
-
-function firstAutostartablePendingTask(root) {
-  return readPendingTasks(root).find((task) => {
-    const definition = taskDefinitions[task.id];
-    return definition?.shouldAutostart?.(root, task.id);
-  });
-}
-
 function startOnboarding(root) {
   if (!root || root.dataset.started === "true") {
     return;
   }
+  installOnboardingClickTriggers(root);
 
   const resumeState = readResumeState();
   if (resumeState?.taskId && resumeState?.stepId) {
@@ -724,8 +758,10 @@ function startOnboarding(root) {
     return;
   }
 
-  const task = firstAutostartablePendingTask(root);
-  if (!task) {
+  const triggerState = readTriggerState();
+  const task = triggerState?.taskId ? taskById(triggerState.taskId) : null;
+  clearTriggerState();
+  if (!task || !isTaskPending(root, task.id, task.scope)) {
     return;
   }
 
@@ -755,7 +791,6 @@ registerOnboardingTask({
   scope: onboardingScopeGlobal,
   steps: adminWelcomeTourSteps,
   doneBtnText: "Complete now",
-  shouldAutostart: (root) => isAutostartRoute(root),
 });
 
 registerOnboardingTask({
@@ -763,7 +798,6 @@ registerOnboardingTask({
   scope: onboardingScopeGlobal,
   steps: adminAdvancedTourSteps,
   doneBtnText: "Complete advanced tour",
-  shouldAutostart: () => true,
 });
 
 registerOnboardingTask({
@@ -771,7 +805,6 @@ registerOnboardingTask({
   scope: onboardingScopeUser,
   steps: userProductOverviewSteps,
   doneBtnText: "Finish overview",
-  shouldAutostart: (root, taskId) => shouldAutostartAtFirstStep(root, taskId),
 });
 
 if (document.readyState === "loading") {

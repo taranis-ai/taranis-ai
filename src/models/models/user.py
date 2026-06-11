@@ -7,6 +7,7 @@ from models.base import TaranisBaseModel
 
 
 ONBOARDING_COMPLETED_STATUS = "completed"
+ONBOARDING_DISMISSED_STATUS = "dismissed"
 ONBOARDING_SCOPE_GLOBAL = "global"
 ONBOARDING_SCOPE_USER = "user"
 ADMIN_WELCOME_TOUR_ID = "admin_welcome_v1"

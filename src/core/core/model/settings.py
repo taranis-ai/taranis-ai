@@ -27,22 +27,12 @@ class Settings(BaseModel):
     @classmethod
     def with_defaults(cls, settings: Mapping[str, Any] | None = None) -> dict[str, Any]:
         merged = dict(settings) if isinstance(settings, Mapping) else {}
+        merged.pop("onboarding_tours", None)
         merged.setdefault("default_collector_proxy", "")
         merged.setdefault("default_collector_interval", "0 */8 * * *")
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
-        merged.setdefault("onboarding_tours", {})
-        return merged
-
-    @classmethod
-    def _merge_onboarding_tours(cls, current: object, delta: object, reset: bool) -> dict[str, Any]:
-        if reset:
-            return {}
-
-        merged = dict(current) if isinstance(current, Mapping) else {}
-        if isinstance(delta, Mapping) and delta:
-            merged.update(delta)
         return merged
 
     @classmethod
@@ -59,19 +49,13 @@ class Settings(BaseModel):
         if not isinstance(raw_update_data, Mapping):
             return {"error": "settings must be a JSON object"}, 400
         update_data = dict(raw_update_data)
+        update_data.pop("onboarding_tours", None)
 
-        reset_onboarding_tours = data.get("reset_onboarding_tours") == "true"
-        if update_data or reset_onboarding_tours:
+        if update_data:
             logger.debug(f"Settings update data: {update_data}")
             logger.debug(f"Settings before update: {settings.settings}")
             current_settings = cls.with_defaults(settings.settings)
-            onboarding_tours = update_data.pop("onboarding_tours", None)
             current_settings.update(update_data)
-            current_settings["onboarding_tours"] = cls._merge_onboarding_tours(
-                current=current_settings.get("onboarding_tours"),
-                delta=onboarding_tours,
-                reset=reset_onboarding_tours,
-            )
             settings.settings = current_settings
         db.session.commit()
         logger.debug(f"Settings after update: {settings.settings}")

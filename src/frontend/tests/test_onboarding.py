@@ -35,7 +35,6 @@ def test_onboarding_prompt_renders_pending_context(app, authenticated_client, au
     assert len(responses.calls) == 0
     body = response.get_data(as_text=True)
     assert 'data-testid="onboarding-root"' in body
-    assert f'data-settings-action="{url_for("admin_settings.settings_action", action="settings")}"' in body
     assert f'data-profile-action="{url_for("user.settings")}"' in body
     assert "data-pending-tasks=" in body
     assert ADMIN_WELCOME_TOUR_ID in body
@@ -61,27 +60,48 @@ def test_base_template_can_render_without_pending_onboarding(app):
     assert "onboarding-root" not in body
 
 
-def test_user_onboarding_completion_posts_profile_task(authenticated_client_basic, responses, monkeypatch):
+@pytest.mark.parametrize("task_id", [USER_PRODUCT_OVERVIEW_TASK_ID, ADMIN_WELCOME_TOUR_ID])
+def test_onboarding_completion_posts_profile_task(authenticated_client, task_id, responses, monkeypatch):
     from frontend.views import user_views
 
     monkeypatch.setattr(user_views, "update_current_user_cache", lambda: None)
     responses.post(
         f"{Config.TARANIS_CORE_URL}/users/profile",
-        json={"message": "Profile updated", "user_profile": {"onboarding_tasks": {USER_PRODUCT_OVERVIEW_TASK_ID: "completed"}}},
+        json={"message": "Profile updated", "user_profile": {"onboarding_tasks": {task_id: "completed"}}},
         status=200,
         content_type="application/json",
     )
 
-    response = authenticated_client_basic.post(
+    response = authenticated_client.post(
         url_for("user.update_settings"),
-        data={f"onboarding_tasks[{USER_PRODUCT_OVERVIEW_TASK_ID}]": "completed"},
+        data={f"onboarding_tasks[{task_id}]": "completed"},
     )
 
     assert response.status_code == 200
     assert len(responses.calls) == 1
     request_body = json.loads(responses.calls[0].request.body)
     assert set(request_body) == {"onboarding_tasks"}
-    assert request_body["onboarding_tasks"][USER_PRODUCT_OVERVIEW_TASK_ID] == "completed"
+    assert request_body["onboarding_tasks"][task_id] == "completed"
+
+
+def test_user_onboarding_reset_posts_empty_profile_tasks(authenticated_client, responses, monkeypatch):
+    from frontend.views import user_views
+
+    monkeypatch.setattr(user_views, "update_current_user_cache", lambda: None)
+    responses.post(
+        f"{Config.TARANIS_CORE_URL}/users/profile",
+        json={"message": "Profile updated", "user_profile": {"onboarding_tasks": {}}},
+        status=200,
+        content_type="application/json",
+    )
+
+    response = authenticated_client.post(url_for("user.reset_onboarding_tours"))
+
+    assert response.status_code == 200
+    assert len(responses.calls) == 1
+    request_body = json.loads(responses.calls[0].request.body)
+    assert request_body == {"onboarding_tasks": {}}
+    assert 'data-testid="user-reset-onboarding-tours"' in response.get_data(as_text=True)
 
 
 def test_user_settings_update_preserves_onboarding_task_status(authenticated_client_basic, auth_user_basic, responses, monkeypatch):

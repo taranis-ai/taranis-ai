@@ -5,12 +5,6 @@ from frontend.auth import admin_required
 from frontend.views.admin_views.settings_views import SettingsView
 
 
-class ResetOnboardingTours(MethodView):
-    @admin_required()
-    def post(self):
-        return SettingsView.reset_onboarding_tours()
-
-
 class SettingsAction(MethodView):
     @admin_required()
     def get(self, action: str):
@@ -36,7 +30,6 @@ def init(app: Flask):
     settings_bp = Blueprint("admin_settings", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin/settings")
 
     settings_bp.add_url_rule("/", view_func=SettingsView.as_view("settings"))
-    settings_bp.add_url_rule("/reset-onboarding-tours", view_func=ResetOnboardingTours.as_view("reset_onboarding_tours"))
     settings_bp.add_url_rule("/<path:action>", view_func=SettingsAction.as_view("settings_action"))
 
     app.register_blueprint(settings_bp)

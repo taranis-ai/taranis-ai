@@ -245,7 +245,6 @@ class TaranisConfig(TaranisBaseModel):
     default_tlp_level: TLPLevel = TLPLevel.CLEAR
     default_story_conflict_retention: str = "200"
     default_news_item_conflict_retention: str = "200"
-    onboarding_tours: dict[str, str] | None = None
 
 
 class Settings(TaranisBaseModel):

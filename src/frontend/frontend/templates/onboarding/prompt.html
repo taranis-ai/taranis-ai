@@ -4,7 +4,6 @@
   <div id="onboarding-root"
        hidden
        data-testid="onboarding-root"
-       data-settings-action="{{ url_for('admin_settings.settings_action', action='settings') }}"
        data-profile-action="{{ url_for('user.settings') }}"
        data-autostart-route="{{ url_for('admin.dashboard') }}"
        data-pending-tasks="{{ tasks | tojson | forceescape }}"

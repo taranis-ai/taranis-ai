@@ -8,7 +8,6 @@ from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Page, expect
 
-from frontend.onboarding import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -24,23 +23,16 @@ SCHEDULER_BASELINE_TOTAL_TEXT_SUFFIX = "scheduled jobs"
 
 
 def reset_admin_onboarding_tours(core_request_client):
-    response = core_request_client.put(
-        "/settings/settings",
-        json_data={
-            "settings": {
-                "onboarding_tours": {
-                    ADMIN_WELCOME_TOUR_ID: "",
-                    ADMIN_ADVANCED_TOUR_ID: "",
-                }
-            }
-        },
+    response = core_request_client.post(
+        "/users/profile",
+        json_data={"onboarding_tasks": {}},
     )
     assert response.ok, f"Failed to reset onboarding tours: {response.status_code}"
 
 
-def expect_settings_patch_response(page: Page):
-    settings_url = url_for("admin_settings.settings_action", action="settings", _external=True)
-    return page.expect_response(lambda response: response.url == settings_url and response.request.method == "PATCH")
+def expect_profile_post_response(page: Page):
+    profile_url = url_for("user.settings", _external=True)
+    return page.expect_response(lambda response: response.url == profile_url and response.request.method == "POST")
 
 
 def expect_driver_step(page: Page, title: str):
@@ -52,6 +44,12 @@ def expect_driver_step(page: Page, title: str):
 def go_to_next_driver_step(page: Page, title: str):
     page.get_by_role("button", name="Next").click()
     expect_driver_step(page, title)
+
+
+def start_admin_onboarding_from_dashboard(page: Page):
+    expect(page.locator(".driver-popover")).not_to_be_visible()
+    page.get_by_role("link", name="Admin Dashboard").click()
+    expect_driver_step(page, "Admin Dashboard")
 
 
 def remove_tz(date_time: str) -> str:
@@ -78,7 +76,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         page = logged_in_page
         page.goto(url_for("admin.dashboard", _external=True))
 
-        expect_driver_step(page, "Admin Dashboard")
+        start_admin_onboarding_from_dashboard(page)
         go_to_next_driver_step(page, "OSINT Source")
         go_to_next_driver_step(page, "OSINT Source table")
         go_to_next_driver_step(page, "Bot")
@@ -91,21 +89,21 @@ class TestEndToEndAdmin(BaseE2ETest):
         go_to_next_driver_step(page, "User table")
         go_to_next_driver_step(page, "Welcome tour complete")
 
-        with expect_settings_patch_response(page) as response_info:
+        with expect_profile_post_response(page) as response_info:
             page.get_by_role("button", name="Complete now").click()
 
         assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
         expect(page.locator(".driver-popover")).not_to_be_visible()
 
         page.reload()
-        expect_driver_step(page, "Report Item Type")
+        expect(page.locator(".driver-popover")).not_to_be_visible()
 
     def test_admin_advanced_onboarding_tour(self, logged_in_page: Page, core_request_client, forward_console_and_page_errors):
         reset_admin_onboarding_tours(core_request_client)
         page = logged_in_page
         page.goto(url_for("admin.dashboard", _external=True))
 
-        expect_driver_step(page, "Admin Dashboard")
+        start_admin_onboarding_from_dashboard(page)
         go_to_next_driver_step(page, "OSINT Source")
         go_to_next_driver_step(page, "OSINT Source table")
         go_to_next_driver_step(page, "Bot")
@@ -118,7 +116,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         go_to_next_driver_step(page, "User table")
         go_to_next_driver_step(page, "Welcome tour complete")
 
-        with expect_settings_patch_response(page) as response_info:
+        with expect_profile_post_response(page) as response_info:
             page.get_by_test_id("admin-onboarding-advanced-tour").click()
 
         assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
@@ -133,7 +131,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         go_to_next_driver_step(page, "Word List")
         go_to_next_driver_step(page, "Word list table")
 
-        with expect_settings_patch_response(page) as advanced_response:
+        with expect_profile_post_response(page) as advanced_response:
             page.get_by_role("button", name="Complete advanced tour").click()
 
         assert advanced_response.value.ok, f"Expected 2xx status, but got {advanced_response.value.status}"
