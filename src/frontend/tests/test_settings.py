@@ -16,6 +16,11 @@ def test_flask_secret_key(app):
         assert secret_key == "test_key_for_tests_only_do_not_use"
 
 
+def test_jwt_decode_leeway(app):
+    with app.app_context():
+        assert app.config.get("JWT_DECODE_LEEWAY") == 5
+
+
 def test_settings_export_error_returns_oob_notification(app, monkeypatch):
     from frontend.views.admin_views import settings_views
 

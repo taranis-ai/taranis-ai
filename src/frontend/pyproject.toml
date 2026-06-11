@@ -27,6 +27,7 @@ dependencies = [
     "python-dotenv",
     "granian",
     "requests",
+    "sentry-sdk[flask]",
     "setuptools",
     "polyfactory",
     "uuid7",
