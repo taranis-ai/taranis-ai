@@ -13,7 +13,7 @@ required-markers = [
 ]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-06-04T07:05:51.77598Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -576,11 +576,11 @@ wheels = [
 
 [[package]]
 name = "idna"
-version = "3.17"
+version = "3.18"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b9/28/99c51f664567218d824af024c0251650fb27e4ca066df188dab0769c5b91/idna-3.17.tar.gz", hash = "sha256:5eb0cb53bc467c12eadcf6de83163ad8527cec9416f44b9b61b19caedad2b87f", size = 196048, upload-time = "2026-05-28T14:32:38.55Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cd/63/9496c57188a2ee585e0f1db071d75089a11e98aa86eb99d9d7618fc1edce/idna-3.18.tar.gz", hash = "sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848", size = 196711, upload-time = "2026-06-02T14:34:07.794Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/a7/f76514cc40ad6234098ecdebda08732d75964776c51a42845b7da10649e2/idna-3.17-py3-none-any.whl", hash = "sha256:466e48829084efe2548012b855df21540b96f2e20e51bd124c851536556a592c", size = 65316, upload-time = "2026-05-28T14:32:37.035Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/5e/d4e9f1a599fb8e573b7b87160658329fbf28d19eac2718f51fc3def3aa5a/idna-3.18-py3-none-any.whl", hash = "sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2", size = 65455, upload-time = "2026-06-02T14:34:06.319Z" },
 ]
 
 [[package]]
@@ -842,7 +842,7 @@ wheels = [
 
 [[package]]
 name = "misp-stix"
-version = "2026.6.1"
+version = "2026.6.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cybox" },
@@ -855,9 +855,9 @@ dependencies = [
     { name = "stix-edh" },
     { name = "stix2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a8/fb/faa95c22bc39de9b34fd06d80ff5c8cf5f9260d649e654d98d5377584248/misp_stix-2026.6.1.tar.gz", hash = "sha256:cf80825311a143ad72fa03f70a159a5269108a5e37a550589664f24545077f9d", size = 443943, upload-time = "2026-06-01T08:11:23.946Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/e1/8ecb9e43ba8d1ef880ff585387e02ccacefeace6477f909adb0ac4b5ff7d/misp_stix-2026.6.3.tar.gz", hash = "sha256:8229520ff6ad45cb89240a9a5807e6f42d9a93bbb2322eb3b28ae89f007aef40", size = 443946, upload-time = "2026-06-03T12:49:30.83Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c1/82/0ac1055564838d7b11616ddafd9a66674197c42d2345f5d5a01c9d3b20f5/misp_stix-2026.6.1-py3-none-any.whl", hash = "sha256:945a65fabe151834fb28f7b542494069cb354dccdecf21a016e074b21f4de880", size = 480010, upload-time = "2026-06-01T08:11:25.434Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/df/e39c44116a3f41a5e5f495befb43bc68591fe595cf6637cf381c30e6a5cd/misp_stix-2026.6.3-py3-none-any.whl", hash = "sha256:37db01a9bf8d0df45ca0c19b4af28877213e39692dffab293940a0e8869bbee4", size = 479988, upload-time = "2026-06-03T12:49:32.106Z" },
 ]
 
 [[package]]
@@ -1946,7 +1946,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/99/82/73a21e3eab9a1ff76
 
 [[package]]
 name = "weasyprint"
-version = "68.1"
+version = "69.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
@@ -1958,9 +1958,9 @@ dependencies = [
     { name = "tinycss2" },
     { name = "tinyhtml5" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/db/3e/65c0f176e6fb5c2b0a1ac13185b366f727d9723541babfa7fa4309998169/weasyprint-68.1.tar.gz", hash = "sha256:d3b752049b453a5c95edb27ce78d69e9319af5a34f257fa0f4c738c701b4184e", size = 1542379, upload-time = "2026-02-06T15:04:11.203Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/53/dcc3885c2f7a47faa45f6b8b801412f5f9e055173a52801ef01c09943c5a/weasyprint-69.0.tar.gz", hash = "sha256:a7a32f39ca16bd82ef11de99c92ea4b5f14951c9033af035e451ce4f4ee0a88c", size = 1549834, upload-time = "2026-06-02T14:42:17.765Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/dd/14eb73cea481ad8162d3b18a4850d4a84d6e804a22840cca207648532265/weasyprint-68.1-py3-none-any.whl", hash = "sha256:4dc3ba63c68bbbce3e9617cb2226251c372f5ee90a8a484503b1c099da9cf5be", size = 319789, upload-time = "2026-02-06T15:04:09.189Z" },
+    { url = "https://files.pythonhosted.org/packages/93/cb/208525c6bd5033d7b2589b55e07bec23d9c61bb00703cbaf20ef52c3811f/weasyprint-69.0-py3-none-any.whl", hash = "sha256:475951cfd917014de6d4d005caff48c6aa867e7e42b80cd5b16a0484a1609ee6", size = 322872, upload-time = "2026-06-02T14:42:15.871Z" },
 ]
 
 [[package]]

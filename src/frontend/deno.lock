@@ -7,12 +7,11 @@
     "npm:@codemirror/language@^6.12.3": "6.12.3",
     "npm:@codemirror/legacy-modes@*": "6.5.3",
     "npm:@codemirror/legacy-modes@^6.5.3": "6.5.3",
-    "npm:@codemirror/merge@^6.12.1": "6.12.1",
+    "npm:@codemirror/merge@^6.12.2": "6.12.2",
     "npm:@codemirror/state@*": "6.6.0",
     "npm:@codemirror/state@^6.6.0": "6.6.0",
-    "npm:@codemirror/view@*": "6.43.0",
-    "npm:@codemirror/view@^6.43.0": "6.43.0",
-    "npm:@tailwindcss/cli@*": "4.3.0",
+    "npm:@codemirror/view@*": "6.43.1",
+    "npm:@codemirror/view@^6.43.1": "6.43.1",
     "npm:@tailwindcss/cli@^4.3.0": "4.3.0",
     "npm:alpinejs@*": "3.15.12",
     "npm:alpinejs@^3.15.12": "3.15.12",
@@ -20,6 +19,9 @@
     "npm:choices.js@^11.2.3": "11.2.3",
     "npm:codemirror@^6.0.2": "6.0.2",
     "npm:daisyui@^5.5.23": "5.5.23",
+    "npm:driver.js@*": "1.4.0",
+    "npm:driver.js@^1.4.0": "1.4.0",
+    "npm:fuse.js@*": "7.4.2",
     "npm:fuse.js@^7.4.2": "7.4.2",
     "npm:highlight-search-term@*": "1.0.3",
     "npm:highlight-search-term@^1.0.3": "1.0.3",
@@ -34,8 +36,8 @@
     "npm:tailwindcss@^4.3.0": "4.3.0"
   },
   "npm": {
-    "@codemirror/autocomplete@6.20.2": {
-      "integrity": "sha512-G5FPkgIiLjOgZMjqVjvuKQ1rGPtHogLldJr33eFJdVLtmwY+giGrlv/ewljLz6b9BSQLkjxuwBc6g6omDM+YxQ==",
+    "@codemirror/autocomplete@6.20.3": {
+      "integrity": "sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g==",
       "dependencies": [
         "@codemirror/language",
         "@codemirror/state",
@@ -69,16 +71,16 @@
         "@codemirror/language"
       ]
     },
-    "@codemirror/lint@6.9.6": {
-      "integrity": "sha512-6Kp7r6XfCi/D/5sdXieMfg9pJU1bUEx96WITuLU6ESaKizCz0QHFMjY/TaFSbigDdEAIgi93itLBIUETP4oK+A==",
+    "@codemirror/lint@6.9.7": {
+      "integrity": "sha512-28/+iWLYxKxsvGYhSYL7zaCZqLz5+FFFDq9tVsvGv9kv8RY4fFAchJ5WX9M3YrrRlTIsECjsXPqeNgnSmNP2dg==",
       "dependencies": [
         "@codemirror/state",
         "@codemirror/view",
         "crelt"
       ]
     },
-    "@codemirror/merge@6.12.1": {
-      "integrity": "sha512-GA8hBq2T+IFM0sb5fk8CunTrqOulA3zurJmHtzcU15EMnL8aYpVINfJ5bkfd53M4ikwoew4Y1ydtSaAlk6+B1w==",
+    "@codemirror/merge@6.12.2": {
+      "integrity": "sha512-V8JvyAPjHbPupqP7BeMcsdsYCbyPij74jxIbaIJDORI+VZzW44zFmon8bF+oxGWvOKhcRmkiUMXd8MxHr3YA2w==",
       "dependencies": [
         "@codemirror/language",
         "@codemirror/state",
@@ -101,8 +103,8 @@
         "@marijn/find-cluster-break"
       ]
     },
-    "@codemirror/view@6.43.0": {
-      "integrity": "sha512-V7ZCLQO3Jus9hzh2jVCCPW3mO4IBMr43O37PqSUYautJSnnJF41YlgLw21x0fLJTYvJ+Vkm6Gp+qKGH9pltgXA==",
+    "@codemirror/view@6.43.1": {
+      "integrity": "sha512-+BIjw/AG3tDQ4pJgTLPYdAW25eDE66YsvM4LKyVPgGzVgZ4a9Wj1SRX8kPVKgBDdPt8oHtZ15F0qx7p0oOHdHw==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -388,8 +390,11 @@
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
     },
-    "enhanced-resolve@5.21.5": {
-      "integrity": "sha512-mLCNbrQli11K1ySUmuNt4ZUB3OpGIDq4q2vTBTf5cL2lpsRjI9QKqSD0ndjW8FyvcW/Jj46gMe9syyHAsvMa/A==",
+    "driver.js@1.4.0": {
+      "integrity": "sha512-Gm64jm6PmcU+si21sQhBrTAM1JvUrR0QhNmjkprNLxohOBzul9+pNHXgQaT9lW84gwg9GMLB3NZGuGolsz5uew=="
+    },
+    "enhanced-resolve@5.23.0": {
+      "integrity": "sha512-yJN/BOOLxcOW2aQgeif9mSnaUB8KtvmMMp56oA1kx1CRfBKbhZm2pJ+NBY+3eOboHxix8lfjWpHE0Ei5U8RbSA==",
       "dependencies": [
         "graceful-fs",
         "tapable"
@@ -545,14 +550,15 @@
       "npm:@codemirror/commands@^6.10.3",
       "npm:@codemirror/language@^6.12.3",
       "npm:@codemirror/legacy-modes@^6.5.3",
-      "npm:@codemirror/merge@^6.12.1",
+      "npm:@codemirror/merge@^6.12.2",
       "npm:@codemirror/state@^6.6.0",
-      "npm:@codemirror/view@^6.43.0",
+      "npm:@codemirror/view@^6.43.1",
       "npm:@tailwindcss/cli@^4.3.0",
       "npm:alpinejs@^3.15.12",
       "npm:choices.js@^11.2.3",
       "npm:codemirror@^6.0.2",
       "npm:daisyui@^5.5.23",
+      "npm:driver.js@^1.4.0",
       "npm:fuse.js@^7.4.2",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",
