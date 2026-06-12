@@ -29,7 +29,7 @@ class AnalystBot(BaseBot):
 
         if not (data := self.core_api.get_news_items(limit)):
             logger.debug(f"No News Items for filter: {limit}")
-            return None
+            return {"message": "No news items found", "result": {}}
         for item in data:
             if not item:
                 continue
@@ -57,3 +57,5 @@ class AnalystBot(BaseBot):
                             news_item_id,
                             attributes,
                         )
+
+        return {"message": "Analyst bot completed", "result": {}}

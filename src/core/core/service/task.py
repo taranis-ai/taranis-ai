@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from models.task import Task as TaskResponseModel
-from models.task import TaskHistoryResponse, TaskSubmission
+from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission
 
 from core.config import Config
 from core.log import logger
@@ -43,9 +43,10 @@ class TaskService:
     @classmethod
     def save_task_result(cls, submission: TaskSubmission) -> tuple[dict[str, Any], int]:
         task_kind = cls._resolve_task_kind(submission.id, submission.task)
+        result_payload = submission.result.model_dump(mode="json", exclude_none=False)
         payload: dict[str, Any] = {
             "id": submission.id,
-            "result": submission.result,
+            "result": result_payload,
             "status": submission.status,
         }
         if submission.task is not None:
@@ -96,33 +97,42 @@ class TaskService:
             return
 
         if task_kind == "collector_task":
-            logger.info(f"Collector task {submission.id} completed with result: {submission.result}")
+            logger.info(
+                f"Collector task {submission.id} completed with result: {submission.result.model_dump(mode='json', exclude_none=False)}"
+            )
             cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
             return
 
+        result_data = cls._get_result_dict_data(submission.result)
         if task_kind == "connector_task":
-            handle_misp_connector_result(submission.result)  # type: ignore TODO: validate result before handling
-            return
-
-        if not isinstance(submission.result, dict):
-            logger.error(f"Invalid {task_kind} result type: {type(submission.result)}. Expected dict.")
+            if result_data is None:
+                logger.error("Invalid connector task result payload")
+                return
+            handle_misp_connector_result(result_data)
             return
 
         if task_kind == "gather_word_list":
-            WordList.update_word_list(**submission.result)
+            if result_data is None:
+                logger.error("Invalid gather_word_list result payload")
+                return
+            WordList.update_word_list(**result_data)
             return
 
         if task_kind == "presenter_task":
-            cls._handle_presenter_result(submission.result)
+            cls._handle_presenter_result(result_data)
             return
 
         if task_kind == "bot_task":
-            cls._handle_bot_result(submission)
+            cls._handle_bot_result(submission, result_data)
 
     @staticmethod
-    def _handle_presenter_result(result: dict[str, Any]) -> None:
-        product_id = result.get("product_id")
-        rendered_product = result.get("render_result")
+    def _handle_presenter_result(result_data: dict[str, Any] | None) -> None:
+        if result_data is None:
+            logger.error("Invalid presenter task result payload")
+            return
+
+        product_id = result_data.get("product_id")
+        rendered_product = result_data.get("render_result")
 
         if not isinstance(product_id, str) or not isinstance(rendered_product, str):
             logger.error(f"Product {product_id} not found or no render result")
@@ -131,15 +141,23 @@ class TaskService:
         Product.update_render_for_id(product_id, rendered_product)
 
     @staticmethod
-    def _handle_bot_result(submission: TaskSubmission) -> None:
+    def _handle_bot_result(submission: TaskSubmission, result_data: dict[str, Any] | None) -> None:
         worker_type = submission.worker_type or ""
         worker_id = submission.worker_id or "UNKNOWN_ID"
-        bot_result = submission.result
-        if not isinstance(bot_result, dict):
+        if result_data is None:
             logger.error("Invalid bot task result payload")
+            return
+
+        bot_result = result_data.get("result")
+        if not isinstance(bot_result, dict):
+            logger.error("Invalid bot task result data payload")
             return
 
         if worker_type in TAGGING_BOTS:
             NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
 
         NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
+
+    @staticmethod
+    def _get_result_dict_data(result: TaskResultEnvelope) -> dict[str, Any] | None:
+        return result.data if isinstance(result.data, dict) else None

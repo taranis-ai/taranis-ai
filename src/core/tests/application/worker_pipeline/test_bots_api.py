@@ -129,7 +129,7 @@ class TestTaggingBotsResults(BaseTest):
 
             expected_tags = {}
             for news_item in response.get_json().get("news_items", []):
-                expected_tags |= wordlist_bot_result["result"].get(news_item["id"], {})
+                expected_tags |= wordlist_bot_result["result"]["data"]["result"].get(news_item["id"], {})
             assert structured_tags == expected_tags
 
             attr_by_key = {a.get("key"): a.get("value") for a in response.get_json().get("attributes", [])}
@@ -154,8 +154,8 @@ class TestTaggingBotsResults(BaseTest):
 
             expected = {}
             for news_item in response.get_json().get("news_items", []):
-                expected |= wordlist_bot_result["result"].get(news_item["id"], {})
-                expected |= ioc_bot_result["result"].get(news_item["id"], {})
+                expected |= wordlist_bot_result["result"]["data"]["result"].get(news_item["id"], {})
+                expected |= ioc_bot_result["result"]["data"]["result"].get(news_item["id"], {})
 
             assert structured_tags == expected
 
@@ -179,9 +179,9 @@ class TestTaggingBotsResults(BaseTest):
 
             expected = {}
             for news_item in response.get_json().get("news_items", []):
-                expected |= wordlist_bot_result["result"].get(news_item["id"], {})
-                expected |= ioc_bot_result["result"].get(news_item["id"], {})
-                expected |= nlp_bot_result["result"].get(news_item["id"], {})
+                expected |= wordlist_bot_result["result"]["data"]["result"].get(news_item["id"], {})
+                expected |= ioc_bot_result["result"]["data"]["result"].get(news_item["id"], {})
+                expected |= nlp_bot_result["result"]["data"]["result"].get(news_item["id"], {})
 
             assert structured_tags == expected
 
@@ -200,19 +200,22 @@ class TestConnectorTaskResults(BaseTest):
             "task_id": "connector_task_320d4589-cd71-4722-aa28-ea5530e99830",
             "status": "SUCCESS",
             "result": {
-                "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
-                "connector_type": "MISP_CONNECTOR",
-                "action": "synced",
                 "message": "Story synced to MISP",
-                "sync_results": [
-                    {
-                        "type": "misp_sync_story",
-                        "version": 1,
-                        "story_id": story_id,
-                        "misp_event_uuid": misp_event_uuid,
-                        "news_item_ids_to_mark_external": news_item_ids,
-                    }
-                ],
+                "retryable": False,
+                "data": {
+                    "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
+                    "connector_type": "MISP_CONNECTOR",
+                    "action": "synced",
+                    "sync_results": [
+                        {
+                            "type": "misp_sync_story",
+                            "version": 1,
+                            "story_id": story_id,
+                            "misp_event_uuid": misp_event_uuid,
+                            "news_item_ids_to_mark_external": news_item_ids,
+                        }
+                    ],
+                },
             },
             "task": "connector_task",
         }
@@ -222,11 +225,14 @@ class TestConnectorTaskResults(BaseTest):
             "task_id": "connector_task_proposal_320d4589-cd71-4722-aa28-ea5530e99830",
             "status": "SUCCESS",
             "result": {
-                "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
-                "connector_type": "MISP_CONNECTOR",
-                "action": "proposed",
                 "message": "1 proposals submitted to MISP",
-                "sync_results": [],
+                "retryable": False,
+                "data": {
+                    "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
+                    "connector_type": "MISP_CONNECTOR",
+                    "action": "proposed",
+                    "sync_results": [],
+                },
             },
             "task": "connector_task",
         }
@@ -309,9 +315,9 @@ class TestConnectorTaskResults(BaseTest):
         self.assert_json_ok(response)
         task_result = response.get_json()["result"]
 
-        assert task_result["action"] == "proposed"
         assert task_result["message"] == "1 proposals submitted to MISP"
-        assert task_result["sync_results"] == []
+        assert task_result["data"]["action"] == "proposed"
+        assert task_result["data"]["sync_results"] == []
 
         response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
         self.assert_json_ok(response)
@@ -334,11 +340,14 @@ class TestConnectorTaskResults(BaseTest):
                 "task_id": "connector_task_unknown",
                 "status": "SUCCESS",
                 "result": {
-                    "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
-                    "connector_type": "MISP_CONNECTOR",
-                    "action": "mixed",
                     "message": "Connector finished with mixed results",
-                    "sync_results": [{"type": "unknown_connector_result"}],
+                    "retryable": False,
+                    "data": {
+                        "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
+                        "connector_type": "MISP_CONNECTOR",
+                        "action": "mixed",
+                        "sync_results": [{"type": "unknown_connector_result"}],
+                    },
                 },
                 "task": "connector_task",
             },
