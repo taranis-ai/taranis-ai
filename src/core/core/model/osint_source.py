@@ -57,7 +57,7 @@ class OSINTSource(BaseModel):
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
-    _ALLOWED_ICON_FORMATS = {"ICO", "PNG", "JPEG", "WEBP"}
+    _ALLOWED_ICON_FORMATS = {"GIF", "ICO", "PNG", "JPEG", "WEBP"}
 
     def __init__(
         self,

@@ -185,14 +185,18 @@ def test_osint_source_creation_rejects_svg_icon():
 
 
 @pytest.mark.usefixtures("app")
-def test_osint_source_creation_rejects_unsupported_image_format():
-    with pytest.raises(ValueError, match="Unsupported icon format"):
-        OSINTSource(
-            name="GIF Icon",
-            description="A test",
-            type=COLLECTOR_TYPES.RSS_COLLECTOR,
-            icon=_VALID_GIF_BASE64,
-        )
+def test_osint_source_creation_normalizes_gif_to_png(session):
+    source = OSINTSource(
+        name="GIF Icon",
+        description="A test",
+        type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        icon=_VALID_GIF_BASE64,
+    )
+    session.add(source)
+    session.commit()
+
+    assert source.icon is not None
+    _assert_normalized_png(source.icon)
 
 
 @pytest.mark.usefixtures("app")
