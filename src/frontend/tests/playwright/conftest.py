@@ -36,6 +36,10 @@ from tests.playwright.fixtures.test_news_item_list import news_items_list  # noq
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
 from tests.playwright.htmx_helpers import install_htmx_support
 from tests.playwright.notification_helpers import dismiss_notifications
+from testsupport.load_testing.seed_data import (
+    LOAD_TEST_REPORT_TYPE_DEFINITION,
+    build_report_payload,
+)
 
 
 def _configure_live_server_start_method() -> None:
@@ -887,6 +891,34 @@ def report_item_dict(story_item_list):
                 "render_data": {},
             },
         ],
+    }
+
+
+@pytest.fixture(scope="session")
+def load_measured_report_seed(core_request_client, pre_seed_report_stories):
+    report_type_payload = copy.deepcopy(LOAD_TEST_REPORT_TYPE_DEFINITION)
+    report_type_payload["title"] = "Frontend Flow Load Report Type"
+    report_type_response = core_request_client.post(
+        "/config/report-item-types",
+        json_data=report_type_payload,
+    )
+    report_type_id = report_type_response.json()["id"]
+
+    report_payload = build_report_payload(
+        story_ids=[story["id"] for story in pre_seed_report_stories[:2]],
+        report_type_id=report_type_id,
+        title="Load Test Report 1",
+    )
+    report_response = core_request_client.post(
+        "/analyze/report-items",
+        json_data=report_payload,
+    )
+    report = report_response.json()
+
+    return {
+        "report_id": report["id"],
+        "report_title": report_payload["title"],
+        "story_ids": report_payload["stories"],
     }
 
 

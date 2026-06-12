@@ -30,4 +30,8 @@ src/worker/tests
 **/build
 **/dist
 **/tests
+!tests/
+!tests/load/
+!tests/load/pyproject.toml
+!tests/load/uv.lock
 **/*.zip

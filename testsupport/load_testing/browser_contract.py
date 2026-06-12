@@ -1,0 +1,36 @@
+FRONTEND_LOGIN_PATH = "/frontend/login"
+DASHBOARD_PATH = "/frontend/"
+ASSESS_PATH = "/frontend/assess"
+ANALYZE_PATH = "/frontend/analyze"
+PAGE_REQUEST_TYPE = "PAGE"
+
+LOGIN_DASHBOARD_READY_EVENT = "login:dashboard_ready"
+LOGIN_READY_EVENT = "login:ready"
+DASHBOARD_READY_EVENT = "dashboard:ready"
+ASSESS_READY_EVENT = "assess:ready"
+ASSESS_LIST_READY_EVENT = "assess:list_ready"
+ASSESS_DETAIL_READY_EVENT = "assess:detail_ready"
+ANALYZE_READY_EVENT = "analyze:ready"
+ANALYZE_LIST_READY_EVENT = "analyze:list_ready"
+ANALYZE_DETAIL_READY_EVENT = "analyze:report_detail_ready"
+
+LOGIN_USERNAME_PLACEHOLDER = "Username"
+LOGIN_PASSWORD_PLACEHOLDER = "Password"
+LOGIN_BUTTON_TEST_ID = "login-button"
+
+DASHBOARD_ROOT_SELECTOR = "#dashboard"
+NAVBAR_ROOT_SELECTOR = "#navbar"
+DASHBOARD_MARKERS = ("Assess", "Analyze", "Publish", "Connectors")
+
+USER_NAV_ASSESS_LABEL = "Assess"
+USER_NAV_ANALYZE_LABEL = "Analyze"
+
+ASSESS_ROOT_TEST_ID = "assess"
+ASSESS_COUNT_TEST_ID = "assess_story_count"
+STORY_DETAIL_VIEW_TEST_ID = "open-detail-view"
+STORY_DETAIL_TITLE_TEST_ID = "story-title"
+ANALYZE_ROOT_TEST_ID = "analyze"
+NEW_REPORT_BUTTON_TEST_ID = "new-report-button"
+REPORT_TABLE_TEST_ID = "report-table"
+REPORT_STORIES_TEST_ID = "report-stories"
+REPORT_TITLE_INPUT_NAME = "Title"
