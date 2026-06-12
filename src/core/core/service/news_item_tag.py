@@ -5,6 +5,7 @@ from sqlalchemy import func
 
 from core.log import logger
 from core.managers.db_manager import db
+from core.model.base_model import BaseModel
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_tag import NewsItemTag, NewsItemTagCluster
@@ -14,7 +15,7 @@ from core.model.story import Story
 class NewsItemTagService:
     @classmethod
     def find_largest_tag_clusters(cls, days: int = 7, limit: int = 12, min_count: int = 2):
-        start_date = datetime.now() - timedelta(days=days)
+        start_date = BaseModel.utcnow() - timedelta(days=days)
 
         subquery = (
             db.select(NewsItemTag.name, NewsItemTag.tag_type, Story.id, Story.created)
@@ -63,7 +64,7 @@ class NewsItemTagService:
         )
 
         if days > 0:
-            date_threshold = datetime.now() - timedelta(days=days)
+            date_threshold = BaseModel.utcnow() - timedelta(days=days)
             stmt = stmt.join(Story, NewsItem.story_id == Story.id).filter(Story.created >= date_threshold)
 
         stmt = stmt.group_by(NewsItemTag.name).order_by(story_count.desc()).limit(n)
@@ -75,6 +76,7 @@ class NewsItemTagService:
     def get_tag_types(cls) -> list[str]:
         items = db.session.execute(
             db.select(NewsItemTagCluster.tag_type)
+            .where(NewsItemTagCluster.tag_type_key != "")
             .group_by(NewsItemTagCluster.tag_type, NewsItemTagCluster.tag_type_key)
             .order_by(func.sum(NewsItemTagCluster.story_count).desc())
         ).all()
@@ -82,13 +84,13 @@ class NewsItemTagService:
 
     @classmethod
     def get_largest_tag_types(cls, days: int) -> dict:
-        start_date = datetime.now() - timedelta(days=days) if days > 0 else None
+        start_date = BaseModel.utcnow() - timedelta(days=days) if days > 0 else None
         stmt = db.select(
             NewsItemTagCluster.tag_type,
             NewsItemTagCluster.tag_type_key,
             NewsItemTagCluster.name,
             NewsItemTagCluster.story_count,
-        )
+        ).where(NewsItemTagCluster.tag_type_key != "")
         if start_date:
             stmt = stmt.where(NewsItemTagCluster.last_story_created >= start_date)
 

@@ -1,8 +1,8 @@
-import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import core.service.dashboard as dashboard_module
+from core.model.base_model import BaseModel
 from core.model.news_item import NewsItem
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.product import Product
@@ -12,6 +12,10 @@ from core.model.story_conflict import StoryConflict
 from core.model.task import Task
 from core.service.dashboard import DashboardService
 from tests.application.support.builders import build_news_item_payload, create_story
+
+
+def _unique_value(prefix: str) -> str:
+    return f"{prefix}-{BaseModel.uuid7_str()}"
 
 
 def test_get_dashboard_data_includes_task_totals(monkeypatch):
@@ -68,8 +72,8 @@ def test_count_user_scheduled_jobs_ignores_housekeeping_and_malformed_entries():
 
 
 def test_trending_clusters_include_tags_from_story_creation(app, client, auth_header):
-    tag_type = f"created-type-{uuid.uuid4()}"
-    tag_name = f"created-tag-{uuid.uuid4()}"
+    tag_type = _unique_value("created-type")
+    tag_name = _unique_value("created-tag")
     story_id = None
 
     with app.app_context():
@@ -99,13 +103,13 @@ def test_trending_clusters_include_tags_from_story_creation(app, client, auth_he
 
 
 def test_trending_clusters_uses_recent_summary_activity_with_global_counts(app, client, auth_header):
-    tag_type = f"trend-type-{uuid.uuid4()}"
-    recent_tag = f"trend-recent-{uuid.uuid4()}"
-    second_recent_tag = f"trend-second-{uuid.uuid4()}"
-    old_tag = f"trend-old-{uuid.uuid4()}"
-    other_tag_type = f"trend-other-type-{uuid.uuid4()}"
-    other_tag = f"trend-other-{uuid.uuid4()}"
-    now = datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0)
+    tag_type = _unique_value("trend-type")
+    recent_tag = _unique_value("trend-recent")
+    second_recent_tag = _unique_value("trend-second")
+    old_tag = _unique_value("trend-old")
+    other_tag_type = _unique_value("trend-other-type")
+    other_tag = _unique_value("trend-other")
+    now = BaseModel.utcnow().replace(microsecond=0)
     story_ids = []
 
     with app.app_context():

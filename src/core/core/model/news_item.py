@@ -236,9 +236,10 @@ class NewsItem(BaseModel):
 
     @classmethod
     def delete_all(cls) -> tuple[dict[str, Any], int]:
-        from core.model.news_item_tag import NewsItemTagCluster
+        from core.model.news_item_tag import NewsItemTag, NewsItemTagCluster
 
         db.session.execute(db.delete(NewsItemTagCluster))
+        db.session.execute(db.delete(NewsItemTag))
         db.session.execute(db.delete(cls))
         db.session.commit()
         logger.debug(f"All {cls.__name__} deleted")
@@ -354,7 +355,8 @@ class NewsItem(BaseModel):
             return {"error": "No valid tags provided"}, 400
 
         summary_keys = self.get_tag_summary_keys()
-        summary_keys.update((tag.name, NewsItemTag.summary_tag_type_key(tag.tag_type)) for tag in parsed_tags.values() if tag.name)
+        for tag in parsed_tags.values():
+            summary_keys.update(NewsItemTag.get_summary_keys_for_tag_types(tag.name, tag.tag_type))
 
         if not parsed_tags:
             if replace:
@@ -380,7 +382,10 @@ class NewsItem(BaseModel):
         return {"message": "News item tags updated"}, 200
 
     def get_tag_summary_keys(self) -> set[tuple[str, str]]:
-        return {(tag.name, NewsItemTag.summary_tag_type_key(tag.tag_type)) for tag in self.tags if tag.name}
+        summary_keys = set()
+        for tag in self.tags:
+            summary_keys.update(NewsItemTag.get_summary_keys_for_tag_types(tag.name, tag.tag_type))
+        return summary_keys
 
     def refresh_tag_summaries(self, summary_keys: set[tuple[str, str]]) -> None:
         from core.model.news_item_tag import NewsItemTagCluster

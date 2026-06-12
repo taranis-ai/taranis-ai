@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Index, func, literal_column, tuple_
@@ -88,15 +89,18 @@ class NewsItemTag(BaseModel):
         return cls.get_first(db.select(cls).filter(cls.name.ilike(tag_name)))
 
     @classmethod
-    def apply_sort(cls, query, sort_str: str):
+    def apply_sort(cls, query, sort_str: str, *, size_column=None, name_column=None):
+        size_column = size_column if size_column is not None else literal_column("size")
+        name_column = name_column if name_column is not None else literal_column("name")
+
         if sort_str == "size_desc":
-            return query.order_by(literal_column("size").desc(), literal_column("name").asc())
+            return query.order_by(size_column.desc(), name_column.asc())
         elif sort_str == "size_asc":
-            return query.order_by(literal_column("size").asc(), literal_column("name").asc())
+            return query.order_by(size_column.asc(), name_column.asc())
         elif sort_str == "name_asc":
-            return query.order_by(literal_column("name").asc())
+            return query.order_by(name_column.asc())
         elif sort_str == "name_desc":
-            return query.order_by(literal_column("name").desc())
+            return query.order_by(name_column.desc())
 
         return query
 
@@ -111,7 +115,7 @@ class NewsItemTag(BaseModel):
 
         count = db.session.execute(db.select(func.count()).select_from(query.subquery())).scalar_one()
         if sort := filter_args.get("sort", "size_desc"):
-            query = cls.apply_sort(query, sort)
+            query = cls.apply_sort(query, sort, size_column=NewsItemTagCluster.story_count, name_column=NewsItemTagCluster.name)
 
         if offset := filter_args.get("offset"):
             query = query.offset(offset)
@@ -186,6 +190,14 @@ class NewsItemTag(BaseModel):
         return tag_type or ""
 
     @classmethod
+    def get_summary_key(cls, tag_name: str, tag_type: str | None) -> tuple[str, str]:
+        return tag_name, cls.summary_tag_type_key(tag_type)
+
+    @classmethod
+    def get_summary_keys_for_tag_types(cls, tag_name: str, *tag_types: str | None) -> set[tuple[str, str]]:
+        return {cls.get_summary_key(tag_name, tag_type) for tag_type in tag_types if tag_name}
+
+    @classmethod
     def get_summary_keys_for_news_item_ids(cls, news_item_ids) -> set[tuple[str, str]]:
         rows = db.session.execute(
             db.select(cls.name, func.coalesce(cls.tag_type, ""))
@@ -215,7 +227,7 @@ class NewsItemTagCluster(BaseModel):
     tag_type: Mapped[str | None] = db.Column(db.String(255), nullable=True)
     news_item_count: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     story_count: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
-    last_story_created: Mapped[Any | None] = db.Column(db.DateTime, nullable=True)
+    last_story_created: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
 
     @classmethod
     def refresh_for_keys(cls, keys: set[tuple[str, str]], session=None) -> None:
