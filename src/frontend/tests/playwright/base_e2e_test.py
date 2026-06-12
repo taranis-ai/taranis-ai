@@ -2,12 +2,12 @@ import re
 from urllib.parse import urljoin, urlparse
 
 from flask import url_for
+from htmx_helpers import wait_for_htmx_settled as wait_for_htmx_settled_helper
 from playwright.sync_api import Page, expect
 from playwright_helpers import PlaywrightHelpers
 
 
 DELETE_RESPONSE_TIMEOUT_MS = 30000
-HTMX_TRIGGER_SETTLE_MS = 600
 
 
 class BaseE2ETest(PlaywrightHelpers):
@@ -20,11 +20,7 @@ class BaseE2ETest(PlaywrightHelpers):
         return table.locator(f"a[data-testid^='{table_id}_']").filter(has_text=exact_link_text).first
 
     def wait_for_htmx_settled(self, page: Page):
-        page.wait_for_timeout(HTMX_TRIGGER_SETTLE_MS)
-        page.wait_for_function(
-            "() => !document.querySelector('.htmx-request, .htmx-swapping, .htmx-settling')",
-            timeout=DELETE_RESPONSE_TIMEOUT_MS,
-        )
+        wait_for_htmx_settled_helper(page, timeout=DELETE_RESPONSE_TIMEOUT_MS)
 
     def login_with_credentials(
         self,
@@ -75,10 +71,12 @@ class BaseE2ETest(PlaywrightHelpers):
                     force_checkbox.check()
             with page.expect_response(is_delete_response, timeout=DELETE_RESPONSE_TIMEOUT_MS):
                 confirm_button.click()
+            self.wait_for_htmx_settled(page)
         else:
             row_locator = delete_button.locator("xpath=ancestor::tr[1]").first
             with page.expect_response(is_delete_response, timeout=DELETE_RESPONSE_TIMEOUT_MS):
                 delete_button.click()
+            self.wait_for_htmx_settled(page)
             expect(row_locator).not_to_be_visible()
 
         try:
