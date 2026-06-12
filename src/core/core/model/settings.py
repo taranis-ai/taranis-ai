@@ -1,4 +1,5 @@
 import copy
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.orm import Mapped
 
@@ -27,6 +28,7 @@ class Settings(BaseModel):
             "default_tlp_level": TLPLevel.CLEAR.value,
             "default_story_conflict_retention": "200",
             "default_news_item_conflict_retention": "200",
+            "default_timezone": None,
         }
 
     @classmethod
@@ -37,6 +39,10 @@ class Settings(BaseModel):
             return {"error": "Error updating settings"}, 404
 
         if update_data := data.get("settings"):
+            try:
+                update_data = cls._normalize_update_data(update_data)
+            except ValueError as exc:
+                return {"error": str(exc)}, 400
             logger.debug(f"Settings update data: {update_data}")
             logger.debug(f"Settings before update: {settings.settings}")
             settings.settings = {**settings.settings, **update_data}
@@ -58,6 +64,8 @@ class Settings(BaseModel):
                 current_settings["default_story_conflict_retention"] = "200"
             if "default_news_item_conflict_retention" not in current_settings:
                 current_settings["default_news_item_conflict_retention"] = "200"
+            if "default_timezone" not in current_settings:
+                current_settings["default_timezone"] = None
             settings.settings = current_settings
         else:
             db.session.add(Settings())
@@ -71,6 +79,24 @@ class Settings(BaseModel):
             logger.debug("No Settings entry found")
             return {}
         return settings.settings
+
+    @classmethod
+    def _normalize_update_data(cls, data: dict) -> dict:
+        normalized = dict(data)
+        if "default_timezone" in normalized:
+            normalized["default_timezone"] = cls._validate_timezone(normalized.get("default_timezone"))
+        return normalized
+
+    @staticmethod
+    def _validate_timezone(value: str | None) -> str | None:
+        timezone_name = (value or "").strip()
+        if not timezone_name:
+            return None
+        try:
+            ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            raise ValueError(f"Invalid timezone: {timezone_name}") from None
+        return timezone_name
 
     @classmethod
     def get_settings_entry(cls) -> "Settings | None":

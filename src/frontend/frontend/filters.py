@@ -1,9 +1,10 @@
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Iterable
 
 import filetype
 from flask import render_template, url_for
+from flask_babel import format_datetime as babel_format_datetime
 from heroicons.jinja import heroicon_outline
 from jinja2 import pass_context
 from markupsafe import Markup, escape
@@ -199,9 +200,14 @@ def render_item_validation_status(item) -> str:
 
 def format_datetime(value: datetime | str) -> str:
     if isinstance(value, str):
-        value = datetime.fromisoformat(value)
+        try:
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return value
     if isinstance(value, datetime):
-        return value.strftime("%d. %B %Y %H:%M")
+        if value.tzinfo is None or value.utcoffset() is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return babel_format_datetime(value, format="dd. MMMM y HH:mm")
     return value
 
 

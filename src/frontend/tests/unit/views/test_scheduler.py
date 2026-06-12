@@ -1,9 +1,11 @@
 from urllib.parse import urlparse
 
 import pytest
+import responses
 from flask import url_for
 
 from frontend.cache import cache
+from frontend.config import Config
 
 
 def _requested_core_paths(responses_mock):
@@ -132,3 +134,38 @@ def test_scheduler_history_displays_worker_type_and_hover_worker_id(
     html = response.get_data(as_text=True)
     assert "WORDLIST_BOT" in html
     assert 'title="Worker ID: bot-1"' in html
+
+
+def test_scheduler_jobs_table_formats_next_run_in_effective_timezone(
+    authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header, auth_user
+):
+    responses_mock.replace(
+        responses.GET,
+        f"{Config.TARANIS_CORE_URL}/config/schedule",
+        json={
+            "items": [
+                {
+                    "id": "local-time-job",
+                    "name": "Local Time Job",
+                    "queue": "collectors",
+                    "type": "cron",
+                    "schedule": "*/15 * * * *",
+                    "next_run_time": "2025-01-01T12:00:00",
+                }
+            ],
+            "total_count": 1,
+        },
+        status=200,
+        content_type="application/json",
+    )
+    from frontend.cache import add_user_to_cache
+
+    local_time_user = auth_user.model_copy(update={"effective_timezone": "Europe/Vienna"})
+    add_user_to_cache(local_time_user.model_dump(mode="json"))
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_jobs_table")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    assert "01. January 2025 13:00" in response.get_data(as_text=True)

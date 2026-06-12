@@ -11,7 +11,7 @@ from werkzeug.exceptions import HTTPException
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.i18n import get_supported_language_options
+from frontend.i18n import get_supported_language_options, get_timezone_options
 from frontend.log import logger
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
@@ -30,7 +30,7 @@ class UserProfileView(BaseView):
     @classmethod
     @auth_required()
     def get_settings_view(cls):
-        return render_template("user_profile/settings.html", user=current_user, language_options=get_supported_language_options())
+        return render_template("user_profile/settings.html", **cls._settings_context())
 
     @classmethod
     @auth_required()
@@ -61,19 +61,28 @@ class UserProfileView(BaseView):
         if not core_response or error:
             return render_template(
                 "user_profile/settings.html",
-                **cls.get_update_context("0", error=error),
+                **cls._settings_context(error=error),
             ), 400
 
         notification_response = cls.get_notification_from_dict(core_response)
-        update_current_user_cache()
+        updated_user = update_current_user_cache() or current_user
         logger.debug(f"Profile settings updated: {core_response}")
 
         return render_template(
             "user_profile/settings.html",
-            user=current_user,
-            language_options=get_supported_language_options(),
+            **cls._settings_context(user=updated_user),
             notification=notification_response,
         ), 200
+
+    @classmethod
+    def _settings_context(cls, **extra: Any) -> dict[str, Any]:
+        context = {
+            "user": extra.pop("user", current_user),
+            "language_options": get_supported_language_options(),
+            "timezone_options": get_timezone_options(),
+        }
+        context.update(extra)
+        return context
 
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: str = "0"):

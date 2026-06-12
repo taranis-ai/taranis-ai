@@ -1,7 +1,9 @@
+from functools import cache
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 from flask import Flask, current_app, g, request
-from flask_babel import Babel, get_locale, gettext
+from flask_babel import Babel, get_locale, get_timezone, gettext
 from flask_jwt_extended import current_user, verify_jwt_in_request
 from flask_jwt_extended.exceptions import JWTExtendedException
 
@@ -17,17 +19,36 @@ def _default_locale() -> str:
     return str(current_app.config.get("BABEL_DEFAULT_LOCALE", "en"))
 
 
-def _profile_language(user: Any) -> str | None:
+def _default_timezone() -> str:
+    return str(current_app.config.get("BABEL_DEFAULT_TIMEZONE", "UTC"))
+
+
+def _profile_value(user: Any, key: str) -> str | None:
     profile = getattr(user, "profile", None)
     if profile is None:
         return None
     if isinstance(profile, dict):
-        language = profile.get("language")
+        value = profile.get(key)
     else:
-        language = getattr(profile, "language", None)
-    if not isinstance(language, str):
+        value = getattr(profile, key, None)
+    if not isinstance(value, str):
         return None
-    return language.strip().lower() or None
+    return value.strip() or None
+
+
+def _profile_language(user: Any) -> str | None:
+    language = _profile_value(user, "language")
+    return language.lower() if language else None
+
+
+def _valid_timezone(timezone_name: str | None) -> str | None:
+    if not timezone_name:
+        return None
+    try:
+        ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        return None
+    return timezone_name
 
 
 def _accepted_locale() -> str | None:
@@ -61,6 +82,24 @@ def select_locale() -> str:
     return _accepted_locale() or default_locale
 
 
+def select_timezone() -> str:
+    default_timezone = _default_timezone()
+
+    if not getattr(g, "skip_current_user_injection", False):
+        try:
+            verify_jwt_in_request(optional=True)
+        except JWTExtendedException:
+            pass
+        else:
+            if current_user:
+                if timezone_name := _valid_timezone(_profile_value(current_user, "timezone")):
+                    return timezone_name
+                if timezone_name := _valid_timezone(getattr(current_user, "effective_timezone", None)):
+                    return timezone_name
+
+    return default_timezone
+
+
 def get_supported_language_options() -> list[dict[str, str]]:
     return [
         {"id": "en", "name": gettext("English")},
@@ -68,6 +107,19 @@ def get_supported_language_options() -> list[dict[str, str]]:
     ]
 
 
+@cache
+def get_timezone_options() -> list[str]:
+    return sorted(available_timezones())
+
+
 def init(app: Flask) -> None:
-    babel.init_app(app, locale_selector=select_locale)
+    babel.init_app(
+        app,
+        default_locale=app.config["BABEL_DEFAULT_LOCALE"],
+        default_timezone=app.config["BABEL_DEFAULT_TIMEZONE"],
+        default_translation_directories=app.config["BABEL_TRANSLATION_DIRECTORIES"],
+        locale_selector=select_locale,
+        timezone_selector=select_timezone,
+    )
     app.jinja_env.globals["get_locale"] = get_locale
+    app.jinja_env.globals["get_timezone"] = get_timezone

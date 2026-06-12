@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AnyUrl, Field, PastDatetime, SecretStr, field_serializer, field_validator, model_validator
 
@@ -245,6 +246,19 @@ class TaranisConfig(TaranisBaseModel):
     default_tlp_level: TLPLevel = TLPLevel.CLEAR
     default_story_conflict_retention: str = "200"
     default_news_item_conflict_retention: str = "200"
+    default_timezone: str | None = None
+
+    @field_validator("default_timezone", mode="after")
+    @classmethod
+    def validate_default_timezone(cls, value: str | None) -> str | None:
+        timezone_name = (value or "").strip()
+        if not timezone_name:
+            return None
+        try:
+            ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"Invalid timezone: {timezone_name}") from exc
+        return timezone_name
 
 
 class Settings(TaranisBaseModel):

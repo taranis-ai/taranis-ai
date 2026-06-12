@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-10 15:22+0200\n"
+"POT-Creation-Date: 2026-06-11 12:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: frontend/i18n.py:66
+#: frontend/i18n.py:105
 msgid "English"
 msgstr ""
 
-#: frontend/i18n.py:67
+#: frontend/i18n.py:106
 msgid "German"
 msgstr ""
 
@@ -33,11 +33,11 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
-#: frontend/templates/base.html:23 frontend/templates/login/index.html:21
+#: frontend/templates/base.html:23 frontend/templates/login/index.html:20
 msgid "Delete"
 msgstr ""
 
-#: frontend/templates/base.html:24 frontend/templates/login/index.html:22
+#: frontend/templates/base.html:24 frontend/templates/login/index.html:20
 msgid "Cancel"
 msgstr ""
 
@@ -81,7 +81,7 @@ msgstr ""
 msgid "Taranis AI - Your AI-powered assistant platform."
 msgstr ""
 
-#: frontend/templates/login/index.html:30
+#: frontend/templates/login/index.html:28
 msgid "Error contacting Core API"
 msgstr ""
 
@@ -96,7 +96,7 @@ msgstr ""
 
 #: frontend/templates/login/login.html:16
 #: frontend/templates/login/login.html:17
-#: frontend/templates/user_profile/settings_content.html:179
+#: frontend/templates/user_profile/settings_content.html:237
 msgid "Password"
 msgstr ""
 
@@ -323,62 +323,91 @@ msgid "Choose the interface language."
 msgstr ""
 
 #: frontend/templates/user_profile/settings_content.html:139
+msgid "Timezone"
+msgstr ""
+
+#: frontend/templates/user_profile/settings_content.html:145
+msgid "Select timezone"
+msgstr ""
+
+#: frontend/templates/user_profile/settings_content.html:146
+msgid "No timezones found"
+msgstr ""
+
+#: frontend/templates/user_profile/settings_content.html:147
+msgid "No timezones to choose from"
+msgstr ""
+
+#: frontend/templates/user_profile/settings_content.html:149
+#, python-format
+msgid "Use system default (%(timezone)s)"
+msgstr ""
+
+#: frontend/templates/user_profile/settings_content.html:155
+msgid "Use browser timezone"
+msgstr ""
+
+#: frontend/templates/user_profile/settings_content.html:158
+msgid "Choose how local times are displayed."
+msgstr ""
+
+#: frontend/templates/user_profile/settings_content.html:166
 msgid "End of shift"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:143
+#: frontend/templates/user_profile/settings_content.html:170
 msgid "Used to plan notifications and highlights."
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:152
+#: frontend/templates/user_profile/settings_content.html:179
 msgid "Live updates"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:153
+#: frontend/templates/user_profile/settings_content.html:180
 msgid "Checking connection status..."
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:156
+#: frontend/templates/user_profile/settings_content.html:183
 msgid "Enable SSE"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:160
+#: frontend/templates/user_profile/settings_content.html:187
 msgid "Server-sent events let the UI react to changes without refreshing."
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:180
+#: frontend/templates/user_profile/settings_content.html:238
 msgid "Change your password"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:181
+#: frontend/templates/user_profile/settings_content.html:239
 msgid "Keep this secure and avoid reusing passwords from other systems."
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:187
+#: frontend/templates/user_profile/settings_content.html:245
 msgid "Current password"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:199
+#: frontend/templates/user_profile/settings_content.html:257
 msgid "New password"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:206
+#: frontend/templates/user_profile/settings_content.html:264
 msgid "Confirm new password"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:212
+#: frontend/templates/user_profile/settings_content.html:270
 msgid "Update password"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:224
+#: frontend/templates/user_profile/settings_content.html:282
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:226
+#: frontend/templates/user_profile/settings_content.html:284
 msgid "HotKeys are currently static only."
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:228
+#: frontend/templates/user_profile/settings_content.html:286
 msgid "tracks progress on making them configurable."
 msgstr ""
 

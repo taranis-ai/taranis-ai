@@ -23,7 +23,7 @@
             </td>
             <td>
               {% if job.failed_at %}
-                <span class="text-sm">{{ job.failed_at }}</span>
+                <span class="text-sm">{{ job.failed_at | format_datetime }}</span>
               {% else %}
                 <span class="text-xs opacity-50">-</span>
               {% endif %}

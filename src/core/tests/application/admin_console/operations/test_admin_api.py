@@ -25,6 +25,7 @@ class TestAdminApi(BaseTest):
                 "default_tlp_level": "clear",
                 "default_story_conflict_retention": "150",
                 "default_news_item_conflict_retention": "150",
+                "default_timezone": "Europe/Vienna",
             }
         }
 
@@ -33,6 +34,26 @@ class TestAdminApi(BaseTest):
 
         assert response_settings["message"] == "Successfully updated settings"
         assert response_settings["settings"] == test_settings["settings"]
+
+    def test_settings_rejects_invalid_default_timezone(self, client, auth_header):
+        response = client.put(
+            f"{self.base_uri}/settings",
+            json={"settings": {"default_timezone": "Not/A_Timezone"}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert "Invalid timezone" in response.get_json()["error"]
+
+    def test_settings_clears_default_timezone(self, client, auth_header):
+        response = self.assert_put_ok(
+            client,
+            "settings",
+            {"settings": {"default_timezone": ""}},
+            auth_header,
+        )
+
+        assert response.get_json()["settings"]["default_timezone"] is None
 
 
 def test_export_stories_and_metadata(client, full_story, api_header, auth_header):

@@ -134,6 +134,35 @@
         </div>
 
         <div class="rounded-xl border border-base-300 bg-base-200 p-4">
+          <div class="form-control w-full">
+            <label class="label" for="timezone-select">
+              <span class="label-text font-semibold text-base-content">{{ _("Timezone") }}</span>
+            </label>
+            <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-start">
+              <div class="min-w-0 flex-1">
+                <select id="timezone-select"
+                        name="timezone"
+                        class="select select-bordered w-full"
+                        data-choices-placeholder-value="{{ _('Select timezone') }}"
+                        data-choices-no-results-text="{{ _('No timezones found') }}"
+                        data-choices-no-choices-text="{{ _('No timezones to choose from') }}">
+                  <option value="" {% if not profile.timezone %}selected{% endif %}>
+                    {{ _("Use system default (%(timezone)s)", timezone=user.effective_timezone|default("UTC", true) ) }}
+                  </option>
+                  {% for timezone in timezone_options %}
+                    <option value="{{ timezone }}" {% if timezone == profile.timezone %}selected{% endif %}>{{ timezone }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <button type="button" class="btn btn-outline w-full sm:w-auto sm:shrink-0" data-use-browser-timezone>{{ _("Use browser timezone") }}</button>
+            </div>
+            <div class="label">
+              <span class="label-text-alt text-base-content/70">{{ _("Choose how local times are displayed.") }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-base-300 bg-base-200 p-4">
           <label class="form-control w-full" for="end-of-shift">
             <div class="label">
               <span class="label-text font-semibold text-base-content">{{ _("End of shift") }}</span>
@@ -163,6 +192,37 @@
     </div>
   </div>
 </form>
+
+<script type="text/javascript">
+  (function () {
+    function initTimezoneSettings() {
+      const select = document.getElementById("timezone-select");
+      const button = document.querySelector("[data-use-browser-timezone]");
+      if (!select || !button) {
+        return;
+      }
+
+      const choices = typeof initChoices === "function" ? initChoices("timezone-select") : null;
+      button.addEventListener("click", function () {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (!timezone) {
+          return;
+        }
+        if (choices && typeof choices.setChoiceByValue === "function") {
+          choices.setChoiceByValue(timezone);
+        }
+        select.value = timezone;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    if (document.readyState === "loading" && typeof initChoices !== "function") {
+      document.addEventListener("DOMContentLoaded", initTimezoneSettings, { once: true });
+    } else {
+      initTimezoneSettings();
+    }
+  })();
+</script>
 
 <form id="user-password-form"
       class="grid gap-4 my-6"

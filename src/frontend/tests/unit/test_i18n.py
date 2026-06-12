@@ -1,19 +1,23 @@
+from datetime import datetime
+
 from flask_babel import get_locale
 from flask_jwt_extended import create_access_token
 from models.user import ProfileSettings, UserProfile
 
 from frontend.auth import render_login_page
 from frontend.cache import add_user_to_cache
+from frontend.filters import format_datetime
 
 
-def _user_with_language(language: str) -> UserProfile:
+def _user_with_language(language: str, timezone: str | None = None, effective_timezone: str = "UTC") -> UserProfile:
     return UserProfile(
         id=f"user-{language}",
         username=f"user-{language}",
         name="Test User",
         organization={"id": "1", "name": "Test Organization"},
         permissions=["ASSESS_ACCESS"],
-        profile=ProfileSettings(language=language),
+        profile=ProfileSettings(language=language, timezone=timezone),
+        effective_timezone=effective_timezone,
         roles=[{"id": "1", "name": "User"}],
     )
 
@@ -77,3 +81,41 @@ def test_english_is_default_locale(app):
     assert str(get_locale()) == "en"
     assert 'lang="en"' in html
     assert "Username" in html
+
+
+def test_profile_timezone_formats_naive_utc_datetime_as_local_time(app, test_cache_backend):
+    user = _user_with_language("de", timezone="Europe/Vienna")
+    add_user_to_cache(user.model_dump(mode="json"))
+    with app.app_context():
+        access_token = create_access_token(identity=user)
+    with app.test_request_context(
+        "/frontend/login",
+        headers={"Accept-Language": "de", "Cookie": f"access_token_cookie={access_token}"},
+    ):
+        formatted = format_datetime(datetime(2026, 6, 11, 10, 30))
+
+    assert formatted == "11. Juni 2026 12:30"
+
+
+def test_effective_timezone_formats_naive_utc_datetime_when_profile_timezone_empty(app, test_cache_backend):
+    user = _user_with_language("de", timezone=None, effective_timezone="Europe/Vienna")
+    add_user_to_cache(user.model_dump(mode="json"))
+    with app.app_context():
+        access_token = create_access_token(identity=user)
+    with app.test_request_context(
+        "/frontend/login",
+        headers={"Accept-Language": "de", "Cookie": f"access_token_cookie={access_token}"},
+    ):
+        formatted = format_datetime(datetime(2026, 6, 11, 10, 30))
+
+    assert formatted == "11. Juni 2026 12:30"
+
+
+def test_timezone_cookie_does_not_affect_datetime_formatting(app):
+    with app.test_request_context(
+        "/frontend/login",
+        headers={"Accept-Language": "de", "Cookie": "taranis_timezone=Europe/Vienna"},
+    ):
+        formatted = format_datetime(datetime(2026, 6, 11, 10, 30))
+
+    assert formatted == "11. Juni 2026 10:30"

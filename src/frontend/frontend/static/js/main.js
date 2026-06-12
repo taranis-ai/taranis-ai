@@ -1,8 +1,12 @@
-function getCSRFToken() {
+function getCookieValue(name) {
   return document.cookie
     .split("; ")
-    .find((row) => row.startsWith("csrf_access_token="))
+    .find((row) => row.startsWith(`${name}=`))
     ?.split("=")[1];
+}
+
+function getCSRFToken() {
+  return getCookieValue("csrf_access_token");
 }
 
 function getConfirmOptions(el, question) {
@@ -208,16 +212,16 @@ function initChoices(elementID, config = {}) {
   }
 
   const classNames = {
-    containerOuter: ["choices", "!bg-base-200"],
-    containerInner: ["choices__inner", "!bg-base-200"],
-    input: ["choices__input", "!bg-base-200"],
-    inputCloned: ["choices__input--cloned", "!bg-base-200"],
-    list: ["choices__list", "!bg-base-200"],
+    containerOuter: ["choices", "w-full"],
+    containerInner: ["choices__inner"],
+    input: ["choices__input"],
+    inputCloned: ["choices__input--cloned"],
+    list: ["choices__list"],
     itemSelectable: [
       "choices__item--selectable",
       "choices-item-selectable-primary",
     ],
-    itemChoice: ["choices__item--choice", "!bg-base-200"],
+    itemChoice: ["choices__item--choice"],
     selectedState: ["is-selected", "choices-selected-primary"],
   };
 
