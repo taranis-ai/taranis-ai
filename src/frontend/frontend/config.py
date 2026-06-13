@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     JWT_CSRF_IN_COOKIES: bool = True
     JWT_COOKIE_SECURE: bool = True
     JWT_CSRF_METHODS: list[str] = ["POST", "PUT", "PATCH", "DELETE"]
-    JWT_DECODE_LEEWAY: int = 5
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
