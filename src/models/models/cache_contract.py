@@ -26,21 +26,21 @@ def get_secret_value(value: Any) -> str | None:
     return text or None
 
 
-def normalize_cache_suffix(value: str | int | None) -> str:
+def normalize_cache_suffix(value: str | None) -> str:
     if value in (None, ""):
         return CACHE_DEFAULT_LIST_SUFFIX
     return str(value)
 
 
-def build_cache_key(prefix: str, username: str, model_name: str, kind: str, suffix: str | int | None) -> str:
+def build_cache_key(prefix: str, username: str, model_name: str, kind: str, suffix: str | None) -> str:
     return f"{prefix}:{CACHE_USER_SEGMENT}:{username}:{CACHE_MODEL_SEGMENT}:{model_name}:{kind}:{normalize_cache_suffix(suffix)}"
 
 
-def build_model_list_key(prefix: str, username: str, model_name: str, suffix: str | int | None) -> str:
+def build_model_list_key(prefix: str, username: str, model_name: str, suffix: str | None) -> str:
     return build_cache_key(prefix, username, model_name, CACHE_LIST_KIND, suffix)
 
 
-def build_model_detail_key(prefix: str, username: str, model_name: str, object_id: str | int | None = None) -> str:
+def build_model_detail_key(prefix: str, username: str, model_name: str, object_id: str | None = None) -> str:
     return build_cache_key(prefix, username, model_name, CACHE_DETAIL_KIND, object_id or CACHE_SINGLETON_SUFFIX)
 
 
@@ -60,7 +60,7 @@ def build_model_list_pattern(prefix: str, model_name: str) -> str:
     return f"{prefix}:{CACHE_USER_SEGMENT}:*:{CACHE_MODEL_SEGMENT}:{model_name}:{CACHE_LIST_KIND}:*"
 
 
-def build_model_detail_pattern(prefix: str, model_name: str, object_id: str | int) -> str:
+def build_model_detail_pattern(prefix: str, model_name: str, object_id: str) -> str:
     return f"{prefix}:{CACHE_USER_SEGMENT}:*:{CACHE_MODEL_SEGMENT}:{model_name}:{CACHE_DETAIL_KIND}:{object_id}"
 
 

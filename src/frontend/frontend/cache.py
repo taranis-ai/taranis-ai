@@ -111,7 +111,7 @@ class FrontendCache:
             logger.exception("Failed to scan cache keys")
             return []
 
-    def model_list_key(self, username: str, model_name: str, suffix: str | int | None) -> str:
+    def model_list_key(self, username: str, model_name: str, suffix: str | None) -> str:
         return build_model_list_key(self.key_prefix, username, model_name, suffix)
 
     def model_detail_key(self, username: str, model_name: str, object_id: str | None = None) -> str:
