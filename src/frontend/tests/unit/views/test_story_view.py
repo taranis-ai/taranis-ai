@@ -1,6 +1,7 @@
 import json
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
+from uuid import UUID
 
 from flask import render_template_string, url_for
 from lxml import html
@@ -685,6 +686,7 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
     assert len(payload["assess_saved_filters"]) == 1
     saved_filter = payload["assess_saved_filters"][0]
     assert saved_filter["id"]
+    assert UUID(saved_filter["id"]).version == 7
     assert saved_filter == {
         "id": saved_filter["id"],
         "name": "Shift queue",

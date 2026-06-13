@@ -1,8 +1,8 @@
 import datetime
+import uuid
 from json import JSONDecodeError
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
-from uuid import uuid4
 
 from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
@@ -253,19 +253,12 @@ class StoryView(BaseView):
 
     @classmethod
     def _filter_payload_to_request_params(cls, filters: dict[str, Any]) -> dict[str, list[str]]:
-        return {
-            key: values
-            for key, value in cls._normalize_assess_filter_payload(filters).items()
-            if (values := cls._normalize_assess_filter_values(value))
-        }
-
-    @staticmethod
-    def _saved_filter_to_dict(saved_filter: Any) -> dict[str, Any]:
-        if hasattr(saved_filter, "model_dump"):
-            return saved_filter.model_dump(mode="json")
-        if isinstance(saved_filter, dict):
-            return dict(saved_filter)
-        return {}
+        params: dict[str, list[str]] = {}
+        for key, value in cls._normalize_assess_filter_payload(filters).items():
+            values = cls._normalize_assess_filter_values(value)
+            if values:
+                params[key] = values
+        return params
 
     @classmethod
     def _get_saved_assess_filters(cls) -> list[dict[str, Any]]:
@@ -277,7 +270,13 @@ class StoryView(BaseView):
         saved_filters: list[dict[str, Any]] = []
         default_seen = False
         for raw_filter in raw_filters:
-            saved_filter = cls._saved_filter_to_dict(raw_filter)
+            if hasattr(raw_filter, "model_dump"):
+                saved_filter = raw_filter.model_dump(mode="json")
+            elif isinstance(raw_filter, dict):
+                saved_filter = raw_filter
+            else:
+                continue
+
             filter_id = str(saved_filter.get("id") or "").strip()
             name = str(saved_filter.get("name") or "").strip()
             filters = saved_filter.get("filters")
@@ -517,11 +516,19 @@ class StoryView(BaseView):
     @classmethod
     @auth_required()
     def get_saved_filters_dialog(cls) -> tuple[str, int]:
-        return render_template("assess/sidebar/saved_filters_dialog.html", **cls._get_saved_filters_dialog_context()), 200
+        return cls._render_saved_filters_dialog()
 
     @classmethod
-    def _saved_filter_name(cls) -> str:
-        return request.form.get("name", "").strip()
+    def _render_saved_filters_dialog(
+        cls,
+        notification: dict[str, Any] | None = None,
+        status: int = 200,
+        saved_filters: list[dict[str, Any]] | None = None,
+    ) -> tuple[str, int]:
+        context = cls._get_saved_filters_dialog_context(saved_filters)
+        if notification:
+            context["notification"] = notification
+        return render_template("assess/sidebar/saved_filters_dialog.html", **context), status
 
     @classmethod
     def _saved_filters_profile_payload(cls, saved_filters: list[dict[str, Any]]) -> dict[str, Any]:
@@ -538,7 +545,7 @@ class StoryView(BaseView):
             default_seen = default_seen or is_default
             normalized_filters.append(
                 {
-                    "id": str(saved_filter.get("id") or uuid4().hex),
+                    "id": str(saved_filter.get("id") or uuid.uuid7()),
                     "name": str(saved_filter.get("name") or "").strip(),
                     "filters": normalized,
                     "is_default": is_default,
@@ -556,11 +563,7 @@ class StoryView(BaseView):
     @classmethod
     def _render_saved_filters_mutation_response(cls, response, success_message: str, saved_filters: list[dict[str, Any]]):
         if getattr(response, "ok", False):
-            return render_template(
-                "assess/sidebar/saved_filters_dialog.html",
-                **cls._get_saved_filters_dialog_context(saved_filters),
-                notification={"message": success_message},
-            ), 200
+            return cls._render_saved_filters_dialog({"message": success_message}, saved_filters=saved_filters)
 
         return make_response(cls.get_notification_from_response(response), getattr(response, "status_code", 500) or 500)
 
@@ -568,27 +571,15 @@ class StoryView(BaseView):
     @auth_required()
     def save_saved_filter(cls):
         try:
-            name = cls._saved_filter_name()
+            name = request.form.get("name", "").strip()
             if not name:
-                return render_template(
-                    "assess/sidebar/saved_filters_dialog.html",
-                    **cls._get_saved_filters_dialog_context(),
-                    notification={"message": "Saved filter name is required.", "error": True},
-                ), 400
+                return cls._render_saved_filters_dialog({"message": "Saved filter name is required.", "error": True}, 400)
             if len(name) > ASSESS_SAVED_FILTER_NAME_MAX_LENGTH:
-                return render_template(
-                    "assess/sidebar/saved_filters_dialog.html",
-                    **cls._get_saved_filters_dialog_context(),
-                    notification={"message": "Saved filter name must be 80 characters or fewer.", "error": True},
-                ), 400
+                return cls._render_saved_filters_dialog({"message": "Saved filter name must be 80 characters or fewer.", "error": True}, 400)
 
             filters = cls._extract_assess_filters_from_request()
             if not filters:
-                return render_template(
-                    "assess/sidebar/saved_filters_dialog.html",
-                    **cls._get_saved_filters_dialog_context(),
-                    notification={"message": "Choose at least one filter before saving.", "error": True},
-                ), 400
+                return cls._render_saved_filters_dialog({"message": "Choose at least one filter before saving.", "error": True}, 400)
 
             saved_filters = cls._get_saved_assess_filters()
             make_default = request.form.get("is_default") == "true"
@@ -598,7 +589,7 @@ class StoryView(BaseView):
                 matching_filter["filters"] = filters
                 matching_filter["is_default"] = make_default or matching_filter["is_default"]
             else:
-                saved_filters.append({"id": uuid4().hex, "name": name, "filters": filters, "is_default": make_default})
+                saved_filters.append({"id": str(uuid.uuid7()), "name": name, "filters": filters, "is_default": make_default})
 
             if make_default:
                 default_id = matching_filter["id"] if matching_filter else saved_filters[-1]["id"]
@@ -612,11 +603,7 @@ class StoryView(BaseView):
             raise
         except Exception:
             logger.exception("Failed to save assess filter.")
-            return render_template(
-                "assess/sidebar/saved_filters_dialog.html",
-                **cls._get_saved_filters_dialog_context(),
-                notification={"message": "Failed to save assess filter.", "error": True},
-            ), 500
+            return cls._render_saved_filters_dialog({"message": "Failed to save assess filter.", "error": True}, 500)
 
     @classmethod
     @auth_required()
@@ -624,11 +611,7 @@ class StoryView(BaseView):
         saved_filters = cls._get_saved_assess_filters()
         default_filter = next((saved_filter for saved_filter in saved_filters if saved_filter["id"] == filter_id), None)
         if not default_filter:
-            return render_template(
-                "assess/sidebar/saved_filters_dialog.html",
-                **cls._get_saved_filters_dialog_context(),
-                notification={"message": "Saved filter not found.", "error": True},
-            ), 404
+            return cls._render_saved_filters_dialog({"message": "Saved filter not found.", "error": True}, 404)
 
         clear_default = request.form.get("clear_default") == "true"
         for saved_filter in saved_filters:
@@ -645,11 +628,7 @@ class StoryView(BaseView):
         saved_filters = cls._get_saved_assess_filters()
         filtered_saved_filters = [saved_filter for saved_filter in saved_filters if saved_filter["id"] != filter_id]
         if len(filtered_saved_filters) == len(saved_filters):
-            return render_template(
-                "assess/sidebar/saved_filters_dialog.html",
-                **cls._get_saved_filters_dialog_context(),
-                notification={"message": "Saved filter not found.", "error": True},
-            ), 404
+            return cls._render_saved_filters_dialog({"message": "Saved filter not found.", "error": True}, 404)
 
         response = cls._update_saved_filters_profile(filtered_saved_filters)
         return cls._render_saved_filters_mutation_response(response, "Assess filter deleted.", filtered_saved_filters)
