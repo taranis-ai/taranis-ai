@@ -125,11 +125,30 @@ def test_access_token(access_token):
     assert access_token is not None
 
 
-def test_user_profile(client, auth_header):
-    response = client.get("/api/users/profile", headers=auth_header)
-    assert response.json
-    assert response.data
-    assert response.status_code == 200
+def test_user_profile(app, client, auth_header):
+    from core.managers.db_manager import db
+    from core.model.user import User
+
+    with app.app_context():
+        user = User.find_by_name("admin")
+        assert user is not None
+        original_profile = deepcopy(user.profile)
+        user.profile = {**(user.profile or {}), "assess_default_filters": {"read": "true"}}
+        db.session.commit()
+
+    try:
+        response = client.get("/api/users/profile", headers=auth_header)
+
+        assert response.json
+        assert response.data
+        assert response.status_code == 200
+        assert "assess_default_filters" not in response.json
+    finally:
+        with app.app_context():
+            user = User.find_by_name("admin")
+            assert user is not None
+            user.profile = original_profile
+            db.session.commit()
 
 
 def _onboarding_task_ids(payload: dict, scope: str | None = None) -> set[str]:

@@ -37,6 +37,8 @@ Scope prefixes jump straight to the existing list views: `story: <search>` opens
 
 Assess keyword filters are implicit story mode. `vpn tag:apt read:false sort:relevance` opens `/assess` with the same query parameters as the Assess sidebar. Supported Assess qualifiers are `source:`, `group:`, `tag:`/`tags:`, `read:`, `important:`, `relevant:`, `in-report:`/`report:`, `cybersecurity:`/`cyber:`, `changed-by:`, `range:`, `from:`, `to:`, and `sort:`. `range:` accepts `shift`, `24h`, `week`, `day`, `month`, and `last<N>` values such as `last7`.
 
+Assess sidebar filters can be saved per user from the Saved filters dialog. One saved filter can be marked as the default; loading `/assess` without query parameters redirects to that saved filter, while `?reset=true` shows the unfiltered list.
+
 Colon-containing terms that are not supported qualifiers, such as URLs or CVE-style identifiers, are preserved as plain search text.
 
 ### Cache configuration

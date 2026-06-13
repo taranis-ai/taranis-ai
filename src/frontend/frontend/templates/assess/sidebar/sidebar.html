@@ -271,11 +271,14 @@ document.addEventListener('htmx:afterSwap', function (event) {
   </a>
   <button type="button"
           class="btn btn-secondary btn-sm w-full"
-          data-tour-target="assess-save-default-filters"
-          hx-post="{{ url_for('assess.save_default_filters') }}"
+          data-testid="assess-saved-filters-button"
+          hx-get="{{ url_for('assess.saved_filters') }}"
           hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
-          hx-target="#notification-bar"
-          hx-target-error="#notification-bar">Save as default</button>
+          hx-target="body"
+          hx-swap="beforeend">
+    {{ heroicon_outline('bookmark-square', class='h-4 w-4') }}
+    Saved filters
+  </button>
   <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.get_news_item', news_item_id='0') }}">
     {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
     Create new item

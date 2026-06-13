@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlparse
 from flask import render_template_string, url_for
 from lxml import html
 from models.assess import FilterLists, Story, StoryUpdatePayload
+from models.user import AssessSavedFilter
 from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import Forbidden
 
@@ -559,14 +560,21 @@ def test_assess_selection_key_ignores_paging_params():
     assert selection_key == "search=incident&sort=date_desc&tags=one&tags=two"
 
 
-def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, auth_user, responses_mock):
+def test_assess_redirects_default_saved_filter_into_browser_url(authenticated_client, auth_user, responses_mock):
     saved_user = auth_user.model_copy(deep=True)
-    saved_user.profile.assess_default_filters = {
-        "source": ["source-1"],
-        "language": ["en"],
-        "read": "true",
-        "sort": "date_desc",
-    }
+    saved_user.profile.assess_saved_filters = [
+        AssessSavedFilter(
+            id="filter-1",
+            name="Shift queue",
+            filters={
+                "source": ["source-1"],
+                "language": ["en"],
+                "read": "true",
+                "sort": "date_desc",
+            },
+            is_default=True,
+        )
+    ]
     add_user_to_cache(saved_user.model_dump(mode="json"))
 
     responses_mock.get(
@@ -624,27 +632,14 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
     assert parsed_query["sort"] == ["date_desc"]
 
 
-def test_assess_save_default_filters_posts_selected_filters_to_profile(authenticated_client, responses_mock):
+def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticated_client, responses_mock):
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/users",
         json={
             "id": "user-1",
             "username": "admin",
             "name": "Arthur Dent",
-            "profile": {
-                "assess_default_filters": {
-                    "source": ["source-1"],
-                    "group": ["group-1"],
-                    "tags": ["alpha", "beta"],
-                    "language": ["en", "de"],
-                    "read": "true",
-                    "important": "false",
-                    "sort": "date_desc",
-                    "range": "week",
-                    "timefrom": "2026-05-01T10:00",
-                    "timeto": "2026-05-02T11:00",
-                }
-            },
+            "profile": {"assess_saved_filters": []},
             "permissions": ["ALL"],
             "roles": [{"id": "role-1", "name": "Admin"}],
         },
@@ -654,27 +649,16 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
         json={
             "message": "Profile updated",
             "id": "user-1",
-            "user_profile": {
-                "assess_default_filters": {
-                    "source": ["source-1"],
-                    "group": ["group-1"],
-                    "tags": ["alpha", "beta"],
-                    "language": ["en", "de"],
-                    "read": "true",
-                    "important": "false",
-                    "sort": "date_desc",
-                    "range": "week",
-                    "timefrom": "2026-05-01T10:00",
-                    "timeto": "2026-05-02T11:00",
-                }
-            },
+            "user_profile": {"assess_saved_filters": []},
         },
     )
 
     response = authenticated_client.post(
-        url_for("assess.save_default_filters"),
+        url_for("assess.save_saved_filter"),
         data=MultiDict(
             [
+                ("name", "Shift queue"),
+                ("is_default", "true"),
                 ("source", "source-1"),
                 ("group", "group-1"),
                 ("tags", "alpha"),
@@ -692,12 +676,19 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
     )
 
     assert response.status_code == 200
-    assert "Assess defaults saved." in response.text
+    assert "Assess filter saved." in response.text
+    assert "Shift queue" in response.text
 
     request_body = responses_mock.calls[0].request.body
     payload = json.loads(request_body.decode() if isinstance(request_body, bytes) else request_body)
-    assert payload == {
-        "assess_default_filters": {
+    assert "assess_default_filters" not in payload
+    assert len(payload["assess_saved_filters"]) == 1
+    saved_filter = payload["assess_saved_filters"][0]
+    assert saved_filter["id"]
+    assert saved_filter == {
+        "id": saved_filter["id"],
+        "name": "Shift queue",
+        "filters": {
             "source": ["source-1"],
             "group": ["group-1"],
             "tags": ["alpha", "beta"],
@@ -708,7 +699,8 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
             "range": "week",
             "timefrom": "2026-05-01T10:00",
             "timeto": "2026-05-02T11:00",
-        }
+        },
+        "is_default": True,
     }
 
 

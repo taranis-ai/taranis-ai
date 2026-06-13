@@ -2,6 +2,7 @@ import datetime
 from json import JSONDecodeError
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
+from uuid import uuid4
 
 from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
@@ -61,7 +62,7 @@ def _normalize_story_import_payload(json_data: dict[str, Any] | list[dict[str, A
     return json_data
 
 
-ASSESS_DEFAULT_FILTER_KEYS = frozenset(
+ASSESS_FILTER_KEYS = frozenset(
     {
         "search",
         "source",
@@ -80,8 +81,9 @@ ASSESS_DEFAULT_FILTER_KEYS = frozenset(
         "timeto",
     }
 )
-ASSESS_DEFAULT_FILTER_MULTI_KEYS = frozenset({"source", "group", "tags", "language"})
-ASSESS_DEFAULT_FILTER_SESSION_KEY = "assess_default_filters_active"
+ASSESS_FILTER_MULTI_KEYS = frozenset({"source", "group", "tags", "language"})
+ASSESS_SAVED_FILTER_SESSION_KEY = "assess_saved_filter_active"
+ASSESS_SAVED_FILTER_NAME_MAX_LENGTH = 80
 
 
 class StoryView(BaseView):
@@ -235,20 +237,82 @@ class StoryView(BaseView):
         return [str(values)]
 
     @classmethod
-    def _get_saved_assess_default_filters(cls) -> dict[str, list[str]]:
-        profile = getattr(current_user, "profile", None)
-        raw_defaults = getattr(profile, "assess_default_filters", None) if profile is not None else None
-        if not isinstance(raw_defaults, dict):
-            return {}
-
-        normalized: dict[str, list[str]] = {}
-        for key, values in raw_defaults.items():
-            if key not in ASSESS_DEFAULT_FILTER_KEYS:
+    def _normalize_assess_filter_payload(cls, filters: dict[str, Any]) -> dict[str, Any]:
+        normalized: dict[str, Any] = {}
+        for key, values in filters.items():
+            if key not in ASSESS_FILTER_KEYS:
                 continue
             normalized_values = cls._normalize_assess_filter_values(values)
-            if normalized_values:
+            if not normalized_values:
+                continue
+            if key in ASSESS_FILTER_MULTI_KEYS:
                 normalized[key] = normalized_values
+            else:
+                normalized[key] = normalized_values[0]
         return normalized
+
+    @classmethod
+    def _filter_payload_to_request_params(cls, filters: dict[str, Any]) -> dict[str, list[str]]:
+        return {
+            key: values
+            for key, value in cls._normalize_assess_filter_payload(filters).items()
+            if (values := cls._normalize_assess_filter_values(value))
+        }
+
+    @staticmethod
+    def _saved_filter_to_dict(saved_filter: Any) -> dict[str, Any]:
+        if hasattr(saved_filter, "model_dump"):
+            return saved_filter.model_dump(mode="json")
+        if isinstance(saved_filter, dict):
+            return dict(saved_filter)
+        return {}
+
+    @classmethod
+    def _get_saved_assess_filters(cls) -> list[dict[str, Any]]:
+        profile = getattr(current_user, "profile", None)
+        raw_filters = getattr(profile, "assess_saved_filters", None) if profile is not None else None
+        if not isinstance(raw_filters, list):
+            return []
+
+        saved_filters: list[dict[str, Any]] = []
+        default_seen = False
+        for raw_filter in raw_filters:
+            saved_filter = cls._saved_filter_to_dict(raw_filter)
+            filter_id = str(saved_filter.get("id") or "").strip()
+            name = str(saved_filter.get("name") or "").strip()
+            filters = saved_filter.get("filters")
+            if not filter_id or not name or not isinstance(filters, dict):
+                continue
+            normalized_filters = cls._normalize_assess_filter_payload(filters)
+            if not normalized_filters:
+                continue
+            is_default = bool(saved_filter.get("is_default")) and not default_seen
+            default_seen = default_seen or is_default
+            saved_filters.append({"id": filter_id, "name": name, "filters": normalized_filters, "is_default": is_default})
+        return saved_filters
+
+    @classmethod
+    def _get_default_assess_saved_filter_params(cls) -> dict[str, list[str]]:
+        default_filter = next((saved_filter for saved_filter in cls._get_saved_assess_filters() if saved_filter["is_default"]), None)
+        if not default_filter:
+            return {}
+        return cls._filter_payload_to_request_params(default_filter["filters"])
+
+    @classmethod
+    def _get_saved_filters_dialog_context(cls, saved_filters: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        saved_filters = saved_filters if saved_filters is not None else cls._get_saved_assess_filters()
+        current_filters = cls._extract_assess_filters_from_request()
+        return {
+            "saved_filters": [
+                {
+                    **saved_filter,
+                    "url": cls._build_assess_filters_url(cls._filter_payload_to_request_params(saved_filter["filters"])),
+                }
+                for saved_filter in saved_filters
+            ],
+            "current_filters": current_filters,
+            "has_current_filters": bool(current_filters),
+        }
 
     @classmethod
     def _get_assess_request_params(cls, request_params: dict[str, list[str]] | None = None) -> dict[str, list[str]]:
@@ -259,39 +323,40 @@ class StoryView(BaseView):
         has_reset = "reset" in params
         params.pop("reset", None)
         if has_reset:
-            session.pop(ASSESS_DEFAULT_FILTER_SESSION_KEY, None)
+            session.pop(ASSESS_SAVED_FILTER_SESSION_KEY, None)
             return {}
 
         if not params:
-            saved_defaults = cls._get_saved_assess_default_filters()
+            saved_defaults = cls._get_default_assess_saved_filter_params()
             if saved_defaults and not is_htmx_request():
-                session[ASSESS_DEFAULT_FILTER_SESSION_KEY] = True
+                session[ASSESS_SAVED_FILTER_SESSION_KEY] = True
                 return {key: values[:] for key, values in saved_defaults.items()}
 
             if request.method == "GET" and is_htmx_request():
-                session.pop(ASSESS_DEFAULT_FILTER_SESSION_KEY, None)
-            elif request.method == "POST" and session.get(ASSESS_DEFAULT_FILTER_SESSION_KEY) and saved_defaults:
+                session.pop(ASSESS_SAVED_FILTER_SESSION_KEY, None)
+            elif request.method == "POST" and session.get(ASSESS_SAVED_FILTER_SESSION_KEY) and saved_defaults:
                 return {key: values[:] for key, values in saved_defaults.items()}
             return {}
 
-        if request.method == "GET" and is_htmx_request() and not set(params).intersection(ASSESS_DEFAULT_FILTER_KEYS):
-            session.pop(ASSESS_DEFAULT_FILTER_SESSION_KEY, None)
+        if request.method == "GET" and is_htmx_request() and not set(params).intersection(ASSESS_FILTER_KEYS):
+            session.pop(ASSESS_SAVED_FILTER_SESSION_KEY, None)
             return params
 
         return params
 
     @classmethod
-    def _extract_assess_default_filters_from_request(cls) -> dict[str, Any]:
-        default_filters: dict[str, Any] = {}
-        for key in ASSESS_DEFAULT_FILTER_MULTI_KEYS:
-            values = [value for value in request.form.getlist(key) if value not in (None, "")]
+    def _extract_assess_filters_from_request(cls) -> dict[str, Any]:
+        filters: dict[str, Any] = {}
+        request_values = request.form if request.method != "GET" else request.args
+        for key in ASSESS_FILTER_MULTI_KEYS:
+            values = [value for value in request_values.getlist(key) if value not in (None, "")]
             if values:
-                default_filters[key] = values
-        for key in ASSESS_DEFAULT_FILTER_KEYS - ASSESS_DEFAULT_FILTER_MULTI_KEYS:
-            value = request.form.get(key, "")
+                filters[key] = values
+        for key in ASSESS_FILTER_KEYS - ASSESS_FILTER_MULTI_KEYS:
+            value = request_values.get(key, "")
             if value not in ("", None):
-                default_filters[key] = value
-        return default_filters
+                filters[key] = value
+        return cls._normalize_assess_filter_payload(filters)
 
     @classmethod
     def _build_assess_filters_url(cls, request_params: dict[str, list[str]]) -> str:
@@ -451,22 +516,143 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def save_default_filters(cls):
-        try:
-            default_filters = cls._extract_assess_default_filters_from_request()
-            response = CoreApi().update_user_profile({"assess_default_filters": default_filters})
-            if getattr(response, "ok", False):
-                session[ASSESS_DEFAULT_FILTER_SESSION_KEY] = bool(default_filters)
-                update_current_user_cache()
-                message = "Assess defaults saved." if default_filters else "Assess defaults cleared."
-                return render_template("notification/index.html", notification={"message": message}), 200
+    def get_saved_filters_dialog(cls) -> tuple[str, int]:
+        return render_template("assess/sidebar/saved_filters_dialog.html", **cls._get_saved_filters_dialog_context()), 200
 
-            return make_response(cls.get_notification_from_response(response), getattr(response, "status_code", 500) or 500)
+    @classmethod
+    def _saved_filter_name(cls) -> str:
+        return request.form.get("name", "").strip()
+
+    @classmethod
+    def _saved_filters_profile_payload(cls, saved_filters: list[dict[str, Any]]) -> dict[str, Any]:
+        default_seen = False
+        normalized_filters = []
+        for saved_filter in saved_filters:
+            filters = saved_filter.get("filters")
+            if not isinstance(filters, dict):
+                continue
+            normalized = cls._normalize_assess_filter_payload(filters)
+            if not normalized:
+                continue
+            is_default = bool(saved_filter.get("is_default")) and not default_seen
+            default_seen = default_seen or is_default
+            normalized_filters.append(
+                {
+                    "id": str(saved_filter.get("id") or uuid4().hex),
+                    "name": str(saved_filter.get("name") or "").strip(),
+                    "filters": normalized,
+                    "is_default": is_default,
+                }
+            )
+        return {"assess_saved_filters": [saved_filter for saved_filter in normalized_filters if saved_filter["name"]]}
+
+    @classmethod
+    def _update_saved_filters_profile(cls, saved_filters: list[dict[str, Any]]):
+        response = CoreApi().update_user_profile(cls._saved_filters_profile_payload(saved_filters))
+        if getattr(response, "ok", False):
+            update_current_user_cache()
+        return response
+
+    @classmethod
+    def _render_saved_filters_mutation_response(cls, response, success_message: str, saved_filters: list[dict[str, Any]]):
+        if getattr(response, "ok", False):
+            return render_template(
+                "assess/sidebar/saved_filters_dialog.html",
+                **cls._get_saved_filters_dialog_context(saved_filters),
+                notification={"message": success_message},
+            ), 200
+
+        return make_response(cls.get_notification_from_response(response), getattr(response, "status_code", 500) or 500)
+
+    @classmethod
+    @auth_required()
+    def save_saved_filter(cls):
+        try:
+            name = cls._saved_filter_name()
+            if not name:
+                return render_template(
+                    "assess/sidebar/saved_filters_dialog.html",
+                    **cls._get_saved_filters_dialog_context(),
+                    notification={"message": "Saved filter name is required.", "error": True},
+                ), 400
+            if len(name) > ASSESS_SAVED_FILTER_NAME_MAX_LENGTH:
+                return render_template(
+                    "assess/sidebar/saved_filters_dialog.html",
+                    **cls._get_saved_filters_dialog_context(),
+                    notification={"message": "Saved filter name must be 80 characters or fewer.", "error": True},
+                ), 400
+
+            filters = cls._extract_assess_filters_from_request()
+            if not filters:
+                return render_template(
+                    "assess/sidebar/saved_filters_dialog.html",
+                    **cls._get_saved_filters_dialog_context(),
+                    notification={"message": "Choose at least one filter before saving.", "error": True},
+                ), 400
+
+            saved_filters = cls._get_saved_assess_filters()
+            make_default = request.form.get("is_default") == "true"
+            matching_filter = next((saved_filter for saved_filter in saved_filters if saved_filter["name"].lower() == name.lower()), None)
+            if matching_filter:
+                matching_filter["name"] = name
+                matching_filter["filters"] = filters
+                matching_filter["is_default"] = make_default or matching_filter["is_default"]
+            else:
+                saved_filters.append({"id": uuid4().hex, "name": name, "filters": filters, "is_default": make_default})
+
+            if make_default:
+                default_id = matching_filter["id"] if matching_filter else saved_filters[-1]["id"]
+                for saved_filter in saved_filters:
+                    saved_filter["is_default"] = saved_filter["id"] == default_id
+
+            response = cls._update_saved_filters_profile(saved_filters)
+            session[ASSESS_SAVED_FILTER_SESSION_KEY] = make_default
+            return cls._render_saved_filters_mutation_response(response, "Assess filter saved.", saved_filters)
         except HTTPException:
             raise
         except Exception:
-            logger.exception("Failed to save assess default filters.")
-            return render_template("notification/index.html", notification={"message": "Failed to save assess defaults.", "error": True}), 500
+            logger.exception("Failed to save assess filter.")
+            return render_template(
+                "assess/sidebar/saved_filters_dialog.html",
+                **cls._get_saved_filters_dialog_context(),
+                notification={"message": "Failed to save assess filter.", "error": True},
+            ), 500
+
+    @classmethod
+    @auth_required()
+    def set_saved_filter_default(cls, filter_id: str):
+        saved_filters = cls._get_saved_assess_filters()
+        default_filter = next((saved_filter for saved_filter in saved_filters if saved_filter["id"] == filter_id), None)
+        if not default_filter:
+            return render_template(
+                "assess/sidebar/saved_filters_dialog.html",
+                **cls._get_saved_filters_dialog_context(),
+                notification={"message": "Saved filter not found.", "error": True},
+            ), 404
+
+        clear_default = request.form.get("clear_default") == "true"
+        for saved_filter in saved_filters:
+            saved_filter["is_default"] = False if clear_default else saved_filter["id"] == filter_id
+
+        response = cls._update_saved_filters_profile(saved_filters)
+        session[ASSESS_SAVED_FILTER_SESSION_KEY] = not clear_default
+        message = "Assess default cleared." if clear_default else "Assess default saved."
+        return cls._render_saved_filters_mutation_response(response, message, saved_filters)
+
+    @classmethod
+    @auth_required()
+    def delete_saved_filter(cls, filter_id: str):
+        saved_filters = cls._get_saved_assess_filters()
+        filtered_saved_filters = [saved_filter for saved_filter in saved_filters if saved_filter["id"] != filter_id]
+        if len(filtered_saved_filters) == len(saved_filters):
+            return render_template(
+                "assess/sidebar/saved_filters_dialog.html",
+                **cls._get_saved_filters_dialog_context(),
+                notification={"message": "Saved filter not found.", "error": True},
+            ), 404
+
+        response = cls._update_saved_filters_profile(filtered_saved_filters)
+        return cls._render_saved_filters_mutation_response(response, "Assess filter deleted.", filtered_saved_filters)
 
     @classmethod
     @auth_required()
@@ -591,9 +777,9 @@ class StoryView(BaseView):
             has_reset = "reset" in filtered_request_params
             filtered_request_params.pop("reset", None)
             if not has_reset and not filtered_request_params:
-                saved_defaults = cls._get_saved_assess_default_filters()
+                saved_defaults = cls._get_default_assess_saved_filter_params()
                 if saved_defaults:
-                    session[ASSESS_DEFAULT_FILTER_SESSION_KEY] = True
+                    session[ASSESS_SAVED_FILTER_SESSION_KEY] = True
                     return redirect(cls._build_assess_filters_url(saved_defaults))
 
         request_params = cls._get_assess_request_params(raw_request_params)
