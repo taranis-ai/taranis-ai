@@ -54,6 +54,8 @@ Frontend caching now uses Redis directly and falls back to a no-op cache when di
 
 The frontend uses Flask-Babel for server-rendered translations. English is the default locale and German is the first translated catalog.
 
+Internationalization is currently experimental. At the moment, translated coverage is limited to login and user settings.
+
 Extract strings after changing translated templates or Python strings:
 
 ```bash

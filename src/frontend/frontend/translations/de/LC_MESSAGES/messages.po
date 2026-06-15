@@ -325,6 +325,10 @@ msgstr "Sprache"
 msgid "Choose the interface language."
 msgstr "Sprache der Benutzeroberfläche auswählen."
 
+#: frontend/templates/user_profile/settings_content.html:132
+msgid "Experimental: currently only login and user settings are translated."
+msgstr "Experimentell: Derzeit sind nur Anmeldung und Benutzereinstellungen übersetzt."
+
 #: frontend/templates/user_profile/settings_content.html:139
 msgid "Timezone"
 msgstr "Zeitzone"

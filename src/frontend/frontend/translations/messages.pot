@@ -322,6 +322,10 @@ msgstr ""
 msgid "Choose the interface language."
 msgstr ""
 
+#: frontend/templates/user_profile/settings_content.html:132
+msgid "Experimental: currently only login and user settings are translated."
+msgstr ""
+
 #: frontend/templates/user_profile/settings_content.html:139
 msgid "Timezone"
 msgstr ""

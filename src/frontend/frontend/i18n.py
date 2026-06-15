@@ -31,9 +31,7 @@ def _profile_value(user: Any, key: str) -> str | None:
         value = profile.get(key)
     else:
         value = getattr(profile, key, None)
-    if not isinstance(value, str):
-        return None
-    return value.strip() or None
+    return value.strip() or None if isinstance(value, str) else None
 
 
 def _profile_language(user: Any) -> str | None:
