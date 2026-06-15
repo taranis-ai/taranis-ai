@@ -20,6 +20,11 @@ class SettingsAction(MethodView):
         action_url = f"/settings/{action.replace('_', '-')}"
         return SettingsView.settings_action(action_url, method="post")
 
+    @admin_required()
+    def patch(self, action: str):
+        action_url = f"/settings/{action.replace('_', '-')}"
+        return SettingsView.settings_action(action_url, method="patch")
+
 
 def init(app: Flask):
     settings_bp = Blueprint("admin_settings", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin/settings")

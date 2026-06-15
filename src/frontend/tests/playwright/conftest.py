@@ -1,5 +1,6 @@
 import base64
 import copy
+import multiprocessing
 import os
 import random
 import re
@@ -12,8 +13,10 @@ from typing import Any
 
 import pytest
 from flask import json, url_for
+from models.user import USER_PRODUCT_OVERVIEW_TASK_ID
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 
+from tests.core_requests import CoreRequestClient
 from tests.external_e2e import (
     allow_requests_passthru,
     core_host_from_api_url,
@@ -31,7 +34,20 @@ from tests.playwright.e2e_harness import (
 )
 from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
+from tests.playwright.htmx_helpers import install_htmx_support
 from tests.playwright.notification_helpers import dismiss_notifications
+
+
+def _configure_live_server_start_method() -> None:
+    if "fork" not in multiprocessing.get_all_start_methods():
+        return
+
+    current_method = multiprocessing.get_start_method(allow_none=True)
+    if current_method is None:
+        multiprocessing.set_start_method("fork")
+
+
+_configure_live_server_start_method()
 
 
 FRONTEND_E2E_COMPOSE_FILE = Path(__file__).parent / "compose.e2e.yml"
@@ -133,9 +149,18 @@ def run_core(request):
 
 @pytest.fixture(scope="session")
 def build_tailwindcss(app):
-    # build the tailwind css
+    def assets_need_rebuild() -> bool:
+        vendor_bundle = Path("frontend/static/vendor/vendor.bundle.js")
+        vendor_css = Path("frontend/static/vendor/vendor.bundle.css")
+        return (
+            os.getenv("TARANIS_E2E_TEST_TAILWIND_REBUILD") == "true"
+            or not os.path.isfile("frontend/static/css/tailwind.css")
+            or not vendor_bundle.is_file()
+            or not vendor_css.is_file()
+        )
+
     try:
-        if os.getenv("TARANIS_E2E_TEST_TAILWIND_REBUILD") == "true" or not os.path.isfile("frontend/static/css/tailwind.css"):
+        if assets_need_rebuild():
             result = subprocess.call(["./build_tailwindcss.sh"])
             assert result == 0, f"Install failed with status code: {result}"
     except Exception as e:
@@ -233,6 +258,7 @@ def configure_playwright_assertion_timeout(request):
 @pytest.fixture(scope="class")
 def taranis_frontend(request, e2e_server, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
+    install_htmx_support(context)
     # Drop action timeout from 30s to 5s.
     timeout = int(request.config.getoption("--e2e-timeout"))
     context.set_default_timeout(timeout)
@@ -314,6 +340,14 @@ def authenticated_page_factory_local(taranis_frontend: Page, e2e_server, access_
     return _create
 
 
+def complete_user_product_overview_task(core_url: str, access_token: str):
+    response = CoreRequestClient(base_url=core_url, access_token=access_token).post(
+        "/users/profile",
+        json_data={"onboarding_tasks": {USER_PRODUCT_OVERVIEW_TASK_ID: "completed"}},
+    )
+    assert response.ok, f"Failed to complete user onboarding task: {response.status_code}"
+
+
 @pytest.fixture
 def authenticated_page_factory_external(taranis_frontend: Page, e2e_server):
     """Factory fixture for creating authenticated pages against an external core."""
@@ -343,9 +377,20 @@ def logged_in_page(authenticated_page_factory):
         page.close()
 
 
+def _token_from_response(token_response) -> str:
+    access_token = token_response.json().get("access_token")
+    if not access_token:
+        raise RuntimeError("Login response does not contain 'access_token'")
+    return access_token
+
+
 @pytest.fixture
-def non_admin_logged_in_page(authenticated_page_factory):
+def non_admin_logged_in_page(request, authenticated_page_factory, run_core):
     """Returns a Playwright Page with basic user authentication."""
+    access_token = (
+        _token_from_response(_external_token_response("basic")) if external_core_api_url() else request.getfixturevalue("access_token_basic")
+    )
+    complete_user_product_overview_task(run_core, access_token)
     page = authenticated_page_factory("basic")
     try:
         yield page

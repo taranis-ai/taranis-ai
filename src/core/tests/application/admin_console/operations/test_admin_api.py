@@ -32,7 +32,31 @@ class TestAdminApi(BaseTest):
         response_settings = response.get_json()
 
         assert response_settings["message"] == "Successfully updated settings"
-        assert response_settings["settings"] == test_settings["settings"]
+        for key, value in test_settings["settings"].items():
+            assert response_settings["settings"][key] == value
+
+    def test_settings_patch_updates_single_field(self, client, auth_header):
+        initial_settings = {
+            "settings": {
+                "default_collector_proxy": "http://initial-proxy.test:1111",
+                "default_collector_interval": "5 5 * * *",
+                "default_tlp_level": "clear",
+                "default_story_conflict_retention": "150",
+                "default_news_item_conflict_retention": "150",
+            }
+        }
+        self.assert_put_ok(client, "settings", initial_settings, auth_header)
+
+        response = self.assert_patch_ok(
+            client,
+            "settings",
+            {"settings": {"default_collector_proxy": "http://patched-proxy.test:2222"}},
+            auth_header,
+        )
+
+        response_settings = response.get_json()["settings"]
+        assert response_settings["default_collector_proxy"] == "http://patched-proxy.test:2222"
+        assert response_settings["default_collector_interval"] == initial_settings["settings"]["default_collector_interval"]
 
 
 def test_export_stories_and_metadata(client, full_story, api_header, auth_header):

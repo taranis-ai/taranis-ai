@@ -385,7 +385,12 @@ class TestSourcesConfigApi(BaseTest):
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "rss_collector",
-            "result": "No changes: feed was not modified",
+            "result": {
+                "message": "No changes: feed was not modified",
+                "reason": "collector_not_modified",
+                "retryable": False,
+                "data": {"source_id": source_id},
+            },
             "status": "NOT_MODIFIED",
         }
 
@@ -833,7 +838,11 @@ class TestBotConfigApi(BaseTest):
             "task": f"bot_{bot_id}",
             "worker_id": bot_id,
             "worker_type": cleanup_bot["type"].upper(),
-            "result": {"message": "Bot completed"},
+            "result": {
+                "message": "Bot completed",
+                "retryable": False,
+                "data": {"bot_id": bot_id, "result": {}},
+            },
             "status": "SUCCESS",
         }
 
@@ -891,7 +900,7 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": "source-1"}},
                 }
             )
             Task.add(
@@ -901,7 +910,7 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
                     "worker_id": "bot-1",
                     "worker_type": "WORDLIST_BOT",
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": "bot-1"}},
                 }
             )
 

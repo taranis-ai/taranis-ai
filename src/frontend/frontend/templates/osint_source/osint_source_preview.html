@@ -9,8 +9,8 @@
           <p>OSINT source preview is currently being processed. Please wait...</p>
         </div>
       {% elif task_result.status in ['SUCCESS', 'PREVIEW'] %}
-        {% if task_result.result %}
-          {% for story in task_result.result %}{{ preview_story_card(story) }}{% endfor %}
+        {% if task_result.result.data %}
+          {% for story in task_result.result.data %}{{ preview_story_card(story) }}{% endfor %}
         {% else %}
           <div class="alert alert-info my-5 mx-5">
             <p>No results found for this OSINT source.</p>
@@ -20,7 +20,7 @@
         <div class="alert alert-error my-5 mx-5 flex flex-col gap-4">
           <div>
             <p class="font-semibold">OSINT source preview failed.</p>
-            {% if task_result.result %}<p class="mt-2 text-sm opacity-80">{{ task_result.result }}</p>{% endif %}
+            <p class="mt-2 text-sm opacity-80">{{ task_result.result.message }}</p>
           </div>
           <button type="button"
                   class="btn btn-primary btn-sm"

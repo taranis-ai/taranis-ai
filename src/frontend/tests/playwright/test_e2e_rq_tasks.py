@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from croniter import croniter
 import pytest
 import redis
+from croniter import croniter
 from rq import Queue
 from rq.job import Job
 from rq.results import Result

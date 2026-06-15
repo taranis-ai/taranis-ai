@@ -20,6 +20,7 @@ import frontend.filters as filters_module
 from frontend.auth import user_has_admin_permissions
 from frontend.config import Config
 from frontend.log import logger
+from frontend.onboarding import pending_onboarding_tasks_for_template
 from frontend.views.base_view import BaseView
 
 
@@ -98,6 +99,7 @@ def jinja_setup(app: Flask):
             "views": all_views,
             "admin_views": admin_views,
             "get_html5_pattern_from_rule": get_html5_pattern_from_rule,
+            "pending_onboarding_tasks_for_template": pending_onboarding_tasks_for_template,
         }
     )
 
@@ -118,17 +120,17 @@ def inject_current_user() -> dict[str, Any]:
     If no JWT is present, it will be None.
     """
     if getattr(g, "skip_current_user_injection", False):
-        return {"current_user": None, "is_admin": False}
+        return {"current_user": None, "authenticated_user": None, "is_admin": False}
 
     try:
         verify_jwt_in_request(optional=True)
     except JWTExtendedException:
-        return {"current_user": None, "is_admin": False}
+        return {"current_user": None, "authenticated_user": None, "is_admin": False}
 
     if current_user:
-        return {"current_user": current_user, "is_admin": is_user_admin(current_user)}
+        return {"current_user": current_user, "authenticated_user": current_user, "is_admin": is_user_admin(current_user)}
 
-    return {"current_user": None, "is_admin": False}
+    return {"current_user": None, "authenticated_user": None, "is_admin": False}
 
 
 def setup_sentry():

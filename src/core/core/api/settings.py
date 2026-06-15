@@ -120,6 +120,14 @@ class SettingsView(MethodView):
             return response, status
         return {"error": "No data provided"}, 400
 
+    @auth_required("ADMIN_OPERATIONS")
+    def patch(self):
+        if data := request.json:
+            response, status = Settings.update(data)
+            invalidate_frontend_cache_on_success(status, models=("settings",))
+            return response, status
+        return {"error": "No data provided"}, 400
+
 
 def initialize(app: Flask):
     settings_bp = Blueprint("settings", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/settings")
