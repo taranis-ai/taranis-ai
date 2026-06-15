@@ -45,6 +45,15 @@
       editableOverlay = workspace.mkEditablePyprojectOverlay {
         root = "$REPO_ROOT";
       };
+
+      versionOverlay = final: prev: {
+        taranis-core = prev.taranis-core.overrideAttrs (old: {
+          env = (old.env or { }) // {
+            SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TARANIS_CORE = "0.0.0";
+          };
+        });
+      };
+
       pythonSets = forAllSystems (
         system:
         let
@@ -58,16 +67,7 @@
             lib.composeManyExtensions [
               pyproject-build-systems.overlays.default
               overlay
-              (final: prev: {
-                integration-layer2 = prev.integration-layer2.overrideAttrs (old: {
-                  preFixup = (old.preFixup or "") + ''
-                    site="$out/${final.python.sitePackages}"
-                    mkdir -p "$site"
-
-                    cp -r ${./app} "$site/app"
-                  '';
-                });
-              })
+              versionOverlay
             ]
           )
       );
@@ -86,11 +86,17 @@
             packages = [
               virtualenv
               pkgs.uv
+              pkgs.libpq
+              pkgs.postgresql
             ];
             env = {
               UV_NO_SYNC = "1";
               UV_PYTHON = pythonSet.python.interpreter;
               UV_PYTHON_DOWNLOADS = "never";
+
+              LD_LIBRARY_PATH = lib.makeLibraryPath [
+                pkgs.postgresql.lib
+              ];
             };
             shellHook = ''
               unset PYTHONPATH
