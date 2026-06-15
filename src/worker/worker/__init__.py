@@ -82,10 +82,8 @@ def start_worker():
     # Initialize core API for worker tasks to use
     CoreApi()
 
-    # Import task modules to register functions
     register_task_modules()
 
-    # Get queue names
     queue_names = get_queues()
     if not queue_names:
         logger.error("No worker types configured. Set WORKER_TYPES in config.")
@@ -93,15 +91,12 @@ def start_worker():
 
     worker_class = resolve_worker_class()
 
-    # Get Redis connection
     redis_conn = get_redis_connection(spawn_safe=worker_class is SpawnWorker)
 
-    # Create Queue objects
     queues = [Queue(name, connection=redis_conn) for name in queue_names]
 
     logger.info(f"Starting RQ worker for queues: {', '.join(queue_names)}")
     logger.info(f"Using RQ worker class: {worker_class.__name__} (RQ_WORKER_CLASS={Config.RQ_WORKER_CLASS}, platform={sys.platform})")
 
-    # Start worker
     worker = worker_class(queues, connection=redis_conn)
     worker.work(with_scheduler=True)
