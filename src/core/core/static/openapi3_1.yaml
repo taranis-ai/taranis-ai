@@ -1102,6 +1102,194 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assess/stashes:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: get private story stashes for the current user
+      operationId: assess.stashes.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: fetch_all
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: private story stashes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/story_stash'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: create a private story stash
+      operationId: assess.stashes.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_stash_create'
+      responses:
+        '201':
+          description: stash created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '409':
+          description: duplicate stash name
+  /assess/stashes/{stash_id}:
+    parameters:
+    - name: stash_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: get a private story stash
+      operationId: assess.stash.get
+      responses:
+        '200':
+          description: stash detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/story_stash_detail'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    patch:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: rename a private story stash
+      operationId: assess.stash.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_stash_create'
+      responses:
+        '200':
+          description: stash updated
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          description: duplicate stash name
+    delete:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: delete a private story stash without deleting stories
+      operationId: assess.stash.delete
+      responses:
+        '200':
+          description: stash deleted
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /assess/stashes/{stash_id}/stories:
+    parameters:
+    - name: stash_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: add stories to a private stash
+      operationId: assess.stash_stories.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_stash_story_payload'
+      responses:
+        '200':
+          description: stories added
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /assess/stashes/{stash_id}/stories/remove:
+    parameters:
+    - name: stash_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: remove stories from a private stash without deleting stories
+      operationId: assess.stash_story_removal.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_stash_story_payload'
+      responses:
+        '200':
+          description: stories removed
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /assess/news-items/{item_id}:
     parameters:
     - name: item_id
@@ -9907,6 +10095,53 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/news_item'
+    story_stash_create:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+    story_stash_story_payload:
+      type: object
+      required:
+      - story_ids
+      properties:
+        story_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+    story_stash:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+        story_count:
+          type: integer
+        story_ids:
+          type: array
+          items:
+            type: string
+    story_stash_detail:
+      allOf:
+      - $ref: '#/components/schemas/story_stash'
+      - type: object
+        properties:
+          stories:
+            type: array
+            items:
+              $ref: '#/components/schemas/story'
     modify_item:
       type: object
       properties:

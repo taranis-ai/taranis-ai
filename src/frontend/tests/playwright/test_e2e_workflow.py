@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import time
+from uuid import uuid4
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -22,6 +23,52 @@ class TestUserWorkflow(BaseE2ETest):
         expect(page.get_by_test_id("assess")).to_be_visible()
         assert page.get_by_role("link", name="Administration").count() == 0
         expect(page.get_by_role("searchbox", name="Select sources")).to_be_visible()
+
+    def test_story_stashes(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        stories_date_descending: list,
+    ):
+        page = non_admin_logged_in_page
+        stash_name = f"E2E Stash {uuid4()}"
+        selected_story_ids = stories_date_descending[:2]
+
+        self.navigate_to_assess(page)
+        for story_id in selected_story_ids:
+            self.highlight_element(page.get_by_test_id(f"story-card-{story_id}"), scroll=False).click()
+
+        self.highlight_element(page.get_by_role("button", name="Add to Stash")).click()
+        expect(page.get_by_test_id("story-stash-dialog")).to_be_visible()
+        self.highlight_element(page.get_by_test_id("stash-mode-new")).click()
+        self.highlight_element(page.get_by_test_id("new-stash-name")).fill(stash_name)
+        self.highlight_element(page.get_by_test_id("submit-stash-story")).click()
+        expect(page.locator("#notification-bar")).to_contain_text("stories added to stash")
+
+        self.highlight_element(page.get_by_role("link", name="Stashes")).click()
+        page.wait_for_url("**/stashes", wait_until="domcontentloaded")
+        expect(page.get_by_test_id("stashes-page")).to_be_visible()
+        self.highlight_element(page.locator("[data-testid^='open-stash-']").filter(has_text=stash_name)).click()
+        page.wait_for_url("**/stashes/*", wait_until="domcontentloaded")
+        expect(page.get_by_test_id("stash-detail")).to_be_visible()
+        for story_id in selected_story_ids:
+            expect(page.get_by_test_id(f"story-card-{story_id}")).to_be_visible()
+
+        self.highlight_element(page.get_by_test_id(f"story-card-{selected_story_ids[0]}"), scroll=False).click()
+        self.highlight_element(page.get_by_test_id("stash-remove-selected")).click()
+        confirm_button = page.locator(".swal2-container .swal2-confirm")
+        expect(confirm_button).to_be_visible()
+        confirm_button.click()
+        self.wait_for_htmx_settled(page)
+        expect(page.get_by_test_id(f"story-card-{selected_story_ids[0]}")).not_to_be_visible()
+        expect(page.get_by_test_id(f"story-card-{selected_story_ids[1]}")).to_be_visible()
+
+        self.highlight_element(page.get_by_test_id("delete-stash-detail")).click()
+        confirm_button = page.locator(".swal2-container .swal2-confirm")
+        expect(confirm_button).to_be_visible()
+        confirm_button.click()
+        page.wait_for_url("**/stashes", wait_until="domcontentloaded")
+        expect(page.get_by_text(stash_name)).not_to_be_visible()
 
     def test_assess(
         self,

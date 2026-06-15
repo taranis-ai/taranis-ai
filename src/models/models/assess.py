@@ -278,6 +278,44 @@ class FilterLists(TaranisBaseModel):
     languages: list[str] = Field(default_factory=list)
 
 
+class StoryStashBase(TaranisBaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: Any) -> str:
+        name = str(value or "").strip()
+        if not name:
+            raise ValueError("Stash name is required")
+        return name
+
+
+class StoryStashCreatePayload(StoryStashBase):
+    pass
+
+
+class StoryStashUpdatePayload(StoryStashBase):
+    pass
+
+
+class StoryStashStoryPayload(TaranisBaseModel):
+    story_ids: list[str] = Field(min_length=1)
+
+
+class StoryStash(StoryStashBase):
+    _core_endpoint = "/assess/stashes"
+    _model_name = "story_stash"
+    _pretty_name = "Story Stash"
+    _cache_timeout = 30
+
+    id: str | None = None
+    created: datetime | None = None
+    updated: datetime | None = None
+    story_count: int = 0
+    story_ids: list[str] = Field(default_factory=list)
+    stories: list[Story] = Field(default_factory=list)
+
+
 class StoryUpdatePayload(TaranisBaseModel):
     model_config = ConfigDict(extra="ignore")
 

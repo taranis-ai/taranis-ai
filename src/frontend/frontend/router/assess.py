@@ -1,5 +1,6 @@
 from flask import Blueprint, Flask
 
+from frontend.views.story_stash_views import StoryStashView
 from frontend.views.story_views import StoryView
 
 
@@ -7,6 +8,17 @@ def init(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}")
 
     assess_bp.add_url_rule("/assess", view_func=StoryView.as_view("assess"))
+    assess_bp.add_url_rule("/stashes", view_func=StoryStashView.list_view, methods=["GET"], endpoint="stashes")
+    assess_bp.add_url_rule("/stashes", view_func=StoryStashView.create_stash, methods=["POST"], endpoint="stash_create")
+    assess_bp.add_url_rule("/stashes/<string:stash_id>", view_func=StoryStashView.detail_view, methods=["GET"], endpoint="stash")
+    assess_bp.add_url_rule("/stashes/<string:stash_id>", view_func=StoryStashView.update_stash, methods=["PATCH"], endpoint="stash_update")
+    assess_bp.add_url_rule("/stashes/<string:stash_id>", view_func=StoryStashView.delete_stash, methods=["DELETE"], endpoint="stash_delete")
+    assess_bp.add_url_rule(
+        "/stashes/<string:stash_id>/stories/remove",
+        view_func=StoryStashView.remove_stories,
+        methods=["POST"],
+        endpoint="stash_remove_stories",
+    )
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=StoryView.story_view, methods=["GET"], endpoint="story")
     assess_bp.add_url_rule(
         "/story/<string:story_id>", view_func=StoryView.patch_story, methods=["POST", "PUT", "PATCH"], endpoint="story_update"
@@ -39,6 +51,8 @@ def init(app: Flask):
     assess_bp.add_url_rule("/story/sharing", view_func=StoryView.submit_sharing_dialog, methods=["POST"], endpoint="submit_share_story")
     assess_bp.add_url_rule("/story/report", view_func=StoryView.get_report_dialog, methods=["GET"], endpoint="report_story")
     assess_bp.add_url_rule("/story/report", view_func=StoryView.submit_report_dialog, methods=["POST"], endpoint="submit_report_story")
+    assess_bp.add_url_rule("/story/stash", view_func=StoryStashView.get_add_dialog, methods=["GET"], endpoint="stash_story")
+    assess_bp.add_url_rule("/story/stash", view_func=StoryStashView.submit_add_dialog, methods=["POST"], endpoint="submit_stash_story")
     assess_bp.add_url_rule("/story/cluster", view_func=StoryView.get_cluster_dialog, methods=["GET"], endpoint="cluster_story")
     assess_bp.add_url_rule("/story/cluster", view_func=StoryView.submit_cluster_dialog, methods=["POST"], endpoint="submit_cluster_story")
     assess_bp.add_url_rule("/story/export", view_func=StoryView.export_stories, methods=["GET"], endpoint="export_stories")

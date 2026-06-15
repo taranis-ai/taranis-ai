@@ -39,6 +39,10 @@ Assess keyword filters are implicit story mode. `vpn tag:apt read:false sort:rel
 
 Colon-containing terms that are not supported qualifiers, such as URLs or CVE-style identifiers, are preserved as plain search text.
 
+### Story Stashes
+
+Stashes are private bookmark-style story collections. Users can select stories in Assess, add them to an existing or new stash with `Add to Stash`, and later manage those collections from `/stashes`. Adding a story to a stash does not hide it from Assess, and deleting a stash only removes the collection membership, not the stories.
+
 ### Cache configuration
 
 Frontend caching now uses Redis directly and falls back to a no-op cache when disabled or when Redis is unavailable.

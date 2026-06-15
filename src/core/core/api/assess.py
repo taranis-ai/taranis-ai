@@ -3,6 +3,8 @@ from urllib.parse import unquote, urlparse
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
+from models.assess import StoryStashCreatePayload, StoryStashStoryPayload, StoryStashUpdatePayload
+from pydantic import ValidationError
 
 from core.audit import audit_logger
 from core.config import Config
@@ -23,6 +25,11 @@ from core.service.cache_invalidation import (
 from core.service.news_item import NewsItemService
 from core.service.simple_web_collector import get_simple_web_collector_url
 from core.service.story import StoryService
+
+
+def _validation_error_response(exc: ValidationError) -> tuple[dict[str, str], int]:
+    message = exc.errors()[0].get("msg", "Invalid request payload") if exc.errors() else "Invalid request payload"
+    return {"error": str(message)}, 400
 
 
 class OSINTSourceGroupsList(MethodView):
@@ -241,7 +248,9 @@ class Story(MethodView):
     def delete(self, story_id):
         response, code = story.Story.delete_by_id(story_id, current_user)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
+        invalidate_frontend_cache_on_success(
+            code, models=("story_stash",), scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id}
+        )
         return response, code
 
     @auth_required("ASSESS_UPDATE")
@@ -354,6 +363,78 @@ class FilterLists(MethodView):
         return FilterData.get_assess_filterlists(user=current_user), 200
 
 
+class StoryStashes(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
+        filter_keys = {"search", "page", "limit", "offset", "sort", "order", "fetch_all"}
+        filter_args: dict[str, str] = {key: value for key, value in request.args.items() if key in filter_keys}
+        return story.StoryStash.get_all_for_api(filter_args, current_user)
+
+    @auth_required("ASSESS_ACCESS")
+    @validate_json
+    def post(self):
+        try:
+            payload = StoryStashCreatePayload.model_validate(request.json or {})
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+        response, status = story.StoryStash.add(payload.model_dump(mode="json"), current_user)
+        invalidate_frontend_cache_on_success(status, models=("story_stash",))
+        return response, status
+
+
+class StoryStash(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, stash_id: str):
+        return story.StoryStash.get_for_api(stash_id, current_user)
+
+    @auth_required("ASSESS_ACCESS")
+    @validate_json
+    def patch(self, stash_id: str):
+        try:
+            payload = StoryStashUpdatePayload.model_validate(request.json or {})
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+        response, status = story.StoryStash.update_for_api(stash_id, payload.model_dump(mode="json"), current_user)
+        invalidate_frontend_cache_on_success(status, models=("story_stash",), object_ids={"story_stash": stash_id})
+        return response, status
+
+    @auth_required("ASSESS_ACCESS")
+    def delete(self, stash_id: str):
+        response, status = story.StoryStash.delete_for_api(stash_id, current_user)
+        invalidate_frontend_cache_on_success(status, models=("story_stash",), object_ids={"story_stash": stash_id})
+        return response, status
+
+
+class StoryStashStories(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    @validate_json
+    def post(self, stash_id: str):
+        try:
+            payload = StoryStashStoryPayload.model_validate(request.json or {})
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+        response, status = story.StoryStash.add_stories(stash_id, payload.story_ids, current_user)
+        invalidate_frontend_cache_on_success(status, models=("story_stash",), object_ids={"story_stash": stash_id})
+        return response, status
+
+
+class StoryStashStoryRemoval(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    @validate_json
+    def post(self, stash_id: str):
+        try:
+            payload = StoryStashStoryPayload.model_validate(request.json or {})
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+        response, status = story.StoryStash.remove_stories(stash_id, payload.story_ids, current_user)
+        invalidate_frontend_cache_on_success(status, models=("story_stash",), object_ids={"story_stash": stash_id})
+        return response, status
+
+
 class Proposals(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
     def get(self):
@@ -388,6 +469,10 @@ def initialize(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")
 
     assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
+    assess_bp.add_url_rule("/stashes", view_func=StoryStashes.as_view("stashes"))
+    assess_bp.add_url_rule("/stashes/<string:stash_id>", view_func=StoryStash.as_view("stash"))
+    assess_bp.add_url_rule("/stashes/<string:stash_id>/stories", view_func=StoryStashStories.as_view("stash_stories"))
+    assess_bp.add_url_rule("/stashes/<string:stash_id>/stories/remove", view_func=StoryStashStoryRemoval.as_view("stash_story_removal"))
     assess_bp.add_url_rule("/stories/<string:story_id>", view_func=Story.as_view("story_"))
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=Story.as_view("story"))
     assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
