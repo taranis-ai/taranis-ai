@@ -53,7 +53,11 @@ services:
 
       GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
       GRANIAN_HOST: "${GRANIAN_HOST:-0.0.0.0}"
+      TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
       TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
+      SENTRY_ENABLE_LOGS: "${SENTRY_ENABLE_LOGS:-False}"
+      SENTRY_SEND_DEFAULT_PII: "${SENTRY_SEND_DEFAULT_PII:-False}"
+      SENTRY_ENABLE_DB_QUERY_SOURCE: "${SENTRY_ENABLE_DB_QUERY_SOURCE:-False}"
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
@@ -112,6 +116,9 @@ services:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
+      SENTRY_ENABLE_LOGS: "${SENTRY_ENABLE_LOGS:-False}"
+      SENTRY_SEND_DEFAULT_PII: "${SENTRY_SEND_DEFAULT_PII:-False}"
       DEBUG: "${DEBUG:-False}"
     healthcheck:
       test: ["CMD", "taranis-frontend-healthcheck"]
@@ -198,7 +205,7 @@ services:
       SUMMARY_API_ENDPOINT: "${SUMMARY_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/summarize}"
       NLP_API_ENDPOINT: "${NLP_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/ner}"
       STORY_API_ENDPOINT: "${STORY_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/cluster}"
-      WORKER_TYPES: '["Presenters", "Publishers", "Bots", "Connectors", "Misc"]'
+      WORKER_TYPES: '${WORKER_TYPES:-["Presenters", "Publishers", "Bots", "Connectors", "Misc"]}'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
       test: ["CMD", "taranis-worker-healthcheck", "--mode", "worker"]

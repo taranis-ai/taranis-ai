@@ -8380,6 +8380,34 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+    patch:
+      security:
+      - UserAuth: []
+      tags:
+      - config
+      description: update settings
+      operationId: settings.settings.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /settings/ungroup-stories:
     post:
       security:
@@ -10219,9 +10247,10 @@ components:
           type: string
           minLength: 1
         result:
-          description: JSON-serializable task payload
+          $ref: '#/components/schemas/task_result_envelope'
       required:
       - status
+      - result
       anyOf:
       - required:
         - id
@@ -10236,8 +10265,16 @@ components:
           type:
           - string
           - 'null'
+        worker_id:
+          type:
+          - string
+          - 'null'
+        worker_type:
+          type:
+          - string
+          - 'null'
         result:
-          description: JSON payload stored as provided by the worker
+          $ref: '#/components/schemas/task_result_envelope'
         status:
           type:
           - string
@@ -10263,8 +10300,16 @@ components:
           type:
           - string
           - 'null'
+        worker_id:
+          type:
+          - string
+          - 'null'
+        worker_type:
+          type:
+          - string
+          - 'null'
         result:
-          description: JSON payload stored as provided by the worker
+          $ref: '#/components/schemas/task_result_envelope'
         status:
           type:
           - string
@@ -10281,6 +10326,24 @@ components:
           format: date-time
       required:
       - id
+    task_result_envelope:
+      type: object
+      additionalProperties: false
+      properties:
+        message:
+          type: string
+        reason:
+          type:
+          - string
+          - 'null'
+        retryable:
+          type: boolean
+          default: false
+        data:
+          description: Task-specific payload
+      required:
+      - message
+      - retryable
     task_history_stats:
       type: object
       properties:

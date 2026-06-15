@@ -1,4 +1,4 @@
-<div id="report" data-testid="analyze">
+<div id="report" data-testid="analyze" data-tour-target="analyze-page">
   {% from "macros/table.html" import table %}
   {% from "macros/query_params.html" import update_query_params %}
 
@@ -29,8 +29,12 @@
             hx-swap="outerHTML settle:0ms"
             hx-trigger="change, input changed delay:500ms">
         <input type="hidden" name="page" value="1">
-        {% if request.args.get('limit') %}<input type="hidden" name="limit" value="{{ request.args.get('limit') }}">{% endif %}
-        {% if request.args.get('order') %}<input type="hidden" name="order" value="{{ request.args.get('order') }}">{% endif %}
+        {% if request.args.get('limit') %}
+          <input type="hidden" name="limit" value="{{ request.args.get('limit') }}">
+        {% endif %}
+        {% if request.args.get('order') %}
+          <input type="hidden" name="order" value="{{ request.args.get('order') }}">
+        {% endif %}
         <label class="input min-w-[16rem] flex-1">
           {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
           <input type="search"

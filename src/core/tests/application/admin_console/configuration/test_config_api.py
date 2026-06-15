@@ -380,7 +380,12 @@ class TestSourcesConfigApi(BaseTest):
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "rss_collector",
-            "result": "No changes: feed was not modified",
+            "result": {
+                "message": "No changes: feed was not modified",
+                "reason": "collector_not_modified",
+                "retryable": False,
+                "data": {"source_id": source_id},
+            },
             "status": "NOT_MODIFIED",
         }
 
@@ -517,6 +522,44 @@ class TestWordListConfigApi(BaseTest):
         assert test_word_list
         assert test_word_list["description"] == "Test wordlist."
         assert len(test_word_list["entries"]) == 17
+        exported_values = [entry["value"] for entry in test_word_list["entries"]]
+        assert exported_values == sorted(exported_values)
+
+    def test_export_word_lists_orders_word_lists_by_name(self, client, auth_header, app):
+        from core.model.word_list import WordList
+
+        first_word_list = {
+            "id": str(uuid.uuid7()),
+            "name": "Zulu Wordlist",
+            "description": "last",
+            "usage": ["TAGGING_BOT"],
+            "link": "",
+            "entries": [],
+        }
+        second_word_list = {
+            "id": str(uuid.uuid7()),
+            "name": "Alpha Wordlist",
+            "description": "first",
+            "usage": ["TAGGING_BOT"],
+            "link": "",
+            "entries": [],
+        }
+
+        with app.app_context():
+            WordList.add(first_word_list)
+            WordList.add(second_word_list)
+
+        try:
+            response = self.assert_get_ok(client, "export-word-lists", auth_header)
+            exported_word_lists = response.json["data"]
+            exported_names = [
+                word_list["name"] for word_list in exported_word_lists if word_list["name"] in {"Zulu Wordlist", "Alpha Wordlist"}
+            ]
+            assert exported_names == ["Alpha Wordlist", "Zulu Wordlist"]
+        finally:
+            with app.app_context():
+                WordList.delete(first_word_list["id"])
+                WordList.delete(second_word_list["id"])
 
     def test_create_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_post_ok(client, uri="word-lists", json_data=cleanup_word_lists, auth_header=auth_header)
@@ -763,7 +806,11 @@ class TestBotConfigApi(BaseTest):
             "task": f"bot_{bot_id}",
             "worker_id": bot_id,
             "worker_type": cleanup_bot["type"].upper(),
-            "result": {"message": "Bot completed"},
+            "result": {
+                "message": "Bot completed",
+                "retryable": False,
+                "data": {"bot_id": bot_id, "result": {}},
+            },
             "status": "SUCCESS",
         }
 
@@ -821,7 +868,7 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": "source-1"}},
                 }
             )
             Task.add(
@@ -831,7 +878,7 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
                     "worker_id": "bot-1",
                     "worker_type": "WORDLIST_BOT",
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": "bot-1"}},
                 }
             )
 

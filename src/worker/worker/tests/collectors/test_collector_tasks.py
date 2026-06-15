@@ -20,7 +20,7 @@ def test_collector_task_missing_source_is_recorded_as_failure(current_job, reque
     )
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
-    result = collector_tasks.collector_task("source-missing", manual=False)
+    result = collector_tasks.collector_task("source-missing", False)
 
     assert result == "Error: Source with id source-missing not found"
     assert current_job.meta["status"] == "FAILURE"
@@ -33,7 +33,12 @@ def test_collector_task_missing_source_is_recorded_as_failure(current_job, reque
         "task": "collector_task",
         "worker_id": "source-missing",
         "worker_type": "collector_task",
-        "result": result,
+        "result": {
+            "message": result,
+            "reason": "source_not_found",
+            "retryable": False,
+            "data": {"source_id": "source-missing", "manual": False},
+        },
         "status": "FAILURE",
     }
 
@@ -51,7 +56,7 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
     monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: FakeCollector())
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
-    result = collector_tasks.collector_task("source-1", manual=False)
+    result = collector_tasks.collector_task("source-1", False)
 
     assert result == "No changes: feed was not modified"
     assert current_job.meta["status"] == "NOT_MODIFIED"
@@ -64,7 +69,12 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
         "task": "collector_task",
         "worker_id": "source-1",
         "worker_type": "rss_collector",
-        "result": result,
+        "result": {
+            "message": result,
+            "reason": "collector_not_modified",
+            "retryable": False,
+            "data": {"source_id": "source-1", "manual": False},
+        },
         "status": "NOT_MODIFIED",
     }
 
@@ -82,7 +92,11 @@ def test_fetch_single_news_item_accepts_simple_web_source_payload(current_job, m
     monkeypatch.setattr(collector_tasks.worker.collectors, "SimpleWebCollector", FakeSimpleWebCollector)
 
     result = collector_tasks.fetch_single_news_item(
-        {"id": "manual", "type": "simple_web_collector", "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"}}
+        {
+            "id": "manual",
+            "type": "simple_web_collector",
+            "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
+        }
     )
 
     assert result == [{"title": "Fetched item", "content": "Fetched content", "osint_source_id": "manual"}]
@@ -116,7 +130,12 @@ def test_collector_preview_persists_with_preview_status(current_job, requests_mo
     assert post_calls[0].json() == {
         "id": "test-job-123",
         "task": "collector_preview",
-        "result": preview_items,
+        "result": {
+            "message": "Preview for source source-1 collected",
+            "reason": None,
+            "retryable": False,
+            "data": preview_items,
+        },
         "status": "PREVIEW",
     }
 
@@ -141,3 +160,9 @@ def test_collector_preview_persists_failure_on_exception(current_job, requests_m
     assert len(post_calls) == 1
     assert post_calls[0].json()["status"] == "FAILURE"
     assert post_calls[0].json()["task"] == "collector_preview"
+    assert post_calls[0].json()["result"] == {
+        "message": "connection refused",
+        "reason": "preview_failed",
+        "retryable": False,
+        "data": {"source_id": "source-1"},
+    }

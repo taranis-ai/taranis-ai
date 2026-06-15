@@ -17,6 +17,7 @@ from frontend.config import Config
 from frontend.views.admin_views.dashboard_views import AdminDashboardView
 from frontend.views.admin_views.report_type_views import ReportItemTypeView
 from frontend.views.admin_views.source_views import SourceView
+from frontend.views.admin_views.word_list_views import WordListView
 from frontend.views.base_view import BaseView
 
 
@@ -301,7 +302,11 @@ class TestSourceView:
         assert processed_data["icon"] == ""
 
     def test_osint_source_preview_shows_failure_and_retrigger_action(self, app):
-        task_result = Task(id="source_preview_42", status="FAILURE", result="Connection refused")
+        task_result = Task(
+            id="source_preview_42",
+            status="FAILURE",
+            result={"message": "Connection refused", "reason": "preview_failed", "retryable": False, "data": None},
+        )
 
         with app.test_request_context("/"):
             rendered = render_template(
@@ -316,6 +321,40 @@ class TestSourceView:
         assert "source_preview/42" in rendered
         assert 'hx-target="#source_preview"' in rendered
         assert "Retrigger preview" in rendered
+
+
+class TestWordListView:
+    def test_import_post_view_no_file_renders_inline_error(self, authenticated_client):
+        resp = authenticated_client.post(WordListView.get_import_route(), data={}, content_type="multipart/form-data")
+
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert "No file provided" in html
+        assert 'hx-swap-oob="true"' not in html
+
+    def test_import_post_view_api_failure_renders_inline_error(self, authenticated_client, responses_mock):
+        dummy_export_data = {"version": 1, "data": [{"name": "Test wordlist", "entries": []}]}
+        dummy_file_content = json.dumps(dummy_export_data).encode("utf-8")
+        dummy_file = BytesIO(dummy_file_content)
+        dummy_file.name = "test.json"
+
+        responses_mock.post(
+            f"{Config.TARANIS_CORE_URL}/config/import-word-lists",
+            json={"error": "Failed to import word lists"},
+            status=500,
+            content_type="application/json",
+        )
+
+        resp = authenticated_client.post(
+            WordListView.get_import_route(),
+            data={"file": (dummy_file, "test.json")},
+            content_type="multipart/form-data",
+        )
+
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert "Failed to import word lists" in html
+        assert 'hx-swap-oob="true"' not in html
 
 
 def test_report_item_type_submitted_form_model_uses_shared_normalization(app):

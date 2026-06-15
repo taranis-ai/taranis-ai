@@ -22,6 +22,36 @@ SCHEDULER_BASELINE_TOTAL_TEXT_PREFIX = "Total:"
 SCHEDULER_BASELINE_TOTAL_TEXT_SUFFIX = "scheduled jobs"
 
 
+def reset_admin_onboarding_tours(core_request_client):
+    response = core_request_client.post(
+        "/users/profile",
+        json_data={"onboarding_tasks": {}},
+    )
+    assert response.ok, f"Failed to reset onboarding tours: {response.status_code}"
+
+
+def expect_profile_post_response(page: Page):
+    profile_url = url_for("user.settings", _external=True)
+    return page.expect_response(lambda response: response.url == profile_url and response.request.method == "POST")
+
+
+def expect_driver_step(page: Page, title: str):
+    popover = page.locator(".driver-popover")
+    expect(popover).to_be_visible()
+    expect(popover).to_contain_text(title)
+
+
+def go_to_next_driver_step(page: Page, title: str):
+    page.get_by_role("button", name="Next").click()
+    expect_driver_step(page, title)
+
+
+def start_admin_onboarding_from_dashboard(page: Page):
+    expect(page.locator(".driver-popover")).not_to_be_visible()
+    page.get_by_role("link", name="Admin Dashboard").click()
+    expect_driver_step(page, "Admin Dashboard")
+
+
 def remove_tz(date_time: str) -> str:
     dt = datetime.fromisoformat(date_time)
     if dt.tzinfo is not None and dt.utcoffset() is not None:
@@ -40,6 +70,74 @@ class TestEndToEndAdmin(BaseE2ETest):
         page = taranis_frontend
         page.context.clear_cookies()
         self.login_with_credentials(page)
+
+    def test_admin_welcome_onboarding_tour_complete_now(self, logged_in_page: Page, core_request_client, forward_console_and_page_errors):
+        reset_admin_onboarding_tours(core_request_client)
+        page = logged_in_page
+        page.goto(url_for("admin.dashboard", _external=True))
+
+        start_admin_onboarding_from_dashboard(page)
+        go_to_next_driver_step(page, "OSINT Source")
+        go_to_next_driver_step(page, "OSINT Source table")
+        go_to_next_driver_step(page, "Bot")
+        go_to_next_driver_step(page, "Bot table")
+        go_to_next_driver_step(page, "Scheduler")
+        go_to_next_driver_step(page, "Scheduled jobs")
+        go_to_next_driver_step(page, "Role")
+        go_to_next_driver_step(page, "Role table")
+        go_to_next_driver_step(page, "User")
+        go_to_next_driver_step(page, "User table")
+        go_to_next_driver_step(page, "Welcome tour complete")
+
+        with expect_profile_post_response(page) as response_info:
+            page.get_by_role("button", name="Complete now").click()
+
+        assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+        expect(page.locator(".driver-popover")).not_to_be_visible()
+
+        page.reload()
+        expect(page.locator(".driver-popover")).not_to_be_visible()
+
+    def test_admin_advanced_onboarding_tour(self, logged_in_page: Page, core_request_client, forward_console_and_page_errors):
+        reset_admin_onboarding_tours(core_request_client)
+        page = logged_in_page
+        page.goto(url_for("admin.dashboard", _external=True))
+
+        start_admin_onboarding_from_dashboard(page)
+        go_to_next_driver_step(page, "OSINT Source")
+        go_to_next_driver_step(page, "OSINT Source table")
+        go_to_next_driver_step(page, "Bot")
+        go_to_next_driver_step(page, "Bot table")
+        go_to_next_driver_step(page, "Scheduler")
+        go_to_next_driver_step(page, "Scheduled jobs")
+        go_to_next_driver_step(page, "Role")
+        go_to_next_driver_step(page, "Role table")
+        go_to_next_driver_step(page, "User")
+        go_to_next_driver_step(page, "User table")
+        go_to_next_driver_step(page, "Welcome tour complete")
+
+        with expect_profile_post_response(page) as response_info:
+            page.get_by_test_id("admin-onboarding-advanced-tour").click()
+
+        assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+        expect_driver_step(page, "Report Item Type")
+        go_to_next_driver_step(page, "Report item type table")
+        go_to_next_driver_step(page, "Template")
+        go_to_next_driver_step(page, "Template table")
+        go_to_next_driver_step(page, "Product Type")
+        go_to_next_driver_step(page, "Product type table")
+        go_to_next_driver_step(page, "Publisher Preset")
+        go_to_next_driver_step(page, "Publisher preset table")
+        go_to_next_driver_step(page, "Word List")
+        go_to_next_driver_step(page, "Word list table")
+
+        with expect_profile_post_response(page) as advanced_response:
+            page.get_by_role("button", name="Complete advanced tour").click()
+
+        assert advanced_response.value.ok, f"Expected 2xx status, but got {advanced_response.value.status}"
+        expect(page.locator(".driver-popover")).not_to_be_visible()
+        page.reload()
+        expect(page.locator(".driver-popover")).not_to_be_visible()
 
     def test_admin_dashboard(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
@@ -166,7 +264,10 @@ class TestEndToEndAdmin(BaseE2ETest):
                 imported_user_list_correct = json.load(f)
             with open(download_path, "r") as f:
                 downloaded_content = json.load(f)
-            assert imported_user_list_correct == downloaded_content, "Downloaded file content does not match uploaded file content"
+            assert imported_user_list_correct["version"] == downloaded_content["version"]
+            assert sorted(imported_user_list_correct["data"], key=lambda item: item["username"]) == sorted(
+                downloaded_content["data"], key=lambda item: item["username"]
+            ), "Downloaded file content does not match uploaded file content"
             self.delete_item(page, "user-table", "Jane Smith")
             self.delete_item(page, "user-table", "John Doe")
             dismiss_notifications(page)
@@ -248,6 +349,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             osint_table = page.get_by_test_id("osint_source-table")
             all_rows = osint_table.locator("tbody tr")
             expect(all_rows).to_have_count(10)
+            dismiss_notifications(page)
 
             first_source_name = osint_table.locator("[data-testid='osint_source-table_name']").first.inner_text().strip()
             page.get_by_placeholder("Search...").fill(first_source_name)
@@ -290,10 +392,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_label("Description").fill("Test description of an OSINT source")
             page.locator('input[name="rank"][value="4"]').check()
             feed_url_input = page.locator('input[name="parameters[FEED_URL]"]')
-            self.select_dynamic_type_and_wait(page, "rss_collector", "/admin/source_parameters/0", feed_url_input)
+            self.select_dynamic_type_and_wait(page, "rss_collector", feed_url_input)
             expect(feed_url_input).to_have_attribute("required", "")
             feed_url_input.fill("http://example.com/feed")
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources_add.png")
+            dismiss_notifications(page)
             self.highlight_element(page.locator('input[type="submit"]')).click()
             expect(page.locator("#osint_source-form")).to_be_visible()
             expect(page.get_by_label("Name")).to_have_value(osint_source_name)
@@ -853,7 +956,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Title", exact=True).fill(product_type_name)
             page.get_by_role("textbox", name="Description", exact=True).fill("Test description of a product type")
             template_path_select = page.locator('select[name="parameters[TEMPLATE_PATH]"]')
-            self.select_dynamic_type_and_wait(page, "html_presenter", "/admin/product_type_parameters/0", template_path_select)
+            self.select_dynamic_type_and_wait(page, "html_presenter", template_path_select)
             expect(template_path_select).to_have_attribute("required", "")
             template_path_select.select_option("cert_at_daily_report.html")
 
@@ -904,7 +1007,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Description").fill("test bot description")
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("21")
-            self.select_dynamic_type_and_wait(page, "nlp_bot", "/admin/bot_parameters/0", refresh_interval_input)
+            self.select_dynamic_type_and_wait(page, "nlp_bot", refresh_interval_input)
 
             page.get_by_role("textbox", name="ITEM_FILTER").fill("1")
             page.get_by_role("textbox", name="BOT_API_KEY").fill("2")
@@ -964,7 +1067,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(connector_name)
-            self.select_dynamic_type_and_wait(page, "misp_connector", "/admin/connector_parameters/0", refresh_interval_input)
+            self.select_dynamic_type_and_wait(page, "misp_connector", refresh_interval_input)
 
             expect(page.get_by_role("textbox", name="URL")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="URL").fill("test.url")
@@ -1018,7 +1121,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill("publisher preset test")
-            self.select_dynamic_type_and_wait(page, "ftp_publisher", "/admin/publisher_parameters/0", ftp_url_input)
+            self.select_dynamic_type_and_wait(page, "ftp_publisher", ftp_url_input)
             expect(ftp_url_input).to_have_attribute("required", "")
             ftp_url_input.fill("testurl")
             page.get_by_role("button", name="Create Publisher Preset").click()

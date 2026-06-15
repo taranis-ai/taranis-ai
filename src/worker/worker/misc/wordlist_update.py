@@ -50,7 +50,12 @@ def update_wordlist(word_list_id: str):
             f"Successfully updated word list {word_list_name} ({word_list_id}) with "
             f"{len(content) if isinstance(content, (list, str)) else 'unknown'} entries"
         )
-        return result
+        return {
+            "word_list_id": word_list_id,
+            "content": content,
+            "content_type": content_type,
+            "message": "Successfully updated wordlist",
+        }
     except Exception as e:
         logger.error(f"Failed to save word list {word_list_name} ({word_list_id}): {e}")
         raise RuntimeError(f"Failed to save word list {word_list_name} ({word_list_id}): {e}") from e

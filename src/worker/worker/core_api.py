@@ -3,11 +3,93 @@ from urllib.parse import urlencode
 
 import niquests as requests
 from models.product import WorkerProduct as Product
-from models.task import TaskSubmission
+from models.task import TaskResultEnvelope, TaskSubmission
 from pydantic import ValidationError
 
 from worker.config import Config
 from worker.log import logger
+
+
+_MISSING_RESULT = object()
+
+
+def build_task_result(
+    message: str,
+    *,
+    reason: str | None = None,
+    retryable: bool = False,
+    data: Any = None,
+) -> dict[str, Any]:
+    return TaskResultEnvelope(
+        message=message,
+        reason=reason,
+        retryable=retryable,
+        data=data,
+    ).model_dump(mode="json", exclude_none=False)
+
+
+def build_success_task_result(
+    *,
+    default_message: str,
+    output: Any = _MISSING_RESULT,
+    data: Any = _MISSING_RESULT,
+    base_data: dict[str, Any] | None = None,
+    result_key: str = "result",
+    merge_dict_data: bool = True,
+    retryable: bool = False,
+    none_message: str | None = None,
+) -> dict[str, Any]:
+    if output is not _MISSING_RESULT and data is not _MISSING_RESULT:
+        raise ValueError("build_success_task_result accepts either output=... or data=..., not both")
+
+    if data is not _MISSING_RESULT:
+        return build_task_result(
+            default_message,
+            retryable=retryable,
+            data=data,
+        )
+
+    normalized_data = dict(base_data or {})
+    message = default_message
+
+    if isinstance(output, dict):
+        message_value = output.get("message")
+        if message_value not in (None, ""):
+            message = str(message_value)
+        if merge_dict_data:
+            normalized_data.update(output)
+        else:
+            normalized_data[result_key] = output
+    elif output is None:
+        message = none_message or default_message
+        if base_data:
+            normalized_data = dict(base_data)
+    elif output is not _MISSING_RESULT:
+        message = str(output)
+        normalized_data[result_key] = output
+
+    result_data = normalized_data if normalized_data else None
+
+    return build_task_result(
+        message,
+        retryable=retryable,
+        data=result_data,
+    )
+
+
+def build_failure_task_result(
+    message: str,
+    *,
+    reason: str | None = None,
+    retryable: bool = False,
+    data: Any = None,
+) -> dict[str, Any]:
+    return build_task_result(
+        message,
+        reason=reason,
+        retryable=retryable,
+        data=data,
+    )
 
 
 class CoreApi:
@@ -63,10 +145,10 @@ class CoreApi:
         response = requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
-    def submit_task_result(self, task_data: TaskSubmission | dict) -> dict | None:
+    def submit_task_result(self, submission: TaskSubmission) -> dict | None:
         try:
-            submission = task_data if isinstance(task_data, TaskSubmission) else TaskSubmission.model_validate(task_data)
             payload = submission.model_dump(mode="json", by_alias=True)
+            payload["result"] = submission.result.model_dump(mode="json", exclude_none=False)
         except ValidationError as exc:
             logger.error(f"Invalid task payload: {exc}")
             return None
@@ -76,34 +158,47 @@ class CoreApi:
         self,
         job_id: str,
         task_name: str,
-        result: Any,
         status: str,
         *,
         worker_id: str | None = None,
         worker_type: str | None = None,
+        result: Any = _MISSING_RESULT,
+        **task_kwargs: Any,
     ) -> bool:
         """Persist task execution result to the Core task API.
 
         Returns True when persistence succeeds, otherwise False.
         """
         try:
-            payload: dict[str, Any] = {
-                "id": job_id,
-                "task": task_name,
-                "result": result,
-                "status": status,
-            }
-            if worker_id is not None:
-                payload["worker_id"] = worker_id
-            if worker_type is not None:
-                payload["worker_type"] = worker_type
-            response = self.submit_task_result(payload)
+            if result is not _MISSING_RESULT and task_kwargs:
+                raise ValueError("save_task_result accepts either result=... or keyword result fields, not both")
+
+            raw_task_result = task_kwargs if result is _MISSING_RESULT else result
+            task_result_payload = (
+                raw_task_result.model_dump(mode="json", exclude_none=False)
+                if isinstance(raw_task_result, TaskResultEnvelope)
+                else raw_task_result
+            )
+            task_result = TaskResultEnvelope.model_validate(task_result_payload)
+
+            submission = TaskSubmission(
+                id=job_id,
+                task=task_name,
+                worker_id=worker_id,
+                worker_type=worker_type,
+                result=task_result,
+                status=status,
+            )
+            response = self.submit_task_result(submission)
             if not response:
                 logger.warning(f"Failed to save task result for {job_id}")
                 return False
 
             logger.debug(f"Saved task result for {task_name}: {status}")
             return True
+        except ValidationError as exc:
+            logger.error(f"Invalid task payload for {job_id}: {exc}")
+            return False
         except Exception as exc:
             logger.error(f"Failed to save task result for {job_id}: {exc}")
             return False
@@ -180,7 +275,10 @@ class CoreApi:
             if not response.ok:
                 logger.error(f"Call to {url} failed {response.status_code}")
                 return None
-            return Product.from_response(response)
+            mime_type = response.headers.get("Content-Type", "")
+            if isinstance(mime_type, bytes):
+                mime_type = mime_type.decode()
+            return Product(data=response.content, mime_type=mime_type)
         except Exception:
             logger.exception("Can't get Product Render")
             return None

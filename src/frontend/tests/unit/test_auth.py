@@ -117,7 +117,8 @@ def test_expired_token_callback_redirects_to_login_and_clears_jwt_cookies(app):
 
 def test_protected_route_with_expired_cookie_redirects_to_login_with_next(app, auth_user):
     with app.app_context():
-        expired_token = create_access_token(identity=auth_user, expires_delta=timedelta(seconds=-1))
+        expires_delta = timedelta(seconds=-(app.config["JWT_DECODE_LEEWAY"] + 5))
+        expired_token = create_access_token(identity=auth_user, expires_delta=expires_delta)
         protected_path = url_for("base.notification")
         login_path = url_for("base.login", next=protected_path)
 
@@ -135,7 +136,8 @@ def test_login_page_renders_with_expired_cookie(app, auth_user, monkeypatch):
     monkeypatch.setattr(auth_views_module, "CoreApi", lambda: mock_api)
 
     with app.app_context():
-        expired_token = create_access_token(identity=auth_user, expires_delta=timedelta(seconds=-1))
+        expires_delta = timedelta(seconds=-(app.config["JWT_DECODE_LEEWAY"] + 5))
+        expired_token = create_access_token(identity=auth_user, expires_delta=expires_delta)
         login_path = url_for("base.login")
 
     client = app.test_client()

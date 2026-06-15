@@ -1,7 +1,9 @@
 <ul class="menu menu-vertical bg-base-200 w-full">
   {% for view_name, view in admin_views.items() %}
     <li>
-      <a href="{{ view.get_base_route() }}" data-testid="admin-menu-{{ view_name }}">
+      <a href="{{ view.get_base_route() }}"
+         data-testid="admin-menu-{{ view_name }}"
+         data-tour-target="admin-menu-{{ view_name | lower | replace(' ', '-') }}">
         {{ heroicon_outline(view.icon) }}
         {% from "macros/admin_menu_badge.html" import admin_menu_badge %}
         {{ view_name }}{{ admin_menu_badge(view) }}
