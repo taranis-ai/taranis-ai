@@ -36,14 +36,16 @@
       inherit (nixpkgs) lib;
       forAllSystems = lib.genAttrs lib.systems.flakeExposed;
 
-      workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./src/core; };
+      workspace = uv2nix.lib.workspace.loadWorkspace {
+        workspaceRoot = ./src/core;
+      };
 
       overlay = workspace.mkPyprojectOverlay {
         sourcePreference = "wheel";
       };
 
       editableOverlay = workspace.mkEditablePyprojectOverlay {
-        root = "$REPO_ROOT";
+        root = "$REPO_ROOT/src/core";
       };
 
       versionOverlay = final: prev: {
@@ -58,7 +60,7 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          python = pkgs.python3;
+          python = pkgs.python314;
         in
         (pkgs.callPackage pyproject-nix.build.packages {
           inherit python;
@@ -71,7 +73,6 @@
             ]
           )
       );
-
     in
     {
       devShells = forAllSystems (
@@ -79,7 +80,10 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           pythonSet = pythonSets.${system}.overrideScope editableOverlay;
-          virtualenv = pythonSet.mkVirtualEnv "integration-layer2-dev-env" workspace.deps.all;
+
+          virtualenv = pythonSet.mkVirtualEnv "taranis-dev-env" {
+            "taranis-core" = [ "dev" ];
+          };
         in
         {
           default = pkgs.mkShell {
@@ -89,6 +93,7 @@
               pkgs.libpq
               pkgs.postgresql
             ];
+
             env = {
               UV_NO_SYNC = "1";
               UV_PYTHON = pythonSet.python.interpreter;
@@ -98,6 +103,7 @@
                 pkgs.postgresql.lib
               ];
             };
+
             shellHook = ''
               unset PYTHONPATH
               export REPO_ROOT=$(git rev-parse --show-toplevel)
@@ -107,7 +113,9 @@
       );
 
       packages = forAllSystems (system: {
-        default = pythonSets.${system}.mkVirtualEnv "taranis" workspace.deps.default;
+        default = pythonSets.${system}.mkVirtualEnv "taranis" {
+          "taranis-core" = [ ];
+        };
       });
 
       overlays.default = final: prev: {
@@ -116,24 +124,11 @@
 
       nixosModules.default = import ./taranis.nix { inherit self; };
 
-      apps = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-          app = pkgs.writeShellScriptBin "taranis" ''
-            exec ${self.packages.${system}.default}/bin/uvicorn \
-              main:app \
-              --host 0.0.0.0 \
-              --port 8000 \
-              "$@"
-          '';
-        in
-        {
-          default = {
-            type = "app";
-            program = "${app}/bin/taranis";
-          };
-        }
-      );
+      apps = forAllSystems (system: {
+        default = {
+          type = "app";
+          program = "${self.packages.${system}.default}/bin/taranis-ai";
+        };
+      });
     };
 }
