@@ -71,9 +71,10 @@
   {% else %}
     <div class="text-center p-4">
       <p class="text-gray-500">No {{ name }} available.</p>
-      <button class="mt-2 btn btn-primary" hx-post="{{ url_for('admin.load_default_osint_sources') }}" hx-target="#{{ table_container }}">
-        Load default {{ name }}
-      </button>
+      <button class="mt-2 btn btn-primary"
+              hx-post="{{ url_for('admin.load_default_osint_sources') }}"
+              hx-target="#{{ table_container }}"
+              data-tour-target="admin-osint-source-load-defaults">Load default {{ name }}</button>
     </div>
   {% endif %}
 </div>

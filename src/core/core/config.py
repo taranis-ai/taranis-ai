@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRES: timedelta = timedelta(hours=4)
     JWT_DECODE_LEEWAY: int = 5
     JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
+    JWT_DECODE_LEEWAY: int = 5
 
     DB_URL: str = "localhost"
     DB_DATABASE: str = "taranis"

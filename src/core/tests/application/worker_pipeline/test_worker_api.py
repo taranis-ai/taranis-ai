@@ -2,6 +2,7 @@ import importlib.util
 import sys
 import uuid
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -19,37 +20,33 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
-    def test_worker_task_results_persists_empty_dict(self, client, api_header, app):
+    @pytest.mark.parametrize(
+        "result_payload",
+        [
+            {"message": "", "reason": None, "retryable": False, "data": []},
+            {"message": "Preview finished", "reason": None, "retryable": False, "data": False},
+            {"message": "Preview finished", "reason": None, "retryable": False, "data": 0},
+        ],
+    )
+    def test_worker_task_results_preserves_falsy_result_fields(self, client, api_header, app, result_payload):
         from core.model.task import Task
 
-        task_id = f"presenter-task-{uuid.uuid4().hex}"
-        product_id = f"product-{uuid.uuid4().hex}"
+        task_id = f"task-result-{uuid.uuid4().hex}"
 
-        payload = {
-            "id": task_id,
-            "task": "presenter_task",
-            "worker_id": product_id,
-            "worker_type": "html_presenter",
-            "result": {},
-            "status": "SUCCESS",
-        }
+        payload = {"id": task_id, "task": "collector_preview", "result": result_payload, "status": "SUCCESS"}
 
         try:
             response = client.post("/api/tasks", json=payload, headers=api_header)
 
             assert response.status_code == 200
-            assert response.get_json()["task"] == "presenter_task"
-            assert response.get_json()["worker_id"] == product_id
-            assert response.get_json()["worker_type"] == "html_presenter"
-            assert response.get_json()["result"] == {}
+            assert response.get_json()["task"] == "collector_preview"
+            assert response.get_json()["result"] == result_payload
 
             with app.app_context():
                 stored = Task.get(task_id)
                 assert stored is not None
-                assert stored.to_dict()["result"] == {}
-                assert stored.to_dict()["worker_id"] == product_id
-                assert stored.to_dict()["worker_type"] == "html_presenter"
-                assert stored.task == "presenter_task"
+                assert stored.to_dict()["result"] == result_payload
+                assert stored.task == "collector_preview"
         finally:
             with app.app_context():
                 if Task.get(task_id):
@@ -413,10 +410,13 @@ class TestWorkerTaskResults:
     @pytest.mark.parametrize(
         ("payload", "expected_error"),
         [
-            ({"status": "SUCCESS", "result": {}}, "id"),
-            ({"id": "task-1", "result": {}}, "status"),
-            ({"id": 123, "status": "SUCCESS", "result": {}}, "id"),
-            ({"id": "task-1", "status": 123, "result": {}}, "status"),
+            ({"status": "SUCCESS", "result": {"message": "ok", "retryable": False}}, "id"),
+            ({"id": "task-1", "result": {"message": "ok", "retryable": False}}, "status"),
+            ({"id": 123, "status": "SUCCESS", "result": {"message": "ok", "retryable": False}}, "id"),
+            ({"id": "task-1", "status": 123, "result": {"message": "ok", "retryable": False}}, "status"),
+            ({"id": "task-1", "status": "SUCCESS"}, "result"),
+            ({"id": "task-1", "status": "SUCCESS", "kwargs": {}}, "result"),
+            ({"id": "task-1", "status": "SUCCESS", "result": {"retryable": False}}, "message"),
         ],
     )
     def test_worker_task_results_rejects_missing_or_invalid_required_fields(self, client, api_header, payload, expected_error):
@@ -428,7 +428,7 @@ class TestWorkerTaskResults:
     def test_worker_task_results_rejects_invalid_task_field(self, client, api_header):
         response = client.post(
             self.base_uri,
-            json={"id": "task-1", "task": ["bad"], "result": {}, "status": "SUCCESS"},
+            json={"id": "task-1", "task": ["bad"], "result": {"message": "ok", "retryable": False}, "status": "SUCCESS"},
             headers=api_header,
         )
 
@@ -449,7 +449,11 @@ class TestWorkerTaskResults:
         payload = {
             "id": task_id,
             "task": "presenter_task",
-            "result": {"product_id": product_id, "render_result": render_result, "message": "ok"},
+            "result": {
+                "message": "ok",
+                "retryable": False,
+                "data": {"product_id": product_id, "render_result": render_result},
+            },
             "status": "SUCCESS",
         }
 
@@ -494,7 +498,7 @@ class TestWorkerTaskResults:
                 structured_tags = {tag["name"]: tag["tag_type"] for tag in story_data.get("tags", [])}
                 expected_tags = {}
                 for news_item in story_data.get("news_items", []):
-                    expected_tags |= wordlist_bot_result["result"].get(news_item["id"], {})
+                    expected_tags |= wordlist_bot_result["result"]["data"]["result"].get(news_item["id"], {})
 
                 assert structured_tags == expected_tags
                 attr_by_key = {attribute.get("key"): attribute.get("value") for attribute in story_data.get("attributes", [])}
@@ -511,7 +515,7 @@ class TestWorkerTaskResults:
         payload = {
             "task_id": task_id,
             "task": "collector_task",
-            "result": {"message": "ok"},
+            "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
             "status": "SUCCESS",
         }
 
@@ -524,10 +528,87 @@ class TestWorkerTaskResults:
                 if Task.get(task_id):
                     Task.delete(task_id)
 
+    def test_gather_word_list_success_result_replays_with_canonical_result_data(self, client, api_header, app, monkeypatch):
+        from core.model.task import Task
+        from core.model.word_list import WordList
+
+        task_id = f"gather-word-list-{uuid.uuid4().hex}"
+        update_word_list = Mock(return_value=None)
+        monkeypatch.setattr(WordList, "update_word_list", update_word_list)
+
+        payload = {
+            "id": task_id,
+            "task": "gather_word_list",
+            "worker_id": "word-list-1",
+            "worker_type": "gather_word_list",
+            "result": {
+                "message": "Successfully updated wordlist",
+                "reason": None,
+                "retryable": False,
+                "data": {
+                    "word_list_id": "word-list-1",
+                    "content": "alpha,beta",
+                    "content_type": "text/csv",
+                },
+            },
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            update_word_list.assert_called_once_with(
+                word_list_id="word-list-1",
+                content="alpha,beta",
+                content_type="text/csv",
+            )
+            assert "message" not in response.get_json()["result"]["data"]
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_tasks_get_returns_strict_canonical_rows_only(self, client, api_header, app):
+        from core.model.task import Task
+
+        task_id = f"strict-task-{uuid.uuid4().hex}"
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "worker_id": "source-1",
+            "worker_type": "rss_collector",
+            "result": {
+                "message": "Collected 1 item",
+                "reason": None,
+                "retryable": False,
+                "data": {"source_id": "source-1"},
+            },
+            "status": "SUCCESS",
+        }
+
+        try:
+            create_response = client.post(self.base_uri, json=payload, headers=api_header)
+            assert create_response.status_code == 200
+
+            history_response = client.get(self.base_uri, headers=api_header)
+            assert history_response.status_code == 200
+
+            history = history_response.get_json()
+            task_row = next(item for item in history["items"] if item["job_id"] == task_id)
+            assert task_row["result"] == payload["result"]
+
+            detail_response = client.get(f"{self.base_uri}/{task_id}", headers=api_header)
+            assert detail_response.status_code == 200
+            assert detail_response.get_json()["result"] == payload["result"]
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
     @pytest.mark.parametrize(
         ("status", "result_message"),
         [
-            ("NOT_MODIFIED", "No changes: feed was not modified"),
             ("FAILURE", "Error: feed retrieval failed"),
         ],
     )
@@ -570,7 +651,12 @@ class TestWorkerTaskResults:
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "rss_collector",
-            "result": result_message,
+            "result": {
+                "message": result_message,
+                "reason": "collection_failed" if status == "FAILURE" else None,
+                "retryable": False,
+                "data": {"source_id": source_id},
+            },
             "status": status,
         }
 
@@ -633,7 +719,11 @@ class TestWorkerTaskResults:
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "rss_collector",
-            "result": "Collected 3 new items",
+            "result": {
+                "message": "Collected 3 new items",
+                "retryable": False,
+                "data": {"source_id": source_id},
+            },
             "status": "SUCCESS",
         }
 
@@ -658,7 +748,12 @@ class TestWorkerTaskResults:
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "rss_collector",
-            "result": "No changes: feed was not modified",
+            "result": {
+                "message": "No changes: feed was not modified",
+                "reason": "collector_not_modified",
+                "retryable": False,
+                "data": {"source_id": source_id},
+            },
             "status": "NOT_MODIFIED",
         }
 
@@ -685,6 +780,61 @@ class TestWorkerTaskResults:
             with app.app_context():
                 if Task.get(task_id):
                     Task.delete(task_id)
+
+    def test_synthetic_cron_collector_failure_updates_source_status_last_run(self, client, api_header, app):
+        from core.model.osint_source import OSINTSource
+        from core.model.task import Task
+
+        source_id = f"cron-failure-{uuid.uuid4().hex}"
+        source = {
+            "id": source_id,
+            "name": f"Cron Failure Source {source_id}",
+            "description": "Cron failure source",
+            "parameters": {"FEED_URL": "https://example.invalid/cron-failure.xml"},
+            "type": "rss_collector",
+        }
+        with app.app_context():
+            OSINTSource.add(source)
+            persisted_source = OSINTSource.get(source_id)
+            assert persisted_source is not None
+            cron_task_id = f"cron_osint_source_{persisted_source.id}_1777459628"
+        payload = {
+            "id": cron_task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "collector_task",
+            "result": {
+                "message": "Collector worker was killed",
+                "reason": "work_horse_killed",
+                "retryable": True,
+                "data": {"source_id": source_id, "retpid": 456, "ret_val": 9},
+            },
+            "status": "FAILURE",
+        }
+
+        try:
+            response = client.post(self.base_uri.replace("/worker", "/tasks"), json=payload, headers=api_header)
+            assert response.status_code == 200
+
+            with app.app_context():
+                stored = Task.get(cron_task_id)
+                assert stored is not None
+                assert stored.status == "FAILURE"
+                assert stored.last_run is not None
+                assert stored.last_success is None
+
+                refreshed_source = OSINTSource.get(source_id)
+                assert refreshed_source is not None
+                assert refreshed_source.status is not None
+                assert refreshed_source.status["job_id"] == cron_task_id
+                assert refreshed_source.status["status"] == "FAILURE"
+                assert refreshed_source.status["last_run"] is not None
+        finally:
+            with app.app_context():
+                if Task.get(cron_task_id):
+                    Task.delete(cron_task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
 
     def test_collector_not_modified_clears_admin_badges_cache_after_failure(self, client, api_header, app, monkeypatch):
         import fakeredis
@@ -718,7 +868,7 @@ class TestWorkerTaskResults:
                         "worker_id": source_id,
                         "worker_type": "rss_collector",
                         "status": "FAILURE",
-                        "result": {"error": "boom"},
+                        "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": source_id}},
                     }
                 )
 
@@ -729,7 +879,12 @@ class TestWorkerTaskResults:
                     "task": "collector_task",
                     "worker_id": source_id,
                     "worker_type": "rss_collector",
-                    "result": "No changes: feed was not modified",
+                    "result": {
+                        "message": "No changes: feed was not modified",
+                        "reason": "collector_not_modified",
+                        "retryable": False,
+                        "data": {"source_id": source_id},
+                    },
                     "status": "NOT_MODIFIED",
                 },
                 headers=api_header,
@@ -762,7 +917,14 @@ class TestWorkerTaskResults:
 
         task_id = f"delete-task-{uuid.uuid4().hex}"
         with app.app_context():
-            Task.add({"id": task_id, "task": "collector_task", "result": {"message": "ok"}, "status": "SUCCESS"})
+            Task.add(
+                {
+                    "id": task_id,
+                    "task": "collector_task",
+                    "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
+                    "status": "SUCCESS",
+                }
+            )
 
         response = client.delete(f"{self.base_uri}/{task_id}", headers=auth_header)
         assert response.status_code == 200
