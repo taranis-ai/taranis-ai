@@ -7,9 +7,7 @@
   <div class="p-8" id="{{ table_id }}-container" hx-history-elt>
     <table class="table shadow table-zebra table-sm" id="{{ table_id }}" data-testid="cluster-table">
       <thead>
-        <tr>
-          {% for col in columns %}{{ table_header(col) }}{% endfor %}
-        </tr>
+        <tr>{% for col in columns %}{{ table_header(col) }}{% endfor %}</tr>
       </thead>
       <tbody>
         {% if data %}

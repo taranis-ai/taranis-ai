@@ -46,6 +46,7 @@ run_frontend() {
 
 run_frontend_e2e() {
   run_step "src/frontend e2e"
+  run_in_dir src/frontend ./build_tailwindcss.sh
   run_in_dir src/frontend uv run --frozen --no-sync pytest --e2e-ci
 }
 

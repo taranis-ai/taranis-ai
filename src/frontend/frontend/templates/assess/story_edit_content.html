@@ -263,9 +263,7 @@
       </div>
 
       {% if story.news_items %}
-        <div class="space-y-4">
-          {% for item in story.news_items %}{{ news_item_card(item, story, edit_tags=(not has_rt_id) ) }}{% endfor %}
-        </div>
+        <div class="space-y-4">{% for item in story.news_items %}{{ news_item_card(item, story, edit_tags=(not has_rt_id) ) }}{% endfor %}</div>
       {% else %}
         <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>
       {% endif %}
