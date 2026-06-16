@@ -202,9 +202,7 @@
           </div>
 
           <footer class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {% if has_rt_id %}
-              <p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>
-            {% endif %}
+            {% if has_rt_id %}<p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>{% endif %}
           </footer>
         </div>
       </form>

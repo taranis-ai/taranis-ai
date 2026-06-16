@@ -257,6 +257,29 @@ class Story(BaseModel):
                     tags_by_identity[(tag.name, tag.tag_type or "misc")] = tag
         return [tags_by_identity[identity] for identity in sorted(tags_by_identity)]
 
+    @staticmethod
+    def refresh_tag_summaries_for_news_items(news_items: list["NewsItem"]) -> None:
+        summary_keys = set()
+        for news_item in news_items:
+            summary_keys.update(news_item.get_tag_summary_keys())
+
+        if not summary_keys:
+            return
+
+        from core.model.news_item_tag import NewsItemTagCluster
+
+        db.session.flush()
+        NewsItemTagCluster.refresh_for_keys(summary_keys)
+
+    @classmethod
+    def refresh_tag_summaries_for_stories(cls, stories: list["Story"] | set["Story"]) -> None:
+        news_items_by_id = {}
+        for story in stories:
+            for news_item in story.news_items:
+                news_items_by_id[news_item.id] = news_item
+
+        cls.refresh_tag_summaries_for_news_items(list(news_items_by_id.values()))
+
     @property
     def relevance_source(self) -> int:
         return StoryOperationsService.calculate_source_relevance(self)
@@ -721,6 +744,7 @@ class Story(BaseModel):
                     news_item.last_change = actor
             db.session.add(story)
             db.session.flush()
+            cls.refresh_tag_summaries_for_news_items(story.news_items)
             story.update_status(change=resolved_actor, refresh_timestamps=False)
             story.record_revision(note="created")
             db.session.commit()
@@ -1108,6 +1132,7 @@ class Story(BaseModel):
             )
             for processed_story in processed_stories:
                 processed_story.record_revision(user, note="move_items_to_story")
+            cls.refresh_tag_summaries_for_stories(processed_stories)
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
@@ -1144,6 +1169,7 @@ class Story(BaseModel):
             )
             for story in processed_stories:
                 story.record_revision(user, note="group_stories")
+            cls.refresh_tag_summaries_for_stories(processed_stories)
             db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
         except Exception:
