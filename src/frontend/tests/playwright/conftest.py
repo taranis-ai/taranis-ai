@@ -199,15 +199,10 @@ def e2e_server(request):
     return request.getfixturevalue("e2e_server_local")
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function", autouse=True)
 def e2e_request_context(e2e_server, app):
-    app = getattr(e2e_server, "app", None) or app
-    ctx = app.test_request_context()
-    ctx.push()
-    try:
+    with app.test_request_context(base_url=e2e_server.url()):
         yield
-    finally:
-        ctx.pop()
 
 
 @pytest.fixture(scope="session")
@@ -256,7 +251,7 @@ def configure_playwright_assertion_timeout(request):
 
 
 @pytest.fixture(scope="class")
-def taranis_frontend(request, e2e_request_context, setup_test_templates, browser_context_args, browser: Browser):
+def taranis_frontend(request, setup_test_templates, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     install_htmx_support(context)
     # Drop action timeout from 30s to 5s.
