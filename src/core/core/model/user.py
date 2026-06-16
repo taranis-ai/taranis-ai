@@ -1,6 +1,5 @@
 import json
 import secrets
-from copy import deepcopy
 from datetime import datetime
 from typing import Any, Sequence
 
@@ -49,7 +48,7 @@ class User(BaseModel):
     roles: Mapped[list["Role"]] = relationship("Role", secondary="user_role")
     profile: Mapped[dict[str, Any]] = db.Column(db.JSON)
 
-    def __init__(self, username: str, name: str, organization: str | dict, roles: list[str], password=None, id=None):
+    def __init__(self, username: str, name: str, organization: str | dict, roles: list[str], password=None, id=None, profile=None):
         self.id = self.normalize_uuid_id(id)
         self.username = username
         self.name = name
@@ -59,7 +58,10 @@ class User(BaseModel):
         if org := Organization.get(organization_id):
             self.organization = org
         self.roles = Role.get_bulk(roles)
-        self.profile = deepcopy(PROFILE_TEMPLATE)
+        profile = dict(profile or {})
+        if not profile.get("timezone"):
+            profile["timezone"] = Settings.get_settings().get("default_timezone") or "UTC"
+        self.profile = ProfileSettings.model_validate(profile).model_dump(mode="json")
 
     @classmethod
     def find_by_name(cls, username: str) -> "User|None":
@@ -133,13 +135,9 @@ class User(BaseModel):
             roles=[{"id": r.id, "name": r.name} for r in self.roles if r],
             permissions=permissions,
             profile=profile,
-            effective_timezone=self.resolve_effective_timezone(profile),
+            effective_timezone=profile.timezone or "UTC",
             pending_onboarding_tasks=self._pending_onboarding_tasks(profile, permissions),
         )
-
-    @staticmethod
-    def resolve_effective_timezone(profile: ProfileSettings) -> str:
-        return profile.timezone or Settings.get_settings().get("default_timezone") or "UTC"
 
     def mark_last_login(self) -> None:
         self.last_login = self.utcnow()

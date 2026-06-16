@@ -1,5 +1,10 @@
+import pytest
+
 from worker.bots.tagging_content import _news_item_content_for_tagging
 from worker.config import Config
+
+
+pytestmark = pytest.mark.usefixtures("set_transformers_offline")
 
 
 def test_initalize_bots():

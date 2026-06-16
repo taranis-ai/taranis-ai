@@ -109,8 +109,6 @@ class SettingsView(MethodView):
         if data := request.json:
             response, status = Settings.update(data)
             invalidate_frontend_cache_on_success(status, models=("settings",))
-            if 200 <= status < 300 and "default_timezone" in (data.get("settings") or {}):
-                cache_invalidation_service.invalidate_all_user_profiles()
             return response, status
         return {"error": "No data provided"}, 400
 
@@ -119,8 +117,6 @@ class SettingsView(MethodView):
         if data := request.json:
             response, status = Settings.update(data)
             invalidate_frontend_cache_on_success(status, models=("settings",))
-            if 200 <= status < 300 and "default_timezone" in (data.get("settings") or {}):
-                cache_invalidation_service.invalidate_all_user_profiles()
             return response, status
         return {"error": "No data provided"}, 400
 

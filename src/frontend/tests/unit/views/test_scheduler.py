@@ -3,20 +3,23 @@ from urllib.parse import urlparse
 import pytest
 import responses
 from flask import url_for
+from models.user import ProfileSettings
 
-from frontend.cache import cache
-from frontend.config import Config
+from frontend.cache import add_user_to_cache, cache
 
 
 def _requested_core_paths(responses_mock):
     return [urlparse(call.request.url).path.removeprefix("/api") for call in responses_mock.calls]
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def _clear_scheduler_cache():
     cache.clear()
     yield
     cache.clear()
+
+
+pytestmark = pytest.mark.usefixtures("_clear_scheduler_cache")
 
 
 @pytest.mark.parametrize(
@@ -136,31 +139,17 @@ def test_scheduler_history_displays_worker_type_and_hover_worker_id(
     assert 'title="Worker ID: bot-1"' in html
 
 
-def test_scheduler_jobs_table_formats_next_run_in_effective_timezone(
+def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(
     authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header, auth_user
 ):
+    job = {**mock_core_get_endpoints["Scheduler"]["items"][0], "next_run_time": "2025-01-01T12:00:00"}
     responses_mock.replace(
         responses.GET,
-        f"{Config.TARANIS_CORE_URL}/config/schedule",
-        json={
-            "items": [
-                {
-                    "id": "local-time-job",
-                    "name": "Local Time Job",
-                    "queue": "collectors",
-                    "type": "cron",
-                    "schedule": "*/15 * * * *",
-                    "next_run_time": "2025-01-01T12:00:00",
-                }
-            ],
-            "total_count": 1,
-        },
-        status=200,
-        content_type="application/json",
+        mock_core_get_endpoints["Scheduler"]["_url"],
+        json={"items": [job], "total_count": 1},
     )
-    from frontend.cache import add_user_to_cache
 
-    local_time_user = auth_user.model_copy(update={"effective_timezone": "Europe/Vienna"})
+    local_time_user = auth_user.model_copy(update={"profile": ProfileSettings(language="en", timezone="Europe/Vienna")})
     add_user_to_cache(local_time_user.model_dump(mode="json"))
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler_jobs_table")

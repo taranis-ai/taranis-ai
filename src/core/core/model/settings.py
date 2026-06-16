@@ -90,7 +90,11 @@ class Settings(BaseModel):
 
     @staticmethod
     def _validate_timezone(value: str | None) -> str | None:
-        timezone_name = (value or "").strip()
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError("Invalid timezone: must be a string")
+        timezone_name = value.strip()
         if not timezone_name:
             return None
         try:

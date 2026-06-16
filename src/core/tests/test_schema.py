@@ -57,7 +57,7 @@ schemathesis_config = schemathesis.Config(
 schema = schemathesis.openapi.from_wsgi("/api/static/openapi3_1.yaml", schema_app, config=schemathesis_config).exclude(deprecated=True)
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def _bind_schema_app(app):
     global _APP_FOR_SCHEMA
     _APP_FOR_SCHEMA = app

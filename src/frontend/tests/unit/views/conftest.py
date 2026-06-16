@@ -561,7 +561,7 @@ def organizations_delete_mock(responses_mock):
     yield response
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_worker_parameters_get(responses_mock, worker_parameter_data):
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/worker-parameters", json=worker_parameter_data)
 

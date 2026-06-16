@@ -136,9 +136,6 @@ class FrontendCacheInvalidationService:
     def invalidate_user_profile(self, username: str) -> int:
         return self._delete_matching_patterns([build_user_profile_pattern(Config.CACHE_KEY_PREFIX, username)])
 
-    def invalidate_all_user_profiles(self) -> int:
-        return self._delete_matching_patterns([build_user_profile_pattern(Config.CACHE_KEY_PREFIX)])
-
 
 cache_invalidation_service = FrontendCacheInvalidationService()
 
