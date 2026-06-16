@@ -20,7 +20,7 @@ class TestViewportNotice(PlaywrightHelpers):
         page.goto(url_for("base.login", _external=True))
         return context, page
 
-    def test_warning_bar_tracks_wxga_plus_threshold(self, browser: Browser, e2e_server, core_request_client):
+    def test_warning_bar_tracks_wxga_plus_threshold(self, browser: Browser, e2e_request_context, core_request_client):
         response = core_request_client.post(
             "/users/profile",
             json_data={
