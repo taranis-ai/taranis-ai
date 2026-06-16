@@ -1,0 +1,60 @@
+<dialog id="bookmark_merge_dialog"
+        class="modal"
+        x-data="{ targetBookmarkId: '{{ bookmarks[0].id if bookmarks else '' }}' }"
+        x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
+        x-on:close="$el.remove()"
+        data-testid="bookmark-merge-dialog">
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">x</button>
+    </form>
+    <h3 class="mb-1 mt-1 text-lg font-bold">Merge Bookmark Collections</h3>
+    <p class="mb-4 text-sm text-base-content/70">{{ bookmarks | length }} collections selected</p>
+
+    <form id="bookmark-merge-form" class="space-y-4">
+      {% for bookmark in bookmarks %}<input type="hidden" name="bookmark_ids" value="{{ bookmark.id }}">{% endfor %}
+
+      <label class="select w-full">
+        <span class="label">Target collection</span>
+        <select name="target_bookmark_id" class="select w-full" x-model="targetBookmarkId" required data-testid="merge-target-bookmark">
+          {% for bookmark in bookmarks %}<option value="{{ bookmark.id }}">{{ bookmark.name }} ({{ bookmark.story_count }})</option>{% endfor %}
+        </select>
+      </label>
+
+      <div class="rounded-box border border-base-300 p-3">
+        <div class="mb-2 text-sm font-medium">Selected collections</div>
+        <div class="space-y-2">
+          {% for bookmark in bookmarks %}
+            <div class="flex items-center justify-between gap-3 text-sm">
+              <div class="min-w-0">
+                <span class="truncate font-medium">{{ bookmark.name }}</span>
+                <span class="ml-2 badge badge-outline badge-sm">{{ bookmark.story_count }} stories</span>
+              </div>
+              <span class="badge badge-primary badge-sm" x-show="targetBookmarkId === '{{ bookmark.id }}'" x-cloak>Target</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <label class="flex cursor-pointer items-center gap-3">
+        <input type="checkbox" class="toggle toggle-error" name="delete_sources" value="true" checked data-testid="delete-merged-sources">
+        <span class="text-sm">Delete merged source collections</span>
+      </label>
+
+      <div class="flex gap-2">
+        <button type="button"
+                class="btn btn-primary w-1/2"
+                hx-post="{{ url_for('assess.submit_bookmark_merge') }}"
+                hx-target="#bookmarks-page"
+                hx-swap="outerHTML"
+                hx-include="#bookmark-merge-form"
+                hx-on::after-request="if (event.detail.successful) document.getElementById('bookmark_merge_dialog').close()"
+                data-testid="submit-bookmark-merge">
+          {{ heroicon_mini("arrows-pointing-in") }}
+          Merge
+        </button>
+        <button type="button" class="btn btn-outline w-1/2" onclick="document.getElementById('bookmark_merge_dialog').close()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</dialog>

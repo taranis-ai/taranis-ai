@@ -1,17 +1,17 @@
-<dialog id="story_stash_dialog"
+<dialog id="story_bookmark_dialog"
         class="modal"
-        x-data="{ mode: '{{ 'existing' if stashes else 'new' }}' }"
+        x-data="{ mode: '{{ 'existing' if bookmarks else 'new' }}' }"
         x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
         x-on:close="$el.remove()"
-        data-testid="story-stash-dialog">
+        data-testid="story-bookmark-dialog">
   <div class="modal-box">
     <form method="dialog">
       <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">x</button>
     </form>
-    <h3 class="mb-1 mt-1 text-lg font-bold">Add to Stash</h3>
+    <h3 class="mb-1 mt-1 text-lg font-bold">Bookmark Stories</h3>
     <p class="mb-4 text-sm text-base-content/70">{{ story_ids | length }} stories selected</p>
 
-    <form id="story-stash-form" class="space-y-4">
+    <form id="story-bookmark-form" class="space-y-4">
       {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
       <input type="hidden" name="mode" :value="mode">
 
@@ -19,21 +19,21 @@
         <button type="button"
                 class="btn join-item w-1/2"
                 :class="mode === 'existing' ? 'btn-primary' : 'btn-outline'"
-                {% if not stashes %}disabled{% endif %}
+                {% if not bookmarks %}disabled{% endif %}
                 @click="mode = 'existing'"
-                data-testid="stash-mode-existing">Existing</button>
+                data-testid="bookmark-mode-existing">Existing</button>
         <button type="button"
                 class="btn join-item w-1/2"
                 :class="mode === 'new' ? 'btn-primary' : 'btn-outline'"
                 @click="mode = 'new'"
-                data-testid="stash-mode-new">New</button>
+                data-testid="bookmark-mode-new">New</button>
       </div>
 
       <label class="select w-full" x-show="mode === 'existing'">
-        <span class="label">Stash</span>
-        <select name="stash_id" class="select w-full" :disabled="mode !== 'existing'" :required="mode === 'existing'" data-testid="stash-select">
-          <option value="" selected disabled>Select a stash</option>
-          {% for stash in stashes %}<option value="{{ stash.id }}">{{ stash.name }} ({{ stash.story_count }})</option>{% endfor %}
+        <span class="label">Collection</span>
+        <select name="bookmark_id" class="select w-full" :disabled="mode !== 'existing'" :required="mode === 'existing'" data-testid="bookmark-select">
+          <option value="" selected disabled>Select a collection</option>
+          {% for bookmark in bookmarks %}<option value="{{ bookmark.id }}">{{ bookmark.name }} ({{ bookmark.story_count }})</option>{% endfor %}
         </select>
       </label>
 
@@ -42,25 +42,25 @@
         <input type="text"
                name="name"
                maxlength="120"
-               placeholder="New stash name"
-               aria-label="New stash name"
+               placeholder="New collection name"
+               aria-label="New collection name"
                :disabled="mode !== 'new'"
                :required="mode === 'new'"
-               data-testid="new-stash-name">
+               data-testid="new-bookmark-name">
       </label>
 
       <div class="flex gap-2">
         <button type="button"
                 class="btn btn-primary w-1/2"
-                hx-post="{{ url_for('assess.submit_stash_story') }}"
+                hx-post="{{ url_for('assess.submit_bookmark_story') }}"
                 hx-target="#notification-bar"
-                hx-include="#story-stash-form"
-                hx-on::after-request="if (event.detail.successful) document.getElementById('story_stash_dialog').close()"
-                data-testid="submit-stash-story">
+                hx-include="#story-bookmark-form"
+                hx-on::after-request="if (event.detail.successful) document.getElementById('story_bookmark_dialog').close()"
+                data-testid="submit-bookmark-story">
           {{ heroicon_mini("bookmark") }}
-          Add
+          Bookmark
         </button>
-        <button type="button" class="btn btn-outline w-1/2" onclick="document.getElementById('story_stash_dialog').close()">Cancel</button>
+        <button type="button" class="btn btn-outline w-1/2" onclick="document.getElementById('story_bookmark_dialog').close()">Cancel</button>
       </div>
     </form>
   </div>

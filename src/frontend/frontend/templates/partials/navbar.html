@@ -31,12 +31,6 @@
       </a>
     </li>
     <li>
-      <a href="{{ url_for('assess.stashes') }}" data-tour-target="nav-stashes">
-        {{ heroicon_outline("bookmark") }}
-        Stashes
-      </a>
-    </li>
-    <li>
       <a href="{{ url_for('analyze.analyze') }}" data-tour-target="nav-analyze">
         {{ heroicon_outline("presentation-chart-bar") }}
         Analyze
@@ -64,6 +58,9 @@
         </li>
         <li>
           <a href="{{ url_for('user.settings') }}">User Settings</a>
+        </li>
+        <li>
+          <a href="{{ url_for('assess.bookmarks') }}" data-tour-target="nav-bookmarks">{{ heroicon_outline("bookmark") }}Bookmarks</a>
         </li>
         <li>
           <a href="{{ url_for('base.logout') }}" data-viewport-warning-reset-on-logout="true" data-testid="logout-link">Logout</a>

@@ -68,16 +68,16 @@
 
         <button type="button"
                 class="btn btn-outline btn-sm tooltip"
-                hx-trigger="click, keyup[shiftKey && key == 'S'] from:body"
-                hx-get="{{ url_for('assess.stash_story') }}"
+                hx-trigger="click, keyup[shiftKey && key == 'B'] from:body"
+                hx-get="{{ url_for('assess.bookmark_story') }}"
                 hx-target="body"
                 hx-swap="beforeend"
-                :data-tip="selectedItems.length > 1 ? 'Add selected stories to stash' : 'Add selected story to stash'"
+                :data-tip="selectedItems.length > 1 ? 'Bookmark selected stories' : 'Bookmark selected story'"
                 :hx-vals='action_vals()'>
           {{ heroicon_mini("bookmark") }}
-          <span class="text-sm">Add to Stash</span>
+          <span class="text-sm">Bookmark</span>
           <span class="text-xs opacity-80" x-show="showHints">
-            <kbd class="kbd kbd-xs">Shift+S</kbd>
+            <kbd class="kbd kbd-xs">Shift+B</kbd>
           </span>
         </button>
 

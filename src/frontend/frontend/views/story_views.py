@@ -15,6 +15,7 @@ from models.assess import (
     FilterLists,
     NewsItem,
     Story,
+    StoryBookmark,
     StoryUpdatePayload,
 )
 from models.report import ReportItem
@@ -82,6 +83,7 @@ ASSESS_DEFAULT_FILTER_KEYS = frozenset(
 )
 ASSESS_DEFAULT_FILTER_MULTI_KEYS = frozenset({"source", "group", "tags", "language"})
 ASSESS_DEFAULT_FILTER_SESSION_KEY = "assess_default_filters_active"
+ASSESS_BOOKMARK_BAR_LIMIT = 6
 
 
 class StoryView(BaseView):
@@ -97,6 +99,23 @@ class StoryView(BaseView):
     _show_sidebar = True
 
     @classmethod
+    def _get_bookmark_bar_collections(cls) -> CacheObject[StoryBookmark]:
+        try:
+            paging_data = PagingData(
+                limit=ASSESS_BOOKMARK_BAR_LIMIT,
+                order="position_asc",
+                query_params={"limit": str(ASSESS_BOOKMARK_BAR_LIMIT), "order": "position_asc"},
+            )
+            return DataPersistenceLayer().get_objects(StoryBookmark, paging_data)
+        except ValidationError as exc:
+            logger.exception(format_pydantic_errors(exc, StoryBookmark))
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Error retrieving story bookmarks for Assess bar")
+        return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
+
+    @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         filter_lists = cls.get_filter_lists()
         base_context["filter_lists"] = filter_lists
@@ -104,6 +123,7 @@ class StoryView(BaseView):
         if request.endpoint == "assess.assess":
             assess_request_args = cls._get_assess_request_params()
             base_context["assess_request_args"] = assess_request_args
+            base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
         base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
         if stories := base_context.get("stories"):

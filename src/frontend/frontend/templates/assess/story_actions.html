@@ -21,6 +21,16 @@
   </button>
   <button type="button"
           class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+          hx-post="{{ url_for('assess.instant_bookmark_story', story_id=story_id) }}"
+          hx-target="#notification-bar"
+          hx-target-error="#notification-bar"
+          hx-swap="outerHTML"
+          data-testid="bookmark-story">
+    {{ heroicon_mini("bookmark") }}
+    <span>Bookmark</span>
+  </button>
+  <button type="button"
+          class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
           hx-put="{{ url_for('assess.story', story_id=story_id) }}"
           hx-vals='{"important": {{ toggled_important }} }'
           hx-target="#story-{{ story_id }}"

@@ -278,37 +278,44 @@ class FilterLists(TaranisBaseModel):
     languages: list[str] = Field(default_factory=list)
 
 
-class StoryStashBase(TaranisBaseModel):
+class StoryBookmarkBase(TaranisBaseModel):
     name: str = Field(min_length=1, max_length=120)
+    position: int | None = Field(default=None, ge=0)
 
     @field_validator("name", mode="before")
     @classmethod
     def normalize_name(cls, value: Any) -> str:
         name = str(value or "").strip()
         if not name:
-            raise ValueError("Stash name is required")
+            raise ValueError("Bookmark collection name is required")
         return name
 
 
-class StoryStashCreatePayload(StoryStashBase):
+class StoryBookmarkCreatePayload(StoryBookmarkBase):
     pass
 
 
-class StoryStashUpdatePayload(StoryStashBase):
+class StoryBookmarkUpdatePayload(StoryBookmarkBase):
     pass
 
 
-class StoryStashStoryPayload(TaranisBaseModel):
+class StoryBookmarkStoryPayload(TaranisBaseModel):
     story_ids: list[str] = Field(min_length=1)
 
 
-class StoryStash(StoryStashBase):
-    _core_endpoint = "/assess/stashes"
-    _model_name = "story_stash"
-    _pretty_name = "Story Stash"
+class StoryBookmarkMergePayload(TaranisBaseModel):
+    source_bookmark_ids: list[str] = Field(min_length=1)
+    delete_sources: bool = True
+
+
+class StoryBookmark(StoryBookmarkBase):
+    _core_endpoint = "/assess/bookmarks"
+    _model_name = "story_bookmark"
+    _pretty_name = "Story Bookmark Collection"
     _cache_timeout = 30
 
     id: str | None = None
+    position: int = 0
     created: datetime | None = None
     updated: datetime | None = None
     story_count: int = 0
