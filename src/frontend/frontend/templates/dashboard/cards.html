@@ -20,7 +20,7 @@
         {{ heroicon_solid("tag", size=24, class="mr-2 pt-1") }}
         <a href="{{ url_for('base.cluster', cluster_name=cluster.name) }}" class="underline text-xl" target="_top">{{ cluster.name }}</a>
       </div>
-      <span class="caption">Cluster size: {{ cluster.size }}</span>
+      <span class="caption">Total stories: {{ cluster.size }}</span>
     </div>
     <div class="divider"></div>
     <div class="flex gap-4 min-w-0">
