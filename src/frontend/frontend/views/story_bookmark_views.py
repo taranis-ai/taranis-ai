@@ -39,6 +39,8 @@ class StoryBookmarkView(BaseView):
     def _invalidate_bookmark_cache(cls, bookmark_id: str | None = None) -> None:
         try:
             DataPersistenceLayer().invalidate_model_cache_locally(StoryBookmark, bookmark_id)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to invalidate local story bookmark cache")
 

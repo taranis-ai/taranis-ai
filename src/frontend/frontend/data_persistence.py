@@ -155,15 +155,12 @@ class DataPersistenceLayer:
         return self._post_cache_invalidation(
             CACHE_INVALIDATION_MODE_MODEL,
             model=object_model._model_name,
-            object_id=str(object_id),
+            object_id=object_id,
         )
 
     def invalidate_model_cache_locally(self, object_model: TaranisBaseModel | Type[TaranisBaseModel], _object_id: str | None = None) -> int:
         pattern = build_model_pattern(Config.CACHE_KEY_PREFIX, object_model._model_name)
-        deleted = 0
-        for key in cache.scan_keys(pattern):
-            deleted += cache.delete(key)
-        return deleted
+        return sum(cache.delete(key) for key in cache.scan_keys(pattern))
 
     def get_objects_by_endpoint(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> CacheObject[T]:
         cache_key = self.make_list_cache_key(object_model, endpoint, paging_data)
