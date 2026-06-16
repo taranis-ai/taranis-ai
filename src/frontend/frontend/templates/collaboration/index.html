@@ -1,552 +1,446 @@
 {% extends "base.html" %}
 
+{% macro presence_avatar(user, fallback='?') -%}
+  <div class="flex h-9 w-9 items-center justify-center rounded-full border border-base-300 bg-base-100 text-xs font-semibold text-base-content">
+    {{ (user.username or fallback)[:2] | upper }}
+  </div>
+{%- endmacro %}
+
+{% macro status_badge(label, tone='outline') -%}
+  <span class="badge {% if tone == 'success' %}badge-success{% elif tone == 'warning' %}badge-warning{% elif tone == 'error' %}badge-error{% else %}badge-outline{% endif %}">{{ label }}</span>
+{%- endmacro %}
+
 {% block content %}
-  {% set request_path = request.path %}
-  {% set sse_base = request_path.split('/frontend', 1)[0] if '/frontend' in request_path else '' %}
-  {% set sse_url = sse_base ~ '/sse' %}
-  <div class="p-6" id="collaboration-workspace">
+  <div class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.08),_transparent_32%),linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(248,250,252,0.98))] px-6 pb-8 pt-6"
+       id="collaboration-workspace">
     {% if notification_html %}{{ notification_html | safe }}{% endif %}
 
-    <div class="mb-6 flex items-center justify-between gap-4">
-      <div>
-        <h1 class="text-3xl font-semibold">Collaboration</h1>
-        <p class="text-sm text-base-content/70">Live demo workspace for cross-instance story collaboration.</p>
+    <div class="mx-auto max-w-[1480px]">
+      <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div class="text-xs font-semibold uppercase tracking-[0.24em] text-primary/70">Cross-Instance Collaboration</div>
+          <h1 class="mt-2 text-4xl font-semibold tracking-tight text-primary">
+            {% if is_room_view %}
+              Live Story Room
+            {% else %}
+              Collaborative Briefing
+            {% endif %}
+          </h1>
+          <p class="mt-2 max-w-3xl text-sm text-base-content/70">
+            {% if is_room_view %}
+              Real-time story collaboration across connected Taranis instances.
+            {% else %}
+              Review multiple stories together, coordinate actions, and maintain shared context in real time.
+            {% endif %}
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <a class="btn btn-ghost" href="{{ url_for('assess.assess') }}">
+            {{ heroicon_mini("arrow-left") }}
+            Back to Assess
+          </a>
+          {% if active_channel %}
+            <span class="rounded-box border border-success/30 bg-success/10 px-4 py-2 text-sm font-medium text-success" data-collab-connection-status>Connecting…</span>
+            {% if is_room_view %}
+              <a class="btn btn-outline" href="{{ url_for('collaboration.workspace', channel_id=active_channel.channel_id) }}">Overview</a>
+            {% else %}
+              <a class="btn btn-primary" href="{{ url_for('collaboration.workspace_channel', channel_id=active_channel.channel_id) }}">Open Room</a>
+            {% endif %}
+          {% endif %}
+        </div>
       </div>
-      <a class="btn btn-outline" href="{{ url_for('assess.assess') }}">
-        {{ heroicon_mini("arrow-left") }}
-        Back to Assess
-      </a>
-    </div>
 
-    <div class="grid gap-6 lg:grid-cols-[20rem_minmax(0,1fr)]">
-      <aside class="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
-        <div class="mb-4 flex items-center justify-between">
-          <h2 class="text-lg font-medium">Open Channels</h2>
-          <span class="badge badge-ghost">{{ channels | length }}</span>
-        </div>
-        <div class="space-y-3">
-          {% if channels %}
-            {% for channel in channels %}
-              <a href="{{ url_for('collaboration.workspace_channel', channel_id=channel.channel_id) }}"
-                 class="block rounded-box border p-3 transition hover:border-primary hover:bg-base-200 {% if active_channel_id == channel.channel_id %}border-primary bg-base-200{% else %}border-base-300{% endif %}">
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <div class="font-medium">{{ channel.topic }}</div>
-                    <div class="text-xs text-base-content/60">{{ channel.participant_count }} participants • {{ channel.story_count }} stories</div>
-                  </div>
-                  <span class="badge {% if channel.status == 'open' %}badge-success{% else %}badge-neutral{% endif %}">{{ channel.status }}</span>
-                </div>
-              </a>
-            {% endfor %}
-          {% else %}
-            <p class="text-sm text-base-content/60">No active collaboration channels in this session.</p>
-          {% endif %}
-        </div>
-      </aside>
+      {% if active_channel %}
+        {% set workspace = active_channel.workspace or {} %}
+        {% set briefing = workspace.briefing or {} %}
+        {% set selected_story = selected_story or (active_channel.stories[0] if active_channel.stories else None) %}
+        {% set selected_story_story = selected_story.story if selected_story else {} %}
 
-      <section class="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm">
-        {% if active_channel %}
-          <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div class="flex items-center gap-3">
-                <h2 class="text-2xl font-semibold">{{ active_channel.topic }}</h2>
-                <span class="badge {% if active_channel.status == 'open' %}badge-success{% else %}badge-neutral{% endif %}">{{ active_channel.status }}</span>
-                <span class="badge badge-outline" data-collab-connection-status>Connecting…</span>
-              </div>
-              <p class="mt-2 text-sm text-base-content/70">Owner: {{ active_channel.owner_base_url }}</p>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              {% if active_channel.status == 'open' %}
-                <form method="post" action="{{ url_for('collaboration.finalize', channel_id=active_channel.channel_id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
-                  <button class="btn btn-primary" type="submit">
-                    {{ heroicon_mini("document-chart-bar") }}
-                    Finalize Stories
-                  </button>
-                </form>
-                <form method="post"
-                      action="{{ url_for('collaboration.report_dialog', channel_id=active_channel.channel_id) }}"
-                      hx-post="{{ url_for('collaboration.report_dialog', channel_id=active_channel.channel_id) }}"
-                      hx-target="body"
-                      hx-swap="beforeend">
-                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
-                  <button class="btn btn-outline" type="submit">
-                    {{ heroicon_mini("document-plus") }}
-                    Add Session Outcome to Report
-                  </button>
-                </form>
-                <form method="post" action="{{ url_for('collaboration.close', channel_id=active_channel.channel_id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
-                  <button class="btn btn-outline" type="submit">
-                    {{ heroicon_mini("x-mark") }}
-                    Close Channel
-                  </button>
-                </form>
-              {% endif %}
-            </div>
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-[1.5rem] border border-base-300/80 bg-base-100/90 px-5 py-4 shadow-sm">
+          <div class="flex flex-wrap items-center gap-3">
+            {{ status_badge(active_channel.status|capitalize, 'success' if active_channel.status == 'open' else 'outline') }}
+            <span class="text-sm text-base-content/60">Owner: {{ active_channel.owner_base_url }}</span>
+            <span class="text-sm text-base-content/60">Stories: {{ active_channel.stories | length }}</span>
+            <span class="text-sm text-base-content/60">Participants: {{ active_channel.participants | length }}</span>
           </div>
-
-          <div class="mb-6 rounded-box border border-base-300 bg-base-200 p-4">
-            <div class="mb-2 text-sm font-medium">Reusable invite</div>
-            <div class="flex flex-col gap-3 md:flex-row">
-              <input class="input input-bordered w-full" value="{{ active_channel.invite.join_url if active_channel.invite else '' }}" readonly>
-              <button class="btn btn-outline"
-                      type="button"
-                      onclick="navigator.clipboard.writeText({{ (active_channel.invite.join_url if active_channel.invite else '') | tojson }})">
-                {{ heroicon_mini("link") }}
-                Copy Link
-              </button>
-            </div>
+          <div class="flex flex-wrap items-center gap-2">
+            {% if active_channel.status == 'open' %}
+              <form method="post"
+                    action="{{ url_for('collaboration.report_dialog', channel_id=active_channel.channel_id) }}"
+                    hx-post="{{ url_for('collaboration.report_dialog', channel_id=active_channel.channel_id) }}"
+                    hx-target="body"
+                    hx-swap="beforeend">
+                <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                <button class="btn btn-outline btn-sm" type="submit">Add to Report</button>
+              </form>
+              <form method="post" action="{{ url_for('collaboration.finalize', channel_id=active_channel.channel_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                <button class="btn btn-primary btn-sm" type="submit">Finalize Stories</button>
+              </form>
+              <form method="post" action="{{ url_for('collaboration.close', channel_id=active_channel.channel_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                <button class="btn btn-ghost btn-sm text-error" type="submit">Close</button>
+              </form>
+            {% endif %}
           </div>
+        </div>
 
-          {% if finalize_result.report_story_ids %}
-            <div class="mb-6 rounded-box border border-success/30 bg-success/10 p-4">
-              <div class="font-medium">
-                Persisted {{ finalize_result.report_story_ids | length }} session outcome stories locally.
-                {% if finalize_result.updated_story_ids %}Updated {{ finalize_result.updated_story_ids | length }}.{% endif %}
-                {% if finalize_result.created_story_ids %}Created {{ finalize_result.created_story_ids | length }}.{% endif %}
-              </div>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <form method="post"
-                      action="{{ url_for('collaboration.report_dialog', channel_id=active_channel.channel_id) }}"
-                      hx-post="{{ url_for('collaboration.report_dialog', channel_id=active_channel.channel_id) }}"
-                      hx-target="body"
-                      hx-swap="beforeend">
-                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
-                  <button class="btn btn-sm btn-outline" type="submit">
-                    {{ heroicon_mini("document-plus") }}
-                    Add Session Outcome to Report
-                  </button>
-                </form>
-              </div>
-            </div>
-          {% endif %}
+        {% if finalize_result.report_story_ids %}
+          <div class="mb-6 rounded-[1.25rem] border border-success/30 bg-success/10 px-5 py-4 text-sm text-success-content">
+            Persisted {{ finalize_result.report_story_ids | length }} session outcome stories locally.
+          </div>
+        {% endif %}
 
-          <div class="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
-            <div>
-              <h3 class="mb-3 text-lg font-medium">Participants</h3>
-              <div class="space-y-3" data-collab-presence-list>
-                {% for participant in active_channel.participants %}
-                  <div class="rounded-box border border-base-300 p-3">
-                    <div class="flex items-center justify-between gap-3">
-                      <div class="font-medium">{{ participant.base_url }}</div>
-                      <span class="badge badge-ghost">{{ participant.role }}</span>
-                    </div>
-                    {% set live_users = active_channel.presence | selectattr('participant_base_url', 'equalto', participant.base_url) | list %}
-                    {% if live_users %}
-                      <div class="mt-2 text-xs text-base-content/60">Live: {{ live_users | map(attribute='username') | join(', ') }}</div>
-                    {% endif %}
-                  </div>
-                {% endfor %}
+        {% if is_room_view %}
+          <div class="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
+            <aside class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-4 shadow-sm">
+              <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-lg font-semibold">Story Queue</h2>
+                <span class="rounded-full bg-base-200 px-2 py-1 text-xs font-semibold">{{ active_channel.stories | length }}</span>
               </div>
-
-              <h3 class="mb-3 mt-6 text-lg font-medium">Channel Stories</h3>
               <div class="space-y-3" data-collab-story-list>
                 {% for story in active_channel.stories %}
-                  <a href="{{ url_for('collaboration.workspace_channel', channel_id=active_channel.channel_id) }}?story_id={{ story.id }}"
-                     class="block rounded-box border p-3 transition hover:border-primary hover:bg-base-200 {% if selected_story_id == story.id %}border-primary bg-base-200{% else %}border-base-300{% endif %}">
-                    <div class="font-medium" data-collab-story-title="{{ story.id }}">{{ story.title or "Untitled Story" }}</div>
-                    <div class="mt-1 text-xs text-base-content/60">
-                      {{ story.source_instance }} • <span data-collab-news-count="{{ story.id }}">{{ (story.story.news_items or []) | length }}</span> news items
+                  <button type="button"
+                          class="block w-full rounded-[1.25rem] border p-4 text-left transition {% if selected_story_id == story.id %}border-primary bg-primary/6{% else %}border-base-300 hover:border-primary/40{% endif %}"
+                          data-collab-focus-story="{{ story.id }}">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <div class="truncate font-semibold" data-collab-story-title="{{ story.id }}">{{ story.title or "Untitled Story" }}</div>
+                        <div class="mt-1 text-xs text-base-content/60">{{ story.source_instance }}</div>
+                      </div>
+                      <div class="h-2.5 w-2.5 rounded-full {% if selected_story_id == story.id %}bg-success{% else %}bg-base-300{% endif %}"></div>
                     </div>
-                    {% if story.story.summary %}
-                      <p class="mt-2 text-sm text-base-content/80" data-collab-story-summary="{{ story.id }}">
-                        {{ story.story.summary | truncate(120, False, '…') }}
-                      </p>
-                    {% endif %}
-                  </a>
-                {% else %}
-                  <p class="text-sm text-base-content/60">No stories in this channel yet.</p>
+                    <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-base-content/60">
+                      <span class="rounded-full bg-base-200 px-2 py-1"><span data-collab-news-count="{{ story.id }}">{{ (story.story.news_items or []) | length }}</span> evidence</span>
+                    </div>
+                    <p class="mt-3 line-clamp-3 text-sm text-base-content/70" data-collab-story-summary="{{ story.id }}">{{ story.story.summary or story.description or "" }}</p>
+                  </button>
                 {% endfor %}
               </div>
-            </div>
+              <div class="mt-4">
+                <div class="grid gap-2">
+                  <a class="btn btn-outline w-full" href="{{ url_for('assess.assess') }}">Add From Assess</a>
+                  <form method="get"
+                        action="{{ url_for('collaboration.dialog') }}"
+                        hx-get="{{ url_for('collaboration.dialog') }}?force_new=1"
+                        hx-target="body"
+                        hx-swap="beforeend">
+                    <input type="hidden" name="force_new" value="1">
+                    <button class="btn btn-ghost w-full" type="submit">New Channel</button>
+                  </form>
+                </div>
+              </div>
+            </aside>
 
-            <div>
-              {% if selected_story %}
-                <div class="mb-4 flex items-start justify-between gap-4">
+            <section class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-6 shadow-sm">
+              <div class="mb-5 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <div class="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/50">Live Story Workspace</div>
+                  <div class="mt-1 text-sm text-base-content/60">Edits apply to the selected story only.</div>
+                </div>
+                <div class="flex items-center gap-3 text-sm text-base-content/60">
+                  <span data-collab-save-status>Live sync idle.</span>
+                </div>
+              </div>
+
+              <div data-collab-room-story-panel>
+                <div class="mb-5 flex items-start justify-between gap-4">
                   <div>
-                    <h3 class="text-lg font-medium">Channel Story Editor</h3>
-                    <p class="mt-1 text-sm text-base-content/60">
-                      Edit the collaboration snapshot directly here. Text changes stream live through the collaboration channel while field locks prevent overwrite races.
-                    </p>
+                    <div class="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/50">Headline</div>
+                    <h2 class="mt-2 text-3xl font-semibold" data-collab-room-title>{{ selected_story.story.title or selected_story.title or "Untitled Story" }}</h2>
+                  </div>
+                  <div class="flex -space-x-2" data-collab-participant-stack>
+                    {% for presence in active_channel.presence[:6] %}
+                      <div class="rounded-full border-2 border-base-100">{{ presence_avatar(presence) }}</div>
+                    {% endfor %}
                   </div>
                 </div>
 
-                <div class="space-y-4" data-collab-editor data-collab-selected-story="{{ selected_story.id }}">
+                <div class="space-y-4" data-collab-editor data-collab-selected-story="{{ selected_story.id if selected_story else '' }}">
                   <label class="form-control">
                     <span class="label-text flex items-center justify-between gap-3">
                       <span>Story title</span>
                       <span class="text-xs text-base-content/60" data-collab-lock-status="title">Unlocked</span>
                     </span>
-                    <input class="input input-bordered" type="text" name="title" value="{{ selected_story.story.title or '' }}" data-collab-field="title">
+                    <input class="input input-bordered bg-base-100" type="text" name="title" value="{{ selected_story_story.title or '' }}" data-collab-field="title">
                   </label>
-
                   <label class="form-control">
                     <span class="label-text flex items-center justify-between gap-3">
                       <span>Description</span>
                       <span class="text-xs text-base-content/60" data-collab-lock-status="description">Unlocked</span>
                     </span>
-                    <textarea class="textarea textarea-bordered min-h-24" name="description" data-collab-field="description">{{ selected_story.story.description or '' }}</textarea>
+                    <textarea class="textarea textarea-bordered min-h-20 bg-base-100" name="description" data-collab-field="description">{{ selected_story_story.description or '' }}</textarea>
                   </label>
-
                   <label class="form-control">
                     <span class="label-text flex items-center justify-between gap-3">
                       <span>Summary</span>
                       <span class="text-xs text-base-content/60" data-collab-lock-status="summary">Unlocked</span>
                     </span>
-                    <textarea class="textarea textarea-bordered min-h-32" name="summary" data-collab-field="summary">{{ selected_story.story.summary or '' }}</textarea>
+                    <textarea class="textarea textarea-bordered min-h-28 bg-base-100" name="summary" data-collab-field="summary">{{ selected_story_story.summary or '' }}</textarea>
                   </label>
-
                   <label class="form-control">
                     <span class="label-text flex items-center justify-between gap-3">
                       <span>Analyst comments</span>
                       <span class="text-xs text-base-content/60" data-collab-lock-status="comments">Unlocked</span>
                     </span>
-                    <textarea class="textarea textarea-bordered min-h-32" name="comments" data-collab-field="comments">{{ selected_story.story.comments or '' }}</textarea>
+                    <textarea class="textarea textarea-bordered min-h-28 bg-base-100" name="comments" data-collab-field="comments">{{ selected_story_story.comments or '' }}</textarea>
                   </label>
-
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-sm text-base-content/60" data-collab-save-status>Live sync idle.</span>
-                  </div>
                 </div>
 
                 <div class="mt-8">
-                  <h3 class="mb-3 text-lg font-medium">News Items</h3>
-                  <div class="space-y-4">
-                    {% for news_item in selected_story.story.news_items or [] %}
-                      <article class="rounded-box border border-base-300 p-4" data-collab-news-item="{{ news_item.id }}">
-                        <div class="flex items-start justify-between gap-4">
-                          <div class="min-w-0 flex-1">
-                            <div class="font-medium">{{ news_item.title or "Untitled News Item" }}</div>
-                            {% if news_item.link %}
-                              <a class="mt-1 block truncate text-sm link link-primary" href="{{ news_item.link }}" target="_blank" rel="noreferrer">{{ news_item.link }}</a>
-                            {% endif %}
-                            {% if news_item.content %}
-                              <p class="mt-3 whitespace-pre-line text-sm text-base-content/80">{{ news_item.content | truncate(900, False, '…') }}</p>
-                            {% endif %}
-                          </div>
-                          <form class="w-64 space-y-2"
-                                method="post"
-                                action="{{ url_for('collaboration.move_news_item', channel_id=active_channel.channel_id, snapshot_id=selected_story.id, news_item_id=news_item.id) }}"
-                                data-collab-move-form
-                                data-news-item-id="{{ news_item.id }}"
-                                data-source-snapshot-id="{{ selected_story.id }}">
-                            <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
-                            <label class="form-control">
-                              <span class="label-text">Move to story</span>
-                              <select class="select select-bordered" name="target_snapshot_id" data-collab-move-target>
-                                {% for target_story in active_channel.stories %}
-                                  {% if target_story.id != selected_story.id %}
-                                    <option value="{{ target_story.id }}">{{ target_story.title or "Untitled Story" }}</option>
-                                  {% endif %}
-                                {% endfor %}
-                              </select>
-                            </label>
-                            <button class="btn btn-outline btn-sm w-full" type="submit" {% if active_channel.stories | length < 2 %}disabled{% endif %}>
-                              {{ heroicon_mini("arrows-right-left") }}
-                              Move News Item
-                            </button>
-                          </form>
-                        </div>
-                      </article>
-                    {% else %}
-                      <p class="text-sm text-base-content/60">No news items are attached to this channel story.</p>
-                    {% endfor %}
+                  <div class="mb-3 flex items-center justify-between">
+                    <h3 class="text-lg font-semibold">Evidence</h3>
+                    <span class="text-xs text-base-content/50">Live items from this story</span>
+                  </div>
+                  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-collab-news-items></div>
+                </div>
+              </div>
+            </section>
+
+            <aside class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-4 shadow-sm">
+              <div class="mb-4 flex items-center justify-between border-b border-base-300 pb-3">
+                <div class="tabs tabs-bordered text-sm" data-collab-sidebar-tabs>
+                  <button class="tab tab-active" type="button" data-collab-sidebar-tab="collaboration">Collaboration</button>
+                  <button class="tab" type="button" data-collab-sidebar-tab="notes">Notes</button>
+                  <button class="tab" type="button" data-collab-sidebar-tab="activity">Activity</button>
+                </div>
+              </div>
+              <div data-collab-sidebar-panel="collaboration">
+                <section class="mb-5">
+                  <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Participants</h3>
+                    <span class="text-xs text-primary">{{ active_channel.presence | length }} live</span>
+                  </div>
+                  <div class="space-y-3" data-collab-presence-list></div>
+                </section>
+                <section class="mb-5">
+                  <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Channel Tasks</h3>
+                    <span class="text-xs text-base-content/50">Shared across all stories</span>
+                  </div>
+                  <div class="space-y-3" data-collab-tasks-list></div>
+                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="task">
+                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add channel task">
+                    <button class="btn btn-primary btn-sm" type="submit">Add</button>
+                  </form>
+                </section>
+                <section>
+                  <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Team Chat</h3>
+                    <span class="text-xs text-base-content/50">Live</span>
+                  </div>
+                  <div class="space-y-3" data-collab-chat-list></div>
+                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="chat_message">
+                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Type a message">
+                    <button class="btn btn-primary btn-sm" type="submit">Send</button>
+                  </form>
+                </section>
+              </div>
+              <div class="hidden" data-collab-sidebar-panel="notes">
+                <section>
+                  <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Notes</h3>
+                    <span class="text-xs text-base-content/50">Channel-only</span>
+                  </div>
+                  <div class="space-y-3" data-collab-comments-list></div>
+                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="comment">
+                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add note">
+                    <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                  </form>
+                </section>
+              </div>
+              <div class="hidden" data-collab-sidebar-panel="activity">
+                <section>
+                  <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Activity</h3>
+                    <span class="text-xs text-base-content/50">Recent changes</span>
+                  </div>
+                  <div class="space-y-3" data-collab-activity-list></div>
+                </section>
+              </div>
+            </aside>
+          </div>
+        {% else %}
+          <div class="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
+            <aside class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-4 shadow-sm">
+              <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-lg font-semibold">Channels</h2>
+                <span class="rounded-full bg-base-200 px-2 py-1 text-xs font-semibold">{{ channels | length }}</span>
+              </div>
+              <div class="space-y-3">
+                {% for channel in channels %}
+                  <a href="{{ url_for('collaboration.workspace', channel_id=channel.channel_id) }}"
+                     class="block rounded-[1.25rem] border p-4 transition {% if active_channel_id == channel.channel_id %}border-primary bg-primary/6{% else %}border-base-300 hover:border-primary/40{% endif %}">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <div class="truncate font-semibold">{{ channel.topic }}</div>
+                        <div class="mt-1 text-xs text-base-content/60">{{ channel.owner_base_url }}</div>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        {% if channel.status == 'open' %}
+                          <span class="h-2.5 w-2.5 rounded-full bg-success"></span>
+                        {% else %}
+                          <span class="h-2.5 w-2.5 rounded-full bg-base-300"></span>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-base-content/60">
+                      <span class="rounded-full bg-base-200 px-2 py-1">{{ channel.story_count }} stories</span>
+                      <span class="rounded-full bg-base-200 px-2 py-1">{{ channel.participant_count }} partners</span>
+                      <span class="rounded-full bg-base-200 px-2 py-1">{{ channel.status | capitalize }}</span>
+                    </div>
+                  </a>
+                {% endfor %}
+              </div>
+              <form class="mt-4"
+                    method="get"
+                    action="{{ url_for('collaboration.dialog') }}"
+                    hx-get="{{ url_for('collaboration.dialog') }}"
+                    hx-target="body"
+                    hx-swap="beforeend">
+                <button class="btn btn-outline w-full" type="submit">New Channel</button>
+              </form>
+            </aside>
+
+            <section class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-6 shadow-sm">
+              <div class="rounded-[1.5rem] border border-base-300 bg-base-100/90 p-5">
+                <div class="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/50">Channel Overview</div>
+                <h2 class="mt-2 text-3xl font-semibold">{{ active_channel.topic }}</h2>
+                <p class="mt-3 text-sm text-base-content/70">
+                  {% if selected_story and active_channel.stories | length == 1 %}
+                    Current focus: {{ selected_story.story.title or selected_story.title or "Untitled Story" }}.
+                  {% elif selected_story %}
+                    This channel currently groups {{ active_channel.stories | length }} stories. The room remains the place for detailed story editing.
+                  {% else %}
+                    This channel has no stories yet. Add stories from Assess to begin live collaboration.
+                  {% endif %}
+                </p>
+                <div class="mt-5 grid gap-3 sm:grid-cols-4">
+                  <div class="rounded-[1rem] border border-base-300 bg-base-100 p-4">
+                    <div class="text-xs uppercase tracking-[0.2em] text-base-content/50">Stories</div>
+                    <div class="mt-2 text-lg font-semibold">{{ active_channel.stories | length }}</div>
+                  </div>
+                  <div class="rounded-[1rem] border border-base-300 bg-base-100 p-4">
+                    <div class="text-xs uppercase tracking-[0.2em] text-base-content/50">Partners</div>
+                    <div class="mt-2 text-lg font-semibold">{{ active_channel.participants | length }}</div>
+                  </div>
+                  <div class="rounded-[1rem] border border-base-300 bg-base-100 p-4">
+                    <div class="text-xs uppercase tracking-[0.2em] text-base-content/50">Live</div>
+                    <div class="mt-2 text-lg font-semibold">{{ active_channel.presence | length }}</div>
+                  </div>
+                  <div class="rounded-[1rem] border border-base-300 bg-base-100 p-4">
+                    <div class="text-xs uppercase tracking-[0.2em] text-base-content/50">Recent Activity</div>
+                    <div class="mt-2 text-lg font-semibold">{{ (workspace.activity_items or []) | length }}</div>
                   </div>
                 </div>
-              {% else %}
-                <h3 class="mb-3 text-lg font-medium">Channel Stories</h3>
-                <p class="text-sm text-base-content/60">Select a channel story to inspect and edit it.</p>
-              {% endif %}
-            </div>
-          </div>
+              </div>
 
-          <script>
-            (() => {
-              const channelId = {{ active_channel.channel_id | tojson }};
-              const initialSelectedStoryId = {{ selected_story_id | tojson }};
-              const rootPrefix = window.location.pathname.includes("/frontend")
-                ? window.location.pathname.split("/frontend", 1)[0]
-                : "";
-              const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-              const socketUrl = `${protocol}//${window.location.host}${rootPrefix}/collaboration/ws?channel_id=${encodeURIComponent(channelId)}&story_id=${encodeURIComponent(initialSelectedStoryId)}`;
-              const connectionBadge = document.querySelector("[data-collab-connection-status]");
-              const saveStatus = document.querySelector("[data-collab-save-status]");
-              const presenceList = document.querySelector("[data-collab-presence-list]");
-              const moveForms = Array.from(document.querySelectorAll("[data-collab-move-form]"));
-              const fieldElements = Array.from(document.querySelectorAll("[data-collab-field]"));
-              const lockStatusElements = new Map(
-                Array.from(document.querySelectorAll("[data-collab-lock-status]")).map((node) => [node.dataset.collabLockStatus, node]),
-              );
-              const storyTitles = new Map(
-                Array.from(document.querySelectorAll("[data-collab-story-title]")).map((node) => [node.dataset.collabStoryTitle, node]),
-              );
-              const storySummaries = new Map(
-                Array.from(document.querySelectorAll("[data-collab-story-summary]")).map((node) => [node.dataset.collabStorySummary, node]),
-              );
-              const newsCounts = new Map(
-                Array.from(document.querySelectorAll("[data-collab-news-count]")).map((node) => [node.dataset.collabNewsCount, node]),
-              );
-              const state = {
-                channel: {{ active_channel | tojson }},
-                selectedStoryId: initialSelectedStoryId,
-                socket: null,
-                sessionId: null,
-                patchTimers: new Map(),
-                heartbeatTimers: new Map(),
-              };
-
-              const setConnectionState = (label, classes) => {
-                if (!connectionBadge) {
-                  return;
-                }
-                connectionBadge.textContent = label;
-                connectionBadge.className = `badge ${classes}`;
-              };
-
-              const setSaveStatus = (text) => {
-                if (saveStatus) {
-                  saveStatus.textContent = text;
-                }
-              };
-
-              const lockFor = (channel, fieldName) => (channel.locks || []).find(
-                (item) => item.snapshot_id === state.selectedStoryId && item.field_name === fieldName,
-              );
-
-              const selectedStory = (channel) => (channel.stories || []).find((story) => story.id === state.selectedStoryId);
-
-              const renderPresence = (channel) => {
-                if (!presenceList) {
-                  return;
-                }
-                presenceList.innerHTML = (channel.participants || []).map((participant) => {
-                  const liveUsers = (channel.presence || []).filter((entry) => entry.participant_base_url === participant.base_url);
-                  const liveLine = liveUsers.length ? `<div class="mt-2 text-xs text-base-content/60">Live: ${liveUsers.map((entry) => entry.username).join(", ")}</div>` : "";
-                  return `
-                    <div class="rounded-box border border-base-300 p-3">
-                      <div class="flex items-center justify-between gap-3">
-                        <div class="font-medium">${participant.base_url}</div>
-                        <span class="badge badge-ghost">${participant.role}</span>
-                      </div>
-                      ${liveLine}
+              <div class="mt-4 grid gap-4 lg:grid-cols-2">
+                <div class="rounded-[1.25rem] border border-base-300 p-4">
+                  <h3 class="font-semibold">Recent Activity</h3>
+                  <div class="mt-3 space-y-3" data-collab-activity-list></div>
+                </div>
+                <div class="rounded-[1.25rem] border border-base-300 p-4">
+                  <h3 class="font-semibold">Current Focus</h3>
+                  <div class="mt-3">
+                    <div class="text-lg font-semibold" data-collab-prioritized-title>
+                      {% if selected_story %}
+                        {{ selected_story.story.title or selected_story.title or "Untitled Story" }}
+                      {% else %}
+                        No selected focus
+                      {% endif %}
                     </div>
-                  `;
-                }).join("");
-              };
+                    <p class="mt-2 text-sm text-base-content/70" data-collab-prioritized-description>
+                      {% if selected_story %}
+                        {{ selected_story.story.summary or selected_story.story.description or selected_story.description or "" }}
+                      {% else %}
+                        No story focus is currently set.
+                      {% endif %}
+                    </p>
+                    <div class="mt-4 text-sm" data-collab-evidence-summary></div>
+                  </div>
+                </div>
+              </div>
 
-              const renderStoryList = (channel) => {
-                (channel.stories || []).forEach((story) => {
-                  const titleNode = storyTitles.get(story.id);
-                  if (titleNode) {
-                    titleNode.textContent = story.title || "Untitled Story";
-                  }
-                  const summaryNode = storySummaries.get(story.id);
-                  if (summaryNode) {
-                    summaryNode.textContent = story.story?.summary || "";
-                  }
-                  const countNode = newsCounts.get(story.id);
-                  if (countNode) {
-                    countNode.textContent = String((story.story?.news_items || []).length);
-                  }
-                });
-              };
+              <div class="mt-4 grid gap-4 lg:grid-cols-3">
+                <div class="rounded-[1.25rem] border border-base-300 p-4">
+                  <h3 class="font-semibold">Impact</h3>
+                  <div class="mt-3 text-sm" data-collab-impact></div>
+                </div>
+                <div class="rounded-[1.25rem] border border-base-300 p-4">
+                  <h3 class="font-semibold">Key Takeaways</h3>
+                  <div class="mt-3 text-sm" data-collab-key-takeaways></div>
+                </div>
+                <div class="rounded-[1.25rem] border border-base-300 p-4">
+                  <h3 class="font-semibold">Source Labels</h3>
+                  <div class="mt-3 text-sm" data-collab-source-labels></div>
+                </div>
+              </div>
+            </section>
 
-              const renderEditor = (channel) => {
-                const story = selectedStory(channel);
-                if (!story) {
-                  return;
-                }
-                const socketReady = Boolean(state.socket && state.socket.readyState === WebSocket.OPEN);
-                fieldElements.forEach((fieldElement) => {
-                  const fieldName = fieldElement.dataset.collabField;
-                  const value = story.story?.[fieldName] || "";
-                  const lock = lockFor(channel, fieldName);
-                  const ownedBySelf = lock && lock.session_id === state.sessionId;
-                  if (document.activeElement !== fieldElement || !ownedBySelf) {
-                    fieldElement.value = value;
-                  }
-                  fieldElement.disabled = !socketReady || (lock && !ownedBySelf);
-                  const lockNode = lockStatusElements.get(fieldName);
-                  if (lockNode) {
-                    lockNode.textContent = !socketReady
-                      ? "Disconnected"
-                      : !lock
-                        ? "Unlocked"
-                        : ownedBySelf
-                          ? "Locked by you"
-                          : `Locked by ${lock.username}`;
-                  }
-                });
-              };
-
-              const maybeReloadForStructuralChanges = (channel) => {
-                const story = selectedStory(channel);
-                if (!story) {
-                  window.location.reload();
-                  return;
-                }
-                const renderedNewsItems = document.querySelectorAll("article[data-collab-news-item]");
-                if (renderedNewsItems.length !== (story.story?.news_items || []).length) {
-                  window.location.reload();
-                }
-              };
-
-              const applyChannel = (channel, { sessionId } = {}) => {
-                state.channel = channel;
-                if (sessionId) {
-                  state.sessionId = sessionId;
-                }
-                renderPresence(channel);
-                renderStoryList(channel);
-                renderEditor(channel);
-                maybeReloadForStructuralChanges(channel);
-              };
-
-              const sendMessage = (type, payload) => {
-                if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
-                  return;
-                }
-                state.socket.send(JSON.stringify({ type, channel_id: channelId, payload }));
-              };
-
-              const schedulePatch = (fieldName, value) => {
-                const currentTimer = state.patchTimers.get(fieldName);
-                if (currentTimer) {
-                  window.clearTimeout(currentTimer);
-                }
-                setSaveStatus(`Syncing ${fieldName}…`);
-                state.patchTimers.set(fieldName, window.setTimeout(() => {
-                  sendMessage("collab.story.patch", {
-                    snapshot_id: state.selectedStoryId,
-                    fields: { [fieldName]: value },
-                    selected_story_id: state.selectedStoryId,
-                  });
-                }, 180));
-              };
-
-              const startHeartbeat = (fieldName) => {
-                const currentTimer = state.heartbeatTimers.get(fieldName);
-                if (currentTimer) {
-                  window.clearInterval(currentTimer);
-                }
-                state.heartbeatTimers.set(fieldName, window.setInterval(() => {
-                  sendMessage("collab.lock.heartbeat", {
-                    snapshot_id: state.selectedStoryId,
-                    field_name: fieldName,
-                    selected_story_id: state.selectedStoryId,
-                  });
-                }, 4000));
-              };
-
-              const stopHeartbeat = (fieldName) => {
-                const currentTimer = state.heartbeatTimers.get(fieldName);
-                if (currentTimer) {
-                  window.clearInterval(currentTimer);
-                  state.heartbeatTimers.delete(fieldName);
-                }
-              };
-
-              fieldElements.forEach((fieldElement) => {
-                const fieldName = fieldElement.dataset.collabField;
-                fieldElement.addEventListener("focus", () => {
-                  sendMessage("collab.lock.acquire", {
-                    snapshot_id: state.selectedStoryId,
-                    field_name: fieldName,
-                    selected_story_id: state.selectedStoryId,
-                  });
-                  startHeartbeat(fieldName);
-                });
-                fieldElement.addEventListener("blur", () => {
-                  stopHeartbeat(fieldName);
-                  sendMessage("collab.lock.release", {
-                    snapshot_id: state.selectedStoryId,
-                    field_name: fieldName,
-                    selected_story_id: state.selectedStoryId,
-                  });
-                  setSaveStatus("Live sync idle.");
-                });
-                fieldElement.addEventListener("input", () => {
-                  schedulePatch(fieldName, fieldElement.value);
-                });
-              });
-
-              moveForms.forEach((form) => {
-                form.addEventListener("submit", (event) => {
-                  event.preventDefault();
-                  const target = form.querySelector("[data-collab-move-target]");
-                  if (!target || !target.value) {
-                    return;
-                  }
-                  setSaveStatus("Moving news item…");
-                  sendMessage("collab.news_item.move", {
-                    source_snapshot_id: form.dataset.sourceSnapshotId,
-                    target_snapshot_id: target.value,
-                    news_item_id: form.dataset.newsItemId,
-                    selected_story_id: state.selectedStoryId,
-                  });
-                });
-              });
-
-              const connect = () => {
-                state.socket = new WebSocket(socketUrl);
-                setConnectionState("Connecting…", "badge-outline");
-                state.socket.addEventListener("open", () => {
-                  setConnectionState("Live", "badge-success");
-                  setSaveStatus("Live sync connected.");
-                });
-                state.socket.addEventListener("message", (event) => {
-                  const message = JSON.parse(event.data);
-                  if (message.type === "collab.error") {
-                    setConnectionState("Sync error", "badge-error");
-                    fieldElements.forEach((fieldElement) => {
-                      fieldElement.disabled = true;
-                    });
-                    lockStatusElements.forEach((node) => {
-                      node.textContent = "Disconnected";
-                    });
-                    setSaveStatus(message.payload?.message || "Collaboration update failed.");
-                    return;
-                  }
-                  if (message.type === "collab.state.snapshot") {
-                    applyChannel(message.payload.channel, { sessionId: message.payload.session_id });
-                    setSaveStatus("Live sync connected.");
-                    return;
-                  }
-                  if (message.type === "collab.state.updated") {
-                    applyChannel(message.payload.channel);
-                    setSaveStatus("All changes synced.");
-                  }
-                });
-                state.socket.addEventListener("close", () => {
-                  setConnectionState("Disconnected", "badge-error");
-                  setSaveStatus("Live sync disconnected. Reload to reconnect.");
-                  fieldElements.forEach((fieldElement) => {
-                    fieldElement.disabled = true;
-                  });
-                });
-              };
-
-              window.addEventListener("beforeunload", () => {
-                fieldElements.forEach((fieldElement) => stopHeartbeat(fieldElement.dataset.collabField));
-                if (state.socket) {
-                  state.socket.close();
-                }
-              }, { once: true });
-
-              applyChannel(state.channel);
-              connect();
-            })();
-          </script>
-        {% else %}
-          <div class="flex min-h-80 items-center justify-center rounded-box border border-dashed border-base-300">
-            <div class="text-center">
-              <h2 class="text-xl font-medium">No Active Collaboration Selected</h2>
-              <p class="mt-2 text-sm text-base-content/60">Start a channel from Assess or open an invite link on this instance.</p>
-            </div>
+            <aside class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-4 shadow-sm">
+              <section class="mb-5">
+                <div class="mb-3 flex items-center justify-between">
+                  <h3 class="font-semibold">Partners</h3>
+                  <span class="text-xs text-primary">{{ active_channel.presence | length }} live</span>
+                </div>
+                <div class="space-y-3" data-collab-presence-list></div>
+              </section>
+              <section class="mb-5">
+                <div class="mb-3 flex items-center justify-between">
+                  <h3 class="font-semibold">Channel Decisions</h3>
+                  <span class="text-xs text-base-content/50">Management only</span>
+                </div>
+                <div class="space-y-3" data-collab-decisions-list></div>
+                <form class="mt-4 flex gap-2" data-collab-entry-form data-target="decision">
+                  <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add decision">
+                  <button class="btn btn-primary btn-sm" type="submit">Add</button>
+                </form>
+              </section>
+              <section class="mb-5">
+                <div class="mb-3 flex items-center justify-between">
+                  <h3 class="font-semibold">Channel Actions</h3>
+                  <span class="text-xs text-base-content/50">Room and intake</span>
+                </div>
+                <div class="grid gap-2">
+                  <a class="btn btn-primary btn-sm" href="{{ url_for('collaboration.workspace_channel', channel_id=active_channel.channel_id) }}">Open Live Room</a>
+                  <a class="btn btn-outline btn-sm" href="{{ url_for('assess.assess') }}">Add Stories From Assess</a>
+                </div>
+              </section>
+              <section>
+                <div class="mb-3 flex items-center justify-between">
+                  <h3 class="font-semibold">Invite</h3>
+                  <span class="text-xs text-base-content/50">Share this channel</span>
+                </div>
+                <div class="rounded-[1rem] border border-base-300 bg-base-100 px-4 py-3 text-sm text-base-content/70 break-all">
+                  {{ active_channel.invite.join_url if active_channel.invite else "No invite available" }}
+                </div>
+                <div class="mt-4 flex flex-wrap gap-2">
+                  <button class="btn btn-outline btn-sm" type="button" data-collab-copy-link="{{ active_channel.invite.join_url if active_channel.invite else '' }}">Copy Invite</button>
+                  <a class="btn btn-outline btn-sm" href="{{ active_channel.invite.join_url if active_channel.invite else '#' }}">Open Invite</a>
+                </div>
+              </section>
+            </aside>
           </div>
         {% endif %}
-      </section>
+
+        <script id="collaboration-page-data" type="application/json">
+          {{ {
+            "mode": "room" if is_room_view else "overview",
+            "channelId": active_channel.channel_id,
+            "selectedStoryId": selected_story_id if is_room_view else "",
+            "channel": active_channel
+          } | tojson }}
+        </script>
+        <script src="{{ url_for('static', filename='js/collaboration_workspace.js') }}" defer></script>
+      {% else %}
+        <div class="flex min-h-[420px] items-center justify-center rounded-[1.75rem] border border-dashed border-base-300 bg-base-100/80">
+          <div class="text-center">
+            <h2 class="text-2xl font-semibold">No Active Collaboration Selected</h2>
+            <p class="mt-3 text-sm text-base-content/60">Start a channel from Assess or open an invite link on this instance.</p>
+          </div>
+        </div>
+      {% endif %}
     </div>
   </div>
 {% endblock content %}

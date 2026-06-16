@@ -9,6 +9,7 @@ Add:
 ```text
 127.0.0.1 alpha.local.taranis.ai
 127.0.0.1 bravo.local.taranis.ai
+127.0.0.1 charlie.local.taranis.ai
 ```
 
 ## Host nginx
@@ -25,6 +26,7 @@ The sample config routes:
 
 - `http://alpha.local.taranis.ai` -> local Taranis ingress on `127.0.0.1:8081`
 - `http://bravo.local.taranis.ai` -> local Taranis ingress on `127.0.0.1:8082`
+- `http://charlie.local.taranis.ai` -> local Taranis ingress on `127.0.0.1:8083`
 
 ## Start the demo
 
@@ -41,6 +43,7 @@ Useful commands:
 ./dev/start_collaboration_demo.sh status
 ./dev/start_collaboration_demo.sh logs alpha
 ./dev/start_collaboration_demo.sh logs bravo
+./dev/start_collaboration_demo.sh logs charlie
 ./dev/start_collaboration_demo.sh down
 ```
 
@@ -48,16 +51,18 @@ The launcher uses:
 
 - `docker/.env.stack1`
 - `docker/.env.stack2`
+- `docker/.env.stack3`
 
-and starts two distinct Compose projects:
+and starts three distinct Compose projects:
 
 - `taranis-stack1`
 - `taranis-stack2`
+- `taranis-stack3`
 
 You can override the env file paths when needed:
 
 ```bash
-ALPHA_ENV=/path/to/.env.stack1 BRAVO_ENV=/path/to/.env.stack2 ./dev/start_collaboration_demo.sh up
+ALPHA_ENV=/path/to/.env.stack1 BRAVO_ENV=/path/to/.env.stack2 CHARLIE_ENV=/path/to/.env.stack3 ./dev/start_collaboration_demo.sh up
 ```
 
 ## Expected collaboration flow
@@ -73,5 +78,6 @@ The invite should embed:
 Redeem the same invite on:
 
 - `http://bravo.local.taranis.ai/frontend/collaboration/join?...`
+- `http://charlie.local.taranis.ai/frontend/collaboration/join?...`
 
 Do not prepend another `/frontend`. The generated invite path already includes it.

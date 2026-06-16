@@ -10,6 +10,7 @@ from models.collaboration import (
     CollabLiveMoveNewsItem,
     CollabLivePresenceRequest,
     CollabLiveStoryPatch,
+    CollabLiveWorkspacePatch,
     CollabMoveNewsItem,
     CollabPeerJoin,
     CollabPeerMoveNewsItem,
@@ -345,6 +346,37 @@ class CollaborationLiveMoveNewsItemView(MethodView):
         return detail.model_dump(mode="json"), 200
 
 
+class CollaborationLiveWorkspacePatchView(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveWorkspacePatch.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        try:
+            detail = collaboration_service.update_workspace_live(
+                channel_id,
+                {
+                    "target": payload.target,
+                    "action": payload.action,
+                    "item_id": payload.item_id,
+                    "data": payload.data,
+                },
+                participant_base_url=payload.actor.base_url,
+                session_id=payload.actor.session_id,
+                username=payload.actor.username,
+                selected_story_id=payload.data.get("selected_story_id"),
+            )
+        except PermissionError as exc:
+            return {"error": str(exc)}, 409
+        except KeyError:
+            return {"error": "Collaboration workspace item not found"}, 404
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return detail.model_dump(mode="json"), 200
+
+
 class CollaborationStoryUpdate(MethodView):
     @auth_required("ASSESS_UPDATE")
     def post(self, channel_id: str):
@@ -606,6 +638,11 @@ def initialize(app: Flask):
     collab_bp.add_url_rule(
         "/channels/<string:channel_id>/live/move-news-item",
         view_func=CollaborationLiveMoveNewsItemView.as_view("collab_live_move_news_item"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/workspace-patch",
+        view_func=CollaborationLiveWorkspacePatchView.as_view("collab_live_workspace_patch"),
         methods=["POST"],
     )
     collab_bp.add_url_rule(

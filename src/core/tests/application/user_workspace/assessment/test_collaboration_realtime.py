@@ -117,3 +117,34 @@ def test_peer_socket_processes_followup_messages_without_async_iteration():
     assert applied_messages[0]["message"]["type"] == "collab.story.patch"
     assert len(broadcasted_channels) == 1
     assert broadcasted_channels[0]["updated"] is True
+
+
+def test_apply_owner_message_supports_workspace_patch():
+    hub = CollaborationRealtimeHub()
+    recorded = {}
+
+    async def fake_core_post(endpoint: str, payload: dict):
+        recorded["endpoint"] = endpoint
+        recorded["payload"] = payload
+        return {"channel_id": "channel-3", "workspace": {"active_mode": "briefing"}}
+
+    hub._core_post = fake_core_post
+
+    updated = asyncio.run(
+        hub._apply_owner_message(
+            "channel-3",
+            {"base_url": "https://alpha.demo", "session_id": "session-a", "username": "alice"},
+            {
+                "type": "collab.workspace.patch",
+                "payload": {
+                    "target": "workspace",
+                    "action": "set",
+                    "data": {"active_mode": "briefing"},
+                },
+            },
+        )
+    )
+
+    assert recorded["endpoint"].endswith("/assess/collab/channels/channel-3/live/workspace-patch")
+    assert recorded["payload"]["target"] == "workspace"
+    assert updated["workspace"]["active_mode"] == "briefing"

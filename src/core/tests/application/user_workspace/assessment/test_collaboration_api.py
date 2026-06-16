@@ -18,6 +18,7 @@ def test_create_collaboration_channel_from_story(client, auth_header, stories):
     assert payload["status"] == "open"
     assert payload["invite"]["owner_base_url"] == collaboration_service.external_base_url()
     assert payload["invite"]["join_url"].endswith(f"channel_id={payload['channel_id']}&token={payload['invite']['token']}")
+    assert payload["workspace"]["active_mode"] == "story"
     assert len(payload["stories"]) == 1
     assert payload["stories"][0]["source_story_id"] == stories[0]
 
@@ -216,3 +217,35 @@ def test_collaboration_live_lock_blocks_other_session(client, auth_header, stori
     )
 
     assert updated.stories[0].story["summary"] == "allowed"
+
+
+def test_collaboration_live_workspace_patch_updates_channel_state(client, auth_header, stories):
+    collaboration_service.channels.clear()
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Workspace Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    payload = create_response.get_json()
+    channel_id = payload["channel_id"]
+    actor = {
+        "base_url": collaboration_service.external_base_url(),
+        "session_id": "session-a",
+        "username": "alice",
+    }
+
+    response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/workspace-patch",
+        json={
+            "target": "decision",
+            "action": "upsert",
+            "actor": actor,
+            "data": {"text": "Publish TLP:AMBER advisory", "owner": "alice", "status": "open"},
+        },
+        headers=auth_header,
+    )
+
+    assert response.status_code == 200
+    workspace_payload = response.get_json()["workspace"]
+    assert workspace_payload["decisions"][0]["text"] == "Publish TLP:AMBER advisory"
+    assert workspace_payload["activity_items"][0]["actor"] == "alice"

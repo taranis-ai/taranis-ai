@@ -31,6 +31,73 @@ class CollabPresence(TaranisBaseModel):
     selected_story_id: str | None = None
 
 
+class CollabWorkspaceDecision(TaranisBaseModel):
+    id: str
+    text: str
+    owner: str | None = None
+    status: Literal["open", "done"] = "open"
+    created_at: datetime | None = None
+
+
+class CollabWorkspaceTask(TaranisBaseModel):
+    id: str
+    text: str
+    owner: str | None = None
+    status: Literal["todo", "doing", "done", "blocked"] = "todo"
+    due_label: str | None = None
+    created_at: datetime | None = None
+
+
+class CollabWorkspaceComment(TaranisBaseModel):
+    id: str
+    author: str
+    text: str
+    created_at: datetime | None = None
+
+
+class CollabWorkspaceChatMessage(TaranisBaseModel):
+    id: str
+    author: str
+    text: str
+    created_at: datetime | None = None
+
+
+class CollabWorkspaceTimelineEvent(TaranisBaseModel):
+    id: str
+    title: str
+    note: str | None = None
+    time_label: str | None = None
+    created_at: datetime | None = None
+
+
+class CollabWorkspaceActivityItem(TaranisBaseModel):
+    id: str
+    text: str
+    actor: str | None = None
+    created_at: datetime | None = None
+
+
+class CollabWorkspaceBriefing(TaranisBaseModel):
+    impact: str | None = None
+    key_takeaways: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    key_questions: list[str] = Field(default_factory=list)
+    related_story_ids: list[str] = Field(default_factory=list)
+    source_labels: list[str] = Field(default_factory=list)
+
+
+class CollabWorkspaceState(TaranisBaseModel):
+    focused_story_id: str | None = None
+    active_mode: Literal["story", "briefing"] = "story"
+    briefing: CollabWorkspaceBriefing = Field(default_factory=CollabWorkspaceBriefing)
+    decisions: list[CollabWorkspaceDecision] = Field(default_factory=list)
+    tasks: list[CollabWorkspaceTask] = Field(default_factory=list)
+    comments: list[CollabWorkspaceComment] = Field(default_factory=list)
+    chat_messages: list[CollabWorkspaceChatMessage] = Field(default_factory=list)
+    timeline_events: list[CollabWorkspaceTimelineEvent] = Field(default_factory=list)
+    activity_items: list[CollabWorkspaceActivityItem] = Field(default_factory=list)
+
+
 class CollabStorySnapshot(TaranisBaseModel):
     id: str
     title: str | None = None
@@ -75,6 +142,7 @@ class CollabChannelDetail(TaranisBaseModel):
     participants: list[CollabParticipant] = Field(default_factory=list)
     presence: list[CollabPresence] = Field(default_factory=list)
     locks: list[CollabFieldLock] = Field(default_factory=list)
+    workspace: CollabWorkspaceState = Field(default_factory=CollabWorkspaceState)
     stories: list[CollabStorySnapshot] = Field(default_factory=list)
     result_stories: list[CollabStorySnapshot] = Field(default_factory=list)
     created_at: datetime | None = None
@@ -144,6 +212,14 @@ class CollabLiveMoveNewsItem(TaranisBaseModel):
     target_snapshot_id: str
     news_item_id: str
     actor: CollabLiveActor
+
+
+class CollabLiveWorkspacePatch(TaranisBaseModel):
+    target: Literal["workspace", "briefing", "decision", "task", "comment", "chat_message", "timeline_event", "activity_item"]
+    action: Literal["set", "upsert", "remove"]
+    actor: CollabLiveActor
+    item_id: str | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
 
 
 class CollabPeerRealtimeEnvelope(TaranisBaseModel):

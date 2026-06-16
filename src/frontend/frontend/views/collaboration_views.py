@@ -22,6 +22,9 @@ class CollaborationView:
         stories = (active_channel or {}).get("stories") or []
         if selected_story_id and any(story.get("id") == selected_story_id for story in stories):
             return selected_story_id
+        focused_story_id = ((active_channel or {}).get("workspace") or {}).get("focused_story_id", "")
+        if focused_story_id and any(story.get("id") == focused_story_id for story in stories):
+            return focused_story_id
         if stories:
             return stories[0].get("id", "")
         return ""
@@ -107,6 +110,7 @@ class CollaborationView:
 
         return {
             "_show_sidebar": False,
+            "is_room_view": bool(active_channel_id),
             "channels": channels,
             "active_channel": active_channel,
             "active_channel_id": active_id if active_channel else "",
@@ -138,6 +142,7 @@ class CollaborationView:
         if not story_ids and (story_id := request.args.get("story_id", "")):
             story_ids = [story_id]
         topic = request.args.get("topic", "")
+        force_new = request.args.get("force_new", "").strip().lower() in {"1", "true", "yes"}
         channels_payload = CoreApi().get_collaboration_channels() or {"items": []}
         open_channels = [item for item in channels_payload.get("items", []) if item.get("status") == "open"]
         return render_template(
@@ -145,20 +150,24 @@ class CollaborationView:
             story_ids=story_ids,
             topic=topic,
             open_channels=open_channels,
-            current_channel_id=session.get(COLLAB_SESSION_CURRENT_KEY, ""),
+            current_channel_id="" if force_new else session.get(COLLAB_SESSION_CURRENT_KEY, ""),
         ), 200
 
     @classmethod
     @auth_required()
     def submit_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
-        if not story_ids:
-            return make_response(BaseView.render_response_notification({"error": "No stories selected for collaboration."}), 400)
-
         channel_id = request.form.get("channel_id", "").strip()
         api = CoreApi()
         try:
             if channel_id:
+                if not story_ids:
+                    return make_response(
+                        BaseView.render_response_notification(
+                            {"error": "Select one or more stories in Assess before adding them to a channel."}
+                        ),
+                        400,
+                    )
                 core_response = api.add_stories_to_collaboration(channel_id, story_ids)
                 target_channel_id = channel_id
             else:

@@ -222,6 +222,17 @@ class CollaborationRealtimeHub:
                     "news_item_id": payload.get("news_item_id"),
                 },
             )
+        if message_type == "collab.workspace.patch":
+            return await self._core_post(
+                f"/assess/collab/channels/{channel_id}/live/workspace-patch",
+                {
+                    "actor": actor,
+                    "target": payload.get("target"),
+                    "action": payload.get("action"),
+                    "item_id": payload.get("item_id"),
+                    "data": payload.get("data") or {},
+                },
+            )
         raise ValueError(f"Unsupported collaboration message type: {message_type}")
 
     async def _ensure_participant_owner_connection(self, channel: dict[str, Any]) -> None:

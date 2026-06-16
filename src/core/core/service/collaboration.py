@@ -18,6 +18,14 @@ from models.collaboration import (
     CollabParticipant,
     CollabPresence,
     CollabStorySnapshot,
+    CollabWorkspaceActivityItem,
+    CollabWorkspaceBriefing,
+    CollabWorkspaceChatMessage,
+    CollabWorkspaceComment,
+    CollabWorkspaceDecision,
+    CollabWorkspaceState,
+    CollabWorkspaceTask,
+    CollabWorkspaceTimelineEvent,
 )
 
 from core.config import Config
@@ -137,6 +145,9 @@ class CollaborationService:
             changed = True
         if changed:
             channel_state["result_stories"] = copy.deepcopy(channel_state["stories"])
+            workspace = self._ensure_workspace_state(channel_state)
+            if not workspace.get("focused_story_id") and channel_state["stories"]:
+                workspace["focused_story_id"] = channel_state["stories"][0].get("id")
             self._touch_channel(channel_state)
         return changed
 
@@ -320,6 +331,139 @@ class CollaborationService:
     def _touch_channel(channel_state: dict[str, Any]) -> None:
         channel_state["updated_at"] = _utcnow().isoformat()
 
+    @staticmethod
+    def _default_workspace_state(channel_state: dict[str, Any]) -> dict[str, Any]:
+        stories = channel_state.get("stories", [])
+        focused_story_id = stories[0].get("id") if stories else None
+        return {
+            "focused_story_id": focused_story_id,
+            "active_mode": "story",
+            "briefing": {
+                "impact": None,
+                "key_takeaways": [],
+                "risks": [],
+                "key_questions": [],
+                "related_story_ids": [],
+                "source_labels": [],
+            },
+            "decisions": [],
+            "tasks": [],
+            "comments": [],
+            "chat_messages": [],
+            "timeline_events": [],
+            "activity_items": [],
+        }
+
+    def _ensure_workspace_state(self, channel_state: dict[str, Any]) -> dict[str, Any]:
+        workspace = channel_state.get("workspace")
+        if not isinstance(workspace, dict):
+            workspace = self._default_workspace_state(channel_state)
+            channel_state["workspace"] = workspace
+        workspace.setdefault("briefing", self._default_workspace_state(channel_state)["briefing"])
+        for key in ("decisions", "tasks", "comments", "chat_messages", "timeline_events", "activity_items"):
+            workspace.setdefault(key, [])
+        workspace.setdefault("active_mode", "story")
+        workspace.setdefault("focused_story_id", workspace.get("focused_story_id") or (channel_state.get("stories") or [{}])[0].get("id"))
+        return workspace
+
+    @staticmethod
+    def _workspace_item_model(target: str):
+        return {
+            "decision": CollabWorkspaceDecision,
+            "task": CollabWorkspaceTask,
+            "comment": CollabWorkspaceComment,
+            "chat_message": CollabWorkspaceChatMessage,
+            "timeline_event": CollabWorkspaceTimelineEvent,
+            "activity_item": CollabWorkspaceActivityItem,
+        }.get(target)
+
+    @staticmethod
+    def _workspace_collection_key(target: str) -> str:
+        return {
+            "decision": "decisions",
+            "task": "tasks",
+            "comment": "comments",
+            "chat_message": "chat_messages",
+            "timeline_event": "timeline_events",
+            "activity_item": "activity_items",
+        }.get(target, "")
+
+    def _append_activity(self, channel_state: dict[str, Any], *, actor: str, text: str) -> None:
+        workspace = self._ensure_workspace_state(channel_state)
+        workspace["activity_items"] = [
+            {
+                "id": str(uuid.uuid4()),
+                "text": text,
+                "actor": actor,
+                "created_at": _utcnow().isoformat(),
+            },
+            *list(workspace.get("activity_items") or []),
+        ][:20]
+
+    def _apply_workspace_patch(self, channel_state: dict[str, Any], payload: dict[str, Any], *, username: str) -> None:
+        workspace = self._ensure_workspace_state(channel_state)
+        target = payload.get("target", "")
+        action = payload.get("action", "")
+        data = payload.get("data") or {}
+        item_id = payload.get("item_id")
+
+        if target == "workspace":
+            if action != "set":
+                raise ValueError("Workspace root only supports set")
+            active_mode = data.get("active_mode")
+            focused_story_id = data.get("focused_story_id")
+            if active_mode in {"story", "briefing"}:
+                workspace["active_mode"] = active_mode
+            if focused_story_id:
+                workspace["focused_story_id"] = focused_story_id
+            self._append_activity(channel_state, actor=username, text="updated workspace view")
+            self._touch_channel(channel_state)
+            return
+
+        if target == "briefing":
+            if action != "set":
+                raise ValueError("Briefing only supports set")
+            merged_briefing = {**(workspace.get("briefing") or {}), **data}
+            workspace["briefing"] = CollabWorkspaceBriefing.model_validate(merged_briefing).model_dump(mode="json")
+            self._append_activity(channel_state, actor=username, text="updated briefing")
+            self._touch_channel(channel_state)
+            return
+
+        collection_key = self._workspace_collection_key(target)
+        item_model = self._workspace_item_model(target)
+        if not collection_key or item_model is None:
+            raise ValueError(f"Unsupported workspace patch target: {target}")
+
+        items = list(workspace.get(collection_key) or [])
+        if action == "remove":
+            if not item_id:
+                raise ValueError("Missing item_id for remove")
+            workspace[collection_key] = [item for item in items if item.get("id") != item_id]
+            self._append_activity(channel_state, actor=username, text=f"removed {target.replace('_', ' ')}")
+            self._touch_channel(channel_state)
+            return
+
+        if action != "upsert":
+            raise ValueError(f"Unsupported workspace patch action: {action}")
+
+        resolved_id = item_id or data.get("id") or str(uuid.uuid4())
+        payload_data = {**data, "id": resolved_id}
+        if "created_at" not in payload_data:
+            payload_data["created_at"] = _utcnow().isoformat()
+        item_payload = item_model.model_validate(payload_data).model_dump(mode="json")
+
+        replaced = False
+        for index, item in enumerate(items):
+            if item.get("id") == resolved_id:
+                items[index] = item_payload
+                replaced = True
+                break
+        if not replaced:
+            items.insert(0, item_payload)
+        workspace[collection_key] = items
+        self._append_activity(channel_state, actor=username, text=f"updated {target.replace('_', ' ')}")
+        self._touch_channel(channel_state)
+
     def _prune_runtime_state(self, channel_state: dict[str, Any]) -> None:
         now = _utcnow()
         valid_locks = []
@@ -379,6 +523,7 @@ class CollaborationService:
         participants = [CollabParticipant.model_validate(item) for item in channel_state["participants"]]
         presence = [CollabPresence.model_validate(item) for item in channel_state.get("presence", [])]
         locks = [CollabFieldLock.model_validate(item) for item in channel_state.get("locks", [])]
+        workspace = CollabWorkspaceState.model_validate(self._ensure_workspace_state(channel_state))
         stories = [CollabStorySnapshot.model_validate(item) for item in channel_state["stories"]]
         result_stories = [CollabStorySnapshot.model_validate(item) for item in channel_state["result_stories"]]
         active_base_url = active_instance_base_url or self.external_base_url()
@@ -392,6 +537,7 @@ class CollaborationService:
             participants=participants,
             presence=presence,
             locks=locks,
+            workspace=workspace,
             stories=stories,
             result_stories=result_stories,
             created_at=channel_state["created_at"],
@@ -471,11 +617,13 @@ class CollaborationService:
             ],
             "presence": [],
             "locks": [],
+            "workspace": {},
             "stories": [],
             "result_stories": [],
             "created_at": now.isoformat(),
             "updated_at": now.isoformat(),
         }
+        channel_state["workspace"] = self._default_workspace_state(channel_state)
         snapshots = [self._build_snapshot_from_story(payload, self.external_base_url()) for payload in story_payloads]
         self._merge_story_snapshots(channel_state, snapshots)
         self.channels[channel_id] = channel_state
@@ -509,6 +657,7 @@ class CollaborationService:
         channel_state["token"] = token
         channel_state.setdefault("presence", [])
         channel_state.setdefault("locks", [])
+        channel_state.setdefault("workspace", self._default_workspace_state(channel_state))
         self.channels[channel_id] = channel_state
         sse_manager.collab_channel_updated(detail.model_dump(mode="json"))
         return self._channel_to_detail(channel_state, active_instance_base_url=partner_base_url)
@@ -523,6 +672,7 @@ class CollaborationService:
         channel_state["token"] = token
         channel_state.setdefault("presence", [])
         channel_state.setdefault("locks", [])
+        channel_state.setdefault("workspace", self._default_workspace_state(channel_state))
         self.channels[channel_id] = channel_state
         detail = self._channel_to_detail(channel_state, active_instance_base_url=self.external_base_url())
         if detail.status == "closed":
@@ -759,6 +909,29 @@ class CollaborationService:
             selected_story_id=source_snapshot_id,
         )
         self._apply_move_news_item(channel_state, source_snapshot_id, target_snapshot_id, news_item_id)
+        return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
+
+    def update_workspace_live(
+        self,
+        channel_id: str,
+        payload: dict[str, Any],
+        *,
+        participant_base_url: str,
+        session_id: str,
+        username: str,
+        selected_story_id: str | None = None,
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Channel is closed")
+        self._upsert_presence(
+            channel_state,
+            session_id=session_id,
+            participant_base_url=self._normalize_base_url(participant_base_url),
+            username=username,
+            selected_story_id=selected_story_id,
+        )
+        self._apply_workspace_patch(channel_state, payload, username=username)
         return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
 
     def add_story_payloads(self, channel_id: str, story_payloads: list[dict[str, Any]], user: User | None = None) -> CollabChannelDetail:

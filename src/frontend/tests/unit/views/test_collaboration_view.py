@@ -36,6 +36,60 @@ def test_collaboration_dialog_renders_open_channels(authenticated_client, respon
     html = response.get_data(as_text=True)
     assert "Demo Topic" in html
     assert 'name="story_ids" value="story-1"' in html
+    assert "Add Stories to Existing Channel" in html
+    assert "Create New Channel" in html
+    assert "Destination channel" in html
+    assert "Channel title" in html
+    assert "No channel title is needed for this path." in html
+
+
+def test_collaboration_dialog_without_story_ids_supports_new_channel(authenticated_client, responses_mock):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/collab/channels", json={"items": [], "total_count": 0})
+
+    response = authenticated_client.get("/collaboration/dialog")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Create a new collaboration channel for a fresh topic. Stories can be added from Assess later." in html
+    assert "Stories are not being added in this step. After the channel is created, add stories from Assess." in html
+    assert "Add Stories to Existing Channel" not in html
+
+
+def test_collaboration_dialog_force_new_clears_current_channel_selection(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
+        json={
+            "items": [
+                {
+                    "channel_id": "channel-1",
+                    "topic": "Demo Topic",
+                    "status": "open",
+                    "owner_base_url": "https://alpha.demo",
+                    "story_count": 2,
+                    "participant_count": 3,
+                    "created_at": "2026-05-08T10:00:00",
+                    "updated_at": "2026-05-08T10:00:00",
+                    "invite": {
+                        "owner_base_url": "https://alpha.demo",
+                        "channel_id": "channel-1",
+                        "token": "token-1",
+                        "join_url": "/collaboration/join?channel_id=channel-1",
+                    },
+                }
+            ],
+            "total_count": 1,
+        },
+    )
+
+    with authenticated_client.session_transaction() as flask_session:
+        flask_session["collab_current_channel"] = "channel-1"
+
+    response = authenticated_client.get("/collaboration/dialog?force_new=1")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'option value="channel-1" selected' not in html
+    assert '"new"' in html
 
 
 def test_collaboration_workspace_renders_active_channel(authenticated_client, responses_mock):
@@ -92,6 +146,24 @@ def test_collaboration_workspace_renders_active_channel(authenticated_client, re
                 }
             ],
             "locks": [],
+            "workspace": {
+                "focused_story_id": "snapshot-1",
+                "active_mode": "story",
+                "briefing": {
+                    "impact": "High",
+                    "key_takeaways": ["Takeaway"],
+                    "risks": ["Risk"],
+                    "key_questions": ["Question"],
+                    "related_story_ids": [],
+                    "source_labels": ["CERT-EU"],
+                },
+                "decisions": [],
+                "tasks": [],
+                "comments": [],
+                "chat_messages": [],
+                "timeline_events": [],
+                "activity_items": [],
+            },
             "stories": [
                 {
                     "id": "snapshot-1",
@@ -114,10 +186,128 @@ def test_collaboration_workspace_renders_active_channel(authenticated_client, re
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "Live Demo" in html
+    assert "Live Story Room" in html
     assert "Story in Channel" in html
     assert "https://bravo.demo" in html
     assert "data-collab-connection-status" in html
     assert "Live sync idle." in html
-    assert "Add Session Outcome to Report" in html
+    assert "Add From Assess" in html
+    assert "Open Live Room" not in html
+    assert "New Channel" in html
+    assert "Channel Tasks" in html
+    assert "Shared across all stories" in html
     assert "Open Original Story" not in html
+    assert "Briefing Mode" not in html
+    assert "Story Focus" not in html
+    assert html.count("data-collab-copy-link") == 0
+
+
+def test_collaboration_overview_renders_dashboard_surface(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
+        json={
+            "items": [
+                {
+                    "channel_id": "channel-2",
+                    "topic": "Second Channel",
+                    "status": "open",
+                    "owner_base_url": "https://bravo.demo",
+                    "story_count": 3,
+                    "participant_count": 4,
+                    "created_at": "2026-05-08T09:00:00",
+                    "updated_at": "2026-05-08T09:30:00",
+                    "invite": {
+                        "owner_base_url": "https://bravo.demo",
+                        "channel_id": "channel-2",
+                        "token": "token-2",
+                        "join_url": "/collaboration/join?channel_id=channel-2",
+                    },
+                },
+                {
+                    "channel_id": "channel-1",
+                    "topic": "Live Demo",
+                    "status": "open",
+                    "owner_base_url": "https://alpha.demo",
+                    "story_count": 1,
+                    "participant_count": 2,
+                    "created_at": "2026-05-08T10:00:00",
+                    "updated_at": "2026-05-08T10:00:00",
+                    "invite": {
+                        "owner_base_url": "https://alpha.demo",
+                        "channel_id": "channel-1",
+                        "token": "token-1",
+                        "join_url": "/collaboration/join?channel_id=channel-1",
+                    },
+                },
+            ],
+            "total_count": 1,
+        },
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-1",
+        json={
+            "channel_id": "channel-1",
+            "topic": "Live Demo",
+            "status": "open",
+            "owner_base_url": "https://alpha.demo",
+            "active_instance_base_url": "https://alpha.demo",
+            "invite": {
+                "owner_base_url": "https://alpha.demo",
+                "channel_id": "channel-1",
+                "token": "token-1",
+                "join_url": "/collaboration/join?channel_id=channel-1",
+            },
+            "participants": [{"base_url": "https://alpha.demo", "role": "owner", "joined_at": "2026-05-08T10:00:00"}],
+            "presence": [],
+            "locks": [],
+            "workspace": {
+                "focused_story_id": "snapshot-1",
+                "active_mode": "briefing",
+                "briefing": {
+                    "impact": "High",
+                    "key_takeaways": ["Takeaway"],
+                    "risks": ["Risk"],
+                    "key_questions": ["Question"],
+                    "related_story_ids": [],
+                    "source_labels": ["CERT-EU"],
+                },
+                "decisions": [],
+                "tasks": [],
+                "comments": [],
+                "chat_messages": [],
+                "timeline_events": [],
+                "activity_items": [],
+            },
+            "stories": [
+                {
+                    "id": "snapshot-1",
+                    "title": "Story in Channel",
+                    "description": "Joined from assess",
+                    "created": "2026-05-08T10:00:00",
+                    "source_instance": "https://alpha.demo",
+                    "source_story_id": "story-1",
+                    "story": {"id": "story-1", "title": "Story in Channel", "summary": "Shared summary", "news_items": []},
+                }
+            ],
+            "result_stories": [],
+            "created_at": "2026-05-08T10:00:00",
+            "updated_at": "2026-05-08T10:00:00",
+            "is_owner": True,
+        },
+    )
+
+    response = authenticated_client.get("/collaboration?channel_id=channel-1")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Collaborative Briefing" in html
+    assert "Channels" in html
+    assert "Channel Overview" in html
+    assert "Partners" in html
+    assert "Open Live Room" in html
+    assert "Briefing Mode" not in html
+    assert "Story Focus" not in html
+    assert "Story title" not in html
+    assert "Channel Tasks" not in html
+    assert html.count("data-collab-copy-link") == 1
+    assert html.index("Second Channel") < html.index("Live Demo")

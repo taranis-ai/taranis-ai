@@ -43,6 +43,7 @@ services:
     extra_hosts:
       - "alpha.local.taranis.ai:host-gateway"
       - "bravo.local.taranis.ai:host-gateway"
+      - "charlie.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
@@ -118,6 +119,7 @@ services:
     extra_hosts:
       - "alpha.local.taranis.ai:host-gateway"
       - "bravo.local.taranis.ai:host-gateway"
+      - "charlie.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
@@ -153,6 +155,7 @@ services:
     extra_hosts:
       - "alpha.local.taranis.ai:host-gateway"
       - "bravo.local.taranis.ai:host-gateway"
+      - "charlie.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
@@ -185,6 +188,7 @@ services:
     extra_hosts:
       - "alpha.local.taranis.ai:host-gateway"
       - "bravo.local.taranis.ai:host-gateway"
+      - "charlie.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
@@ -217,6 +221,7 @@ services:
     extra_hosts:
       - "alpha.local.taranis.ai:host-gateway"
       - "bravo.local.taranis.ai:host-gateway"
+      - "charlie.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
@@ -247,6 +252,7 @@ services:
     extra_hosts:
       - "alpha.local.taranis.ai:host-gateway"
       - "bravo.local.taranis.ai:host-gateway"
+      - "charlie.local.taranis.ai:host-gateway"
     deploy:
       restart_policy:
         condition: always
