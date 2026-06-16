@@ -16,7 +16,7 @@ class TestStoryBookmarks(BaseTest):
         assert response.status_code == 200
         return response.get_json()
 
-    def test_story_bookmarks_assign_and_list_by_position(self, client, auth_header):
+    def test_story_bookmarks_list_by_created_order(self, client, auth_header):
         prefix = f"Ordered {uuid4()}"
         first_response = client.post(self.concat_url("bookmarks"), headers=auth_header, json={"name": f"{prefix} first"})
         second_response = client.post(self.concat_url("bookmarks"), headers=auth_header, json={"name": f"{prefix} second"})
@@ -25,17 +25,16 @@ class TestStoryBookmarks(BaseTest):
         assert second_response.status_code == 201
         first_payload = first_response.get_json()["bookmark"]
         second_payload = second_response.get_json()["bookmark"]
-        assert second_payload["position"] == first_payload["position"] + 1
 
         list_response = client.get(self.concat_url("bookmarks"), headers=auth_header, query_string={"search": prefix})
 
         assert list_response.status_code == 200
         assert [item["id"] for item in list_response.get_json()["items"]] == [first_payload["id"], second_payload["id"]]
 
-    def test_story_bookmarks_default_order_uses_position_not_updated(self, client, stories, auth_header):
-        prefix = f"Position {uuid4()}"
-        low_response = client.post(self.concat_url("bookmarks"), headers=auth_header, json={"name": f"{prefix} low", "position": 10})
-        high_response = client.post(self.concat_url("bookmarks"), headers=auth_header, json={"name": f"{prefix} high", "position": 20})
+    def test_story_bookmarks_default_order_uses_created_not_updated(self, client, stories, auth_header):
+        prefix = f"Created {uuid4()}"
+        low_response = client.post(self.concat_url("bookmarks"), headers=auth_header, json={"name": f"{prefix} low"})
+        high_response = client.post(self.concat_url("bookmarks"), headers=auth_header, json={"name": f"{prefix} high"})
         assert low_response.status_code == 201
         assert high_response.status_code == 201
 
@@ -138,68 +137,3 @@ class TestStoryBookmarks(BaseTest):
         assert response.status_code == 200
         assert response.get_json()["removed"] == 0
         assert response.get_json()["story_count"] == 1
-
-    def test_story_bookmark_merge_deletes_sources_and_dedupes(self, client, stories, auth_header):
-        target_id = self._create_bookmark(client, auth_header, f"Target {uuid4()}")
-        source_one_id = self._create_bookmark(client, auth_header, f"Source one {uuid4()}")
-        source_two_id = self._create_bookmark(client, auth_header, f"Source two {uuid4()}")
-        self._add_stories(client, auth_header, target_id, [stories[0]])
-        self._add_stories(client, auth_header, source_one_id, stories[:2])
-        self._add_stories(client, auth_header, source_two_id, [stories[2]])
-
-        response = client.post(
-            self.concat_url(f"bookmarks/{target_id}/merge"),
-            headers=auth_header,
-            json={"source_bookmark_ids": [source_one_id, source_two_id], "delete_sources": True},
-        )
-
-        assert response.status_code == 200
-        payload = response.get_json()
-        assert payload["merged_bookmark_count"] == 2
-        assert payload["added"] == 2
-        assert payload["story_count"] == 3
-        assert set(payload["deleted_source_ids"]) == {source_one_id, source_two_id}
-        assert set(payload["target_bookmark"]["story_ids"]) == set(stories[:3])
-        assert client.get(self.concat_url(f"bookmarks/{source_one_id}"), headers=auth_header).status_code == 404
-        assert client.get(self.concat_url(f"bookmarks/{source_two_id}"), headers=auth_header).status_code == 404
-
-    def test_story_bookmark_merge_can_keep_sources(self, client, stories, auth_header):
-        target_id = self._create_bookmark(client, auth_header, f"Keep target {uuid4()}")
-        source_id = self._create_bookmark(client, auth_header, f"Keep source {uuid4()}")
-        self._add_stories(client, auth_header, source_id, [stories[0]])
-
-        response = client.post(
-            self.concat_url(f"bookmarks/{target_id}/merge"),
-            headers=auth_header,
-            json={"source_bookmark_ids": [source_id], "delete_sources": False},
-        )
-
-        assert response.status_code == 200
-        assert response.get_json()["deleted_source_ids"] == []
-        assert client.get(self.concat_url(f"bookmarks/{source_id}"), headers=auth_header).status_code == 200
-        assert client.get(self.concat_url(f"bookmarks/{target_id}"), headers=auth_header).get_json()["story_ids"] == [stories[0]]
-
-    def test_story_bookmark_merge_rejects_self_merge(self, client, auth_header):
-        bookmark_id = self._create_bookmark(client, auth_header, f"Self merge {uuid4()}")
-
-        response = client.post(
-            self.concat_url(f"bookmarks/{bookmark_id}/merge"),
-            headers=auth_header,
-            json={"source_bookmark_ids": [bookmark_id], "delete_sources": True},
-        )
-
-        assert response.status_code == 400
-        assert response.get_json() == {"error": "Cannot merge a bookmark collection into itself"}
-
-    def test_story_bookmark_merge_rejects_foreign_source(self, client, auth_header, auth_header_user_permissions):
-        foreign_source_id = self._create_bookmark(client, auth_header, f"Foreign source {uuid4()}")
-        user_target_id = self._create_bookmark(client, auth_header_user_permissions, f"User target {uuid4()}")
-
-        response = client.post(
-            self.concat_url(f"bookmarks/{user_target_id}/merge"),
-            headers=auth_header_user_permissions,
-            json={"source_bookmark_ids": [foreign_source_id], "delete_sources": True},
-        )
-
-        assert response.status_code == 404
-        assert response.get_json() == {"error": "Source bookmark collection not found"}

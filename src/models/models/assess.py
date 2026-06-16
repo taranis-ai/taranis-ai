@@ -280,7 +280,6 @@ class FilterLists(TaranisBaseModel):
 
 class StoryBookmarkBase(TaranisBaseModel):
     name: str = Field(min_length=1, max_length=120)
-    position: int | None = Field(default=None, ge=0)
 
     @field_validator("name", mode="before")
     @classmethod
@@ -303,11 +302,6 @@ class StoryBookmarkStoryPayload(TaranisBaseModel):
     story_ids: list[str] = Field(min_length=1)
 
 
-class StoryBookmarkMergePayload(TaranisBaseModel):
-    source_bookmark_ids: list[str] = Field(min_length=1)
-    delete_sources: bool = True
-
-
 class StoryBookmark(StoryBookmarkBase):
     _core_endpoint = "/assess/bookmarks"
     _model_name = "story_bookmark"
@@ -315,7 +309,6 @@ class StoryBookmark(StoryBookmarkBase):
     _cache_timeout = 30
 
     id: str | None = None
-    position: int = 0
     created: datetime | None = None
     updated: datetime | None = None
     story_count: int = 0

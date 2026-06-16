@@ -10,10 +10,6 @@ def init(app: Flask):
     assess_bp.add_url_rule("/assess", view_func=StoryView.as_view("assess"))
     assess_bp.add_url_rule("/bookmarks", view_func=StoryBookmarkView.list_view, methods=["GET"], endpoint="bookmarks")
     assess_bp.add_url_rule("/bookmarks", view_func=StoryBookmarkView.create_bookmark, methods=["POST"], endpoint="bookmark_create")
-    assess_bp.add_url_rule("/bookmarks/merge", view_func=StoryBookmarkView.get_merge_dialog, methods=["GET"], endpoint="bookmark_merge")
-    assess_bp.add_url_rule(
-        "/bookmarks/merge", view_func=StoryBookmarkView.submit_merge_dialog, methods=["POST"], endpoint="submit_bookmark_merge"
-    )
     assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>", view_func=StoryBookmarkView.detail_view, methods=["GET"], endpoint="bookmark")
     assess_bp.add_url_rule(
         "/bookmarks/<string:bookmark_id>", view_func=StoryBookmarkView.update_bookmark, methods=["PATCH"], endpoint="bookmark_update"

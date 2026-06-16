@@ -1528,7 +1528,6 @@ class StoryBookmark(BaseModel):
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(120), nullable=False)
-    position: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow, nullable=False)
     updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow, nullable=False)
 
@@ -1538,17 +1537,9 @@ class StoryBookmark(BaseModel):
         "Story", secondary="story_bookmark_story", cascade="save-update, merge", passive_deletes=True, single_parent=False
     )
 
-    def __init__(
-        self,
-        name: str,
-        user_id: str,
-        id: str | None = None,
-        stories: list[str] | None = None,
-        position: int | None = None,
-    ):
+    def __init__(self, name: str, user_id: str, id: str | None = None, stories: list[str] | None = None):
         self.id = self.normalize_uuid_id(id)
         self.name = self._clean_name(name)
-        self.position = self._clean_position(position)
         self.user_id = user_id
         self.created = self.utcnow()
         self.updated = self.created
@@ -1562,32 +1553,8 @@ class StoryBookmark(BaseModel):
         return name[:120]
 
     @staticmethod
-    def _clean_position(raw_position: Any, default: int = 0) -> int:
-        if raw_position in (None, ""):
-            return default
-        try:
-            position = int(raw_position)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("Bookmark collection position must be a non-negative integer") from exc
-        if position < 0:
-            raise ValueError("Bookmark collection position must be a non-negative integer")
-        return position
-
-    @staticmethod
     def _dedupe_ids(ids: list[str]) -> list[str]:
-        deduped: list[str] = []
-        seen: set[str] = set()
-        for item_id in ids:
-            if not isinstance(item_id, str) or not item_id or item_id in seen:
-                continue
-            seen.add(item_id)
-            deduped.append(item_id)
-        return deduped
-
-    @classmethod
-    def _next_position_for_user(cls, user_id: str) -> int:
-        max_position = db.session.execute(db.select(func.max(cls.position)).where(cls.user_id == user_id)).scalar()
-        return 0 if max_position is None else max_position + 1
+        return list(dict.fromkeys(item_id for item_id in ids if isinstance(item_id, str) and item_id))
 
     @classmethod
     def get_for_user(cls, bookmark_id: str, user: User | None) -> "StoryBookmark | None":
@@ -1606,11 +1573,7 @@ class StoryBookmark(BaseModel):
 
     @classmethod
     def _add_sorting_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
-        sort = str(filter_args.get("sort") or filter_args.get("order") or "position_asc").lower()
-        if sort == "position_desc":
-            return query.order_by(db.desc(cls.position), db.desc(cls.created), db.asc(cls.name), db.asc(cls.id))
-        if sort == "position_asc":
-            return query.order_by(db.asc(cls.position), db.asc(cls.created), db.asc(cls.name), db.asc(cls.id))
+        sort = str(filter_args.get("sort") or filter_args.get("order") or "created_asc").lower()
         if sort == "name_asc":
             return query.order_by(db.asc(cls.name), db.desc(cls.updated))
         if sort == "name_desc":
@@ -1640,10 +1603,7 @@ class StoryBookmark(BaseModel):
         if user is None:
             return {"error": "User not found"}, 403
         try:
-            position = data.get("position")
-            if position is None:
-                position = cls._next_position_for_user(user.id)
-            bookmark = cls(name=cls._clean_name(data.get("name")), user_id=user.id, position=position)
+            bookmark = cls(name=cls._clean_name(data.get("name")), user_id=user.id)
             db.session.add(bookmark)
             db.session.commit()
             return {"message": "Bookmark collection created", "id": bookmark.id, "bookmark": bookmark.to_detail_dict()}, 201
@@ -1665,8 +1625,6 @@ class StoryBookmark(BaseModel):
             return {"error": "Bookmark collection not found"}, 404
         try:
             bookmark.name = cls._clean_name(data.get("name"))
-            if data.get("position") is not None:
-                bookmark.position = cls._clean_position(data.get("position"))
             bookmark.touch()
             db.session.commit()
             return {"message": "Bookmark collection updated", "id": bookmark.id, "bookmark": bookmark.to_detail_dict()}, 200
@@ -1755,62 +1713,6 @@ class StoryBookmark(BaseModel):
             "message": f"{removed} stories removed from bookmark collection",
             "removed": removed,
             "story_count": len(bookmark.stories),
-        }, 200
-
-    @classmethod
-    def merge_bookmarks(
-        cls, target_bookmark_id: str, source_bookmark_ids: list[str], delete_sources: bool, user: User | None
-    ) -> tuple[dict[str, Any], int]:
-        if user is None:
-            return {"error": "User not found"}, 403
-        target_bookmark = cls.get_for_user(target_bookmark_id, user)
-        if target_bookmark is None:
-            return {"error": "Target bookmark collection not found"}, 404
-
-        normalized_source_ids = cls._dedupe_ids(source_bookmark_ids)
-        if not normalized_source_ids:
-            return {"error": "No source bookmark collection ids provided"}, 400
-        if target_bookmark_id in normalized_source_ids:
-            return {"error": "Cannot merge a bookmark collection into itself"}, 400
-
-        source_bookmarks = cls.get_filtered(
-            db.select(cls).where(cls.user_id == user.id, cls.id.in_(normalized_source_ids)).order_by(db.asc(cls.created))
-        )
-        source_bookmarks_by_id = {bookmark.id: bookmark for bookmark in source_bookmarks}
-        if set(normalized_source_ids) - set(source_bookmarks_by_id):
-            return {"error": "Source bookmark collection not found"}, 404
-
-        ordered_sources = [source_bookmarks_by_id[source_id] for source_id in normalized_source_ids]
-        existing_story_ids = {story.id for story in target_bookmark.stories}
-        candidate_story_ids: list[str] = []
-        for source_bookmark in ordered_sources:
-            for story in source_bookmark.stories:
-                if story.id not in existing_story_ids:
-                    existing_story_ids.add(story.id)
-                    candidate_story_ids.append(story.id)
-
-        stories = cls._get_accessible_stories(candidate_story_ids, user) if candidate_story_ids else []
-        if stories is None:
-            return {"error": "Story not found"}, 404
-
-        for story in stories:
-            target_bookmark.stories.append(story)
-        target_bookmark.touch()
-        deleted_source_ids: list[str] = []
-        if delete_sources:
-            for source_bookmark in ordered_sources:
-                deleted_source_ids.append(source_bookmark.id)
-                db.session.delete(source_bookmark)
-        db.session.commit()
-
-        merged_count = len(ordered_sources)
-        return {
-            "message": f"{merged_count} bookmark collections merged",
-            "merged_bookmark_count": merged_count,
-            "added": len(stories),
-            "story_count": len(target_bookmark.stories),
-            "deleted_source_ids": deleted_source_ids,
-            "target_bookmark": target_bookmark.to_detail_dict(),
         }, 200
 
     def touch(self) -> None:

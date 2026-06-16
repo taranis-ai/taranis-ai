@@ -3,7 +3,7 @@ from urllib.parse import unquote, urlparse
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.assess import StoryBookmarkCreatePayload, StoryBookmarkMergePayload, StoryBookmarkStoryPayload, StoryBookmarkUpdatePayload
+from models.assess import StoryBookmarkCreatePayload, StoryBookmarkStoryPayload, StoryBookmarkUpdatePayload
 from pydantic import ValidationError
 
 from core.audit import audit_logger
@@ -435,20 +435,6 @@ class StoryBookmarkStoryRemoval(MethodView):
         return response, status
 
 
-class StoryBookmarkMerge(MethodView):
-    @auth_required("ASSESS_ACCESS")
-    @validate_json
-    def post(self, bookmark_id: str):
-        try:
-            payload = StoryBookmarkMergePayload.model_validate(request.json or {})
-        except ValidationError as exc:
-            return _validation_error_response(exc)
-
-        response, status = story.StoryBookmark.merge_bookmarks(bookmark_id, payload.source_bookmark_ids, payload.delete_sources, current_user)
-        invalidate_frontend_cache_on_success(status, models=("story_bookmark",), object_ids={"story_bookmark": bookmark_id})
-        return response, status
-
-
 class Proposals(MethodView):
     @auth_required("CONNECTOR_USER_ACCESS")
     def get(self):
@@ -485,7 +471,6 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
     assess_bp.add_url_rule("/bookmarks", view_func=StoryBookmarks.as_view("bookmarks"))
     assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>", view_func=StoryBookmark.as_view("bookmark"))
-    assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>/merge", view_func=StoryBookmarkMerge.as_view("bookmark_merge"))
     assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>/stories", view_func=StoryBookmarkStories.as_view("bookmark_stories"))
     assess_bp.add_url_rule(
         "/bookmarks/<string:bookmark_id>/stories/remove", view_func=StoryBookmarkStoryRemoval.as_view("bookmark_story_removal")

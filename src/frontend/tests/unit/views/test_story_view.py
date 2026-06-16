@@ -50,14 +50,13 @@ def story_with_news_item_tags() -> dict:
     }
 
 
-def _bookmark_collection_payload(bookmark_id: str, name: str, position: int) -> dict:
+def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int) -> dict:
     return {
         "id": bookmark_id,
         "name": name,
-        "position": position,
         "created": "2026-06-01T10:00:00",
         "updated": "2026-06-02T10:00:00",
-        "story_count": position,
+        "story_count": story_count,
         "story_ids": [],
         "stories": [],
     }
@@ -552,7 +551,7 @@ def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticate
     all_bookmarks = bar.xpath('.//*[@data-testid="assess-all-bookmarks"]')[0]
     assert all_bookmarks.get("href") == url_for("assess.bookmarks")
     bookmark_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/bookmarks"))
-    assert parse_qs(urlparse(bookmark_request.request.url).query) == {"limit": ["6"], "order": ["position_asc"]}
+    assert parse_qs(urlparse(bookmark_request.request.url).query) == {"limit": ["6"], "order": ["created_asc"]}
 
 
 def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):

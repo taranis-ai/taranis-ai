@@ -39,13 +39,11 @@ def _bookmark_payload(
     name: str = "Research",
     story_count: int = 1,
     stories: list[dict] | None = None,
-    position: int = 0,
 ) -> dict:
     story_items = stories if stories is not None else [_story_payload()]
     return {
         "id": bookmark_id,
         "name": name,
-        "position": position,
         "created": "2026-06-01T10:00:00",
         "updated": "2026-06-02T10:00:00",
         "story_count": story_count,
@@ -128,7 +126,7 @@ def test_instant_bookmark_story_uses_first_ordered_bookmark(authenticated_client
     requested_paths = [urlparse(call.request.url).path.removeprefix("/api") for call in responses_mock.calls]
     assert requested_paths == ["/assess/bookmarks", "/assess/bookmarks/bookmark-1/stories"]
     bookmark_query = dict(parse_qs(urlparse(responses_mock.calls[0].request.url).query))
-    assert bookmark_query == {"limit": ["1"], "order": ["position_asc"]}
+    assert bookmark_query == {"limit": ["1"], "order": ["created_asc"]}
     payload = json.loads(responses_mock.calls[1].request.body)
     assert payload == {"story_ids": ["story-1"]}
 
@@ -211,83 +209,3 @@ def test_bookmark_detail_renders_stories_and_remove_selected(authenticated_clien
     assert "This bookmark collection has no stories." in remove_response.text
     payload = json.loads(responses_mock.calls[-2].request.body)
     assert payload == {"story_ids": ["story-1"]}
-
-
-def test_merge_dialog_renders_selected_bookmarks(authenticated_client_basic, responses_mock):
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
-        json={
-            "items": [
-                _bookmark_payload(bookmark_id="bookmark-1", name="Target", story_count=1),
-                _bookmark_payload(bookmark_id="bookmark-2", name="Source", story_count=2),
-                _bookmark_payload(bookmark_id="bookmark-3", name="Ignored", story_count=3),
-            ],
-            "total_count": 3,
-        },
-    )
-
-    response = authenticated_client_basic.get(url_for("assess.bookmark_merge", bookmark_ids=["bookmark-1", "bookmark-2"]))
-
-    assert response.status_code == 200
-    tree = html.fromstring(response.text)
-    assert tree.xpath('//dialog[@data-testid="bookmark-merge-dialog"]')
-    options = tree.xpath('//select[@data-testid="merge-target-bookmark"]/option')
-    assert [option.get("value") for option in options] == ["bookmark-1", "bookmark-2"]
-    assert "Ignored" not in response.text
-
-
-def test_merge_dialog_requires_two_selected_bookmarks(authenticated_client_basic):
-    response = authenticated_client_basic.get(url_for("assess.bookmark_merge", bookmark_ids=["bookmark-1"]))
-
-    assert response.status_code == 400
-    assert "Select at least two bookmark collections to merge." in response.text
-
-
-def test_submit_merge_dialog_posts_sources_and_rerenders_list(authenticated_client_basic, responses_mock, htmx_header):
-    responses_mock.post(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/bookmark-1/merge",
-        json={"message": "2 bookmark collections merged", "merged_bookmark_count": 2, "added": 3, "story_count": 4},
-    )
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
-        json={"items": [_bookmark_payload(bookmark_id="bookmark-1", name="Target", story_count=4)], "total_count": 1},
-    )
-
-    response = authenticated_client_basic.post(
-        url_for("assess.submit_bookmark_merge"),
-        headers=htmx_header,
-        data={"target_bookmark_id": "bookmark-1", "bookmark_ids": ["bookmark-1", "bookmark-2", "bookmark-3"], "delete_sources": "true"},
-    )
-
-    assert response.status_code == 200
-    assert "2 bookmark collections merged" in response.text
-    assert "Target" in response.text
-    payload = json.loads(responses_mock.calls[0].request.body)
-    assert payload == {"source_bookmark_ids": ["bookmark-2", "bookmark-3"], "delete_sources": True}
-
-
-def test_submit_merge_dialog_can_keep_sources(authenticated_client_basic, responses_mock, htmx_header):
-    responses_mock.post(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/bookmark-1/merge",
-        json={"message": "1 bookmark collections merged", "merged_bookmark_count": 1, "added": 1, "story_count": 2},
-    )
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
-        json={
-            "items": [
-                _bookmark_payload(bookmark_id="bookmark-1", name="Target", story_count=2),
-                _bookmark_payload(bookmark_id="bookmark-2", name="Source", story_count=1),
-            ],
-            "total_count": 2,
-        },
-    )
-
-    response = authenticated_client_basic.post(
-        url_for("assess.submit_bookmark_merge"),
-        headers=htmx_header,
-        data={"target_bookmark_id": "bookmark-1", "bookmark_ids": ["bookmark-1", "bookmark-2"]},
-    )
-
-    assert response.status_code == 200
-    payload = json.loads(responses_mock.calls[0].request.body)
-    assert payload == {"source_bookmark_ids": ["bookmark-2"], "delete_sources": False}

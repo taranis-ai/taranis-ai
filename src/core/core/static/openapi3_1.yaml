@@ -1132,8 +1132,6 @@ paths:
         schema:
           type: string
           enum:
-          - position_asc
-          - position_desc
           - name_asc
           - name_desc
           - created_asc
@@ -1241,35 +1239,6 @@ paths:
       responses:
         '200':
           description: bookmark collection deleted
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '404':
-          $ref: '#/components/responses/404NotFound'
-  /assess/bookmarks/{bookmark_id}/merge:
-    parameters:
-    - name: bookmark_id
-      in: path
-      required: true
-      schema:
-        type: string
-    post:
-      security:
-      - UserAuth: []
-      tags:
-      - assess
-      description: merge private story bookmark collections into the target collection
-      operationId: assess.bookmark_merge.post
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/story_bookmark_merge_payload'
-      responses:
-        '200':
-          description: bookmark collections merged
-        '400':
-          description: invalid request
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '404':
@@ -10146,9 +10115,6 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        position:
-          type: integer
-          minimum: 0
     story_bookmark_story_payload:
       type: object
       required:
@@ -10159,19 +10125,6 @@ components:
           minItems: 1
           items:
             type: string
-    story_bookmark_merge_payload:
-      type: object
-      required:
-      - source_bookmark_ids
-      properties:
-        source_bookmark_ids:
-          type: array
-          minItems: 1
-          items:
-            type: string
-        delete_sources:
-          type: boolean
-          default: true
     story_bookmark:
       type: object
       properties:
@@ -10179,9 +10132,6 @@ components:
           type: string
         name:
           type: string
-        position:
-          type: integer
-          minimum: 0
         created:
           type: string
           format: date-time

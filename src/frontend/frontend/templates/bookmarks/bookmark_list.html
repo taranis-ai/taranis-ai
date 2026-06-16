@@ -1,7 +1,4 @@
-<div id="bookmarks-page"
-     class="p-4 space-y-4"
-     data-testid="bookmarks-page"
-     x-data='{ selectedBookmarks: [], mergeVals() { return JSON.stringify({ bookmark_ids: this.selectedBookmarks }); }, clearSelection() { this.selectedBookmarks = []; } }'>
+<div id="bookmarks-page" class="p-4 space-y-4" data-testid="bookmarks-page">
   <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
     <div>
       <h1 class="text-2xl font-semibold text-base-content">Bookmarks</h1>
@@ -28,53 +25,18 @@
   {% endif %}
 
   {% if bookmarks %}
-    <div class="sticky z-10"
-         style="top: calc(var(--app-header-height) + var(--viewport-warning-height))"
-         x-show="selectedBookmarks.length"
-         x-transition.opacity
-         x-cloak>
-      <div class="flex min-h-[3rem] flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-3 text-sm">
-          <span class="badge badge-primary badge-lg" x-text="selectedBookmarks.length"></span>
-          <span class="font-medium">collections selected</span>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button type="button"
-                  class="btn btn-outline btn-sm"
-                  hx-get="{{ url_for('assess.bookmark_merge') }}"
-                  hx-target="body"
-                  hx-swap="beforeend"
-                  :hx-vals="mergeVals()"
-                  :disabled="selectedBookmarks.length < 2"
-                  data-testid="merge-selected-bookmarks">
-            {{ heroicon_mini("arrows-pointing-in") }}
-            Merge selected
-          </button>
-          <button type="button" class="btn btn-ghost btn-sm" @click="clearSelection()" data-testid="clear-bookmark-selection">Clear selection</button>
-        </div>
-      </div>
-    </div>
-
     <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="bookmark-list">
       {% for bookmark in bookmarks %}
         <article class="card card-bordered bg-base-100 border-base-300" data-testid="bookmark-card-{{ bookmark.id }}">
           <div class="card-body gap-3 p-4">
             <div class="flex items-start justify-between gap-3">
-              <div class="flex min-w-0 items-start gap-3">
-                <input type="checkbox"
-                       class="checkbox checkbox-sm mt-1"
-                       value="{{ bookmark.id }}"
-                       x-model="selectedBookmarks"
-                       aria-label="Select {{ bookmark.name }}"
-                       data-testid="select-bookmark-{{ bookmark.id }}">
-                <div class="min-w-0">
-                  <a href="{{ url_for('assess.bookmark', bookmark_id=bookmark.id) }}"
-                     class="link link-hover text-lg font-semibold leading-tight"
-                     data-testid="open-bookmark-{{ bookmark.id }}">{{ bookmark.name }}</a>
-                  <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-base-content/70">
-                    <span class="badge badge-outline badge-sm">{{ bookmark.story_count }} stories</span>
-                    {% if bookmark.updated %}<span>Updated {{ bookmark.updated | format_datetime }}</span>{% endif %}
-                  </div>
+              <div class="min-w-0">
+                <a href="{{ url_for('assess.bookmark', bookmark_id=bookmark.id) }}"
+                   class="link link-hover text-lg font-semibold leading-tight"
+                   data-testid="open-bookmark-{{ bookmark.id }}">{{ bookmark.name }}</a>
+                <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-base-content/70">
+                  <span class="badge badge-outline badge-sm">{{ bookmark.story_count }} stories</span>
+                  {% if bookmark.updated %}<span>Updated {{ bookmark.updated | format_datetime }}</span>{% endif %}
                 </div>
               </div>
               <a href="{{ url_for('assess.bookmark', bookmark_id=bookmark.id) }}"

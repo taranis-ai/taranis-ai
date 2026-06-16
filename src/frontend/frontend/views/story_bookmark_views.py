@@ -59,7 +59,7 @@ class StoryBookmarkView(BaseView):
     @classmethod
     def _load_first_bookmark(cls) -> tuple[StoryBookmark | None, str | None]:
         try:
-            paging_data = PagingData(limit=1, order="position_asc", query_params={"limit": "1", "order": "position_asc"})
+            paging_data = PagingData(limit=1, order="created_asc", query_params={"limit": "1", "order": "created_asc"})
             bookmarks = DataPersistenceLayer().get_objects(StoryBookmark, paging_data)
             return (bookmarks[0] if bookmarks else None), None
         except ValidationError as exc:
@@ -111,17 +111,6 @@ class StoryBookmarkView(BaseView):
         bookmarks, load_error = cls._load_bookmarks()
         return {"bookmarks": bookmarks, "error": error or load_error, "routes": {"base_route": url_for("assess.bookmarks")}}
 
-    @staticmethod
-    def _dedupe_ids(ids: list[str]) -> list[str]:
-        deduped: list[str] = []
-        seen: set[str] = set()
-        for item_id in ids:
-            if not item_id or item_id in seen:
-                continue
-            seen.add(item_id)
-            deduped.append(item_id)
-        return deduped
-
     @classmethod
     def _render_list(cls, notification: str | None = None) -> ResponseReturnValue:
         body = render_template("bookmarks/bookmark_list.html", **cls._list_context())
@@ -143,8 +132,6 @@ class StoryBookmarkView(BaseView):
         return {
             "bookmark": bookmark,
             "stories": enhanced_stories,
-            "story_ids": [story.id for story in enhanced_stories if getattr(story, "id", None)],
-            "selected_story_ids": [],
         }
 
     @classmethod
@@ -182,24 +169,6 @@ class StoryBookmarkView(BaseView):
 
     @classmethod
     @auth_required("ASSESS_ACCESS")
-    def get_merge_dialog(cls) -> ResponseReturnValue:
-        bookmark_ids = cls._dedupe_ids(request.args.getlist("bookmark_ids"))
-        if len(bookmark_ids) < 2:
-            return cls.render_response_notification({"error": "Select at least two bookmark collections to merge."}), 400
-
-        bookmarks, error = cls._load_bookmarks(fetch_all=True)
-        if error:
-            return cls.render_response_notification({"error": error}), 500
-
-        bookmarks_by_id = {bookmark.id: bookmark for bookmark in bookmarks or [] if bookmark.id}
-        selected_bookmarks = [bookmarks_by_id[bookmark_id] for bookmark_id in bookmark_ids if bookmark_id in bookmarks_by_id]
-        if len(selected_bookmarks) < 2:
-            return cls.render_response_notification({"error": "Select at least two existing bookmark collections to merge."}), 400
-
-        return render_template("bookmarks/merge_dialog.html", bookmarks=selected_bookmarks), 200
-
-    @classmethod
-    @auth_required("ASSESS_ACCESS")
     def submit_add_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         if not story_ids:
@@ -230,25 +199,6 @@ class StoryBookmarkView(BaseView):
         response = CoreApi().api_post(f"/assess/bookmarks/{bookmark_id}/stories", json_data={"story_ids": [story_id]})
         cls._invalidate_bookmark_cache(bookmark_id)
         return make_response(cls.get_notification_from_response(response), cls._response_status(response))
-
-    @classmethod
-    @auth_required("ASSESS_ACCESS")
-    def submit_merge_dialog(cls) -> ResponseReturnValue:
-        bookmark_ids = cls._dedupe_ids(request.form.getlist("bookmark_ids"))
-        target_bookmark_id = request.form.get("target_bookmark_id", "")
-        if not target_bookmark_id or target_bookmark_id not in bookmark_ids:
-            return make_response(cls.render_response_notification({"error": "Select a target bookmark collection."}), 400)
-
-        source_bookmark_ids = [bookmark_id for bookmark_id in bookmark_ids if bookmark_id != target_bookmark_id]
-        if not source_bookmark_ids:
-            return make_response(cls.render_response_notification({"error": "Select at least one source bookmark collection."}), 400)
-
-        response = CoreApi().api_post(
-            f"/assess/bookmarks/{target_bookmark_id}/merge",
-            json_data={"source_bookmark_ids": source_bookmark_ids, "delete_sources": request.form.get("delete_sources") == "true"},
-        )
-        cls._invalidate_bookmark_cache()
-        return cls._render_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
     @auth_required("ASSESS_ACCESS")

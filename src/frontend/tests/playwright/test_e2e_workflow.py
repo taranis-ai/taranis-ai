@@ -32,9 +32,7 @@ class TestUserWorkflow(BaseE2ETest):
     ):
         page = non_admin_logged_in_page
         bookmark_name = f"E2E Bookmark {uuid4()}"
-        source_bookmark_name = f"E2E Merge Source {uuid4()}"
         selected_story_ids = stories_date_descending[:2]
-        source_story_id = stories_date_descending[2]
 
         self.navigate_to_assess(page)
         for story_id in selected_story_ids:
@@ -47,41 +45,19 @@ class TestUserWorkflow(BaseE2ETest):
         self.highlight_element(page.get_by_test_id("submit-bookmark-story")).click()
         expect(page.locator("#notification-bar")).to_contain_text("stories bookmarked")
 
-        self.highlight_element(page.get_by_role("button", name="Clear selection")).click()
-        self.highlight_element(page.get_by_test_id(f"story-card-{source_story_id}"), scroll=False).click()
-        self.highlight_element(page.get_by_role("button", name="Bookmark")).click()
-        expect(page.get_by_test_id("story-bookmark-dialog")).to_be_visible()
-        self.highlight_element(page.get_by_test_id("bookmark-mode-new")).click()
-        self.highlight_element(page.get_by_test_id("new-bookmark-name")).fill(source_bookmark_name)
-        self.highlight_element(page.get_by_test_id("submit-bookmark-story")).click()
-        expect(page.locator("#notification-bar")).to_contain_text("stories bookmarked")
-
         self.highlight_element(page.get_by_role("link", name="Bookmarks")).click()
         page.wait_for_url("**/bookmarks", wait_until="domcontentloaded")
         expect(page.get_by_test_id("bookmarks-page")).to_be_visible()
         target_card = page.locator("[data-testid^='bookmark-card-']").filter(has_text=bookmark_name)
-        source_card = page.locator("[data-testid^='bookmark-card-']").filter(has_text=source_bookmark_name)
         expect(target_card).to_be_visible()
-        expect(source_card).to_be_visible()
-        self.highlight_element(target_card.get_by_role("checkbox")).check()
-        self.highlight_element(source_card.get_by_role("checkbox")).check()
-        target_bookmark_id = target_card.get_by_role("checkbox").get_attribute("value")
-        assert target_bookmark_id is not None
-        self.highlight_element(page.get_by_test_id("merge-selected-bookmarks")).click()
-        expect(page.get_by_test_id("bookmark-merge-dialog")).to_be_visible()
-        self.highlight_element(page.get_by_test_id("merge-target-bookmark")).select_option(target_bookmark_id)
-        self.highlight_element(page.get_by_test_id("submit-bookmark-merge")).click()
-        self.wait_for_htmx_settled(page)
-        expect(page.locator("#notification-bar")).to_contain_text("bookmark collections merged")
-        expect(page.get_by_text(source_bookmark_name)).not_to_be_visible()
 
         self.highlight_element(page.locator("[data-testid^='open-bookmark-']").filter(has_text=bookmark_name)).click()
         page.wait_for_url("**/bookmarks/*", wait_until="domcontentloaded")
         expect(page.get_by_test_id("bookmark-detail")).to_be_visible()
-        for story_id in [*selected_story_ids, source_story_id]:
+        for story_id in selected_story_ids:
             expect(page.get_by_test_id(f"story-card-{story_id}")).to_be_visible()
 
-        self.highlight_element(page.get_by_test_id(f"story-card-{selected_story_ids[0]}"), scroll=False).click()
+        self.highlight_element(page.get_by_test_id(f"bookmark-select-story-{selected_story_ids[0]}"), scroll=False).check()
         self.highlight_element(page.get_by_test_id("bookmark-remove-selected")).click()
         confirm_button = page.locator(".swal2-container .swal2-confirm")
         expect(confirm_button).to_be_visible()
