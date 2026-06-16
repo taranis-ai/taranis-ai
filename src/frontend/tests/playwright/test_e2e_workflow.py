@@ -57,7 +57,7 @@ class TestUserWorkflow(BaseE2ETest):
         for story_id in selected_story_ids:
             expect(page.get_by_test_id(f"story-card-{story_id}")).to_be_visible()
 
-        self.highlight_element(page.get_by_test_id(f"bookmark-select-story-{selected_story_ids[0]}"), scroll=False).check()
+        self.highlight_element(page.get_by_test_id(f"story-card-{selected_story_ids[0]}"), scroll=False).click()
         self.highlight_element(page.get_by_test_id("bookmark-remove-selected")).click()
         confirm_button = page.locator(".swal2-container .swal2-confirm")
         expect(confirm_button).to_be_visible()

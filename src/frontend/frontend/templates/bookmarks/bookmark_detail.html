@@ -1,6 +1,10 @@
 {% from "assess/story_card.html" import story_card with context %}
 
-<div id="bookmark-detail-container" class="p-4 space-y-4" data-testid="bookmark-detail">
+<div id="bookmark-detail-container"
+     class="p-4 space-y-4"
+     data-testid="bookmark-detail"
+     x-data='{ selectedItems: [], toggleSelection(id) { this.selectedItems = this.selectedItems.includes(id) ? this.selectedItems.filter(item => item !== id) : [...this.selectedItems, id]; this.$nextTick(() => this.syncSelectedCardState()); }, clearSelection() { this.selectedItems = []; this.syncSelectedCardState(); }, syncSelectedCardState() { const selectedIds = new Set(this.selectedItems); document.querySelectorAll("#bookmark-detail-container article[data-story-id]").forEach(node => { const selected = selectedIds.has(node.dataset.storyId); const read = node.dataset.storyRead === "true"; node.classList.toggle("bg-primary/5", selected); node.classList.toggle("border-primary", selected || !read); node.classList.toggle("border-base-200", !selected && read); node.classList.toggle("shadow-md", selected); node.setAttribute("aria-selected", selected.toString()); }); } }'
+     @keyup.escape.window="clearSelection()">
   <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
     <div class="min-w-0">
       <a href="{{ url_for('assess.bookmarks') }}" class="btn btn-ghost btn-sm mb-2">
@@ -49,32 +53,33 @@
           hx-target="#bookmark-detail-container"
           hx-swap="outerHTML"
           hx-confirm="Remove selected stories from this bookmark collection?">
+      <template x-for="storyId in selectedItems" :key="storyId">
+        <input type="hidden" name="story_ids" :value="storyId">
+      </template>
     </form>
     <div class="sticky z-10" style="top: calc(var(--app-header-height) + var(--viewport-warning-height))">
       <div class="flex min-h-[3rem] flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg lg:flex-row lg:items-center lg:justify-between">
-        <div class="flex items-center gap-2" data-testid="bookmark-story-count">
-          <span class="badge badge-ghost badge-lg">{{ stories.total_count }}</span>
-          <span class="font-medium">Stories in collection</span>
+        <div class="flex flex-wrap items-center gap-3" data-testid="bookmark-story-count">
+          <span class="badge badge-ghost badge-lg">{{ stories.total_count }} stories</span>
+          <span class="badge badge-primary badge-lg" x-show="selectedItems.length" x-cloak><span x-text="selectedItems.length"></span> selected</span>
         </div>
-        <button type="submit" form="bookmark-remove-form" class="btn btn-outline btn-error btn-sm" data-testid="bookmark-remove-selected">
-          {{ heroicon_mini("x-mark") }}
-          Remove selected
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-ghost btn-sm" x-show="selectedItems.length" x-cloak @click="clearSelection()">Clear</button>
+          <button type="submit"
+                  form="bookmark-remove-form"
+                  class="btn btn-outline btn-error btn-sm"
+                  :disabled="!selectedItems.length"
+                  data-testid="bookmark-remove-selected">
+            {{ heroicon_mini("x-mark") }}
+            Remove selected
+          </button>
+        </div>
       </div>
     </div>
 
     <div id="bookmark-story-list">
       {% for story in stories %}
-        <div class="flex items-start gap-3">
-          <input type="checkbox"
-                 form="bookmark-remove-form"
-                 name="story_ids"
-                 value="{{ story.id }}"
-                 class="checkbox checkbox-sm mt-4"
-                 aria-label="Select {{ story.title }}"
-                 data-testid="bookmark-select-story-{{ story.id }}">
-          <div class="min-w-0 flex-1">{{ story_card(story, detail_view=True) }}</div>
-        </div>
+        {{ story_card(story) }}
       {% endfor %}
     </div>
   {% else %}

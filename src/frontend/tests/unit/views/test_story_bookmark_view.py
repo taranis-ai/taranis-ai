@@ -191,6 +191,9 @@ def test_bookmark_detail_renders_stories_and_remove_selected(authenticated_clien
     assert response.status_code == 200
     assert "Bookmarked Story" in response.text
     assert 'data-testid="bookmark-remove-selected"' in response.text
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//article[@data-testid="story-card-story-1"]')[0].get("data-story-detail-view") == "false"
+    assert not tree.xpath('//*[@data-testid="bookmark-select-story-story-1"]')
 
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/assess/bookmarks/bookmark-1/stories/remove",
