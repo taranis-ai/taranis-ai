@@ -15,7 +15,15 @@
       </div>
     {% endif %}
 
-    <form id="saved-filter-form" class="mb-5 space-y-3">
+    <form id="saved-filter-form"
+          class="mb-5 space-y-3"
+          action="{{ url_for('assess.save_saved_filter') }}"
+          method="post"
+          hx-post="{{ url_for('assess.save_saved_filter') }}"
+          hx-include="#saved-filter-form, #assess-sidebar, #assess-search-form, #selected-tags"
+          hx-target="#assess_saved_filters_dialog"
+          hx-swap="outerHTML"
+          hx-target-error="#assess_saved_filters_dialog">
       <label class="input input-bordered w-full">
         <span class="label">Name</span>
         <input type="text" name="name" maxlength="80" required class="grow" placeholder="Filter name" data-testid="saved-filter-name-input">
@@ -24,14 +32,7 @@
         <input type="checkbox" name="is_default" value="true" class="checkbox checkbox-sm">
         <span class="label-text">Use as default</span>
       </label>
-      <button type="button"
-              class="btn btn-primary btn-sm"
-              {% if not has_current_filters %}disabled{% endif %}
-              hx-post="{{ url_for('assess.save_saved_filter') }}"
-              hx-include="#saved-filter-form, #assess-sidebar, #assess-search-form, #selected-tags"
-              hx-target="#assess_saved_filters_dialog"
-              hx-swap="outerHTML"
-              hx-target-error="#assess_saved_filters_dialog">
+      <button type="submit" class="btn btn-primary btn-sm" {% if not has_current_filters %}disabled{% endif %}>
         {{ heroicon_outline('bookmark', class='h-4 w-4') }}
         Save current filter
       </button>

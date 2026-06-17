@@ -126,8 +126,8 @@ class BaseModel(db.Model):
         return [obj.to_dict() for obj in objects]
 
     @classmethod
-    def get(cls: Type[T], item_id: str) -> T | None:
-        return None if item_id is None else db.session.get(cls, item_id)
+    def get(cls: Type[T], item_id: str | None) -> T | None:
+        return None if item_id in (None, "") else db.session.get(cls, item_id)
 
     @classmethod
     def get_all_for_collector(cls: Type[T]) -> Sequence[T] | None:

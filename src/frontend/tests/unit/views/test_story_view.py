@@ -12,7 +12,7 @@ from werkzeug.exceptions import Forbidden
 
 from frontend.cache import add_user_to_cache
 from frontend.config import Config
-from frontend.views.story_views import StoryView, _normalize_story_import_payload
+from frontend.views.story_views import ASSESS_SAVED_FILTER_SESSION_KEY, StoryView, _normalize_story_import_payload
 
 
 def expected_search_trigger(input_id: str) -> str:
@@ -704,6 +704,52 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
         },
         "is_default": True,
     }
+
+
+def test_assess_set_saved_filter_default_does_not_update_session_on_profile_error(authenticated_client, auth_user, responses_mock):
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.assess_saved_filters = [
+        AssessSavedFilter(
+            id="filter-1",
+            name="Shift queue",
+            filters={"source": ["source-1"], "language": ["en"], "read": "true", "sort": "date_desc"},
+            is_default=False,
+        )
+    ]
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/users",
+        json=saved_user.model_dump(mode="json"),
+    )
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/users/profile",
+        json={"error": "Profile update failed"},
+        status=400,
+    )
+
+    with authenticated_client.session_transaction() as session:
+        session[ASSESS_SAVED_FILTER_SESSION_KEY] = True
+
+    response = authenticated_client.post(url_for("assess.set_saved_filter_default", filter_id="filter-1"))
+
+    assert response.status_code == 400
+
+    with authenticated_client.session_transaction() as session:
+        assert session[ASSESS_SAVED_FILTER_SESSION_KEY] is True
+
+
+def test_assess_saved_filters_dialog_uses_submit_button(authenticated_client):
+    response = authenticated_client.get(url_for("assess.saved_filters"))
+    tree = html.fromstring(response.text)
+
+    form = tree.xpath('//form[@id="saved-filter-form"]')[0]
+    button = form.xpath('.//button[@type="submit"]')[0]
+
+    assert form.get("method") == "post"
+    assert form.get("action") == url_for("assess.save_saved_filter")
+    assert form.get("hx-target-error") == "#assess_saved_filters_dialog"
+    assert button.get("type") == "submit"
 
 
 def test_table_search_bar_uses_form_level_search_trigger(app):

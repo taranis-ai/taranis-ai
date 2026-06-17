@@ -565,7 +565,23 @@ class StoryView(BaseView):
         if getattr(response, "ok", False):
             return cls._render_saved_filters_dialog({"message": success_message}, saved_filters=saved_filters)
 
-        return make_response(cls.get_notification_from_response(response), getattr(response, "status_code", 500) or 500)
+        payload = None
+        try:
+            if response and response.content:
+                payload = response.json()
+        except Exception:
+            payload = None
+
+        if isinstance(payload, dict):
+            notification = cls.get_notification_from_dict(payload)
+        else:
+            notification = {"message": "No response from core API", "error": True}
+
+        return cls._render_saved_filters_dialog(
+            notification=notification,
+            status=getattr(response, "status_code", 500) or 500,
+            saved_filters=saved_filters,
+        )
 
     @classmethod
     @auth_required()
@@ -597,7 +613,8 @@ class StoryView(BaseView):
                     saved_filter["is_default"] = saved_filter["id"] == default_id
 
             response = cls._update_saved_filters_profile(saved_filters)
-            session[ASSESS_SAVED_FILTER_SESSION_KEY] = make_default
+            if getattr(response, "ok", False):
+                session[ASSESS_SAVED_FILTER_SESSION_KEY] = make_default
             return cls._render_saved_filters_mutation_response(response, "Assess filter saved.", saved_filters)
         except HTTPException:
             raise
@@ -618,7 +635,8 @@ class StoryView(BaseView):
             saved_filter["is_default"] = False if clear_default else saved_filter["id"] == filter_id
 
         response = cls._update_saved_filters_profile(saved_filters)
-        session[ASSESS_SAVED_FILTER_SESSION_KEY] = not clear_default
+        if getattr(response, "ok", False):
+            session[ASSESS_SAVED_FILTER_SESSION_KEY] = not clear_default
         message = "Assess default cleared." if clear_default else "Assess default saved."
         return cls._render_saved_filters_mutation_response(response, message, saved_filters)
 
