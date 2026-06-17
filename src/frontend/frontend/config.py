@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     JWT_CSRF_IN_COOKIES: bool = True
     JWT_COOKIE_SECURE: bool = True
     JWT_CSRF_METHODS: list[str] = ["POST", "PUT", "PATCH", "DELETE"]
-    JWT_DECODE_LEEWAY: int = 5
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
@@ -45,8 +44,10 @@ class Settings(BaseSettings):
     OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
     OSINT_SOURCE_ICON_ALLOWED_MIMETYPES: str = "image/png,image/jpeg,image/webp"
 
-    # BABEL_DEFAULT_LOCALE: str = "en"
-    # BABEL_DEFAULT_TIMEZONE: str = "UTC"
+    BABEL_DEFAULT_LOCALE: str = "en"
+    BABEL_DEFAULT_TIMEZONE: str = "UTC"
+    BABEL_TRANSLATION_DIRECTORIES: str = "translations"
+    BABEL_SUPPORTED_LOCALES: list[str] = ["en", "de"]
     CACHE_ENABLED: bool = CACHE_ENABLED_DEFAULT
     CACHE_DEFAULT_TIMEOUT: int = CACHE_DEFAULT_TIMEOUT_DEFAULT
     CACHE_KEY_PREFIX: str = CACHE_KEY_PREFIX_DEFAULT

@@ -10,6 +10,7 @@ from models.user import UserProfile
 
 from tests.core_requests import CoreRequestClient
 from tests.external_e2e import (
+    allow_requests_passthru,
     configure_external_frontend_environment,
     external_auth_credentials,
     external_core_api_url,
@@ -166,6 +167,7 @@ def api_header():
 
 @pytest.fixture(scope="session")
 def core_request_client(run_core, core_request_access_token):
+    allow_requests_passthru(run_core)
     return CoreRequestClient(base_url=run_core, access_token=core_request_access_token)
 
 

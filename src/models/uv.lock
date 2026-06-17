@@ -9,7 +9,7 @@ required-markers = [
 ]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-06-10T12:12:47.606462Z"
 exclude-newer-span = "P1W"
 
 [[package]]
