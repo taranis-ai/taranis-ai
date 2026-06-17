@@ -147,9 +147,7 @@
 
     {% if stories %}
       {% include "assess/assess_top_bar.html" %}
-      <div id="story-list" x-ref="storyList">
-        {% for story in stories %}{{ story_card(story) }}{% endfor %}
-      </div>
+      <div id="story-list" x-ref="storyList">{% for story in stories %}{{ story_card(story) }}{% endfor %}</div>
       {% if pagination %}
         {% set hx_target = request.headers.get("HX-Target") %}
         <div id="story-pagination" {% if pagination.infinite_scroll and hx_target == 'story-list' %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>

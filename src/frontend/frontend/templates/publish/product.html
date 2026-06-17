@@ -74,7 +74,9 @@
           <div class="grid grid-cols-12 gap-4">
             <div class="col-span-12 md:col-span-6">
               {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_types, required=true, width='w-full', disabled=is_edit) }}
-              {% if product.product_type_id %}<input type="hidden" name="product_type_id" value="{{ product.product_type_id }}">{% endif %}
+              {% if product.product_type_id %}
+                <input type="hidden" name="product_type_id" value="{{ product.product_type_id }}">
+              {% endif %}
             </div>
             <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', product.title, form_error.title) }}</div>
             <div class="col-span-12">{{ form_textarea('Description', 'description', product.description, form_error.description, required=false) }}</div>
