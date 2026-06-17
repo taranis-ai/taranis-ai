@@ -1,6 +1,5 @@
 import json
 import secrets
-from copy import deepcopy
 from datetime import datetime
 from typing import Any, Sequence
 
@@ -16,6 +15,7 @@ from models.user import (
     ProfileSettings,
     UserProfile,
 )
+from pydantic import ValidationError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 from werkzeug.security import generate_password_hash
@@ -25,6 +25,7 @@ from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.organization import Organization
 from core.model.role import Role, TLPLevel
+from core.model.settings import Settings
 
 
 PROFILE_TEMPLATE: dict[str, Any] = ProfileSettings().model_dump(mode="json")
@@ -58,7 +59,10 @@ class User(BaseModel):
             if org := Organization.get(organization_id):
                 self.organization = org
         self.roles = Role.get_bulk(roles)
-        self.profile = deepcopy(PROFILE_TEMPLATE)
+        profile = dict(profile or {})
+        if not profile.get("timezone"):
+            profile["timezone"] = Settings.get_settings().get("default_timezone") or "UTC"
+        self.profile = ProfileSettings.model_validate(profile).model_dump(mode="json")
 
     @classmethod
     def find_by_name(cls, username: str) -> "User|None":
@@ -136,6 +140,7 @@ class User(BaseModel):
             roles=[{"id": r.id, "name": r.name} for r in self.roles if r],
             permissions=permissions,
             profile=profile,
+            effective_timezone=profile.timezone or "UTC",
             pending_onboarding_tasks=self._pending_onboarding_tasks(profile, permissions),
         )
 
@@ -242,7 +247,11 @@ class User(BaseModel):
         logger.debug(f"Updating profile for user {user.username} with data: {data}")
         merged = {**cls._clean_profile_payload(user.profile), **cls._clean_profile_payload(data)}
 
-        validated = ProfileSettings.model_validate(merged)
+        try:
+            validated = ProfileSettings.model_validate(merged)
+        except ValidationError as exc:
+            return ProfileSettings.validation_error_response(exc, prefix="Invalid profile settings"), 400
+
         user.profile = validated.model_dump(mode="json")
 
         db.session.commit()

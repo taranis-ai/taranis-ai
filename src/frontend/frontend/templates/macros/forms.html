@@ -91,7 +91,6 @@
 {% endmacro %}
 
 {% macro form_switch_content(name, value, yes_val='Yes', no_val='No', required=True, preserve=True, input_class='', disabled=False, input_id=None) %}
-  <!-- Switch with {{ value }} -->
   <input type="hidden" name="{{ name }}" value="{{ no_val }}" {% if disabled %}disabled{% endif %} />
   <input id="{{ input_id if input_id else name }}"
          name="{{ name }}"

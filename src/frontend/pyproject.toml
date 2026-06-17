@@ -18,6 +18,7 @@ requires-python = ">=3.12,<3.15"
 dependencies = [
     "Flask",
     "Flask-JWT-Extended",
+    "flask-babel>=4,<5",
     "flask-htmx",
     "jinja2-fragments",
     "flask-cors",

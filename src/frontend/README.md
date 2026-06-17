@@ -52,6 +52,36 @@ Frontend caching now uses Redis directly and falls back to a no-op cache when di
 - when the cache-specific settings are unset, frontend falls back to `REDIS_URL` and `REDIS_PASSWORD`
 - unit tests disable caching by default unless `CACHE_ENABLED=true` is explicitly set in the test app config
 
+### Internationalization
+
+The frontend uses Flask-Babel for server-rendered translations. English is the default locale and German is the first translated catalog.
+
+Internationalization is currently experimental. At the moment, translated coverage is limited to login and user settings.
+
+Extract strings after changing translated templates or Python strings:
+
+```bash
+uv run pybabel extract -F babel.cfg -o frontend/translations/messages.pot frontend
+```
+
+Initialize a new German catalog once:
+
+```bash
+uv run pybabel init -i frontend/translations/messages.pot -d frontend/translations -l de
+```
+
+Update existing catalogs after extraction:
+
+```bash
+uv run pybabel update -i frontend/translations/messages.pot -d frontend/translations
+```
+
+Compile catalogs before runtime or packaging:
+
+```bash
+uv run pybabel compile -d frontend/translations
+```
+
 ## Development Setup
 
 ### 0. Read the documentation
