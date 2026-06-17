@@ -8,6 +8,7 @@ from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Page, expect
 
+from tests.external_e2e import allow_requests_passthru
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -23,6 +24,7 @@ SCHEDULER_BASELINE_TOTAL_TEXT_SUFFIX = "scheduled jobs"
 
 
 def reset_admin_onboarding_tours(core_request_client):
+    allow_requests_passthru(core_request_client.base_url)
     response = core_request_client.post(
         "/users/profile",
         json_data={"onboarding_tasks": {}},

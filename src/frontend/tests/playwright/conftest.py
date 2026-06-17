@@ -345,6 +345,7 @@ def authenticated_page_factory_local(taranis_frontend: Page, e2e_server, access_
 
 
 def complete_user_product_overview_task(core_url: str, access_token: str):
+    allow_requests_passthru(core_url)
     response = CoreRequestClient(base_url=core_url, access_token=access_token).post(
         "/users/profile",
         json_data={"onboarding_tasks": {USER_PRODUCT_OVERVIEW_TASK_ID: "completed"}},
