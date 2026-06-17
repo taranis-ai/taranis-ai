@@ -1534,7 +1534,7 @@ class StoryBookmark(BaseModel):
     user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
     user: Mapped["User"] = relationship("User")
     stories: Mapped[list["Story"]] = relationship(
-        "Story", secondary="story_bookmark_story", cascade="save-update, merge", passive_deletes=True, single_parent=False
+        "Story", secondary="story_bookmark_story", cascade="save-update, merge", passive_deletes=True, single_parent=False, lazy="selectin"
     )
 
     def __init__(self, name: str, user_id: str, id: str | None = None, stories: list[str] | None = None):
