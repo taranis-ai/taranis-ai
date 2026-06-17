@@ -542,6 +542,7 @@ class StoryView(BaseView):
         cls,
         paging_data: PagingData,
         request_params: dict[str, list[str]],
+        selected_story_ids: list[str] | None = None,
     ):
         try:
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
@@ -558,6 +559,7 @@ class StoryView(BaseView):
         context = cls.get_view_context(items, error)
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
         context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
+        context["selected_story_ids"] = selected_story_ids or []
 
         return render_template(cls.get_list_template(), **context), 200
 
@@ -573,7 +575,8 @@ class StoryView(BaseView):
 
         request_params = cls._get_assess_request_params(request_params)
         paging_data = parse_paging_data(request_params)
-        table, status = cls._render_story_list(paging_data, request_params)
+        selected_story_ids = request.form.getlist("story_ids") if request.method == "POST" else []
+        table, status = cls._render_story_list(paging_data, request_params, selected_story_ids=selected_story_ids)
         if notification:
             return make_response(notification + table, status)
         return make_response(table, status)

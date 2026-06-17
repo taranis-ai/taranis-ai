@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
+    JWT_DECODE_LEEWAY: int = 5
     JWT_TOKEN_LOCATION: list[str] = ["headers", "cookies"]
     JWT_CSRF_CHECK_FORM: bool = True
     JWT_ACCESS_COOKIE_NAME: str = "access_token_cookie"
@@ -29,6 +30,7 @@ class Settings(BaseSettings):
     JWT_CSRF_IN_COOKIES: bool = True
     JWT_COOKIE_SECURE: bool = True
     JWT_CSRF_METHODS: list[str] = ["POST", "PUT", "PATCH", "DELETE"]
+    JWT_DECODE_LEEWAY: int = 5
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
@@ -52,6 +54,9 @@ class Settings(BaseSettings):
     CACHE_REDIS_PASSWORD: SecretStr | None = None
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
+    TARANIS_SENTRY_DSN: str | None = None
+    SENTRY_ENABLE_LOGS: bool = False
+    SENTRY_SEND_DEFAULT_PII: bool = False
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:

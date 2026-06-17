@@ -23,6 +23,17 @@ def test_ioc_bot(story_get_mock):
     assert story_get_mock.call_count == 1
 
 
+def test_analyst_bot_returns_meaningful_result_when_no_news_items(monkeypatch):
+    import worker.bots as bots
+
+    analyst_bot = bots.AnalystBot()
+    monkeypatch.setattr(analyst_bot.core_api, "get_news_items", lambda limit: None)
+
+    result = analyst_bot.execute({"REGULAR_EXPRESSION": "tag", "ATTRIBUTE_NAME": "label"})
+
+    assert result == {"message": "No news items found", "result": {}}
+
+
 def test_news_item_content_for_tagging_handles_nullable_fields():
     news_item = {"title": None, "review": None, "content": "content"}
 

@@ -7,7 +7,7 @@ from models.product import WorkerProduct as Product
 from rq import get_current_job
 
 import worker.publishers
-from worker.core_api import CoreApi
+from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
 
@@ -53,17 +53,33 @@ def publisher_task(product_id: str, publisher_id: str):
         worker_type = pub_type
         publisher_impl = _get_publisher_impl(pub_type)
 
-        result = publisher_impl.publish(publisher, product, rendered_product)
-        core_api.save_task_result(task_id, task_name, result, "SUCCESS", worker_id=publisher_id, worker_type=worker_type)
-        return result
+        publish_result = publisher_impl.publish(publisher, product, rendered_product)
+        core_api.save_task_result(
+            task_id,
+            task_name,
+            "SUCCESS",
+            worker_id=publisher_id,
+            worker_type=worker_type,
+            result=build_success_task_result(
+                default_message=f"Published product {product_id}",
+                output=publish_result,
+                base_data={"product_id": product_id, "publisher_id": publisher_id},
+                none_message=f"Publisher {publisher_id} completed without returning a result",
+            ),
+        )
+        return publish_result
     except Exception as exc:
         core_api.save_task_result(
             task_id,
             task_name,
-            {"error": str(exc)},
             "FAILURE",
             worker_id=publisher_id,
             worker_type=worker_type,
+            result=build_failure_task_result(
+                str(exc),
+                reason="publisher_failed",
+                data={"product_id": product_id, "publisher_id": publisher_id},
+            ),
         )
         raise
 

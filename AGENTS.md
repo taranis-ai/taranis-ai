@@ -115,6 +115,7 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 
 - The best code is no code.
 - Complexity is bad. Keep designs as simple as possible.
+- New WIP features must use one canonical field/API shape; do not introduce "legacy" aliases, migration validators, or compatibility payloads in the same branch unless the compatibility is for behavior already released to users.
 - For settings JSON, prefer simple flat keys and direct values; do not add nested metadata structures, constants, validators, or helper layers unless they are clearly needed now.
 - Mocking is also bad. Use it only when it is absolutely necessary.
 - DRY matters, but do not force reuse if it hurts readability.

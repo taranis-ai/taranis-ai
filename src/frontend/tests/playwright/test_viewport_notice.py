@@ -2,6 +2,7 @@
 
 import pytest
 from flask import url_for
+from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID, ONBOARDING_COMPLETED_STATUS
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 from playwright_helpers import PlaywrightHelpers
 
@@ -19,7 +20,18 @@ class TestViewportNotice(PlaywrightHelpers):
         page.goto(url_for("base.login", _external=True))
         return context, page
 
-    def test_warning_bar_tracks_wxga_plus_threshold(self, browser: Browser, e2e_server):
+    def test_warning_bar_tracks_wxga_plus_threshold(self, browser: Browser, e2e_request_context, core_request_client):
+        response = core_request_client.post(
+            "/users/profile",
+            json_data={
+                "onboarding_tasks": {
+                    ADMIN_WELCOME_TOUR_ID: ONBOARDING_COMPLETED_STATUS,
+                    ADMIN_ADVANCED_TOUR_ID: ONBOARDING_COMPLETED_STATUS,
+                }
+            },
+        )
+        assert response.ok, f"Failed to complete onboarding tours: {response.status_code}"
+
         context, page = self._open_login_page(browser, {"width": 1440, "height": 600})
 
         try:

@@ -1,9 +1,7 @@
 {% from "macros/variables.html" import tlp_levels %}
 {% from "macros/forms.html" import form_input %}
 
-{% set settings = settings | default([{}]) %}
-
-{% set current_settings = settings[0].settings | default({}) %}
+{% set current_settings = settings.settings | default({}) %}
 {% set links = {
   "delete_tags": "/api/settings/delete-tags",
   "delete_stories": "/api/settings/delete-stories",

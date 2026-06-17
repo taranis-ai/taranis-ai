@@ -10,7 +10,7 @@ from rq import get_current_job
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
-from worker.core_api import CoreApi
+from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
 
 
@@ -61,6 +61,8 @@ def _persist_and_return_result(
     worker_id: str | None = None,
     worker_type: str | None = None,
     meta_status: str | None = None,
+    reason: str | None = None,
+    data: Any = None,
 ) -> str:
     if not job:
         return result_message
@@ -75,10 +77,14 @@ def _persist_and_return_result(
     core_api.save_task_result(
         job.id,
         "collector_task",
-        result_message,
         persisted_status,
         worker_id=worker_id,
         worker_type=worker_type,
+        result=build_failure_task_result(
+            result_message,
+            reason=reason,
+            data=data,
+        ),
     )
     return result_message
 
@@ -113,6 +119,8 @@ def collector_task(osint_source_id: str, manual: bool = False):
             worker_id=osint_source_id,
             worker_type="collector_task",
             meta_status="FAILURE",
+            reason="source_not_found",
+            data={"source_id": osint_source_id, "manual": manual},
         )
 
     collector_impl = collector.get_collector(source)
@@ -141,6 +149,8 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 worker_id=osint_source_id,
                 worker_type=worker_type,
                 meta_status="NOT_MODIFIED",
+                reason="collector_not_modified",
+                data={"source_id": osint_source_id, "manual": manual},
             )
         except Exception as e:
             logger.error(f"Collector task failed: {task_description}")
@@ -152,10 +162,14 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 core_api.save_task_result(
                     job.id,
                     "collector_task",
-                    result_message,
                     task_status,
                     worker_id=osint_source_id,
                     worker_type=worker_type,
+                    result=build_failure_task_result(
+                        result_message,
+                        reason="collection_failed",
+                        data={"source_id": osint_source_id, "manual": manual},
+                    ),
                 )
 
             raise RuntimeError(e) from e
@@ -168,10 +182,13 @@ def collector_task(osint_source_id: str, manual: bool = False):
         core_api.save_task_result(
             job.id,
             "collector_task",
-            result_message,
             task_status,
             worker_id=osint_source_id,
             worker_type=worker_type,
+            result=build_success_task_result(
+                default_message=result_message,
+                data={"source_id": osint_source_id, "manual": manual},
+            ),
         )
 
     return result_message
@@ -206,11 +223,28 @@ def collector_preview(osint_source_id: str):
         except Exception as e:
             logger.error(f"Collector preview task failed: {task_description}")
             if job:
-                collector.core_api.save_task_result(job.id, "collector_preview", str(e), "FAILURE")
+                collector.core_api.save_task_result(
+                    job.id,
+                    "collector_preview",
+                    "FAILURE",
+                    result=build_failure_task_result(
+                        str(e),
+                        reason="preview_failed",
+                        data={"source_id": osint_source_id},
+                    ),
+                )
             raise RuntimeError(e) from e
 
     if job:
-        collector.core_api.save_task_result(job.id, "collector_preview", preview_result, "PREVIEW")
+        collector.core_api.save_task_result(
+            job.id,
+            "collector_preview",
+            "PREVIEW",
+            result=build_success_task_result(
+                default_message=f"Preview for source {osint_source_id} collected",
+                data=preview_result,
+            ),
+        )
 
     return preview_result
 
@@ -243,10 +277,14 @@ def fetch_single_news_item(parameters: dict[str, Any]):
                 core_api.save_task_result(
                     job.id,
                     "collector_task",
-                    result_message,
                     "NOT_MODIFIED",
                     worker_id=worker_id,
                     worker_type=worker_type,
+                    result=build_failure_task_result(
+                        result_message,
+                        reason="collector_not_modified",
+                        data={"source_id": worker_id},
+                    ),
                 )
 
             return result_message

@@ -4,6 +4,7 @@ from models.admin import Settings
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
+from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.admin_views.admin_mixin import AdminMixin
 from frontend.views.base_view import BaseView
 
@@ -22,7 +23,7 @@ class SettingsView(AdminMixin, BaseView):
     def get_extra_context(cls, base_context: dict) -> dict:
         dpl = DataPersistenceLayer()
         base_context["_is_admin"] = cls._is_admin
-        base_context["settings"] = dpl.get_objects(Settings)
+        base_context["settings"] = dpl.get_first(Settings)
         base_context["frontend_actions"] = [
             {
                 "label": "Invalidate Cache",
@@ -49,6 +50,14 @@ class SettingsView(AdminMixin, BaseView):
                 notification += static_view
                 return notification, static_response
             return CoreApi().stream_proxy(response, "stories_export.json")
+
+        if method == "patch":
+            payload = parse_formdata(request.form) if request.form else None
+            response = CoreApi().api_patch(action_url, json_data=payload)
+            notification = cls.get_notification_from_response(response)
+            static_view, static_response = cls.static_view()
+            notification += static_view
+            return notification, static_response
 
         if request.form:
             response, error = cls.process_form_data(object_id="0")

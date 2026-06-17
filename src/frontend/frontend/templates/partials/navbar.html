@@ -12,32 +12,32 @@
   <ul class="menu bg-base-200 menu-horizontal rounded-box">
     {% if is_admin %}
       <li>
-        <a href="{{ url_for('admin.dashboard') }}">
+        <a href="{{ url_for('admin.dashboard') }}" data-tour-target="nav-admin">
           {{ heroicon_outline("cog-6-tooth") }}
           Administration
         </a>
       </li>
     {% endif %}
     <li>
-      <a href="{{ url_for('base.dashboard') }}">
+      <a href="{{ url_for('base.dashboard') }}" data-tour-target="nav-dashboard">
         {{ heroicon_outline("squares-2x2") }}
         Dashboard
       </a>
     </li>
     <li>
-      <a href="{{ url_for('assess.assess') }}">
+      <a href="{{ url_for('assess.assess') }}" data-tour-target="nav-assess">
         {{ heroicon_outline("newspaper") }}
         Assess
       </a>
     </li>
     <li>
-      <a href="{{ url_for('analyze.analyze') }}">
+      <a href="{{ url_for('analyze.analyze') }}" data-tour-target="nav-analyze">
         {{ heroicon_outline("presentation-chart-bar") }}
         Analyze
       </a>
     </li>
     <li>
-      <a href="{{ url_for('publish.publish') }}">
+      <a href="{{ url_for('publish.publish') }}" data-tour-target="nav-publish">
         {{ heroicon_outline("paper-airplane") }}
         Publish
       </a>

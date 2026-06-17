@@ -4,7 +4,18 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Any, Sequence
 
-from models.user import ProfileSettings, UserProfile
+from models.user import (
+    ADMIN_ADVANCED_TOUR_ID,
+    ADMIN_WELCOME_TOUR_ID,
+    ONBOARDING_COMPLETED_STATUS,
+    ONBOARDING_DISMISSED_STATUS,
+    ONBOARDING_SCOPE_GLOBAL,
+    ONBOARDING_SCOPE_USER,
+    USER_PRODUCT_OVERVIEW_TASK_ID,
+    OnboardingTask,
+    ProfileSettings,
+    UserProfile,
+)
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 from werkzeug.security import generate_password_hash
@@ -17,6 +28,8 @@ from core.model.role import Role, TLPLevel
 
 
 PROFILE_TEMPLATE: dict[str, Any] = ProfileSettings().model_dump(mode="json")
+ADMIN_ONBOARDING_TASK_IDS = (ADMIN_WELCOME_TOUR_ID, ADMIN_ADVANCED_TOUR_ID)
+USER_PRODUCT_OVERVIEW_PERMISSIONS = frozenset({"ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS"})
 
 
 class User(BaseModel):
@@ -69,7 +82,46 @@ class User(BaseModel):
     def to_detail_dict(self):
         return self.to_user_profile().model_dump(mode="json")
 
+    @staticmethod
+    def _is_onboarding_task_finished(status: Any) -> bool:
+        return status in {ONBOARDING_COMPLETED_STATUS, ONBOARDING_DISMISSED_STATUS}
+
+    @staticmethod
+    def _has_any_permission(permissions: Sequence[str], required_permissions: frozenset[str]) -> bool:
+        permission_set = set(permissions)
+        return "ALL" in permission_set or bool(permission_set.intersection(required_permissions))
+
+    @classmethod
+    def _pending_global_onboarding_tasks(cls, profile: ProfileSettings, permissions: Sequence[str]) -> list[OnboardingTask]:
+        if not cls._has_any_permission(permissions, frozenset({"ADMIN_OPERATIONS"})):
+            return []
+
+        return [
+            OnboardingTask(id=task_id, scope=ONBOARDING_SCOPE_GLOBAL)
+            for task_id in ADMIN_ONBOARDING_TASK_IDS
+            if not cls._is_onboarding_task_finished(profile.onboarding_tasks.get(task_id))
+        ]
+
+    @classmethod
+    def _pending_user_onboarding_tasks(cls, profile: ProfileSettings, permissions: Sequence[str]) -> list[OnboardingTask]:
+        if not cls._has_any_permission(permissions, USER_PRODUCT_OVERVIEW_PERMISSIONS):
+            return []
+
+        if cls._is_onboarding_task_finished(profile.onboarding_tasks.get(USER_PRODUCT_OVERVIEW_TASK_ID)):
+            return []
+
+        return [OnboardingTask(id=USER_PRODUCT_OVERVIEW_TASK_ID, scope=ONBOARDING_SCOPE_USER)]
+
+    @classmethod
+    def _pending_onboarding_tasks(cls, profile: ProfileSettings, permissions: Sequence[str]) -> list[OnboardingTask]:
+        return [
+            *cls._pending_global_onboarding_tasks(profile, permissions),
+            *cls._pending_user_onboarding_tasks(profile, permissions),
+        ]
+
     def to_user_profile(self) -> UserProfile:
+        permissions = self.get_permissions()
+        profile = ProfileSettings.model_validate(self.profile or {})
         return UserProfile(
             id=self.id,
             username=self.username,
@@ -77,8 +129,9 @@ class User(BaseModel):
             last_login=self.last_login,
             organization=({"id": self.organization.id, "name": self.organization.name} if self.organization else None),
             roles=[{"id": r.id, "name": r.name} for r in self.roles if r],
-            permissions=self.get_permissions(),
-            profile=ProfileSettings.model_validate(self.profile or {}),
+            permissions=permissions,
+            profile=profile,
+            pending_onboarding_tasks=self._pending_onboarding_tasks(profile, permissions),
         )
 
     def mark_last_login(self) -> None:

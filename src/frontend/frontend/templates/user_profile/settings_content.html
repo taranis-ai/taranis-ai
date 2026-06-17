@@ -139,7 +139,7 @@
             <div class="label">
               <span class="label-text font-semibold text-base-content">End of shift</span>
             </div>
-            <input id="end-of-shift" name="end_of_shift" type="time" value="{{ profile.end_of_shift }}" class="input input-bordered w-full" />
+            <input id="end-of-shift" name="end_of_shift" type="time" value="{{ profile.end_of_shift or '' }}" class="input input-bordered w-full" />
             <div class="label">
               <span class="label-text-alt text-base-content/70">Used to plan notifications and highlights.</span>
             </div>
@@ -164,6 +164,21 @@
     </div>
   </div>
 </form>
+
+<div class="card bg-base-100 shadow my-6">
+  <div class="card-body gap-4">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div>
+        <h3 class="card-title text-2xl">Onboarding Tours</h3>
+        <p class="text-sm text-base-content/70">Reset your completed onboarding tours and show them again.</p>
+      </div>
+      <form method="post" hx-post="{{ url_for('user.settings') }}" hx-target="#user-settings-page" hx-select="#user-settings-page" hx-swap="outerHTML">
+        <input type="hidden" name="reset_onboarding_tasks" value="true">
+        <button type="submit" class="btn btn-outline" data-testid="user-reset-onboarding-tours">Reset onboarding tours</button>
+      </form>
+    </div>
+  </div>
+</div>
 
 <form id="user-password-form"
       class="grid gap-4 my-6"

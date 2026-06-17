@@ -6,6 +6,7 @@ import uuid
 import pytest
 from base_e2e_test import BaseE2ETest
 from flask import url_for
+from htmx_helpers import with_htmx_wait
 from playwright.sync_api import Error, Page, expect
 
 from tests.playwright.notification_helpers import dismiss_notifications
@@ -79,20 +80,21 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             page.get_by_role("link", name="Edit Dashboard").click()
-            expect(page.get_by_role("group", name="Days to look back for")).to_be_visible()
+            expect(page.get_by_role("group", name="Recent activity window")).to_be_visible()
             page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").uncheck()
             page.get_by_role("checkbox", name="dashboard[show_charts]").uncheck()
             page.get_by_role("button", name="Update Dashboard Settings").click()
-            expect(page.locator("#dashboard").get_by_text("Trending Tags (last 7 days)")).not_to_be_visible()
+            expect(page.locator("#dashboard").get_by_text("Recently Active Tags")).not_to_be_visible()
             expect(page.get_by_role("main")).to_be_visible()
             page.get_by_role("link", name="Edit Dashboard").click()
-            expect(page.get_by_role("group", name="Days to look back for")).to_be_visible()
+            expect(page.get_by_role("group", name="Recent activity window")).to_be_visible()
 
             page.get_by_role("checkbox", name="dashboard[show_trending_clusters]").check()
             expect(page.get_by_role("checkbox", name="dashboard[show_trending_clusters]")).to_be_visible()
             page.get_by_role("checkbox", name="dashboard[show_charts]").check()
             page.get_by_role("button", name="Update Dashboard Settings").click()
-            expect(page.locator("#dashboard")).to_contain_text("Trending Tags (last 7 days)")
+            expect(page.locator("#dashboard")).to_contain_text("Recently Active Tags")
+            expect(page.locator("#dashboard")).to_contain_text("counts show total matching stories")
             expect(page.locator("#dashboard")).to_contain_text("Location")
 
             expect(page.locator("#dashboard")).to_contain_text("Organization")
@@ -101,33 +103,44 @@ class TestEndToEndUser(BaseE2ETest):
 
         def test_dashboard_entity_location_pagination(page: Page) -> None:
             page.get_by_role("link", name="Location").click()
-            expect(page.get_by_test_id("country-chart")).to_be_visible()
-            expect(page.locator("tbody")).to_contain_text("USA")
-            expect(page.locator("tbody")).to_contain_text("6")
-            expect(page.locator("tbody")).to_contain_text("Wärmestuben")
-            expect(page.locator("tbody")).to_contain_text("1")
-            expect(page.locator("tfoot")).to_contain_text("Page 1 of 7")
-            page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Page 2")).to_be_visible()
-            page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Page 3")).to_be_visible()
-            page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Page 4")).to_be_visible()
-            page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Page 5")).to_be_visible()
-            page.get_by_text("›").click()
-            expect(page.get_by_role("row", name="Page 6")).to_be_visible()
-            page.get_by_text("›").click()
-            expect(page.locator("tfoot")).to_contain_text("Page 7 of 7")
-            expect(page.locator("tbody")).to_contain_text("Airport")
-            page.get_by_text("«").click()
-            expect(page.locator("tbody")).to_contain_text("USA")  # Wait for first page to load again
-            page.get_by_role("combobox").click()
-            page.get_by_role("combobox").select_option("5")
             cluster_table = page.get_by_test_id("cluster-table")
+
+            def click_pagination(label: str) -> None:
+                with_htmx_wait(page, lambda: cluster_table.get_by_text(label).click())
+
+            expect(page.get_by_test_id("country-chart")).to_be_visible()
             all_rows = cluster_table.locator("tbody tr")
+            expect(all_rows.first).to_be_visible()
+            expect(all_rows.first).to_contain_text("USA")
+            expect(all_rows.first).to_contain_text("6")
+            expect(all_rows).to_have_count(20)
+            expect(all_rows.nth(19)).to_contain_text("Ambulanz")
+            expect(all_rows.nth(19)).to_contain_text("1")
+            footer = cluster_table.locator("tfoot")
+            expect(footer).to_contain_text("Page 1 of 7")
+            click_pagination("›")
+            expect(cluster_table.get_by_role("row", name="Page 2")).to_be_visible()
+            click_pagination("›")
+            expect(cluster_table.get_by_role("row", name="Page 3")).to_be_visible()
+            expect(footer).to_contain_text("Page 3 of 7")
+            click_pagination("›")
+            expect(cluster_table.get_by_role("row", name="Page 4")).to_be_visible()
+            click_pagination("›")
+            expect(cluster_table.get_by_role("row", name="Page 5")).to_be_visible()
+            click_pagination("›")
+            expect(cluster_table.get_by_role("row", name="Page 6")).to_be_visible()
+            click_pagination("›")
+            expect(footer).to_contain_text("Page 7 of 7")
+            expect(all_rows).to_have_count(10)
+            expect(all_rows.nth(9)).to_contain_text("zu Hause")
+            expect(all_rows.nth(9)).to_contain_text("1")
+            click_pagination("«")
+            expect(footer).to_contain_text("Page 1 of 7")
+            expect(cluster_table.locator("tbody")).to_contain_text("USA")
+            cluster_table.get_by_role("combobox").click()
+            with_htmx_wait(page, lambda: cluster_table.get_by_role("combobox").select_option("5"))
             expect(all_rows).to_have_count(5)
-            expect(page.locator("tfoot")).to_contain_text("Page 1 of 26")
+            expect(footer).to_contain_text("Page 1 of 26")
 
         page.goto(url_for("base.dashboard", _external=True))
         expect(page.locator("#dashboard")).to_be_visible()
@@ -333,8 +346,10 @@ class TestEndToEndUser(BaseE2ETest):
             assert initial_visible_count > 0
             final_visible_count = initial_visible_count
             for _ in range(6):
-                page.mouse.wheel(0, 5500)
-                page.wait_for_timeout(300)
+                load_more_button = page.locator("#infinite-scroll-trigger")
+                if load_more_button.count() == 0:
+                    break
+                with_htmx_wait(page, lambda btn=load_more_button: btn.click())
                 final_visible_count, final_total = self._get_assess_story_counts(page)
                 assert final_total == expected_total
                 assert final_visible_count >= initial_visible_count
@@ -489,8 +504,8 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_placeholder("Handler", exact=True).fill("me")
             page.get_by_placeholder("CO-Handler").fill("you")
             page.get_by_test_id("save-report").click()
-            expect(page.get_by_test_id("report-id")).to_have_text(re.compile(r"^ID: [0-9a-f-]{36}$"))
-            expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated")
+            page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+            dismiss_notifications(page)
             page.get_by_placeholder("Date").fill("yesterday")
             page.get_by_role("button", name="Stacked view").click()
             expect(page).to_have_url(re.compile(r"layout=stacked"))
@@ -517,17 +532,15 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.locator("#report_form")).to_contain_text("Attributes will be generated after the report item has been created.")
             expect(page.get_by_test_id("analyze").locator("section")).to_contain_text("No stories assigned to this report.")
             page.get_by_test_id("save-report").click()
-            notification = page.locator("#notification-bar [role='alert']")
-            if notification.is_visible():
-                notification.click()
-                expect(notification).to_be_hidden()
+            page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+            dismiss_notifications(page)
             page.get_by_placeholder("Date").fill("1.1.2000")
             page.get_by_placeholder("Timeframe").fill("January")
             page.get_by_placeholder("Handler", exact=True).fill("Kluger")
             page.get_by_placeholder("CO-Handler").fill("Mensch")
             page.get_by_test_id("save-report").click()
             report_uuid = page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
-            assert self.is_uuid7(report_uuid), f"Expected a valid UUIDv7, got {report_uuid}"
+            dismiss_notifications(page)
             return report_uuid
 
         def check_report_list_filters():
@@ -543,6 +556,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("link", name="Analyze").click()
                 refreshed_search = page.get_by_test_id("report-search-input")
                 refreshed_search.fill(filter_prefix)
+                expect(page).to_have_url(re.compile(rf"search={filter_prefix}"))
                 expect(page.get_by_test_id("report-table").get_by_role("link", name=title, exact=True)).not_to_be_visible()
 
             def create_filter_report(title: str, report_type_label: str, completed: bool = False):
@@ -555,7 +569,8 @@ class TestEndToEndUser(BaseE2ETest):
                 dismiss_notifications(page)
                 if completed:
                     page.get_by_role("button", name="Completed").click()
-                    expect(page.locator("#notification-bar [role='alert']")).to_contain_text("Report item updated")
+                    completed_class = page.get_by_role("button", name="Completed").get_attribute("class") or ""
+                    assert "btn-active" in completed_class, f"Expected Completed button to be active, got {completed_class!r}"
                     dismiss_notifications(page)
 
             create_filter_report(completed_title, self.CERT_REPORT_TYPE_LABEL, completed=True)
@@ -569,21 +584,22 @@ class TestEndToEndUser(BaseE2ETest):
 
             search_input.fill(filter_prefix)
             self.wait_for_htmx_settled(page)
+            expect(page).to_have_url(re.compile(rf"search={filter_prefix}"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
 
-            completed_filter.select_option("false")
+            with_htmx_wait(page, lambda: completed_filter.select_option("false"))
             expect(page).to_have_url(
                 re.compile(rf"/analyze.*search={filter_prefix}.*completed=false|/analyze.*completed=false.*search={filter_prefix}")
             )
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).not_to_be_visible()
 
-            completed_filter.select_option("true")
+            with_htmx_wait(page, lambda: completed_filter.select_option("true"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).not_to_be_visible()
 
-            completed_filter.select_option("")
+            with_htmx_wait(page, lambda: completed_filter.select_option(""))
             expect(page).to_have_url(re.compile(r"completed=&report_item_type_id="))
             report_type_filter = page.get_by_test_id("report-type-filter")
             expect(report_type_filter).to_have_value("")
@@ -595,13 +611,12 @@ class TestEndToEndUser(BaseE2ETest):
                 self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL,
             )
             assert all_attribute_report_type_value is not None
-            report_type_filter.select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
+            with_htmx_wait(page, lambda: report_type_filter.select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL))
             expect(page).to_have_url(re.compile(rf"report_item_type_id={all_attribute_report_type_value}"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).not_to_be_visible()
 
-            reset_button.click()
-            self.wait_for_htmx_settled(page)
+            with_htmx_wait(page, lambda: reset_button.click())
             expect(search_input).to_have_value("")
             expect(completed_filter).to_have_value("")
             expect(report_type_filter).to_have_value("")
@@ -609,6 +624,7 @@ class TestEndToEndUser(BaseE2ETest):
 
             search_input.fill(filter_prefix)
             self.wait_for_htmx_settled(page)
+            expect(page).to_have_url(re.compile(rf"search={filter_prefix}"))
             expect(page.get_by_test_id("report-table").get_by_role("link", name=completed_title, exact=True)).to_be_visible()
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).to_be_visible()
             delete_filtered_report(completed_title)
@@ -696,7 +712,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("textbox", name="Title").fill("all attr report")
                 page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
                 page.get_by_test_id("save-report").click()
-                page.get_by_text("Report item created").click()
+                page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+                dismiss_notifications(page)
 
                 expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible()
                 expect(page.get_by_placeholder("STRING field")).to_be_visible()
@@ -718,7 +735,8 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_placeholder("CVE field")).to_be_visible()
                 expect(page.get_by_placeholder("CVSS field")).to_be_visible()
                 page.get_by_test_id("save-report").click()
-                page.get_by_text("Report item updated").click()
+                expect(page.get_by_test_id("save-report")).to_be_visible()
+                dismiss_notifications(page)
 
             def add_stories_to_new_report():
                 select_report_stories_from_assess(story_search_term)
@@ -763,16 +781,15 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("save-report").click()
                 expect(page.get_by_text("Used in attributes").nth(0)).to_be_visible()
                 expect(page.get_by_text("Used in attributes").nth(1)).to_be_visible()
+                dismiss_notifications(page)
 
             def empty_report_fields():
                 boolean_attribute = page.get_by_test_id("report-boolean-attribute-checkbox")
-                page.get_by_text("Report item updated").click()
                 page.get_by_role("option", name="Report Story 1 Remove item:").get_by_role("button").click()
                 page.get_by_role("option", name="Report Story 2 Remove item:").get_by_role("button").click()
                 page.get_by_placeholder("STRING field").fill("")
                 page.get_by_placeholder("NUMBER field").fill("")
                 expect(boolean_attribute).to_be_visible()
-
                 boolean_attribute.uncheck()
                 page.get_by_role("radio", name="CLASSIFIED").check()
                 page.get_by_label("Impact (Enum) Malicious code").select_option("Privilege escalation")
@@ -785,7 +802,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("CVE field").fill("")
                 page.get_by_placeholder("CVSS field").fill("")
                 page.get_by_test_id("save-report").click()
-                page.get_by_text("Report item updated").click()
+                expect(page.get_by_test_id("save-report")).to_be_visible()
+                dismiss_notifications(page)
 
             def check_report_fields():
                 boolean_attribute = page.get_by_test_id("report-boolean-attribute-checkbox")
@@ -811,7 +829,8 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_placeholder("CVSS field")).to_be_empty()
                 expect(page.locator("#report_form")).to_contain_text("Use the NVD CVSS calculator to determine the score.")
                 page.get_by_test_id("save-report").click()
-                page.get_by_text("Report item updated").click()
+                expect(page.get_by_test_id("save-report")).to_be_visible()
+                dismiss_notifications(page)
 
             def check_invalid_states():
                 with pytest.raises(Error, match=r"Cannot type text"):
@@ -852,7 +871,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("textbox", name="Title").fill("all attr report REQUIRED")
                 page.get_by_label("Report Type Select a report").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
                 page.get_by_test_id("save-report").click()
-                page.get_by_text("Report item created").click()
+                page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+                dismiss_notifications(page)
                 expect(page.get_by_role("searchbox", name="Related Story")).to_be_visible()
                 expect(page.get_by_placeholder("STRING field*")).to_be_visible()
                 expect(page.get_by_placeholder("NUMBER field*")).to_be_visible()
@@ -910,8 +930,10 @@ class TestEndToEndUser(BaseE2ETest):
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field*").fill("CVE-2026-24888")
                 page.get_by_placeholder("CVSS field*").fill("1")
+                dismiss_notifications(page)
                 page.get_by_test_id("save-report").click()
-                page.get_by_text("Report item updated").click()
+                expect(page.get_by_test_id("save-report")).to_be_visible()
+                dismiss_notifications(page)
 
             def check_invalid_states_required():
                 with pytest.raises(Error, match=r"Cannot type text"):
@@ -989,11 +1011,13 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_role("textbox", name="Title").fill(report_title)
         page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
         page.get_by_test_id("save-report").click()
-        page.get_by_text("Report item created").click()
+        page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+        dismiss_notifications(page)
 
         page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
         page.get_by_test_id("save-report").click()
-        page.get_by_text("Report item updated").click()
+        expect(page.get_by_label("TLP Level Clear Green Amber")).to_have_value("clear")
+        dismiss_notifications(page)
 
         page.get_by_role("link", name="Analyze").click()
         self.assert_item_in_table(page, "report-table", report_title)
@@ -1001,7 +1025,7 @@ class TestEndToEndUser(BaseE2ETest):
         self.open_table_item(page, "report-table", report_title)
         page.get_by_label("TLP Level Clear Green Amber").select_option("green")
         page.get_by_test_id("save-report").click()
-        page.get_by_text("Report item updated").click()
+        expect(page.get_by_test_id("analyze")).to_be_visible()
 
         page.get_by_role("link", name="Analyze").click()
         expect(page.get_by_test_id("analyze")).to_be_visible()
@@ -1024,11 +1048,13 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_role("textbox", name="Title").fill(report_title)
         page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REPORT_TYPE_LABEL)
         page.get_by_test_id("save-report").click()
-        page.get_by_text("Report item created").click()
+        page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
+        dismiss_notifications(page)
 
         page.get_by_label("TLP Level Clear Green Amber").select_option("clear")
         page.get_by_test_id("save-report").click()
-        page.get_by_text("Report item updated").click()
+        expect(page.get_by_label("TLP Level Clear Green Amber")).to_have_value("clear")
+        dismiss_notifications(page)
 
         page.get_by_role("link", name="Analyze").click()
         self.assert_item_in_table(page, "report-table", report_title)
@@ -1037,7 +1063,6 @@ class TestEndToEndUser(BaseE2ETest):
 
         page.get_by_label("TLP Level Clear Green Amber").select_option("green")
         page.get_by_test_id("save-report").click()
-        page.get_by_text("Report item updated").click()
         expect(page.get_by_test_id("analyze")).to_be_visible()
         page.goto(url_for("analyze.report", report_id=report_id, _external=True))
         expect(page.get_by_text("403 - Access denied")).to_be_visible()

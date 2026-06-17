@@ -234,6 +234,17 @@ class NewsItem(BaseModel):
                 updated_news_items.append(news_item)
         return updated_news_items
 
+    @classmethod
+    def delete_all(cls) -> tuple[dict[str, Any], int]:
+        from core.model.news_item_tag import NewsItemTag, NewsItemTagCluster
+
+        db.session.execute(db.delete(NewsItemTagCluster))
+        db.session.execute(db.delete(NewsItemTag))
+        db.session.execute(db.delete(cls))
+        db.session.commit()
+        logger.debug(f"All {cls.__name__} deleted")
+        return {"message": f"All {cls.__name__} deleted"}, 200
+
     def to_upsert_dict(self) -> dict[str, Any]:
         table = getattr(self, "__table__", None)
         if table is None:
@@ -343,6 +354,10 @@ class NewsItem(BaseModel):
         if incoming_tags and not parsed_tags:
             return {"error": "No valid tags provided"}, 400
 
+        summary_keys = self.get_tag_summary_keys()
+        for tag in parsed_tags.values():
+            summary_keys.update(NewsItemTag.get_summary_keys_for_tag_types(tag.name, tag.tag_type))
+
         if not parsed_tags:
             if replace:
                 self.remove_tags({tag.name for tag in self.tags})
@@ -359,9 +374,24 @@ class NewsItem(BaseModel):
             actor = Story.resolve_actor(user=user, actor=actor)
             story.update_status(change=actor)
             story.record_revision(user or Story.user_for_actor(actor), note="set_news_item_tags")
+
+        db.session.flush()
+        self.refresh_tag_summaries(summary_keys)
         if commit:
             db.session.commit()
         return {"message": "News item tags updated"}, 200
+
+    def get_tag_summary_keys(self) -> set[tuple[str, str]]:
+        summary_keys = set()
+        for tag in self.tags:
+            summary_keys.update(NewsItemTag.get_summary_keys_for_tag_types(tag.name, tag.tag_type))
+        return summary_keys
+
+    def refresh_tag_summaries(self, summary_keys: set[tuple[str, str]]) -> None:
+        from core.model.news_item_tag import NewsItemTagCluster
+
+        if summary_keys:
+            NewsItemTagCluster.refresh_for_keys(summary_keys)
 
     def patch_tags(self, tags: dict[str, NewsItemTag]):
         for tag in tags.values():

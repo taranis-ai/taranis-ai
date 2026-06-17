@@ -1,6 +1,7 @@
 import re
 from typing import Any
 
+import sentry_sdk
 from flask import Flask, g, redirect, render_template, url_for
 from flask.json.provider import DefaultJSONProvider
 from flask_htmx import HTMX
@@ -19,6 +20,7 @@ import frontend.filters as filters_module
 from frontend.auth import user_has_admin_permissions
 from frontend.config import Config
 from frontend.log import logger
+from frontend.onboarding import pending_onboarding_tasks_for_template
 from frontend.views.base_view import BaseView
 
 
@@ -97,6 +99,7 @@ def jinja_setup(app: Flask):
             "views": all_views,
             "admin_views": admin_views,
             "get_html5_pattern_from_rule": get_html5_pattern_from_rule,
+            "pending_onboarding_tasks_for_template": pending_onboarding_tasks_for_template,
         }
     )
 
@@ -117,20 +120,38 @@ def inject_current_user() -> dict[str, Any]:
     If no JWT is present, it will be None.
     """
     if getattr(g, "skip_current_user_injection", False):
-        return {"current_user": None, "is_admin": False}
+        return {"current_user": None, "authenticated_user": None, "is_admin": False}
 
     try:
         verify_jwt_in_request(optional=True)
     except JWTExtendedException:
-        return {"current_user": None, "is_admin": False}
+        return {"current_user": None, "authenticated_user": None, "is_admin": False}
 
     if current_user:
-        return {"current_user": current_user, "is_admin": is_user_admin(current_user)}
+        return {"current_user": current_user, "authenticated_user": current_user, "is_admin": is_user_admin(current_user)}
 
-    return {"current_user": None, "is_admin": False}
+    return {"current_user": None, "authenticated_user": None, "is_admin": False}
+
+
+def setup_sentry():
+    if not Config.TARANIS_SENTRY_DSN:
+        return
+
+    sentry_options = {
+        "dsn": Config.TARANIS_SENTRY_DSN,
+        "traces_sample_rate": 1.0,
+        "profiles_sample_rate": 1.0,
+    }
+    if Config.SENTRY_ENABLE_LOGS:
+        sentry_options["enable_logs"] = True
+    if Config.SENTRY_SEND_DEFAULT_PII:
+        sentry_options["send_default_pii"] = True
+
+    sentry_sdk.init(**sentry_options)
 
 
 def init(app: Flask):
+    setup_sentry()
     app.json_provider_class = TaranisJSONProvider
     app.json = app.json_provider_class(app)
     HTMX(app)

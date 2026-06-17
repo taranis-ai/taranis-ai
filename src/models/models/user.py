@@ -1,9 +1,18 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
 from models.base import TaranisBaseModel
+
+
+ONBOARDING_COMPLETED_STATUS = "completed"
+ONBOARDING_DISMISSED_STATUS = "dismissed"
+ONBOARDING_SCOPE_GLOBAL = "global"
+ONBOARDING_SCOPE_USER = "user"
+ADMIN_WELCOME_TOUR_ID = "admin_welcome_v1"
+ADMIN_ADVANCED_TOUR_ID = "admin_advanced_v1"
+USER_PRODUCT_OVERVIEW_TASK_ID = "user_product_overview_v1"
 
 
 class ProfileSettingsDashboard(TaranisBaseModel):
@@ -11,6 +20,11 @@ class ProfileSettingsDashboard(TaranisBaseModel):
     show_charts: bool = True
     trending_cluster_days: int = 7
     trending_cluster_filter: list[Any] = Field(default_factory=list)
+
+
+class OnboardingTask(TaranisBaseModel):
+    id: str
+    scope: Literal["global", "user"]
 
 
 class ProfileSettings(TaranisBaseModel):
@@ -28,6 +42,7 @@ class ProfileSettings(TaranisBaseModel):
     end_of_shift: str | None = None
     highlight: bool = False
     assess_default_filters: dict[str, Any] = Field(default_factory=dict)
+    onboarding_tasks: dict[str, str] = Field(default_factory=dict)
     dashboard: ProfileSettingsDashboard = Field(default_factory=ProfileSettingsDashboard)
 
 
@@ -43,3 +58,4 @@ class UserProfile(TaranisBaseModel):
     profile: ProfileSettings = Field(default_factory=ProfileSettings)
     permissions: list[str] | None = Field(default_factory=list)
     roles: list[dict[str, Any]] | None = Field(default_factory=list)
+    pending_onboarding_tasks: list[OnboardingTask] = Field(default_factory=list)

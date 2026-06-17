@@ -67,6 +67,63 @@ class TestAssessApi(BaseTest):
         assert response.get_json()["total_count"] >= 1
         assert assess_connector["id"] in items
 
+    def test_dashboard_cluster_size_desc_breaks_ties_by_name(self, client, auth_header, session):
+        payloads = [
+            {"id": str(uuid.uuid7()), "title": "Cluster 1", "content": "Cluster 1", "link": "https://example.invalid/cluster-1"},
+            {"id": str(uuid.uuid7()), "title": "Cluster 2", "content": "Cluster 2", "link": "https://example.invalid/cluster-2"},
+            {"id": str(uuid.uuid7()), "title": "Cluster 3", "content": "Cluster 3", "link": "https://example.invalid/cluster-3"},
+            {"id": str(uuid.uuid7()), "title": "Cluster 4", "content": "Cluster 4", "link": "https://example.invalid/cluster-4"},
+        ]
+
+        news_item_ids = []
+        for payload in payloads:
+            response = client.post("/api/assess/news-items", json=payload, headers=auth_header)
+            assert response.status_code == 200
+            news_item_ids.append(response.get_json()["news_item_ids"][0])
+
+        assert (
+            client.put(
+                f"/api/assess/news-items/{news_item_ids[0]}/tags",
+                json=[{"name": "Zulu", "tag_type": "Location"}],
+                headers=auth_header,
+            ).status_code
+            == 200
+        )
+        assert (
+            client.put(
+                f"/api/assess/news-items/{news_item_ids[1]}/tags",
+                json=[{"name": "Alpha", "tag_type": "Location"}],
+                headers=auth_header,
+            ).status_code
+            == 200
+        )
+        assert (
+            client.put(
+                f"/api/assess/news-items/{news_item_ids[2]}/tags",
+                json=[{"name": "Bravo", "tag_type": "Location"}],
+                headers=auth_header,
+            ).status_code
+            == 200
+        )
+        assert (
+            client.put(
+                f"/api/assess/news-items/{news_item_ids[3]}/tags",
+                json=[{"name": "Bravo", "tag_type": "Location"}],
+                headers=auth_header,
+            ).status_code
+            == 200
+        )
+
+        response = client.get("/api/dashboard/cluster/Location?limit=3&order=size_desc", headers=auth_header)
+        assert response.status_code == 200
+
+        items = response.get_json()["items"]
+        assert items == [
+            {"name": "Bravo", "size": 2},
+            {"name": "Alpha", "size": 1},
+            {"name": "Zulu", "size": 1},
+        ]
+
 
 class TestAssessNewsItems(BaseTest):
     base_uri = "/api/assess"
