@@ -13,7 +13,7 @@ required-markers = [
 ]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-06-09T18:02:21.313569Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -842,7 +842,7 @@ wheels = [
 
 [[package]]
 name = "misp-stix"
-version = "2026.6.3"
+version = "2026.6.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cybox" },
@@ -855,9 +855,9 @@ dependencies = [
     { name = "stix-edh" },
     { name = "stix2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b6/e1/8ecb9e43ba8d1ef880ff585387e02ccacefeace6477f909adb0ac4b5ff7d/misp_stix-2026.6.3.tar.gz", hash = "sha256:8229520ff6ad45cb89240a9a5807e6f42d9a93bbb2322eb3b28ae89f007aef40", size = 443946, upload-time = "2026-06-03T12:49:30.83Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/64/d4/a9e38541ceff79f86184187ed334473566d8076d35b5451839170b85bd31/misp_stix-2026.6.9.tar.gz", hash = "sha256:f9d2fe1c038675c457544d766b91c28702d0a52308f757998a45fefb16b75467", size = 447976, upload-time = "2026-06-09T08:30:54.989Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/df/e39c44116a3f41a5e5f495befb43bc68591fe595cf6637cf381c30e6a5cd/misp_stix-2026.6.3-py3-none-any.whl", hash = "sha256:37db01a9bf8d0df45ca0c19b4af28877213e39692dffab293940a0e8869bbee4", size = 479988, upload-time = "2026-06-03T12:49:32.106Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/f9/066faca4147441309885b0e4e37c04b4ba5565c5f048cd73686e31ff5269/misp_stix-2026.6.9-py3-none-any.whl", hash = "sha256:cea5be69f060ffba1ab345c32350b834fb628a4ce0c530df0dac14567ddfb491", size = 484097, upload-time = "2026-06-09T08:31:07.817Z" },
 ]
 
 [[package]]
