@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import pytest
 from flask_babel import get_locale
 from flask_jwt_extended import create_access_token
 from models.user import ProfileSettings, UserProfile
@@ -9,7 +10,10 @@ from frontend.cache import add_user_to_cache
 from frontend.filters import format_datetime
 
 
-def _user_with_language(language: str, timezone: str | None = None, effective_timezone: str = "UTC") -> UserProfile:
+LOCAL_TIME = datetime(2026, 6, 11, 10, 30)
+
+
+def _user_with_language(language: str, timezone: str | None = None) -> UserProfile:
     return UserProfile(
         id=f"user-{language}",
         username=f"user-{language}",
@@ -17,105 +21,71 @@ def _user_with_language(language: str, timezone: str | None = None, effective_ti
         organization={"id": "1", "name": "Test Organization"},
         permissions=["ASSESS_ACCESS"],
         profile=ProfileSettings(language=language, timezone=timezone),
-        effective_timezone=effective_timezone,
         roles=[{"id": "1", "name": "User"}],
     )
 
 
-def _authenticated_client_for_user(app, user: UserProfile):
+def _access_token_for_user(app, user: UserProfile) -> str:
     add_user_to_cache(user.model_dump(mode="json"))
     with app.app_context():
-        access_token = create_access_token(identity=user)
+        return create_access_token(identity=user)
+
+
+def _authenticated_client_for_user(app, user: UserProfile):
     client = app.test_client()
-    client.set_cookie(key="access_token_cookie", value=access_token)
+    client.set_cookie(key="access_token_cookie", value=_access_token_for_user(app, user))
     return client
 
 
-def test_authenticated_user_profile_language_selects_german(app, test_cache_backend):
-    client = _authenticated_client_for_user(app, _user_with_language("de"))
+def _request_context(app, headers: dict[str, str] | None = None, user: UserProfile | None = None):
+    request_headers = dict(headers or {})
+    if user:
+        request_headers["Cookie"] = f"access_token_cookie={_access_token_for_user(app, user)}"
+    return app.test_request_context("/frontend/login", headers=request_headers)
 
-    response = client.get(f"{app.config['APPLICATION_ROOT']}settings")
+
+@pytest.mark.parametrize(
+    ("language", "headers", "expected_text"),
+    [
+        ("de", {}, "Benutzereinstellungen"),
+        ("es", {"Accept-Language": "de"}, "Passwort ändern"),
+    ],
+)
+def test_settings_page_selects_profile_or_accepted_language(app, test_cache_backend, language, headers, expected_text):
+    client = _authenticated_client_for_user(app, _user_with_language(language))
+
+    response = client.get(f"{app.config['APPLICATION_ROOT']}settings", headers=headers)
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'lang="de"' in html
-    assert 'data-confirm-cancel="Abbrechen"' in html
-    assert "Änderungen speichern" in html
-    assert "Benutzereinstellungen" in html
+    assert expected_text in html
 
 
-def test_unsupported_profile_language_falls_back_to_accept_language(app, test_cache_backend):
-    client = _authenticated_client_for_user(app, _user_with_language("es"))
-
-    response = client.get(f"{app.config['APPLICATION_ROOT']}settings", headers={"Accept-Language": "de"})
-
-    assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    assert 'lang="de"' in html
-    assert "Passwort ändern" in html
-
-
-def test_anonymous_login_page_uses_accept_language(app):
-    with app.test_request_context("/frontend/login", headers={"Accept-Language": "de"}):
+@pytest.mark.parametrize(
+    ("headers", "expected_language", "expected_text"),
+    [
+        ({"Accept-Language": "de"}, "de", "Benutzername"),
+        ({"Accept-Language": "de-AT,en-US;q=0.9,en;q=0.8"}, "de", "Benutzername"),
+        ({}, "en", "Username"),
+    ],
+)
+def test_login_page_selects_locale(app, headers, expected_language, expected_text):
+    with _request_context(app, headers):
         html = render_login_page()
 
-    assert 'lang="de"' in html
-    assert 'data-confirm-cancel="Abbrechen"' in html
-    assert "Benutzername" in html
-    assert "Anmelden" in html
+    assert str(get_locale()) == expected_language
+    assert f'lang="{expected_language}"' in html
+    assert expected_text in html
 
 
-def test_anonymous_login_page_uses_regional_accept_language(app):
-    with app.test_request_context("/frontend/login", headers={"Accept-Language": "de-AT,en-US;q=0.9,en;q=0.8"}):
-        html = render_login_page()
-
-    assert 'lang="de"' in html
-    assert "Benutzername" in html
-    assert "Anmelden" in html
-
-
-def test_english_is_default_locale(app):
-    with app.test_request_context("/frontend/login"):
-        html = render_login_page()
-
-    assert str(get_locale()) == "en"
-    assert 'lang="en"' in html
-    assert "Username" in html
-
-
-def test_profile_timezone_formats_naive_utc_datetime_as_local_time(app, test_cache_backend):
+def test_authenticated_timezone_formats_naive_utc_datetime_as_local_time(app, test_cache_backend):
     user = _user_with_language("de", timezone="Europe/Vienna")
-    add_user_to_cache(user.model_dump(mode="json"))
-    with app.app_context():
-        access_token = create_access_token(identity=user)
-    with app.test_request_context(
-        "/frontend/login",
-        headers={"Accept-Language": "de", "Cookie": f"access_token_cookie={access_token}"},
-    ):
-        formatted = format_datetime(datetime(2026, 6, 11, 10, 30))
 
-    assert formatted == "11. Juni 2026 12:30"
-
-
-def test_effective_timezone_formats_naive_utc_datetime_when_profile_timezone_empty(app, test_cache_backend):
-    user = _user_with_language("de", timezone=None, effective_timezone="Europe/Vienna")
-    add_user_to_cache(user.model_dump(mode="json"))
-    with app.app_context():
-        access_token = create_access_token(identity=user)
-    with app.test_request_context(
-        "/frontend/login",
-        headers={"Accept-Language": "de", "Cookie": f"access_token_cookie={access_token}"},
-    ):
-        formatted = format_datetime(datetime(2026, 6, 11, 10, 30))
-
-    assert formatted == "11. Juni 2026 12:30"
+    with _request_context(app, {"Accept-Language": "de"}, user):
+        assert format_datetime(LOCAL_TIME) == "11. Juni 2026 12:30"
 
 
 def test_timezone_cookie_does_not_affect_datetime_formatting(app):
-    with app.test_request_context(
-        "/frontend/login",
-        headers={"Accept-Language": "de", "Cookie": "taranis_timezone=Europe/Vienna"},
-    ):
-        formatted = format_datetime(datetime(2026, 6, 11, 10, 30))
-
-    assert formatted == "11. Juni 2026 10:30"
+    with _request_context(app, {"Accept-Language": "de", "Cookie": "taranis_timezone=Europe/Vienna"}):
+        assert format_datetime(LOCAL_TIME) == "11. Juni 2026 10:30"

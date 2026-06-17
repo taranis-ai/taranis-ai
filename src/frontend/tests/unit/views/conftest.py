@@ -37,6 +37,11 @@ def get_items_from_factory(view_name, model):
         logger.warning(f"PolyFactory couldn’t build {model.__name__} for view {view_name}: {e}\nFalling back to a minimal stub.")
         items = [{"id": "test-1", "name": f"test_{view_name.lower()}"}]
 
+    if view_name == "Settings" and items:
+        settings = items[0].get("settings")
+        if isinstance(settings, dict):
+            settings["default_timezone"] = "UTC"
+
     return items
 
 
@@ -561,7 +566,7 @@ def organizations_delete_mock(responses_mock):
     yield response
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_worker_parameters_get(responses_mock, worker_parameter_data):
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/worker-parameters", json=worker_parameter_data)
 

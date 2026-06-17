@@ -345,10 +345,9 @@ msgstr "Keine Zeitzonen gefunden"
 msgid "No timezones to choose from"
 msgstr "Keine Zeitzonen zur Auswahl"
 
-#: frontend/templates/user_profile/settings_content.html:149
-#, python-format
-msgid "Use system default (%(timezone)s)"
-msgstr "Systemstandard verwenden (%(timezone)s)"
+#: frontend/templates/user_profile/settings_content.html:148
+msgid "Press to select"
+msgstr "Zum Auswählen drücken"
 
 #: frontend/templates/user_profile/settings_content.html:155
 msgid "Use browser timezone"

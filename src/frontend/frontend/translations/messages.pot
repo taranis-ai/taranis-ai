@@ -342,9 +342,8 @@ msgstr ""
 msgid "No timezones to choose from"
 msgstr ""
 
-#: frontend/templates/user_profile/settings_content.html:149
-#, python-format
-msgid "Use system default (%(timezone)s)"
+#: frontend/templates/user_profile/settings_content.html:148
+msgid "Press to select"
 msgstr ""
 
 #: frontend/templates/user_profile/settings_content.html:155
@@ -440,4 +439,3 @@ msgstr ""
 #: frontend/views/user_views.py:50
 msgid "Failed to change password."
 msgstr ""
-

@@ -81,8 +81,6 @@ def select_locale() -> str:
 
 
 def select_timezone() -> str:
-    default_timezone = _default_timezone()
-
     if not getattr(g, "skip_current_user_injection", False):
         try:
             verify_jwt_in_request(optional=True)
@@ -92,17 +90,16 @@ def select_timezone() -> str:
             if current_user:
                 if timezone_name := _valid_timezone(_profile_value(current_user, "timezone")):
                     return timezone_name
-                if timezone_name := _valid_timezone(getattr(current_user, "effective_timezone", None)):
-                    return timezone_name
 
-    return default_timezone
+    return _default_timezone()
 
 
 def get_supported_language_options() -> list[dict[str, str]]:
-    return [
-        {"id": "en", "name": gettext("English")},
-        {"id": "de", "name": gettext("German")},
-    ]
+    names = {
+        "en": gettext("English"),
+        "de": gettext("German"),
+    }
+    return [{"id": locale, "name": names.get(locale, locale)} for locale in _supported_locales()]
 
 
 @cache

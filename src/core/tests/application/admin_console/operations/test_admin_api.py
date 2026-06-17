@@ -61,8 +61,18 @@ class TestAdminApi(BaseTest):
 
     def test_settings_rejects_invalid_default_timezone(self, client, auth_header):
         response = client.put(
-            f"{self.base_uri}/settings",
+            self.concat_url("settings"),
             json={"settings": {"default_timezone": "Not/A_Timezone"}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert "Invalid timezone" in response.get_json()["error"]
+
+    def test_settings_rejects_non_string_default_timezone(self, client, auth_header):
+        response = client.put(
+            self.concat_url("settings"),
+            json={"settings": {"default_timezone": 123}},
             headers=auth_header,
         )
 

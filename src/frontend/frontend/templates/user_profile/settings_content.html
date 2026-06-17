@@ -137,6 +137,7 @@
         </div>
 
         <div class="rounded-xl border border-base-300 bg-base-200 p-4">
+          {% set selected_timezone = profile.timezone|default("UTC", true) %}
           <div class="form-control w-full">
             <label class="label" for="timezone-select">
               <span class="label-text font-semibold text-base-content">{{ _("Timezone") }}</span>
@@ -148,12 +149,10 @@
                         class="select select-bordered w-full"
                         data-choices-placeholder-value="{{ _('Select timezone') }}"
                         data-choices-no-results-text="{{ _('No timezones found') }}"
-                        data-choices-no-choices-text="{{ _('No timezones to choose from') }}">
-                  <option value="" {% if not profile.timezone %}selected{% endif %}>
-                    {{ _("Use system default (%(timezone)s)", timezone=user.effective_timezone|default("UTC", true) ) }}
-                  </option>
+                        data-choices-no-choices-text="{{ _('No timezones to choose from') }}"
+                        data-choices-item-select-text="{{ _('Press to select') }}">
                   {% for timezone in timezone_options %}
-                    <option value="{{ timezone }}" {% if timezone == profile.timezone %}selected{% endif %}>{{ timezone }}</option>
+                    <option value="{{ timezone }}" {% if timezone == selected_timezone %}selected{% endif %}>{{ timezone }}</option>
                   {% endfor %}
                 </select>
               </div>

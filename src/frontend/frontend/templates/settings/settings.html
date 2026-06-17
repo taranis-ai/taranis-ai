@@ -67,7 +67,7 @@
           </div>
           <div class="p-4 border rounded-lg hover:bg-base-200 transition">
             <h3 class="font-semibold text-lg mb-2">Default Timezone</h3>
-            <p class="text-sm text-gray-500 mb-3">Set the timezone used for users without a personal timezone override.</p>
+            <p class="text-sm text-gray-500 mb-3">Set the timezone copied into new user profiles when none is supplied.</p>
             <select id="default-timezone-select"
                     name="settings[default_timezone]"
                     class="select select-bordered w-full"
@@ -75,7 +75,7 @@
                     data-choices-placeholder-value="Select timezone"
                     data-choices-no-results-text="No timezones found"
                     data-choices-no-choices-text="No timezones to choose from">
-              <option value="" {% if not current_settings.default_timezone %}selected{% endif %}>No global default</option>
+              <option value="" {% if not current_settings.default_timezone %}selected{% endif %}>UTC for new users</option>
               {% for timezone in timezone_options %}
                 <option value="{{ timezone }}" {% if timezone == current_settings.default_timezone %}selected{% endif %}>{{ timezone }}</option>
               {% endfor %}

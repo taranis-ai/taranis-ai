@@ -91,7 +91,7 @@ class AuthView(MethodView):
             core_response = CoreApi().login(username, password)
         except HTTPException:
             raise
-        except Exception:
+        except requests.RequestException:
             return render_login_page(login_error=gettext("Login failed, no response from server")), 500
 
         return self.login_flow(core_response)
