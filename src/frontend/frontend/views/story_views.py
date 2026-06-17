@@ -111,8 +111,11 @@ class StoryView(BaseView):
             logger.exception(format_pydantic_errors(exc, StoryBookmark))
         except HTTPException:
             raise
-        except Exception:
-            logger.exception("Error retrieving story bookmarks for Assess bar")
+        except ValueError as exc:
+            logger.exception("Failed to load bookmark collections for assess bar: %s", exc)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Unexpected bookmark bar load error: %s", exc)
+            return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
         return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
 
     @classmethod
@@ -123,7 +126,7 @@ class StoryView(BaseView):
         if request.endpoint == "assess.assess":
             assess_request_args = cls._get_assess_request_params()
             base_context["assess_request_args"] = assess_request_args
-            base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
+        base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
         base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
         if stories := base_context.get("stories"):

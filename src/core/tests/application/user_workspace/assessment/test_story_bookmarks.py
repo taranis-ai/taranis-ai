@@ -128,7 +128,12 @@ class TestStoryBookmarks(BaseTest):
 
     def test_story_bookmark_remove_absent_story_is_idempotent(self, client, stories, auth_header):
         bookmark_id = self._create_bookmark(client, auth_header, f"Idempotent {uuid4()}")
-        client.post(self.concat_url(f"bookmarks/{bookmark_id}/stories"), headers=auth_header, json={"story_ids": [stories[0]]})
+        add_response = client.post(
+            self.concat_url(f"bookmarks/{bookmark_id}/stories"),
+            headers=auth_header,
+            json={"story_ids": [stories[0]]},
+        )
+        assert add_response.status_code == 200
 
         response = client.post(
             self.concat_url(f"bookmarks/{bookmark_id}/stories/remove"), headers=auth_header, json={"story_ids": [stories[1]]}

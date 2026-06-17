@@ -11,7 +11,11 @@
     <h3 class="mb-1 mt-1 text-lg font-bold">Bookmark Stories</h3>
     <p class="mb-4 text-sm text-base-content/70">{{ story_ids | length }} stories selected</p>
 
-    <form id="story-bookmark-form" class="space-y-4">
+    <form id="story-bookmark-form"
+          class="space-y-4"
+          hx-post="{{ url_for('assess.submit_bookmark_story') }}"
+          hx-target="#notification-bar"
+          hx-on::after-request="if (event.detail.successful) document.getElementById('story_bookmark_dialog').close()">
       {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
       <input type="hidden" name="mode" :value="mode">
 
@@ -50,13 +54,7 @@
       </label>
 
       <div class="flex gap-2">
-        <button type="button"
-                class="btn btn-primary w-1/2"
-                hx-post="{{ url_for('assess.submit_bookmark_story') }}"
-                hx-target="#notification-bar"
-                hx-include="#story-bookmark-form"
-                hx-on::after-request="if (event.detail.successful) document.getElementById('story_bookmark_dialog').close()"
-                data-testid="submit-bookmark-story">
+        <button type="submit" class="btn btn-primary w-1/2" data-testid="submit-bookmark-story">
           {{ heroicon_mini("bookmark") }}
           Bookmark
         </button>

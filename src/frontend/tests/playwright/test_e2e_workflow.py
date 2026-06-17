@@ -73,7 +73,6 @@ class TestUserWorkflow(BaseE2ETest):
         page.wait_for_url("**/bookmarks", wait_until="domcontentloaded")
         expect(page.get_by_text(bookmark_name)).not_to_be_visible()
         self.wait_for_htmx_settled(page)
-        page.wait_for_load_state("networkidle", timeout=5000)
 
     def test_assess(
         self,

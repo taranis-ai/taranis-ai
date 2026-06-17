@@ -41,8 +41,11 @@ class StoryBookmarkView(BaseView):
             DataPersistenceLayer().invalidate_model_cache_locally(StoryBookmark, bookmark_id)
         except HTTPException:
             raise
-        except Exception:
+        except ValueError as exc:
+            logger.exception("Failed to invalidate local story bookmark cache: %s", exc)
+        except Exception:  # noqa: BLE001
             logger.exception("Failed to invalidate local story bookmark cache")
+            return
 
     @classmethod
     def _load_bookmarks(cls, *, fetch_all: bool = False) -> tuple[CacheObject[StoryBookmark] | None, str | None]:
@@ -54,7 +57,7 @@ class StoryBookmarkView(BaseView):
             return None, format_pydantic_errors(exc, cls.model)
         except HTTPException:
             raise
-        except Exception as exc:
+        except ValueError as exc:
             logger.exception("Error retrieving story bookmarks")
             return None, str(exc)
 
@@ -69,7 +72,7 @@ class StoryBookmarkView(BaseView):
             return None, format_pydantic_errors(exc, cls.model)
         except HTTPException:
             raise
-        except Exception as exc:
+        except ValueError as exc:
             logger.exception("Error retrieving first story bookmark")
             return None, str(exc)
 
@@ -77,7 +80,7 @@ class StoryBookmarkView(BaseView):
     def _response_json(response) -> dict[str, Any]:
         try:
             payload = response.json()
-        except Exception:
+        except (AttributeError, ValueError):
             return {}
         return payload if isinstance(payload, dict) else {}
 

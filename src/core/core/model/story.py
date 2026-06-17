@@ -8,7 +8,7 @@ from models.assess import Story as StoryPayload
 from pydantic import ValidationError
 from sqlalchemy import func, inspect, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, aliased, relationship
 from sqlalchemy.sql import Select
@@ -1537,8 +1537,8 @@ class StoryBookmark(BaseModel):
         "Story", secondary="story_bookmark_story", cascade="save-update, merge", passive_deletes=True, single_parent=False, lazy="selectin"
     )
 
-    def __init__(self, name: str, user_id: str, id: str | None = None, stories: list[str] | None = None):
-        self.id = self.normalize_uuid_id(id)
+    def __init__(self, name: str, user_id: str, bookmark_id: str | None = None, stories: list[str] | None = None):
+        self.id = self.normalize_uuid_id(bookmark_id)
         self.name = self._clean_name(name)
         self.user_id = user_id
         self.created = self.utcnow()
@@ -1613,7 +1613,7 @@ class StoryBookmark(BaseModel):
         except IntegrityError:
             db.session.rollback()
             return {"error": "A bookmark collection with this name already exists"}, 409
-        except Exception:
+        except SQLAlchemyError:
             logger.exception("Failed to create story bookmark")
             db.session.rollback()
             return {"error": "Failed to create bookmark collection"}, 500
@@ -1634,7 +1634,7 @@ class StoryBookmark(BaseModel):
         except IntegrityError:
             db.session.rollback()
             return {"error": "A bookmark collection with this name already exists"}, 409
-        except Exception:
+        except SQLAlchemyError:
             logger.exception("Failed to update story bookmark %s", bookmark_id)
             db.session.rollback()
             return {"error": "Failed to update bookmark collection"}, 500
@@ -1651,7 +1651,17 @@ class StoryBookmark(BaseModel):
     @classmethod
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         if bookmark := cls.get_for_user(item_id, user):
-            return bookmark.to_detail_dict(), 200
+            if user is None:
+                return bookmark.to_detail_dict(), 200
+
+            story_ids = [story.id for story in bookmark.stories if story and story.id]
+            accessible_query = db.select(Story).where(Story.id.in_(story_ids))
+            accessible_query = Story._add_ACL_check(accessible_query, user)
+            accessible_query = Story._add_TLP_check(accessible_query, user)
+            stories_by_id = {story.id: story for story in db.session.execute(accessible_query).scalars().all() if story}
+            visible_stories = [stories_by_id.get(story_id) for story_id in story_ids if story_id in stories_by_id]
+
+            return bookmark.to_detail_dict(stories=visible_stories), 200
         return {"error": "Bookmark collection not found"}, 404
 
     @classmethod
@@ -1718,15 +1728,17 @@ class StoryBookmark(BaseModel):
     def touch(self) -> None:
         self.updated = self.utcnow()
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, stories: list[Story] | None = None) -> dict[str, Any]:
         data = super().to_dict()
-        data["story_count"] = len(self.stories or [])
-        data["story_ids"] = [story.id for story in self.stories if story and story.id]
+        stories = self.stories if stories is None else stories
+        data["story_count"] = len(stories)
+        data["story_ids"] = [story.id for story in stories if story and story.id]
         return data
 
-    def to_detail_dict(self) -> dict[str, Any]:
-        data = self.to_dict()
-        data["stories"] = [story.to_dict() for story in self.stories if story]
+    def to_detail_dict(self, stories: list[Story] | None = None) -> dict[str, Any]:
+        stories = stories if stories is not None else self.stories
+        data = self.to_dict(stories=stories)
+        data["stories"] = [story.to_dict() for story in stories if story]
         return data
 
 
