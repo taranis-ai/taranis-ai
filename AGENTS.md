@@ -119,6 +119,7 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 - avoid unit tests for orchestration methods whose collaborators are almost entirely monkeypatched or stubbed out; those tests tend to prove call wiring rather than behavior
 - for admin/frontend workflows that depend on cache invalidation, scheduling, seeding, or similar cross-component side effects, prefer frontend e2e coverage over heavily mocked unit tests
 - for e2e tests, prefer adding a `data-test-id` attribute as the selector when possible
+- do not use pytest autouse fixtures; request fixtures explicitly or use module/class-level `pytest.mark.usefixtures` when a whole module needs setup
 
 ## Development Guidelines
 

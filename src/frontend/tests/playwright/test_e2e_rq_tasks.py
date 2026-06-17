@@ -15,6 +15,8 @@ from rq.results import Result
 from tests.core_requests import CoreRequestClient
 
 
+pytest_plugins = ("tests.playwright.rq_e2e_fixtures",)
+
 CRON_ENQUEUE_KEY_PREFIX = "rq:cron:enqueue:"
 CRON_NEXT_KEY = "rq:cron:next"
 DEFAULT_JOB_TIMEOUT_SECONDS = 30
@@ -22,6 +24,8 @@ CRON_JOB_TIMEOUT_SECONDS = 20
 
 RedisBackend = dict[str, str]
 JsonDict = dict[str, Any]
+
+pytestmark = pytest.mark.usefixtures("allow_local_http_passthrough")
 
 
 def _parse_cron_spec(raw_spec: object) -> dict[str, Any]:

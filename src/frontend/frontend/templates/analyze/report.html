@@ -162,9 +162,9 @@
         return;
       }
 
-      const placeholder = select.dataset.choicePlaceholder || select.dataset.choiceType || "items";
-      const itemSelectText = select.dataset.choiceItemText || `Add ${placeholder}`;
-      initChoices(select.id, placeholder, { itemSelectText, placeholderValue: placeholder });
+      const placeholder = select.dataset.choicePlaceholder || "";
+      const itemSelectText = select.dataset.choiceItemText || "";
+      initChoices(select.id, { itemSelectText, placeholderValue: placeholder });
       select.dataset.choicesInitialized = "true";
     });
   }

@@ -4,22 +4,22 @@
       "Shift",
       "E"
     ],
-    "label": "Edit selected story",
+    "label": _("Edit selected story"),
     "available": [
-      "Assess"
+      _("Assess")
     ],
-    "hint": "Requires exactly one story selected."
+    "hint": _("Requires exactly one story selected.")
   },
   {
     "keys": [
       "Shift",
       "R"
     ],
-    "label": "Add selection to report",
+    "label": _("Add selection to report"),
     "available": [
-      "Assess"
+      _("Assess")
     ],
-    "hint": "Available when one or more stories are selected."
+    "hint": _("Available when one or more stories are selected.")
   },
   {
     "keys": [
@@ -37,61 +37,61 @@
       "Shift",
       "Space"
     ],
-    "label": "Mark selection as read",
+    "label": _("Mark selection as read"),
     "available": [
-      "Assess"
+      _("Assess")
     ],
-    "hint": "Available when one or more stories are selected."
+    "hint": _("Available when one or more stories are selected.")
   },
   {
     "keys": [
       "Shift",
       "I"
     ],
-    "label": "Mark selection as important",
+    "label": _("Mark selection as important"),
     "available": [
-      "Assess"
+      _("Assess")
     ],
-    "hint": "Available when one or more stories are selected."
+    "hint": _("Available when one or more stories are selected.")
   },
   {
     "keys": [
       "Shift",
       "G"
     ],
-    "label": "Cluster selected stories",
+    "label": _("Cluster selected stories"),
     "available": [
-      "Assess"
+      _("Assess")
     ],
-    "hint": "Requires two or more stories selected."
+    "hint": _("Requires two or more stories selected.")
   },
   {
     "keys": [
       "Shift",
       "A"
     ],
-    "label": "Select all items in view",
+    "label": _("Select all items in view"),
     "available": [
-      "Assess",
-      "Analyze",
-      "Publish"
+      _("Assess"),
+      _("Analyze"),
+      _("Publish")
     ],
-    "hint": "Available when story results are loaded."
+    "hint": _("Available when story results are loaded.")
   }
 ] %}
 
 <div id="hotkeys" class="container flex flex-col gap-4">
   <p class="text-sm text-base-content/80">
-    Hold <span class="font-semibold">Shift</span> while browsing Assess to reveal these shortcuts in the toolbar.
+    {{ _("Hold") }} <span class="font-semibold">Shift</span> {{ _("while browsing Assess to reveal these shortcuts in the toolbar.") }}
   </p>
   <div class="overflow-x-auto rounded-box border border-base-300">
     <table class="table table-zebra table-sm">
       <thead>
         <tr>
-          <th class="w-48">Shortcut</th>
-          <th>Label</th>
-          <th>Hint</th>
-          <th class="w-40">Available in</th>
+          <th class="w-48">{{ _("Shortcut") }}</th>
+          <th>{{ _("Label") }}</th>
+          <th>{{ _("Hint") }}</th>
+          <th class="w-40">{{ _("Available in") }}</th>
         </tr>
       </thead>
       <tbody>

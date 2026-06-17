@@ -10,19 +10,19 @@
     <div class="card-body gap-6">
       <div class="flex flex-col gap-3 md:flex-row md:items-center">
         <div class="flex-1">
-          <p class="text-sm font-semibold uppercase text-base-content/60">User</p>
+          <p class="text-sm font-semibold uppercase text-base-content/60">{{ _("User") }}</p>
           <h2 class="card-title text-3xl">{{ user.name }}</h2>
           <p class="text-sm text-base-content/70">{{ user.username }}</p>
         </div>
-        <button type="submit" class="btn btn-success md:self-start">Save changes</button>
+        <button type="submit" class="btn btn-success md:self-start">{{ _("Save changes") }}</button>
       </div>
 
       <div class="grid gap-4 md:grid-cols-2">
         <label class="flex items-start justify-between gap-4 rounded-xl border border-base-300 bg-base-200 p-4 hover:border-base-200"
                for="split-view-toggle">
           <div>
-            <p class="font-semibold text-base-content">Split view</p>
-            <p class="mt-1 text-sm text-base-content/70">Show the assess interface and story details side by side.</p>
+            <p class="font-semibold text-base-content">{{ _("Split view") }}</p>
+            <p class="mt-1 text-sm text-base-content/70">{{ _("Show the assess interface and story details side by side.") }}</p>
           </div>
           <div class="shrink-0">
             {# TODO: Reiterate on what is split view supposed to do - is it TBD? #}
@@ -39,8 +39,8 @@
         <label class="flex items-start justify-between gap-4 rounded-xl border border-base-300 bg-base-200 p-4 hover:border-base-200"
                for="compact-view-toggle">
           <div>
-            <p class="font-semibold text-base-content">Compact view</p>
-            <p class="mt-1 text-sm text-base-content/70">Use condensed spacing for tables and lists.</p>
+            <p class="font-semibold text-base-content">{{ _("Compact view") }}</p>
+            <p class="mt-1 text-sm text-base-content/70">{{ _("Use condensed spacing for tables and lists.") }}</p>
           </div>
           <div class="shrink-0">
             <input type="hidden" name="compact_view" value="false">
@@ -56,8 +56,8 @@
         <label class="flex items-start justify-between gap-4 rounded-xl border border-base-300 bg-base-200 p-4 hover:border-base-200"
                for="show-charts-toggle">
           <div>
-            <p class="font-semibold text-base-content">Show charts</p>
-            <p class="mt-1 text-sm text-base-content/70">Display dashboard visualisations when available.</p>
+            <p class="font-semibold text-base-content">{{ _("Show charts") }}</p>
+            <p class="mt-1 text-sm text-base-content/70">{{ _("Display dashboard visualisations when available.") }}</p>
           </div>
           <div class="shrink-0">
             <input type="hidden" name="show_charts" value="false">
@@ -73,19 +73,19 @@
         <label class="flex items-start justify-between gap-4 rounded-xl border border-base-300 bg-base-200 p-4 hover:border-base-200"
                for="dark-theme-toggle">
           <div>
-            <p class="font-semibold text-base-content">Dark theme</p>
-            <p class="mt-1 text-sm text-base-content/70">Prefer a dark colour palette across the application.</p>
+            <p class="font-semibold text-base-content">{{ _("Dark theme") }}</p>
+            <p class="mt-1 text-sm text-base-content/70">{{ _("Prefer a dark colour palette across the application.") }}</p>
           </div>
           <div class="shrink-0">
-            <span class="text">Can only be changed in system or browser settings</span>
+            <span class="text">{{ _("Can only be changed in system or browser settings") }}</span>
           </div>
         </label>
 
         <label class="flex items-start justify-between gap-4 rounded-xl border border-base-300 bg-base-200 p-4 hover:border-base-200"
                for="infinite-scroll-toggle">
           <div>
-            <p class="font-semibold text-base-content">Infinite scroll</p>
-            <p class="mt-1 text-sm text-base-content/70">Automatically load more results when you reach the bottom.</p>
+            <p class="font-semibold text-base-content">{{ _("Infinite scroll") }}</p>
+            <p class="mt-1 text-sm text-base-content/70">{{ _("Automatically load more results when you reach the bottom.") }}</p>
           </div>
           <div class="shrink-0">
             <input type="hidden" name="infinite_scroll" value="false">
@@ -101,8 +101,8 @@
         <label class="flex items-start justify-between gap-4 rounded-xl border border-base-300 bg-base-200 p-4 hover:border-base-200"
                for="advanced-story-toggle">
           <div>
-            <p class="font-semibold text-base-content">Advanced story edit options</p>
-            <p class="mt-1 text-sm text-base-content/70">Expose additional actions in story edit view.</p>
+            <p class="font-semibold text-base-content">{{ _("Advanced story edit options") }}</p>
+            <p class="mt-1 text-sm text-base-content/70">{{ _("Expose additional actions in story edit view.") }}</p>
           </div>
           <div class="shrink-0">
             <input type="hidden" name="advanced_story_options" value="false">
@@ -120,28 +120,58 @@
         <div class="rounded-xl border border-base-300 bg-base-200 p-4">
           <label class="form-control w-full" for="language-select">
             <div class="label">
-              <span class="label-text font-semibold text-base-content">Language</span>
+              <span class="label-text font-semibold text-base-content">{{ _("Language") }}</span>
             </div>
             <select id="language-select" name="language" class="select select-bordered w-full">
-              {{ language_options }}
               {% for option in language_options %}
                 <option value="{{ option.id }}" {% if option.id == profile.language %}selected{% endif %}>{{ option.name }}</option>
               {% endfor %}
             </select>
             <div class="label">
-              <span class="label-text-alt text-base-content/70">Choose the interface language.</span>
+              <span class="label-text-alt text-base-content/70">
+                {{ _("Choose the interface language.") }}
+                {{ _("Experimental: currently only login and user settings are translated.") }}
+              </span>
             </div>
           </label>
         </div>
 
         <div class="rounded-xl border border-base-300 bg-base-200 p-4">
+          {% set selected_timezone = profile.timezone|default("UTC", true) %}
+          <div class="form-control w-full">
+            <label class="label" for="timezone-select">
+              <span class="label-text font-semibold text-base-content">{{ _("Timezone") }}</span>
+            </label>
+            <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-start">
+              <div class="min-w-0 flex-1">
+                <select id="timezone-select"
+                        name="timezone"
+                        class="select select-bordered w-full"
+                        data-choices-placeholder-value="{{ _('Select timezone') }}"
+                        data-choices-no-results-text="{{ _('No timezones found') }}"
+                        data-choices-no-choices-text="{{ _('No timezones to choose from') }}"
+                        data-choices-item-select-text="{{ _('Press to select') }}">
+                  {% for timezone in timezone_options %}
+                    <option value="{{ timezone }}" {% if timezone == selected_timezone %}selected{% endif %}>{{ timezone }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <button type="button" class="btn btn-outline w-full sm:w-auto sm:shrink-0" data-use-browser-timezone>{{ _("Use browser timezone") }}</button>
+            </div>
+            <div class="label">
+              <span class="label-text-alt text-base-content/70">{{ _("Choose how local times are displayed.") }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-base-300 bg-base-200 p-4">
           <label class="form-control w-full" for="end-of-shift">
             <div class="label">
-              <span class="label-text font-semibold text-base-content">End of shift</span>
+              <span class="label-text font-semibold text-base-content">{{ _("End of shift") }}</span>
             </div>
             <input id="end-of-shift" name="end_of_shift" type="time" value="{{ profile.end_of_shift or '' }}" class="input input-bordered w-full" />
             <div class="label">
-              <span class="label-text-alt text-base-content/70">Used to plan notifications and highlights.</span>
+              <span class="label-text-alt text-base-content/70">{{ _("Used to plan notifications and highlights.") }}</span>
             </div>
           </label>
         </div>
@@ -150,31 +180,62 @@
       <div class="rounded-xl border border-base-300 bg-base-200 p-4" data-sse-section>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p class="font-semibold text-base-content">Live updates</p>
-            <p class="text-sm text-base-content/70" data-sse-label>Checking connection status…</p>
+            <p class="font-semibold text-base-content">{{ _("Live updates") }}</p>
+            <p class="text-sm text-base-content/70" data-sse-label>{{ _("Checking connection status...") }}</p>
           </div>
           <label class="flex items-center gap-3">
-            <span class="text-sm text-base-content">Enable SSE</span>
+            <span class="text-sm text-base-content">{{ _("Enable SSE") }}</span>
             <input type="checkbox" class="toggle toggle-success" data-sse-toggle>
           </label>
         </div>
-        <p class="mt-2 text-xs text-base-content/60" data-sse-hint>Server-sent events let the UI react to changes without refreshing.</p>
+        <p class="mt-2 text-xs text-base-content/60" data-sse-hint>{{ _("Server-sent events let the UI react to changes without refreshing.") }}</p>
         <p class="mt-1 text-xs text-base-content/60 font-mono break-all">{{ core_sse_url }}</p>
       </div>
     </div>
   </div>
 </form>
 
+<script type="text/javascript">
+  (function () {
+    function initTimezoneSettings() {
+      const select = document.getElementById("timezone-select");
+      const button = document.querySelector("[data-use-browser-timezone]");
+      if (!select || !button) {
+        return;
+      }
+
+      const choices = typeof initChoices === "function" ? initChoices("timezone-select") : null;
+      button.addEventListener("click", function () {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (!timezone) {
+          return;
+        }
+        if (choices && typeof choices.setChoiceByValue === "function") {
+          choices.setChoiceByValue(timezone);
+        }
+        select.value = timezone;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    if (document.readyState === "loading" && typeof initChoices !== "function") {
+      document.addEventListener("DOMContentLoaded", initTimezoneSettings, { once: true });
+    } else {
+      initTimezoneSettings();
+    }
+  })();
+</script>
+
 <div class="card bg-base-100 shadow my-6">
   <div class="card-body gap-4">
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div>
-        <h3 class="card-title text-2xl">Onboarding Tours</h3>
-        <p class="text-sm text-base-content/70">Reset your completed onboarding tours and show them again.</p>
+        <h3 class="card-title text-2xl">{{ _("Onboarding Tours") }}</h3>
+        <p class="text-sm text-base-content/70">{{ _("Reset your completed onboarding tours and show them again.") }}</p>
       </div>
       <form method="post" hx-post="{{ url_for('user.settings') }}" hx-target="#user-settings-page" hx-select="#user-settings-page" hx-swap="outerHTML">
         <input type="hidden" name="reset_onboarding_tasks" value="true">
-        <button type="submit" class="btn btn-outline" data-testid="user-reset-onboarding-tours">Reset onboarding tours</button>
+        <button type="submit" class="btn btn-outline" data-testid="user-reset-onboarding-tours">{{ _("Reset onboarding tours") }}</button>
       </form>
     </div>
   </div>
@@ -192,15 +253,15 @@
       <div tabindex="0" class="collapse collapse-arrow rounded-box border border-base-300 bg-base-200">
         <input type="checkbox" />
         <div class="collapse-title flex flex-col gap-1">
-          <p class="text-sm font-semibold uppercase text-base-content/60">Password</p>
-          <h3 class="text-2xl font-semibold text-base-content">Change your password</h3>
-          <p class="text-sm text-base-content/70">Keep this secure and avoid reusing passwords from other systems.</p>
+          <p class="text-sm font-semibold uppercase text-base-content/60">{{ _("Password") }}</p>
+          <h3 class="text-2xl font-semibold text-base-content">{{ _("Change your password") }}</h3>
+          <p class="text-sm text-base-content/70">{{ _("Keep this secure and avoid reusing passwords from other systems.") }}</p>
         </div>
         <div class="collapse-content p-0">
           <div class="flex flex-col gap-4 p-4">
             <label class="form-control w-full" for="current-password-input">
               <div class="label">
-                <span class="label-text font-semibold text-base-content">Current password</span>
+                <span class="label-text font-semibold text-base-content">{{ _("Current password") }}</span>
               </div>
               <input id="current-password-input"
                      name="current_password"
@@ -212,20 +273,20 @@
 
             <label class="form-control w-full" for="new-password-input">
               <div class="label">
-                <span class="label-text font-semibold text-base-content">New password</span>
+                <span class="label-text font-semibold text-base-content">{{ _("New password") }}</span>
               </div>
               <input id="new-password-input" name="new_password" type="password" class="input input-bordered w-full" autocomplete="new-password" required>
             </label>
 
             <label class="form-control w-full" for="confirm-password-input">
               <div class="label">
-                <span class="label-text font-semibold text-base-content">Confirm new password</span>
+                <span class="label-text font-semibold text-base-content">{{ _("Confirm new password") }}</span>
               </div>
               <input id="confirm-password-input" name="confirm_password" type="password" class="input input-bordered w-full" autocomplete="new-password" required>
             </label>
 
             <div class="flex items-center justify-end">
-              <button type="submit" class="btn btn-primary">Update password</button>
+              <button type="submit" class="btn btn-primary">{{ _("Update password") }}</button>
             </div>
           </div>
         </div>
@@ -237,11 +298,11 @@
 <div class="card bg-base-100 shadow">
   <div class="card-body gap-4">
     <div class="flex flex-col gap-2">
-      <h3 class="card-title text-2xl">Keyboard Shortcuts</h3>
+      <h3 class="card-title text-2xl">{{ _("Keyboard Shortcuts") }}</h3>
       <p class="text-sm text-base-content/70">
-        HotKeys are currently static only.
+        {{ _("HotKeys are currently static only.") }}
         <a class="link" href="https://github.com/taranis-ai/taranis-ai/issues/137" target="_blank" rel="noreferrer">Issue #137</a>
-        tracks progress on making them configurable.
+        {{ _("tracks progress on making them configurable.") }}
       </p>
     </div>
     {% include "user_profile/hotkey_kbd.html" %}

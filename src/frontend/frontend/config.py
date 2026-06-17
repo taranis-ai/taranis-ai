@@ -44,8 +44,10 @@ class Settings(BaseSettings):
     OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
     OSINT_SOURCE_ICON_ALLOWED_MIMETYPES: str = "image/png,image/jpeg,image/webp"
 
-    # BABEL_DEFAULT_LOCALE: str = "en"
-    # BABEL_DEFAULT_TIMEZONE: str = "UTC"
+    BABEL_DEFAULT_LOCALE: str = "en"
+    BABEL_DEFAULT_TIMEZONE: str = "UTC"
+    BABEL_TRANSLATION_DIRECTORIES: str = "translations"
+    BABEL_SUPPORTED_LOCALES: list[str] = ["en", "de"]
     CACHE_ENABLED: bool = CACHE_ENABLED_DEFAULT
     CACHE_DEFAULT_TIMEOUT: int = CACHE_DEFAULT_TIMEOUT_DEFAULT
     CACHE_KEY_PREFIX: str = CACHE_KEY_PREFIX_DEFAULT
