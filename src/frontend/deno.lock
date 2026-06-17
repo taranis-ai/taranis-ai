@@ -12,8 +12,8 @@
     "npm:@codemirror/state@^6.6.0": "6.6.0",
     "npm:@codemirror/view@*": "6.43.1",
     "npm:@codemirror/view@^6.43.1": "6.43.1",
-    "npm:@tailwindcss/cli@*": "4.3.1",
-    "npm:@tailwindcss/cli@^4.3.1": "4.3.1",
+    "npm:@tailwindcss/cli@*": "4.3.0",
+    "npm:@tailwindcss/cli@4.3.0": "4.3.0",
     "npm:alpinejs@*": "3.15.12",
     "npm:alpinejs@^3.15.12": "3.15.12",
     "npm:choices.js@*": "11.2.3",
@@ -90,8 +90,8 @@
         "style-mod"
       ]
     },
-    "@codemirror/search@6.7.0": {
-      "integrity": "sha512-ZvGm99wc/s2cITtMT15LFdn8aH/aS+V+DqyGq/N5ZlV5vWtH+nILvC2nw0zX7ByNoHHDZ2IxxdW38O0tc5nVHg==",
+    "@codemirror/search@6.7.1": {
+      "integrity": "sha512-uMe5UO6PamJtSHrXhhHOzSX3ReWtiJrva6GnPMwSOrZtiExb5X5eExhr2OUZQVvdxPsKpY3Ro2mFbQadpPWmHA==",
       "dependencies": [
         "@codemirror/state",
         "@codemirror/view",
