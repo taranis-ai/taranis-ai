@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import responses
 from flask import json, url_for
 from models.user import USER_PRODUCT_OVERVIEW_TASK_ID
 from playwright.sync_api import Browser, BrowserContext, Page, expect
@@ -177,9 +178,16 @@ def e2e_ci(request):
         print("Running in CI mode")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def e2e_requests_mock():
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        rsps.add_passthru(LOCALHOST_PASSTHRU_PATTERN)
+        yield rsps
+
+
 @pytest.fixture(scope="function", autouse=True)
-def allow_localhost_core_requests(responses) -> None:
-    responses.add_passthru(LOCALHOST_PASSTHRU_PATTERN)
+def allow_localhost_core_requests(e2e_requests_mock) -> None:
+    e2e_requests_mock.add_passthru(LOCALHOST_PASSTHRU_PATTERN)
 
 
 @pytest.fixture(scope="session")
@@ -559,9 +567,15 @@ def stories_function_wrapper(api_header, fake_source, core_request_client):
 
     news_item_ids_created = []
     for news_item_ids in request_responses:
-        news_item_ids_created.extend(news_item_ids.json().get("news_item_ids"))
+        try:
+            news_item_ids_created.extend(news_item_ids.json().get("news_item_ids", []))
+        except Exception:
+            continue
     for news_item_id in news_item_ids_created:
-        core_request_client.delete(f"/assess/news-items/{news_item_id}")
+        try:
+            core_request_client.delete(f"/assess/news-items/{news_item_id}")
+        except Exception:
+            pass
 
 
 @pytest.fixture(scope="session")
@@ -632,8 +646,17 @@ def stories(core_request_client, api_header, fake_source):
     _set_important_flags()
     request_responses = []
     for story in cleaned_stories[:36]:
-        r = core_request_client.post("/worker/stories", json_data=story, headers=api_header, authenticated=False)
+        r = core_request_client.post(
+            "/worker/stories",
+            json_data=story,
+            headers=api_header,
+            authenticated=False,
+            raise_for_status=False,
+        )
         request_responses.append(r)
+        if r.status_code == 409:
+            continue
+        r.raise_for_status()
 
         # === Story grouping (clustering) logic ===
     story_groups = [
@@ -690,9 +713,25 @@ def pre_seed_stories(news_items_list, core_request_client):  # noqa: F811
     print("Pre-seeding stories via assess API")
     story_list = []
     news_item_ids_created: list[str] = []
+
+    def _collect_story_news_item_ids(story_id: str) -> list[str]:
+        try:
+            story = core_request_client.get(f"/assess/stories/{story_id}").json()
+        except Exception:
+            return []
+        news_items = story.get("news_items", []) if isinstance(story, dict) else []
+        return [news_item.get("id") for news_item in news_items if isinstance(news_item, dict) and news_item.get("id")]
+
     for item in news_items_list:
         r = core_request_client.post("/assess/news-items", json_data=item, raise_for_status=False)
         if not r.ok:
+            if r.status_code == 409:
+                payload = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+                skipped_story_id = payload.get("skipped_news_item_story_id")
+                if isinstance(skipped_story_id, str):
+                    story_list.append({"story_id": skipped_story_id, **item})
+                    news_item_ids_created.extend(_collect_story_news_item_ids(skipped_story_id))
+                    continue
             try:
                 error_payload = r.json()
             except ValueError:
@@ -707,7 +746,10 @@ def pre_seed_stories(news_items_list, core_request_client):  # noqa: F811
     yield story_list
 
     for news_item_id in news_item_ids_created:
-        core_request_client.delete(f"/assess/news-items/{news_item_id}")
+        try:
+            core_request_client.delete(f"/assess/news-items/{news_item_id}")
+        except Exception:
+            pass
 
 
 @pytest.fixture(scope="session")
@@ -833,10 +875,19 @@ def test_batch_osint_sources(core_request_client, e2e_server, access_token_respo
 
     yield source_data
 
-    list_response = core_request_client.get("/config/osint-sources")
-    for source in list_response.json().get("items", []):
-        if source_id := source.get("id"):
-            core_request_client.delete(f"/config/osint-sources/{source_id}", params={"force": "true"})
+    try:
+        list_response = core_request_client.get("/config/osint-sources")
+        for source in list_response.json().get("items", []):
+            if source_id := source.get("id"):
+                try:
+                    core_request_client.delete(
+                        f"/config/osint-sources/{source_id}",
+                        params={"force": "true"},
+                    )
+                except Exception:
+                    pass
+    except Exception:
+        pass
     invalidate_osint_source_caches()
 
 
