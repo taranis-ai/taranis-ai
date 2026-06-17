@@ -112,9 +112,9 @@ class StoryView(BaseView):
         except HTTPException:
             raise
         except ValueError as exc:
-            logger.exception("Failed to load bookmark collections for assess bar: %s", exc)
+            logger.exception(f"Failed to load bookmark collections for assess bar: {exc}")
         except Exception as exc:  # noqa: BLE001
-            logger.exception("Unexpected bookmark bar load error: %s", exc)
+            logger.exception(f"Unexpected bookmark bar load error: {exc}")
             return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
         return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
 
