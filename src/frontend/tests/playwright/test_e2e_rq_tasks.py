@@ -15,6 +15,8 @@ from rq.results import Result
 from tests.core_requests import CoreRequestClient
 
 
+pytest_plugins = ("tests.playwright.rq_e2e_fixtures",)
+
 CRON_ENQUEUE_KEY_PREFIX = "rq:cron:enqueue:"
 CRON_NEXT_KEY = "rq:cron:next"
 DEFAULT_JOB_TIMEOUT_SECONDS = 30
@@ -22,6 +24,8 @@ CRON_JOB_TIMEOUT_SECONDS = 20
 
 RedisBackend = dict[str, str]
 JsonDict = dict[str, Any]
+
+pytestmark = pytest.mark.usefixtures("allow_local_http_passthrough")
 
 
 def _parse_cron_spec(raw_spec: object) -> dict[str, Any]:
@@ -310,7 +314,9 @@ def test_rq_scheduled_collector_cron(
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
     assert payload.get("status") == "SUCCESS"
-    assert source_payload["name"] in (payload.get("result") or "")
+    result = payload.get("result") or {}
+    result_message = result.get("message") if isinstance(result, dict) else result
+    assert source_payload["name"] in (result_message or "")
     _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
     assert next_run_after_execution > forced_due_timestamp
 

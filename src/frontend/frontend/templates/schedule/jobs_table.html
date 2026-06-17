@@ -39,18 +39,16 @@
               {% endif %}
             </td>
             <td>
-              {% if job.next_run_display %}
-                <div class="text-sm">{{ job.next_run_display }}</div>
+              {% if job.next_run_time %}
+                <div class="text-sm">{{ job.next_run_time | format_datetime }}</div>
                 {% if job.next_run_relative %}<div class="text-xs opacity-60">{{ job.next_run_relative }}</div>{% endif %}
-              {% elif job.next_run_time %}
-                <span class="text-sm">{{ job.next_run_time }}</span>
               {% else %}
                 <span class="text-xs opacity-50">-</span>
               {% endif %}
             </td>
             <td>
-              {% if job.last_run_display %}
-                <div class="text-sm">{{ job.last_run_display }}</div>
+              {% if job.last_run %}
+                <div class="text-sm">{{ job.last_run | format_datetime }}</div>
                 {% if job.last_run_relative %}<div class="text-xs opacity-60">{{ job.last_run_relative }}</div>{% endif %}
               {% else %}
                 <span class="text-xs opacity-50">Never</span>

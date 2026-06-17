@@ -6,6 +6,8 @@ from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID, ONBOARDIN
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 from playwright_helpers import PlaywrightHelpers
 
+from tests.external_e2e import allow_requests_passthru
+
 
 VIEWPORT_WARNING_STORAGE_KEY = "taranis.viewportWarningDismissed"
 
@@ -21,6 +23,7 @@ class TestViewportNotice(PlaywrightHelpers):
         return context, page
 
     def test_warning_bar_tracks_wxga_plus_threshold(self, browser: Browser, e2e_request_context, core_request_client):
+        allow_requests_passthru(core_request_client.base_url)
         response = core_request_client.post(
             "/users/profile",
             json_data={

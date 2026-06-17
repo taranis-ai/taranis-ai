@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.orm import Mapped
 
@@ -32,6 +33,7 @@ class Settings(BaseModel):
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
+        merged.setdefault("default_timezone", None)
         return merged
 
     @classmethod
@@ -47,7 +49,10 @@ class Settings(BaseModel):
         raw_update_data = data.get("settings", {})
         if not isinstance(raw_update_data, Mapping):
             return {"error": "settings must be a JSON object"}, 400
-        update_data = dict(raw_update_data)
+        try:
+            update_data = cls._normalize_update_data(dict(raw_update_data))
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
 
         if update_data:
             logger.debug(f"Settings update data: {update_data}")
@@ -75,6 +80,28 @@ class Settings(BaseModel):
             logger.debug("No Settings entry found")
             return {}
         return cls.with_defaults(settings.settings)
+
+    @classmethod
+    def _normalize_update_data(cls, data: dict) -> dict:
+        normalized = dict(data)
+        if "default_timezone" in normalized:
+            normalized["default_timezone"] = cls._validate_timezone(normalized.get("default_timezone"))
+        return normalized
+
+    @staticmethod
+    def _validate_timezone(value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError("Invalid timezone: must be a string")
+        timezone_name = value.strip()
+        if not timezone_name:
+            return None
+        try:
+            ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            raise ValueError(f"Invalid timezone: {timezone_name}") from None
+        return timezone_name
 
     @classmethod
     def get_settings_entry(cls) -> "Settings | None":

@@ -3,6 +3,7 @@ import contextlib
 import requests
 from flask import Response, make_response, request, url_for
 from flask.views import MethodView
+from flask_babel import gettext
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import is_safe_redirect_target, logout, render_login_page
@@ -39,14 +40,14 @@ class AuthView(MethodView):
 
             if attempt < attempts:
                 logger.debug(f"External login attempt failed, retrying... Status code: {status_code}")
-        return make_response(render_login_page(login_error="Login failed, no response from server"), 500)
+        return make_response(render_login_page(login_error=gettext("Login failed, no response from server")), 500)
 
     def login_flow(self, core_response: requests.Response) -> Response:
         if core_response is None:
-            return make_response(render_login_page(login_error="Login failed, no response from server"), 500)
+            return make_response(render_login_page(login_error=gettext("Login failed, no response from server")), 500)
 
         if not core_response.ok:
-            error_message = "Login failed"
+            error_message = gettext("Login failed")
             with contextlib.suppress(Exception):
                 response_json = core_response.json()
                 if isinstance(response_json, dict):
@@ -70,26 +71,28 @@ class AuthView(MethodView):
                 if auth_header_names.get("username_header") not in auth_headers:
                     logger.debug(f"Missing required auth header for external login: {auth_header_names.get('username_header')}")
                     return render_login_page(
-                        notification={"message": "Missing required authentication headers - contact your admin", "error": True},
+                        notification={"message": gettext("Missing required authentication headers - contact your admin"), "error": True},
                     ), 400
                 return self._external_login_with_retries(auth_headers, attempts=3)
             return render_login_page(), 200
 
-        return render_login_page(notification={"message": f"API is not reachable - {Config.TARANIS_CORE_URL}", "error": True}), 500
+        return render_login_page(
+            notification={"message": gettext("API is not reachable - %(url)s", url=Config.TARANIS_CORE_URL), "error": True}
+        ), 500
 
     def post(self):
         username = request.form.get("username")
         password = request.form.get("password")
 
         if not username or not password:
-            return render_login_page(login_error="Username and password are required"), 400
+            return render_login_page(login_error=gettext("Username and password are required")), 400
 
         try:
             core_response = CoreApi().login(username, password)
         except HTTPException:
             raise
-        except Exception:
-            return render_login_page(login_error="Login failed, no response from server"), 500
+        except requests.RequestException:
+            return render_login_page(login_error=gettext("Login failed, no response from server")), 500
 
         return self.login_flow(core_response)
 

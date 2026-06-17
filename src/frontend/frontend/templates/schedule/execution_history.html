@@ -33,15 +33,15 @@
               {% endif %}
             </td>
             <td class="text-right">
-              {% if stats.last_run_display %}
-                <span class="text-xs">{{ stats.last_run_display }}</span>
+              {% if stats.last_run %}
+                <span class="text-xs">{{ stats.last_run | format_datetime }}</span>
               {% else %}
                 <span class="text-xs opacity-50">Never</span>
               {% endif %}
             </td>
             <td class="text-right">
-              {% if stats.last_success_display %}
-                <span class="text-xs">{{ stats.last_success_display }}</span>
+              {% if stats.last_success %}
+                <span class="text-xs">{{ stats.last_success | format_datetime }}</span>
               {% else %}
                 <span class="text-xs opacity-50">Never</span>
               {% endif %}

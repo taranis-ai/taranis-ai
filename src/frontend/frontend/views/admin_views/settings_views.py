@@ -3,6 +3,7 @@ from models.admin import Settings
 
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.i18n import get_timezone_options
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.views.admin_views.admin_mixin import AdminMixin
@@ -24,6 +25,7 @@ class SettingsView(AdminMixin, BaseView):
         dpl = DataPersistenceLayer()
         base_context["_is_admin"] = cls._is_admin
         base_context["settings"] = dpl.get_first(Settings)
+        base_context["timezone_options"] = get_timezone_options()
         base_context["frontend_actions"] = [
             {
                 "label": "Invalidate Cache",

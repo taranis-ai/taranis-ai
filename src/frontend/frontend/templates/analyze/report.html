@@ -110,7 +110,9 @@
             {% if grouped_attributes %}
               {% for group in grouped_attributes %}
                 <div class="bg-base-200 rounded-box p-4 mb-4">
-                  {% if group.title %}<h3 class="text-lg font-semibold mb-3">{{ group.title }}</h3>{% endif %}
+                  {% if group.title %}
+                    <h3 class="text-lg font-semibold mb-3">{{ group.title }}</h3>
+                  {% endif %}
                   {% for attribute in group.attributes %}{{ attribute_field(attribute, stories=stories) }}{% endfor %}
                 </div>
               {% endfor %}
@@ -160,9 +162,9 @@
         return;
       }
 
-      const placeholder = select.dataset.choicePlaceholder || select.dataset.choiceType || "items";
-      const itemSelectText = select.dataset.choiceItemText || `Add ${placeholder}`;
-      initChoices(select.id, placeholder, { itemSelectText, placeholderValue: placeholder });
+      const placeholder = select.dataset.choicePlaceholder || "";
+      const itemSelectText = select.dataset.choiceItemText || "";
+      initChoices(select.id, { itemSelectText, placeholderValue: placeholder });
       select.dataset.choicesInitialized = "true";
     });
   }
