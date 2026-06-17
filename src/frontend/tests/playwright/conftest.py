@@ -18,6 +18,7 @@ from playwright.sync_api import Browser, BrowserContext, Page, expect
 
 from tests.core_requests import CoreRequestClient
 from tests.external_e2e import (
+    LOCALHOST_PASSTHRU_PATTERN,
     allow_requests_passthru,
     core_host_from_api_url,
     external_auth_credentials,
@@ -176,9 +177,9 @@ def e2e_ci(request):
         print("Running in CI mode")
 
 
-@pytest.fixture(scope="session", autouse=True)
-def allow_localhost_core_requests() -> None:
-    allow_requests_passthru()
+@pytest.fixture(scope="function", autouse=True)
+def allow_localhost_core_requests(responses) -> None:
+    responses.add_passthru(LOCALHOST_PASSTHRU_PATTERN)
 
 
 @pytest.fixture(scope="session")
