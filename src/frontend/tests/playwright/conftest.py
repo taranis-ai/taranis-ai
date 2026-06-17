@@ -176,6 +176,11 @@ def e2e_ci(request):
         print("Running in CI mode")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def allow_localhost_core_requests() -> None:
+    allow_requests_passthru()
+
+
 @pytest.fixture(scope="session")
 def e2e_server_external():
     external_frontend_url = external_frontend_base_url()
@@ -199,15 +204,11 @@ def e2e_server(request):
     return request.getfixturevalue("e2e_server_local")
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def e2e_request_context(e2e_server, app):
     app = getattr(e2e_server, "app", None) or app
-    ctx = app.test_request_context()
-    ctx.push()
-    try:
+    with app.test_request_context():
         yield
-    finally:
-        ctx.pop()
 
 
 @pytest.fixture(scope="session")
@@ -249,7 +250,7 @@ def setup_test_templates(core_request_client):
             pass
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def taranis_frontend(request, e2e_request_context, setup_test_templates, browser_context_args, browser: Browser):
     timeout = int(request.config.getoption("--e2e-timeout"))
     expect.set_options(timeout=timeout)
