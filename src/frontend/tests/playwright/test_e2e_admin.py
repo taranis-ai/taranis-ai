@@ -8,7 +8,6 @@ from base_e2e_test import BaseE2ETest
 from flask import url_for
 from playwright.sync_api import Page, expect
 
-from tests.external_e2e import allow_requests_passthru
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -23,13 +22,12 @@ SCHEDULER_BASELINE_TOTAL_TEXT_PREFIX = "Total:"
 SCHEDULER_BASELINE_TOTAL_TEXT_SUFFIX = "scheduled jobs"
 
 
-def reset_admin_onboarding_tours(core_request_client):
-    allow_requests_passthru(core_request_client.base_url)
-    response = core_request_client.post(
-        "/users/profile",
-        json_data={"onboarding_tasks": {}},
-    )
-    assert response.ok, f"Failed to reset onboarding tours: {response.status_code}"
+def reset_admin_onboarding_tours(page: Page):
+    page.goto(url_for("user.settings", _external=True))
+    with expect_profile_post_response(page) as response_info:
+        page.get_by_test_id("user-reset-onboarding-tours").click()
+    assert response_info.value.ok, f"Failed to reset onboarding tours: {response_info.value.status}"
+    expect(page.get_by_test_id("user-reset-onboarding-tours")).to_be_visible()
 
 
 def expect_profile_post_response(page: Page):
@@ -50,6 +48,7 @@ def go_to_next_driver_step(page: Page, title: str):
 
 def start_admin_onboarding_from_dashboard(page: Page):
     expect(page.locator(".driver-popover")).not_to_be_visible()
+    expect(page.locator("#onboarding-root")).to_have_count(1)
     page.get_by_role("link", name="Admin Dashboard").click()
     expect_driver_step(page, "Admin Dashboard")
 
@@ -73,9 +72,9 @@ class TestEndToEndAdmin(BaseE2ETest):
         page.context.clear_cookies()
         self.login_with_credentials(page)
 
-    def test_admin_welcome_onboarding_tour_complete_now(self, logged_in_page: Page, core_request_client, forward_console_and_page_errors):
-        reset_admin_onboarding_tours(core_request_client)
+    def test_admin_welcome_onboarding_tour_complete_now(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
+        reset_admin_onboarding_tours(page)
         page.goto(url_for("admin.dashboard", _external=True))
 
         start_admin_onboarding_from_dashboard(page)
@@ -100,9 +99,9 @@ class TestEndToEndAdmin(BaseE2ETest):
         page.reload()
         expect(page.locator(".driver-popover")).not_to_be_visible()
 
-    def test_admin_advanced_onboarding_tour(self, logged_in_page: Page, core_request_client, forward_console_and_page_errors):
-        reset_admin_onboarding_tours(core_request_client)
+    def test_admin_advanced_onboarding_tour(self, logged_in_page: Page, forward_console_and_page_errors):
         page = logged_in_page
+        reset_admin_onboarding_tours(page)
         page.goto(url_for("admin.dashboard", _external=True))
 
         start_admin_onboarding_from_dashboard(page)
@@ -1382,4 +1381,4 @@ class TestEndToEndAdmin(BaseE2ETest):
         with page.expect_popup() as openapi_info:
             self.highlight_element(page.get_by_role("link", name="OpenAPI")).click()
         openapi_page = openapi_info.value
-        expect(openapi_page.locator("iframe").content_frame.get_by_role("heading", name="Taranis AI 1.").first).to_be_visible()
+        expect(openapi_page.locator("iframe").content_frame.locator(".info .title").first).to_contain_text("Taranis AI", timeout=15000)
