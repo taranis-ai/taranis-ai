@@ -157,6 +157,13 @@ msgstr "Benutzereinstellungen"
 msgid "Logout"
 msgstr "Abmelden"
 
+#: frontend/templates/partials/navbar.html:63
+#: frontend/templates/bookmarks/bookmark_list.html:4
+#: frontend/templates/bookmarks/bookmark_detail.html:12
+#: frontend/templates/assess/bookmarks_bar.html:8
+msgid "Bookmarks"
+msgstr "Lesezeichen"
+
 #: frontend/templates/partials/viewport_notice.html:5
 msgid "Dismiss resolution warning"
 msgstr "Auflösungswarnung ausblenden"

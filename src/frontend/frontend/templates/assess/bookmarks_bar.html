@@ -5,7 +5,7 @@
   <div class="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
     <span class="inline-flex items-center gap-1 whitespace-nowrap px-2 text-xs font-semibold uppercase text-base-content/60">
       {{ heroicon_mini("bookmark", class="h-4 w-4") }}
-      Bookmarks
+      {{ _("Bookmarks") }}
     </span>
     {% for bookmark in bookmark_collections[:6] %}
       <a href="{{ url_for('assess.bookmark', bookmark_id=bookmark.id) }}"
