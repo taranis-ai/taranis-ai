@@ -44,11 +44,15 @@ class DashboardView(BaseView):
         try:
             trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
             dashboard_config = current_user.profile.dashboard
+            from frontend.views.story_views import StoryView
+
+            saved_filters = StoryView.get_saved_filter_links()
         except HTTPException:
             raise
         except Exception:
             trending_clusters = []
             dashboard_config = ProfileSettingsDashboard()
+            saved_filters = []
 
         return (
             render_template(
@@ -56,6 +60,7 @@ class DashboardView(BaseView):
                 data=dashboard,
                 clusters=trending_clusters,
                 dashboard_config=dashboard_config,
+                saved_filters=saved_filters,
             ),
             200,
         )

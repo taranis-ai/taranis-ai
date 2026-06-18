@@ -11,6 +11,8 @@
     {% include "dashboard/user_item_cards.html" %}
 
     {% if dashboard_config.show_trending_clusters and clusters %}
+      {% set visible_clusters = clusters[:3] %}
+      {% set hidden_clusters = clusters[3:] %}
       <div class="mb-4">
         <div class="text-3xl font-bold">Recently Active Tags</div>
         <p class="text-sm text-base-content/70">
@@ -18,12 +20,37 @@
         </p>
       </div>
 
-      <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
-        {% for cluster in clusters %}
+      <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="recently-active-tags-default">
+        {% for cluster in visible_clusters %}
           {% call trending_card(cluster) %}
           {% endcall %}
         {% endfor %}
       </div>
+
+      {% if hidden_clusters %}
+        <details class="mt-4" data-testid="recently-active-tags-more" x-data="{ open: false }" @toggle="open = $el.open">
+          <summary class="btn btn-outline btn-sm">
+            <span x-text="open ? 'Show less' : 'Show more'">Show more</span>
+          </summary>
+          <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="recently-active-tags-extra">
+            {% for cluster in hidden_clusters %}
+              {% call trending_card(cluster) %}
+              {% endcall %}
+            {% endfor %}
+          </div>
+        </details>
+      {% endif %}
+    {% endif %}
+
+    {% if saved_filters %}
+      <section class="mt-6" data-testid="dashboard-saved-filters">
+        <div class="text-xl font-bold mb-2">Saved Filters</div>
+        <div class="flex flex-wrap gap-2">
+          {% for saved_filter in saved_filters %}
+            <a class="btn btn-outline btn-sm" href="{{ saved_filter.url }}">{{ saved_filter.name }}</a>
+          {% endfor %}
+        </div>
+      </section>
     {% endif %}
   </div>
 {% endblock content %}

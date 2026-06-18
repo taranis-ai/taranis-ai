@@ -302,16 +302,21 @@ class StoryView(BaseView):
         saved_filters = saved_filters if saved_filters is not None else cls._get_saved_assess_filters()
         current_filters = cls._extract_assess_filters_from_request()
         return {
-            "saved_filters": [
-                {
-                    **saved_filter,
-                    "url": cls._build_assess_filters_url(cls._filter_payload_to_request_params(saved_filter["filters"])),
-                }
-                for saved_filter in saved_filters
-            ],
+            "saved_filters": cls.get_saved_filter_links(saved_filters),
             "current_filters": current_filters,
             "has_current_filters": bool(current_filters),
         }
+
+    @classmethod
+    def get_saved_filter_links(cls, saved_filters: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+        saved_filters = saved_filters if saved_filters is not None else cls._get_saved_assess_filters()
+        return [
+            {
+                **saved_filter,
+                "url": cls._build_assess_filters_url(cls._filter_payload_to_request_params(saved_filter["filters"])),
+            }
+            for saved_filter in saved_filters
+        ]
 
     @classmethod
     def _get_assess_request_params(cls, request_params: dict[str, list[str]] | None = None) -> dict[str, list[str]]:

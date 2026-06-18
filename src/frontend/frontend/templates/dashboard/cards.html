@@ -14,7 +14,7 @@
 {% endmacro %}
 
 {% macro trending_card(cluster) %}
-  <div class="bg-base-100 border p-4 w-full min-w-0 overflow-hidden">
+  <div class="bg-base-100 border p-4 w-full min-w-0 overflow-hidden" data-testid="trending-card">
     <div class="justify-between flex items-center mb-1">
       <div class="join">
         {{ heroicon_solid("tag", size=24, class="mr-2 pt-1") }}

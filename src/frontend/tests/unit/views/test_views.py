@@ -4,13 +4,15 @@ from datetime import datetime
 from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import patch
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import pytest
-from flask import render_template
+from flask import render_template, url_for
+from lxml import html
 from models.admin import OSINTSource
 from models.task import Task
 from models.types import COLLECTOR_TYPES
+from models.user import AssessSavedFilter
 
 from frontend.cache import add_user_to_cache, cache
 from frontend.config import Config
@@ -38,6 +40,54 @@ def _json_request_body(call) -> dict:
     if isinstance(body, bytes):
         body = body.decode("utf-8")
     return json.loads(body or "{}")
+
+
+def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_client, auth_user, responses_mock, mock_core_get_endpoints):
+    _ = mock_core_get_endpoints
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.assess_saved_filters = [
+        AssessSavedFilter(
+            id="filter-1",
+            name="Shift queue",
+            filters={"search": "incident", "tags": ["alpha"], "sort": "date_desc"},
+        )
+    ]
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/dashboard/trending-clusters",
+        json={
+            "items": [
+                {"name": "Location", "size": 10, "tags": [{"name": "USA", "size": 6}]},
+                {"name": "Organization", "size": 8, "tags": [{"name": "AIT", "size": 3}]},
+                {"name": "Product", "size": 6, "tags": [{"name": "Taranis", "size": 2}]},
+                {"name": "Person", "size": 4, "tags": [{"name": "Arthur", "size": 1}]},
+            ],
+            "total_count": 4,
+        },
+    )
+
+    response = authenticated_client.get("/")
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+
+    default_cards = tree.xpath('//*[@data-testid="recently-active-tags-default"]//*[@data-testid="trending-card"]')
+    extra_cards = tree.xpath('//*[@data-testid="recently-active-tags-extra"]//*[@data-testid="trending-card"]')
+
+    assert len(default_cards) == 3
+    assert "Person" not in " ".join(card.text_content() for card in default_cards)
+    assert len(extra_cards) == 1
+    assert "Person" in extra_cards[0].text_content()
+    show_more_label = tree.xpath('//*[@data-testid="recently-active-tags-more"]/summary/span[text()="Show more"]')[0]
+    assert show_more_label.get("x-text") == "open ? 'Show less' : 'Show more'"
+
+    saved_filter_link = tree.xpath('//*[@data-testid="dashboard-saved-filters"]//a[text()="Shift queue"]')[0]
+    saved_filter_url = urlparse(saved_filter_link.get("href"))
+
+    assert tree.xpath('//*[@data-testid="dashboard-saved-filters"]//*[text()="Saved Filters"]')
+    assert saved_filter_url.path == url_for("assess.assess")
+    assert parse_qs(saved_filter_url.query) == {"search": ["incident"], "tags": ["alpha"], "sort": ["date_desc"]}
 
 
 @pytest.mark.parametrize("view_name,view_cls", ADMIN_VIEWS, ids=ADMIN_IDS)

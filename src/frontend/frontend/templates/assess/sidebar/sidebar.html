@@ -68,7 +68,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
 
 </script>
 
-<div class="p-4 space-y-4">
+<div class="p-4">
   <section class="space-y-3">
     <div class="flex items-center justify-between">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Search &amp; Scope</h3>
@@ -116,7 +116,6 @@ document.addEventListener('htmx:afterSwap', function (event) {
         hx-include="#selected-tags"
         hx-trigger="change"
         hx-on:submit="event.preventDefault()">
-    {% include "assess/sidebar/source_select.html" %}
 
     <div class="divider text-xs">Filter</div>
     {# djlint: off #}
@@ -142,7 +141,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
              }'>
     {# djlint:on #}
     <button type="button"
-            class="btn btn-outline btn-sm mb-2 w-full"
+            class="btn btn-outline btn-xs mb-1 w-full"
             title="Clear time filters"
             hx-get="{{ base_url }}"
             hx-params="not timefrom,timeto,range"
@@ -190,6 +189,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
   </section>
 
   <section class="space-y-3 mt-2">
+    {% include "assess/sidebar/source_select.html" %}
     {% include "assess/sidebar/language_select.html" %}
 
     {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
@@ -261,7 +261,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
   </label>
 </section>
 
-<div class="space-y-3">
+<div class="space-y-2 mb-1">
   <a href="{{ base_url }}?reset=true" class="btn btn-primary btn-sm w-full" @keyup.ctrl.escape.prevent.window="$el.click()">
     {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
     Reset filters
