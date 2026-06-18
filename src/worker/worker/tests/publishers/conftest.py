@@ -106,6 +106,21 @@ def s3_publisher_testdata():
 
 
 @pytest.fixture
+def kafka_publisher():
+    yield publishers.KafkaPublisher()
+
+
+@pytest.fixture
+def kafka_publisher_testdata():
+    kafka_publisher_data = {
+        "KAFKA_BOOTSTRAP_SERVERS": "localhost:9092",
+        "KAFKA_TOPIC": "test-topic",
+        "KAFKA_SEND_TIMEOUT": 30,
+    }
+    yield {"parameters": kafka_publisher_data}
+
+
+@pytest.fixture
 def get_product_mock():
     from worker.tests.publishers.publishers_data import product_render_data, product_render_mime
 

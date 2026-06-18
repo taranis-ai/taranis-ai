@@ -333,6 +333,22 @@ workers = [
         ],
     },
     {
+        "type": "KAFKA_PUBLISHER",
+        "name": "KAFKA Publisher",
+        "description": "Publisher for publishing products to a Kafka topic",
+        "parameters": [
+            {"parameter": "KAFKA_TOPIC", "rules": "required"},
+            {"parameter": "KAFKA_BOOTSTRAP_SERVERS", "rules": "required"},
+            {"parameter": "KAFKA_SECURITY_PROTOCOL", "rules": "optional"},
+            {"parameter": "KAFKA_SASL_MECHANISM", "rules": "optional"},
+            {"parameter": "KAFKA_SASL_USERNAME", "rules": "optional"},
+            {"parameter": "KAFKA_SASL_PASSWORD", "rules": "optional"},
+            {"parameter": "KAFKA_ACKS", "rules": "optional"},
+            {"parameter": "KAFKA_RETRIES", "rules": "optional"},
+            {"parameter": "KAFKA_SEND_TIMEOUT", "rules": "optional"},
+        ],
+    },
+    {
         "type": "MISP_CONNECTOR",
         "name": "MISP Connector",
         "description": "Connetor for MISP",
