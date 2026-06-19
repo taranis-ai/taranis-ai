@@ -38,6 +38,8 @@ Saved assess default filters belong to the user profile. Applying defaults shoul
   - `tags_select.html`
   - `filter_token_select.html`
   - `tri_state_filter.html`
+  - `saved_filters_dialog.html`
+- Shared saved-filter template: `src/frontend/frontend/templates/assess/saved_filter_cards.html`
 
 ## Data Flow
 
@@ -47,7 +49,7 @@ Core serves filter lists through `FilterLists.get()` in `src/core/core/api/asses
 
 Sidebar form submissions and saved defaults use query parameters. Multi-value filters such as source, group, language, and tags must stay list-shaped where the view/core expects lists.
 
-The dashboard can surface saved Assess filters as links, but should reuse the same saved-filter normalization and canonical `/assess` URL construction instead of adding a dashboard-specific endpoint or payload shape.
+The dashboard can surface saved Assess filters as shortcut cards, but should reuse the same saved-filter normalization and canonical `/assess` URL construction instead of adding a dashboard-specific endpoint or payload shape. Show only the first three saved filters by default and put the rest behind the dashboard's native Show more/Show less pattern.
 
 Omnisearch only loads assess filter lists when value resolution or suggestions need them. Keep this lazy behavior so ordinary global search does not always fetch filter-list data.
 

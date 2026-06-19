@@ -1,15 +1,15 @@
-{% macro dashboard_card(title, endpoint, icon=None) %}
-  <div class="bg-base-100 border p-4">
+{% macro dashboard_card(title, endpoint, icon=None, test_id=None) %}
+  <div class="bg-base-100 border p-4 w-full min-w-0 overflow-hidden" {% if test_id %}data-testid="{{ test_id }}"{% endif %}>
     {% if endpoint %}
-      <a href="{{ endpoint }}" class="underline text-xl" target="_top">{{ title }}</a>
+      <a href="{{ endpoint }}" class="block truncate underline text-xl" target="_top" title="{{ title }}">{{ title }}</a>
     {% else %}
-      <span class="text-xl">{{ title }}</span>
+      <span class="block truncate text-xl" title="{{ title }}">{{ title }}</span>
     {% endif %}
     <div class="divider"></div>
-    <span class="inline-flex">
+    <div class="inline-flex w-full min-w-0">
       {% if icon %}{{ heroicon_solid(icon) }}{% endif %}
-      <span class="caption">{{ caller() }}</span>
-    </span>
+      <div class="caption w-full min-w-0">{{ caller() }}</div>
+    </div>
   </div>
 {% endmacro %}
 

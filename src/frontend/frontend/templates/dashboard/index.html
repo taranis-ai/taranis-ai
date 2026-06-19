@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from 'dashboard/cards.html' import trending_card with context %}
+{% from 'assess/saved_filter_cards.html' import saved_filter_card_body with context %}
+{% from 'dashboard/cards.html' import dashboard_card, trending_card with context %}
 
 {% block content %}
   <div class="p-8" id="dashboard">
@@ -43,13 +44,35 @@
     {% endif %}
 
     {% if saved_filters %}
+      {% set visible_saved_filters = saved_filters[:3] %}
+      {% set hidden_saved_filters = saved_filters[3:] %}
       <section class="mt-6" data-testid="dashboard-saved-filters">
-        <div class="text-xl font-bold mb-2">Saved Filters</div>
-        <div class="flex flex-wrap gap-2">
-          {% for saved_filter in saved_filters %}
-            <a class="btn btn-outline btn-sm" href="{{ saved_filter.url }}">{{ saved_filter.name }}</a>
+        <div class="mb-4">
+          <div class="text-3xl font-bold">Saved Filters</div>
+        </div>
+
+        <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="dashboard-saved-filters-default">
+          {% for saved_filter in visible_saved_filters %}
+            {% call dashboard_card(saved_filter.name, saved_filter.url, test_id='dashboard-saved-filter-card') %}
+              {{ saved_filter_card_body(saved_filter, show_name=false, show_apply_action=false) }}
+            {% endcall %}
           {% endfor %}
         </div>
+
+        {% if hidden_saved_filters %}
+          <details class="mt-4" data-testid="dashboard-saved-filters-more" x-data="{ open: false }" @toggle="open = $el.open">
+            <summary class="btn btn-outline btn-sm">
+              <span x-text="open ? 'Show less' : 'Show more'">Show more</span>
+            </summary>
+            <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="dashboard-saved-filters-extra">
+              {% for saved_filter in hidden_saved_filters %}
+                {% call dashboard_card(saved_filter.name, saved_filter.url, test_id='dashboard-saved-filter-card') %}
+                  {{ saved_filter_card_body(saved_filter, show_name=false, show_apply_action=false) }}
+                {% endcall %}
+              {% endfor %}
+            </div>
+          </details>
+        {% endif %}
       </section>
     {% endif %}
   </div>

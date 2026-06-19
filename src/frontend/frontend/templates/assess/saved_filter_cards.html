@@ -1,0 +1,56 @@
+{% macro saved_filter_card_body(saved_filter, show_name=true, show_apply_action=true, show_management_actions=false) %}
+  <div class="grid gap-3{% if show_apply_action or show_management_actions %} md:grid-cols-[minmax(0,1fr)_auto] md:items-center{% endif %}"
+       data-testid="saved-filter-{{ saved_filter.id }}">
+    <div class="min-w-0">
+      {% if show_name or saved_filter.is_default %}
+        <div class="flex min-w-0 items-center gap-2">
+          {% if show_name %}<span class="font-medium truncate">{{ saved_filter.name }}</span>{% endif %}
+          {% if saved_filter.is_default %}<span class="badge badge-primary badge-sm shrink-0">Default</span>{% endif %}
+        </div>
+      {% endif %}
+      <div class="{% if show_name or saved_filter.is_default %}mt-1 {% endif %}max-w-full truncate text-xs text-base-content/60"
+           title="{{ saved_filter.url }}"
+           data-testid="saved-filter-url">{{ saved_filter.url }}</div>
+    </div>
+    {% if show_apply_action or show_management_actions %}
+      <div class="flex shrink-0 flex-nowrap gap-2 md:justify-end" data-testid="saved-filter-actions">
+        {% if show_apply_action %}<a class="btn btn-outline btn-xs whitespace-nowrap" href="{{ saved_filter.url }}">Apply</a>{% endif %}
+        {% if show_management_actions %}
+          {% if saved_filter.is_default %}
+            <button type="button"
+                    class="btn btn-outline btn-xs whitespace-nowrap"
+                    hx-post="{{ url_for('assess.set_saved_filter_default', filter_id=saved_filter.id) }}"
+                    hx-vals='{"clear_default": "true"}'
+                    hx-target="#assess_saved_filters_dialog"
+                    hx-swap="outerHTML"
+                    hx-target-error="#assess_saved_filters_dialog">Clear default</button>
+          {% else %}
+            <button type="button"
+                    class="btn btn-outline btn-xs whitespace-nowrap"
+                    hx-post="{{ url_for('assess.set_saved_filter_default', filter_id=saved_filter.id) }}"
+                    hx-target="#assess_saved_filters_dialog"
+                    hx-swap="outerHTML"
+                    hx-target-error="#assess_saved_filters_dialog">Set default</button>
+          {% endif %}
+          <button type="button"
+                  class="btn btn-outline btn-error btn-xs whitespace-nowrap"
+                  hx-delete="{{ url_for('assess.delete_saved_filter', filter_id=saved_filter.id) }}"
+                  hx-confirm="Delete this saved filter?"
+                  hx-target="#assess_saved_filters_dialog"
+                  hx-swap="outerHTML"
+                  hx-target-error="#assess_saved_filters_dialog">Delete</button>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% macro saved_filter_cards(saved_filters, show_management_actions=false, scroll=false) %}
+  <div class="border-y border-base-300">
+    <div class="{% if scroll %}max-h-[50vh] overflow-y-auto {% endif %}divide-y divide-base-300" data-testid="saved-filters-list">
+      {% for saved_filter in saved_filters %}
+        <div class="py-3">{{ saved_filter_card_body(saved_filter, show_management_actions=show_management_actions) }}</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endmacro %}

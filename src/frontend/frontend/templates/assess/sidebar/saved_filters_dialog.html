@@ -1,9 +1,11 @@
+{% from 'assess/saved_filter_cards.html' import saved_filter_cards with context %}
+
 <dialog id="assess_saved_filters_dialog"
         class="modal"
         x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
         x-on:close="$el.remove()"
         data-testid="assess-saved-filters-dialog">
-  <div class="modal-box max-w-2xl">
+  <div class="modal-box max-w-3xl">
     <form method="dialog">
       <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
     </form>
@@ -16,7 +18,7 @@
     {% endif %}
 
     <form id="saved-filter-form"
-          class="mb-5 space-y-3"
+          class="mb-5 space-y-3 rounded-box border border-base-300 bg-base-200 p-4"
           action="{{ url_for('assess.save_saved_filter') }}"
           method="post"
           hx-post="{{ url_for('assess.save_saved_filter') }}"
@@ -24,62 +26,41 @@
           hx-target="#assess_saved_filters_dialog"
           hx-swap="outerHTML"
           hx-target-error="#assess_saved_filters_dialog">
-      <label class="input input-bordered w-full">
-        <span class="label">Name</span>
-        <input type="text" name="name" maxlength="80" required class="grow" placeholder="Filter name" data-testid="saved-filter-name-input">
+      <label class="form-control w-full">
+        <span class="label-text mb-1">Name</span>
+        <input type="text"
+               name="name"
+               maxlength="80"
+               required
+               class="input input-bordered w-full"
+               placeholder="Filter name"
+               data-testid="saved-filter-name-input">
       </label>
-      <label class="label cursor-pointer justify-start gap-3">
-        <input type="checkbox" name="is_default" value="true" class="checkbox checkbox-sm">
-        <span class="label-text">Use as default</span>
-      </label>
-      <button type="submit" class="btn btn-primary btn-sm" {% if not has_current_filters %}disabled{% endif %}>
-        {{ heroicon_outline('bookmark', class='h-4 w-4') }}
-        Save current filter
-      </button>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label class="label cursor-pointer justify-start gap-3 p-0">
+          <input type="checkbox" name="is_default" value="true" class="checkbox checkbox-sm">
+          <span class="label-text">Use as default</span>
+        </label>
+        <div class="flex flex-col items-stretch gap-1 sm:items-end">
+          <button type="submit"
+                  class="btn btn-primary btn-sm w-full whitespace-nowrap sm:w-auto"
+                  {% if not has_current_filters %}disabled aria-describedby="saved-filter-disabled-reason"{% endif %}>
+            {{ heroicon_outline('bookmark', class='h-4 w-4') }}
+            Save current filter
+          </button>
+          {% if not has_current_filters %}
+            <p id="saved-filter-disabled-reason" class="text-xs text-base-content/60">Apply at least one Assess filter before saving.</p>
+          {% endif %}
+        </div>
+      </div>
     </form>
 
     {% if saved_filters %}
-      <div class="divide-y divide-base-300 border-y border-base-300">
-        {% for saved_filter in saved_filters %}
-          <div class="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between" data-testid="saved-filter-{{ saved_filter.id }}">
-            <div class="min-w-0">
-              <div class="flex items-center gap-2">
-                <span class="font-medium truncate">{{ saved_filter.name }}</span>
-                {% if saved_filter.is_default %}<span class="badge badge-primary badge-sm">Default</span>{% endif %}
-              </div>
-              <div class="mt-1 text-xs text-base-content/60 truncate">{{ saved_filter.url }}</div>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <a class="btn btn-outline btn-xs" href="{{ saved_filter.url }}">Apply</a>
-              {% if saved_filter.is_default %}
-                <button type="button"
-                        class="btn btn-outline btn-xs"
-                        hx-post="{{ url_for('assess.set_saved_filter_default', filter_id=saved_filter.id) }}"
-                        hx-vals='{"clear_default": "true"}'
-                        hx-target="#assess_saved_filters_dialog"
-                        hx-swap="outerHTML"
-                        hx-target-error="#assess_saved_filters_dialog">Clear default</button>
-              {% else %}
-                <button type="button"
-                        class="btn btn-outline btn-xs"
-                        hx-post="{{ url_for('assess.set_saved_filter_default', filter_id=saved_filter.id) }}"
-                        hx-target="#assess_saved_filters_dialog"
-                        hx-swap="outerHTML"
-                        hx-target-error="#assess_saved_filters_dialog">Set default</button>
-              {% endif %}
-              <button type="button"
-                      class="btn btn-outline btn-error btn-xs"
-                      hx-delete="{{ url_for('assess.delete_saved_filter', filter_id=saved_filter.id) }}"
-                      hx-confirm="Delete this saved filter?"
-                      hx-target="#assess_saved_filters_dialog"
-                      hx-swap="outerHTML"
-                      hx-target-error="#assess_saved_filters_dialog">Delete</button>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
+      {{ saved_filter_cards(saved_filters, show_management_actions=true, scroll=true) }}
     {% else %}
-      <p class="text-sm text-base-content/60">No saved filters yet.</p>
+      <div class="border-y border-base-300 py-6">
+        <p class="text-sm text-base-content/60">No saved filters yet.</p>
+      </div>
     {% endif %}
   </div>
   <form method="dialog" class="modal-backdrop">

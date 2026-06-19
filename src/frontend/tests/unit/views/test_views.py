@@ -50,7 +50,23 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
             id="filter-1",
             name="Shift queue",
             filters={"search": "incident", "tags": ["alpha"], "sort": "date_desc"},
-        )
+        ),
+        AssessSavedFilter(
+            id="filter-2",
+            name="Relevant queue",
+            filters={"relevant": "true"},
+        ),
+        AssessSavedFilter(
+            id="filter-3",
+            name="Default queue",
+            filters={"range": "shift"},
+            is_default=True,
+        ),
+        AssessSavedFilter(
+            id="filter-4",
+            name="Hidden queue",
+            filters={"search": "hidden"},
+        ),
     ]
     add_user_to_cache(saved_user.model_dump(mode="json"))
 
@@ -82,10 +98,23 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
     show_more_label = tree.xpath('//*[@data-testid="recently-active-tags-more"]/summary/span[text()="Show more"]')[0]
     assert show_more_label.get("x-text") == "open ? 'Show less' : 'Show more'"
 
-    saved_filter_link = tree.xpath('//*[@data-testid="dashboard-saved-filters"]//a[text()="Shift queue"]')[0]
-    saved_filter_url = urlparse(saved_filter_link.get("href"))
+    saved_filter_cards = tree.xpath('//*[@data-testid="dashboard-saved-filters-default"]//*[@data-testid="dashboard-saved-filter-card"]')
+    extra_saved_filter_cards = tree.xpath('//*[@data-testid="dashboard-saved-filters-extra"]//*[@data-testid="dashboard-saved-filter-card"]')
 
     assert tree.xpath('//*[@data-testid="dashboard-saved-filters"]//*[text()="Saved Filters"]')
+    assert len(saved_filter_cards) == 3
+    assert "Hidden queue" not in " ".join(card.text_content() for card in saved_filter_cards)
+    assert len(extra_saved_filter_cards) == 1
+    assert "Hidden queue" in extra_saved_filter_cards[0].text_content()
+    saved_show_more_label = tree.xpath('//*[@data-testid="dashboard-saved-filters-more"]/summary/span[text()="Show more"]')[0]
+    assert saved_show_more_label.get("x-text") == "open ? 'Show less' : 'Show more'"
+
+    saved_filter_row = saved_filter_cards[0].xpath('.//*[@data-testid="saved-filter-filter-1"]')[0]
+    saved_filter_url_text = saved_filter_row.xpath('.//*[@data-testid="saved-filter-url"]')[0]
+    saved_filter_url = urlparse(saved_filter_cards[0].xpath('./a[text()="Shift queue"]')[0].get("href"))
+
+    assert "truncate" in saved_filter_url_text.get("class")
+    assert not saved_filter_row.xpath('.//*[@data-testid="saved-filter-actions"]')
     assert saved_filter_url.path == url_for("assess.assess")
     assert parse_qs(saved_filter_url.query) == {"search": ["incident"], "tags": ["alpha"], "sort": ["date_desc"]}
 
