@@ -275,7 +275,8 @@ document.addEventListener('htmx:afterSwap', function (event) {
           hx-get="{{ url_for('assess.saved_filters') }}"
           hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
           hx-target="body"
-          hx-swap="beforeend">
+          hx-swap="beforeend"
+          hx-on::before-request="document.getElementById('assess_saved_filters_dialog')?.remove()">
     {{ heroicon_outline('bookmark-square', class='h-4 w-4') }}
     Saved filters
   </button>

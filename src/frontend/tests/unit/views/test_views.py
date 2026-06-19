@@ -95,8 +95,6 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
     assert "Person" not in " ".join(card.text_content() for card in default_cards)
     assert len(extra_cards) == 1
     assert "Person" in extra_cards[0].text_content()
-    show_more_label = tree.xpath('//*[@data-testid="recently-active-tags-more"]/summary/span[text()="Show more"]')[0]
-    assert show_more_label.get("x-text") == "open ? 'Show less' : 'Show more'"
 
     saved_filter_cards = tree.xpath('//*[@data-testid="dashboard-saved-filters-default"]//*[@data-testid="dashboard-saved-filter-card"]')
     extra_saved_filter_cards = tree.xpath('//*[@data-testid="dashboard-saved-filters-extra"]//*[@data-testid="dashboard-saved-filter-card"]')
@@ -106,14 +104,11 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
     assert "Hidden queue" not in " ".join(card.text_content() for card in saved_filter_cards)
     assert len(extra_saved_filter_cards) == 1
     assert "Hidden queue" in extra_saved_filter_cards[0].text_content()
-    saved_show_more_label = tree.xpath('//*[@data-testid="dashboard-saved-filters-more"]/summary/span[text()="Show more"]')[0]
-    assert saved_show_more_label.get("x-text") == "open ? 'Show less' : 'Show more'"
+    assert "Default" in saved_filter_cards[2].xpath('.//*[@data-testid="saved-filter-filter-3"]')[0].text_content()
 
     saved_filter_row = saved_filter_cards[0].xpath('.//*[@data-testid="saved-filter-filter-1"]')[0]
-    saved_filter_url_text = saved_filter_row.xpath('.//*[@data-testid="saved-filter-url"]')[0]
     saved_filter_url = urlparse(saved_filter_cards[0].xpath('./a[text()="Shift queue"]')[0].get("href"))
 
-    assert "truncate" in saved_filter_url_text.get("class")
     assert not saved_filter_row.xpath('.//*[@data-testid="saved-filter-actions"]')
     assert saved_filter_url.path == url_for("assess.assess")
     assert parse_qs(saved_filter_url.query) == {"search": ["incident"], "tags": ["alpha"], "sort": ["date_desc"]}

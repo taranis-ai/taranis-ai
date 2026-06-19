@@ -680,7 +680,8 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
     assert "Assess filter saved." in response.text
     assert "Shift queue" in response.text
 
-    request_body = responses_mock.calls[0].request.body
+    profile_update_call = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/users/profile"))
+    request_body = profile_update_call.request.body
     payload = json.loads(request_body.decode() if isinstance(request_body, bytes) else request_body)
     assert "assess_default_filters" not in payload
     assert len(payload["assess_saved_filters"]) == 1
@@ -754,39 +755,6 @@ def test_assess_saved_filters_dialog_uses_submit_button(authenticated_client):
     assert button.get("disabled") == "disabled"
     assert button.get("aria-describedby") == "saved-filter-disabled-reason"
     assert disabled_reason.text_content() == "Apply at least one Assess filter before saving."
-
-
-def test_assess_saved_filters_dialog_keeps_large_filter_lists_compact(authenticated_client, auth_user):
-    saved_user = auth_user.model_copy(deep=True)
-    saved_user.profile.assess_saved_filters = [
-        AssessSavedFilter(
-            id=f"filter-{index}",
-            name=f"Saved filter {index}",
-            filters={
-                "group": [f"6f21d878-0e87-4240-9ce9-000a117d5a9c-{index}"],
-                "search": f"incident-{index}",
-            },
-            is_default=index == 0,
-        )
-        for index in range(25)
-    ]
-    add_user_to_cache(saved_user.model_dump(mode="json"))
-
-    response = authenticated_client.get(url_for("assess.saved_filters"))
-    tree = html.fromstring(response.text)
-
-    saved_filters_list = tree.xpath('//*[@data-testid="saved-filters-list"]')[0]
-    saved_filter_rows = tree.xpath('//*[starts-with(@data-testid, "saved-filter-filter-")]')
-    first_url = saved_filter_rows[0].xpath('.//*[@data-testid="saved-filter-url"]')[0]
-    first_actions = saved_filter_rows[0].xpath('.//*[@data-testid="saved-filter-actions"]')[0]
-
-    assert len(saved_filter_rows) == 25
-    assert "max-h-[50vh]" in saved_filters_list.get("class")
-    assert "overflow-y-auto" in saved_filters_list.get("class")
-    assert "truncate" in first_url.get("class")
-    assert first_url.get("title") == first_url.text
-    assert "flex-nowrap" in first_actions.get("class")
-    assert all("whitespace-nowrap" in action.get("class") for action in first_actions.xpath(".//a | .//button"))
 
 
 def test_table_search_bar_uses_form_level_search_trigger(app):

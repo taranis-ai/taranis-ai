@@ -49,7 +49,16 @@ class User(BaseModel):
     roles: Mapped[list["Role"]] = relationship("Role", secondary="user_role")
     profile: Mapped[dict[str, Any]] = db.Column(db.JSON)
 
-    def __init__(self, username: str, name: str, organization: str | dict[str, str], roles: list[str], password=None, id=None):
+    def __init__(
+        self,
+        username: str,
+        name: str,
+        organization: str | dict[str, str],
+        roles: list[str],
+        password=None,
+        id=None,
+        profile: dict[str, Any] | None = None,
+    ):
         self.id = self.normalize_uuid_id(id)
         self.username = username
         self.name = name
@@ -59,10 +68,10 @@ class User(BaseModel):
             if org := Organization.get(organization_id):
                 self.organization = org
         self.roles = Role.get_bulk(roles)
-        profile = dict(profile or {})
-        if not profile.get("timezone"):
-            profile["timezone"] = Settings.get_settings().get("default_timezone") or "UTC"
-        self.profile = ProfileSettings.model_validate(profile).model_dump(mode="json")
+        profile_payload = dict(profile or {})
+        if not profile_payload.get("timezone"):
+            profile_payload["timezone"] = Settings.get_settings().get("default_timezone") or "UTC"
+        self.profile = ProfileSettings.model_validate(profile_payload).model_dump(mode="json")
 
     @classmethod
     def find_by_name(cls, username: str) -> "User|None":

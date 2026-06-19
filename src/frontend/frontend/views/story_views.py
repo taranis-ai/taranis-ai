@@ -255,7 +255,7 @@ class StoryView(BaseView):
     def _filter_payload_to_request_params(cls, filters: dict[str, Any]) -> dict[str, list[str]]:
         params: dict[str, list[str]] = {}
         for key, value in cls._normalize_assess_filter_payload(filters).items():
-            values = cls._normalize_assess_filter_values(value)
+            values = [str(item) for item in value if item not in (None, "")] if isinstance(value, list) else [str(value)]
             if values:
                 params[key] = values
         return params
@@ -270,12 +270,9 @@ class StoryView(BaseView):
         saved_filters: list[dict[str, Any]] = []
         default_seen = False
         for raw_filter in raw_filters:
-            if hasattr(raw_filter, "model_dump"):
-                saved_filter = raw_filter.model_dump(mode="json")
-            elif isinstance(raw_filter, dict):
-                saved_filter = raw_filter
-            else:
+            if not hasattr(raw_filter, "model_dump"):
                 continue
+            saved_filter = raw_filter.model_dump(mode="json")
 
             filter_id = str(saved_filter.get("id") or "").strip()
             name = str(saved_filter.get("name") or "").strip()
@@ -300,11 +297,10 @@ class StoryView(BaseView):
     @classmethod
     def _get_saved_filters_dialog_context(cls, saved_filters: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         saved_filters = saved_filters if saved_filters is not None else cls._get_saved_assess_filters()
-        current_filters = cls._extract_assess_filters_from_request()
         return {
             "saved_filters": cls.get_saved_filter_links(saved_filters),
-            "current_filters": current_filters,
-            "has_current_filters": bool(current_filters),
+            "has_current_filters": bool(cls._extract_assess_filters_from_request()),
+            "assess_saved_filter_name_max_length": ASSESS_SAVED_FILTER_NAME_MAX_LENGTH,
         }
 
     @classmethod

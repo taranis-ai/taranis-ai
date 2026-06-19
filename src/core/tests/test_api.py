@@ -133,7 +133,8 @@ def test_user_profile(app, client, auth_header):
         user = User.find_by_name("admin")
         assert user is not None
         original_profile = deepcopy(user.profile)
-        user.profile = {**(user.profile or {}), "assess_default_filters": {"read": "true"}}
+        saved_filters = [{"id": "filter-1", "name": "Important", "filters": {"important": "true"}, "is_default": True}]
+        user.profile = {**(user.profile or {}), "assess_default_filters": {"read": "true"}, "assess_saved_filters": saved_filters}
         db.session.commit()
 
     try:
@@ -143,6 +144,7 @@ def test_user_profile(app, client, auth_header):
         assert response.data
         assert response.status_code == 200
         assert "assess_default_filters" not in response.json
+        assert response.json["assess_saved_filters"] == saved_filters
     finally:
         with app.app_context():
             user = User.find_by_name("admin")

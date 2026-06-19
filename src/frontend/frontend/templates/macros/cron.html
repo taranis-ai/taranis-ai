@@ -1,7 +1,7 @@
 
 {% macro form_cron(label, name, value, error, required=True, width='w-full', input_class='') %}
   <div class="mb-5 {{ width }}"
-       x-data="{ cron: '{{ value|default("") }}', setCron(val) { this.cron = val; $nextTick(() => this.validate()); }, validate() { const input = document.getElementById('{{ name }}'); input.setCustomValidity(''); if (!input.validity.valid) { input.setCustomValidity('Input must be a valid cron expression'); } } }">
+       x-data="{ cron: '{{ value|default('') }}', setCron(val) { this.cron = val; $nextTick(() => this.validate()); }, validate() { const input = document.getElementById('{{ name }}'); input.setCustomValidity(''); if (!input.validity.valid) { input.setCustomValidity('Input must be a valid cron expression'); } } }">
     <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2">
       <legend class="fieldset-legend">{{ label }}</legend>
       <div class="flex flex-row gap-2 mb-2 justify-center">

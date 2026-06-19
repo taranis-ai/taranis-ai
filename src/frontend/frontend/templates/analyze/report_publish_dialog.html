@@ -23,7 +23,7 @@
           <button type="button"
                   class="btn btn-outline flex-1"
                   :disabled="!selectedProductId"
-                  @click="window.location.href = '{{ url_for("publish.publish") }}' + '/' + selectedProductId + '?report_id={{ report.id }}'"
+                  @click="window.location.href = '{{ url_for('publish.publish') }}' + '/' + selectedProductId + '?report_id={{ report.id }}'"
                   data-testid="report-open-existing-product-button">Open Product</button>
           <a class="btn btn-outline flex-1"
              href="{{ url_for('publish.product', product_id='0') }}?report_id={{ report.id }}"

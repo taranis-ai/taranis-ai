@@ -29,10 +29,8 @@
       </div>
 
       {% if hidden_clusters %}
-        <details class="mt-4" data-testid="recently-active-tags-more" x-data="{ open: false }" @toggle="open = $el.open">
-          <summary class="btn btn-outline btn-sm">
-            <span x-text="open ? 'Show less' : 'Show more'">Show more</span>
-          </summary>
+        <details class="mt-4" data-testid="recently-active-tags-more">
+          <summary class="btn btn-outline btn-sm">Show more</summary>
           <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="recently-active-tags-extra">
             {% for cluster in hidden_clusters %}
               {% call trending_card(cluster) %}
@@ -60,10 +58,8 @@
         </div>
 
         {% if hidden_saved_filters %}
-          <details class="mt-4" data-testid="dashboard-saved-filters-more" x-data="{ open: false }" @toggle="open = $el.open">
-            <summary class="btn btn-outline btn-sm">
-              <span x-text="open ? 'Show less' : 'Show more'">Show more</span>
-            </summary>
+          <details class="mt-4" data-testid="dashboard-saved-filters-more">
+            <summary class="btn btn-outline btn-sm">Show more</summary>
             <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="dashboard-saved-filters-extra">
               {% for saved_filter in hidden_saved_filters %}
                 {% call dashboard_card(saved_filter.name, saved_filter.url, test_id='dashboard-saved-filter-card') %}

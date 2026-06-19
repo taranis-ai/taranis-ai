@@ -16,6 +16,7 @@ from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.views.base_view import BaseView
+from frontend.views.story_views import StoryView
 
 
 class DashboardView(BaseView):
@@ -44,15 +45,13 @@ class DashboardView(BaseView):
         try:
             trending_clusters = DataPersistenceLayer().get_objects(TrendingCluster)
             dashboard_config = current_user.profile.dashboard
-            from frontend.views.story_views import StoryView
-
-            saved_filters = StoryView.get_saved_filter_links()
         except HTTPException:
             raise
         except Exception:
             trending_clusters = []
             dashboard_config = ProfileSettingsDashboard()
-            saved_filters = []
+
+        saved_filters = StoryView.get_saved_filter_links()
 
         return (
             render_template(

@@ -1,3 +1,4 @@
+import uuid
 from typing import get_origin
 
 import pytest
@@ -7,7 +8,6 @@ from polyfactory.exceptions import ParameterException
 from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
-from uuid_extensions import uuid7str
 
 from frontend.config import Config
 from frontend.log import logger
@@ -344,7 +344,7 @@ def mock_core_get_item_endpoint_data(core_payloads):
             if isinstance(ann, int) or issubclass(ann, int):
                 current_item["id"] = faker.pyint()
             elif isinstance(ann, str) or issubclass(ann, str):
-                current_item["id"] = uuid7str()
+                current_item["id"] = str(uuid.uuid7())
             else:
                 logger.warning(f"Unsupported type for ID field in {view_name}: {ann}")
                 current_item["id"] = "42"
