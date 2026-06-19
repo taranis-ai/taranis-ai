@@ -9,6 +9,9 @@ from models.collaboration import (
     CollabLiveLockRequest,
     CollabLiveMoveNewsItem,
     CollabLivePresenceRequest,
+    CollabLiveSelectionClear,
+    CollabLiveSelectionUpdate,
+    CollabLiveStoryOpsSubmit,
     CollabLiveStoryPatch,
     CollabLiveWorkspacePatch,
     CollabMoveNewsItem,
@@ -317,6 +320,75 @@ class CollaborationLiveStoryPatchView(MethodView):
         except ValueError as exc:
             return {"error": str(exc)}, 400
         return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLiveStoryOpsView(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveStoryOpsSubmit.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        try:
+            detail, applied = collaboration_service.submit_story_ops_live(
+                channel_id,
+                snapshot_id=payload.snapshot_id,
+                field_name=payload.field_name,
+                version=payload.version,
+                op_id=payload.op_id,
+                updates=[item.model_dump(by_alias=True) for item in payload.updates],
+                participant_base_url=payload.actor.base_url,
+                session_id=payload.actor.session_id,
+                username=payload.actor.username,
+            )
+        except KeyError:
+            return {"error": "Collaboration story not found"}, 404
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return {"channel": detail.model_dump(mode="json"), "applied": applied}, 200
+
+
+class CollaborationLiveSelectionUpdateView(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveSelectionUpdate.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        try:
+            detail, selection = collaboration_service.update_story_selection_live(
+                channel_id,
+                snapshot_id=payload.snapshot_id,
+                field_name=payload.field_name,
+                anchor=payload.anchor,
+                head=payload.head,
+                participant_base_url=payload.actor.base_url,
+                session_id=payload.actor.session_id,
+                username=payload.actor.username,
+            )
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return {"channel": detail.model_dump(mode="json"), "selection": selection}, 200
+
+
+class CollaborationLiveSelectionClearView(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveSelectionClear.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        detail, cleared = collaboration_service.clear_story_selection_live(
+            channel_id,
+            snapshot_id=payload.snapshot_id,
+            field_name=payload.field_name,
+            participant_base_url=payload.actor.base_url,
+            session_id=payload.actor.session_id,
+        )
+        return {"channel": detail.model_dump(mode="json"), "cleared": cleared}, 200
 
 
 class CollaborationLiveMoveNewsItemView(MethodView):
@@ -633,6 +705,21 @@ def initialize(app: Flask):
     collab_bp.add_url_rule(
         "/channels/<string:channel_id>/live/story-patch",
         view_func=CollaborationLiveStoryPatchView.as_view("collab_live_story_patch"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/story-ops",
+        view_func=CollaborationLiveStoryOpsView.as_view("collab_live_story_ops"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/selection/update",
+        view_func=CollaborationLiveSelectionUpdateView.as_view("collab_live_selection_update"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/selection/clear",
+        view_func=CollaborationLiveSelectionClearView.as_view("collab_live_selection_clear"),
         methods=["POST"],
     )
     collab_bp.add_url_rule(

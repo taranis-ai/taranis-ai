@@ -8,6 +8,21 @@ class CollabParticipant(TaranisBaseModel):
     role: Literal["owner", "participant"]
     joined_at: datetime | None
 
+class CollabTextDocState(TaranisBaseModel):
+    snapshot_id: str
+    field_name: Literal["title", "description", "summary", "comments"]
+    text: str
+    version: int
+
+class CollabTextSelectionPresence(TaranisBaseModel):
+    snapshot_id: str
+    field_name: Literal["title", "description", "summary", "comments"]
+    session_id: str
+    participant_base_url: str
+    username: str
+    anchor: int
+    head: int
+
 class CollabStorySnapshot(TaranisBaseModel):
     id: str
     title: str | None
@@ -15,7 +30,24 @@ class CollabStorySnapshot(TaranisBaseModel):
     created: datetime | None
     source_instance: str | None
     source_story_id: str | None
+    persisted_local_story_id: str | None
     story: dict[str, Any]
+
+class CollabWorkspaceChatMessage(TaranisBaseModel):
+    id: str
+    author: str
+    text: str
+    participant_base_url: str | None
+    participant_short_name: str | None
+    created_at: datetime | None
+
+class CollabWorkspaceActivityItem(TaranisBaseModel):
+    id: str
+    text: str
+    actor: str | None
+    participant_base_url: str | None
+    participant_short_name: str | None
+    created_at: datetime | None
 
 class CollabInvite(TaranisBaseModel):
     owner_base_url: str
@@ -45,6 +77,11 @@ class CollabChannelDetail(TaranisBaseModel):
     active_instance_base_url: str | None
     invite: CollabInvite | None
     participants: list[CollabParticipant]
+    presence: list[Any]
+    locks: list[Any]
+    shared_docs: list[CollabTextDocState]
+    text_selections: list[CollabTextSelectionPresence]
+    workspace: Any
     stories: list[CollabStorySnapshot]
     result_stories: list[CollabStorySnapshot]
     created_at: datetime | None

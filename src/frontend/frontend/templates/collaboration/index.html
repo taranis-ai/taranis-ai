@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block head %}
+  <script type="module" src="{{ url_for('static', filename='vendor/codemirror.js') }}"></script>
+{% endblock head %}
+
 {% macro presence_avatar(user, fallback='?') -%}
   <div class="flex h-9 w-9 items-center justify-center rounded-full border border-base-300 bg-base-100 text-xs font-semibold text-base-content">
     {{ (user.username or fallback)[:2] | upper }}
@@ -160,30 +164,34 @@
                   <label class="form-control">
                     <span class="label-text flex items-center justify-between gap-3">
                       <span>Story title</span>
-                      <span class="text-xs text-base-content/60" data-collab-lock-status="title">Unlocked</span>
+                      <span class="text-xs text-base-content/60" data-collab-lock-status="title">Nobody here</span>
                     </span>
                     <input class="input input-bordered bg-base-100" type="text" name="title" value="{{ selected_story_story.title or '' }}" data-collab-field="title">
+                    <div class="mt-2 rounded-[1rem] border border-base-300 bg-base-100" data-collab-editor-host="title"></div>
                   </label>
                   <label class="form-control">
                     <span class="label-text flex items-center justify-between gap-3">
                       <span>Description</span>
-                      <span class="text-xs text-base-content/60" data-collab-lock-status="description">Unlocked</span>
+                      <span class="text-xs text-base-content/60" data-collab-lock-status="description">Nobody here</span>
                     </span>
                     <textarea class="textarea textarea-bordered min-h-20 bg-base-100" name="description" data-collab-field="description">{{ selected_story_story.description or '' }}</textarea>
+                    <div class="mt-2 rounded-[1rem] border border-base-300 bg-base-100" data-collab-editor-host="description"></div>
                   </label>
                   <label class="form-control">
                     <span class="label-text flex items-center justify-between gap-3">
                       <span>Summary</span>
-                      <span class="text-xs text-base-content/60" data-collab-lock-status="summary">Unlocked</span>
+                      <span class="text-xs text-base-content/60" data-collab-lock-status="summary">Nobody here</span>
                     </span>
                     <textarea class="textarea textarea-bordered min-h-28 bg-base-100" name="summary" data-collab-field="summary">{{ selected_story_story.summary or '' }}</textarea>
+                    <div class="mt-2 rounded-[1rem] border border-base-300 bg-base-100" data-collab-editor-host="summary"></div>
                   </label>
                   <label class="form-control">
                     <span class="label-text flex items-center justify-between gap-3">
                       <span>Analyst comments</span>
-                      <span class="text-xs text-base-content/60" data-collab-lock-status="comments">Unlocked</span>
+                      <span class="text-xs text-base-content/60" data-collab-lock-status="comments">Nobody here</span>
                     </span>
                     <textarea class="textarea textarea-bordered min-h-28 bg-base-100" name="comments" data-collab-field="comments">{{ selected_story_story.comments or '' }}</textarea>
+                    <div class="mt-2 rounded-[1rem] border border-base-300 bg-base-100" data-collab-editor-host="comments"></div>
                   </label>
                 </div>
 
@@ -432,6 +440,7 @@
             "channel": active_channel
           } | tojson }}
         </script>
+        <script src="{{ url_for('static', filename='js/collaboration_workspace_store.js') }}" defer></script>
         <script src="{{ url_for('static', filename='js/collaboration_workspace.js') }}" defer></script>
       {% else %}
         <div class="flex min-h-[420px] items-center justify-center rounded-[1.75rem] border border-dashed border-base-300 bg-base-100/80">

@@ -1,6 +1,6 @@
 (function () {
   const pageDataNode = document.getElementById("collaboration-page-data");
-  if (!pageDataNode) {
+  if (!pageDataNode || !window.CollaborationWorkspaceStore) {
     return;
   }
 
@@ -12,22 +12,21 @@
     : "";
   const socketUrl = `${protocol}//${window.location.host}${rootPrefix}/collaboration/ws?channel_id=${encodeURIComponent(channelId)}&story_id=${encodeURIComponent(pageData.selectedStoryId || "")}`;
 
+  const store = new window.CollaborationWorkspaceStore(pageData);
   const connectionBadge = document.querySelector("[data-collab-connection-status]");
   const saveStatusNode = document.querySelector("[data-collab-save-status]");
   const fieldElements = Array.from(document.querySelectorAll("[data-collab-field]"));
   const lockStatusElements = new Map(
     Array.from(document.querySelectorAll("[data-collab-lock-status]")).map((node) => [node.dataset.collabLockStatus, node]),
   );
+  const editorHosts = new Map(
+    Array.from(document.querySelectorAll("[data-collab-editor-host]")).map((node) => [node.dataset.collabEditorHost, node]),
+  );
 
-  const state = {
-    mode: pageData.mode || "overview",
-    channel: pageData.channel || {},
+  const runtime = {
     socket: null,
-    sessionId: null,
-    selectedStoryId: pageData.selectedStoryId || ((pageData.channel?.workspace || {}).focused_story_id || ""),
-    sidebarTab: "collaboration",
-    patchTimers: new Map(),
-    heartbeatTimers: new Map(),
+    selectionTimer: null,
+    fields: new Map(),
   };
 
   const escapeHtml = (value) => String(value || "")
@@ -36,6 +35,10 @@
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+
+  const selectedStory = () => store.selectedStory();
+  const workspace = () => store.workspace();
+  const isConnected = () => Boolean(runtime.socket) && runtime.socket.readyState === WebSocket.OPEN;
 
   const setSaveStatus = (text) => {
     if (saveStatusNode) {
@@ -51,58 +54,127 @@
     connectionBadge.className = className;
   };
 
-  const selectedStory = () => (state.channel.stories || []).find((story) => story.id === state.selectedStoryId) || null;
-
-  const workspace = () => state.channel.workspace || {
-    briefing: { key_takeaways: [], risks: [], key_questions: [], source_labels: [], related_story_ids: [] },
-    decisions: [],
-    tasks: [],
-    comments: [],
-    chat_messages: [],
-    timeline_events: [],
-    activity_items: [],
-  };
-
-  const storyLockFor = (fieldName) => (state.channel.locks || []).find(
-    (item) => item.snapshot_id === state.selectedStoryId && item.field_name === fieldName,
-  );
-
   const sendMessage = (type, payload) => {
-    if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
+    if (!isConnected()) {
       return;
     }
-    state.socket.send(JSON.stringify({ type, channel_id: channelId, payload }));
+    runtime.socket.send(JSON.stringify({ type, channel_id: channelId, payload }));
   };
 
-  const copyToClipboard = async (text) => {
-    if (!text) {
-      return false;
-    }
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
+  const syncEditorSelections = () => {
+    runtime.fields.forEach((field) => field.syncRemoteSelections());
+  };
 
-    const tempInput = document.createElement("textarea");
-    tempInput.value = text;
-    tempInput.setAttribute("readonly", "");
-    tempInput.className = "fixed left-[-9999px] top-0";
-    document.body.appendChild(tempInput);
-    tempInput.select();
-    tempInput.setSelectionRange(0, text.length);
-    const copied = document.execCommand("copy");
-    document.body.removeChild(tempInput);
-    return copied;
+  const storyPresenceLabel = (fieldName) => {
+    if (!isConnected()) {
+      return "Disconnected";
+    }
+    const viewers = store.remoteSelectionsFor(store.state.selectedStoryId, fieldName);
+    if (!viewers.length) {
+      return "Nobody here";
+    }
+    if (viewers.length === 1) {
+      return `${viewers[0].username} is here`;
+    }
+    return `${viewers.length} editing`;
+  };
+
+  const renderFieldPresenceLabels = () => {
+    store.TEXT_FIELDS.forEach((fieldName) => {
+      const statusNode = lockStatusElements.get(fieldName);
+      if (statusNode) {
+        statusNode.textContent = storyPresenceLabel(fieldName);
+      }
+    });
+  };
+
+  const anyEditorHasFocus = () => Array.from(runtime.fields.values()).some((field) => field.hasFocus());
+
+  const syncEditorStory = ({ force = false } = {}) => {
+    runtime.fields.forEach((field) => field.sync({ force, connected: isConnected() }));
+    syncEditorSelections();
+  };
+
+  const clearSelectionForField = (fieldName, snapshotId = store.state.selectedStoryId) => {
+    if (!fieldName || !snapshotId) {
+      return;
+    }
+    sendMessage("collab.story.selection.clear", {
+      snapshot_id: snapshotId,
+      field_name: fieldName,
+      selected_story_id: snapshotId,
+    });
+  };
+
+  const clearActiveSelection = () => {
+    if (!store.state.activeField || !store.state.selectedStoryId) {
+      return;
+    }
+    clearSelectionForField(store.state.activeField, store.state.selectedStoryId);
+    store.clearActiveField();
+    syncEditorSelections();
+    renderFieldPresenceLabels();
+  };
+
+  const sendSelectionUpdate = () => {
+    if (!store.state.activeField || !store.state.selectedStoryId) {
+      return;
+    }
+    const field = runtime.fields.get(store.state.activeField);
+    if (!field) {
+      return;
+    }
+    const selection = field.getSelection();
+    sendMessage("collab.story.selection.update", {
+      snapshot_id: store.state.selectedStoryId,
+      field_name: store.state.activeField,
+      anchor: selection.anchor,
+      head: selection.head,
+      selected_story_id: store.state.selectedStoryId,
+    });
+  };
+
+  const scheduleSelectionUpdate = () => {
+    if (runtime.selectionTimer) {
+      window.clearTimeout(runtime.selectionTimer);
+    }
+    runtime.selectionTimer = window.setTimeout(sendSelectionUpdate, 70);
+  };
+
+  const formatTimestamp = (value) => {
+    if (!value) {
+      return "";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+    return date.toLocaleString();
+  };
+
+  const instanceShortName = (item) => item?.participant_short_name || (item?.participant_base_url ? "remote" : "");
+  const instanceLabel = (item) => {
+    const person = item?.author || item?.actor || "system";
+    const shortName = instanceShortName(item);
+    return shortName ? `${person} (${shortName})` : person;
+  };
+  const instanceTitle = (item) => item?.participant_base_url || "";
+
+  const chatBubbleStyle = (item) => {
+    const hue = window.CollabEditor?.selectionColor
+      ? window.CollabEditor.selectionColor(item?.participant_base_url || item?.author || "")
+      : 210;
+    return `border-color:hsl(${hue} 55% 72%);background:linear-gradient(180deg,hsl(${hue} 70% 96%),hsl(${hue} 60% 92%));`;
   };
 
   const renderStoryButtons = () => {
     document.querySelectorAll("[data-collab-focus-story]").forEach((button) => {
       const storyId = button.dataset.collabFocusStory;
-      const active = storyId === state.selectedStoryId;
+      const active = storyId === store.state.selectedStoryId;
       button.classList.toggle("border-primary", active);
       button.classList.toggle("bg-primary/6", active);
     });
-    (state.channel.stories || []).forEach((story) => {
+    (store.state.channel.stories || []).forEach((story) => {
       const titleNode = document.querySelector(`[data-collab-story-title="${CSS.escape(story.id)}"]`);
       if (titleNode) {
         titleNode.textContent = story.title || "Untitled Story";
@@ -123,7 +195,7 @@
     if (!presenceRoot) {
       return;
     }
-    const livePresence = state.channel.presence || [];
+    const livePresence = store.state.channel.presence || [];
     const liveByParticipant = new Map();
     livePresence.forEach((entry) => {
       if (!liveByParticipant.has(entry.participant_base_url)) {
@@ -132,7 +204,7 @@
       liveByParticipant.get(entry.participant_base_url).push(entry);
     });
 
-    presenceRoot.innerHTML = (state.channel.participants || []).map((participant) => {
+    presenceRoot.innerHTML = (store.state.channel.participants || []).map((participant) => {
       const users = liveByParticipant.get(participant.base_url) || [];
       const liveUsers = users.map((user) => escapeHtml(user.username)).join(", ");
       return `
@@ -173,8 +245,7 @@
 
   const renderBriefing = () => {
     const story = selectedStory();
-    const currentWorkspace = workspace();
-    const briefing = currentWorkspace.briefing || {};
+    const briefing = workspace().briefing || {};
 
     document.querySelectorAll("[data-collab-prioritized-title]").forEach((node) => {
       node.textContent = story?.story?.title || story?.title || "Untitled Story";
@@ -215,7 +286,7 @@
     const relatedStoriesNode = document.querySelector("[data-collab-related-stories]");
     if (relatedStoriesNode) {
       const relatedStories = (briefing.related_story_ids || [])
-        .map((storyId) => (state.channel.stories || []).find((story) => story.id === storyId))
+        .map((storyId) => (store.state.channel.stories || []).find((storyItem) => storyItem.id === storyId))
         .filter(Boolean);
       relatedStoriesNode.innerHTML = relatedStories.length
         ? relatedStories.map((storyItem) => `<div class="mb-2 text-sm font-medium">${escapeHtml(storyItem.title || "Untitled Story")}</div>`).join("")
@@ -237,7 +308,10 @@
         <div class="flex items-start justify-between gap-2">
           <div>
             <div class="text-sm font-medium">${escapeHtml(item.text)}</div>
-            <div class="mt-1 text-xs text-base-content/55">${escapeHtml(item.owner || "unknown")}</div>
+            <div class="mt-1 flex items-center gap-2 text-xs text-base-content/55">
+              <span>${escapeHtml(item.owner || "unknown")}</span>
+              ${item.created_at ? `<span>• ${escapeHtml(formatTimestamp(item.created_at))}</span>` : ""}
+            </div>
           </div>
           <div class="flex items-center gap-2">
             <button class="btn btn-ghost btn-xs" type="button" data-collab-item-toggle="decision" data-collab-item-id="${escapeHtml(item.id)}">${item.status === "done" ? "Reopen" : "Done"}</button>
@@ -254,7 +328,11 @@
         <div class="flex items-start justify-between gap-2">
           <div>
             <div class="text-sm font-medium">${escapeHtml(item.text)}</div>
-            <div class="mt-1 text-xs text-base-content/55">${escapeHtml(item.owner || "")} ${item.status ? `• ${escapeHtml(item.status)}` : ""}</div>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-base-content/55">
+              ${item.owner ? `<span>${escapeHtml(item.owner)}</span>` : ""}
+              ${item.status ? `<span>${escapeHtml(item.status)}</span>` : ""}
+              ${item.created_at ? `<span>${escapeHtml(formatTimestamp(item.created_at))}</span>` : ""}
+            </div>
           </div>
           <div class="flex items-center gap-2">
             <button class="btn btn-ghost btn-xs" type="button" data-collab-item-toggle="task" data-collab-item-id="${escapeHtml(item.id)}">${item.status === "done" ? "Reopen" : "Done"}</button>
@@ -268,7 +346,10 @@
   const renderComments = () => {
     renderList("[data-collab-comments-list]", workspace().comments || [], "No comments yet.", (item) => `
       <div class="rounded-[1rem] border border-base-300 p-3">
-        <div class="text-xs font-semibold text-primary">${escapeHtml(item.author || "unknown")}</div>
+        <div class="flex items-center justify-between gap-3">
+          <div class="text-xs font-semibold text-primary">${escapeHtml(item.author || "unknown")}</div>
+          ${item.created_at ? `<div class="text-[11px] text-base-content/55">${escapeHtml(formatTimestamp(item.created_at))}</div>` : ""}
+        </div>
         <div class="mt-2 text-sm">${escapeHtml(item.text)}</div>
       </div>
     `);
@@ -276,8 +357,11 @@
 
   const renderChat = () => {
     renderList("[data-collab-chat-list]", workspace().chat_messages || [], "No chat messages yet.", (item) => `
-      <div class="rounded-[1rem] border border-base-300 bg-primary/5 p-3">
-        <div class="text-xs font-semibold text-primary">${escapeHtml(item.author || "unknown")}</div>
+      <div class="rounded-[1rem] border p-3 shadow-sm transition-colors hover:border-primary/40" style="${chatBubbleStyle(item)}">
+        <div class="flex items-center justify-between gap-3">
+          <div class="text-xs font-semibold text-primary" title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</div>
+          ${item.created_at ? `<div class="text-[11px] text-base-content/55">${escapeHtml(formatTimestamp(item.created_at))}</div>` : ""}
+        </div>
         <div class="mt-2 text-sm">${escapeHtml(item.text)}</div>
       </div>
     `);
@@ -287,7 +371,10 @@
     renderList("[data-collab-activity-list]", workspace().activity_items || [], "No recent activity yet.", (item) => `
       <div class="rounded-[1rem] border border-base-300 p-3">
         <div class="text-sm font-medium">${escapeHtml(item.text)}</div>
-        <div class="mt-1 text-xs text-base-content/55">${escapeHtml(item.actor || "system")}</div>
+        <div class="mt-1 flex items-center justify-between gap-3 text-xs text-base-content/55">
+          <div title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</div>
+          ${item.created_at ? `<div>${escapeHtml(formatTimestamp(item.created_at))}</div>` : ""}
+        </div>
       </div>
     `);
   };
@@ -309,7 +396,7 @@
     `);
   };
 
-  const renderRoomStory = () => {
+  const renderRoomStory = ({ forceEditorSync = false } = {}) => {
     const story = selectedStory();
     if (!story) {
       return;
@@ -321,25 +408,10 @@
     }
 
     fieldElements.forEach((fieldElement) => {
-      const fieldName = fieldElement.dataset.collabField;
-      const value = story.story?.[fieldName] || "";
-      const lock = storyLockFor(fieldName);
-      const ownedBySelf = lock && lock.session_id === state.sessionId;
-      if (document.activeElement !== fieldElement || !ownedBySelf) {
-        fieldElement.value = value;
-      }
-      fieldElement.disabled = !state.socket || state.socket.readyState !== WebSocket.OPEN || (lock && !ownedBySelf);
-      const lockNode = lockStatusElements.get(fieldName);
-      if (lockNode) {
-        lockNode.textContent = !state.socket || state.socket.readyState !== WebSocket.OPEN
-          ? "Disconnected"
-          : !lock
-            ? "Unlocked"
-            : ownedBySelf
-              ? "Locked by you"
-              : `Locked by ${lock.username}`;
-      }
+      fieldElement.disabled = !isConnected();
     });
+    renderFieldPresenceLabels();
+    syncEditorStory({ force: forceEditorSync });
 
     const newsRoot = document.querySelector("[data-collab-news-items]");
     if (newsRoot) {
@@ -349,10 +421,10 @@
               <div class="text-sm font-semibold">${escapeHtml(newsItem.title || "Untitled News Item")}</div>
               ${newsItem.link ? `<a class="mt-2 block truncate text-xs text-primary underline" href="${escapeHtml(newsItem.link)}" target="_blank" rel="noreferrer">${escapeHtml(newsItem.link)}</a>` : ""}
               ${newsItem.content ? `<p class="mt-3 line-clamp-6 text-sm text-base-content/70">${escapeHtml(newsItem.content)}</p>` : ""}
-              ${(state.channel.stories || []).length > 1 ? `
+              ${(store.state.channel.stories || []).length > 1 ? `
                 <div class="mt-4 flex gap-2">
                   <select class="select select-bordered select-sm flex-1" data-collab-move-target="${escapeHtml(newsItem.id)}">
-                    ${(state.channel.stories || []).filter((candidate) => candidate.id !== state.selectedStoryId).map((candidate) => `<option value="${escapeHtml(candidate.id)}">${escapeHtml(candidate.title || "Untitled Story")}</option>`).join("")}
+                    ${(store.state.channel.stories || []).filter((candidate) => candidate.id !== store.state.selectedStoryId).map((candidate) => `<option value="${escapeHtml(candidate.id)}">${escapeHtml(candidate.title || "Untitled Story")}</option>`).join("")}
                   </select>
                   <button class="btn btn-outline btn-sm" type="button" data-collab-move-news-item="${escapeHtml(newsItem.id)}">Move</button>
                 </div>
@@ -365,15 +437,14 @@
 
   const renderSidebarTabs = () => {
     document.querySelectorAll("[data-collab-sidebar-tab]").forEach((button) => {
-      const isActive = button.dataset.collabSidebarTab === state.sidebarTab;
-      button.classList.toggle("tab-active", isActive);
+      button.classList.toggle("tab-active", button.dataset.collabSidebarTab === store.state.sidebarTab);
     });
     document.querySelectorAll("[data-collab-sidebar-panel]").forEach((panel) => {
-      panel.classList.toggle("hidden", panel.dataset.collabSidebarPanel !== state.sidebarTab);
+      panel.classList.toggle("hidden", panel.dataset.collabSidebarPanel !== store.state.sidebarTab);
     });
   };
 
-  const render = () => {
+  const render = ({ forceEditorSync = false } = {}) => {
     renderStoryButtons();
     renderPresence();
     renderBriefing();
@@ -383,57 +454,34 @@
     renderChat();
     renderActivity();
     renderTimeline();
-    renderRoomStory();
+    renderRoomStory({ forceEditorSync });
     renderSidebarTabs();
   };
 
-  const applyChannel = (channel, { sessionId } = {}) => {
-    state.channel = channel;
-    if (sessionId) {
-      state.sessionId = sessionId;
-    }
-    const focusedStoryId = channel.workspace?.focused_story_id;
-    if (!state.selectedStoryId || !(channel.stories || []).some((story) => story.id === state.selectedStoryId)) {
-      state.selectedStoryId = focusedStoryId || channel.stories?.[0]?.id || "";
-    }
+  const applySnapshot = (channel, sessionId) => {
+    store.applySnapshot(channel, { sessionId });
+    render({ forceEditorSync: true });
+  };
+
+  const applyChannelUpdate = (channel) => {
+    store.applyChannelState(channel);
     render();
   };
 
-  const schedulePatch = (fieldName, value) => {
-    const currentTimer = state.patchTimers.get(fieldName);
-    if (currentTimer) {
-      window.clearTimeout(currentTimer);
-    }
-    setSaveStatus(`Syncing ${fieldName}...`);
-    state.patchTimers.set(fieldName, window.setTimeout(() => {
-      sendMessage("collab.story.patch", {
-        snapshot_id: state.selectedStoryId,
-        fields: { [fieldName]: value },
-        selected_story_id: state.selectedStoryId,
-      });
-    }, 180));
+  const applySelectionEvent = (payload) => {
+    store.applySelectionEvent(payload);
+    syncEditorSelections();
+    renderFieldPresenceLabels();
   };
 
-  const startHeartbeat = (fieldName) => {
-    const currentTimer = state.heartbeatTimers.get(fieldName);
-    if (currentTimer) {
-      window.clearInterval(currentTimer);
+  const applyStoryOp = (payload) => {
+    const field = runtime.fields.get(payload.field_name);
+    const effectType = field ? field.applyOp(payload) : "render";
+    if (effectType === "render") {
+      render();
+      return;
     }
-    state.heartbeatTimers.set(fieldName, window.setInterval(() => {
-      sendMessage("collab.lock.heartbeat", {
-        snapshot_id: state.selectedStoryId,
-        field_name: fieldName,
-        selected_story_id: state.selectedStoryId,
-      });
-    }, 4000));
-  };
-
-  const stopHeartbeat = (fieldName) => {
-    const currentTimer = state.heartbeatTimers.get(fieldName);
-    if (currentTimer) {
-      window.clearInterval(currentTimer);
-      state.heartbeatTimers.delete(fieldName);
-    }
+    render();
   };
 
   const sendWorkspacePatch = (target, action, data = {}, itemId = null) => {
@@ -441,69 +489,114 @@
       target,
       action,
       item_id: itemId,
-      data: { ...data, selected_story_id: state.selectedStoryId },
+      data: { ...data, selected_story_id: store.state.selectedStoryId },
     });
   };
 
-  const connect = () => {
-    state.socket = new WebSocket(socketUrl);
-    setConnectionState("Connecting...", "rounded-box border border-base-300 bg-base-100 px-4 py-2 text-sm font-medium text-base-content");
-    state.socket.addEventListener("open", () => {
-      setConnectionState("Live", "rounded-box border border-success/30 bg-success/10 px-4 py-2 text-sm font-medium text-success");
-      setSaveStatus("Live sync connected.");
+  const mountEditors = () => {
+    fieldElements.forEach((fieldElement) => {
+      const fieldName = fieldElement.dataset.collabField;
+      const host = editorHosts.get(fieldName);
+      const field = new window.SharedStoryField({
+        fieldName,
+        fieldElement,
+        host,
+        store,
+        sendMessage,
+        callbacks: {
+          onPendingChange(name) {
+            setSaveStatus(`Merging ${name}...`);
+          },
+          onFocus(name) {
+            const previousField = store.state.activeField;
+            if (previousField && previousField !== name) {
+              clearSelectionForField(previousField, store.state.selectedStoryId);
+            }
+            store.setActiveField(name);
+            syncEditorSelections();
+            renderFieldPresenceLabels();
+            scheduleSelectionUpdate();
+          },
+          onBlur(name) {
+            if (store.state.activeField === name && !anyEditorHasFocus()) {
+              clearActiveSelection();
+              setSaveStatus("Live merge idle.");
+            }
+          },
+          onSelectionChange(name) {
+            if (store.state.activeField === name) {
+              scheduleSelectionUpdate();
+            }
+          },
+        },
+      });
+      if (field.mount()) {
+        runtime.fields.set(fieldName, field);
+      }
     });
-    state.socket.addEventListener("message", (event) => {
+  };
+
+  const copyToClipboard = async (text) => {
+    if (!text) {
+      return false;
+    }
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    const tempInput = document.createElement("textarea");
+    tempInput.value = text;
+    tempInput.setAttribute("readonly", "");
+    tempInput.className = "fixed left-[-9999px] top-0";
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    tempInput.setSelectionRange(0, text.length);
+    const copied = document.execCommand("copy");
+    document.body.removeChild(tempInput);
+    return copied;
+  };
+
+  const connect = () => {
+    runtime.socket = new WebSocket(socketUrl);
+    setConnectionState("Connecting...", "rounded-box border border-base-300 bg-base-100 px-4 py-2 text-sm font-medium text-base-content");
+    runtime.socket.addEventListener("open", () => {
+      setConnectionState("Live", "rounded-box border border-success/30 bg-success/10 px-4 py-2 text-sm font-medium text-success");
+      setSaveStatus("Live merge connected.");
+      syncEditorStory();
+    });
+    runtime.socket.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
       if (message.type === "collab.error") {
         setConnectionState("Sync error", "rounded-box border border-error/30 bg-error/10 px-4 py-2 text-sm font-medium text-error");
         setSaveStatus(message.payload?.message || "Collaboration update failed.");
-        fieldElements.forEach((fieldElement) => {
-          fieldElement.disabled = true;
-        });
+        syncEditorStory();
         return;
       }
       if (message.type === "collab.state.snapshot") {
-        applyChannel(message.payload.channel, { sessionId: message.payload.session_id });
-        setSaveStatus("Live sync connected.");
+        applySnapshot(message.payload.channel, message.payload.session_id);
+        setSaveStatus("Live merge connected.");
         return;
       }
       if (message.type === "collab.state.updated") {
-        applyChannel(message.payload.channel);
-        setSaveStatus("All changes synced.");
+        applyChannelUpdate(message.payload.channel);
+        setSaveStatus("All changes merged.");
+        return;
+      }
+      if (message.type === "collab.story.ops.applied") {
+        applyStoryOp(message.payload);
+        setSaveStatus(message.payload.session_id === store.state.sessionId ? "Change merged." : "Remote change merged.");
+        return;
+      }
+      if (message.type === "collab.story.selection.update" || message.type === "collab.story.selection.clear") {
+        applySelectionEvent(message.payload);
       }
     });
-    state.socket.addEventListener("close", () => {
+    runtime.socket.addEventListener("close", () => {
       setConnectionState("Disconnected", "rounded-box border border-error/30 bg-error/10 px-4 py-2 text-sm font-medium text-error");
-      setSaveStatus("Live sync disconnected. Reload to reconnect.");
-      fieldElements.forEach((fieldElement) => {
-        fieldElement.disabled = true;
-      });
+      setSaveStatus("Live merge disconnected. Reload to reconnect.");
+      syncEditorStory();
     });
   };
-
-  fieldElements.forEach((fieldElement) => {
-    const fieldName = fieldElement.dataset.collabField;
-    fieldElement.addEventListener("focus", () => {
-      sendMessage("collab.lock.acquire", {
-        snapshot_id: state.selectedStoryId,
-        field_name: fieldName,
-        selected_story_id: state.selectedStoryId,
-      });
-      startHeartbeat(fieldName);
-    });
-    fieldElement.addEventListener("blur", () => {
-      stopHeartbeat(fieldName);
-      sendMessage("collab.lock.release", {
-        snapshot_id: state.selectedStoryId,
-        field_name: fieldName,
-        selected_story_id: state.selectedStoryId,
-      });
-      setSaveStatus("Live sync idle.");
-    });
-    fieldElement.addEventListener("input", () => {
-      schedulePatch(fieldName, fieldElement.value);
-    });
-  });
 
   document.addEventListener("click", (event) => {
     const copyButton = event.target.closest("[data-collab-copy-link]");
@@ -527,19 +620,17 @@
 
     const sidebarTabButton = event.target.closest("[data-collab-sidebar-tab]");
     if (sidebarTabButton) {
-      state.sidebarTab = sidebarTabButton.dataset.collabSidebarTab || "collaboration";
+      store.setSidebarTab(sidebarTabButton.dataset.collabSidebarTab || "collaboration");
       renderSidebarTabs();
       return;
     }
 
     const storyButton = event.target.closest("[data-collab-focus-story]");
     if (storyButton) {
-      const storyId = storyButton.dataset.collabFocusStory;
-      state.selectedStoryId = storyId;
-      sendWorkspacePatch("workspace", "set", {
-        focused_story_id: storyId,
-      });
-      render();
+      clearActiveSelection();
+      store.switchStory(storyButton.dataset.collabFocusStory);
+      sendWorkspacePatch("workspace", "set", { focused_story_id: store.state.selectedStoryId });
+      render({ forceEditorSync: true });
       return;
     }
 
@@ -572,10 +663,10 @@
       }
       setSaveStatus("Moving news item...");
       sendMessage("collab.news_item.move", {
-        source_snapshot_id: state.selectedStoryId,
+        source_snapshot_id: store.state.selectedStoryId,
         target_snapshot_id: select.value,
         news_item_id: newsItemId,
-        selected_story_id: state.selectedStoryId,
+        selected_story_id: store.state.selectedStoryId,
       });
     }
   });
@@ -587,13 +678,16 @@
       const target = entryForm.dataset.target;
       const formData = new FormData(entryForm);
       const data = Object.fromEntries(formData.entries());
-      const payload = {
+      const currentPresence = store.state.channel.presence?.find((entry) => entry.session_id === store.state.sessionId);
+      const currentUser = currentPresence?.username || "current user";
+      const currentBaseUrl = currentPresence?.participant_base_url || store.state.channel.active_instance_base_url || "";
+      sendWorkspacePatch(target, "upsert", {
         ...data,
         text: data.text || data.title || "",
-        author: state.channel.presence?.find((entry) => entry.session_id === state.sessionId)?.username || "current user",
-        owner: state.channel.presence?.find((entry) => entry.session_id === state.sessionId)?.username || "current user",
-      };
-      sendWorkspacePatch(target, "upsert", payload);
+        author: currentUser,
+        owner: currentUser,
+        participant_base_url: currentBaseUrl,
+      });
       entryForm.reset();
       return;
     }
@@ -624,12 +718,16 @@
   });
 
   window.addEventListener("beforeunload", () => {
-    fieldElements.forEach((fieldElement) => stopHeartbeat(fieldElement.dataset.collabField));
-    if (state.socket) {
-      state.socket.close();
+    clearActiveSelection();
+    if (runtime.selectionTimer) {
+      window.clearTimeout(runtime.selectionTimer);
+    }
+    if (runtime.socket) {
+      runtime.socket.close();
     }
   }, { once: true });
 
-  render();
+  mountEditors();
+  render({ forceEditorSync: true });
   connect();
 }());

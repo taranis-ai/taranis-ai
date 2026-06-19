@@ -249,3 +249,170 @@ def test_collaboration_live_workspace_patch_updates_channel_state(client, auth_h
     workspace_payload = response.get_json()["workspace"]
     assert workspace_payload["decisions"][0]["text"] == "Publish TLP:AMBER advisory"
     assert workspace_payload["activity_items"][0]["actor"] == "alice"
+    assert workspace_payload["activity_items"][0]["participant_base_url"] == actor["base_url"]
+
+
+def test_collaboration_live_chat_message_tracks_instance_metadata(client, auth_header, stories):
+    collaboration_service.channels.clear()
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Chat Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    actor = {
+        "base_url": collaboration_service.external_base_url(),
+        "session_id": "session-a",
+        "username": "alice",
+    }
+
+    response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/workspace-patch",
+        json={
+            "target": "chat_message",
+            "action": "upsert",
+            "actor": actor,
+            "data": {"text": "Need eyes on this summary"},
+        },
+        headers=auth_header,
+    )
+
+    assert response.status_code == 200
+    workspace_payload = response.get_json()["workspace"]
+    assert workspace_payload["chat_messages"][0]["author"] == "alice"
+    assert workspace_payload["chat_messages"][0]["participant_base_url"] == actor["base_url"]
+    assert workspace_payload["chat_messages"][0]["participant_short_name"]
+    assert workspace_payload["activity_items"][0]["participant_short_name"] == workspace_payload["chat_messages"][0]["participant_short_name"]
+
+
+def test_collaboration_story_ops_merge_concurrent_updates(client, auth_header, stories):
+    collaboration_service.channels.clear()
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Ops Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    payload = create_response.get_json()
+    channel_id = payload["channel_id"]
+    snapshot_id = payload["stories"][0]["id"]
+    base_url = collaboration_service.external_base_url()
+
+    first_detail, first_applied = collaboration_service.submit_story_ops_live(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="summary",
+        version=0,
+        op_id="op-a",
+        updates=[{"from": 0, "to": 0, "insert": "Alpha "}],
+        participant_base_url=base_url,
+        session_id="session-a",
+        username="alice",
+    )
+    second_detail, second_applied = collaboration_service.submit_story_ops_live(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="summary",
+        version=0,
+        op_id="op-b",
+        updates=[{"from": 0, "to": 0, "insert": "Bravo "}],
+        participant_base_url=base_url,
+        session_id="session-b",
+        username="bob",
+    )
+
+    assert first_applied["version"] == 1
+    assert second_applied["version"] == 2
+    summary_doc = next(doc for doc in second_detail.shared_docs if doc.snapshot_id == snapshot_id and doc.field_name == "summary")
+    assert summary_doc.version == 2
+    assert second_detail.stories[0].story["summary"] == "Alpha Bravo " or second_detail.stories[0].story["summary"] == "Bravo Alpha "
+    assert second_detail.stories[0].story["summary"] == summary_doc.text
+    first_summary_doc = next(doc for doc in first_detail.shared_docs if doc.snapshot_id == snapshot_id and doc.field_name == "summary")
+    assert first_summary_doc.text == "Alpha "
+
+
+def test_collaboration_story_ops_rebase_stale_version(client, auth_header, stories):
+    collaboration_service.channels.clear()
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Rebase Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    payload = create_response.get_json()
+    channel_id = payload["channel_id"]
+    snapshot_id = payload["stories"][0]["id"]
+    base_url = collaboration_service.external_base_url()
+
+    collaboration_service.submit_story_ops_live(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="title",
+        version=0,
+        op_id="title-1",
+        updates=[{"from": 0, "to": 0, "insert": "First "}],
+        participant_base_url=base_url,
+        session_id="session-a",
+        username="alice",
+    )
+    detail, applied = collaboration_service.submit_story_ops_live(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="title",
+        version=0,
+        op_id="title-2",
+        updates=[{"from": 0, "to": 0, "insert": "Second "}],
+        participant_base_url=base_url,
+        session_id="session-b",
+        username="bob",
+    )
+
+    assert applied["version"] == 2
+    assert detail.stories[0].story["title"].startswith("First Second ") or detail.stories[0].story["title"].startswith("Second First ")
+    assert any(doc.field_name == "title" and doc.version == 2 for doc in detail.shared_docs)
+
+
+def test_collaboration_text_selection_lifecycle(client, auth_header, stories):
+    collaboration_service.channels.clear()
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Selection Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    payload = create_response.get_json()
+    channel_id = payload["channel_id"]
+    snapshot_id = payload["stories"][0]["id"]
+    base_url = collaboration_service.external_base_url()
+
+    detail, selection = collaboration_service.update_story_selection_live(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="summary",
+        anchor=2,
+        head=5,
+        participant_base_url=base_url,
+        session_id="session-a",
+        username="alice",
+    )
+    assert selection["anchor"] == 2
+    assert detail.text_selections[0].field_name == "summary"
+
+    detail, _ = collaboration_service.clear_story_selection_live(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="summary",
+        participant_base_url=base_url,
+        session_id="session-a",
+    )
+    assert detail.text_selections == []
+
+    collaboration_service.update_story_selection_live(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="summary",
+        anchor=1,
+        head=1,
+        participant_base_url=base_url,
+        session_id="session-a",
+        username="alice",
+    )
+    detail = collaboration_service.unregister_presence(channel_id, "session-a", active_instance_base_url=base_url)
+    assert detail.text_selections == []

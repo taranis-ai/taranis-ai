@@ -84,9 +84,16 @@ def test_peer_socket_processes_followup_messages_without_async_iteration():
                 "payload": {"token": token, "partner_base_url": partner_base_url},
             },
             {
-                "type": "collab.story.patch",
+                "type": "collab.story.ops.submit",
                 "channel_id": channel_id,
-                "payload": {"actor": {"username": "alice"}, "fields": {"summary": "updated"}},
+                "payload": {
+                    "actor": {"username": "alice"},
+                    "snapshot_id": "snapshot-1",
+                    "field_name": "summary",
+                    "version": 0,
+                    "op_id": "op-1",
+                    "updates": [{"from": 0, "to": 0, "insert": "updated"}],
+                },
             },
         ]
     )
@@ -101,22 +108,23 @@ def test_peer_socket_processes_followup_messages_without_async_iteration():
     async def fake_apply_owner_message(requested_channel_id: str, actor: dict, message: dict):
         assert requested_channel_id == channel_id
         applied_messages.append({"actor": actor, "message": message})
-        return {**channel, "updated": True}
+        return {"channel": {**channel, "updated": True}, "applied": {"snapshot_id": "snapshot-1", "field_name": "summary"}}
 
-    async def fake_broadcast_state(updated_channel: dict, *, snapshot: bool = False, session_id: str | None = None):
-        broadcasted_channels.append(updated_channel)
+    async def fake_broadcast_event(broadcast_channel_id: str, message_type: str, payload: dict):
+        broadcasted_channels.append({"channel_id": broadcast_channel_id, "type": message_type, "payload": payload})
 
     hub._channel_state = fake_channel_state
     hub._apply_owner_message = fake_apply_owner_message
-    hub._broadcast_state = fake_broadcast_state
+    hub._broadcast_event = fake_broadcast_event
 
     asyncio.run(hub.peer_socket(websocket))
 
     assert len(applied_messages) == 1
     assert applied_messages[0]["actor"]["base_url"] == partner_base_url
-    assert applied_messages[0]["message"]["type"] == "collab.story.patch"
+    assert applied_messages[0]["message"]["type"] == "collab.story.ops.submit"
     assert len(broadcasted_channels) == 1
-    assert broadcasted_channels[0]["updated"] is True
+    assert broadcasted_channels[0]["type"] == "collab.story.ops.applied"
+    assert broadcasted_channels[0]["payload"]["channel"]["updated"] is True
 
 
 def test_apply_owner_message_supports_workspace_patch():
@@ -148,3 +156,36 @@ def test_apply_owner_message_supports_workspace_patch():
     assert recorded["endpoint"].endswith("/assess/collab/channels/channel-3/live/workspace-patch")
     assert recorded["payload"]["target"] == "workspace"
     assert updated["workspace"]["active_mode"] == "briefing"
+
+
+def test_apply_owner_message_supports_story_ops_submit():
+    hub = CollaborationRealtimeHub()
+    recorded = {}
+
+    async def fake_core_post(endpoint: str, payload: dict):
+        recorded["endpoint"] = endpoint
+        recorded["payload"] = payload
+        return {"channel": {"channel_id": "channel-4"}, "applied": {"field_name": "summary", "version": 1}}
+
+    hub._core_post = fake_core_post
+
+    updated = asyncio.run(
+        hub._apply_owner_message(
+            "channel-4",
+            {"base_url": "https://alpha.demo", "session_id": "session-a", "username": "alice"},
+            {
+                "type": "collab.story.ops.submit",
+                "payload": {
+                    "snapshot_id": "snapshot-1",
+                    "field_name": "summary",
+                    "version": 0,
+                    "op_id": "op-1",
+                    "updates": [{"from": 0, "to": 0, "insert": "Hi"}],
+                },
+            },
+        )
+    )
+
+    assert recorded["endpoint"].endswith("/assess/collab/channels/channel-4/live/story-ops")
+    assert recorded["payload"]["field_name"] == "summary"
+    assert updated["applied"]["version"] == 1

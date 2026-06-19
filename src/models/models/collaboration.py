@@ -31,6 +31,42 @@ class CollabPresence(TaranisBaseModel):
     selected_story_id: str | None = None
 
 
+class CollabTextDocState(TaranisBaseModel):
+    snapshot_id: str
+    field_name: Literal["title", "description", "summary", "comments"]
+    text: str = ""
+    version: int = 0
+
+
+class CollabTextDocChange(TaranisBaseModel):
+    from_pos: int = Field(alias="from")
+    to: int
+    insert: str = ""
+
+    model_config = {"populate_by_name": True}
+
+
+class CollabTextDocHistoryEntry(TaranisBaseModel):
+    version: int
+    op_id: str
+    session_id: str
+    changes: list[CollabTextDocChange] = Field(default_factory=list)
+
+
+class CollabTextDocRuntime(CollabTextDocState):
+    history: list[CollabTextDocHistoryEntry] = Field(default_factory=list)
+
+
+class CollabTextSelectionPresence(TaranisBaseModel):
+    snapshot_id: str
+    field_name: Literal["title", "description", "summary", "comments"]
+    session_id: str
+    participant_base_url: str
+    username: str
+    anchor: int = 0
+    head: int = 0
+
+
 class CollabWorkspaceDecision(TaranisBaseModel):
     id: str
     text: str
@@ -59,6 +95,8 @@ class CollabWorkspaceChatMessage(TaranisBaseModel):
     id: str
     author: str
     text: str
+    participant_base_url: str | None = None
+    participant_short_name: str | None = None
     created_at: datetime | None = None
 
 
@@ -74,6 +112,8 @@ class CollabWorkspaceActivityItem(TaranisBaseModel):
     id: str
     text: str
     actor: str | None = None
+    participant_base_url: str | None = None
+    participant_short_name: str | None = None
     created_at: datetime | None = None
 
 
@@ -96,6 +136,13 @@ class CollabWorkspaceState(TaranisBaseModel):
     chat_messages: list[CollabWorkspaceChatMessage] = Field(default_factory=list)
     timeline_events: list[CollabWorkspaceTimelineEvent] = Field(default_factory=list)
     activity_items: list[CollabWorkspaceActivityItem] = Field(default_factory=list)
+
+
+class CollabRuntimeChannel(TaranisBaseModel):
+    presence: list[CollabPresence] = Field(default_factory=list)
+    locks: list[CollabFieldLock] = Field(default_factory=list)
+    shared_docs: list[CollabTextDocRuntime] = Field(default_factory=list)
+    text_selections: list[CollabTextSelectionPresence] = Field(default_factory=list)
 
 
 class CollabStorySnapshot(TaranisBaseModel):
@@ -142,6 +189,8 @@ class CollabChannelDetail(TaranisBaseModel):
     participants: list[CollabParticipant] = Field(default_factory=list)
     presence: list[CollabPresence] = Field(default_factory=list)
     locks: list[CollabFieldLock] = Field(default_factory=list)
+    shared_docs: list[CollabTextDocState] = Field(default_factory=list)
+    text_selections: list[CollabTextSelectionPresence] = Field(default_factory=list)
     workspace: CollabWorkspaceState = Field(default_factory=CollabWorkspaceState)
     stories: list[CollabStorySnapshot] = Field(default_factory=list)
     result_stories: list[CollabStorySnapshot] = Field(default_factory=list)
@@ -204,6 +253,37 @@ class CollabLivePresenceRequest(TaranisBaseModel):
 class CollabLiveStoryPatch(TaranisBaseModel):
     snapshot_id: str
     payload: CollabStoryUpdatePayload = Field(default_factory=CollabStoryUpdatePayload)
+    actor: CollabLiveActor
+
+
+class CollabLiveStoryOpChange(TaranisBaseModel):
+    from_pos: int = Field(alias="from")
+    to: int
+    insert: str = ""
+
+    model_config = {"populate_by_name": True}
+
+
+class CollabLiveStoryOpsSubmit(TaranisBaseModel):
+    snapshot_id: str
+    field_name: Literal["title", "description", "summary", "comments"]
+    version: int = 0
+    op_id: str
+    updates: list[CollabLiveStoryOpChange] = Field(default_factory=list)
+    actor: CollabLiveActor
+
+
+class CollabLiveSelectionUpdate(TaranisBaseModel):
+    snapshot_id: str
+    field_name: Literal["title", "description", "summary", "comments"]
+    anchor: int
+    head: int
+    actor: CollabLiveActor
+
+
+class CollabLiveSelectionClear(TaranisBaseModel):
+    snapshot_id: str
+    field_name: Literal["title", "description", "summary", "comments"]
     actor: CollabLiveActor
 
 

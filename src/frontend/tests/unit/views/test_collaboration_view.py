@@ -1,3 +1,5 @@
+import json
+
 from frontend.config import Config
 
 
@@ -36,11 +38,21 @@ def test_collaboration_dialog_renders_open_channels(authenticated_client, respon
     html = response.get_data(as_text=True)
     assert "Demo Topic" in html
     assert 'name="story_ids" value="story-1"' in html
-    assert "Add Stories to Existing Channel" in html
-    assert "Create New Channel" in html
-    assert "Destination channel" in html
-    assert "Channel title" in html
-    assert "No channel title is needed for this path." in html
+    assert "Choose an open channel for these stories, or create a new one." in html
+    assert "How do you want to continue?" in html
+    assert 'value="Existing channel"' in html
+    assert 'value="New channel"' in html
+    assert "x-show=" in html
+    assert "mode === 'existing'" in html
+    assert "mode === 'new'" in html
+    assert "Open channel" in html
+    assert "New channel name" in html
+    assert "Demo Topic &bull; 2 stories" in html
+    assert "Pick one of the open channels." in html
+    assert "Choose a short name others will recognize." in html
+    assert ":name=\"mode === 'existing' ? 'channel_id' : null\"" in html
+    assert ":name=\"mode === 'new' ? 'topic' : null\"" in html
+    assert '"existing"' in html
 
 
 def test_collaboration_dialog_without_story_ids_supports_new_channel(authenticated_client, responses_mock):
@@ -50,9 +62,11 @@ def test_collaboration_dialog_without_story_ids_supports_new_channel(authenticat
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "Create a new collaboration channel for a fresh topic. Stories can be added from Assess later." in html
+    assert "Create a collaboration channel to start a new topic." in html
     assert "Stories are not being added in this step. After the channel is created, add stories from Assess." in html
-    assert "Add Stories to Existing Channel" not in html
+    assert "How do you want to continue?" not in html
+    assert "Open channel" not in html
+    assert "New channel name" in html
 
 
 def test_collaboration_dialog_force_new_clears_current_channel_selection(authenticated_client, responses_mock):
@@ -90,6 +104,70 @@ def test_collaboration_dialog_force_new_clears_current_channel_selection(authent
     html = response.get_data(as_text=True)
     assert 'option value="channel-1" selected' not in html
     assert '"new"' in html
+
+
+def test_collaboration_dialog_with_open_channels_and_force_new_shows_new_channel_as_primary_section(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
+        json={
+            "items": [
+                {
+                    "channel_id": "channel-1",
+                    "topic": "Demo Topic",
+                    "status": "open",
+                    "owner_base_url": "https://alpha.demo",
+                    "story_count": 2,
+                    "participant_count": 3,
+                    "created_at": "2026-05-08T10:00:00",
+                    "updated_at": "2026-05-08T10:00:00",
+                    "invite": {
+                        "owner_base_url": "https://alpha.demo",
+                        "channel_id": "channel-1",
+                        "token": "token-1",
+                        "join_url": "/collaboration/join?channel_id=channel-1",
+                    },
+                }
+            ],
+            "total_count": 1,
+        },
+    )
+
+    response = authenticated_client.get("/collaboration/dialog?story_id=story-1&force_new=1&topic=Fresh%20Topic")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert '"new"' in html
+    assert ":name=\"mode === 'new' ? 'topic' : null\"" in html
+    assert 'value="Fresh Topic"' in html
+    assert "New channel name" in html
+
+
+def test_collaboration_dialog_without_open_channels_only_supports_new_channel(authenticated_client, responses_mock):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/collab/channels", json={"items": [], "total_count": 0})
+
+    response = authenticated_client.get("/collaboration/dialog?story_id=story-1")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Choose an open channel for these stories, or create a new one." in html
+    assert "How do you want to continue?" not in html
+    assert "Open channel" not in html
+    assert "New channel name" in html
+    assert 'name="story_ids" value="story-1"' in html
+
+
+def test_collaboration_dialog_submit_creates_new_channel_from_workspace(authenticated_client, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
+        json={"channel_id": "channel-2"},
+    )
+
+    response = authenticated_client.post("/collaboration/dialog", data={"topic": "Fresh Topic"})
+
+    assert response.status_code == 200
+    assert response.headers["HX-Redirect"].endswith("/collaboration/channel-2")
+    request_body = json.loads(responses_mock.calls[0].request.body)
+    assert request_body == {"topic": "Fresh Topic", "story_ids": []}
 
 
 def test_collaboration_workspace_renders_active_channel(authenticated_client, responses_mock):
@@ -199,6 +277,9 @@ def test_collaboration_workspace_renders_active_channel(authenticated_client, re
     assert "Open Original Story" not in html
     assert "Briefing Mode" not in html
     assert "Story Focus" not in html
+    assert "vendor/codemirror.js" in html
+    assert 'data-collab-editor-host="summary"' in html
+    assert "Nobody here" in html
     assert html.count("data-collab-copy-link") == 0
 
 

@@ -12,11 +12,9 @@ from models.assess import Story as StoryPayload
 from models.collaboration import (
     CollabChannelDetail,
     CollabChannelSummary,
-    CollabFieldLock,
     CollabFinalizeResult,
     CollabInvite,
     CollabParticipant,
-    CollabPresence,
     CollabStorySnapshot,
     CollabWorkspaceActivityItem,
     CollabWorkspaceBriefing,
@@ -35,6 +33,10 @@ from core.managers.sse_manager import sse_manager
 from core.model.news_item import NewsItem
 from core.model.story import Story
 from core.model.user import User
+from core.service.collaboration_text import StoryTextCollabService
+
+
+EDITABLE_TEXT_FIELDS = ("title", "description", "summary", "comments")
 
 
 def _utcnow() -> datetime:
@@ -47,6 +49,7 @@ class CollaborationService:
         self.serializer = URLSafeSerializer(Config.API_KEY.get_secret_value(), salt="collaboration-channel")
         self.timeout = 15
         self.lock_ttl_seconds = 10
+        self.text_collab = StoryTextCollabService()
 
     def _sync_channel_to_participant(self, channel_id: str, base_url: str, sync_payload: dict[str, Any]) -> None:
         try:
@@ -100,6 +103,16 @@ class CollaborationService:
         prefix = f"/{root}" if root else ""
         return f"{base}{prefix}/api"
 
+    @staticmethod
+    def _instance_short_name(base_url: str | None) -> str | None:
+        if not base_url:
+            return None
+        hostname = urlsplit(base_url).netloc.split("@")[-1].split(":", 1)[0]
+        if not hostname:
+            return None
+        short = hostname.split(".", 1)[0].strip()
+        return short or hostname
+
     def _build_invite(self, channel_id: str, token: str, owner_base_url: str) -> CollabInvite:
         query = f"owner_base_url={quote(owner_base_url, safe='')}&channel_id={quote(channel_id, safe='')}&token={quote(token, safe='')}"
         join_url = f"{self.frontend_root_path()}/collaboration/join?{query}"
@@ -148,6 +161,7 @@ class CollaborationService:
             workspace = self._ensure_workspace_state(channel_state)
             if not workspace.get("focused_story_id") and channel_state["stories"]:
                 workspace["focused_story_id"] = channel_state["stories"][0].get("id")
+            self._refresh_shared_docs_from_stories(channel_state)
             self._touch_channel(channel_state)
         return changed
 
@@ -156,6 +170,54 @@ class CollaborationService:
         snapshot["title"] = story_payload.get("title")
         snapshot["description"] = story_payload.get("description")
         return snapshot
+
+    @staticmethod
+    def _doc_storage_key(snapshot_id: str, field_name: str) -> str:
+        return StoryTextCollabService.doc_storage_key(snapshot_id, field_name)
+
+    @staticmethod
+    def _selection_storage_key(snapshot_id: str, field_name: str, session_id: str) -> str:
+        return StoryTextCollabService.selection_storage_key(snapshot_id, field_name, session_id)
+
+    @staticmethod
+    def _story_field_text(story_payload: dict[str, Any], field_name: str) -> str:
+        return str(story_payload.get(field_name) or "")
+
+    def _ensure_shared_doc(self, channel_state: dict[str, Any], snapshot_id: str, field_name: str, text: str = "") -> dict[str, Any]:
+        return self.text_collab.ensure_shared_doc(channel_state, snapshot_id, field_name, text)
+
+    def _refresh_shared_docs_from_stories(self, channel_state: dict[str, Any]) -> None:
+        runtime = self.text_collab.ensure_runtime(channel_state)
+        expected_keys: set[str] = set()
+        for snapshot in channel_state.get("stories", []):
+            snapshot_id = snapshot.get("id", "")
+            story_payload = snapshot.get("story") or {}
+            for field_name in EDITABLE_TEXT_FIELDS:
+                doc = self._ensure_shared_doc(
+                    channel_state,
+                    snapshot_id,
+                    field_name,
+                    self._story_field_text(story_payload, field_name),
+                )
+                doc["text"] = self._story_field_text(story_payload, field_name)
+                expected_keys.add(self._doc_storage_key(snapshot_id, field_name))
+        runtime["shared_docs"] = {key: value for key, value in self.text_collab.shared_docs(channel_state).items() if key in expected_keys}
+        runtime["text_selections"] = {
+            key: value
+            for key, value in self.text_collab.text_selections(channel_state).items()
+            if self._doc_storage_key(value.get("snapshot_id", ""), value.get("field_name", "")) in expected_keys
+        }
+
+    @staticmethod
+    def _map_position_through_change(position: int, change: dict[str, Any], *, assoc: int) -> int:
+        return StoryTextCollabService.map_position_through_change(position, change, assoc=assoc)
+
+    def _rebase_changes(self, changes: list[dict[str, Any]], history: list[dict[str, Any]], version: int) -> list[dict[str, Any]]:
+        return self.text_collab.rebase_changes(changes, history, version)
+
+    @staticmethod
+    def _apply_changes_to_text(text: str, changes: list[dict[str, Any]]) -> str:
+        return StoryTextCollabService.apply_changes_to_text(text, changes)
 
     def _replace_story_snapshot(self, channel_state: dict[str, Any], snapshot_id: str, story_payload: dict[str, Any]) -> bool:
         changed = False
@@ -388,19 +450,35 @@ class CollaborationService:
             "activity_item": "activity_items",
         }.get(target, "")
 
-    def _append_activity(self, channel_state: dict[str, Any], *, actor: str, text: str) -> None:
+    def _append_activity(
+        self,
+        channel_state: dict[str, Any],
+        *,
+        actor: str,
+        text: str,
+        participant_base_url: str | None = None,
+    ) -> None:
         workspace = self._ensure_workspace_state(channel_state)
         workspace["activity_items"] = [
             {
                 "id": str(uuid.uuid4()),
                 "text": text,
                 "actor": actor,
+                "participant_base_url": participant_base_url,
+                "participant_short_name": self._instance_short_name(participant_base_url),
                 "created_at": _utcnow().isoformat(),
             },
             *list(workspace.get("activity_items") or []),
         ][:20]
 
-    def _apply_workspace_patch(self, channel_state: dict[str, Any], payload: dict[str, Any], *, username: str) -> None:
+    def _apply_workspace_patch(
+        self,
+        channel_state: dict[str, Any],
+        payload: dict[str, Any],
+        *,
+        username: str,
+        participant_base_url: str | None = None,
+    ) -> None:
         workspace = self._ensure_workspace_state(channel_state)
         target = payload.get("target", "")
         action = payload.get("action", "")
@@ -416,7 +494,12 @@ class CollaborationService:
                 workspace["active_mode"] = active_mode
             if focused_story_id:
                 workspace["focused_story_id"] = focused_story_id
-            self._append_activity(channel_state, actor=username, text="updated workspace view")
+            self._append_activity(
+                channel_state,
+                actor=username,
+                text="updated workspace view",
+                participant_base_url=participant_base_url,
+            )
             self._touch_channel(channel_state)
             return
 
@@ -425,7 +508,12 @@ class CollaborationService:
                 raise ValueError("Briefing only supports set")
             merged_briefing = {**(workspace.get("briefing") or {}), **data}
             workspace["briefing"] = CollabWorkspaceBriefing.model_validate(merged_briefing).model_dump(mode="json")
-            self._append_activity(channel_state, actor=username, text="updated briefing")
+            self._append_activity(
+                channel_state,
+                actor=username,
+                text="updated briefing",
+                participant_base_url=participant_base_url,
+            )
             self._touch_channel(channel_state)
             return
 
@@ -439,7 +527,12 @@ class CollaborationService:
             if not item_id:
                 raise ValueError("Missing item_id for remove")
             workspace[collection_key] = [item for item in items if item.get("id") != item_id]
-            self._append_activity(channel_state, actor=username, text=f"removed {target.replace('_', ' ')}")
+            self._append_activity(
+                channel_state,
+                actor=username,
+                text=f"removed {target.replace('_', ' ')}",
+                participant_base_url=participant_base_url,
+            )
             self._touch_channel(channel_state)
             return
 
@@ -450,6 +543,10 @@ class CollaborationService:
         payload_data = {**data, "id": resolved_id}
         if "created_at" not in payload_data:
             payload_data["created_at"] = _utcnow().isoformat()
+        if target == "chat_message":
+            payload_data.setdefault("author", username)
+            payload_data.setdefault("participant_base_url", participant_base_url)
+            payload_data.setdefault("participant_short_name", self._instance_short_name(participant_base_url))
         item_payload = item_model.model_validate(payload_data).model_dump(mode="json")
 
         replaced = False
@@ -461,13 +558,19 @@ class CollaborationService:
         if not replaced:
             items.insert(0, item_payload)
         workspace[collection_key] = items
-        self._append_activity(channel_state, actor=username, text=f"updated {target.replace('_', ' ')}")
+        self._append_activity(
+            channel_state,
+            actor=username,
+            text=f"updated {target.replace('_', ' ')}",
+            participant_base_url=participant_base_url,
+        )
         self._touch_channel(channel_state)
 
     def _prune_runtime_state(self, channel_state: dict[str, Any]) -> None:
+        runtime = self.text_collab.ensure_runtime(channel_state)
         now = _utcnow()
         valid_locks = []
-        for lock in channel_state.get("locks", []):
+        for lock in runtime.get("locks", []):
             expires_at = lock.get("expires_at")
             if not expires_at:
                 continue
@@ -477,7 +580,7 @@ class CollaborationService:
             except ValueError:
                 continue
             valid_locks.append(lock)
-        channel_state["locks"] = valid_locks
+        runtime["locks"] = valid_locks
 
     def _upsert_presence(
         self,
@@ -488,15 +591,16 @@ class CollaborationService:
         username: str,
         selected_story_id: str | None = None,
     ) -> None:
+        presence_list = self.text_collab.presence(channel_state)
         now = _utcnow().isoformat()
-        for presence in channel_state.get("presence", []):
+        for presence in presence_list:
             if presence.get("session_id") == session_id:
                 presence["participant_base_url"] = participant_base_url
                 presence["username"] = username
                 presence["selected_story_id"] = selected_story_id
                 presence["last_seen_at"] = now
                 return
-        channel_state.setdefault("presence", []).append(
+        presence_list.append(
             {
                 "session_id": session_id,
                 "participant_base_url": participant_base_url,
@@ -508,21 +612,36 @@ class CollaborationService:
         )
 
     def _remove_presence(self, channel_state: dict[str, Any], session_id: str) -> bool:
-        existing = channel_state.get("presence", [])
+        runtime = self.text_collab.ensure_runtime(channel_state)
+        existing = runtime.get("presence", [])
         remaining = [presence for presence in existing if presence.get("session_id") != session_id]
         if len(remaining) == len(existing):
             return False
-        channel_state["presence"] = remaining
-        channel_state["locks"] = [lock for lock in channel_state.get("locks", []) if lock.get("session_id") != session_id]
+        runtime["presence"] = remaining
+        runtime["locks"] = [lock for lock in runtime.get("locks", []) if lock.get("session_id") != session_id]
+        runtime["text_selections"] = {
+            key: value for key, value in runtime.get("text_selections", {}).items() if value.get("session_id") != session_id
+        }
         self._touch_channel(channel_state)
         return True
 
     def _channel_to_detail(self, channel_state: dict[str, Any], active_instance_base_url: str | None = None) -> CollabChannelDetail:
         self._prune_runtime_state(channel_state)
+        runtime = self.text_collab.export_runtime(channel_state)
         invite = self._build_invite(channel_state["channel_id"], channel_state["token"], channel_state["owner_base_url"])
         participants = [CollabParticipant.model_validate(item) for item in channel_state["participants"]]
-        presence = [CollabPresence.model_validate(item) for item in channel_state.get("presence", [])]
-        locks = [CollabFieldLock.model_validate(item) for item in channel_state.get("locks", [])]
+        presence = list(runtime.presence)
+        locks = list(runtime.locks)
+        shared_docs = [
+            {
+                "snapshot_id": item.snapshot_id,
+                "field_name": item.field_name,
+                "text": item.text,
+                "version": item.version,
+            }
+            for item in runtime.shared_docs
+        ]
+        text_selections = list(runtime.text_selections)
         workspace = CollabWorkspaceState.model_validate(self._ensure_workspace_state(channel_state))
         stories = [CollabStorySnapshot.model_validate(item) for item in channel_state["stories"]]
         result_stories = [CollabStorySnapshot.model_validate(item) for item in channel_state["result_stories"]]
@@ -537,6 +656,8 @@ class CollaborationService:
             participants=participants,
             presence=presence,
             locks=locks,
+            shared_docs=shared_docs,
+            text_selections=text_selections,
             workspace=workspace,
             stories=stories,
             result_stories=result_stories,
@@ -615,8 +736,12 @@ class CollaborationService:
                     "joined_at": now.isoformat(),
                 }
             ],
-            "presence": [],
-            "locks": [],
+            "runtime": {
+                "presence": [],
+                "locks": [],
+                "shared_docs": {},
+                "text_selections": {},
+            },
             "workspace": {},
             "stories": [],
             "result_stories": [],
@@ -655,9 +780,9 @@ class CollaborationService:
         detail = CollabChannelDetail.model_validate(response.json())
         channel_state = detail.model_dump(mode="json")
         channel_state["token"] = token
-        channel_state.setdefault("presence", [])
-        channel_state.setdefault("locks", [])
+        self.text_collab.ensure_runtime(channel_state)
         channel_state.setdefault("workspace", self._default_workspace_state(channel_state))
+        self._refresh_shared_docs_from_stories(channel_state)
         self.channels[channel_id] = channel_state
         sse_manager.collab_channel_updated(detail.model_dump(mode="json"))
         return self._channel_to_detail(channel_state, active_instance_base_url=partner_base_url)
@@ -670,9 +795,9 @@ class CollaborationService:
             raise PermissionError("Invalid collaboration token")
         channel_state = copy.deepcopy(channel_payload)
         channel_state["token"] = token
-        channel_state.setdefault("presence", [])
-        channel_state.setdefault("locks", [])
+        self.text_collab.ensure_runtime(channel_state)
         channel_state.setdefault("workspace", self._default_workspace_state(channel_state))
+        self._refresh_shared_docs_from_stories(channel_state)
         self.channels[channel_id] = channel_state
         detail = self._channel_to_detail(channel_state, active_instance_base_url=self.external_base_url())
         if detail.status == "closed":
@@ -691,10 +816,20 @@ class CollaborationService:
         if snapshot is None:
             raise KeyError(snapshot_id)
         story_payload = copy.deepcopy(snapshot.get("story") or {})
-        for field in ("title", "description", "summary", "comments"):
+        for field in EDITABLE_TEXT_FIELDS:
             if field in payload:
                 story_payload[field] = payload.get(field) or ""
         self._replace_story_snapshot(channel_state, snapshot_id, story_payload)
+
+    def _update_story_field_text(self, channel_state: dict[str, Any], snapshot_id: str, field_name: str, text: str) -> None:
+        snapshot = self._find_snapshot(channel_state, snapshot_id)
+        if snapshot is None:
+            raise KeyError(snapshot_id)
+        story_payload = copy.deepcopy(snapshot.get("story") or {})
+        story_payload[field_name] = text
+        self._replace_story_snapshot(channel_state, snapshot_id, story_payload)
+        doc = self._ensure_shared_doc(channel_state, snapshot_id, field_name, text)
+        doc["text"] = text
 
     def _apply_move_news_item(
         self,
@@ -743,7 +878,7 @@ class CollaborationService:
     ) -> None:
         self._prune_runtime_state(channel_state)
         lock_key = self._lock_key(snapshot_id, field_name)
-        for lock in channel_state.get("locks", []):
+        for lock in self.text_collab.locks(channel_state):
             if self._lock_key(lock.get("snapshot_id", ""), lock.get("field_name", "")) != lock_key:
                 continue
             if lock.get("session_id") == session_id:
@@ -799,12 +934,13 @@ class CollaborationService:
         self._assert_field_lock(channel_state, snapshot_id, field_name, session_id=session_id)
         now = _utcnow()
         expires_at = now + timedelta(seconds=self.lock_ttl_seconds)
-        channel_state["locks"] = [
+        runtime = self.text_collab.ensure_runtime(channel_state)
+        runtime["locks"] = [
             lock
-            for lock in channel_state.get("locks", [])
+            for lock in runtime.get("locks", [])
             if self._lock_key(lock.get("snapshot_id", ""), lock.get("field_name", "")) != self._lock_key(snapshot_id, field_name)
         ]
-        channel_state["locks"].append(
+        runtime["locks"].append(
             {
                 "snapshot_id": snapshot_id,
                 "field_name": field_name,
@@ -850,9 +986,10 @@ class CollaborationService:
     ) -> CollabChannelDetail:
         channel_state = self._require_channel(channel_id)
         lock_key = self._lock_key(snapshot_id, field_name)
-        channel_state["locks"] = [
+        runtime = self.text_collab.ensure_runtime(channel_state)
+        runtime["locks"] = [
             lock
-            for lock in channel_state.get("locks", [])
+            for lock in runtime.get("locks", [])
             if not (
                 self._lock_key(lock.get("snapshot_id", ""), lock.get("field_name", "")) == lock_key and lock.get("session_id") == session_id
             )
@@ -885,7 +1022,127 @@ class CollaborationService:
             if field in payload:
                 self._assert_field_lock(channel_state, snapshot_id, field, session_id=session_id)
         self._apply_story_update(channel_state, snapshot_id, payload)
+        self._refresh_shared_docs_from_stories(channel_state)
         return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
+
+    def submit_story_ops_live(
+        self,
+        channel_id: str,
+        *,
+        snapshot_id: str,
+        field_name: str,
+        version: int,
+        op_id: str,
+        updates: list[dict[str, Any]],
+        participant_base_url: str,
+        session_id: str,
+        username: str,
+    ) -> tuple[CollabChannelDetail, dict[str, Any]]:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Channel is closed")
+        if field_name not in EDITABLE_TEXT_FIELDS:
+            raise ValueError(f"Unsupported collaboration field: {field_name}")
+        self._upsert_presence(
+            channel_state,
+            session_id=session_id,
+            participant_base_url=self._normalize_base_url(participant_base_url),
+            username=username,
+            selected_story_id=snapshot_id,
+        )
+        snapshot = self._find_snapshot(channel_state, snapshot_id)
+        if snapshot is None:
+            raise KeyError(snapshot_id)
+        doc = self._ensure_shared_doc(
+            channel_state,
+            snapshot_id,
+            field_name,
+            self._story_field_text(snapshot.get("story") or {}, field_name),
+        )
+        current_version = int(doc.get("version", 0))
+        if version > current_version:
+            raise ValueError("Story op version is ahead of the authoritative document")
+        normalized_updates = [
+            {"from": int(item.get("from", 0)), "to": int(item.get("to", 0)), "insert": str(item.get("insert", ""))} for item in updates
+        ]
+        rebased_updates = self._rebase_changes(normalized_updates, list(doc.get("history") or []), version)
+        next_text = self._apply_changes_to_text(str(doc.get("text", "")), rebased_updates)
+        doc["text"] = next_text
+        doc["version"] = current_version + 1
+        doc.setdefault("history", []).append(
+            {
+                "version": doc["version"],
+                "op_id": op_id,
+                "session_id": session_id,
+                "changes": rebased_updates,
+            }
+        )
+        self._update_story_field_text(channel_state, snapshot_id, field_name, next_text)
+        self._touch_channel(channel_state)
+        detail = self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
+        return detail, {
+            "snapshot_id": snapshot_id,
+            "field_name": field_name,
+            "version": doc["version"],
+            "op_id": op_id,
+            "session_id": session_id,
+            "username": username,
+            "updates": rebased_updates,
+        }
+
+    def update_story_selection_live(
+        self,
+        channel_id: str,
+        *,
+        snapshot_id: str,
+        field_name: str,
+        anchor: int,
+        head: int,
+        participant_base_url: str,
+        session_id: str,
+        username: str,
+    ) -> tuple[CollabChannelDetail, dict[str, Any]]:
+        channel_state = self._require_channel(channel_id)
+        if field_name not in EDITABLE_TEXT_FIELDS:
+            raise ValueError(f"Unsupported collaboration field: {field_name}")
+        self._upsert_presence(
+            channel_state,
+            session_id=session_id,
+            participant_base_url=self._normalize_base_url(participant_base_url),
+            username=username,
+            selected_story_id=snapshot_id,
+        )
+        selection = {
+            "snapshot_id": snapshot_id,
+            "field_name": field_name,
+            "session_id": session_id,
+            "participant_base_url": self._normalize_base_url(participant_base_url),
+            "username": username,
+            "anchor": max(0, int(anchor)),
+            "head": max(0, int(head)),
+        }
+        self.text_collab.text_selections(channel_state)[self._selection_storage_key(snapshot_id, field_name, session_id)] = selection
+        self._touch_channel(channel_state)
+        detail = self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
+        return detail, selection
+
+    def clear_story_selection_live(
+        self,
+        channel_id: str,
+        *,
+        snapshot_id: str,
+        field_name: str,
+        participant_base_url: str,
+        session_id: str,
+    ) -> tuple[CollabChannelDetail, dict[str, Any]]:
+        channel_state = self._require_channel(channel_id)
+        self.text_collab.text_selections(channel_state).pop(
+            self._selection_storage_key(snapshot_id, field_name, session_id),
+            None,
+        )
+        self._touch_channel(channel_state)
+        detail = self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
+        return detail, {"snapshot_id": snapshot_id, "field_name": field_name, "session_id": session_id}
 
     def move_news_item_live(
         self,
@@ -931,7 +1188,12 @@ class CollaborationService:
             username=username,
             selected_story_id=selected_story_id,
         )
-        self._apply_workspace_patch(channel_state, payload, username=username)
+        self._apply_workspace_patch(
+            channel_state,
+            payload,
+            username=username,
+            participant_base_url=self._normalize_base_url(participant_base_url),
+        )
         return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
 
     def add_story_payloads(self, channel_id: str, story_payloads: list[dict[str, Any]], user: User | None = None) -> CollabChannelDetail:

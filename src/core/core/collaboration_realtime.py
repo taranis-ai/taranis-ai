@@ -39,6 +39,25 @@ class CollaborationRealtimeHub:
         self.participant_owner_sockets: dict[str, Any] = {}
         self.channel_mutexes: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self.http_timeout = Config.COLLAB_REALTIME_REQUEST_TIMEOUT
+        self.owner_message_handlers = {
+            "collab.hello": self._handle_presence_connect,
+            "collab.presence": self._handle_presence_connect,
+            "collab.presence.disconnect": self._handle_presence_disconnect,
+            "collab.lock.acquire": self._handle_lock_acquire,
+            "collab.lock.heartbeat": self._handle_lock_heartbeat,
+            "collab.lock.release": self._handle_lock_release,
+            "collab.story.patch": self._handle_story_patch,
+            "collab.story.ops.submit": self._handle_story_ops_submit,
+            "collab.story.selection.update": self._handle_selection_update,
+            "collab.story.selection.clear": self._handle_selection_clear,
+            "collab.news_item.move": self._handle_news_item_move,
+            "collab.workspace.patch": self._handle_workspace_patch,
+        }
+        self.owner_result_broadcasters = {
+            "collab.story.ops.submit": self._broadcast_story_ops_applied,
+            "collab.story.selection.update": self._broadcast_selection_updated,
+            "collab.story.selection.clear": self._broadcast_selection_cleared,
+        }
 
     @staticmethod
     def _message(message_type: str, channel_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -148,6 +167,11 @@ class CollaborationRealtimeHub:
         await self._broadcast_to_browsers(channel_id, message)
         await self._broadcast_to_owner_peers(channel_id, message)
 
+    async def _broadcast_event(self, channel_id: str, message_type: str, payload: dict[str, Any]) -> None:
+        message = self._message(message_type, channel_id, payload)
+        await self._broadcast_to_browsers(channel_id, message)
+        await self._broadcast_to_owner_peers(channel_id, message)
+
     async def _send_error(self, websocket: WebSocket, channel_id: str, message: str, original_type: str = "") -> None:
         await websocket.send_json(self._message("collab.error", channel_id, {"message": message, "original_type": original_type}))
 
@@ -158,82 +182,165 @@ class CollaborationRealtimeHub:
             "username": session.username,
         }
 
+    async def _handle_presence_connect(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/presence/connect",
+            {"actor": actor, "selected_story_id": payload.get("selected_story_id")},
+        )
+
+    async def _handle_presence_disconnect(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/presence/disconnect",
+            {"actor": actor, "selected_story_id": payload.get("selected_story_id")},
+        )
+
+    async def _handle_lock_acquire(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/lock/acquire",
+            {
+                "actor": actor,
+                "snapshot_id": payload.get("snapshot_id"),
+                "field_name": payload.get("field_name"),
+                "selected_story_id": payload.get("selected_story_id"),
+            },
+        )
+
+    async def _handle_lock_heartbeat(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/lock/heartbeat",
+            {
+                "actor": actor,
+                "snapshot_id": payload.get("snapshot_id"),
+                "field_name": payload.get("field_name"),
+                "selected_story_id": payload.get("selected_story_id"),
+            },
+        )
+
+    async def _handle_lock_release(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/lock/release",
+            {
+                "actor": actor,
+                "snapshot_id": payload.get("snapshot_id"),
+                "field_name": payload.get("field_name"),
+                "selected_story_id": payload.get("selected_story_id"),
+            },
+        )
+
+    async def _handle_story_patch(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        fields = payload.get("fields") or {}
+        filtered_fields = {key: value for key, value in fields.items() if key in EDITABLE_FIELDS}
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/story-patch",
+            {
+                "actor": actor,
+                "snapshot_id": payload.get("snapshot_id"),
+                "payload": filtered_fields,
+            },
+        )
+
+    async def _handle_story_ops_submit(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/story-ops",
+            {
+                "actor": actor,
+                "snapshot_id": payload.get("snapshot_id"),
+                "field_name": payload.get("field_name"),
+                "version": payload.get("version", 0),
+                "op_id": payload.get("op_id"),
+                "updates": payload.get("updates") or [],
+            },
+        )
+
+    async def _handle_selection_update(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/selection/update",
+            {
+                "actor": actor,
+                "snapshot_id": payload.get("snapshot_id"),
+                "field_name": payload.get("field_name"),
+                "anchor": payload.get("anchor", 0),
+                "head": payload.get("head", 0),
+            },
+        )
+
+    async def _handle_selection_clear(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/selection/clear",
+            {
+                "actor": actor,
+                "snapshot_id": payload.get("snapshot_id"),
+                "field_name": payload.get("field_name"),
+            },
+        )
+
+    async def _handle_news_item_move(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/move-news-item",
+            {
+                "actor": actor,
+                "source_snapshot_id": payload.get("source_snapshot_id"),
+                "target_snapshot_id": payload.get("target_snapshot_id"),
+                "news_item_id": payload.get("news_item_id"),
+            },
+        )
+
+    async def _handle_workspace_patch(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/workspace-patch",
+            {
+                "actor": actor,
+                "target": payload.get("target"),
+                "action": payload.get("action"),
+                "item_id": payload.get("item_id"),
+                "data": payload.get("data") or {},
+            },
+        )
+
     async def _apply_owner_message(self, channel_id: str, actor: dict[str, Any], message: dict[str, Any]) -> dict[str, Any]:
         message_type = message.get("type", "")
         payload = message.get("payload", {})
-        if message_type in {"collab.hello", "collab.presence"}:
-            return await self._core_post(
-                f"/assess/collab/channels/{channel_id}/live/presence/connect",
-                {"actor": actor, "selected_story_id": payload.get("selected_story_id")},
-            )
-        if message_type == "collab.presence.disconnect":
-            return await self._core_post(
-                f"/assess/collab/channels/{channel_id}/live/presence/disconnect",
-                {"actor": actor, "selected_story_id": payload.get("selected_story_id")},
-            )
-        if message_type == "collab.lock.acquire":
-            return await self._core_post(
-                f"/assess/collab/channels/{channel_id}/live/lock/acquire",
-                {
-                    "actor": actor,
-                    "snapshot_id": payload.get("snapshot_id"),
-                    "field_name": payload.get("field_name"),
-                    "selected_story_id": payload.get("selected_story_id"),
-                },
-            )
-        if message_type == "collab.lock.heartbeat":
-            return await self._core_post(
-                f"/assess/collab/channels/{channel_id}/live/lock/heartbeat",
-                {
-                    "actor": actor,
-                    "snapshot_id": payload.get("snapshot_id"),
-                    "field_name": payload.get("field_name"),
-                    "selected_story_id": payload.get("selected_story_id"),
-                },
-            )
-        if message_type == "collab.lock.release":
-            return await self._core_post(
-                f"/assess/collab/channels/{channel_id}/live/lock/release",
-                {
-                    "actor": actor,
-                    "snapshot_id": payload.get("snapshot_id"),
-                    "field_name": payload.get("field_name"),
-                    "selected_story_id": payload.get("selected_story_id"),
-                },
-            )
-        if message_type == "collab.story.patch":
-            fields = payload.get("fields") or {}
-            filtered_fields = {key: value for key, value in fields.items() if key in EDITABLE_FIELDS}
-            return await self._core_post(
-                f"/assess/collab/channels/{channel_id}/live/story-patch",
-                {
-                    "actor": actor,
-                    "snapshot_id": payload.get("snapshot_id"),
-                    "payload": filtered_fields,
-                },
-            )
-        if message_type == "collab.news_item.move":
-            return await self._core_post(
-                f"/assess/collab/channels/{channel_id}/live/move-news-item",
-                {
-                    "actor": actor,
-                    "source_snapshot_id": payload.get("source_snapshot_id"),
-                    "target_snapshot_id": payload.get("target_snapshot_id"),
-                    "news_item_id": payload.get("news_item_id"),
-                },
-            )
-        if message_type == "collab.workspace.patch":
-            return await self._core_post(
-                f"/assess/collab/channels/{channel_id}/live/workspace-patch",
-                {
-                    "actor": actor,
-                    "target": payload.get("target"),
-                    "action": payload.get("action"),
-                    "item_id": payload.get("item_id"),
-                    "data": payload.get("data") or {},
-                },
-            )
-        raise ValueError(f"Unsupported collaboration message type: {message_type}")
+        handler = self.owner_message_handlers.get(message_type)
+        if handler is None:
+            raise ValueError(f"Unsupported collaboration message type: {message_type}")
+        return await handler(channel_id, actor, payload)
+
+    async def _broadcast_story_ops_applied(self, channel_id: str, updated_payload: dict[str, Any]) -> None:
+        await self._broadcast_event(
+            channel_id,
+            "collab.story.ops.applied",
+            {
+                **(updated_payload.get("applied") or {}),
+                "channel": updated_payload.get("channel"),
+            },
+        )
+
+    async def _broadcast_selection_updated(self, channel_id: str, updated_payload: dict[str, Any]) -> None:
+        await self._broadcast_event(
+            channel_id,
+            "collab.story.selection.update",
+            {
+                **(updated_payload.get("selection") or {}),
+                "channel": updated_payload.get("channel"),
+            },
+        )
+
+    async def _broadcast_selection_cleared(self, channel_id: str, updated_payload: dict[str, Any]) -> None:
+        await self._broadcast_event(
+            channel_id,
+            "collab.story.selection.clear",
+            {
+                **(updated_payload.get("cleared") or {}),
+                "channel": updated_payload.get("channel"),
+            },
+        )
+
+    async def _broadcast_owner_result(self, channel_id: str, message_type: str, updated_payload: dict[str, Any]) -> None:
+        broadcaster = self.owner_result_broadcasters.get(message_type)
+        if broadcaster is not None:
+            await broadcaster(channel_id, updated_payload)
+            return
+        await self._broadcast_state(updated_payload)
 
     async def _ensure_participant_owner_connection(self, channel: dict[str, Any]) -> None:
         channel_id = channel["channel_id"]
@@ -271,15 +378,29 @@ class CollaborationRealtimeHub:
                     )
                     async for raw_message in websocket:
                         message = json.loads(raw_message)
-                        if message.get("type") not in {"collab.state.snapshot", "collab.state.updated"}:
+                        if message.get("type") not in {
+                            "collab.state.snapshot",
+                            "collab.state.updated",
+                            "collab.story.ops.applied",
+                            "collab.story.selection.update",
+                            "collab.story.selection.clear",
+                        }:
                             continue
                         payload = message.get("payload") or {}
-                        authoritative_channel = self._coerce_channel_payload(payload.get("channel") or {})
-                        synced_channel = await self._sync_local_channel(authoritative_channel)
-                        await self._broadcast_to_browsers(
-                            channel_id,
-                            self._message(message["type"], channel_id, {"channel": synced_channel}),
-                        )
+                        authoritative_channel = payload.get("channel")
+                        synced_channel = None
+                        if authoritative_channel:
+                            synced_channel = await self._sync_local_channel(self._coerce_channel_payload(authoritative_channel))
+                        if message.get("type") in {"collab.state.snapshot", "collab.state.updated"}:
+                            await self._broadcast_to_browsers(
+                                channel_id,
+                                self._message(message["type"], channel_id, {"channel": synced_channel}),
+                            )
+                            continue
+                        browser_payload = {key: value for key, value in payload.items() if key != "channel"}
+                        if synced_channel is not None:
+                            browser_payload["channel"] = synced_channel
+                        await self._broadcast_to_browsers(channel_id, self._message(message["type"], channel_id, browser_payload))
             except Exception as exc:
                 logger.warning(f"Collaboration peer loop for {channel_id} disconnected: {exc}")
                 await asyncio.sleep(1)
@@ -354,8 +475,8 @@ class CollaborationRealtimeHub:
                 actor = self._actor_payload(session)
                 if channel.get("owner_base_url") == self._local_base_url():
                     async with self.channel_mutexes[channel_id]:
-                        updated_channel = await self._apply_owner_message(channel_id, actor, message)
-                    await self._broadcast_state(updated_channel)
+                        updated_payload = await self._apply_owner_message(channel_id, actor, message)
+                    await self._broadcast_owner_result(channel_id, current_message_type, updated_payload)
                 else:
                     await self._forward_to_owner(channel_id, message, actor)
         except WebSocketDisconnect:
@@ -418,10 +539,10 @@ class CollaborationRealtimeHub:
                 actor = dict(payload.get("actor") or {})
                 actor["base_url"] = partner_base_url
                 async with self.channel_mutexes[channel_id]:
-                    updated_channel = await self._apply_owner_message(
+                    updated_payload = await self._apply_owner_message(
                         channel_id, actor, self._message(message.get("type", ""), channel_id, payload)
                     )
-                await self._broadcast_state(updated_channel)
+                await self._broadcast_owner_result(channel_id, message.get("type", ""), updated_payload)
         except WebSocketDisconnect:
             pass
         except Exception as exc:
