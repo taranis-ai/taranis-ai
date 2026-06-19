@@ -9,11 +9,10 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_item_type
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class PublisherView(AdminMixin, BaseView):
+class PublisherView(AdminBaseView):
     model = PublisherPreset
     icon = "envelope-open"
     _index = 140
@@ -57,7 +56,7 @@ class PublisherView(AdminMixin, BaseView):
         ]
 
 
-class ProductTypeView(AdminMixin, BaseView):
+class ProductTypeView(AdminBaseView):
     model = ProductType
     icon = "envelope"
     _index = 150

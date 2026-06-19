@@ -1,10 +1,9 @@
 from models.admin import Worker
 
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class WorkerView(AdminMixin, BaseView):
+class WorkerView(AdminBaseView):
     model = Worker
     icon = "wallet"
     _index = 60

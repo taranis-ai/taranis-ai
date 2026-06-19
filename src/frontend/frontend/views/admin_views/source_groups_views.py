@@ -6,11 +6,10 @@ from werkzeug.exceptions import HTTPException
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count
 from frontend.log import logger
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class SourceGroupView(AdminMixin, BaseView):
+class SourceGroupView(AdminBaseView):
     model = OSINTSourceGroup
     icon = "building-library"
     _index = 65
