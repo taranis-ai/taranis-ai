@@ -228,7 +228,7 @@ services:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-llm-bot:${TARANIS_BOT_TAG:-stable}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:${LLM_BOT_PORT:-8000}/health', timeout=5).raise_for_status()\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${LLM_BOT_PORT:-8000}/health', timeout=5).read()\""]
       interval: 1m30s
       timeout: 30s
       retries: 5
