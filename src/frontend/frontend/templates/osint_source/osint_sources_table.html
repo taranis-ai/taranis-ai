@@ -11,7 +11,7 @@
 {% set actions = actions | default([]) %}
 {% set filter_manual = request.args.get("filter_manual", "true") %}
 
-<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [], exportUrl: '{{ url_for("admin.export_osint_sources") }}' }">
+<div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [], exportUrl: '{{ url_for('admin.export_osint_sources') }}' }">
   {% call table_decoration(name, model_name, table_container, routes=routes) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">

@@ -1607,9 +1607,9 @@ class StoryBookmark(BaseModel):
             db.session.add(bookmark)
             db.session.commit()
             return {"message": "Bookmark collection created", "id": bookmark.id, "bookmark": bookmark.to_detail_dict()}, 201
-        except ValueError as exc:
+        except ValueError:
             db.session.rollback()
-            return {"error": str(exc)}, 400
+            return {"error": "Invalid bookmark collection data"}, 400
         except IntegrityError:
             db.session.rollback()
             return {"error": "A bookmark collection with this name already exists"}, 409
