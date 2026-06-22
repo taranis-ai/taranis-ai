@@ -162,6 +162,7 @@ def _get_publisher_impl(pub_type: str) -> BasePublisher:
         "misp_publisher": worker.publishers.MISPPublisher(),
         "s3_publisher": worker.publishers.S3Publisher(),
         "taxii_publisher": worker.publishers.TAXIIPublisher(),
+        "kafka_publisher": worker.publishers.KafkaPublisher(),
     }
 
     if pub_type not in publishers:
