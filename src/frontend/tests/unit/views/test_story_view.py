@@ -269,7 +269,7 @@ def test_story_to_core_dict_strips_export_only_fields():
 
 
 def test_story_update_payload_ignores_tags():
-    payload = StoryUpdatePayload(title="Updated Story", tags=[{"name": "story-tag", "tag_type": "misc"}])  # type: ignore
+    payload = StoryUpdatePayload.model_validate({"title": "Updated Story", "tags": [{"name": "story-tag", "tag_type": "misc"}]})
 
     assert payload.model_dump(mode="json") == {"title": "Updated Story"}
 
