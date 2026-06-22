@@ -15,7 +15,7 @@ def stories():
         yield json.load(f)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def set_transformers_offline(requests_mock):
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["HF_DATASETS_OFFLINE"] = "1"

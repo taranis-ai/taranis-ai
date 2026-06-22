@@ -9,6 +9,9 @@ from models.types import BOT_TYPES
 from frontend.views.admin_views.bot_views import BotView
 
 
+pytestmark = pytest.mark.usefixtures("mock_worker_parameters_get")
+
+
 @pytest.mark.parametrize(
     "bot_type",
     [

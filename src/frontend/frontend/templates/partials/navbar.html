@@ -1,9 +1,9 @@
 <div class="flex items-center space-x-4">
-  <button @click="sidebarOpen = !sidebarOpen" class="btn btn-ghost btn-square mr-4" aria-label="Toggle sidebar">
+  <button @click="sidebarOpen = !sidebarOpen" class="btn btn-ghost btn-square mr-4" aria-label="{{ _('Toggle sidebar') }}">
     {{ heroicon_outline("bars-3") }}
   </button>
   <a href="{{ url_for('base.dashboard') }}" class="btn btn-ghost normal-case text-xl">
-    <img src="{{ url_for('static', filename='assets/taranis-logo.svg') }}" alt="Taranis AI Logo" height="auto" width="auto" class="h-8">
+    <img src="{{ url_for('static', filename='assets/taranis-logo.svg') }}" alt="{{ _('Taranis AI Logo') }}" height="auto" width="auto" class="h-8">
   </a>
   {% include "partials/omnisearch/omni_search.html" %}
 </div>
@@ -14,38 +14,38 @@
       <li>
         <a href="{{ url_for('admin.dashboard') }}" data-tour-target="nav-admin">
           {{ heroicon_outline("cog-6-tooth") }}
-          Administration
+          {{ _("Administration") }}
         </a>
       </li>
     {% endif %}
     <li>
       <a href="{{ url_for('base.dashboard') }}" data-tour-target="nav-dashboard">
         {{ heroicon_outline("squares-2x2") }}
-        Dashboard
+        {{ _("Dashboard") }}
       </a>
     </li>
     <li>
       <a href="{{ url_for('assess.assess') }}" data-tour-target="nav-assess">
         {{ heroicon_outline("newspaper") }}
-        Assess
+        {{ _("Assess") }}
       </a>
     </li>
     <li>
       <a href="{{ url_for('analyze.analyze') }}" data-tour-target="nav-analyze">
         {{ heroicon_outline("presentation-chart-bar") }}
-        Analyze
+        {{ _("Analyze") }}
       </a>
     </li>
     <li>
       <a href="{{ url_for('publish.publish') }}" data-tour-target="nav-publish">
         {{ heroicon_outline("paper-airplane") }}
-        Publish
+        {{ _("Publish") }}
       </a>
     </li>
     <li>
       <a href="{{ url_for('assets.assets') }}">
         {{ heroicon_outline("document-chart-bar") }}
-        Assets
+        {{ _("Assets") }}
       </a>
     </li>
     <li class="dropdown dropdown-end z-50">
@@ -54,13 +54,13 @@
       </div>
       <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-3 w-52 p-2 shadow">
         <li>
-          <a href="{{ url_for('user.profile') }}">Profile</a>
+          <a href="{{ url_for('user.profile') }}">{{ _("Profile") }}</a>
         </li>
         <li>
-          <a href="{{ url_for('user.settings') }}">User Settings</a>
+          <a href="{{ url_for('user.settings') }}">{{ _("User Settings") }}</a>
         </li>
         <li>
-          <a href="{{ url_for('base.logout') }}" data-viewport-warning-reset-on-logout="true" data-testid="logout-link">Logout</a>
+          <a href="{{ url_for('base.logout') }}" data-viewport-warning-reset-on-logout="true" data-testid="logout-link">{{ _("Logout") }}</a>
         </li>
       </ul>
     </li>

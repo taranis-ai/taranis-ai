@@ -53,8 +53,7 @@ services:
 
       GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
       GRANIAN_HOST: "${GRANIAN_HOST:-0.0.0.0}"
-      TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
-      TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
+      TARANIS_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-${TARANIS_SENTRY_DSN:-}}"
       SENTRY_ENABLE_LOGS: "${SENTRY_ENABLE_LOGS:-False}"
       SENTRY_SEND_DEFAULT_PII: "${SENTRY_SEND_DEFAULT_PII:-False}"
       SENTRY_ENABLE_DB_QUERY_SOURCE: "${SENTRY_ENABLE_DB_QUERY_SOURCE:-False}"
@@ -116,7 +115,7 @@ services:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
-      TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
+      TARANIS_SENTRY_DSN: "${TARANIS_FRONTEND_SENTRY_DSN:-${TARANIS_SENTRY_DSN:-}}"
       SENTRY_ENABLE_LOGS: "${SENTRY_ENABLE_LOGS:-False}"
       SENTRY_SEND_DEFAULT_PII: "${SENTRY_SEND_DEFAULT_PII:-False}"
       DEBUG: "${DEBUG:-False}"
@@ -229,7 +228,7 @@ services:
         condition: always
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-llm-bot:${TARANIS_BOT_TAG:-stable}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:${LLM_BOT_PORT:-8000}/health', timeout=5).raise_for_status()\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${LLM_BOT_PORT:-8000}/health', timeout=5).read()\""]
       interval: 1m30s
       timeout: 30s
       retries: 5

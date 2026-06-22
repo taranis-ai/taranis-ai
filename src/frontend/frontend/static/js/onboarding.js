@@ -586,6 +586,12 @@ function installOnboardingClickTriggers(root) {
       : null;
 
     if (triggeredTaskId) {
+      if (urlsShareRoute(linkUrl(link), currentTourUrl())) {
+        event.preventDefault();
+        clearTriggerState();
+        startOnboardingTask(root, triggeredTaskId);
+        return;
+      }
       writeTriggerState(triggeredTaskId);
     }
   });

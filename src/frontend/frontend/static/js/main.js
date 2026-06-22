@@ -1,20 +1,28 @@
-function getCSRFToken() {
+function getCookieValue(name) {
   return document.cookie
     .split("; ")
-    .find((row) => row.startsWith("csrf_access_token="))
+    .find((row) => row.startsWith(`${name}=`))
     ?.split("=")[1];
 }
 
+function getCSRFToken() {
+  return getCookieValue("csrf_access_token");
+}
+
 function getConfirmOptions(el, question) {
+  const documentLabels = document.body?.dataset || {};
   const title = el.getAttribute("data-confirm-title") || question;
   const confirmButtonText = el.getAttribute("data-confirm-confirm") ||
-    (el.hasAttribute("hx-delete") ? "Delete" : "OK");
+    (el.hasAttribute("hx-delete")
+      ? documentLabels.confirmDelete
+      : documentLabels.confirmOk);
   return {
     title,
     text: title === question ? "" : question,
     icon: el.getAttribute("data-confirm-icon") || "question",
     confirmButtonText,
-    cancelButtonText: el.getAttribute("data-confirm-cancel") || "Cancel",
+    cancelButtonText: el.getAttribute("data-confirm-cancel") ||
+      documentLabels.confirmCancel,
   };
 }
 
@@ -203,31 +211,35 @@ document.body.addEventListener("htmx:responseError", function (evt) {
   replaceNotificationBarFromResponse(evt.detail.xhr?.responseText || "");
 });
 
-function initChoices(elementID, placeholder = "items", config = {}) {
+function initChoices(elementID, config = {}) {
   const select = document.getElementById(elementID);
   if (!select || select.classList.contains("choices__input")) {
     return;
   }
+  if (!config || typeof config !== "object") {
+    config = {};
+  }
 
   const classNames = {
-    containerOuter: ["choices", "!bg-base-200"],
-    containerInner: ["choices__inner", "!bg-base-200"],
-    input: ["choices__input", "!bg-base-200"],
-    inputCloned: ["choices__input--cloned", "!bg-base-200"],
-    list: ["choices__list", "!bg-base-200"],
+    containerOuter: ["choices", "w-full"],
+    containerInner: ["choices__inner"],
+    input: ["choices__input"],
+    inputCloned: ["choices__input--cloned"],
+    list: ["choices__list"],
     itemSelectable: [
       "choices__item--selectable",
       "choices-item-selectable-primary",
     ],
-    itemChoice: ["choices__item--choice", "!bg-base-200"],
+    itemChoice: ["choices__item--choice"],
     selectedState: ["is-selected", "choices-selected-primary"],
   };
 
   const defaultConfig = {
     removeItemButton: true,
-    placeholderValue: "Select " + placeholder,
-    noResultsText: "No " + placeholder + " found",
-    noChoicesText: "No " + placeholder + " to choose from",
+    placeholderValue: select.dataset.choicesPlaceholderValue,
+    noResultsText: select.dataset.choicesNoResultsText,
+    noChoicesText: select.dataset.choicesNoChoicesText,
+    itemSelectText: select.dataset.choicesItemSelectText,
     classNames: classNames,
   };
 
