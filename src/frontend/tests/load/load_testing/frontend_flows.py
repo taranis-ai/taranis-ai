@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Awaitable, Callable
 
-from playwright.async_api import Page as AsyncPage, expect as async_expect
+from playwright.async_api import Page as AsyncPage
+from playwright.async_api import expect as async_expect
 from playwright.sync_api import Page, expect
-
-from testsupport.load_testing.browser_contract import (
+from tests.load.load_testing.browser_contract import (
     ANALYZE_DETAIL_READY_EVENT,
-    ANALYZE_PATH,
     ANALYZE_LIST_READY_EVENT,
+    ANALYZE_PATH,
     ANALYZE_ROOT_TEST_ID,
     ASSESS_COUNT_TEST_ID,
     ASSESS_DETAIL_READY_EVENT,
@@ -35,7 +35,6 @@ from testsupport.load_testing.browser_contract import (
     USER_NAV_ANALYZE_LABEL,
     USER_NAV_ASSESS_LABEL,
 )
-
 
 FLOW_LOGIN = "login"
 FLOW_DASHBOARD = "dashboard"

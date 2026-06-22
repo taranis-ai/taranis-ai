@@ -25,7 +25,11 @@ def read_env(name: str, default: str | None = None) -> str:
 
 
 def snapshot_endpoint(name: str, url: str) -> EndpointSnapshot:
-    response = requests.get(url, timeout=10)
+    try:
+        response = requests.get(url, timeout=10)
+    except requests.RequestException as exc:
+        return EndpointSnapshot(name=name, url=url, status_code=0, body_subset={"error": str(exc)})
+
     body_subset: dict[str, Any] = {}
     if response.headers.get("content-type", "").startswith("application/json"):
         payload = response.json()

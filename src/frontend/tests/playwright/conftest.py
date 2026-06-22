@@ -29,6 +29,10 @@ from tests.external_e2e import (
     login_to_core,
     wait_for_server_to_be_alive,
 )
+from tests.load.load_testing.seed_data import (
+    LOAD_TEST_REPORT_TYPE_DEFINITION,
+    build_report_payload,
+)
 from tests.playwright.e2e_harness import (
     docker_cleanup_commands,
     docker_setup_commands,
@@ -38,10 +42,6 @@ from tests.playwright.fixtures.test_news_item_list import news_items_list  # noq
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
 from tests.playwright.htmx_helpers import install_htmx_support
 from tests.playwright.notification_helpers import dismiss_notifications
-from testsupport.load_testing.seed_data import (
-    LOAD_TEST_REPORT_TYPE_DEFINITION,
-    build_report_payload,
-)
 
 
 def _configure_live_server_start_method() -> None:

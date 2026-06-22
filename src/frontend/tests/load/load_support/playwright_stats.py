@@ -72,9 +72,7 @@ def ensure_byte_collector(user: PlaywrightUser) -> NetworkByteCollector:
 def _format_error(exc: Exception, *, include_url: str = "") -> Exception:
     try:
         message = exc.message + include_url  # type: ignore[attr-defined]
-        return CatchResponseError(
-            re.sub("=======*", "", message).replace("\n", "").replace(" logs ", " ")[:500]
-        )
+        return CatchResponseError(re.sub("=======*", "", message).replace("\n", "").replace(" logs ", " ")[:500])
     except Exception:
         return exc
 

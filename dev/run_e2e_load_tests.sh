@@ -2,8 +2,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="$ROOT_DIR/tests/load/docker-compose.load.yml"
-ARTIFACTS_ROOT="$ROOT_DIR/tests/load/artifacts"
+FRONTEND_DIR="$ROOT_DIR/src/frontend"
+COMPOSE_FILE="$ROOT_DIR/src/frontend/tests/load/docker-compose.load.yml"
+ARTIFACTS_ROOT="$ROOT_DIR/src/frontend/tests/load/artifacts"
 REPORT_SERVER_HOST="127.0.0.1"
 REPORT_SERVER_START_PORT="${LOAD_TEST_REPORT_PORT:-18081}"
 REPORT_SERVER_PORT_FILE="$ARTIFACTS_ROOT/.report-server.port"
@@ -36,6 +37,7 @@ LATEST_ARTIFACT_LINK="$ARTIFACTS_ROOT/latest"
 REPORT_SERVER_MODULE="tests.load.load_support.report_server"
 COMPOSE_OVERRIDE_FILE="$ARTIFACT_DIR/docker-compose.database-iops.override.yml"
 COMPOSE_ARGS=(-f "$COMPOSE_FILE")
+LOAD_PYTHONPATH="$FRONTEND_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
 usage() {
   cat <<'EOF'
@@ -359,7 +361,7 @@ ensure_report_server() {
       continue
     fi
 
-    nohup python3 -m "$REPORT_SERVER_MODULE" "$port" --bind "$REPORT_SERVER_HOST" --directory "$ARTIFACTS_ROOT" >"$REPORT_SERVER_LOG" 2>&1 &
+    nohup env PYTHONPATH="$LOAD_PYTHONPATH" python3 -m "$REPORT_SERVER_MODULE" "$port" --bind "$REPORT_SERVER_HOST" --directory "$ARTIFACTS_ROOT" >"$REPORT_SERVER_LOG" 2>&1 &
     local pid=$!
     sleep 1
 
@@ -396,7 +398,7 @@ generate_page_summary() {
     return 0
   fi
 
-  python3 -m tests.load.load_support.summarize_stats \
+  PYTHONPATH="$LOAD_PYTHONPATH" python3 -m tests.load.load_support.summarize_stats \
     "$LOCUST_STATS_PATH" \
     "$UX_TIMINGS_MARKDOWN_PATH" \
     "$UX_TIMINGS_JSON_PATH"
@@ -466,21 +468,18 @@ run_and_capture \
   "$ARTIFACT_DIR/recovery-baseline.log" \
   compose run --rm --entrypoint python check_recovery -m tests.load.load_support.check_recovery record-baseline
 
-locust_status=0
 if run_and_capture "$ARTIFACT_DIR/locust-console.log" compose run --rm locust; then
   locust_status=0
 else
   locust_status=$?
 fi
 
-recovery_status=0
 if run_and_capture "$ARTIFACT_DIR/recovery.log" compose run --rm check_recovery; then
   recovery_status=0
 else
   recovery_status=$?
 fi
 
-summary_status=0
 if generate_page_summary; then
   summary_status=0
 else

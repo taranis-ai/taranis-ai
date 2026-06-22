@@ -2,10 +2,9 @@ import os
 
 from locust import between, task
 from locust_plugins.users.playwright import PlaywrightUser
-
-from load_support.playwright_stats import event, pw
-from testsupport.load_testing.browser_contract import PAGE_REQUEST_TYPE
-from testsupport.load_testing.frontend_flows import (
+from tests.load.load_support.playwright_stats import event, pw
+from tests.load.load_testing.browser_contract import PAGE_REQUEST_TYPE
+from tests.load.load_testing.frontend_flows import (
     FLOW_LOGIN,
     FrontendFlowConfig,
     get_flow_definition,
@@ -48,18 +47,15 @@ def build_selected_e2e_flow_user_class() -> type[PlaywrightUser]:
         "wait_time": between(1, 3),
         "username": os.getenv("TARANIS_LOAD_USERNAME", "user"),
         "password": os.getenv("TARANIS_LOAD_PASSWORD", "test"),
-        "expected_report_title": os.getenv(
-            "TARANIS_EXPECTED_REPORT_TITLE", "Load Test Report 1"
-        ),
+        "expected_report_title": os.getenv("TARANIS_EXPECTED_REPORT_TITLE", "Load Test Report 1"),
     }
 
     for flow_definition in selected_flows:
+
         async def flow_task(self, page, flow_definition=flow_definition):
             await _run_selected_flow(self, page, flow_definition)
 
         flow_task.__name__ = f"{flow_definition.name}_flow"
-        attributes[f"{flow_definition.name}_flow"] = task(flow_definition.locust_weight)(
-            pw(flow_task)
-        )
+        attributes[f"{flow_definition.name}_flow"] = task(flow_definition.locust_weight)(pw(flow_task))
 
     return type("FrontendSelectedE2EFlowUser", (PlaywrightUser,), attributes)

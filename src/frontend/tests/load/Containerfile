@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 WORKDIR /opt/loadtest
 
-COPY tests/load/pyproject.toml tests/load/uv.lock ./
+COPY src/frontend/tests/load/pyproject.toml src/frontend/tests/load/uv.lock ./
 
 RUN uv sync --frozen --no-dev --no-editable && \
     /opt/loadtest/.venv/bin/playwright install --with-deps chromium

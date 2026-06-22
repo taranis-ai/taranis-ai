@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 
-from load_support.format_locust_report import convert_report_html_to_kilobytes
+from tests.load.load_support.format_locust_report import convert_report_html_to_kilobytes
 
 
 def _extract_template_args(html: str) -> dict[str, object]:

@@ -41,7 +41,7 @@ jobs:
       - name: Run browser load test
         env:
           LOAD_RUN_ID: github-${{ github.run_id }}
-          LOAD_ARTIFACT_DIR: ${{ github.workspace }}/tests/load/artifacts/github-${{ github.run_id }}
+          LOAD_ARTIFACT_DIR: ${{ github.workspace }}/src/frontend/tests/load/artifacts/github-${{ github.run_id }}
         run: |
           chmod +x ./dev/run_e2e_load_tests.sh
           args=(--profile "${{ inputs.profile }}")
@@ -65,5 +65,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: load-test-artifacts-${{ github.run_id }}
-          path: tests/load/artifacts/github-${{ github.run_id }}
+          path: src/frontend/tests/load/artifacts/github-${{ github.run_id }}
           if-no-files-found: warn

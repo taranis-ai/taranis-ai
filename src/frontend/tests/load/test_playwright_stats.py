@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from load_support.playwright_stats import NetworkByteCollector, ensure_byte_collector, event, run_task
+from tests.load.load_support.playwright_stats import NetworkByteCollector, ensure_byte_collector, event, run_task
 
 
 class FakeResponse:

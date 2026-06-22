@@ -5,9 +5,8 @@ from pathlib import Path
 
 from uuid_extensions import uuid7str
 
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-PLAYWRIGHT_STORY_FIXTURE = REPO_ROOT / "src/frontend/tests/playwright/test_stories.json"
+FRONTEND_TESTS_ROOT = Path(__file__).resolve().parents[2]
+PLAYWRIGHT_STORY_FIXTURE = FRONTEND_TESTS_ROOT / "playwright/test_stories.json"
 
 DEFAULT_STORY_SOURCE_ID = "99"
 LOAD_TEST_REPORT_TYPE_TITLE = "Load Testing Report Type"

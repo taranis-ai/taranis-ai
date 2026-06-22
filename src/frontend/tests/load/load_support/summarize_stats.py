@@ -5,7 +5,6 @@ import json
 import sys
 from pathlib import Path
 
-
 PAGE_REQUEST_TYPE = "PAGE"
 
 SUMMARY_COLUMNS = (
@@ -110,8 +109,7 @@ def write_outputs(rows: list[dict[str, object]], markdown_path: Path, json_path:
 def main(argv: list[str]) -> int:
     if len(argv) != 4:
         print(
-            "Usage: python -m tests.load.load_support.summarize_stats "
-            "<locust_stats.csv> <ux-timings-summary.md> <ux-timings-summary.json>",
+            "Usage: python -m tests.load.load_support.summarize_stats <locust_stats.csv> <ux-timings-summary.md> <ux-timings-summary.json>",
             file=sys.stderr,
         )
         return 1

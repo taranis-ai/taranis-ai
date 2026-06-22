@@ -7,7 +7,7 @@ Manual browser end-to-end load testing for Taranis AI using Locust and `locust-p
 - starts a disposable Docker stack with `ingress`, `core`, `frontend`, PostgreSQL, and Redis
 - seeds synthetic sources, stories, report types, and reports
 - runs low-concurrency browser flows against `/frontend/login`, `/frontend/`, `/frontend/assess`, and `/frontend/analyze`
-- stores Locust reports, compose logs, recovery checks, and page-ready timing summaries under `tests/load/artifacts/`
+- stores Locust reports, compose logs, recovery checks, and page-ready timing summaries under `src/frontend/tests/load/artifacts/`
 
 ## Local usage
 
@@ -22,10 +22,19 @@ From the repository root:
 ./dev/run_e2e_load_tests.sh --stop-report-server
 ```
 
-The runner keeps the newest completed artifact set linked at `tests/load/artifacts/latest/`.
-It also starts or reuses a small local HTTP server for `tests/load/artifacts/`, starting at `http://127.0.0.1:18081/` and moving to the next free port if needed.
+The runner keeps the newest completed artifact set linked at `src/frontend/tests/load/artifacts/latest/`.
+It also starts or reuses a small local HTTP server for `src/frontend/tests/load/artifacts/`, starting at `http://127.0.0.1:18081/` and moving to the next free port if needed.
 The exact Locust report URL is printed by the runner, and the preferred starting port can be changed with `--report-port` or `LOAD_TEST_REPORT_PORT`.
 Use `--stop-report-server` to stop that local HTTP server when you no longer need it.
+
+Runner flow:
+
+- `dev/run_e2e_load_tests.sh` starts or reuses `tests.load.load_support.report_server` on the host so each run can be opened from a stable localhost URL.
+- Docker Compose starts the disposable database, Redis, core, frontend, and ingress stack.
+- The one-shot `seed` service runs `tests.load.load_support.seed` to create synthetic sources, stories, report types, and reports through the core API.
+- The one-shot `check_recovery` service records a baseline before Locust and verifies the same health snapshot after Locust finishes.
+- The `locust` service runs `locustfile.py`, which builds browser tasks from the shared frontend workflow definitions in `tests.load.load_testing.frontend_flows`.
+- After Locust writes CSV output, the host runner calls `tests.load.load_support.summarize_stats` to generate the UX timing markdown and JSON summaries.
 
 Defaults:
 
@@ -53,7 +62,7 @@ Optional PostgreSQL IOPS throttling:
 
 - `--device-read-iops=/dev/sda:500`
 - `--device-write-iops=/dev/sda:500`
-- use the real host block device path; one could use  `lsblk`, `/dev/sda` is only an example
+- use the real host block device path; one could use `lsblk`, `/dev/sda` is only an example
 
 Optional E2E-derived flow selection:
 
@@ -66,8 +75,8 @@ Optional E2E-derived flow selection:
   - `analyze_list`
   - `analyze_report_detail`
 
-Artifacts are written to a timestamped directory below `tests/load/artifacts/`.
-The newest HTML report is always linked at `tests/load/artifacts/latest/locust-report.html`.
+Artifacts are written to a timestamped directory below `src/frontend/tests/load/artifacts/`.
+The newest HTML report is always linked at `src/frontend/tests/load/artifacts/latest/locust-report.html`.
 The runner also writes:
 
 - `ux-timings-summary.md` with Locust `PAGE` rows sorted by slowest `p95`
@@ -86,8 +95,8 @@ The runner also writes:
 Feature-specific local test:
 
 ```bash
-cd tests/load && uv run pytest test_summarize_stats.py
-cd tests/load && uv run pytest test_frontend_flows.py
+cd src/frontend/tests/load && DEBUG=true uv run pytest test_summarize_stats.py
+cd src/frontend/tests/load && DEBUG=true uv run pytest test_frontend_flows.py
 ```
 
 ## Notes

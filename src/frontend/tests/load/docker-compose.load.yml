@@ -15,7 +15,7 @@ services:
       retries: 20
 
   redis:
-    image: "redis:7-alpine"
+    image: "redis:8-alpine"
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -26,7 +26,7 @@ services:
 
   core:
     build:
-      context: ../..
+      context: ../../../..
       dockerfile: docker/Containerfile.core
     environment:
       DB_URL: database
@@ -62,7 +62,7 @@ services:
 
   frontend:
     build:
-      context: ../..
+      context: ../../../..
       dockerfile: docker/Containerfile.frontend
     environment:
       TARANIS_CORE_URL: http://core:8080/api
@@ -85,7 +85,7 @@ services:
 
   ingress:
     build:
-      context: ../..
+      context: ../../../..
       dockerfile: docker/Containerfile.ingress
     environment:
       NGINX_WORKERS: "2"
@@ -110,15 +110,17 @@ services:
 
   seed:
     build:
-      context: ../..
-      dockerfile: tests/load/Containerfile
+      context: ../../../..
+      dockerfile: src/frontend/tests/load/Containerfile
     working_dir: /workspace
     command: ["python", "-m", "tests.load.load_support.seed"]
     environment:
-      PYTHONPATH: /workspace
+      PYTHONPATH: /workspace/src/frontend
       CORE_API_URL: http://core:8080/api
       ADMIN_USERNAME: admin
       ADMIN_PASSWORD: admin
+      LOAD_USERNAME: user
+      LOAD_PASSWORD: test
       API_KEY: load_testing_api_key
       SEED_REPORT_TYPE_TITLE: Load Testing Report Type
       SEED_REPORT_TITLE_PREFIX: Load Test Report
@@ -128,7 +130,7 @@ services:
       SEED_REPORT_TYPE_COUNT: ${SEED_REPORT_TYPE_COUNT:-5}
       SEED_REPORT_COUNT: ${SEED_REPORT_COUNT:-250}
     volumes:
-      - ../..:/workspace
+      - ../../../..:/workspace
       - ${LOAD_ARTIFACT_DIR:?set LOAD_ARTIFACT_DIR}:/artifacts
     depends_on:
       ingress:
@@ -136,8 +138,8 @@ services:
 
   locust:
     build:
-      context: ../..
-      dockerfile: tests/load/Containerfile
+      context: ../../../..
+      dockerfile: src/frontend/tests/load/Containerfile
     working_dir: /workspace
     command:
       - sh
@@ -156,23 +158,23 @@ services:
         --run-time "${LOCUST_RUN_TIME:-2m}"
         --html "/artifacts/locust-report.html"
         --csv "/artifacts/locust"
-        -f /workspace/tests/load/locustfile.py;
+        -f /workspace/src/frontend/tests/load/locustfile.py;
         locust_status=$$?;
         if [ -f /artifacts/locust-report.html ]; then
           python3 -m tests.load.load_support.format_locust_report /artifacts/locust-report.html || exit $$?;
         fi;
         exit "$$locust_status"
     environment:
-      PYTHONPATH: /workspace
+      PYTHONPATH: /workspace/src/frontend
       PWHEADLESS: "1"
       PWBROWSER: chromium
       TARGET_HOST: http://ingress:8080
       TARANIS_LOAD_FLOWS: ${TARANIS_LOAD_FLOWS:-}
       TARANIS_LOAD_USERNAME: user
       TARANIS_LOAD_PASSWORD: test
-      TARANIS_EXPECTED_REPORT_TITLE: Load Test Report 1
+      TARANIS_EXPECTED_REPORT_TITLE: Load Test Report ${SEED_REPORT_COUNT:-250}
     volumes:
-      - ../..:/workspace
+      - ../../../..:/workspace
       - ${LOAD_ARTIFACT_DIR:?set LOAD_ARTIFACT_DIR}:/artifacts
     depends_on:
       ingress:
@@ -180,19 +182,19 @@ services:
 
   check_recovery:
     build:
-      context: ../..
-      dockerfile: tests/load/Containerfile
+      context: ../../../..
+      dockerfile: src/frontend/tests/load/Containerfile
     working_dir: /workspace
     command: ["python", "-m", "tests.load.load_support.check_recovery", "verify"]
     environment:
-      PYTHONPATH: /workspace
+      PYTHONPATH: /workspace/src/frontend
       CORE_API_URL: http://core:8080/api
       FRONTEND_URL: http://ingress:8080/frontend
       RECOVERY_TIMEOUT_SECONDS: "60"
       RECOVERY_BASELINE_PATH: /artifacts/recovery-baseline.json
       RECOVERY_OUTPUT_PATH: /artifacts/recovery-results.json
     volumes:
-      - ../..:/workspace
+      - ../../../..:/workspace
       - ${LOAD_ARTIFACT_DIR:?set LOAD_ARTIFACT_DIR}:/artifacts
     depends_on:
       ingress:

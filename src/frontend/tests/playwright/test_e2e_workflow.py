@@ -4,7 +4,8 @@ import time
 import pytest
 from base_e2e_test import BaseE2ETest
 from playwright.sync_api import Page, expect
-from testsupport.load_testing.frontend_flows import (
+
+from tests.load.load_testing.frontend_flows import (
     FLOW_ANALYZE_LIST,
     FLOW_ANALYZE_REPORT_DETAIL,
     FLOW_ASSESS_DETAIL,

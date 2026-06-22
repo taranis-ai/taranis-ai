@@ -5,7 +5,7 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-from load_support.report_server import NO_CACHE_HEADERS, build_handler
+from tests.load.load_support.report_server import NO_CACHE_HEADERS, build_handler
 
 
 def test_report_server_disables_browser_caching(tmp_path: Path) -> None:
@@ -17,9 +17,7 @@ def test_report_server_disables_browser_caching(tmp_path: Path) -> None:
     thread.start()
 
     try:
-        with urllib.request.urlopen(
-            f"http://127.0.0.1:{server.server_port}/locust-report.html"
-        ) as response:
+        with urllib.request.urlopen(f"http://127.0.0.1:{server.server_port}/locust-report.html") as response:
             headers = response.headers
             body = response.read().decode("utf-8")
     finally:

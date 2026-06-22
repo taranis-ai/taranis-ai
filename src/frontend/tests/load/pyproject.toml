@@ -11,6 +11,12 @@ dependencies = [
     "uuid7",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
 [build-system]
 requires = [
     "setuptools>=45",
@@ -24,3 +30,10 @@ required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["../.."]
+
+[tool.ruff]
+line-length = 142
+target-version = "py313"

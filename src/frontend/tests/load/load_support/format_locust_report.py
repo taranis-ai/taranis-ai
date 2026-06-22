@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 BYTES_COLUMN_TITLE = "Average size (bytes)"
 KILOBYTES_COLUMN_TITLE = "Average size (KB)"
 BYTES_PER_KILOBYTE = 1024
@@ -44,9 +43,7 @@ def convert_report_html_to_kilobytes(html: str) -> str:
     converted_args = json.dumps(template_args, separators=(",", ":"))
 
     html = TEMPLATE_ARGS_PATTERN.sub(
-        lambda current_match: (
-            f"{current_match.group(1)}{converted_args}{current_match.group(3)}"
-        ),
+        lambda current_match: f"{current_match.group(1)}{converted_args}{current_match.group(3)}",
         html,
         count=1,
     )
