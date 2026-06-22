@@ -56,3 +56,25 @@ def test_order_parameters_returns_unknown_worker_type_unchanged():
     ordered = Worker._order_parameters("unknown_bot_type", parameters)
 
     assert ordered == parameters
+
+
+def test_order_parameters_uses_summary_bot_split_endpoint_order():
+    parameters = [
+        make_parameter("TITLE_ENDPOINT"),
+        make_parameter("RUN_AFTER_COLLECTOR"),
+        make_parameter("SUMMARY_ENDPOINT"),
+        make_parameter("BOT_API_KEY"),
+        make_parameter("ITEM_FILTER"),
+        make_parameter("REQUESTS_TIMEOUT"),
+    ]
+
+    ordered = Worker._order_parameters("summary_bot", parameters)
+
+    assert [parameter.parameter for parameter in ordered] == [
+        "ITEM_FILTER",
+        "REQUESTS_TIMEOUT",
+        "BOT_API_KEY",
+        "SUMMARY_ENDPOINT",
+        "TITLE_ENDPOINT",
+        "RUN_AFTER_COLLECTOR",
+    ]

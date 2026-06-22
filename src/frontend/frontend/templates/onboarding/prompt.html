@@ -1,0 +1,12 @@
+{% set onboarding_user = authenticated_user if authenticated_user is defined else current_user %}
+{% set tasks = pending_onboarding_tasks if pending_onboarding_tasks is defined else pending_onboarding_tasks_for_template(onboarding_user) %}
+{% if onboarding_user and tasks %}
+  <div id="onboarding-root"
+       hidden
+       data-testid="onboarding-root"
+       data-profile-action="{{ url_for('user.settings') }}"
+       data-autostart-route="{{ url_for('admin.dashboard') }}"
+       data-pending-tasks="{{ tasks | tojson | forceescape }}"
+       data-user-permissions="{{ (onboarding_user.permissions or []) | tojson | forceescape }}"></div>
+  <script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
+{% endif %}

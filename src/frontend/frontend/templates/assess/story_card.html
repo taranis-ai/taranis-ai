@@ -9,15 +9,20 @@
   {% set compact_view = false if detail_view else current_user.profile.compact_view %}
   {% set line_clamp = "" if detail_view else "line-clamp-1" if compact_view else "line-clamp-4" %}
   {% set summary_content = story.model_extra.summary_content %}
+  {% set selected_story_ids = selected_story_ids | default([]) %}
+  {% set is_selected = (not detail_view) and story_id in selected_story_ids %}
 
   {% set card_classes = ["card", "card-bordered", "bg-base-100", "border-l-4", "hover:shadow-lg", "relative", "w-full", "max-w-full"] %}
-  {% if story.read | default(false) %}
-    {% set card_classes = card_classes + ['border-base-200'] %}
-  {% else %}
+  {% if is_selected or not (story.read | default(false)) %}
     {% set card_classes = card_classes + ['border-primary'] %}
+  {% else %}
+    {% set card_classes = card_classes + ['border-base-200'] %}
   {% endif %}
   {% if story.important | default(false) %}
     {% set card_classes = card_classes + ['ring-2', 'ring-warning/70'] %}
+  {% endif %}
+  {% if is_selected %}
+    {% set card_classes = card_classes + ['bg-primary/5', 'shadow-md'] %}
   {% endif %}
   {% if compact_view %}
     {% set card_classes = card_classes + ['mb-1'] %}
@@ -40,8 +45,7 @@
            data-testid="story-card-{{ story_id }}"
            x-data="{ isOpen: {{ 'true' if detail_view else 'false' }} }"
            {% if not detail_view %}@click="toggleSelection('{{ story_id }}')"{% endif %}
-           :class="{ 'bg-primary/5 border-primary shadow-md': isSelected('{{ story_id }}') }"
-           :aria-selected="isSelected('{{ story_id }}')">
+           aria-selected="{{ 'true' if is_selected else 'false' }}">
     <div class="p-2 space-y-2 w-full max-w-full" id="story-card-content-{{ story_id }}">
       <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4 w-full max-w-full">
 

@@ -202,9 +202,7 @@
           </div>
 
           <footer class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {% if has_rt_id %}
-              <p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>
-            {% endif %}
+            {% if has_rt_id %}<p class="text-xs text-error sm:ml-4">Editing disabled for RT managed stories.</p>{% endif %}
           </footer>
         </div>
       </form>
@@ -234,7 +232,7 @@
                   hx-target="#notification-bar"
                   hx-swap="innerHTML">
               <input type="hidden" name="bot_id" value="summary_bot">
-              <button type="submit" class="btn btn-outline btn-accent" {% if has_rt_id %}disabled{% endif %}>Generate AI summary</button>
+              <button type="submit" class="btn btn-outline btn-accent" {% if has_rt_id %}disabled{% endif %}>Generate summary & title</button>
             </form>
 
             <form class="flex flex-col"
@@ -265,9 +263,7 @@
       </div>
 
       {% if story.news_items %}
-        <div class="space-y-4">
-          {% for item in story.news_items %}{{ news_item_card(item, story, edit_tags=(not has_rt_id) ) }}{% endfor %}
-        </div>
+        <div class="space-y-4">{% for item in story.news_items %}{{ news_item_card(item, story, edit_tags=(not has_rt_id) ) }}{% endfor %}</div>
       {% else %}
         <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>
       {% endif %}

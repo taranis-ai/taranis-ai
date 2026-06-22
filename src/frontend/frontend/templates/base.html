@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" style="--app-header-height: 4rem; --viewport-warning-height: 0px;">
+<html lang="{{ get_locale() }}" style="--app-header-height: 4rem; --viewport-warning-height: 0px;">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Taranis AI - Open-Source Intelligence leveraging AI">
+    <meta name="description" content="{{ _('Taranis AI - Open-Source Intelligence leveraging AI') }}">
     <meta name="keywords" content="AI, Taranis, assistant, artificial intelligence, platform">
     <title>Taranis AI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
@@ -12,26 +12,28 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/vendor.bundle.css') }}">
 
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
-    <meta name="htmx-config" content='{"selfRequestsOnly": false}' />
+    <meta name="htmx-config"
+          content='{"selfRequestsOnly": false, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "400", "swap": true, "error": true}, {"code": "[45]..", "swap": false, "error": true}, {"code": "...", "swap": false}]}' />
     {% block head %}
     {% endblock head %}
   </head>
 
   <body class="flex bg-base-300 min-h-screen"
+        data-confirm-ok="{{ _('OK') }}"
+        data-confirm-delete="{{ _('Delete') }}"
+        data-confirm-cancel="{{ _('Cancel') }}"
         hx-ext="response-targets"
         x-data="{ sidebarOpen: {{ 'true' if _show_sidebar else 'false' }}, init() { if (window.self !== window.top) this.sidebarOpen = false } }">
     {% include "partials/viewport_notice.html" %}
-    <!-- Sidebar -->
     {% include "partials/sidebar.html" %}
 
-    <!-- Navigation Bar -->
     <header id="navbar"
             class="fixed left-0 right-0 h-16 bg-base-200 flex items-center justify-between px-4 z-30 navbar"
             style="top: var(--viewport-warning-height)">
       {% include "partials/navbar.html" %}
     </header>
 
-    <!-- Main Content -->
+    {# main content #}
     <main x-bind:class="{ 'ml-64 max-w-[calc(100vw-16rem)]': sidebarOpen }"
           class="transition-all w-full max-w-full min-w-0"
           style="padding-top: calc(var(--app-header-height) + var(--viewport-warning-height))">
@@ -39,6 +41,7 @@
         {% block content %}
         {% endblock content %}
         {% include "notification/index.html" %}
+        {% include "onboarding/prompt.html" %}
       </div>
     </main>
   </body>

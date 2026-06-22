@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% set context = search_context %}
+{% set parsed = context.parsed_query %}
+
+{% block content %}
+  <div class="px-4 py-6" data-testid="omnisearch-results-page">
+    <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-semibold">Search</h1>
+        <p class="text-sm text-base-content/70">{{ parsed.term }}</p>
+      </div>
+      <form method="get" action="{{ url_for('base.omnisearch') }}" class="w-full max-w-xl">
+        <label class="input input-bordered flex items-center gap-2">
+          {{ heroicon_outline('magnifying-glass', class='h-5 w-5 text-base-content/70') }}
+          <input type="search"
+                 name="q"
+                 value="{{ current_search }}"
+                 class="grow"
+                 autocomplete="off"
+                 aria-label="Search"
+                 data-testid="omnisearch-results-input">
+        </label>
+      </form>
+    </div>
+
+    {% if context.errors %}
+      <div class="alert alert-error mb-6 py-2 text-sm" data-testid="omnisearch-errors">
+        <ul class="list-disc pl-4">
+          {% for error in context.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <div class="grid gap-6 xl:grid-cols-3">
+      {% for bucket in context.buckets %}
+        <section class="min-w-0 border-t border-base-300 pt-4" data-testid="omnisearch-results-{{ bucket.scope }}">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <h2 class="flex items-center gap-2 text-lg font-semibold">
+              {{ heroicon_outline(bucket.icon, class='h-5 w-5') }}
+              {{ bucket.plural_label }}
+            </h2>
+            <a href="{{ bucket.search_url }}" class="btn btn-ghost btn-sm">
+              {{ heroicon_outline('arrow-right', class='h-4 w-4') }}
+              Open
+            </a>
+          </div>
+
+          {% if bucket.error %}
+            <div class="alert alert-error py-2 text-sm">{{ bucket.error }}</div>
+          {% elif bucket.items %}
+            <div class="divide-y divide-base-300">
+              {% for item in bucket.items %}
+                <a href="{{ item.url }}" class="block py-3 hover:bg-base-200" data-testid="omnisearch-page-result-{{ item.scope }}">
+                  <span class="block truncate font-medium">{{ item.title }}</span>
+                  {% if item.description %}<span class="mt-1 block truncate text-sm text-base-content/70">{{ item.description }}</span>{% endif %}
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="py-3 text-sm text-base-content/60">No matching {{ bucket.plural_label | lower }}</div>
+          {% endif %}
+        </section>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock content %}

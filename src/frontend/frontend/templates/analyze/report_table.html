@@ -1,4 +1,4 @@
-<div id="report" data-testid="analyze">
+<div id="report" data-testid="analyze" data-tour-target="analyze-page">
   {% from "macros/table.html" import table %}
   {% from "macros/query_params.html" import update_query_params %}
 
@@ -19,7 +19,9 @@
           </button>
         </div>
       {% endif %}
-      <form class="flex min-w-0 grow flex-wrap items-center gap-3"
+      <form method="get"
+            action="{{ routes.base_route }}"
+            class="flex min-w-0 grow flex-wrap items-center gap-3"
             hx-get="{{ routes.base_route }}"
             hx-push-url="true"
             hx-select="#{{ table_container }}"
@@ -27,8 +29,12 @@
             hx-swap="outerHTML settle:0ms"
             hx-trigger="change, input changed delay:500ms">
         <input type="hidden" name="page" value="1">
-        {% if request.args.get('limit') %}<input type="hidden" name="limit" value="{{ request.args.get('limit') }}">{% endif %}
-        {% if request.args.get('order') %}<input type="hidden" name="order" value="{{ request.args.get('order') }}">{% endif %}
+        {% if request.args.get('limit') %}
+          <input type="hidden" name="limit" value="{{ request.args.get('limit') }}">
+        {% endif %}
+        {% if request.args.get('order') %}
+          <input type="hidden" name="order" value="{{ request.args.get('order') }}">
+        {% endif %}
         <label class="input min-w-[16rem] flex-1">
           {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
           <input type="search"
@@ -57,16 +63,17 @@
             {% endfor %}
           </select>
         </label>
+        <button type="submit" class="sr-only">Apply filters</button>
       </form>
       <div class="grow-0">
-        <button type="button"
-                class="btn btn-outline"
-                data-testid="reset-report-filters"
-                hx-get="{{ routes.base_route }}{{ update_query_params({'page': 1}, exclude=['search', 'completed', 'report_item_type_id', 'page']) }}"
-                hx-push-url="true"
-                hx-select="#{{ table_container }}"
-                hx-target="#{{ table_container }}"
-                hx-swap="outerHTML">Reset Filters</button>
+        <a class="btn btn-outline"
+           data-testid="reset-report-filters"
+           hx-get="{{ routes.base_route }}{{ update_query_params({'page': 1}, exclude=['search', 'completed', 'report_item_type_id', 'page']) }}"
+           hx-push-url="true"
+           hx-select="#{{ table_container }}"
+           hx-target="#{{ table_container }}"
+           hx-swap="outerHTML"
+           href="{{ routes.base_route }}{{ update_query_params({'page': 1}, exclude=['search', 'completed', 'report_item_type_id', 'page']) }}">Reset Filters</a>
       </div>
       {% if routes.edit_route %}
         <div class="grow-0">

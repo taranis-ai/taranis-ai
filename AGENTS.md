@@ -62,6 +62,15 @@ Task modules:
 - when a user workflow needs product or publish-related reference data, expose it through a user-scoped endpoint in `src/core/core/api/publish.py`
 - declare matching user-facing model classes in `src/models/models/product.py` and import those from frontend publish views
 
+## Agent Memory Files
+
+- feature and workflow context lives in `docs/agents/`
+- when a task mentions an application feature, workflow, route, model, template, or user-facing behavior, first inspect `docs/agents/README.md` for a matching memory file
+- read every matching memory file before planning or editing related code
+- memory files provide expected behavior, code paths, tests, and known pitfalls; the implementation remains the final source of truth
+- if a change updates behavior, code paths, cache behavior, validation, or test strategy covered by a memory file, update that memory file in the same task
+- if a task introduces a substantial feature or workflow that is likely to be revisited, add a new memory file and link it from `docs/agents/README.md`
+
 ## Testing
 
 See .github/workflows for how tests are configured in CI.
@@ -110,11 +119,13 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 - avoid unit tests for orchestration methods whose collaborators are almost entirely monkeypatched or stubbed out; those tests tend to prove call wiring rather than behavior
 - for admin/frontend workflows that depend on cache invalidation, scheduling, seeding, or similar cross-component side effects, prefer frontend e2e coverage over heavily mocked unit tests
 - for e2e tests, prefer adding a `data-test-id` attribute as the selector when possible
+- do not use pytest autouse fixtures; request fixtures explicitly or use module/class-level `pytest.mark.usefixtures` when a whole module needs setup
 
 ## Development Guidelines
 
 - The best code is no code.
 - Complexity is bad. Keep designs as simple as possible.
+- New WIP features must use one canonical field/API shape; do not introduce "legacy" aliases, migration validators, or compatibility payloads in the same branch unless the compatibility is for behavior already released to users.
 - For settings JSON, prefer simple flat keys and direct values; do not add nested metadata structures, constants, validators, or helper layers unless they are clearly needed now.
 - Mocking is also bad. Use it only when it is absolutely necessary.
 - DRY matters, but do not force reuse if it hurts readability.

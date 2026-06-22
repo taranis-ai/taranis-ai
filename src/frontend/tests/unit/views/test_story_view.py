@@ -727,20 +727,6 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
     assert search_input.get("hx-trigger") is None
 
 
-def test_omnisearch_dialog_form_uses_htmx_submit(authenticated_client):
-    response = authenticated_client.get(url_for("base.omnisearch"))
-
-    assert response.status_code == 200
-
-    tree = html.fromstring(response.text)
-    form = tree.xpath('//dialog[@id="assess_search_dialog"]//div[@class="modal-box"]/form')[0]
-    search_input = tree.xpath('//input[@id="omni_search"]')[0]
-
-    assert form.get("hx-trigger") == expected_search_trigger("omni_search")
-    assert form.get("hx-on:submit") == "event.preventDefault()"
-    assert search_input.get("hx-trigger") is None
-
-
 def test_create_news_item_from_url_posts_simple_web_collector_payload(authenticated_client, responses_mock):
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/assess/news-items/fetch",

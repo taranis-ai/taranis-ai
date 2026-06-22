@@ -1,5 +1,6 @@
 import importlib
 import os
+from copy import deepcopy
 
 
 def _reload_external_auth_modules():
@@ -129,6 +130,97 @@ def test_user_profile(client, auth_header):
     assert response.json
     assert response.data
     assert response.status_code == 200
+
+
+def _onboarding_task_ids(payload: dict, scope: str | None = None) -> set[str]:
+    return {task["id"] for task in payload.get("pending_onboarding_tasks", []) if scope is None or task.get("scope") == scope}
+
+
+def test_user_info_includes_pending_global_onboarding_for_admin(client, auth_header):
+    from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID, USER_PRODUCT_OVERVIEW_TASK_ID
+
+    response = client.get("/api/users/", headers=auth_header)
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert {ADMIN_WELCOME_TOUR_ID, ADMIN_ADVANCED_TOUR_ID}.issubset(_onboarding_task_ids(payload, "global"))
+    assert USER_PRODUCT_OVERVIEW_TASK_ID in _onboarding_task_ids(payload, "user")
+
+
+def test_user_info_excludes_global_onboarding_for_non_admin(client, auth_header_user_permissions):
+    from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID, USER_PRODUCT_OVERVIEW_TASK_ID
+
+    response = client.get("/api/users/", headers=auth_header_user_permissions)
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert ADMIN_WELCOME_TOUR_ID not in _onboarding_task_ids(payload, "global")
+    assert ADMIN_ADVANCED_TOUR_ID not in _onboarding_task_ids(payload, "global")
+    assert USER_PRODUCT_OVERVIEW_TASK_ID in _onboarding_task_ids(payload, "user")
+
+
+def test_user_info_excludes_finished_user_onboarding_task(app, client, auth_header_user_permissions):
+    from models.user import USER_PRODUCT_OVERVIEW_TASK_ID
+
+    from core.managers.db_manager import db
+    from core.model.user import User
+
+    with app.app_context():
+        user = User.find_by_name("user")
+        assert user is not None
+        original_profile = deepcopy(user.profile)
+
+    try:
+        update_response = client.post(
+            "/api/users/profile",
+            json={"onboarding_tasks": {USER_PRODUCT_OVERVIEW_TASK_ID: "dismissed"}},
+            headers=auth_header_user_permissions,
+        )
+        assert update_response.status_code == 200
+
+        response = client.get("/api/users/", headers=auth_header_user_permissions)
+
+        assert response.status_code == 200
+        assert USER_PRODUCT_OVERVIEW_TASK_ID not in _onboarding_task_ids(response.get_json(), "user")
+    finally:
+        with app.app_context():
+            user = User.find_by_name("user")
+            assert user is not None
+            user.profile = original_profile
+            db.session.commit()
+
+
+def test_user_info_excludes_finished_admin_onboarding_task(app, client, auth_header):
+    from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID
+
+    from core.managers.db_manager import db
+    from core.model.user import User
+
+    with app.app_context():
+        user = User.find_by_name("admin")
+        assert user is not None
+        original_profile = deepcopy(user.profile)
+
+    try:
+        update_response = client.post(
+            "/api/users/profile",
+            json={"onboarding_tasks": {ADMIN_WELCOME_TOUR_ID: "dismissed"}},
+            headers=auth_header,
+        )
+        assert update_response.status_code == 200
+
+        response = client.get("/api/users/", headers=auth_header)
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert ADMIN_WELCOME_TOUR_ID not in _onboarding_task_ids(payload, "global")
+        assert ADMIN_ADVANCED_TOUR_ID in _onboarding_task_ids(payload, "global")
+    finally:
+        with app.app_context():
+            user = User.find_by_name("admin")
+            assert user is not None
+            user.profile = original_profile
+            db.session.commit()
 
 
 def test_auth_logout(app, client, auth_header):

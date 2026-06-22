@@ -13,6 +13,11 @@ def test_flask_secret_key(app):
         assert secret_key == "test_key_for_tests_only_do_not_use"
 
 
+def test_jwt_decode_leeway(app):
+    with app.app_context():
+        assert app.config.get("JWT_DECODE_LEEWAY") == 5
+
+
 def test_settings_export_error_returns_oob_notification(app, monkeypatch):
     from frontend.views.admin_views import settings_views
 
@@ -58,3 +63,46 @@ def test_story_transfer_partial_guards_future_export_dates(app):
     assert 'data-testid="story-export-time-to"' in body
     assert body.count('x-bind:max="maxDateTimeLocal"') == 2
     assert "maxDateTimeLocal = now.toISOString().slice(0, 16);" in body
+
+
+def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
+    from frontend.views.admin_views import settings_views
+
+    calls = []
+
+    class FakeResponse:
+        ok = True
+        content = b'{"message": "Successfully updated settings"}'
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"message": "Successfully updated settings"}
+
+    class FakeCoreApi:
+        def api_patch(self, action_url, json_data=None):
+            calls.append((action_url, json_data))
+            return FakeResponse()
+
+    monkeypatch.setattr(settings_views, "CoreApi", FakeCoreApi)
+    monkeypatch.setattr(
+        settings_views.SettingsView,
+        "static_view",
+        classmethod(lambda cls: ('<div id="settings-container"></div>', 200)),
+    )
+
+    with app.test_request_context(
+        "/admin/settings/settings",
+        method="PATCH",
+        data={"settings[default_collector_proxy]": "http://proxy.test"},
+    ):
+        body, status = settings_views.SettingsView.settings_action("/settings/settings", method="patch")
+
+    assert status == 200
+    assert calls == [
+        (
+            "/settings/settings",
+            {"settings": {"default_collector_proxy": "http://proxy.test"}},
+        )
+    ]
+    assert '<span id="notification-message">Successfully updated settings</span>' in body

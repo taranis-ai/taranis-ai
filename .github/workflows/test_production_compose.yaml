@@ -23,6 +23,8 @@ jobs:
 
       - name: Run docker compose for last commit
         working-directory: docker
+        env:
+          PRE_SEED_PASSWORD_USER: test
         run: |
           cp env.sample .env
           docker compose pull redis sse database
@@ -56,6 +58,16 @@ jobs:
           done
 
           echo "✅ All containers are healthy and running"
+
+      - name: Show compose logs after e2e failure
+        if: failure()
+        working-directory: docker
+        run: |
+          echo "Container status:"
+          docker compose ps
+          echo ""
+          echo "Container logs:"
+          docker compose logs
 
       - name: Cleanup
         if: always()

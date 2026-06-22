@@ -108,6 +108,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
   </section>
 
   <form id="assess-sidebar"
+        data-tour-target="assess-filters"
         hx-get="{{ base_url }}"
         hx-target="#assess"
         hx-swap="outerHTML"
@@ -270,6 +271,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
   </a>
   <button type="button"
           class="btn btn-secondary btn-sm w-full"
+          data-tour-target="assess-save-default-filters"
           hx-post="{{ url_for('assess.save_default_filters') }}"
           hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
           hx-target="#notification-bar"

@@ -17,13 +17,13 @@ class FilterData:
 
     @classmethod
     def _build_tags(cls) -> list[str]:
-        from core.model.news_item_tag import NewsItemTag
+        from core.model.news_item_tag import NewsItemTagCluster
 
         rows = db.session.scalars(
-            db.select(NewsItemTag.name)
-            .where(or_(NewsItemTag.tag_type.is_(None), NewsItemTag.tag_type.not_ilike("report_%")))
+            db.select(NewsItemTagCluster.name)
+            .where(or_(NewsItemTagCluster.tag_type_key == "", NewsItemTagCluster.tag_type_key.not_ilike("report_%")))
             .distinct()
-            .order_by(NewsItemTag.name)
+            .order_by(NewsItemTagCluster.name)
         ).all()
 
         return [name for name in rows if name]

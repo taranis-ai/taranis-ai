@@ -73,6 +73,7 @@ ASSESS_DEFAULT_FILTER_KEYS = frozenset(
         "in_report",
         "relevant",
         "cybersecurity",
+        "changed_by",
         "range",
         "sort",
         "timefrom",
@@ -97,7 +98,7 @@ class StoryView(BaseView):
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
-        filter_lists = cls._get_filter_lists()
+        filter_lists = cls.get_filter_lists()
         base_context["filter_lists"] = filter_lists
         assess_request_args: dict[str, list[str]] = {}
         if request.endpoint == "assess.assess":
@@ -139,7 +140,7 @@ class StoryView(BaseView):
         return story
 
     @staticmethod
-    def _get_filter_lists() -> FilterLists:
+    def get_filter_lists() -> FilterLists:
         username = getattr(current_user, "username", getattr(current_user, "id", "anonymous"))
         if filter_lists := get_model_from_cache(FilterLists._model_name, "", username):
             return FilterLists(**filter_lists)
@@ -541,6 +542,7 @@ class StoryView(BaseView):
         cls,
         paging_data: PagingData,
         request_params: dict[str, list[str]],
+        selected_story_ids: list[str] | None = None,
     ):
         try:
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
@@ -557,6 +559,7 @@ class StoryView(BaseView):
         context = cls.get_view_context(items, error)
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
         context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
+        context["selected_story_ids"] = selected_story_ids or []
 
         return render_template(cls.get_list_template(), **context), 200
 
@@ -572,7 +575,8 @@ class StoryView(BaseView):
 
         request_params = cls._get_assess_request_params(request_params)
         paging_data = parse_paging_data(request_params)
-        table, status = cls._render_story_list(paging_data, request_params)
+        selected_story_ids = request.form.getlist("story_ids") if request.method == "POST" else []
+        table, status = cls._render_story_list(paging_data, request_params, selected_story_ids=selected_story_ids)
         if notification:
             return make_response(notification + table, status)
         return make_response(table, status)
@@ -614,7 +618,7 @@ class StoryView(BaseView):
             context["story_cyber_status"] = cls._format_cyber_status(cybersecurity_value)
             context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
             context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
-            sources = list(cls._get_filter_lists().sources)
+            sources = list(cls.get_filter_lists().sources)
             source_dict = {source.id: source for source in sources if source.id}
             cls._enhance_story_with_details(story, source_dict)
         else:

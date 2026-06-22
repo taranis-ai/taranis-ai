@@ -21,6 +21,64 @@ class WordListUsage(IntEnum):
     TAGGING_BOT = 4  # 2^2
 
 
+class WordListEntry(BaseModel):
+    __tablename__ = "word_list_entry"
+
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    value: Mapped[str] = db.Column(db.String(), nullable=False)
+    category: Mapped[str] = db.Column(db.String(), nullable=True)
+    description: Mapped[str] = db.Column(db.String(), nullable=True)
+
+    word_list_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("word_list.id", ondelete="CASCADE"))
+
+    def __init__(self, value, category="Uncategorized", description="", id=None):
+        self.id = self.normalize_uuid_id(id)
+        self.value = value
+        self.category = category
+        self.description = description
+
+    @classmethod
+    def identical(cls, value, word_list_id):
+        return db.session.execute(db.exists().where(WordListEntry.value == value).where(WordListEntry.word_list_id == word_list_id)).scalar()
+
+    @classmethod
+    def delete_entries(cls, word_list_id, value):
+        word_list = WordList.get(word_list_id)
+        if not word_list:
+            return "WordList not found", 404
+        db.session.execute(db.delete(cls).where(cls.word_list_id == word_list_id).where(cls.value == value))
+        db.session.commit()
+
+    @classmethod
+    def update_word_list_entries(cls, id, entries_data):
+        word_list = WordList.get(id)
+        if not word_list:
+            return "WordList not found", 404
+
+        entries = cls.load_multiple(entries_data)
+        if not entries:
+            return "No entries found", 404
+        for entry in entries:
+            if not cls.identical(entry.value, word_list.id):
+                word_list.entries.append(entry)
+                db.session.commit()
+        return "WordList entries updated", 200
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data.pop("id")
+        return data
+
+    def to_word_list_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data.pop("id")
+        data.pop("word_list_id")
+        return data
+
+    def to_entry_dict(self) -> dict[str, Any]:
+        return {"value": self.value, "category": self.category}
+
+
 class WordList(BaseModel):
     __tablename__ = "word_list"
 
@@ -29,7 +87,11 @@ class WordList(BaseModel):
     description: Mapped[str] = db.Column(db.String(), default="")
     usage: Mapped[int] = db.Column(db.Integer, default=0)
     link: Mapped[str] = db.Column(db.String(), nullable=True, default=None)
-    entries: Mapped[list["WordListEntry"]] = relationship("WordListEntry", cascade="all, delete")
+    entries: Mapped[list["WordListEntry"]] = relationship(
+        "WordListEntry",
+        cascade="all, delete",
+        order_by=(WordListEntry.value.asc(), WordListEntry.category.asc(), WordListEntry.description.asc()),
+    )
 
     def __init__(self, name: str, description: str = "", usage: int = 0, link: str = "", entries=None, id: str | None = None):
         self.id = self.normalize_uuid_id(id)
@@ -251,7 +313,7 @@ class WordList(BaseModel):
 
     @classmethod
     def export(cls, source_ids=None) -> bytes:
-        query = db.select(cls)
+        query = db.select(cls).order_by(db.asc(cls.name))
         if source_ids:
             query = query.filter(cls.id.in_(source_ids))
 
@@ -278,61 +340,3 @@ class WordList(BaseModel):
             return cls.parse_json(file_data)
 
         return None
-
-
-class WordListEntry(BaseModel):
-    __tablename__ = "word_list_entry"
-
-    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
-    value: Mapped[str] = db.Column(db.String(), nullable=False)
-    category: Mapped[str] = db.Column(db.String(), nullable=True)
-    description: Mapped[str] = db.Column(db.String(), nullable=True)
-
-    word_list_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("word_list.id", ondelete="CASCADE"))
-
-    def __init__(self, value, category="Uncategorized", description="", id=None):
-        self.id = self.normalize_uuid_id(id)
-        self.value = value
-        self.category = category
-        self.description = description
-
-    @classmethod
-    def identical(cls, value, word_list_id):
-        return db.session.execute(db.exists().where(WordListEntry.value == value).where(WordListEntry.word_list_id == word_list_id)).scalar()
-
-    @classmethod
-    def delete_entries(cls, word_list_id, value):
-        word_list = WordList.get(word_list_id)
-        if not word_list:
-            return "WordList not found", 404
-        db.session.execute(db.delete(cls).where(cls.word_list_id == word_list_id).where(cls.value == value))
-        db.session.commit()
-
-    @classmethod
-    def update_word_list_entries(cls, id, entries_data):
-        word_list = WordList.get(id)
-        if not word_list:
-            return "WordList not found", 404
-
-        entries = cls.load_multiple(entries_data)
-        if not entries:
-            return "No entries found", 404
-        for entry in entries:
-            if not cls.identical(entry.value, word_list.id):
-                word_list.entries.append(entry)
-                db.session.commit()
-        return "WordList entries updated", 200
-
-    def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data.pop("id")
-        return data
-
-    def to_word_list_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data.pop("id")
-        data.pop("word_list_id")
-        return data
-
-    def to_entry_dict(self) -> dict[str, Any]:
-        return {"value": self.value, "category": self.category}

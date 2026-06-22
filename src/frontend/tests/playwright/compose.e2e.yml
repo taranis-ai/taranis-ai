@@ -30,7 +30,7 @@ services:
     volumes:
       - "../../../core:/app/core:z"
       - "../../../models:/app/models:z"
-      - "${TARANIS_E2E_UV_CACHE_DIR}:/tmp/.cache/uv"
+      - "core-uv-cache:/tmp/.cache/uv"
     ports:
       - "8080"
     depends_on:
@@ -66,7 +66,7 @@ services:
     volumes:
       - "../../../worker:/app/worker:z"
       - "../../../models:/app/models:z"
-      - "${TARANIS_E2E_UV_CACHE_DIR}:/tmp/.cache/uv"
+      - "worker-uv-cache:/tmp/.cache/uv"
     depends_on:
       core:
         condition: service_healthy
@@ -94,7 +94,7 @@ services:
     volumes:
       - "../../../worker:/app/worker:z"
       - "../../../models:/app/models:z"
-      - "${TARANIS_E2E_UV_CACHE_DIR}:/tmp/.cache/uv"
+      - "cron-uv-cache:/tmp/.cache/uv"
     depends_on:
       core:
         condition: service_healthy
@@ -123,3 +123,8 @@ services:
       timeout: 3s
       retries: 20
       start_period: 2s
+
+volumes:
+  core-uv-cache:
+  worker-uv-cache:
+  cron-uv-cache:
