@@ -329,6 +329,24 @@ wheels = [
 ]
 
 [[package]]
+name = "confluent-kafka"
+version = "2.14.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ff/e5/58ac277094b03a51d9725798d0e53a60c1be69dc4330ae9cedc2d9efa430/confluent_kafka-2.14.2.tar.gz", hash = "sha256:fc827265571a778b1ff560ab2f3ec5dce3c573c29eb4cf6ded9718d55a5e4262", size = 289180, upload-time = "2026-06-03T09:53:37.63Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/52/274192cfcca6d0b8b8093255f02e61f112dc425024dbb723438272d5f16b/confluent_kafka-2.14.2-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:35755d6adb2d6ed5b3f517fa8d2cec0e8cb5b668e652cc7a691fe317b727bcb9", size = 4187586, upload-time = "2026-06-03T09:51:09.653Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/85/942ab3188cb252cc0ea43bb8c6b4bce036f8b6168b2d9857e158ec136a09/confluent_kafka-2.14.2-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:facc957bf97e69e467b1935d96eddced0abb7e7bcd2af025847d42c990116523", size = 4183057, upload-time = "2026-06-03T09:51:14.252Z" },
+    { url = "https://files.pythonhosted.org/packages/64/9a/ed6be7e0874463aa40660903f8b191eb94ea0d21a11d0f07f953bf12319a/confluent_kafka-2.14.2-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:6ea5321c7f3861be9245239514ddcfc8dc21e8046f819a53b0f98c4e79b006d6", size = 4803705, upload-time = "2026-06-03T09:51:21.775Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/58/5c5b84f6f9e6c1d8b50dfa1d8231d77ba1c626d2f4233549a4b81f826620/confluent_kafka-2.14.2-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:7db5f58948eeb7b85b8c5ab440fddbd5a7465fee48185e5ae37bb2c190eb715d", size = 4598707, upload-time = "2026-06-03T09:51:28.351Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/fb/65118d1557599e9e4cbc8bb1ed0f0b9832d2dcbae281ecc285caeb2a7305/confluent_kafka-2.14.2-cp312-cp312-win_amd64.whl", hash = "sha256:b19e4939e1cefe4ed93985e64b121ba492632ad36a23a43f5299402522b24385", size = 4392203, upload-time = "2026-06-03T09:51:34.068Z" },
+    { url = "https://files.pythonhosted.org/packages/3d/27/e1a75e5b7c9caeb61885d10b038d520fec73f21967d763f18f600d917f9f/confluent_kafka-2.14.2-cp313-cp313-macosx_13_0_arm64.whl", hash = "sha256:590667a106f2f79a1a9412723686e32e5a4a85b911ff2c15ce828c5ac8748f3b", size = 4187857, upload-time = "2026-06-03T09:51:40.099Z" },
+    { url = "https://files.pythonhosted.org/packages/96/6f/1299809f078da711783878486cea966871a02d8b3bdaf126298bc6f778db/confluent_kafka-2.14.2-cp313-cp313-macosx_13_0_x86_64.whl", hash = "sha256:654afcf3d1b29536d098d271a66ef077920759b752a8c9978feee35ce4a174cf", size = 4190988, upload-time = "2026-06-03T09:51:44.265Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/81/d68501702330138f9b0e946674fea60285cf5c231eb70dfcc0459fa7f0c8/confluent_kafka-2.14.2-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:1cbb88bae84c8b0f9247a896bdbb53820bdf0f277aa126bf577108ee70491926", size = 4804040, upload-time = "2026-06-03T09:51:50.225Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/fc/720a0fa7127a6bd23517bb0bc6dc6d2934bf5fe385277ced7bf3c6e9d2d4/confluent_kafka-2.14.2-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:53b5fb5eb0ae89005e572da95f96e95c7d247525d66857748b74012d58f19ef3", size = 4599115, upload-time = "2026-06-03T09:51:58.07Z" },
+    { url = "https://files.pythonhosted.org/packages/13/da/e1679fbe6a4d4dc1172db2ecad7eccef00555fb4f11f432b8e802ad68998/confluent_kafka-2.14.2-cp313-cp313-win_amd64.whl", hash = "sha256:aff0de94a6321eedb6188d121a8001b090d6d5f4d76b3f6754a3c8747fb1847d", size = 4451883, upload-time = "2026-06-03T09:52:06.049Z" },
+]
+
+[[package]]
 name = "courlan"
 version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1684,6 +1702,7 @@ source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "click" },
+    { name = "confluent-kafka" },
     { name = "croniter" },
     { name = "feedparser" },
     { name = "ioc-fanger" },
@@ -1728,6 +1747,7 @@ requires-dist = [
     { name = "beautifulsoup4" },
     { name = "build", marker = "extra == 'dev'" },
     { name = "click" },
+    { name = "confluent-kafka", specifier = ">=2.14.2" },
     { name = "croniter", specifier = ">=6.0.0" },
     { name = "fakeredis", marker = "extra == 'dev'" },
     { name = "feedparser" },
