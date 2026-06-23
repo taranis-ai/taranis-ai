@@ -1628,9 +1628,9 @@ class StoryBookmark(BaseModel):
             bookmark.touch()
             db.session.commit()
             return {"message": "Bookmark collection updated", "id": bookmark.id, "bookmark": bookmark.to_detail_dict()}, 200
-        except ValueError as exc:
+        except ValueError:
             db.session.rollback()
-            return {"error": str(exc)}, 400
+            return {"error": "Invalid bookmark collection data"}, 400
         except IntegrityError:
             db.session.rollback()
             return {"error": "A bookmark collection with this name already exists"}, 409
@@ -1651,9 +1651,6 @@ class StoryBookmark(BaseModel):
     @classmethod
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         if bookmark := cls.get_for_user(item_id, user):
-            if user is None:
-                return bookmark.to_detail_dict(), 200
-
             story_ids = [story.id for story in bookmark.stories if story and story.id]
             accessible_query = db.select(Story).where(Story.id.in_(story_ids))
             accessible_query = Story._add_ACL_check(accessible_query, user)
@@ -1686,7 +1683,7 @@ class StoryBookmark(BaseModel):
             return {"error": "No story ids provided"}, 400
         stories = cls._get_accessible_stories(normalized_story_ids, user)
         if stories is None:
-            return {"error": "Story not found"}, 404
+            return {"error": "One of the provided stories was not found"}, 404
 
         existing_story_ids = {story.id for story in bookmark.stories}
         added = 0
@@ -1702,6 +1699,8 @@ class StoryBookmark(BaseModel):
 
     @classmethod
     def remove_stories(cls, bookmark_id: str, story_ids: list[str], user: User | None) -> tuple[dict[str, Any], int]:
+        if user is None:
+            return {"error": "User not found"}, 403
         bookmark = cls.get_for_user(bookmark_id, user)
         if bookmark is None:
             return {"error": "Bookmark collection not found"}, 404

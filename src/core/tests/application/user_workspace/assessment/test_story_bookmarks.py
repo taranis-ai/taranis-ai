@@ -124,7 +124,7 @@ class TestStoryBookmarks(BaseTest):
         )
 
         assert response.status_code == 404
-        assert response.get_json() == {"error": "Story not found"}
+        assert response.get_json() == {"error": "One of the provided stories was not found"}
 
     def test_story_bookmark_remove_absent_story_is_idempotent(self, client, stories, auth_header):
         bookmark_id = self._create_bookmark(client, auth_header, f"Idempotent {uuid4()}")
