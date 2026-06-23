@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import pandas as pd
 import plotly.express as px
@@ -466,7 +467,7 @@ class DashboardView(BaseView):
         # Return only the div/JS part so it can be used in Jinja directly
         return fig.to_html(full_html=False, include_plotlyjs="cdn")
 
-    def get(self, **kwargs) -> tuple[str, int]:
+    def get(self, **kwargs: Any) -> ResponseReturnValue:
         return self.static_view()
 
     def post(self, *args, **kwargs) -> ResponseReturnValue:

@@ -56,6 +56,7 @@ taranis-worker-healthcheck = "worker.healthcheck:main"
 dev = [
     "ruff",
     "pytest",
+    "pyright",
     "fakeredis",
     "requests-mock",
     "watchdog",

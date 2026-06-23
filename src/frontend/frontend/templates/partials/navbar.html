@@ -1,7 +1,9 @@
 <div class="flex items-center space-x-4">
-  <button @click="sidebarOpen = !sidebarOpen" class="btn btn-ghost btn-square mr-4" aria-label="{{ _('Toggle sidebar') }}">
-    {{ heroicon_outline("bars-3") }}
-  </button>
+  {% if _show_sidebar and templates and templates.get('sidebar_template') %}
+    <button @click="sidebarOpen = !sidebarOpen" class="btn btn-ghost btn-square mr-4" aria-label="{{ _('Toggle sidebar') }}">
+      {{ heroicon_outline("bars-3") }}
+    </button>
+  {% endif %}
   <a href="{{ url_for('base.dashboard') }}" class="btn btn-ghost normal-case text-xl">
     <img src="{{ url_for('static', filename='assets/taranis-logo.svg') }}" alt="{{ _('Taranis AI Logo') }}" height="auto" width="auto" class="h-8">
   </a>
