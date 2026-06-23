@@ -8,11 +8,10 @@ from werkzeug.exceptions import HTTPException
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class TemplateView(AdminMixin, BaseView):
+class TemplateView(AdminBaseView):
     model = Template
     icon = "document-text"
     _index = 160

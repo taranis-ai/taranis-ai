@@ -114,7 +114,7 @@ class UserProfileView(BaseView):
     @classmethod
     def _get_current_profile_data(cls) -> dict[str, Any]:
         profile = getattr(current_user, "profile", None)
-        if hasattr(profile, "model_dump"):
+        if profile is not None and hasattr(profile, "model_dump"):
             return profile.model_dump(mode="json")
         if isinstance(profile, dict):
             return dict(profile)
@@ -130,8 +130,8 @@ class UserProfileView(BaseView):
             merged_updates["onboarding_tasks"] = {**current_onboarding_tasks, **onboarding_updates}
         return {**current_profile, **merged_updates}
 
-    def get(self, **kwargs) -> tuple[str, int]:
+    def get(self, **kwargs: Any) -> ResponseReturnValue:
         return render_template("user_profile/profile.html", user=current_user), 200
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
+    def post(self, *args: Any, **kwargs: Any) -> ResponseReturnValue:
         return self.post_settings_view()

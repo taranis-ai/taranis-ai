@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 
 from flask import current_app
 from flask.typing import ResponseReturnValue
@@ -7,9 +7,10 @@ from models.admin import WorkerParameter, WorkerParameterValue
 
 from frontend.auth import admin_required
 from frontend.data_persistence import DataPersistenceLayer
+from frontend.views.base_view import BaseView
 
 
-class AdminMixin:
+class AdminBaseView(BaseView):
     decorators = [admin_required()]
     _is_admin = True
     _show_sidebar = True
@@ -21,24 +22,20 @@ class AdminMixin:
 
     @classmethod
     def _common_context(cls, error: str | None = None, object_id: str = "0") -> dict[str, Any]:
-        return super(AdminMixin, cls)._common_context(error=error, object_id=object_id)
+        return super(AdminBaseView, cls)._common_context(error=error, object_id=object_id)
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
-        from frontend.views.base_view import BaseView
-
-        bv = cast(type[BaseView], cls)
-
-        if getattr(bv, "model", None) is None:
+        if getattr(cls, "model", None) is None:
             return
 
-        if not getattr(bv, "base_route", None):
-            bv.base_route = f"admin.{bv.model_plural_name().lower()}"
-        if not getattr(bv, "edit_route", None) and not bv._read_only:
-            bv.edit_route = f"admin.edit_{bv.model_name().lower()}"
-        if not getattr(bv, "import_route", None) and not bv._read_only:
-            bv.import_route = f"admin.import_{bv.model_plural_name().lower()}"
+        if not cls.base_route:
+            cls.base_route = f"admin.{cls.model_plural_name().lower()}"
+        if not cls.edit_route and not cls._read_only:
+            cls.edit_route = f"admin.edit_{cls.model_name().lower()}"
+        if not cls.import_route and not cls._read_only:
+            cls.import_route = f"admin.import_{cls.model_plural_name().lower()}"
 
     @classmethod
     def _fallback_template(cls, path: str, fallback_suffix: str) -> str:
@@ -58,7 +55,7 @@ class AdminMixin:
     @classmethod
     def get_form_action(cls, object_id: str = "0") -> str:
         if not cls.submits_via_standard_form():
-            return super(AdminMixin, cls).get_form_action(object_id)
+            return super(AdminBaseView, cls).get_form_action(object_id)
         if cls.is_create_object_id(object_id):
             return cls.get_base_route()
         return cls.get_edit_route(**{cls._get_object_key(): object_id})
@@ -73,12 +70,12 @@ class AdminMixin:
     @classmethod
     def handle_submit_error(cls, object_id: str, error: str | None = None, resp_obj: dict | None = None) -> tuple[str, int]:
         if not cls.submits_via_standard_form():
-            return super(AdminMixin, cls).handle_submit_error(object_id, error=error, resp_obj=resp_obj)
+            return super(AdminBaseView, cls).handle_submit_error(object_id, error=error, resp_obj=resp_obj)
         return cls.render_submitted_form_error(object_id, error=error, resp_obj=resp_obj)
 
     @classmethod
     def handle_submit_success(cls, object_id: str, core_response: dict) -> ResponseReturnValue:
         if not cls.submits_via_standard_form():
-            return super(AdminMixin, cls).handle_submit_success(object_id, core_response)
+            return super(AdminBaseView, cls).handle_submit_success(object_id, core_response)
         cls.add_flash_notification(core_response)
         return cls.redirect_htmx(cls.get_submit_redirect_target(object_id, core_response))

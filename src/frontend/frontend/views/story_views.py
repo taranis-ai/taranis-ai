@@ -324,13 +324,12 @@ class StoryView(BaseView):
             logger.warning(f"Failed to enrich share dialog: {exc}")
         except Exception as exc:
             logger.warning(f"Failed to enrich share dialog: {exc}")
-        finally:
-            return render_template(
-                "assess/story_sharing_dialog.html",
-                connectors=connectors,
-                story_ids=story_ids,
-                mail_sharing_link=mail_sharing_link,
-            )
+        return render_template(
+            "assess/story_sharing_dialog.html",
+            connectors=connectors,
+            story_ids=story_ids,
+            mail_sharing_link=mail_sharing_link,
+        )
 
     @classmethod
     @auth_required()
@@ -492,7 +491,7 @@ class StoryView(BaseView):
     @classmethod
     def _build_pagination_context(
         cls,
-        stories: CacheObject | None,
+        stories: CacheObject[Any] | None,
         paging: PagingData,
         request_params: dict[str, list[str]],
     ) -> dict[str, Any]:
@@ -582,7 +581,7 @@ class StoryView(BaseView):
         return make_response(table, status)
 
     @classmethod
-    def list_view(cls):
+    def list_view(cls) -> ResponseReturnValue:
         raw_request_params = request.args.to_dict(flat=False)
         if not is_htmx_request():
             filtered_request_params = {
@@ -708,7 +707,7 @@ class StoryView(BaseView):
     @classmethod
     def _handle_news_item_response(
         cls,
-        core_response,
+        core_response: Any,
         *,
         content_builder: Callable[[str], str] | None = None,
         redirect_on_story: bool = False,
@@ -744,7 +743,7 @@ class StoryView(BaseView):
         return response
 
     @classmethod
-    def news_item_edit_view(cls, core_response) -> ResponseReturnValue:
+    def news_item_edit_view(cls, core_response: Any) -> ResponseReturnValue:
         return cls._handle_news_item_response(core_response, redirect_on_story=True)
 
     @classmethod
@@ -1074,20 +1073,20 @@ class StoryView(BaseView):
         content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 
-    def get(self, **kwargs) -> tuple[str, int]:
+    def get(self, **kwargs: Any) -> ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
+    def post(self, *args: Any, **kwargs: Any) -> ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return abort(405)
 
         return self.patch_story(story_id=object_id)
 
-    def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
+    def put(self, **kwargs: Any) -> ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return abort(405)
