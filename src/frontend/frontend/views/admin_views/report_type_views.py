@@ -4,11 +4,10 @@ from flask import render_template
 from models.admin import Attribute, ReportItemAttribute, ReportItemAttributeGroup, ReportItemType
 
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class ReportItemTypeView(AdminMixin, BaseView):
+class ReportItemTypeView(AdminBaseView):
     model = ReportItemType
     icon = "presentation-chart-bar"
     _index = 120

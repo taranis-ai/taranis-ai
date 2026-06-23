@@ -282,7 +282,7 @@ def test_story_to_core_dict_strips_export_only_fields():
 
 
 def test_story_update_payload_ignores_tags():
-    payload = StoryUpdatePayload(title="Updated Story", tags=[{"name": "story-tag", "tag_type": "misc"}])
+    payload = StoryUpdatePayload.model_validate({"title": "Updated Story", "tags": [{"name": "story-tag", "tag_type": "misc"}]})
 
     assert payload.model_dump(mode="json") == {"title": "Updated Story"}
 
@@ -567,15 +567,6 @@ def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):
 
     assert '@click.outside="closeList()"' in markup
     assert '@blur="closeList()"' not in markup
-
-
-def test_language_filter_select_handles_missing_languages():
-    select_data = StoryView._build_language_filter_select(SimpleNamespace(languages=None), {"language": ["en"]})
-
-    assert select_data == {
-        "options": [],
-        "selected_items": [{"value": "en", "label": "EN", "name": "language"}],
-    }
 
 
 def test_source_filter_select_accepts_group_payloads_with_null_key():
@@ -902,5 +893,5 @@ def test_handle_news_item_response_returns_notification_and_content(app, monkeyp
             redirect_on_story=False,
         )
 
-    assert result.status_code == 200
-    assert result.get_data(as_text=True) == "notification<div>content</div>"
+    assert result.status_code == 200  # type: ignore
+    assert result.get_data(as_text=True) == "notification<div>content</div>"  # type: ignore

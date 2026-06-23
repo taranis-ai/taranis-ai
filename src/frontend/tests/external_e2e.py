@@ -76,3 +76,10 @@ def wait_for_server_to_be_alive(url: str, timeout_seconds: int = 10, poll_interv
     allow_requests_passthru(url)
     wait_for_http_ok(url, timeout_seconds=timeout_seconds, poll_interval=poll_interval)
     return True
+
+
+def wait_for_server_to_be_healthy(core_api_url: str, timeout_seconds: int = 10, poll_interval: float = 0.5) -> bool:
+    health_url = f"{core_api_url.rstrip('/')}/health"
+    allow_requests_passthru(health_url)
+    wait_for_http_ok(health_url, timeout_seconds=timeout_seconds, poll_interval=poll_interval)
+    return True
