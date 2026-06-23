@@ -26,7 +26,7 @@
                 class="btn btn-outline btn-sm"
                 x-show="selectedItems.length === 1"
                 @click="openStoryEdit()"
-                @keyup.shift.e.prevent.window="selectedItems.length === 1 && openStoryEdit()">
+                @keyup.shift.e.prevent.window="canUseAssessShortcut($event) && selectedItems.length === 1 && openStoryEdit()">
           {{ heroicon_mini("pencil") }}
           <span class="text-sm">Edit</span>
           <span class="text-xs opacity-80" x-show="showHints">
@@ -39,7 +39,7 @@
                 class="btn btn-outline btn-sm"
                 x-show="selectedItems.length >= 2"
                 hx-trigger="click"
-                @keyup.shift.g.prevent.window="selectedItems.length >= 2 && $refs.clusterButton.click()"
+                @keyup.shift.g.prevent.window="canUseAssessShortcut($event) && selectedItems.length >= 2 && $refs.clusterButton.click()"
                 hx-get="{{ url_for('assess.cluster_story') }}"
                 hx-target="body"
                 hx-swap="beforeend"
@@ -53,7 +53,7 @@
 
         <button type="button"
                 class="btn btn-outline btn-sm tooltip"
-                hx-trigger="click, keyup[shiftKey && key == 'R'] from:body"
+                hx-trigger="click, keyup[shiftKey && key == 'R' && canUseAssessShortcut(event)] from:body"
                 hx-get="{{ url_for('assess.report_story') }}"
                 hx-target="body"
                 hx-swap="beforeend"
@@ -68,7 +68,7 @@
 
         <button type="button"
                 class="btn btn-outline btn-sm tooltip"
-                hx-trigger="click, keyup[shiftKey && key == 'B'] from:body"
+                hx-trigger="click, keyup[shiftKey && key == 'B' && canUseAssessShortcut(event)] from:body"
                 hx-get="{{ url_for('assess.bookmark_story') }}"
                 hx-target="body"
                 hx-swap="beforeend"
@@ -96,7 +96,7 @@
             <div class="join join-vertical w-full">
               <button type="button"
                       class="btn btn-outline btn-sm"
-                      hx-trigger="click, keyup[shiftKey && code == 'Space'] from:body"
+                      hx-trigger="click, keyup[shiftKey && code == 'Space' && canUseAssessShortcut(event)] from:body"
                       hx-post="{{ url_for('assess.bulk_action') }}"
                       hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"
                       :hx-vals='action_vals("read", !selectedItemsAreRead())'>
@@ -109,7 +109,7 @@
 
               <button type="button"
                       class="btn btn-outline btn-sm"
-                      hx-trigger="click, keyup[shiftKey && key == 'I'] from:body"
+                      hx-trigger="click, keyup[shiftKey && key == 'I' && canUseAssessShortcut(event)] from:body"
                       hx-post="{{ url_for('assess.bulk_action') }}"
                       hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"
                       :hx-vals='action_vals("important", !selectedItemsAreImportant())'>
@@ -126,7 +126,11 @@
       </div>
       <div class="flex flex-wrap items-center gap-2" x-show="!selectedItems.length" x-cloak>
         {% if story_ids %}
-          <button type="button" class="btn btn-outline" @keyup.shift.a.window="selectAll()" @click="selectAll() " data-testid="assess-select-all-button">
+          <button type="button"
+                  class="btn btn-outline"
+                  @keyup.shift.a.window="canUseAssessShortcut($event) && selectAll()"
+                  @click="selectAll() "
+                  data-testid="assess-select-all-button">
             {{ heroicon_mini("check-circle") }}
             <span class="text-sm">Select all</span>
             <span class="text-xs opacity-80" x-show="showHints">

@@ -67,4 +67,5 @@ The instant bookmark path first looks up the earliest collection, then falls bac
 - Keep cache invalidation after create/update/delete/add/remove operations or the frontend will render stale bookmark data.
 - Keep cache invalidation after bookmark reorder or the Assess bar and bookmark list can render stale positions.
 - The Assess bookmark bar is intentionally capped at six items; do not broaden it without an explicit UI change.
+- Keep the Assess `Shift+B` bookmark shortcut guarded by `canUseAssessShortcut`; typing uppercase letters in bookmark dialogs must not reopen toolbar modals.
 - Prefer `data-testid` selectors when adding e2e coverage for bookmark behavior.
