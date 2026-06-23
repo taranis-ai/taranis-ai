@@ -193,6 +193,7 @@ def test_bookmark_detail_renders_stories_and_remove_selected(authenticated_clien
     assert 'data-testid="bookmark-remove-selected"' in response.text
     tree = html.fromstring(response.text)
     assert tree.xpath('//article[@data-testid="story-card-story-1"]')[0].get("data-story-detail-view") == "false"
+    assert not tree.xpath('//*[@data-testid="bookmark-story"]')
     assert not tree.xpath('//*[@data-testid="bookmark-select-story-story-1"]')
 
     responses_mock.post(

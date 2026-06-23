@@ -15,6 +15,8 @@ The frontend supports two bookmark entry paths:
 
 The Assess page shows a compact bookmark bar with up to six collections and an `All bookmarks` link. Bookmark labels in templates should stay translatable, but the default collection name used by the instant create path stays `Bookmarks`.
 
+Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark` action because those stories are already in a bookmark collection.
+
 ## Code Paths
 
 - Core API: `src/core/core/api/assess.py`

@@ -79,7 +79,7 @@
 
     <div id="bookmark-story-list">
       {% for story in stories %}
-        {{ story_card(story) }}
+        {{ story_card(story, show_bookmark=False) }}
       {% endfor %}
     </div>
   {% else %}
