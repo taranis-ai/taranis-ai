@@ -103,8 +103,8 @@ class StoryView(BaseView):
         try:
             paging_data = PagingData(
                 limit=ASSESS_BOOKMARK_BAR_LIMIT,
-                order="created_asc",
-                query_params={"limit": str(ASSESS_BOOKMARK_BAR_LIMIT), "order": "created_asc"},
+                order="position_asc",
+                query_params={"limit": str(ASSESS_BOOKMARK_BAR_LIMIT), "order": "position_asc"},
             )
             return DataPersistenceLayer().get_objects(StoryBookmark, paging_data)
         except ValidationError as exc:

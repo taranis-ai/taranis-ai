@@ -41,7 +41,7 @@ Colon-containing terms that are not supported qualifiers, such as URLs or CVE-st
 
 ### Story Bookmarks
 
-Bookmarks are private story bookmarks organized into named collections. Assess shows the oldest six collections in its bookmarks bar and links to the full `/bookmarks` page. Users can select stories in Assess, bookmark them into an existing or new collection with `Bookmark`, and later manage those collections from `/bookmarks`. A single story card's `Bookmark` action immediately adds the story to the first saved collection; if no collection exists yet, a default `Bookmarks` collection is created. Bookmarking a story does not hide it from Assess, and deleting a bookmark collection only removes the collection membership, not the stories.
+Bookmarks are private story bookmarks organized into named collections. Assess shows the first six collections in the user's saved order and links to the full `/bookmarks` page, where users can drag collection cards to reorder them. Users can select stories in Assess, bookmark them into an existing or new collection with `Bookmark`, and later manage those collections from `/bookmarks`. A single story card's `Bookmark` action immediately adds the story to the first saved collection; if no collection exists yet, a default `Bookmarks` collection is created. Bookmarking a story does not hide it from Assess, and deleting a bookmark collection only removes the collection membership, not the stories.
 
 ### Cache configuration
 

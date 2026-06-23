@@ -25,59 +25,91 @@
   {% endif %}
 
   {% if bookmarks %}
-    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="bookmark-list">
-      {% for bookmark in bookmarks %}
-        <article class="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm transition-colors hover:border-primary/40"
-                 data-testid="bookmark-card-{{ bookmark.id }}">
-          <div class="space-y-3">
-            <div class="flex min-w-0 items-start justify-between gap-3">
-              <div class="min-w-0 space-y-1">
-                <a href="{{ url_for('assess.bookmark', bookmark_id=bookmark.id) }}"
-                   class="block truncate text-lg font-semibold leading-tight hover:text-primary"
-                   data-testid="open-bookmark-{{ bookmark.id }}">{{ bookmark.name }}</a>
-                <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/70">
-                  <span class="badge badge-outline badge-sm">{{ bookmark.story_count }} stories</span>
-                  {% if bookmark.updated %}<span>Updated {{ bookmark.updated | format_datetime }}</span>{% endif %}
-                </div>
-              </div>
+    <button id="bookmark-order-submit"
+            type="button"
+            class="hidden"
+            hx-patch="{{ url_for('assess.bookmark_reorder') }}"
+            hx-target="#bookmarks-page"
+            hx-swap="outerHTML"
+            hx-include="#bookmark-list input[name='bookmark_ids']"></button>
+    {# djlint: off #}
+    <div id="bookmark-list"
+         class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+         data-testid="bookmark-list"
+         x-init="
+           if (!window.Sortable || $el.dataset.sortableInitialized === 'true') return;
+           $el.dataset.sortableInitialized = 'true';
+           Sortable.create($el, {
+             handle: '.bookmark-drag-handle',
+             draggable: '[data-bookmark-card]',
+             animation: 150,
+             onEnd: function (evt) {
+               if (evt.oldIndex !== evt.newIndex) document.getElementById('bookmark-order-submit')?.click();
+             }
+           });
+         ">
+    {# djlint: on #}
+    {% for bookmark in bookmarks %}
+      <article class="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm transition-colors hover:border-primary/40"
+               data-bookmark-card
+               data-testid="bookmark-card-{{ bookmark.id }}">
+        <input type="hidden" name="bookmark_ids" value="{{ bookmark.id }}">
+        <div class="space-y-3">
+          <div class="flex min-w-0 items-start justify-between gap-3">
+            <div class="min-w-0 space-y-1">
               <a href="{{ url_for('assess.bookmark', bookmark_id=bookmark.id) }}"
-                 class="btn btn-ghost btn-sm btn-square shrink-0"
+                 class="block truncate text-lg font-semibold leading-tight hover:text-primary"
+                 data-testid="open-bookmark-{{ bookmark.id }}">{{ bookmark.name }}</a>
+              <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/70">
+                <span class="badge badge-outline badge-sm">{{ bookmark.story_count }} stories</span>
+                {% if bookmark.updated %}<span>Updated {{ bookmark.updated | format_datetime }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="flex shrink-0 items-center gap-1">
+              <button type="button"
+                      class="bookmark-drag-handle btn btn-ghost btn-sm btn-square cursor-grab active:cursor-grabbing"
+                      title="Drag to reorder"
+                      aria-label="Drag {{ bookmark.name }}"
+                      data-testid="reorder-bookmark-{{ bookmark.id }}">{{ heroicon_mini("queue-list") }}</button>
+              <a href="{{ url_for('assess.bookmark', bookmark_id=bookmark.id) }}"
+                 class="btn btn-ghost btn-sm btn-square"
                  aria-label="Open {{ bookmark.name }}">{{ heroicon_mini("arrow-right") }}</a>
             </div>
+          </div>
 
-            <div class="flex min-w-0 items-center gap-2">
-              <form class="flex min-w-0 flex-1 gap-2"
-                    hx-patch="{{ url_for('assess.bookmark_update', bookmark_id=bookmark.id) }}"
+          <div class="flex min-w-0 items-center gap-2">
+            <form class="flex min-w-0 flex-1 gap-2"
+                  hx-patch="{{ url_for('assess.bookmark_update', bookmark_id=bookmark.id) }}"
+                  hx-target="#bookmarks-page"
+                  hx-swap="outerHTML"
+                  data-testid="rename-bookmark-form-{{ bookmark.id }}">
+              <input type="text"
+                     name="name"
+                     value="{{ bookmark.name }}"
+                     maxlength="120"
+                     required
+                     class="input input-sm min-w-0 flex-1"
+                     aria-label="Rename {{ bookmark.name }}">
+              <button type="submit" class="btn btn-outline btn-sm shrink-0" data-testid="rename-bookmark-{{ bookmark.id }}">
+                {{ heroicon_mini("check") }}
+                Save
+              </button>
+            </form>
+            <button type="button"
+                    class="btn btn-outline btn-error btn-sm btn-square shrink-0 tooltip tooltip-left"
+                    hx-delete="{{ url_for('assess.bookmark_delete', bookmark_id=bookmark.id) }}"
+                    hx-confirm="Delete this bookmark collection? Stories will stay in Assess."
                     hx-target="#bookmarks-page"
                     hx-swap="outerHTML"
-                    data-testid="rename-bookmark-form-{{ bookmark.id }}">
-                <input type="text"
-                       name="name"
-                       value="{{ bookmark.name }}"
-                       maxlength="120"
-                       required
-                       class="input input-sm min-w-0 flex-1"
-                       aria-label="Rename {{ bookmark.name }}">
-                <button type="submit" class="btn btn-outline btn-sm shrink-0" data-testid="rename-bookmark-{{ bookmark.id }}">
-                  {{ heroicon_mini("check") }}
-                  Save
-                </button>
-              </form>
-              <button type="button"
-                      class="btn btn-outline btn-error btn-sm btn-square shrink-0 tooltip tooltip-left"
-                      hx-delete="{{ url_for('assess.bookmark_delete', bookmark_id=bookmark.id) }}"
-                      hx-confirm="Delete this bookmark collection? Stories will stay in Assess."
-                      hx-target="#bookmarks-page"
-                      hx-swap="outerHTML"
-                      data-tip="Delete"
-                      aria-label="Delete {{ bookmark.name }}"
-                      data-testid="delete-bookmark-{{ bookmark.id }}">{{ heroicon_mini("trash") }}</button>
-            </div>
+                    data-tip="Delete"
+                    aria-label="Delete {{ bookmark.name }}"
+                    data-testid="delete-bookmark-{{ bookmark.id }}">{{ heroicon_mini("trash") }}</button>
           </div>
-        </article>
-      {% endfor %}
-    </div>
-  {% else %}
-    <div class="alert alert-info" data-testid="empty-bookmarks">No bookmark collections yet.</div>
-  {% endif %}
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="alert alert-info" data-testid="empty-bookmarks">No bookmark collections yet.</div>
+{% endif %}
 </div>

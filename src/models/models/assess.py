@@ -302,6 +302,10 @@ class StoryBookmarkStoryPayload(TaranisBaseModel):
     story_ids: list[str] = Field(min_length=1)
 
 
+class StoryBookmarkOrderPayload(TaranisBaseModel):
+    bookmark_ids: list[str] = Field(min_length=1)
+
+
 class StoryBookmark(StoryBookmarkBase):
     _core_endpoint = "/assess/bookmarks"
     _model_name = "story_bookmark"
@@ -309,6 +313,7 @@ class StoryBookmark(StoryBookmarkBase):
     _cache_timeout = 30
 
     id: str | None = None
+    position: int = 0
     created: datetime | None = None
     updated: datetime | None = None
     story_count: int = 0

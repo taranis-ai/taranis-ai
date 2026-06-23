@@ -13,7 +13,7 @@ The frontend supports two bookmark entry paths:
 - the modal flow for selecting one or more stories and choosing an existing or new collection
 - the instant single-story flow that uses the first available collection or creates a default collection named `Bookmarks`
 
-The Assess page shows a compact bookmark bar with up to six collections and an `All bookmarks` link. Bookmark labels in templates should stay translatable, but the default collection name used by the instant create path stays `Bookmarks`.
+The Assess page shows a compact bookmark bar with up to six collections ordered by user-defined bookmark position and an `All bookmarks` link. Bookmark labels in templates should stay translatable, but the default collection name used by the instant create path stays `Bookmarks`.
 
 Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark` action because those stories are already in a bookmark collection.
 
@@ -44,7 +44,9 @@ Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark
 
 ## Data Flow
 
-`StoryView.get_extra_context()` loads bookmark collections for the Assess bar through `DataPersistenceLayer().get_objects(StoryBookmark, PagingData(limit=6, order="created_asc", ...))`.
+`StoryView.get_extra_context()` loads bookmark collections for the Assess bar through `DataPersistenceLayer().get_objects(StoryBookmark, PagingData(limit=6, order="position_asc", ...))`.
+
+Users reorder bookmark collections on `/bookmarks` by dragging cards. The frontend posts the ordered `bookmark_ids` list to `/assess/bookmarks/order`; core scopes the IDs to the current user and persists zero-based `position` values.
 
 Bookmark mutations in the frontend call core through `CoreApi()`, then invalidate the local bookmark cache so list/detail views and the Assess bar can refresh with current data.
 
@@ -63,5 +65,6 @@ The instant bookmark path first looks up the earliest collection, then falls bac
 - Bookmark collections are private per user; cross-user access should stay 404/403 as implemented by the core API.
 - Bookmark names are unique per user.
 - Keep cache invalidation after create/update/delete/add/remove operations or the frontend will render stale bookmark data.
+- Keep cache invalidation after bookmark reorder or the Assess bar and bookmark list can render stale positions.
 - The Assess bookmark bar is intentionally capped at six items; do not broaden it without an explicit UI change.
 - Prefer `data-testid` selectors when adding e2e coverage for bookmark behavior.

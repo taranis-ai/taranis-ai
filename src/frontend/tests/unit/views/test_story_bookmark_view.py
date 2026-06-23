@@ -39,11 +39,13 @@ def _bookmark_payload(
     name: str = "Research",
     story_count: int = 1,
     stories: list[dict] | None = None,
+    position: int = 0,
 ) -> dict:
     story_items = stories if stories is not None else [_story_payload()]
     return {
         "id": bookmark_id,
         "name": name,
+        "position": position,
         "created": "2026-06-01T10:00:00",
         "updated": "2026-06-02T10:00:00",
         "story_count": story_count,
@@ -126,7 +128,7 @@ def test_instant_bookmark_story_uses_first_ordered_bookmark(authenticated_client
     requested_paths = [urlparse(call.request.url).path.removeprefix("/api") for call in responses_mock.calls]
     assert requested_paths == ["/assess/bookmarks", "/assess/bookmarks/bookmark-1/stories"]
     bookmark_query = dict(parse_qs(urlparse(responses_mock.calls[0].request.url).query))
-    assert bookmark_query == {"limit": ["1"], "order": ["created_asc"]}
+    assert bookmark_query == {"limit": ["1"], "order": ["position_asc"]}
     payload = json.loads(responses_mock.calls[1].request.body)
     assert payload == {"story_ids": ["story-1"]}
 
@@ -171,6 +173,7 @@ def test_bookmarks_page_renders_and_delete_rerenders_list(authenticated_client_b
     assert response.status_code == 200
     assert "Research" in response.text
     assert 'data-testid="delete-bookmark-bookmark-1"' in response.text
+    assert 'data-testid="reorder-bookmark-bookmark-1"' in response.text
 
     responses_mock.delete(f"{Config.TARANIS_CORE_URL}/assess/bookmarks/bookmark-1", json={"message": "Bookmark collection deleted"})
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
@@ -180,6 +183,32 @@ def test_bookmarks_page_renders_and_delete_rerenders_list(authenticated_client_b
     assert delete_response.status_code == 200
     assert "Bookmark collection deleted" in delete_response.text
     assert "No bookmark collections yet." in delete_response.text
+
+
+def test_reorder_bookmarks_posts_order_and_rerenders_list(authenticated_client_basic, responses_mock, htmx_header):
+    responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/bookmarks/order", json={"message": "Bookmark order updated"})
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
+        json={
+            "items": [
+                _bookmark_payload(bookmark_id="bookmark-2", name="Second", story_count=0, stories=[], position=0),
+                _bookmark_payload(bookmark_id="bookmark-1", name="First", story_count=0, stories=[], position=1),
+            ],
+            "total_count": 2,
+        },
+    )
+
+    response = authenticated_client_basic.patch(
+        url_for("assess.bookmark_reorder"),
+        headers=htmx_header,
+        data={"bookmark_ids": ["bookmark-2", "bookmark-1"]},
+    )
+
+    assert response.status_code == 200
+    assert "Bookmark order updated" in response.text
+    assert response.text.index("Second") < response.text.index("First")
+    payload = json.loads(responses_mock.calls[0].request.body)
+    assert payload == {"bookmark_ids": ["bookmark-2", "bookmark-1"]}
 
 
 def test_bookmark_detail_renders_stories_and_remove_selected(authenticated_client_basic, responses_mock, htmx_header):

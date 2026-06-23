@@ -16,7 +16,7 @@ class TestStoryBookmarks(BaseTest):
         assert response.status_code == 200
         return response.get_json()
 
-    def test_story_bookmarks_list_by_created_order(self, client, auth_header):
+    def test_story_bookmarks_list_by_position_order(self, client, auth_header):
         prefix = f"Ordered {uuid4()}"
         first_response = client.post(self.concat_url("bookmarks"), headers=auth_header, json={"name": f"{prefix} first"})
         second_response = client.post(self.concat_url("bookmarks"), headers=auth_header, json={"name": f"{prefix} second"})
@@ -29,10 +29,13 @@ class TestStoryBookmarks(BaseTest):
         list_response = client.get(self.concat_url("bookmarks"), headers=auth_header, query_string={"search": prefix})
 
         assert list_response.status_code == 200
-        assert [item["id"] for item in list_response.get_json()["items"]] == [first_payload["id"], second_payload["id"]]
+        items = list_response.get_json()["items"]
+        assert [item["id"] for item in items] == [first_payload["id"], second_payload["id"]]
+        assert [item["position"] for item in items] == [first_payload["position"], second_payload["position"]]
+        assert second_payload["position"] == first_payload["position"] + 1
 
-    def test_story_bookmarks_default_order_uses_created_not_updated(self, client, stories, auth_header):
-        prefix = f"Created {uuid4()}"
+    def test_story_bookmarks_default_order_uses_position_not_updated(self, client, stories, auth_header):
+        prefix = f"Position {uuid4()}"
         low_response = client.post(self.concat_url("bookmarks"), headers=auth_header, json={"name": f"{prefix} low"})
         high_response = client.post(self.concat_url("bookmarks"), headers=auth_header, json={"name": f"{prefix} high"})
         assert low_response.status_code == 201
@@ -40,12 +43,16 @@ class TestStoryBookmarks(BaseTest):
 
         low_id = low_response.get_json()["id"]
         high_id = high_response.get_json()["id"]
-        self._add_stories(client, auth_header, high_id, [stories[0]])
+        reorder_response = client.patch(self.concat_url("bookmarks/order"), headers=auth_header, json={"bookmark_ids": [high_id, low_id]})
+        assert reorder_response.status_code == 200
+        self._add_stories(client, auth_header, low_id, [stories[0]])
 
         list_response = client.get(self.concat_url("bookmarks"), headers=auth_header, query_string={"search": prefix})
 
         assert list_response.status_code == 200
-        assert [item["id"] for item in list_response.get_json()["items"]] == [low_id, high_id]
+        items = list_response.get_json()["items"]
+        assert [item["id"] for item in items] == [high_id, low_id]
+        assert [item["position"] for item in items] == [0, 1]
 
     def test_story_bookmark_lifecycle(self, client, stories, auth_header):
         bookmark_id = self._create_bookmark(client, auth_header, f"Bookmark {uuid4()}")
@@ -103,6 +110,11 @@ class TestStoryBookmarks(BaseTest):
             self.concat_url(f"bookmarks/{bookmark_id}/stories"), headers=auth_header_user_permissions, json={"story_ids": [stories[0]]}
         )
         assert add_response.status_code == 404
+
+        reorder_response = client.patch(
+            self.concat_url("bookmarks/order"), headers=auth_header_user_permissions, json={"bookmark_ids": [bookmark_id]}
+        )
+        assert reorder_response.status_code == 404
 
         delete_response = client.delete(self.concat_url(f"bookmarks/{bookmark_id}"), headers=auth_header_user_permissions)
         assert delete_response.status_code == 404

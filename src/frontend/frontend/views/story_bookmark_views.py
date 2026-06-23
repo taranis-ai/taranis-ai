@@ -64,7 +64,7 @@ class StoryBookmarkView(BaseView):
     @classmethod
     def _load_first_bookmark(cls) -> tuple[StoryBookmark | None, str | None]:
         try:
-            paging_data = PagingData(limit=1, order="created_asc", query_params={"limit": "1", "order": "created_asc"})
+            paging_data = PagingData(limit=1, order="position_asc", query_params={"limit": "1", "order": "position_asc"})
             bookmarks = DataPersistenceLayer().get_objects(StoryBookmark, paging_data)
             return (bookmarks[0] if bookmarks else None), None
         except ValidationError as exc:
@@ -221,6 +221,13 @@ class StoryBookmarkView(BaseView):
         if request.form.get("return_to") == "detail":
             return cls._render_detail(bookmark_id, notification=notification)
         return cls._render_list(notification=notification)
+
+    @classmethod
+    @auth_required("ASSESS_ACCESS")
+    def reorder_bookmarks(cls) -> ResponseReturnValue:
+        response = CoreApi().api_patch("/assess/bookmarks/order", json_data={"bookmark_ids": request.form.getlist("bookmark_ids")})
+        cls._invalidate_bookmark_cache()
+        return cls._render_list(notification=cls.get_notification_from_response(response))
 
     @classmethod
     @auth_required("ASSESS_ACCESS")

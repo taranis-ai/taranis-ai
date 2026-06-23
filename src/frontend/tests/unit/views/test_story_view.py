@@ -50,10 +50,11 @@ def story_with_news_item_tags() -> dict:
     }
 
 
-def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int) -> dict:
+def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int, position: int = 0) -> dict:
     return {
         "id": bookmark_id,
         "name": name,
+        "position": position,
         "created": "2026-06-01T10:00:00",
         "updated": "2026-06-02T10:00:00",
         "story_count": story_count,
@@ -526,7 +527,7 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
 
 def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
-    bookmark_payloads = [_bookmark_collection_payload(f"bookmark-{index}", f"Bookmark {index}", index) for index in range(1, 8)]
+    bookmark_payloads = [_bookmark_collection_payload(f"bookmark-{index}", f"Bookmark {index}", index, index - 1) for index in range(1, 8)]
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
         json={"tags": [], "sources": [], "groups": [], "languages": []},
@@ -551,7 +552,7 @@ def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticate
     all_bookmarks = bar.xpath('.//*[@data-testid="assess-all-bookmarks"]')[0]
     assert all_bookmarks.get("href") == url_for("assess.bookmarks")
     bookmark_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/bookmarks"))
-    assert parse_qs(urlparse(bookmark_request.request.url).query) == {"limit": ["6"], "order": ["created_asc"]}
+    assert parse_qs(urlparse(bookmark_request.request.url).query) == {"limit": ["6"], "order": ["position_asc"]}
 
 
 def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):

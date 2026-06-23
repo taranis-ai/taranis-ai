@@ -1132,12 +1132,10 @@ paths:
         schema:
           type: string
           enum:
+          - position_asc
+          - position_desc
           - name_asc
           - name_desc
-          - created_asc
-          - created_desc
-          - updated_asc
-          - updated_desc
       responses:
         '200':
           description: private story bookmark collections
@@ -1180,6 +1178,29 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '409':
           description: duplicate bookmark collection name
+  /assess/bookmarks/order:
+    patch:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: update private story bookmark collection order for the current user
+      operationId: assess.bookmark_order.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_bookmark_order'
+      responses:
+        '200':
+          description: bookmark collection order updated
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /assess/bookmarks/{bookmark_id}:
     parameters:
     - name: bookmark_id
@@ -10125,6 +10146,16 @@ components:
           minItems: 1
           items:
             type: string
+    story_bookmark_order:
+      type: object
+      required:
+      - bookmark_ids
+      properties:
+        bookmark_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
     story_bookmark:
       type: object
       properties:
@@ -10132,6 +10163,8 @@ components:
           type: string
         name:
           type: string
+        position:
+          type: integer
         created:
           type: string
           format: date-time

@@ -1528,6 +1528,7 @@ class StoryBookmark(BaseModel):
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(120), nullable=False)
+    position: Mapped[int] = db.Column(db.Integer, default=0, nullable=False)
     created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow, nullable=False)
     updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow, nullable=False)
 
@@ -1537,9 +1538,10 @@ class StoryBookmark(BaseModel):
         "Story", secondary="story_bookmark_story", cascade="save-update, merge", passive_deletes=True, single_parent=False, lazy="selectin"
     )
 
-    def __init__(self, name: str, user_id: str, bookmark_id: str | None = None, stories: list[str] | None = None):
+    def __init__(self, name: str, user_id: str, bookmark_id: str | None = None, stories: list[str] | None = None, position: int = 0):
         self.id = self.normalize_uuid_id(bookmark_id)
         self.name = self._clean_name(name)
+        self.position = position
         self.user_id = user_id
         self.created = self.utcnow()
         self.updated = self.created
@@ -1547,14 +1549,18 @@ class StoryBookmark(BaseModel):
 
     @staticmethod
     def _clean_name(raw_name: Any) -> str:
-        name = str(raw_name or "").strip()
-        if not name:
-            raise ValueError("Bookmark collection name is required")
-        return name[:120]
+        if name := str(raw_name or "").strip():
+            return name[:120]
+        raise ValueError("Bookmark collection name is required")
 
     @staticmethod
     def _dedupe_ids(ids: list[str]) -> list[str]:
         return list(dict.fromkeys(item_id for item_id in ids if isinstance(item_id, str) and item_id))
+
+    @classmethod
+    def _next_position(cls, user_id: str) -> int:
+        max_position = db.session.execute(db.select(func.max(cls.position)).where(cls.user_id == user_id)).scalar()
+        return int(max_position if max_position is not None else -1) + 1
 
     @classmethod
     def get_for_user(cls, bookmark_id: str, user: User | None) -> "StoryBookmark | None":
@@ -1573,18 +1579,14 @@ class StoryBookmark(BaseModel):
 
     @classmethod
     def _add_sorting_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
-        sort = str(filter_args.get("sort") or filter_args.get("order") or "created_asc").lower()
+        sort = str(filter_args.get("sort") or filter_args.get("order") or "position_asc").lower()
         if sort == "name_asc":
-            return query.order_by(db.asc(cls.name), db.desc(cls.updated))
+            return query.order_by(db.asc(cls.name), db.asc(cls.position))
         if sort == "name_desc":
-            return query.order_by(db.desc(cls.name), db.desc(cls.updated))
-        if sort == "created_asc":
-            return query.order_by(db.asc(cls.created), db.asc(cls.name))
-        if sort == "created_desc":
-            return query.order_by(db.desc(cls.created), db.asc(cls.name))
-        if sort == "updated_asc":
-            return query.order_by(db.asc(cls.updated), db.asc(cls.name))
-        return query.order_by(db.desc(cls.updated), db.asc(cls.name))
+            return query.order_by(db.desc(cls.name), db.asc(cls.position))
+        if sort == "position_desc":
+            return query.order_by(db.desc(cls.position), db.asc(cls.name))
+        return query.order_by(db.asc(cls.position), db.asc(cls.name))
 
     @classmethod
     def get_all_for_api(cls, filter_args: dict[str, Any] | None, user: User | None) -> tuple[dict[str, Any], int]:
@@ -1603,7 +1605,7 @@ class StoryBookmark(BaseModel):
         if user is None:
             return {"error": "User not found"}, 403
         try:
-            bookmark = cls(name=cls._clean_name(data.get("name")), user_id=user.id)
+            bookmark = cls(name=cls._clean_name(data.get("name")), user_id=user.id, position=cls._next_position(user.id))
             db.session.add(bookmark)
             db.session.commit()
             return {"message": "Bookmark collection created", "id": bookmark.id, "bookmark": bookmark.to_detail_dict()}, 201
@@ -1638,6 +1640,29 @@ class StoryBookmark(BaseModel):
             logger.exception("Failed to update story bookmark %s", bookmark_id)
             db.session.rollback()
             return {"error": "Failed to update bookmark collection"}, 500
+
+    @classmethod
+    def reorder_for_api(cls, bookmark_ids: list[str], user: User | None) -> tuple[dict[str, Any], int]:
+        if user is None:
+            return {"error": "User not found"}, 403
+        normalized_ids = cls._dedupe_ids(bookmark_ids)
+        if not normalized_ids or len(normalized_ids) != len(bookmark_ids):
+            return {"error": "Bookmark ids must be unique"}, 400
+
+        bookmarks = cls.get_filtered(db.select(cls).where(cls.user_id == user.id)) or []
+        bookmarks_by_id = {bookmark.id: bookmark for bookmark in bookmarks if bookmark.id}
+        if missing_ids := set(normalized_ids) - set(bookmarks_by_id):
+            return {"error": f"Bookmark collection not found: {sorted(missing_ids)[0]}"}, 404
+
+        ordered_bookmarks = [bookmarks_by_id[bookmark_id] for bookmark_id in normalized_ids]
+        remaining_bookmarks = sorted(
+            (bookmark for bookmark in bookmarks if bookmark.id not in normalized_ids),
+            key=lambda bookmark: (bookmark.position, bookmark.name),
+        )
+        for position, bookmark in enumerate([*ordered_bookmarks, *remaining_bookmarks]):
+            bookmark.position = position
+        db.session.commit()
+        return {"message": "Bookmark order updated"}, 200
 
     @classmethod
     def delete_for_api(cls, bookmark_id: str, user: User | None) -> tuple[dict[str, Any], int]:

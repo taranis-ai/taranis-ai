@@ -3,7 +3,7 @@ from urllib.parse import unquote, urlparse
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.assess import StoryBookmarkCreatePayload, StoryBookmarkStoryPayload, StoryBookmarkUpdatePayload
+from models.assess import StoryBookmarkCreatePayload, StoryBookmarkOrderPayload, StoryBookmarkStoryPayload, StoryBookmarkUpdatePayload
 from pydantic import ValidationError
 
 from core.audit import audit_logger
@@ -407,6 +407,20 @@ class StoryBookmark(MethodView):
         return response, status
 
 
+class StoryBookmarkOrder(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    @validate_json
+    def patch(self):
+        try:
+            payload = StoryBookmarkOrderPayload.model_validate(request.json or {})
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+        response, status = story.StoryBookmark.reorder_for_api(payload.bookmark_ids, current_user)
+        invalidate_frontend_cache_on_success(status, models=("story_bookmark",))
+        return response, status
+
+
 class StoryBookmarkStories(MethodView):
     @auth_required("ASSESS_ACCESS")
     @validate_json
@@ -470,6 +484,7 @@ def initialize(app: Flask):
 
     assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
     assess_bp.add_url_rule("/bookmarks", view_func=StoryBookmarks.as_view("bookmarks"))
+    assess_bp.add_url_rule("/bookmarks/order", view_func=StoryBookmarkOrder.as_view("bookmark_order"))
     assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>", view_func=StoryBookmark.as_view("bookmark"))
     assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>/stories", view_func=StoryBookmarkStories.as_view("bookmark_stories"))
     assess_bp.add_url_rule(
