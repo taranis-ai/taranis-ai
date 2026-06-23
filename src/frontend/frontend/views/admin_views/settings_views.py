@@ -1,4 +1,7 @@
+from typing import Any
+
 from flask import render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from models.admin import Settings
 
 from frontend.core_api import CoreApi
@@ -6,11 +9,10 @@ from frontend.data_persistence import DataPersistenceLayer
 from frontend.i18n import get_timezone_options
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class SettingsView(AdminMixin, BaseView):
+class SettingsView(AdminBaseView):
     model = Settings
     htmx_list_template = "settings/index.html"
     htmx_update_template = "settings/index.html"
@@ -73,5 +75,5 @@ class SettingsView(AdminMixin, BaseView):
         notification += static_view
         return notification, static_response
 
-    def get(self, **kwargs):
+    def get(self, **kwargs: Any) -> ResponseReturnValue:
         return self.static_view()

@@ -11,11 +11,10 @@ from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count
 from frontend.log import logger
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class UserView(AdminMixin, BaseView):
+class UserView(AdminBaseView):
     model = User
     icon = "user"
     _index = 20
