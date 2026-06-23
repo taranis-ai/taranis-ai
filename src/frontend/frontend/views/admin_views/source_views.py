@@ -17,11 +17,10 @@ from frontend.filters import render_source_parameter, render_truncated, render_w
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.validation_helpers import format_pydantic_errors
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class SourceView(AdminMixin, BaseView):
+class SourceView(AdminBaseView):
     model = OSINTSource
     icon = "book-open"
     import_route = "admin.import_osint_sources"

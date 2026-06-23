@@ -1,15 +1,17 @@
+from typing import Any
+
 from flask import abort, render_template
+from flask.typing import ResponseReturnValue
 from models.dashboard import Dashboard
 from werkzeug.exceptions import HTTPException
 
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class AdminDashboardView(AdminMixin, BaseView):
+class AdminDashboardView(AdminBaseView):
     model = Dashboard
     icon = "home"
     htmx_list_template = "admin_dashboard/index.html"
@@ -104,7 +106,7 @@ class AdminDashboardView(AdminMixin, BaseView):
             },
         }
 
-    def get(self, **kwargs):
+    def get(self, **kwargs: Any) -> ResponseReturnValue:
         return self.static_view()
 
     def post(self):

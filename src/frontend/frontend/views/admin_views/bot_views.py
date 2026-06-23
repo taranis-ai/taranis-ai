@@ -10,14 +10,13 @@ from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_item_type, render_worker_status
 from frontend.log import logger
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
 OPTIONAL_BOT_PARAMETERS = {"REFRESH_INTERVAL"}
 
 
-class BotView(AdminMixin, BaseView):
+class BotView(AdminBaseView):
     model = Bot
     icon = "calculator"
     _index = 110

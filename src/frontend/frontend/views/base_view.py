@@ -39,7 +39,8 @@ class BaseView(MethodView):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        BaseView._registry[cls.pretty_name()] = cls
+        if getattr(cls, "model", None) is not None:
+            BaseView._registry[cls.pretty_name()] = cls
 
     @classmethod
     def _common_context(cls, error: str | None = None, object_id: str = "0") -> dict[str, Any]:
@@ -355,7 +356,7 @@ class BaseView(MethodView):
         return flask_response
 
     @classmethod
-    def list_view(cls):
+    def table_view(cls) -> tuple[str, int]:
         try:
             request_params = request.args.to_dict(flat=False)
             params = parse_paging_data(request_params)
@@ -376,6 +377,10 @@ class BaseView(MethodView):
             return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
         return render_template(cls.get_list_template(), **cls.get_view_context(items, error)), 200
+
+    @classmethod
+    def list_view(cls) -> ResponseReturnValue:
+        return cls.table_view()
 
     @classmethod
     def render_list(cls) -> tuple[str, int]:
@@ -530,7 +535,7 @@ class BaseView(MethodView):
         key = self._get_object_key()
         return kwargs.get(key)
 
-    def get(self, **kwargs) -> tuple[str, int]:
+    def get(self, **kwargs: Any) -> ResponseReturnValue:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return self.list_view()
@@ -608,7 +613,7 @@ class BaseView(MethodView):
         cls._invalidate_model_cache(resolved_object_id)
 
         notification_response = cls.render_response_notification(core_response)
-        table_response, table_status = cls.list_view()
+        table_response, table_status = cls.table_view()
         response = notification_response + table_response
         flask_response = make_response(response, table_status)
         flask_response.headers["HX-Push-Url"] = cls.get_base_route()

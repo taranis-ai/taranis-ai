@@ -27,7 +27,7 @@ from tests.external_e2e import (
     external_core_api_url,
     external_frontend_base_url,
     login_to_core,
-    wait_for_server_to_be_alive,
+    wait_for_server_to_be_healthy,
 )
 from tests.playwright.e2e_harness import (
     docker_cleanup_commands,
@@ -118,7 +118,7 @@ def run_core_external():
     Config.TARANIS_CORE_HOST = core_host_from_api_url(external_core_url)
     Config.TARANIS_CORE_URL = external_core_url
     print(f"Using external Taranis Core for E2E tests: {external_core_url}")
-    wait_for_server_to_be_alive(f"{external_core_url}/health", taranis_core_start_timeout)
+    wait_for_server_to_be_healthy(external_core_url, taranis_core_start_timeout)
     return external_core_url
 
 
@@ -126,7 +126,7 @@ def run_core_external():
 def run_core_local(docker_services):
     from frontend.config import Config
 
-    taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
+    taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 180))
     core_port = docker_services.port_for("core", 8080)
     core_url = f"http://127.0.0.1:{core_port}/api"
 
@@ -135,8 +135,8 @@ def run_core_local(docker_services):
 
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
-        print(f"Waiting for Taranis Core to be available at: {core_url}")
-        wait_for_server_to_be_alive(f"{core_url}/health", taranis_core_start_timeout)
+        print(f"Waiting for Taranis Core to be healthy at: {core_url}/health")
+        wait_for_server_to_be_healthy(core_url, taranis_core_start_timeout)
         return core_url
     except Exception as e:
         pytest.fail(str(e))
@@ -721,7 +721,14 @@ def pre_seed_stories(news_items_list, core_request_client):  # noqa: F811
         except Exception:
             return []
         news_items = story.get("news_items", []) if isinstance(story, dict) else []
-        return [news_item.get("id") for news_item in news_items if isinstance(news_item, dict) and news_item.get("id")]
+        news_item_ids = []
+        for news_item in news_items:
+            if not isinstance(news_item, dict):
+                continue
+            news_item_id = news_item.get("id")
+            if isinstance(news_item_id, str):
+                news_item_ids.append(news_item_id)
+        return news_item_ids
 
     for item in news_items_list:
         r = core_request_client.post("/assess/news-items", json_data=item, raise_for_status=False)
