@@ -33,8 +33,9 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
     logger.info(f"Running connector with id: {connector_id}, job id: {job.id if job else 'manual'}")
 
     # Get connector configuration and implementation
+    connector_config: dict[str, Any] = {}
     try:
-        connector_config: dict = _get_connector_config(core_api, connector_id)
+        connector_config = _get_connector_config(core_api, connector_id)
         connector = _get_connector(connector_config.get("type", ""))
     except Exception as e:
         if job:

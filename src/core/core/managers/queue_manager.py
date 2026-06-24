@@ -363,10 +363,8 @@ class QueueManager:
             with contextlib.suppress(Exception):
                 if hasattr(queue, "get_job_ids"):
                     queued_ids = list(queue.get_job_ids())
-                elif callable(getattr(queue, "job_ids", None)):
-                    queued_ids = list(queue.job_ids())
-                elif getattr(queue, "job_ids", None) is not None:
-                    queued_ids = list(queue.job_ids)
+                elif isinstance(job_ids := getattr(queue, "job_ids", None), list):
+                    queued_ids = job_ids
 
             for job_id in queued_ids:
                 if not matches(job_id) or job_id in removed_ids:

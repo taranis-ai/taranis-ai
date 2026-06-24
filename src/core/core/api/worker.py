@@ -234,10 +234,11 @@ class BotInfo(MethodView):
 
     @api_key_required
     def put(self, bot_id):
-        response, status = Bot.update(bot_id, request.json)
-        json_response = jsonify(response)
-        json_response.status_code = status
-        return json_response
+        if not (data := request.json):
+            return {"error": "No data provided"}, 400
+        if result := Bot.update(bot_id, data):
+            return jsonify({"message": "Bot updated", "id": result.id}), 200
+        return {"error": "Bot not found"}, 404
 
 
 class PostCollectionBots(MethodView):

@@ -85,7 +85,7 @@ class Asset(BaseModel):
             self.vulnerabilities.append(vulnerability)
 
     @classmethod
-    def solve_vulnerability(cls, organization: Organization, asset_id, report_item_id, solved):
+    def solve_vulnerability(cls, organization: Organization, asset_id, report_item_id, solved) -> tuple[dict, int]:
         asset = cls.get(asset_id)
         if not asset:
             return {"error": "Asset Not Found"}, 404
@@ -101,7 +101,9 @@ class Asset(BaseModel):
                         asset.vulnerabilities_count += 1
                 vulnerability.solved = solved
                 db.session.commit()
-                return
+                return {"message": "Asset vulnerability updated"}, 200
+
+        return {"error": "Asset Vulnerability Not Found"}, 404
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:

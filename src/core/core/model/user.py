@@ -55,7 +55,7 @@ class User(BaseModel):
         if password:
             self.password = generate_password_hash(password)
         organization_id = organization.get("id") if isinstance(organization, dict) else organization
-        if org := Organization.get(organization_id):
+        if isinstance(organization_id, str) and (org := Organization.get(organization_id)):
             self.organization = org
         self.roles = Role.get_bulk(roles)
         profile = dict(profile or {})
@@ -165,7 +165,7 @@ class User(BaseModel):
         if organization := data.pop("organization", None):
             if isinstance(organization, dict):
                 organization = organization.get("id") or organization.get("name")
-            if update_org := Organization.get(organization):
+            if isinstance(organization, str) and (update_org := Organization.get(organization)):
                 user.organization = update_org
         if (roles := data.pop("roles", None)) is not None:
             user.roles = Role.get_bulk(roles)

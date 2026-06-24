@@ -207,7 +207,7 @@ class DataPersistenceLayer:
         paging_data: PagingData | None,
     ) -> CacheObject[T]:
         cache_object = self._build_cache_object(object_model, result, paging_data)
-        timeout = getattr(object_model, "_cache_timeout", cache_object.timeout)
+        timeout = int(getattr(object_model, "_cache_timeout", cache_object.timeout))
         logger.debug(f"Adding {len(cache_object)} items from {endpoint} to cache with timeout: {timeout}")
         cache.set(key=self.make_list_cache_key(object_model, endpoint, paging_data), value=result, timeout=timeout)
         return cache_object

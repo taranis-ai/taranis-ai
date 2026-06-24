@@ -46,7 +46,7 @@ fi > "$candidate_file"
 files=()
 while IFS= read -r file; do
   case "$file" in
-    src/core/*.py|src/frontend/*.py|src/models/*.py|src/worker/*.py)
+    src/core/core/*.py|src/frontend/frontend/*.py|src/models/models/*.py|src/worker/worker/*.py)
       [[ -f "$file" ]] && files+=("$file")
       ;;
   esac

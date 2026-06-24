@@ -181,7 +181,7 @@ class RSSCollector(BaseWebCollector):
             published = published or web_content.get("published_date") or self.last_modified
 
         else:
-            logger.warning("No content could be extracted for RSS entry %r", feed_entry.get("id", link or title))
+            logger.warning(f"No content could be extracted for RSS entry {feed_entry.get('id', link or title)!r}")
 
         if content == description:
             description = ""

@@ -42,3 +42,9 @@ class BasePublisher:
             missing_params = ", ".join(missing)
             raise ValueError(f"Missing required parameters for {self.name}: {missing_params}")
         return parameters
+
+    @staticmethod
+    def _require_rendered_data(rendered_product: Product) -> bytes:
+        if rendered_product.data is None:
+            raise ValueError("Rendered product data is required")
+        return rendered_product.data

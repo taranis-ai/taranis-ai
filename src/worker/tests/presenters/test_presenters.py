@@ -7,6 +7,11 @@ import worker.presenters.pandoc_presenter as pandocp
 import worker.presenters.pdf_presenter as pdfp
 
 
+class FakePDF:
+    def __init__(self):
+        self.info: dict[str, str] = {}
+
+
 def test_base_presenter_generate(base_presenter, fixed_datetime):
     from presenters_test_data import rendered_report, test_product, test_template
 
@@ -31,7 +36,7 @@ def test_pdf_presenter_successful_render(pdf_presenter, fixed_datetime, monkeypa
             assert target is None
             assert finisher is not None
             assert callable(finisher)
-            fake_pdf = type("FakePDF", (), {})()
+            fake_pdf = FakePDF()
             fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
             finisher(object(), fake_pdf)
             assert fake_pdf.info == {"Title": "A Test Report"}
@@ -71,7 +76,7 @@ def test_pdf_presenter_no_data(pdf_presenter, fixed_datetime, monkeypatch):
 
         def write_pdf(self, target=None, finisher=None):
             assert finisher is not None
-            fake_pdf = type("FakePDF", (), {})()
+            fake_pdf = FakePDF()
             fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
             finisher(object(), fake_pdf)
             assert fake_pdf.info == {"Title": "A Test Report"}
@@ -95,7 +100,7 @@ def test_pdf_presenter_removes_generated_metadata(pdf_presenter, fixed_datetime,
         def write_pdf(self, target=None, finisher=None):
             assert target is None
             assert finisher is not None
-            fake_pdf = type("FakePDF", (), {})()
+            fake_pdf = FakePDF()
             fake_pdf.info = {"Producer": "WeasyPrint 68.1", "Title": "A Test Report"}
             finisher(object(), fake_pdf)
             return b"%PDF-1.7\n<<" + b"".join(f"/{key} ({value})".encode() for key, value in fake_pdf.info.items()) + b">>\n"

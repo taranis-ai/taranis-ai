@@ -122,14 +122,14 @@ def kafka_publisher_testdata():
 
 @pytest.fixture
 def get_product_mock():
-    from worker.tests.publishers.publishers_data import product_render_data, product_render_mime
+    from tests.publishers.publishers_data import product_render_data, product_render_mime
 
     yield MockProduct(product_render_data, product_render_mime)
 
 
 @pytest.fixture
 def get_product_pdf_mock():
-    from worker.tests.publishers.publishers_data import product_render_data_pdf, product_render_mime_pdf
+    from tests.publishers.publishers_data import product_render_data_pdf, product_render_mime_pdf
 
     yield MockProduct(product_render_data_pdf, product_render_mime_pdf)
 
@@ -168,7 +168,7 @@ def sftp_mock(request):
     import glob
     import os
 
-    from worker.tests.publishers.publishers_data import product_text
+    from tests.publishers.publishers_data import product_text
 
     users = {
         "user": {"type": "password", "password": "password"},

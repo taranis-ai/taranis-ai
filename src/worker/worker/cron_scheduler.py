@@ -115,7 +115,8 @@ def _enqueue_due_job(
 ) -> str:
     queue_name = spec["queue_name"]
     queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
-    task = TASK_FUNCTION_MAP.get(spec["func_path"], spec["func_path"])
+    func_path = str(spec["func_path"])
+    task = TASK_FUNCTION_MAP.get(func_path, func_path)
     job_options = dict(spec.get("job_options") or {})
     kwargs = dict(spec.get("kwargs") or {})
 

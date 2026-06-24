@@ -52,6 +52,11 @@ taranis-cron = "worker.cron_scheduler_main:main"
 taranis-worker = "worker:start_worker"
 taranis-worker-healthcheck = "worker.healthcheck:main"
 
+[tool.setuptools.packages.find]
+include = ["worker", "worker.*"]
+exclude = ["worker.tests", "worker.tests.*", "tests", "tests.*"]
+namespaces = true
+
 [project.optional-dependencies]
 dev = [
     "ruff",

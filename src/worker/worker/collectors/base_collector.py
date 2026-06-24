@@ -43,12 +43,14 @@ class BaseCollector:
             for entry in word_list["entries"]
         }
         if include_patterns or exclude_patterns:
-            return [
-                item
-                for item in news_items
-                if (not include_patterns or any(pattern.search(item.title + item.content) for pattern in include_patterns))
-                and (not exclude_patterns or all(not pattern.search(item.title + item.content) for pattern in exclude_patterns))
-            ]
+
+            def matches_filters(item: NewsItem) -> bool:
+                searchable_text = f"{item.title or ''}{item.content or ''}"
+                return (not include_patterns or any(pattern.search(searchable_text) for pattern in include_patterns)) and (
+                    not exclude_patterns or all(not pattern.search(searchable_text) for pattern in exclude_patterns)
+                )
+
+            return [item for item in news_items if matches_filters(item)]
 
         return news_items
 

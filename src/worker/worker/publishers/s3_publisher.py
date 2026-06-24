@@ -47,10 +47,11 @@ class S3Publisher(BasePublisher):
 
     @staticmethod
     def _upload_object(client: Minio, bucket_name: str, object_name: str, rendered_product: Product) -> None:
+        rendered_data = BasePublisher._require_rendered_data(rendered_product)
         client.put_object(
             bucket_name=bucket_name,
-            data=BytesIO(rendered_product.data),
+            data=BytesIO(rendered_data),
             object_name=object_name,
-            length=len(rendered_product.data),
-            content_type=rendered_product.mime_type,
+            length=len(rendered_data),
+            content_type=rendered_product.mime_type or "application/octet-stream",
         )

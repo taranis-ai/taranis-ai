@@ -1,5 +1,6 @@
 import re
 from collections import Counter
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -235,13 +236,13 @@ class Story(BaseModel):
     def load_news_items(self, news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None) -> list["NewsItem"]:
         if not news_items:
             return []
-        elif isinstance(news_items[0], dict):
-            return NewsItem.load_multiple(news_items)
-        elif isinstance(news_items[0], str):
-            news_items = [NewsItem.get(item_id) for item_id in news_items]
-            return [news_item for news_item in news_items if news_item]
-        elif isinstance(news_items[0], NewsItem):
-            return news_items
+        if isinstance(news_items[0], dict):
+            return NewsItem.load_multiple([item for item in news_items if isinstance(item, dict)])
+        if isinstance(news_items[0], str):
+            loaded_news_items = [NewsItem.get(item_id) for item_id in news_items if isinstance(item_id, str)]
+            return [news_item for news_item in loaded_news_items if news_item]
+        if isinstance(news_items[0], NewsItem):
+            return [item for item in news_items if isinstance(item, NewsItem)]
         return []
 
     @property
@@ -1140,7 +1141,7 @@ class Story(BaseModel):
             return {"error": "grouping failed"}, 500
 
     @classmethod
-    def group_stories(cls, story_ids: list[str], user: User | None = None, actor: str | None = None):
+    def group_stories(cls, story_ids: Sequence[str], user: User | None = None, actor: str | None = None):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
             if not isinstance(story_ids, list):
@@ -1149,7 +1150,7 @@ class Story(BaseModel):
             if len(story_ids) < 2 or any(not isinstance(a_id, str) or len(a_id) == 0 for a_id in story_ids):
                 return {"error": "at least two valid Story ids needed"}, 404
 
-            ordered_story_ids = [story_id for story_id in story_ids]
+            ordered_story_ids = list(story_ids)
             first_story = cls.get(ordered_story_ids[0])
             if not first_story:
                 return {"error": "Story not found"}, 404
@@ -1395,7 +1396,8 @@ class Story(BaseModel):
         tlp_levels: list[TLPLevel] = []
         for news_item in self.news_items:
             if not news_item.tlp_level:
-                news_item.add_attribute(NewsItemAttribute("TLP", news_item.osint_source.tlp_level))
+                source_tlp = news_item.osint_source.tlp_level if news_item.osint_source else TLPLevel.CLEAR
+                news_item.add_attribute(NewsItemAttribute("TLP", source_tlp))
             logger.debug(f"News item {news_item.id} has TLP level")
             tlp_levels.append(news_item.tlp_level)
         tlp_levels += [input_tlp] if input_tlp else []
@@ -1678,10 +1680,11 @@ class StoryBookmark(BaseModel):
         if bookmark := cls.get_for_user(item_id, user):
             story_ids = [story.id for story in bookmark.stories if story and story.id]
             accessible_query = db.select(Story).where(Story.id.in_(story_ids))
-            accessible_query = Story._add_ACL_check(accessible_query, user)
-            accessible_query = Story._add_TLP_check(accessible_query, user)
+            if user:
+                accessible_query = Story._add_ACL_check(accessible_query, user)
+                accessible_query = Story._add_TLP_check(accessible_query, user)
             stories_by_id = {story.id: story for story in db.session.execute(accessible_query).scalars().all() if story}
-            visible_stories = [stories_by_id.get(story_id) for story_id in story_ids if story_id in stories_by_id]
+            visible_stories = [stories_by_id[story_id] for story_id in story_ids if story_id in stories_by_id]
 
             return bookmark.to_detail_dict(stories=visible_stories), 200
         return {"error": "Bookmark collection not found"}, 404

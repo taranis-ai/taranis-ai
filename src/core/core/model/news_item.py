@@ -60,10 +60,10 @@ class NewsItem(BaseModel):
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="news_item", cascade="all, delete")
 
     osint_source_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source.id"), nullable=True, index=True)
-    osint_source: Mapped["OSINTSource"] = relationship("OSINTSource", back_populates="news_items")
+    osint_source: Mapped["OSINTSource | None"] = relationship("OSINTSource", back_populates="news_items")
 
     story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="SET NULL"), nullable=True, index=True)
-    story: Mapped["Story"] = relationship("Story", back_populates="news_items")
+    story: Mapped["Story | None"] = relationship("Story", back_populates="news_items")
 
     def __init__(
         self,
@@ -128,7 +128,9 @@ class NewsItem(BaseModel):
         self.collected = payload.collected or normalized_collected
         self.published = payload.published or normalized_published
         self.story_id = payload.story_id or story_id
-        self.attributes = NewsItemAttribute.load_multiple(payload.attributes or [])
+        self.attributes = NewsItemAttribute.load_multiple(
+            [attribute for attribute in payload.attributes or [] if isinstance(attribute, dict)]
+        )
         self.tags = list(NewsItemTag.parse_tags(payload.tags or {}).values())
 
     @classmethod
@@ -414,7 +416,8 @@ class NewsItem(BaseModel):
 
     @property
     def tlp_level(self) -> TLPLevel:
-        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
+        source_tlp = self.osint_source.tlp_level if self.osint_source else TLPLevel.CLEAR
+        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), source_tlp)
 
     def update_item(self, data, actor: str | None = None) -> tuple[dict, int]:
         if not self.osint_source or self.osint_source.key != "manual":

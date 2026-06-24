@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, overload
 
 from models.base import TaranisBaseModel
 from pydantic import BaseModel
@@ -43,9 +43,15 @@ class CacheObject(list[T], Generic[T]):
         self._query_params: dict = query_params or {}
         self._total_count = total_count or len(iterable)
 
-    def __getitem__(self, item):  # type: ignore[override]
-        result = super().__getitem__(item)
+    @overload
+    def __getitem__(self, item: int) -> T: ...
+
+    @overload
+    def __getitem__(self, item: slice) -> "CacheObject[T]": ...
+
+    def __getitem__(self, item: int | slice) -> T | "CacheObject[T]":  # type: ignore[override]
         if isinstance(item, slice):
+            result = super().__getitem__(item)
             return CacheObject(
                 result,
                 page=self.page,
@@ -53,12 +59,12 @@ class CacheObject(list[T], Generic[T]):
                 order=self.order,
                 total_count=self._total_count,
             )
-        return result
+        return super().__getitem__(item)
 
     @property
-    def timeout(self) -> float | int:
+    def timeout(self) -> int:
         if self and hasattr(self[0], "_cache_timeout"):
-            return getattr(self[0], "_cache_timeout")
+            return int(getattr(self[0], "_cache_timeout"))
         return Config.CACHE_DEFAULT_TIMEOUT
 
     @property
