@@ -186,9 +186,12 @@ class CollaborationView:
             return make_response(notification_html, getattr(core_response, "status_code", 500) or 500)
 
         cls._remember_channel(target_channel_id)
-        response = make_response(notification_html, 200)
-        response.headers["HX-Redirect"] = url_for("collaboration.workspace_channel", channel_id=target_channel_id)
-        return response
+        redirect_target = url_for("collaboration.workspace_channel", channel_id=target_channel_id)
+        if request.headers.get("HX-Request") == "true":
+            response = make_response(notification_html, 200)
+            response.headers["HX-Redirect"] = redirect_target
+            return response
+        return redirect(redirect_target, code=302)
 
     @classmethod
     @auth_required()

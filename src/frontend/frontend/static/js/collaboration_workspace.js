@@ -154,11 +154,23 @@
 
   const instanceShortName = (item) => item?.participant_short_name || (item?.participant_base_url ? "remote" : "");
   const instanceLabel = (item) => {
-    const person = item?.author || item?.actor || "system";
+    const person = item?.author || item?.owner || item?.actor || "system";
     const shortName = instanceShortName(item);
     return shortName ? `${person} (${shortName})` : person;
   };
   const instanceTitle = (item) => item?.participant_base_url || "";
+  const shortNameFromBaseUrl = (baseUrl) => {
+    if (!baseUrl) {
+      return "";
+    }
+    try {
+      const hostname = new URL(baseUrl).hostname || "";
+      return hostname.split(".", 1)[0] || hostname;
+    } catch {
+      return "";
+    }
+  };
+  const currentPresence = () => store.state.channel.presence?.find((entry) => entry.session_id === store.state.sessionId) || null;
 
   const chatBubbleStyle = (item) => {
     const hue = window.CollabEditor?.selectionColor
@@ -232,15 +244,16 @@
   };
 
   const renderList = (containerSelector, items, emptyText, formatter) => {
-    const root = document.querySelector(containerSelector);
-    if (!root) {
+    const roots = Array.from(document.querySelectorAll(containerSelector));
+    if (!roots.length) {
       return;
     }
-    if (!items.length) {
-      root.innerHTML = `<div class="text-sm text-base-content/55">${escapeHtml(emptyText)}</div>`;
-      return;
-    }
-    root.innerHTML = items.map(formatter).join("");
+    const markup = items.length
+      ? items.map(formatter).join("")
+      : `<div class="text-sm text-base-content/55">${escapeHtml(emptyText)}</div>`;
+    roots.forEach((root) => {
+      root.innerHTML = markup;
+    });
   };
 
   const renderBriefing = () => {
@@ -329,7 +342,7 @@
           <div>
             <div class="text-sm font-medium">${escapeHtml(item.text)}</div>
             <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-base-content/55">
-              ${item.owner ? `<span>${escapeHtml(item.owner)}</span>` : ""}
+              <span title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</span>
               ${item.status ? `<span>${escapeHtml(item.status)}</span>` : ""}
               ${item.created_at ? `<span>${escapeHtml(formatTimestamp(item.created_at))}</span>` : ""}
             </div>
@@ -347,7 +360,7 @@
     renderList("[data-collab-comments-list]", workspace().comments || [], "No comments yet.", (item) => `
       <div class="rounded-[1rem] border border-base-300 p-3">
         <div class="flex items-center justify-between gap-3">
-          <div class="text-xs font-semibold text-primary">${escapeHtml(item.author || "unknown")}</div>
+          <div class="text-xs font-semibold text-primary" title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</div>
           ${item.created_at ? `<div class="text-[11px] text-base-content/55">${escapeHtml(formatTimestamp(item.created_at))}</div>` : ""}
         </div>
         <div class="mt-2 text-sm">${escapeHtml(item.text)}</div>
@@ -458,6 +471,45 @@
     renderSidebarTabs();
   };
 
+  const appendOptimisticActivity = (text) => {
+    if (!text) {
+      return;
+    }
+    const presence = currentPresence();
+    const workspaceState = workspace();
+    const nextItem = {
+      id: `optimistic-${Date.now()}`,
+      text,
+      actor: presence?.username || "current user",
+      participant_base_url: presence?.participant_base_url || store.state.channel.active_instance_base_url || "",
+      participant_short_name: shortNameFromBaseUrl(
+        presence?.participant_base_url || store.state.channel.active_instance_base_url || "",
+      ),
+      created_at: new Date().toISOString(),
+    };
+    store.state.channel.workspace = {
+      ...workspaceState,
+      activity_items: [nextItem, ...(workspaceState.activity_items || [])].slice(0, 20),
+    };
+    render();
+  };
+
+  const workspaceActivityText = (target, action) => {
+    if (target === "workspace" && action === "set") {
+      return "updated workspace view";
+    }
+    if (target === "briefing" && action === "set") {
+      return "updated briefing";
+    }
+    if (action === "remove") {
+      return `removed ${String(target || "").replaceAll("_", " ")}`;
+    }
+    if (action === "upsert") {
+      return `updated ${String(target || "").replaceAll("_", " ")}`;
+    }
+    return "";
+  };
+
   const applySnapshot = (channel, sessionId) => {
     store.applySnapshot(channel, { sessionId });
     render({ forceEditorSync: true });
@@ -485,6 +537,7 @@
   };
 
   const sendWorkspacePatch = (target, action, data = {}, itemId = null) => {
+    appendOptimisticActivity(workspaceActivityText(target, action));
     sendMessage("collab.workspace.patch", {
       target,
       action,
@@ -678,9 +731,9 @@
       const target = entryForm.dataset.target;
       const formData = new FormData(entryForm);
       const data = Object.fromEntries(formData.entries());
-      const currentPresence = store.state.channel.presence?.find((entry) => entry.session_id === store.state.sessionId);
-      const currentUser = currentPresence?.username || "current user";
-      const currentBaseUrl = currentPresence?.participant_base_url || store.state.channel.active_instance_base_url || "";
+      const presence = currentPresence();
+      const currentUser = presence?.username || "current user";
+      const currentBaseUrl = presence?.participant_base_url || store.state.channel.active_instance_base_url || "";
       sendWorkspacePatch(target, "upsert", {
         ...data,
         text: data.text || data.title || "",

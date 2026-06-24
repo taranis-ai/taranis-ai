@@ -50,6 +50,42 @@ def test_collaboration_channel_invite_can_be_redeemed_multiple_times(client, aut
     assert {"https://bravo.demo", "https://charlie.demo", collaboration_service.external_base_url()} <= participant_urls
 
 
+def test_collaboration_channel_list_is_sorted_by_creation_time(client, auth_header):
+    collaboration_service.channels.clear()
+    first_token = collaboration_service._build_token("channel-1")
+    second_token = collaboration_service._build_token("channel-2")
+    collaboration_service.channels["channel-1"] = {
+        "channel_id": "channel-1",
+        "topic": "Older Channel",
+        "status": "open",
+        "token": first_token,
+        "owner_base_url": collaboration_service.external_base_url(),
+        "participants": [{"base_url": collaboration_service.external_base_url(), "role": "owner"}],
+        "stories": [],
+        "result_stories": [],
+        "created_at": "2026-05-08T09:00:00",
+        "updated_at": "2026-06-22T11:00:00",
+    }
+    collaboration_service.channels["channel-2"] = {
+        "channel_id": "channel-2",
+        "topic": "Newer Channel",
+        "status": "open",
+        "token": second_token,
+        "owner_base_url": collaboration_service.external_base_url(),
+        "participants": [{"base_url": collaboration_service.external_base_url(), "role": "owner"}],
+        "stories": [],
+        "result_stories": [],
+        "created_at": "2026-05-08T10:00:00",
+        "updated_at": "2026-05-08T10:05:00",
+    }
+
+    response = client.get("/api/assess/collab/channels", headers=auth_header)
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert [item["channel_id"] for item in payload["items"]] == ["channel-2", "channel-1"]
+
+
 def test_finalize_collaboration_channel_creates_local_stories_for_remote_origin(client, auth_header, stories):
     collaboration_service.channels.clear()
     create_response = client.post(
@@ -283,6 +319,54 @@ def test_collaboration_live_chat_message_tracks_instance_metadata(client, auth_h
     assert workspace_payload["chat_messages"][0]["participant_base_url"] == actor["base_url"]
     assert workspace_payload["chat_messages"][0]["participant_short_name"]
     assert workspace_payload["activity_items"][0]["participant_short_name"] == workspace_payload["chat_messages"][0]["participant_short_name"]
+
+
+def test_collaboration_live_task_and_comment_track_instance_metadata(client, auth_header, stories):
+    collaboration_service.channels.clear()
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Metadata Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    actor = {
+        "base_url": collaboration_service.external_base_url(),
+        "session_id": "session-a",
+        "username": "alice",
+    }
+
+    task_response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/workspace-patch",
+        json={
+            "target": "task",
+            "action": "upsert",
+            "actor": actor,
+            "data": {"text": "Verify indicators", "status": "todo"},
+        },
+        headers=auth_header,
+    )
+    comment_response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/workspace-patch",
+        json={
+            "target": "comment",
+            "action": "upsert",
+            "actor": actor,
+            "data": {"text": "Initial partner note"},
+        },
+        headers=auth_header,
+    )
+
+    assert task_response.status_code == 200
+    assert comment_response.status_code == 200
+
+    task_payload = task_response.get_json()["workspace"]["tasks"][0]
+    comment_payload = comment_response.get_json()["workspace"]["comments"][0]
+    assert task_payload["owner"] == "alice"
+    assert task_payload["participant_base_url"] == actor["base_url"]
+    assert task_payload["participant_short_name"]
+    assert comment_payload["author"] == "alice"
+    assert comment_payload["participant_base_url"] == actor["base_url"]
+    assert comment_payload["participant_short_name"]
 
 
 def test_collaboration_story_ops_merge_concurrent_updates(client, auth_header, stories):

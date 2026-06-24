@@ -547,6 +547,14 @@ class CollaborationService:
             payload_data.setdefault("author", username)
             payload_data.setdefault("participant_base_url", participant_base_url)
             payload_data.setdefault("participant_short_name", self._instance_short_name(participant_base_url))
+        if target == "task":
+            payload_data.setdefault("owner", username)
+            payload_data.setdefault("participant_base_url", participant_base_url)
+            payload_data.setdefault("participant_short_name", self._instance_short_name(participant_base_url))
+        if target == "comment":
+            payload_data.setdefault("author", username)
+            payload_data.setdefault("participant_base_url", participant_base_url)
+            payload_data.setdefault("participant_short_name", self._instance_short_name(participant_base_url))
         item_payload = item_model.model_validate(payload_data).model_dump(mode="json")
 
         replaced = False
@@ -713,7 +721,7 @@ class CollaborationService:
 
     def list_channels(self) -> dict[str, Any]:
         items = [self._channel_to_summary(channel).model_dump(mode="json") for channel in self.channels.values()]
-        items.sort(key=lambda item: item.get("updated_at") or "", reverse=True)
+        items.sort(key=lambda item: item.get("created_at") or "", reverse=True)
         return {"items": items, "total_count": len(items)}
 
     def get_channel(self, channel_id: str, active_instance_base_url: str | None = None) -> CollabChannelDetail:

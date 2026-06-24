@@ -79,6 +79,8 @@ class CollabWorkspaceTask(TaranisBaseModel):
     id: str
     text: str
     owner: str | None = None
+    participant_base_url: str | None = None
+    participant_short_name: str | None = None
     status: Literal["todo", "doing", "done", "blocked"] = "todo"
     due_label: str | None = None
     created_at: datetime | None = None
@@ -88,6 +90,8 @@ class CollabWorkspaceComment(TaranisBaseModel):
     id: str
     author: str
     text: str
+    participant_base_url: str | None = None
+    participant_short_name: str | None = None
     created_at: datetime | None = None
 
 

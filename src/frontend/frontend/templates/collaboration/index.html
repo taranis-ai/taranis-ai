@@ -372,16 +372,33 @@
 
               <div class="mt-4 grid gap-4 lg:grid-cols-3">
                 <div class="rounded-[1.25rem] border border-base-300 p-4">
-                  <h3 class="font-semibold">Impact</h3>
-                  <div class="mt-3 text-sm" data-collab-impact></div>
+                  <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Channel Tasks</h3>
+                    <span class="text-xs text-base-content/50">Shared queue</span>
+                  </div>
+                  <div class="space-y-3" data-collab-tasks-list></div>
+                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="task">
+                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add channel task">
+                    <button class="btn btn-primary btn-sm" type="submit">Add</button>
+                  </form>
                 </div>
                 <div class="rounded-[1.25rem] border border-base-300 p-4">
-                  <h3 class="font-semibold">Key Takeaways</h3>
-                  <div class="mt-3 text-sm" data-collab-key-takeaways></div>
+                  <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Notes</h3>
+                    <span class="text-xs text-base-content/50">Changes and context</span>
+                  </div>
+                  <div class="space-y-3" data-collab-comments-list></div>
+                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="comment">
+                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add note">
+                    <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                  </form>
                 </div>
                 <div class="rounded-[1.25rem] border border-base-300 p-4">
-                  <h3 class="font-semibold">Source Labels</h3>
-                  <div class="mt-3 text-sm" data-collab-source-labels></div>
+                  <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Recent Activity</h3>
+                    <span class="text-xs text-base-content/50">Latest changes</span>
+                  </div>
+                  <div class="space-y-3" data-collab-activity-list></div>
                 </div>
               </div>
             </section>

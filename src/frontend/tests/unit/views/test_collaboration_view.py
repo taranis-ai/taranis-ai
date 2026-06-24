@@ -162,12 +162,33 @@ def test_collaboration_dialog_submit_creates_new_channel_from_workspace(authenti
         json={"channel_id": "channel-2"},
     )
 
-    response = authenticated_client.post("/collaboration/dialog", data={"topic": "Fresh Topic"})
+    response = authenticated_client.post(
+        "/collaboration/dialog",
+        data={"topic": "Fresh Topic"},
+        headers={"HX-Request": "true"},
+    )
 
     assert response.status_code == 200
     assert response.headers["HX-Redirect"].endswith("/collaboration/channel-2")
     request_body = json.loads(responses_mock.calls[0].request.body)
     assert request_body == {"topic": "Fresh Topic", "story_ids": []}
+
+
+def test_collaboration_dialog_submit_creates_new_channel_with_plain_redirect(authenticated_client, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
+        json={"channel_id": "channel-2"},
+    )
+
+    response = authenticated_client.post(
+        "/collaboration/dialog",
+        data={"topic": "Fresh Topic"},
+        headers={"HX-Request": "false"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/collaboration/channel-2")
 
 
 def test_collaboration_workspace_renders_active_channel(authenticated_client, responses_mock):
@@ -386,9 +407,14 @@ def test_collaboration_overview_renders_dashboard_surface(authenticated_client, 
     assert "Channel Overview" in html
     assert "Partners" in html
     assert "Open Live Room" in html
+    assert "Channel Tasks" in html
+    assert "Notes" in html
+    assert "Recent Activity" in html
+    assert "Impact" not in html
+    assert "Key Takeaways" not in html
+    assert "Source Labels" not in html
     assert "Briefing Mode" not in html
     assert "Story Focus" not in html
     assert "Story title" not in html
-    assert "Channel Tasks" not in html
     assert html.count("data-collab-copy-link") == 1
     assert html.index("Second Channel") < html.index("Live Demo")

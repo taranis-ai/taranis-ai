@@ -41,6 +41,24 @@ class CollabWorkspaceChatMessage(TaranisBaseModel):
     participant_short_name: str | None
     created_at: datetime | None
 
+class CollabWorkspaceTask(TaranisBaseModel):
+    id: str
+    text: str
+    owner: str | None
+    participant_base_url: str | None
+    participant_short_name: str | None
+    status: Literal["todo", "doing", "done", "blocked"]
+    due_label: str | None
+    created_at: datetime | None
+
+class CollabWorkspaceComment(TaranisBaseModel):
+    id: str
+    author: str
+    text: str
+    participant_base_url: str | None
+    participant_short_name: str | None
+    created_at: datetime | None
+
 class CollabWorkspaceActivityItem(TaranisBaseModel):
     id: str
     text: str
