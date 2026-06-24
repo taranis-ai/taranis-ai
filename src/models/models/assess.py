@@ -278,6 +278,49 @@ class FilterLists(TaranisBaseModel):
     languages: list[str] = Field(default_factory=list)
 
 
+class StoryBookmarkBase(TaranisBaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: Any) -> str:
+        name = str(value or "").strip()
+        if not name:
+            raise ValueError("Bookmark collection name is required")
+        return name
+
+
+class StoryBookmarkCreatePayload(StoryBookmarkBase):
+    pass
+
+
+class StoryBookmarkUpdatePayload(StoryBookmarkBase):
+    pass
+
+
+class StoryBookmarkStoryPayload(TaranisBaseModel):
+    story_ids: list[str] = Field(min_length=1)
+
+
+class StoryBookmarkOrderPayload(TaranisBaseModel):
+    bookmark_ids: list[str] = Field(min_length=1)
+
+
+class StoryBookmark(StoryBookmarkBase):
+    _core_endpoint = "/assess/bookmarks"
+    _model_name = "story_bookmark"
+    _pretty_name = "Story Bookmark Collection"
+    _cache_timeout = 30
+
+    id: str | None = None
+    position: int = 0
+    created: datetime | None = None
+    updated: datetime | None = None
+    story_count: int = 0
+    story_ids: list[str] = Field(default_factory=list)
+    stories: list[Story] = Field(default_factory=list)
+
+
 class StoryUpdatePayload(TaranisBaseModel):
     model_config = ConfigDict(extra="ignore")
 

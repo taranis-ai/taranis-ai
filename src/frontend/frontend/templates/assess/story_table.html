@@ -146,6 +146,7 @@
     >
 
     {% if stories %}
+      {% include "assess/bookmarks_bar.html" %}
       {% include "assess/assess_top_bar.html" %}
       <div id="story-list" x-ref="storyList">{% for story in stories %}{{ story_card(story) }}{% endfor %}</div>
       {% if pagination %}

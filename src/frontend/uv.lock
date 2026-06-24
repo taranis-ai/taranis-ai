@@ -14,7 +14,7 @@ required-markers = [
 ]
 
 [options]
-exclude-newer = "2026-06-17T10:56:13.195684Z"
+exclude-newer = "2026-06-17T10:57:16.446713Z"
 exclude-newer-span = "P1W"
 
 [[package]]

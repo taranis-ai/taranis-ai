@@ -52,6 +52,19 @@ def story_with_news_item_tags() -> dict:
     }
 
 
+def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int, position: int = 0) -> dict:
+    return {
+        "id": bookmark_id,
+        "name": name,
+        "position": position,
+        "created": "2026-06-01T10:00:00",
+        "updated": "2026-06-02T10:00:00",
+        "story_count": story_count,
+        "story_ids": [],
+        "stories": [],
+    }
+
+
 def test_story_diff_view_renders_compare_payload(app, authenticated_client, responses_mock):
     story_id = "story-1"
     responses_mock.get(
@@ -533,6 +546,36 @@ def test_story_read_action_replaces_story_card(app):
     assert toggle_read.get("hx-target") == "#story-1"
     assert toggle_read.get("hx-select") == "#story-1"
     assert toggle_read.get("hx-swap") == "outerHTML"
+
+
+def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):
+    story_payload = story_with_news_item_tags()
+    bookmark_payloads = [_bookmark_collection_payload(f"bookmark-{index}", f"Bookmark {index}", index, index - 1) for index in range(1, 8)]
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={"tags": [], "sources": [], "groups": [], "languages": []},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [story_payload], "total_count": 1},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
+        json={"items": bookmark_payloads[:6], "total_count": 7},
+    )
+
+    response = authenticated_client.get(url_for("assess.assess"))
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    bar = tree.xpath('//*[@data-testid="assess-bookmarks-bar"]')[0]
+    assert bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-1"]')
+    assert bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-6"]')
+    assert not bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-7"]')
+    all_bookmarks = bar.xpath('.//*[@data-testid="assess-all-bookmarks"]')[0]
+    assert all_bookmarks.get("href") == url_for("assess.bookmarks")
+    bookmark_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/bookmarks"))
+    assert parse_qs(urlparse(bookmark_request.request.url).query) == {"limit": ["6"], "order": ["position_asc"]}
 
 
 def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):

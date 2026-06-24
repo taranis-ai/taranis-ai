@@ -13,7 +13,7 @@ required-markers = [
 ]
 
 [options]
-exclude-newer = "2026-06-17T10:56:10.121024Z"
+exclude-newer = "2026-06-17T10:57:13.846199Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -619,28 +619,28 @@ wheels = [
 
 [[package]]
 name = "ioc-fanger"
-version = "5.0.0"
+version = "5.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cd/89/6010d4af0bdef5475ac29302c406692cd4cd25da4d88851117e0d543ad77/ioc_fanger-5.0.0.tar.gz", hash = "sha256:94cfc7f7c2801d54cfbb794beac0663c1dbff7a14167decf067a7202b49af356", size = 115715, upload-time = "2026-05-13T11:23:35.673Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/08/f1/4cdcc89338639d287d93f8a52d8e4748d68becf167a0d532cb881df3d8c9/ioc_fanger-5.1.1.tar.gz", hash = "sha256:436248ec3fad31743f95895c94599bb17445b8bc4cce6384c8a4bd7a386e5372", size = 121752, upload-time = "2026-06-17T09:55:36.238Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f8/fe/f464b0d69f7209be2897eecfcdbc899a6ebe60b9d846207d0604b3896039/ioc_fanger-5.0.0-py3-none-any.whl", hash = "sha256:0391947de217740020020baa34f79f155c5f347e6a048fd4e5b2ab5e36cf4cd0", size = 7273, upload-time = "2026-05-13T11:23:34.302Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/df/7ededd94a6a352637625b30f0bd0d51c29a7a0601406205345e65c5b09e8/ioc_fanger-5.1.1-py3-none-any.whl", hash = "sha256:813aaf6a0ba00f84208eb9d260f5ea1273f0327fdf4cc3003ef6ad25bc5df0d7", size = 8118, upload-time = "2026-06-17T09:55:35.036Z" },
 ]
 
 [[package]]
 name = "ioc-finder"
-version = "9.4.0"
+version = "9.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "ioc-fanger" },
     { name = "pyparsing" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6f/92/27aa63f459a0c3b7138aa2eb27a3355ba6685bd2f8fc06acfec5f9358d9a/ioc_finder-9.4.0.tar.gz", hash = "sha256:b8e598b76a41805188778ffad276c4e5f0d71ef42a8c4ad5a87d00095e6a538d", size = 191842, upload-time = "2026-06-15T10:42:32.262Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/74/a7/7e6b34b94a5ac4dd4a7e67a46cf956097b96d67b0941388cf38b2f03d642/ioc_finder-9.4.1.tar.gz", hash = "sha256:e16f09b4d5aa5f0cca97ecb4139a6e17ac433336856f194a1b762f979077c0ea", size = 193690, upload-time = "2026-06-17T10:56:29.624Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/62/b0/cd46ed0418750436f0b9e4267862b053e8542c50ac1c6cb3d683320bf58f/ioc_finder-9.4.0-py3-none-any.whl", hash = "sha256:7fb7eccbeb185a492133d8ad163c11e67c16cf89041df73d852e4c1c7b69e1d1", size = 51241, upload-time = "2026-06-15T10:42:31.021Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/32/e0e61a001134dfba73438e2c95e7879e2a78a4cd7bad391d92223965f204/ioc_finder-9.4.1-py3-none-any.whl", hash = "sha256:d7f4ebb76b450f22f5ee26eea6e8d4ffbda972b3c82d7efa1a9ca74294703e37", size = 52304, upload-time = "2026-06-17T10:56:28.256Z" },
 ]
 
 [[package]]

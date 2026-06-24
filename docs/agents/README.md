@@ -7,6 +7,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 ## Memories
 
 - [Assess Filters](assess-filters.md) - assess sidebar filters, filter-list loading, default filters, omnisearch filter handling, and related cache behavior.
+- [Story Bookmarks](story-bookmarks.md) - bookmark collections, the Assess bookmark bar, instant single-story bookmarking, and bookmark cache invalidation.
 
 ## File Format
 

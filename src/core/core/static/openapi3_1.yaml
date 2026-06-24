@@ -1102,6 +1102,226 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assess/bookmarks:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: get private story bookmark collections for the current user
+      operationId: assess.bookmarks.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: fetch_all
+        in: query
+        schema:
+          type: string
+      - name: order
+        in: query
+        schema:
+          type: string
+          enum:
+          - position_asc
+          - position_desc
+          - name_asc
+          - name_desc
+      responses:
+        '200':
+          description: private story bookmark collections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/story_bookmark'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: create a private story bookmark collection
+      operationId: assess.bookmarks.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_bookmark_create'
+      responses:
+        '201':
+          description: bookmark collection created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '409':
+          description: duplicate bookmark collection name
+  /assess/bookmarks/order:
+    patch:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: update private story bookmark collection order for the current user
+      operationId: assess.bookmark_order.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_bookmark_order'
+      responses:
+        '200':
+          description: bookmark collection order updated
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /assess/bookmarks/{bookmark_id}:
+    parameters:
+    - name: bookmark_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: get a private story bookmark collection
+      operationId: assess.bookmark.get
+      responses:
+        '200':
+          description: bookmark collection detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/story_bookmark_detail'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    patch:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: rename a private story bookmark collection
+      operationId: assess.bookmark.patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_bookmark_create'
+      responses:
+        '200':
+          description: bookmark collection updated
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          description: duplicate bookmark collection name
+    delete:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: delete a private story bookmark collection without deleting stories
+      operationId: assess.bookmark.delete
+      responses:
+        '200':
+          description: bookmark collection deleted
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /assess/bookmarks/{bookmark_id}/stories:
+    parameters:
+    - name: bookmark_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: bookmark stories into a private collection
+      operationId: assess.bookmark_stories.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_bookmark_story_payload'
+      responses:
+        '200':
+          description: stories bookmarked
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /assess/bookmarks/{bookmark_id}/stories/remove:
+    parameters:
+    - name: bookmark_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: remove stories from a private bookmark collection without deleting stories
+      operationId: assess.bookmark_story_removal.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/story_bookmark_story_payload'
+      responses:
+        '200':
+          description: stories removed
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /assess/news-items/{item_id}:
     parameters:
     - name: item_id
@@ -9918,6 +10138,65 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/news_item'
+    story_bookmark_create:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+    story_bookmark_story_payload:
+      type: object
+      required:
+      - story_ids
+      properties:
+        story_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+    story_bookmark_order:
+      type: object
+      required:
+      - bookmark_ids
+      properties:
+        bookmark_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+    story_bookmark:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        position:
+          type: integer
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+        story_count:
+          type: integer
+        story_ids:
+          type: array
+          items:
+            type: string
+    story_bookmark_detail:
+      allOf:
+      - $ref: '#/components/schemas/story_bookmark'
+      - type: object
+        properties:
+          stories:
+            type: array
+            items:
+              $ref: '#/components/schemas/story'
     modify_item:
       type: object
       properties:
