@@ -23,7 +23,7 @@
         data-confirm-delete="{{ _('Delete') }}"
         data-confirm-cancel="{{ _('Cancel') }}"
         hx-ext="response-targets"
-        x-data="{ sidebarOpen: {{ 'true' if _show_sidebar and templates and templates.get("sidebar_template") else 'false' }}, init() { if (window.self !== window.top) this.sidebarOpen = false } }">
+        x-data="{ sidebarOpen: {{ 'true' if _show_sidebar and templates and templates.get('sidebar_template') else 'false' }}, init() { if (window.self !== window.top) this.sidebarOpen = false } }">
     {% include "partials/viewport_notice.html" %}
     {% include "partials/sidebar.html" %}
 
