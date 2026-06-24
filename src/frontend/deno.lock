@@ -1,17 +1,14 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@codemirror/commands@*": "6.10.3",
-    "npm:@codemirror/commands@^6.10.3": "6.10.3",
+    "npm:@codemirror/commands@^6.10.4": "6.10.4",
     "npm:@codemirror/language@*": "6.12.3",
     "npm:@codemirror/language@^6.12.3": "6.12.3",
     "npm:@codemirror/legacy-modes@*": "6.5.3",
     "npm:@codemirror/legacy-modes@^6.5.3": "6.5.3",
     "npm:@codemirror/merge@^6.12.2": "6.12.2",
-    "npm:@codemirror/state@*": "6.6.0",
-    "npm:@codemirror/state@^6.6.0": "6.6.0",
-    "npm:@codemirror/view@*": "6.43.1",
-    "npm:@codemirror/view@^6.43.1": "6.43.1",
+    "npm:@codemirror/state@^6.7.0": "6.7.0",
+    "npm:@codemirror/view@^6.43.2": "6.43.2",
     "npm:@tailwindcss/cli@*": "4.3.0",
     "npm:@tailwindcss/cli@4.3.0": "4.3.0",
     "npm:alpinejs@*": "3.15.12",
@@ -20,8 +17,7 @@
     "npm:choices.js@^11.2.3": "11.2.3",
     "npm:codemirror@^6.0.2": "6.0.2",
     "npm:daisyui@^5.5.23": "5.5.23",
-    "npm:driver.js@*": "1.4.0",
-    "npm:driver.js@^1.4.0": "1.4.0",
+    "npm:driver.js@^1.5.0": "1.5.0",
     "npm:fuse.js@*": "7.4.2",
     "npm:fuse.js@^7.4.2": "7.4.2",
     "npm:highlight-search-term@*": "1.0.3",
@@ -46,8 +42,8 @@
         "@lezer/common"
       ]
     },
-    "@codemirror/commands@6.10.3": {
-      "integrity": "sha512-JFRiqhKu+bvSkDLI+rUhJwSxQxYb759W5GBezE8Uc8mHLqC9aV/9aTC7yJSqCtB3F00pylrLCwnyS91Ap5ej4Q==",
+    "@codemirror/commands@6.10.4": {
+      "integrity": "sha512-Ryk9y9T0FFVF0cUGhAknveAyUOl/A1qReTFi+qPKtOh2Z9F4AUBz3XOrYD4ZEgZirdugVzHvd/2/Wcwy5OliTg==",
       "dependencies": [
         "@codemirror/language",
         "@codemirror/state",
@@ -98,14 +94,14 @@
         "crelt"
       ]
     },
-    "@codemirror/state@6.6.0": {
-      "integrity": "sha512-4nbvra5R5EtiCzr9BTHiTLc+MLXK2QGiAVYMyi8PkQd3SR+6ixar/Q/01Fa21TBIDOZXgeWV4WppsQolSreAPQ==",
+    "@codemirror/state@6.7.0": {
+      "integrity": "sha512-Zbl9NyscLMZkfXPQnNAIIAFftidrA1UbcJEIMp24C0Bukc2I5T8wJS0wsXYsnDOqCFJUeJ1BITGNs5CqPDSmSg==",
       "dependencies": [
         "@marijn/find-cluster-break"
       ]
     },
-    "@codemirror/view@6.43.1": {
-      "integrity": "sha512-+BIjw/AG3tDQ4pJgTLPYdAW25eDE66YsvM4LKyVPgGzVgZ4a9Wj1SRX8kPVKgBDdPt8oHtZ15F0qx7p0oOHdHw==",
+    "@codemirror/view@6.43.2": {
+      "integrity": "sha512-8kU6WNRYBKV9Sw3cxNz+uSvUvx3tt+1qgupGFPubnbLFDHOgh5qQdIGmXcD7bkA/PROK6LDKVhKMpcY7H++Amg==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -391,8 +387,8 @@
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
     },
-    "driver.js@1.4.0": {
-      "integrity": "sha512-Gm64jm6PmcU+si21sQhBrTAM1JvUrR0QhNmjkprNLxohOBzul9+pNHXgQaT9lW84gwg9GMLB3NZGuGolsz5uew=="
+    "driver.js@1.5.0": {
+      "integrity": "sha512-j31Yi1V3/fTCI6+JmS6Z30bHE3YbpT5+UlrsN0o5aswCuZVDwfaZKsMSN0tMCQbWk99RNXxEyAhALC1otj31/w=="
     },
     "enhanced-resolve@5.24.0": {
       "integrity": "sha512-SkE2t82KlkkxQRVMVLAGKxLfORGQfrkx5dkj+vlgXRVNEdPc4eZcR+J/Fvj8C+yKSFH5L0q3NFlyufOVQnCcYQ==",
@@ -548,18 +544,18 @@
   },
   "workspace": {
     "dependencies": [
-      "npm:@codemirror/commands@^6.10.3",
+      "npm:@codemirror/commands@^6.10.4",
       "npm:@codemirror/language@^6.12.3",
       "npm:@codemirror/legacy-modes@^6.5.3",
       "npm:@codemirror/merge@^6.12.2",
-      "npm:@codemirror/state@^6.6.0",
-      "npm:@codemirror/view@^6.43.1",
+      "npm:@codemirror/state@^6.7.0",
+      "npm:@codemirror/view@^6.43.2",
       "npm:@tailwindcss/cli@4.3.0",
       "npm:alpinejs@^3.15.12",
       "npm:choices.js@^11.2.3",
       "npm:codemirror@^6.0.2",
       "npm:daisyui@^5.5.23",
-      "npm:driver.js@^1.4.0",
+      "npm:driver.js@^1.5.0",
       "npm:fuse.js@^7.4.2",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",
