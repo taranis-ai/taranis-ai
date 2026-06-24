@@ -500,6 +500,8 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     search_input = tree.xpath('//input[@id="story_search"]')[0]
     clear_button = tree.xpath("//button[@title='Clear time filters']")[0]
     changed_by_select = filter_form.xpath('.//label[.//span[text()="Changed by"]]/select')[0]
+    highlight_checkbox = tree.xpath('//input[@name="highlight"]')[0]
+    compact_checkbox = tree.xpath('//input[@name="compact_view"]')[0]
 
     assert search_form.get("hx-trigger") == expected_search_trigger("story_search")
     assert search_form.get("hx-include") == "#assess-sidebar, #selected-tags"
@@ -509,9 +511,28 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert filter_form.get("hx-on:submit") == "event.preventDefault()"
     assert clear_button.get("hx-include") == "#assess-sidebar, #assess-search-form, #selected-tags"
     assert [option.text for option in changed_by_select.xpath("./option")] == ["Any", "Me"]
+    assert highlight_checkbox.get("hx-vals") == "js:{highlight: this.checked}"
+    assert compact_checkbox.get("hx-vals") == "js:{compact_view: this.checked}"
     assert search_input.get("hx-get") is None
     assert search_input.get("hx-include") is None
     assert search_input.get("hx-trigger") is None
+
+
+def test_story_read_action_replaces_story_card(app):
+    story = SimpleNamespace(id="1", read=False, important=False, revision_count=0)
+
+    with app.test_request_context():
+        markup = render_template_string(
+            '{% from "assess/story_actions.html" import story_actions %}{{ story_actions(story) }}',
+            story=story,
+        )
+
+    tree = html.fromstring(f"<div>{markup}</div>")
+    toggle_read = tree.xpath('//*[@data-testid="toggle-read"]')[0]
+
+    assert toggle_read.get("hx-target") == "#story-1"
+    assert toggle_read.get("hx-select") == "#story-1"
+    assert toggle_read.get("hx-swap") == "outerHTML"
 
 
 def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):

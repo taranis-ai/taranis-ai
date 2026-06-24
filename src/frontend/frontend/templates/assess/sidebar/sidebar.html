@@ -243,6 +243,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
            hx-post="{{ url_for('user.settings') }}"
            hx-trigger="change"
            hx-swap="none"
+           hx-vals="js:{highlight: this.checked}"
            hx-on::after-request="window.location.reload()"
            {% if highlight %}checked{% endif %}>
     <span class="label-text">Highlight searchterms</span>
@@ -255,6 +256,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
            hx-post="{{ url_for('user.settings') }}"
            hx-trigger="change"
            hx-swap="none"
+           hx-vals="js:{compact_view: this.checked}"
            hx-on::after-request="window.location.reload()"
            {% if compact_view %}checked{% endif %}>
     <span class="label-text">Compact view</span>
