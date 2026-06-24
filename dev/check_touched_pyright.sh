@@ -13,33 +13,34 @@ elif [[ "${1:-}" == "--all" ]]; then
   shift
 fi
 
-changed_file="$(mktemp)"
 candidate_file="$(mktemp)"
-trap 'rm -f "$changed_file" "$candidate_file"' EXIT
-
-case "$mode" in
-  staged)
-    git diff --cached --name-only --diff-filter=ACMRTUXB
-    ;;
-  all)
-    git ls-files
-    git ls-files --others --exclude-standard
-    ;;
-  *)
-    git diff --name-only --diff-filter=ACMRTUXB
-    git diff --cached --name-only --diff-filter=ACMRTUXB
-    git ls-files --others --exclude-standard
-    ;;
-esac | awk 'NF && !seen[$0]++' > "$changed_file"
+trap 'rm -f "$candidate_file"' EXIT
 
 if (($#)); then
   for path in "$@"; do
     path="${path#"$repo_root"/}"
     path="${path#./}"
-    printf '%s\n' "$path"
+    if [[ -d "$path" ]]; then
+      find "$path" -type f -name '*.py'
+    else
+      printf '%s\n' "$path"
+    fi
   done
 else
-  cat "$changed_file"
+  case "$mode" in
+    staged)
+      git diff --cached --name-only --diff-filter=ACMRTUXB
+      ;;
+    all)
+      git ls-files
+      git ls-files --others --exclude-standard
+      ;;
+    *)
+      git diff --name-only --diff-filter=ACMRTUXB
+      git diff --cached --name-only --diff-filter=ACMRTUXB
+      git ls-files --others --exclude-standard
+      ;;
+  esac
 fi > "$candidate_file"
 
 files=()
@@ -49,7 +50,7 @@ while IFS= read -r file; do
       [[ -f "$file" ]] && files+=("$file")
       ;;
   esac
-done < <(grep -Fxf "$changed_file" "$candidate_file" | awk 'NF && !seen[$0]++')
+done < <(awk 'NF && !seen[$0]++' "$candidate_file")
 
 if ((${#files[@]} == 0)); then
   echo "pyright: no Python files"
@@ -62,7 +63,7 @@ for component in core frontend models worker; do
   for file in "${files[@]}"; do
     case "$file" in
       src/"$component"/*.py)
-        rel_files+=("${file#src/$component/}")
+        rel_files+=("${file#src/"$component"/}")
         ;;
     esac
   done

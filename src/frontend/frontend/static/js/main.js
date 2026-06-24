@@ -144,6 +144,19 @@ function omniSearch(searchUrl) {
   };
 }
 
+function canUseAssessShortcut(event) {
+  if (event?.defaultPrevented) {
+    return false;
+  }
+
+  const target = event?.target;
+  if (target instanceof Element && target.closest("input, textarea, select, [contenteditable], dialog")) {
+    return false;
+  }
+
+  return !document.querySelector("dialog[open]");
+}
+
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initViewportWarningBar, {
     once: true,
