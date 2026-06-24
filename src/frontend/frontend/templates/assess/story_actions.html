@@ -9,7 +9,7 @@
           hx-target="#story-{{ story_id }}"
           hx-select="#story-{{ story_id }}"
           hx-push-url="false"
-          hx-swap="innerHTML"
+          hx-swap="outerHTML"
           data-testid="toggle-read">
     {% if story.read | default(false) %}
       {{ heroicon_mini("eye-slash") }}
