@@ -438,15 +438,37 @@ class Organizations(MethodView):
 
 
 class UsersImport(MethodView):
+    @staticmethod
+    def _import_message(imported_count: int, skipped_count: int) -> str:
+        if imported_count and skipped_count:
+            return f"Successfully imported {imported_count} user(s); skipped {skipped_count} existing user(s)"
+        if imported_count:
+            return f"Successfully imported {imported_count} user(s)"
+        if skipped_count:
+            return f"No users imported; skipped {skipped_count} existing user(s)"
+        return "No users imported"
+
     @auth_required("CONFIG_USER_UPDATE")
     def post(self):
         user_list = request.json
         if not isinstance(user_list, list):
             return {"error": "Invalid data format"}, 400
-        if users := user.User.import_users(user_list):
+        result = user.User.import_users(user_list)
+        imported_users = result["imported"]
+        skipped_users = result["skipped"]
+        imported_count = len(imported_users)
+        skipped_count = len(skipped_users)
+        if imported_count:
             _invalidate_admin_cache(200)
-            return jsonify({"users": users, "count": len(users), "message": "Successfully imported users"})
-        return {"error": "Unable to import"}, 400
+        return jsonify(
+            {
+                "users": imported_users,
+                "count": imported_count,
+                "skipped_users": skipped_users,
+                "skipped_count": skipped_count,
+                "message": self._import_message(imported_count, skipped_count),
+            }
+        )
 
 
 class UsersExport(MethodView):

@@ -1,5 +1,4 @@
 import json
-import secrets
 from datetime import datetime
 from typing import Any, Sequence
 
@@ -48,14 +47,14 @@ class User(BaseModel):
     roles: Mapped[list["Role"]] = relationship("Role", secondary="user_role")
     profile: Mapped[dict[str, Any]] = db.Column(db.JSON)
 
-    def __init__(self, username: str, name: str, organization: str | dict, roles: list[str], password=None, id=None, profile=None):
+    def __init__(self, username: str, name: str, organization: str | dict | None, roles: list[str], password=None, id=None, profile=None):
         self.id = self.normalize_uuid_id(id)
         self.username = username
         self.name = name
         if password:
             self.password = generate_password_hash(password)
         organization_id = organization.get("id") if isinstance(organization, dict) else organization
-        if org := Organization.get(organization_id):
+        if organization_id is not None and (org := Organization.get(organization_id)):
             self.organization = org
         self.roles = Role.get_bulk(roles)
         profile = dict(profile or {})
@@ -165,7 +164,7 @@ class User(BaseModel):
         if organization := data.pop("organization", None):
             if isinstance(organization, dict):
                 organization = organization.get("id") or organization.get("name")
-            if update_org := Organization.get(organization):
+            if organization is not None and (update_org := Organization.get(organization)):
                 user.organization = update_org
         if (roles := data.pop("roles", None)) is not None:
             user.roles = Role.get_bulk(roles)
@@ -264,16 +263,18 @@ class User(BaseModel):
         return json.dumps(export_data).encode("utf-8")
 
     @classmethod
-    def import_users(cls, user_list: list) -> list:
-        result = []
+    def import_users(cls, user_list: list) -> dict[str, list[dict[str, str]]]:
+        imported_users = []
+        skipped_users = []
         for user in user_list:
-            if cls.find_by_name(user["username"]):
-                logger.warning(f"User {user['username']} already exists")
+            username = user["username"]
+            if cls.find_by_name(username):
+                logger.warning(f"User {username} already exists")
+                skipped_users.append({"username": username})
                 continue
-            user["password"] = secrets.token_urlsafe(16)
-            cls.add(user)
-            result.append({"username": user["username"], "password": user["password"]})
-        return result
+            cls.add(dict(user))
+            imported_users.append({"username": username})
+        return {"imported": imported_users, "skipped": skipped_users}
 
 
 class UserRole(BaseModel):
