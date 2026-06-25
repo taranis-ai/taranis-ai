@@ -15,6 +15,7 @@ from models.user import (
     UserProfile,
 )
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 from werkzeug.security import generate_password_hash
@@ -266,14 +267,56 @@ class User(BaseModel):
     def import_users(cls, user_list: list) -> dict[str, list[dict[str, str]]]:
         imported_users = []
         skipped_users = []
+        staged_users = []
+        seen_usernames = set()
         for user in user_list:
-            username = user["username"]
+            if not isinstance(user, dict):
+                logger.warning("Skipped user import: item is not a dict")
+                skipped_users.append({"username": "", "reason": "invalid item type"})
+                continue
+
+            username = user.get("username")
+            if not isinstance(username, str) or not username.strip():
+                logger.warning("Skipped user import: missing or invalid username")
+                skipped_users.append({"username": "" if username is None else str(username), "reason": "missing or invalid username"})
+                continue
+
+            name = user.get("name")
+            if not isinstance(name, str):
+                logger.warning(f"Skipped user import for {username}: missing or invalid name")
+                skipped_users.append({"username": username.strip(), "reason": "missing or invalid name"})
+                continue
+
+            username = username.strip()
             if cls.find_by_name(username):
                 logger.warning(f"User {username} already exists")
-                skipped_users.append({"username": username})
+                skipped_users.append({"username": username, "reason": "user already exists"})
                 continue
-            cls.add(dict(user))
-            imported_users.append({"username": username})
+            if username in seen_usernames:
+                logger.warning(f"Skipped user import for {username}: duplicate username in import file")
+                skipped_users.append({"username": username, "reason": "duplicate username in import file"})
+                continue
+            import_user = dict(user)
+            import_user["username"] = username
+            import_user.setdefault("organization", None)
+            import_user.setdefault("roles", [])
+            try:
+                staged_users.append((username, cls.from_dict(import_user)))
+                seen_usernames.add(username)
+            except (SQLAlchemyError, TypeError, ValueError, ValidationError) as exc:
+                logger.warning(f"Skipped user import for {username}: invalid user data ({exc})")
+                skipped_users.append({"username": username, "reason": "invalid user data"})
+                continue
+
+        try:
+            db.session.add_all([user for _, user in staged_users])
+            db.session.commit()
+        except SQLAlchemyError as exc:
+            db.session.rollback()
+            logger.warning(f"User import batch failed; rolled back staged users ({exc})")
+            skipped_users.extend({"username": username, "reason": "invalid user data"} for username, _ in staged_users)
+        else:
+            imported_users = [{"username": username} for username, _ in staged_users]
         return {"imported": imported_users, "skipped": skipped_users}
 
 

@@ -103,9 +103,7 @@ def test_users_import_success_redirects_without_rendering_nested_form(
     with authenticated_client.session_transaction() as session:
         assert session["_flashes"] == [("warning", "No users imported; skipped 1 existing user(s)")]
 
-    post_call = next(
-        call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/config/users-import")
-    )
+    post_call = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/config/users-import"))
     assert _json_request_body(post_call) == [
         {
             "username": "external-user",
@@ -173,6 +171,30 @@ def test_users_import_invalid_json_renders_notification_without_traceback(authen
     assert not _posted_to_users_import(responses_mock)
 
 
+def test_users_import_undecodable_file_renders_notification_without_traceback(authenticated_client, htmx_header, responses_mock):
+    invalid_file = BytesIO(b"\xff\xfe\x00")
+
+    response = authenticated_client.post(
+        url_for("admin.import_users"),
+        data={
+            "file": (invalid_file, "undecodable_users_export.json"),
+            "organization": "organization-1",
+            "roles[]": ["role-2"],
+        },
+        content_type="multipart/form-data",
+        headers=htmx_header,
+    )
+
+    tree = html.fromstring(response.text)
+    notification_span = tree.xpath('//span[@id="notification-message"]')
+    assert response.status_code == 400
+    assert notification_span
+    assert "Invalid JSON file" in notification_span[0].text_content()
+    assert "Traceback" not in response.get_data(as_text=True)
+    assert "Select JSON File" not in response.get_data(as_text=True)
+    assert not _posted_to_users_import(responses_mock)
+
+
 def test_users_import_invalid_export_shape_renders_notification(authenticated_client, htmx_header, responses_mock):
     invalid_file = BytesIO(json.dumps({"version": 1, "users": []}).encode())
 
@@ -180,6 +202,29 @@ def test_users_import_invalid_export_shape_renders_notification(authenticated_cl
         url_for("admin.import_users"),
         data={
             "file": (invalid_file, "invalid_users_export.json"),
+            "organization": "organization-1",
+            "roles[]": ["role-2"],
+        },
+        content_type="multipart/form-data",
+        headers=htmx_header,
+    )
+
+    tree = html.fromstring(response.text)
+    notification_span = tree.xpath('//span[@id="notification-message"]')
+    assert response.status_code == 400
+    assert notification_span
+    assert "Invalid user import file format" in notification_span[0].text_content()
+    assert "Select JSON File" not in response.get_data(as_text=True)
+    assert not _posted_to_users_import(responses_mock)
+
+
+def test_users_import_invalid_export_version_renders_notification(authenticated_client, htmx_header, responses_mock):
+    invalid_file = BytesIO(json.dumps({"version": 2, "data": []}).encode())
+
+    response = authenticated_client.post(
+        url_for("admin.import_users"),
+        data={
+            "file": (invalid_file, "unsupported_users_export.json"),
             "organization": "organization-1",
             "roles[]": ["role-2"],
         },
