@@ -112,6 +112,17 @@ def _normalized_tag_names(data: dict[str, Any]) -> set[str]:
     return tag_names
 
 
+def _attribute_values_by_key(data: dict[str, Any]) -> dict[str, Any]:
+    values: dict[str, Any] = {}
+    for attr in data.get("attributes", []):
+        if not isinstance(attr, dict):
+            continue
+        key = attr.get("key")
+        if isinstance(key, str) and key:
+            values[key] = attr.get("value")
+    return values
+
+
 def _story_title_map(stories: list[dict[str, Any]]) -> dict[str, str]:
     titles: dict[str, str] = {}
     for story in stories:
@@ -204,10 +215,8 @@ def build_story_revision_diff_payload(
             )
         )
 
-    from_attrs = {
-        attr.get("key"): attr.get("value") for attr in from_data.get("attributes", []) if isinstance(attr, dict) and attr.get("key")
-    }
-    to_attrs = {attr.get("key"): attr.get("value") for attr in to_data.get("attributes", []) if isinstance(attr, dict) and attr.get("key")}
+    from_attrs = _attribute_values_by_key(from_data)
+    to_attrs = _attribute_values_by_key(to_data)
 
     for key in sorted(set(from_attrs) | set(to_attrs)):
         _append_change(changes, key, from_attrs.get(key), to_attrs.get(key))
