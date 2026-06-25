@@ -12,7 +12,7 @@ class PDFPresenter(BasePresenter):
     def _remove_weasyprint_signature(_document, pdf) -> None:
         pdf.info.pop("Producer", None)
 
-    def generate(self, product: dict, template: str, parameters: dict[str, str] | None = None) -> str | bytes:
+    def generate(self, product: dict, template: str | None, parameters: dict[str, str] | None = None) -> str | bytes | None:
         if parameters is None:
             parameters = {}
 

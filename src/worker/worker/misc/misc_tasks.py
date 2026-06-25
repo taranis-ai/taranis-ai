@@ -76,6 +76,8 @@ def _reschedule_cleanup():
         now = datetime.now(timezone.utc)
         cron = croniter(cron_expr, now)
         next_run = cron.get_next(datetime)
+        if not isinstance(next_run, datetime):
+            raise TypeError("croniter did not return a datetime")
 
         # Schedule the job
         queue.enqueue_at(next_run, cleanup_token_blacklist)

@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 from models.assess import NewsItem
 
@@ -62,7 +63,7 @@ class BaseCollector:
                 item.attributes.append({"key": "TLP", "value": tlp_level})
         return news_items
 
-    def collect(self, source: dict, manual: bool = False):
+    def collect(self, source: dict, manual: bool = False) -> Any:
         raise NotImplementedError
 
     def preview_collector(self, source: dict) -> list[dict]:

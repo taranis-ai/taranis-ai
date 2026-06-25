@@ -18,7 +18,7 @@ class BasePublisher:
         self.file_name: str = f"Taranis_product_{datetime.now().strftime('%d-%m-%Y_%H-%M')}"
         self.core_api = CoreApi()
 
-    def publish(self, publisher: dict[str, Any], product: dict[str, Any], rendered_product: Product) -> str:
+    def publish(self, publisher: dict[str, Any], product: dict[str, Any], rendered_product: Product) -> Any:
         raise NotImplementedError
 
     def print_exception(self, error):
