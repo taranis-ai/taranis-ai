@@ -177,7 +177,7 @@ class DataPersistenceLayer:
                 endpoint,
                 paging_data,
             )
-        raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
+        raise ValueError(f"Failed to fetch {object_model._model_name} from: {endpoint}")
 
     def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject[T]:
         if paging_data is None:
@@ -197,7 +197,7 @@ class DataPersistenceLayer:
                 endpoint,
                 paging_data,
             )
-        raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
+        raise ValueError(f"Failed to fetch {object_model._model_name} from: {endpoint}")
 
     def _cache_and_paginate_objects(
         self,

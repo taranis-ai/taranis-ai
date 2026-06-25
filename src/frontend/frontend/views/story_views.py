@@ -1,6 +1,6 @@
 import datetime
 from json import JSONDecodeError
-from typing import Any, Callable
+from typing import Any, Callable, cast
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
@@ -34,6 +34,9 @@ from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
+
+
+_quote_via = cast(Any, quote)
 
 
 def _sanitize_news_item_import_payload(news_item_data: dict[str, Any], story_id: str | None = None) -> dict[str, Any]:
@@ -329,7 +332,7 @@ class StoryView(BaseView):
 
     @classmethod
     def default_share_story_link(cls) -> str:
-        return f"mailto:?{urlencode({'subject': 'sharing stories from taranis ai'}, quote_via=quote)}"
+        return f"mailto:?{urlencode({'subject': 'sharing stories from taranis ai'}, quote_via=_quote_via)}"
 
     @classmethod
     @auth_required()
@@ -410,7 +413,7 @@ class StoryView(BaseView):
         if body:
             params["body"] = body
 
-        return f"mailto:?{urlencode(params, quote_via=quote)}"
+        return f"mailto:?{urlencode(params, quote_via=_quote_via)}"
 
     @classmethod
     @auth_required()
@@ -723,9 +726,13 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def news_item_view(cls, news_item_id: str = "0"):
+    def news_item_view(cls, news_item_id: str = "0") -> tuple[str, int]:
+        return cls._render_news_item_view(news_item_id), 200
+
+    @classmethod
+    def _render_news_item_view(cls, news_item_id: str) -> str:
         news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="")
-        return render_template("assess/news_item_create.html", news_item=news_item), 200
+        return render_template("assess/news_item_create.html", news_item=news_item)
 
     @classmethod
     def _handle_news_item_response(
@@ -802,7 +809,7 @@ class StoryView(BaseView):
 
         return cls._handle_news_item_response(
             core_response,
-            content_builder=lambda _: cls.news_item_view(news_item_id=news_item_id)[0],
+            content_builder=lambda _: cls._render_news_item_view(news_item_id),
         )
 
     @classmethod

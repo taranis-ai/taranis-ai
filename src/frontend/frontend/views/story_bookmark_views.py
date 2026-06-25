@@ -144,6 +144,7 @@ class StoryBookmarkView(BaseView):
         bookmark = DataPersistenceLayer().get_object(StoryBookmark, bookmark_id)
         if bookmark is None:
             abort(404)
+            raise RuntimeError("abort did not raise")
         return bookmark
 
     @classmethod

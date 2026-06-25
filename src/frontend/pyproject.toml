@@ -138,3 +138,9 @@ required-environments = [
 
 [tool.uv.sources]
 taranis-models = { path = "../models", editable = true }
+
+[tool.pyrefly]
+project-excludes = [
+    "**/__main__.py",
+    "**/tests/",
+]

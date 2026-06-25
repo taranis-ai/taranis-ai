@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, overload
+from typing import Generic, SupportsIndex, TypeVar, overload
 
 from models.base import TaranisBaseModel
 from pydantic import BaseModel
@@ -44,21 +44,14 @@ class CacheObject(list[T], Generic[T]):
         self._total_count = total_count or len(iterable)
 
     @overload
-    def __getitem__(self, item: int) -> T: ...
+    def __getitem__(self, item: SupportsIndex) -> T: ...
 
     @overload
-    def __getitem__(self, item: slice) -> "CacheObject[T]": ...
+    def __getitem__(self, item: slice) -> list[T]: ...
 
-    def __getitem__(self, item: int | slice) -> T | "CacheObject[T]":  # type: ignore[override]
+    def __getitem__(self, item: SupportsIndex | slice) -> T | list[T]:
         if isinstance(item, slice):
-            result = super().__getitem__(item)
-            return CacheObject(
-                result,
-                page=self.page,
-                limit=self.limit,
-                order=self.order,
-                total_count=self._total_count,
-            )
+            return super().__getitem__(item)
         return super().__getitem__(item)
 
     @property

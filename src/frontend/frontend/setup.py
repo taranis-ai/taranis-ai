@@ -1,9 +1,10 @@
 import re
-from typing import Any
+from typing import Any, cast
 
 import sentry_sdk
 from flask import Flask, g, redirect, render_template, url_for
 from flask.json.provider import DefaultJSONProvider
+from flask_babel import get_locale, get_timezone
 from flask_htmx import HTMX
 from flask_jwt_extended import current_user, verify_jwt_in_request
 from flask_jwt_extended.exceptions import JWTExtendedException
@@ -17,6 +18,7 @@ from models.user import UserProfile
 from pydantic import BaseModel
 
 import frontend.filters as filters_module
+import frontend.i18n as i18n
 from frontend.auth import user_has_admin_permissions
 from frontend.config import Config
 from frontend.log import logger
@@ -90,7 +92,8 @@ def jinja_setup(app: Flask):
     all_views = dict(sorted(BaseView._registry.items(), key=lambda item: (getattr(item[1], "_index", float("inf")), item[0])))
     admin_views = {k: v for k, v in all_views.items() if hasattr(v, "_is_admin") and v._is_admin}
 
-    app.jinja_env.globals.update(
+    template_globals = cast(dict[str, Any], app.jinja_env.globals)
+    template_globals.update(
         {
             "heroicon_micro": heroicon_micro,
             "heroicon_mini": heroicon_mini,
@@ -99,6 +102,8 @@ def jinja_setup(app: Flask):
             "views": all_views,
             "admin_views": admin_views,
             "get_html5_pattern_from_rule": get_html5_pattern_from_rule,
+            "get_locale": get_locale,
+            "get_timezone": get_timezone,
             "pending_onboarding_tasks_for_template": pending_onboarding_tasks_for_template,
         }
     )
@@ -137,7 +142,7 @@ def setup_sentry():
     if not Config.TARANIS_SENTRY_DSN:
         return
 
-    sentry_options = {
+    sentry_options: dict[str, Any] = {
         "dsn": Config.TARANIS_SENTRY_DSN,
         "traces_sample_rate": 1.0,
         "profiles_sample_rate": 1.0,
@@ -152,6 +157,7 @@ def setup_sentry():
 
 def init(app: Flask):
     setup_sentry()
+    i18n.init(app)
     app.json_provider_class = TaranisJSONProvider
     app.json = app.json_provider_class(app)
     HTMX(app)

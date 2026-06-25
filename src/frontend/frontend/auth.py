@@ -1,6 +1,6 @@
 import contextlib
 from functools import wraps
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable, ParamSpec, TypeVar, cast
 from urllib.parse import unquote, urlsplit
 
 from flask import Flask, Response, abort, current_app, g, make_response, redirect, render_template, request, url_for
@@ -19,6 +19,8 @@ from frontend.utils.router_helpers import is_htmx_request
 
 
 jwt = JWTManager()
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def init(app: Flask) -> None:
@@ -140,22 +142,21 @@ def logout() -> tuple[str, int] | Response:
             error_msg = core_response.json().get("error", error_msg)
         return render_login_page(login_error=error_msg), core_response.status_code
 
-    response = make_response("Session expired! Redirecting to Login Page")
+    response = make_response("Session expired! Redirecting to Login Page", 200 if is_htmx_request() else 302)
     if is_htmx_request():
         response.headers["HX-Redirect"] = url_for("base.login")
     else:
         response.headers["Location"] = url_for("base.login")
-        response.status_code = 302
 
     response.delete_cookie("access_token")
     unset_jwt_cookies(response)
     return response
 
 
-def auth_required(permissions: list[str] | str | None = None):
-    def auth_required_wrap(fn):
+def auth_required(permissions: list[str] | str | None = None) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def auth_required_wrap(fn: Callable[P, R]) -> Callable[P, R]:
         @wraps(fn)
-        def wrapper(*args, **kwargs: dict[str, Any]):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             if permissions is None:
                 permissions_set: set[str] = set()
             elif isinstance(permissions, list):
@@ -165,7 +166,7 @@ def auth_required(permissions: list[str] | str | None = None):
 
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _redirect_to_login_with_next()
+                return cast(R, _redirect_to_login_with_next())
 
             user_name, user = resolved_user
             permission_claims = set(user.permissions or [])
@@ -184,13 +185,13 @@ def auth_required(permissions: list[str] | str | None = None):
     return auth_required_wrap
 
 
-def admin_required():
-    def admin_required_wrap(fn):
+def admin_required() -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def admin_required_wrap(fn: Callable[P, R]) -> Callable[P, R]:
         @wraps(fn)
-        def wrapper(*args, **kwargs: dict[str, Any]):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _redirect_to_login_with_next()
+                return cast(R, _redirect_to_login_with_next())
 
             user_name, user = resolved_user
             if not user_has_admin_permissions(user.permissions):
