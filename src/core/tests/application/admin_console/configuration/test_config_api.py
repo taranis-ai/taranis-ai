@@ -631,6 +631,31 @@ class TestWordListConfigApi(BaseTest):
 class TestUserConfigApi(BaseTest):
     base_uri = "/api/config"
 
+    @staticmethod
+    def _import_user_payload(app, username: str, name: str | None = None) -> dict:
+        with app.app_context():
+            from core.model.organization import Organization
+            from core.model.role import Role
+
+            organization = Organization.find_by_name("The Earth")
+            role = Role.filter_by_name("User")
+            assert organization is not None
+            assert role is not None
+            return {
+                "username": username,
+                "name": name or username,
+                "organization": organization.id,
+                "roles": [role.id],
+            }
+
+    @staticmethod
+    def _delete_user_by_username(app, username: str) -> None:
+        with app.app_context():
+            from core.model.user import User
+
+            if user := User.find_by_name(username):
+                User.delete(user.id)
+
     def test_create_user(self, client, auth_header, cleanup_user):
         response = self.assert_post_ok(client, uri="users", json_data=cleanup_user, auth_header=auth_header)
         assert response.json["message"] == "User created"
@@ -659,6 +684,74 @@ class TestUserConfigApi(BaseTest):
         user_id = cleanup_user["id"]
         response = self.assert_delete_ok(client, uri=f"users/{user_id}", auth_header=auth_header)
         assert response.json["message"] == "User deleted"
+
+    def test_import_user_without_password_creates_passwordless_user(self, app, client, auth_header):
+        username = f"external-import-{uuid.uuid4().hex[:8]}"
+        payload = self._import_user_payload(app, username, "External Import")
+
+        try:
+            response = self.assert_post_ok(client, uri="users-import", json_data=[payload], auth_header=auth_header)
+            assert response.json["count"] == 1
+            assert response.json["skipped_count"] == 0
+            assert response.json["users"] == [{"username": username}]
+
+            with app.app_context():
+                from core.model.user import User
+
+                imported_user = User.find_by_name(username)
+                assert imported_user is not None
+                assert imported_user.password is None
+        finally:
+            self._delete_user_by_username(app, username)
+
+    def test_import_existing_user_returns_skipped_response(self, app, client, auth_header):
+        username = f"existing-import-{uuid.uuid4().hex[:8]}"
+        payload = self._import_user_payload(app, username, "Existing Import")
+
+        try:
+            self.assert_post_ok(client, uri="users-import", json_data=[payload], auth_header=auth_header)
+            response = self.assert_post_ok(client, uri="users-import", json_data=[payload], auth_header=auth_header)
+
+            assert response.json["count"] == 0
+            assert response.json["skipped_count"] == 1
+            assert response.json["users"] == []
+            assert response.json["skipped_users"] == [{"username": username}]
+            assert response.json["message"] == "No users imported; skipped 1 existing user(s)"
+
+            list_response = self.assert_get_ok(client, uri=f"users?search={username}", auth_header=auth_header)
+            assert list_response.json["total_count"] == 1
+        finally:
+            self._delete_user_by_username(app, username)
+
+    def test_import_mixed_new_and_existing_users_returns_created_and_skipped(self, app, client, auth_header):
+        existing_username = f"mixed-existing-{uuid.uuid4().hex[:8]}"
+        new_username = f"mixed-new-{uuid.uuid4().hex[:8]}"
+        existing_payload = self._import_user_payload(app, existing_username, "Mixed Existing")
+        new_payload = self._import_user_payload(app, new_username, "Mixed New")
+
+        try:
+            self.assert_post_ok(client, uri="users-import", json_data=[existing_payload], auth_header=auth_header)
+            response = self.assert_post_ok(
+                client,
+                uri="users-import",
+                json_data=[existing_payload, new_payload],
+                auth_header=auth_header,
+            )
+
+            assert response.json["count"] == 1
+            assert response.json["skipped_count"] == 1
+            assert response.json["users"] == [{"username": new_username}]
+            assert response.json["skipped_users"] == [{"username": existing_username}]
+            assert response.json["message"] == "Successfully imported 1 user(s); skipped 1 existing user(s)"
+        finally:
+            self._delete_user_by_username(app, existing_username)
+            self._delete_user_by_username(app, new_username)
+
+    def test_import_users_rejects_invalid_payload(self, client, auth_header):
+        response = client.post(self.concat_url("users-import"), json={"data": []}, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid data format"
 
 
 class TestRoleConfigApi(BaseTest):
