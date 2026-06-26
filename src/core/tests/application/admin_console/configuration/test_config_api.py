@@ -681,6 +681,39 @@ class TestUserConfigApi(BaseTest):
         finally:
             delete_user_by_username(app, username)
 
+    def test_export_passwordless_user_omits_password(self, app, client, auth_header):
+        username = f"external-export-{uuid.uuid4().hex[:8]}"
+        name = "External Export"
+        payload = build_import_user_payload(app, username, name)
+
+        try:
+            self.assert_post_ok(client, uri="users-import", json_data=[payload], auth_header=auth_header)
+            with app.app_context():
+                from core.model.user import User
+
+                imported_user = User.find_by_name(username)
+                assert imported_user is not None
+                assert imported_user.password is None
+                user_id = imported_user.id
+
+            response = client.get(self.concat_url("users-export"), query_string={"ids": [user_id]}, headers=auth_header)
+
+            assert response.status_code == 200
+            assert response.mimetype == "application/json"
+            export_data = json.loads(response.data)
+            assert export_data == {
+                "version": 1,
+                "data": [
+                    {
+                        "name": name,
+                        "username": username,
+                    }
+                ],
+            }
+            assert "password" not in export_data["data"][0]
+        finally:
+            delete_user_by_username(app, username)
+
     def test_import_existing_user_returns_skipped_response(self, app, client, auth_header):
         username = f"existing-import-{uuid.uuid4().hex[:8]}"
         payload = build_import_user_payload(app, username, "Existing Import")
