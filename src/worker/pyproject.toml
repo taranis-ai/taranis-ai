@@ -146,5 +146,4 @@ infer-with-first-use = false
 project-excludes = [
     "**/__main__.py",
     "**/tests/",
-    "start_dev_worker.py",
 ]

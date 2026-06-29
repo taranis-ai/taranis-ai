@@ -1,4 +1,4 @@
-from flask import Blueprint, Flask, abort, jsonify, request
+from flask import Blueprint, Flask, abort, jsonify, make_response, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
@@ -37,7 +37,7 @@ class ReportStories(MethodView):
             scopes=(SCOPE_REPORT_VIEWS,),
             object_ids={"report": report_item_id},
         )
-        return jsonify(response), status
+        return make_response(jsonify(response), status)
 
     @auth_required("ANALYZE_UPDATE")
     def post(self, report_item_id: str):
@@ -51,7 +51,7 @@ class ReportStories(MethodView):
             scopes=(SCOPE_REPORT_VIEWS,),
             object_ids={"report": report_item_id},
         )
-        return jsonify(response), status
+        return make_response(jsonify(response), status)
 
 
 class ReportItem(MethodView):
@@ -72,7 +72,7 @@ class ReportItem(MethodView):
                 return {"error": "No data in request"}, 400
             new_report_item, status = report_item.ReportItem.add(request.json, current_user)
             if status != 200 or not isinstance(new_report_item, report_item.ReportItem):
-                return jsonify(new_report_item), status
+                return make_response(jsonify(new_report_item), status)
         except Exception as ex:
             logger.exception("Error adding report item: %s", ex)
             return {"error": "Error adding report item"}, 400
@@ -83,7 +83,9 @@ class ReportItem(MethodView):
             sse_manager.report_item_updated(new_report_item.id)
             invalidate_frontend_cache_on_success(status, scopes=(SCOPE_REPORT_VIEWS,))
 
-        return jsonify({"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}), status
+        return make_response(
+            jsonify({"message": "New report item created", "id": new_report_item.id, "report": new_report_item.to_detail_dict()}), status
+        )
 
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id: str | None = None):
@@ -103,7 +105,7 @@ class ReportItem(MethodView):
                 object_ids={"report": report_item_id},
             )
 
-        return jsonify({"message": "Report item updated", "id": updated_report.get("id"), "report": updated_report}), status
+        return make_response(jsonify({"message": "Report item updated", "id": updated_report.get("id"), "report": updated_report}), status)
 
     @auth_required("ANALYZE_DELETE")
     def delete(self, report_item_id: str | None = None):
@@ -117,7 +119,7 @@ class ReportItem(MethodView):
                 scopes=(SCOPE_REPORT_VIEWS,),
                 object_ids={"report": report_item_id},
             )
-        return jsonify(result), code
+        return make_response(jsonify(result), code)
 
 
 class ReportItemPublishProduct(MethodView):
@@ -128,7 +130,7 @@ class ReportItemPublishProduct(MethodView):
         if not required_permissions.issubset(user_permissions):
             return {"error": "forbidden"}, 403
         response, status = ReportPublishWorkflowService.create_and_publish(request.json, current_user)
-        return jsonify(response), status
+        return make_response(jsonify(response), status)
 
 
 class CloneReportItem(MethodView):
@@ -143,7 +145,7 @@ class CloneReportItem(MethodView):
             sse_manager.report_item_updated(result["id"])
             invalidate_frontend_cache_on_success(status, scopes=(SCOPE_REPORT_VIEWS,))
 
-        return jsonify(result), status
+        return make_response(jsonify(result), status)
 
 
 class ReportItemLocks(MethodView):
@@ -160,7 +162,7 @@ class ReportItemLock(MethodView):
             return abort(401, "User not found")
         try:
             response, status = sse_manager.report_item_lock(report_item_id, user.id)
-            return jsonify(response), status
+            return make_response(jsonify(response), status)
         except Exception as ex:
             logger.exception("Failed to lock report item %s: %s", report_item_id, ex)
             return {"error": "Failed to lock report item"}, 500
@@ -172,7 +174,7 @@ class ReportItemLock(MethodView):
             return abort(401, "User not found")
         try:
             response, status = sse_manager.report_item_unlock(report_item_id, user.id)
-            return jsonify(response), status
+            return make_response(jsonify(response), status)
         except Exception as ex:
             logger.exception("Failed to unlock report item %s: %s", report_item_id, ex)
             return {"error": "Failed to unlock report item"}, 500
@@ -186,7 +188,7 @@ class ReportItemRevisions(MethodView):
 
         access_response, access_status = report_item.ReportItem.get_for_api(report_item_id, current_user)
         if access_status != 200:
-            return jsonify(access_response), access_status
+            return make_response(jsonify(access_response), access_status)
 
         revisions = (
             db.session.execute(
