@@ -1,7 +1,7 @@
 import json
 import secrets
 from datetime import datetime
-from typing import Any, Sequence
+from typing import Any, Sequence, cast
 
 from models.user import (
     ADMIN_ADVANCED_TOUR_ID,
@@ -246,7 +246,7 @@ class User(BaseModel):
         try:
             validated = ProfileSettings.model_validate(merged)
         except ValidationError as exc:
-            return ProfileSettings.validation_error_response(exc, prefix="Invalid profile settings"), 400
+            return ProfileSettings.validation_error_response(cast(Any, exc), prefix="Invalid profile settings"), 400
 
         user.profile = validated.model_dump(mode="json")
 

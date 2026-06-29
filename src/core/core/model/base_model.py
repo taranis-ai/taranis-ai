@@ -82,12 +82,13 @@ class BaseModel(db.Model):
 
     @classmethod
     def delete(cls: Type[T], id) -> tuple[dict[str, Any], int]:
+        model_name = str(getattr(cls, "__name__", "BaseModel"))
         if item := cls.get(id):
             db.session.delete(item)
             db.session.commit()
-            return {"message": f"{cls.__name__} deleted"}, 200
-        logger.warning(f"{cls.__name__} {id} not found")
-        return {"error": f"{cls.__name__} not found"}, 404
+            return {"message": f"{model_name} deleted"}, 200
+        logger.warning(f"{model_name} {id} not found")
+        return {"error": f"{model_name} not found"}, 404
 
     @classmethod
     def add(cls: Type[T], data) -> T:
@@ -107,8 +108,9 @@ class BaseModel(db.Model):
     def delete_all(cls: Type[T]) -> tuple[dict[str, Any], int]:
         db.session.execute(db.delete(cls))
         db.session.commit()
-        logger.debug(f"All {cls.__name__} deleted")
-        return {"message": f"All {cls.__name__} deleted"}, 200
+        model_name = str(getattr(cls, "__name__", "BaseModel"))
+        logger.debug(f"All {model_name} deleted")
+        return {"message": f"All {model_name} deleted"}, 200
 
     @classmethod
     def from_dict(cls: Type[T], data: dict[str, Any]) -> T:

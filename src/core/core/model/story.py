@@ -2,7 +2,7 @@ import re
 from collections import Counter
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as StoryPayload
@@ -808,7 +808,7 @@ class Story(BaseModel):
         try:
             return AssessNewsItem.from_input(news_item), None
         except ValidationError as exc:
-            return None, AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data")
+            return None, AssessNewsItem.validation_error_response(cast(Any, exc), prefix="Invalid news item data")
 
     @classmethod
     def add_single_news_item(cls, news_item: dict, user: User | None = None) -> tuple[dict, int]:
@@ -1022,7 +1022,8 @@ class Story(BaseModel):
         return next((attribute for attribute in self.attributes if attribute.key == key), None)
 
     def vote(self, vote_data, user_id):
-        if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
+        vote = NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)
+        if vote is None:
             vote = self.create_new_vote(user_id)
 
         if vote.like and vote_data == "like":

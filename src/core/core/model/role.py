@@ -1,5 +1,5 @@
 import contextlib
-from enum import StrEnum, nonmember
+from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import or_
@@ -12,6 +12,15 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.permission import Permission
 
 
+TLP_ACCESSIBLE_NAMES = {
+    "RED": ["RED", "AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
+    "AMBER_STRICT": ["AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
+    "AMBER": ["AMBER", "GREEN", "CLEAR"],
+    "GREEN": ["GREEN", "CLEAR"],
+    "CLEAR": ["CLEAR"],
+}
+
+
 class TLPLevel(StrEnum):
     CLEAR = "clear"
     GREEN = "green"
@@ -19,22 +28,12 @@ class TLPLevel(StrEnum):
     AMBER = "amber"
     RED = "red"
 
-    _ACCESSIBLE_NAMES = nonmember(
-        {
-            "RED": ["RED", "AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
-            "AMBER_STRICT": ["AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
-            "AMBER": ["AMBER", "GREEN", "CLEAR"],
-            "GREEN": ["GREEN", "CLEAR"],
-            "CLEAR": ["CLEAR"],
-        }
-    )
-
     def get_accessible_levels(self) -> list[str]:
         """
         Return the list of TLPLevel members this level can access.
         """
-        names = type(self)._ACCESSIBLE_NAMES.get(self.name, [])
-        return [type(self)[nm].value for nm in names]
+        names = TLP_ACCESSIBLE_NAMES.get(self.name, [])
+        return [type(self).__members__[name].value for name in names]
 
     @classmethod
     def get_most_restrictive_tlp(cls, tlp_levels: list["TLPLevel"]) -> "TLPLevel":
@@ -48,7 +47,7 @@ class TLPLevel(StrEnum):
         provided = {tlp.name for tlp in tlp_levels}
 
         return next(
-            (cls[level_name] for level_name in cls._ACCESSIBLE_NAMES.keys() if level_name in provided),
+            (cls.__members__[level_name] for level_name in TLP_ACCESSIBLE_NAMES if level_name in provided),
             cls.CLEAR,
         )
 

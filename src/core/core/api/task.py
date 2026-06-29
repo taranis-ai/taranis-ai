@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 from flask import Blueprint, Flask, g, request
 from flask.views import MethodView
@@ -29,7 +29,7 @@ class Task(MethodView):
         try:
             submission = TaskSubmission.model_validate(payload)
         except ValidationError as exc:
-            return {"error": TaskSubmission.format_validation_errors(exc)}, 400
+            return {"error": TaskSubmission.format_validation_errors(cast(Any, exc))}, 400
 
         logger.debug(f"Received task result with id {submission.id} and status {submission.status}")
         return TaskService.save_task_result(submission)

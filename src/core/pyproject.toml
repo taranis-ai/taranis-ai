@@ -146,3 +146,7 @@ project-excludes = [
     "**/__main__.py",
     "**/tests/",
 ]
+
+[tool.pyrefly.errors]
+bad-override = false
+bad-param-name-override = false

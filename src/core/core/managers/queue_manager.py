@@ -33,7 +33,7 @@ import hashlib
 import json
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, cast
 
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from flask import Flask
@@ -107,7 +107,7 @@ def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run
         return False
 
     try:
-        next_expected_run = croniter(schedule, last_run_dt).get_next(datetime)
+        next_expected_run = cast(datetime, croniter(schedule, last_run_dt).get_next(datetime))
     except (CroniterBadCronError, CroniterBadDateError):
         return False
 
@@ -172,7 +172,7 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _compute_next_timestamp(cron: str | None, interval: int | None, base_ts: float) -> float:
     if cron:
         dt = datetime.fromtimestamp(base_ts, tz=timezone.utc)
-        return croniter(cron, dt).get_next(datetime).timestamp()
+        return cast(datetime, croniter(cron, dt).get_next(datetime)).timestamp()
     if interval is not None:
         return base_ts + int(interval)
     raise ValueError("CronSpec must provide either cron or interval")
@@ -1016,7 +1016,8 @@ class QueueManager:
             cron_jobs: list[dict[str, Any]] = []
 
             for source in OSINTSource.get_all_for_collector():
-                if not (cron_schedule := source.get_schedule_with_default()):
+                source_cron_schedule = source.get_schedule_with_default()
+                if not source_cron_schedule:
                     continue
 
                 cron_jobs.append(
@@ -1024,14 +1025,15 @@ class QueueManager:
                         "task": "collector_task",
                         "queue": "collectors",
                         "args": [source.id, False],
-                        "cron": cron_schedule,
+                        "cron": source_cron_schedule,
                         "task_id": source.task_id,
                         "name": source.name,
                     }
                 )
 
             for bot_item in Bot.get_all_for_collector():
-                if not (cron_schedule := bot_item.get_schedule()):
+                bot_cron_schedule = bot_item.get_schedule()
+                if not bot_cron_schedule:
                     continue
 
                 cron_jobs.append(
@@ -1039,7 +1041,7 @@ class QueueManager:
                         "task": "bot_task",
                         "queue": "bots",
                         "args": [bot_item.id],
-                        "cron": cron_schedule,
+                        "cron": bot_cron_schedule,
                         "task_id": bot_item.task_id,
                         "name": bot_item.name,
                     }

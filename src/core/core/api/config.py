@@ -1,7 +1,7 @@
 import base64
 import binascii
 import io
-from typing import Any
+from typing import Any, cast
 
 from flask import Blueprint, Flask, jsonify, request, send_file
 from flask.views import MethodView
@@ -338,9 +338,7 @@ class Templates(MethodView):
         base64_content = request.json.get("content")
         response, status = create_or_update_template(template_id, base64_content)
         _invalidate_admin_cache(status)
-        json_response = jsonify(response)
-        json_response.status_code = status
-        return json_response
+        return jsonify(response), status
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def put(self, template_path: str | None = None):
@@ -352,9 +350,7 @@ class Templates(MethodView):
         base64_content = request.json.get("content")
         response, status = create_or_update_template(template_path, base64_content)
         _invalidate_admin_cache(status)
-        json_response = jsonify(response)
-        json_response.status_code = status
-        return json_response
+        return jsonify(response), status
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str | None = None):
@@ -736,7 +732,7 @@ class OSINTSources(MethodView):
                 _invalidate_admin_cache(201)
                 return {"id": source.id, "message": "OSINT source created successfully"}, 201
         except ValidationError as exc:
-            return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
+            return {"error": OSINTSourceModel.format_validation_errors(cast(Any, exc))}, 400
         except osint_source.InvalidOSINTSourceIconError as exc:
             logger.warning("Invalid OSINT source icon payload: %s", exc)
             return {"error": exc.public_message}, 400
@@ -756,7 +752,7 @@ class OSINTSources(MethodView):
                 _invalidate_admin_cache(200)
                 return {"message": "OSINT Source updated", "id": source.id}, 200
         except ValidationError as exc:
-            return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
+            return {"error": OSINTSourceModel.format_validation_errors(cast(Any, exc))}, 400
         except osint_source.InvalidOSINTSourceIconError as e:
             logger.warning("Invalid OSINT source icon payload: %s", e)
             return {"error": e.public_message}, 400
@@ -855,7 +851,7 @@ class OSINTSourcesImport(MethodView):
             if json_data := request.get_json(silent=True):
                 sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
         except ValidationError as exc:
-            return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
+            return {"error": OSINTSourceModel.format_validation_errors(cast(Any, exc))}, 400
         if sources is None:
             logger.error("Failed to import OSINT sources")
             return {"error": "Unable to import"}, 400

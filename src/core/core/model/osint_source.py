@@ -538,7 +538,7 @@ class OSINTSource(BaseModel):
         return queue_manager.queue_manager.unregister_cron_job(self.cron_job_id)
 
     def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
-        export_dict = {
+        export_dict: dict[str, Any] = {
             "name": self.name,
             "description": self.description,
             "rank": self.rank,
@@ -563,15 +563,16 @@ class OSINTSource(BaseModel):
             return json.dumps({"error": "no sources found"}).encode("utf-8")
 
         id_to_index_map = {osint_source.id: idx for idx, osint_source in enumerate(data, 1)}
-        export_data = {
+        sources = [osint_source.to_export_dict(id_to_index_map, export_args) for osint_source in data]
+        export_data: dict[str, Any] = {
             "version": 4,
-            "sources": [osint_source.to_export_dict(id_to_index_map, export_args) for osint_source in data],
+            "sources": sources,
         }
         if export_args.get("with_groups", False):
             groups = OSINTSourceGroup.get_all_without_default() or []
             export_data["groups"] = [group.to_export_dict(id_to_index_map) for group in groups]
 
-        logger.debug(f"Exporting {len(export_data['sources'])} sources")
+        logger.debug(f"Exporting {len(sources)} sources")
         return json.dumps(export_data).encode("utf-8")
 
     def get_export_parameters(self, with_secrets: bool = False) -> dict[str, str]:

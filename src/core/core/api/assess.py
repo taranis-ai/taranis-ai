@@ -1,3 +1,4 @@
+from typing import Any
 from urllib.parse import unquote, urlparse
 
 from flask import Blueprint, Flask, request
@@ -198,7 +199,7 @@ class Stories(MethodView):
         if payload is not None and not isinstance(payload, dict):
             return {"error": "Invalid payload provided"}, 400
 
-        result_dict = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
+        result_dict: dict[str, Any] = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
         for story_id in story_ids:
             if not story_id:
                 continue

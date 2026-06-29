@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import UniqueConstraint, func
 from sqlalchemy.orm import Mapped, relationship
@@ -20,9 +20,12 @@ def _increment_parent_revision(item: "Story | ReportItem") -> int:
     db.session.flush()
 
     table = getattr(item, "__table__")
-    next_revision = db.session.execute(
-        table.update().where(table.c.id == item.id).values(revision=func.coalesce(table.c.revision, 0) + 1).returning(table.c.revision)
-    ).scalar_one()
+    next_revision = cast(
+        int,
+        db.session.execute(
+            table.update().where(table.c.id == item.id).values(revision=func.coalesce(table.c.revision, 0) + 1).returning(table.c.revision)
+        ).scalar_one(),
+    )
     item.revision = next_revision
     return next_revision
 

@@ -1,5 +1,4 @@
 from collections.abc import Iterable, Mapping
-from typing import cast
 
 from models.cache_contract import (
     build_model_detail_pattern,
@@ -108,7 +107,7 @@ class FrontendCacheInvalidationService:
                 seen.add(key_str)
                 keys_to_delete.append(key_str)
 
-        return cast(int, client.delete(*keys_to_delete)) if keys_to_delete else 0
+        return client.delete(*keys_to_delete) if keys_to_delete else 0
 
     def invalidate_all(self) -> int:
         return self._delete_matching_patterns([build_namespace_pattern(Config.CACHE_KEY_PREFIX)])

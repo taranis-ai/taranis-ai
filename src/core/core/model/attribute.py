@@ -232,7 +232,7 @@ class Attribute(BaseModel):
         for event, element in iterparse(file_path, events=("start", "end")):
             if event == "end":
                 if element.tag == "{http://cpe.mitre.org/dictionary/2.0}title":
-                    desc = element.text
+                    desc = element.text or ""
                 elif element.tag == "{http://cpe.mitre.org/dictionary/2.0}cpe-item":
                     attribute_enum = AttributeEnum(item_count, element.attrib["name"], desc)
                     attribute_enum.attribute_id = attribute.id

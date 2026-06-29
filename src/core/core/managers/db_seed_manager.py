@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Any, cast
 
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import selectinload
@@ -83,20 +84,23 @@ def pre_seed_update(db_engine: Engine):
         rebuild_story_search_vectors()
 
     for w in workers:
+        w = cast(dict[str, Any], w)
         if worker := Worker.filter_by_type(w["type"]):
             worker.update(w)
         else:
             Worker.add(w)
 
     for b in bots:
-        bot = Bot.filter_by_type(b["type"])
+        b = cast(dict[str, Any], b)
+        bot = Bot.filter_by_type(str(b["type"]))
         if not bot:
             b["enabled"] = False
             logger.debug(f"Adding new bot type '{b['type']}' in disabled state")
             Bot.add(b)
 
     for r in report_types:
-        rt = ReportItemType.filter_by_title(r["title"])
+        r = cast(dict[str, Any], r)
+        rt = ReportItemType.filter_by_title(str(r["title"]))
         if not rt:
             ReportItemType.add(r)
 
