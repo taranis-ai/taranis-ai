@@ -1,6 +1,5 @@
 import json
 from io import BytesIO
-from urllib.parse import urlparse
 
 from flask import url_for
 from lxml import html
@@ -20,10 +19,6 @@ def _uploaded_users_file() -> BytesIO:
     uploaded = BytesIO(content)
     uploaded.name = "users_export.json"
     return uploaded
-
-
-def _posted_to_users_import(responses_mock) -> bool:
-    return any(urlparse(call.request.url).path.endswith("/config/users-import") for call in responses_mock.calls)
 
 
 def test_users_form_get(users_get_mock, organizations_get_mock, roles_get_mock, form_data, authenticated_client, htmx_header):
@@ -168,7 +163,7 @@ def test_users_import_invalid_json_renders_notification_without_traceback(authen
     assert "Invalid JSON file" in notification_span[0].text_content()
     assert "Traceback" not in response.get_data(as_text=True)
     assert "Select JSON File" not in response.get_data(as_text=True)
-    assert not _posted_to_users_import(responses_mock)
+    assert len(responses_mock.calls) == 0
 
 
 def test_users_import_undecodable_file_renders_notification_without_traceback(authenticated_client, htmx_header, responses_mock):
@@ -192,7 +187,7 @@ def test_users_import_undecodable_file_renders_notification_without_traceback(au
     assert "Invalid JSON file" in notification_span[0].text_content()
     assert "Traceback" not in response.get_data(as_text=True)
     assert "Select JSON File" not in response.get_data(as_text=True)
-    assert not _posted_to_users_import(responses_mock)
+    assert len(responses_mock.calls) == 0
 
 
 def test_users_import_invalid_export_shape_renders_notification(authenticated_client, htmx_header, responses_mock):
@@ -215,7 +210,7 @@ def test_users_import_invalid_export_shape_renders_notification(authenticated_cl
     assert notification_span
     assert "Invalid user import file format" in notification_span[0].text_content()
     assert "Select JSON File" not in response.get_data(as_text=True)
-    assert not _posted_to_users_import(responses_mock)
+    assert len(responses_mock.calls) == 0
 
 
 def test_users_import_invalid_export_version_renders_notification(authenticated_client, htmx_header, responses_mock):
@@ -238,7 +233,7 @@ def test_users_import_invalid_export_version_renders_notification(authenticated_
     assert notification_span
     assert "Invalid user import file format" in notification_span[0].text_content()
     assert "Select JSON File" not in response.get_data(as_text=True)
-    assert not _posted_to_users_import(responses_mock)
+    assert len(responses_mock.calls) == 0
 
 
 def test_organizations_form_get(organizations_get_mock, form_data, authenticated_client, htmx_header):
