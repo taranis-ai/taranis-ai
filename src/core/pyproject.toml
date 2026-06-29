@@ -56,7 +56,7 @@ taranis-core-healthcheck = "core.healthcheck:main"
 [tool.setuptools_scm]
 root = "../.."
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "ruff",
     "pytest",
