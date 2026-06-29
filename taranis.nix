@@ -51,9 +51,9 @@ in
 
       serviceConfig = {
         ExecStart = "${cfg.package}/bin/uvicorn main:app --host ${cfg.host} --port ${toString cfg.port} ${lib.escapeShellArgs cfg.extraArgs}";
-        WorkingDirectory = "${self}"; # to load the yaml files
+        WorkingDirectory = "%S/taranis";
         DynamicUser = true;
-        StateDirectoryMode = "0750";
+        StateDirectory = "taranis";
         Restart = "on-failure";
         RestartSec = "10s";
       };
