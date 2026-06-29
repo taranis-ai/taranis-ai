@@ -1,4 +1,7 @@
+from typing import Any
+
 from flask import render_template, request
+from flask.typing import ResponseReturnValue
 from flask.views import MethodView
 from models.admin import ActiveJob, FailedJob, Job, QueueStatus, SchedulerDashboardData, WorkerStats
 from models.task import TaskHistoryResponse
@@ -8,11 +11,11 @@ from frontend.auth import auth_required
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import is_htmx_request
-from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 from frontend.views.base_view import BaseView
 
 
-class SchedulerView(AdminMixin, BaseView):
+class SchedulerView(AdminBaseView):
     model = Job
     icon = "calendar-days"
     htmx_list_template = "schedule/dashboard.html"
@@ -36,7 +39,7 @@ class SchedulerView(AdminMixin, BaseView):
             case _:
                 return "scheduled"
 
-    def get(self, initial_tab: str | None = None, **kwargs) -> tuple[str, int]:
+    def get(self, initial_tab: str | None = None, **kwargs: Any) -> ResponseReturnValue:
         """Render the main scheduler dashboard"""
         try:
             selected_tab = self._resolve_tab(initial_tab)

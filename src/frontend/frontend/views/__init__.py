@@ -17,6 +17,7 @@ from .admin_views.worker_views import WorkerView
 from .asset_views import AssetView
 from .auth_views import AuthView
 from .dashboard_views import DashboardView
+from .onboarding_views import OnboardingPromptView
 from .product_views import ProductView
 from .report_views import ReportItemView
 from .user_views import UserProfileView
@@ -30,6 +31,7 @@ __all__ = [
     "TemplateView",
     "BotView",
     "DashboardView",
+    "OnboardingPromptView",
     "OrganizationView",
     "PublisherView",
     "ProductTypeView",

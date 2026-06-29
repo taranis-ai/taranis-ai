@@ -37,6 +37,11 @@ def get_items_from_factory(view_name, model):
         logger.warning(f"PolyFactory couldn’t build {model.__name__} for view {view_name}: {e}\nFalling back to a minimal stub.")
         items = [{"id": "test-1", "name": f"test_{view_name.lower()}"}]
 
+    if view_name == "Settings" and items:
+        settings = items[0].get("settings")
+        if isinstance(settings, dict):
+            settings["default_timezone"] = "UTC"
+
     return items
 
 
@@ -105,6 +110,8 @@ def form_formats_from_models():
 
         for field_name, field_info in model.model_fields.items():
             if field_name == "id" and view_name != "Template":
+                continue
+            if field_name == "status":
                 continue
 
             field_info: FieldInfo = field_info
@@ -213,7 +220,7 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
                     "worker_type": "rss_collector",
                     "worker_id": "source-1",
                     "status": "SUCCESS",
-                    "result": None,
+                    "result": {"message": "Collected 5 items", "reason": None, "retryable": False, "data": {"source_id": "source-1"}},
                     "last_run": "2024-01-01T00:00:00Z",
                     "last_success": "2024-01-01T00:00:00Z",
                 },
@@ -223,7 +230,7 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
                     "worker_type": "WORDLIST_BOT",
                     "worker_id": "bot-1",
                     "status": "FAILURE",
-                    "result": {"error": "timeout"},
+                    "result": {"message": "timeout", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": "bot-1"}},
                     "last_run": "2024-01-02T12:00:00Z",
                     "last_success": "2024-01-02T10:00:00Z",
                 },
@@ -559,7 +566,7 @@ def organizations_delete_mock(responses_mock):
     yield response
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_worker_parameters_get(responses_mock, worker_parameter_data):
     responses_mock.get(f"{Config.TARANIS_CORE_URL}/config/worker-parameters", json=worker_parameter_data)
 
@@ -746,7 +753,8 @@ def worker_parameter_data():
                         "type": "text",
                     },
                     {"label": "BOT_API_KEY", "name": "BOT_API_KEY", "parent": "parameters", "rules": [], "type": "text"},
-                    {"label": "BOT_ENDPOINT", "name": "BOT_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "SUMMARY_ENDPOINT", "name": "SUMMARY_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
+                    {"label": "TITLE_ENDPOINT", "name": "TITLE_ENDPOINT", "parent": "parameters", "rules": [], "type": "text"},
                     {"label": "RUN_AFTER_COLLECTOR", "name": "RUN_AFTER_COLLECTOR", "parent": "parameters", "rules": [], "type": "switch"},
                     {"label": "REFRESH_INTERVAL", "name": "REFRESH_INTERVAL", "parent": "parameters", "rules": [], "type": "cron_interval"},
                 ],

@@ -16,17 +16,22 @@ _INVALID_IMAGE_BYTES = b"not-an-image"
 _INVALID_IMAGE_BASE64 = base64.b64encode(_INVALID_IMAGE_BYTES).decode("utf-8")
 
 
-def _make_icon_base64(size: tuple[int, int], image_format: str, mode: str = "RGBA", color=(80, 140, 220, 255)) -> str:
+def _make_icon_bytes(size: tuple[int, int], image_format: str, mode: str = "RGBA", color=(80, 140, 220, 255)) -> bytes:
     image = Image.new(mode, size, color)
     if image_format == "JPEG" and image.mode != "RGB":
         image = image.convert("RGB")
     with BytesIO() as output:
         image.save(output, format=image_format)
-        return base64.b64encode(output.getvalue()).decode("utf-8")
+        return output.getvalue()
+
+
+def _make_icon_base64(size: tuple[int, int], image_format: str, mode: str = "RGBA", color=(80, 140, 220, 255)) -> str:
+    return base64.b64encode(_make_icon_bytes(size, image_format, mode, color)).decode("utf-8")
 
 
 _VALID_JPEG_ICON_BASE64 = _make_icon_base64((24, 12), "JPEG", mode="RGB", color=(80, 140, 220))
 _VALID_WIDE_PNG_ICON_BASE64 = _make_icon_base64((Config.OSINT_SOURCE_ICON_PIXELS, Config.OSINT_SOURCE_ICON_PIXELS // 2), "PNG")
+_VALID_GIF_ICON_BYTES = _make_icon_bytes((8, 8), "GIF", mode="P", color=1)
 
 
 class TestSourcesConfigApi(BaseTest):
@@ -380,7 +385,12 @@ class TestSourcesConfigApi(BaseTest):
             "task": "collector_task",
             "worker_id": source_id,
             "worker_type": "rss_collector",
-            "result": "No changes: feed was not modified",
+            "result": {
+                "message": "No changes: feed was not modified",
+                "reason": "collector_not_modified",
+                "retryable": False,
+                "data": {"source_id": source_id},
+            },
             "status": "NOT_MODIFIED",
         }
 
@@ -465,6 +475,33 @@ class TestWorkerSourceIcon(BaseTest):
         finally:
             client.delete(f"/api/config/osint-sources/{source_id}", headers=auth_header)
 
+    def test_worker_icon_upload_normalizes_gif(self, client, auth_header, api_header, cleanup_sources):
+        source_payload = copy.deepcopy(cleanup_sources)
+        source_id = uuid.uuid4().hex
+        source_payload["id"] = source_id
+
+        create_response = client.post("/api/config/osint-sources", json=source_payload, headers=auth_header)
+        assert create_response.status_code == 201
+
+        try:
+            upload_headers = dict(api_header)
+            upload_headers.pop("Content-type", None)
+
+            response = client.put(
+                self.concat_url(f"osint-sources/{source_id}/icon"),
+                data={"file": (BytesIO(_VALID_GIF_ICON_BYTES), "icon.gif")},
+                headers=upload_headers,
+                content_type="multipart/form-data",
+            )
+
+            assert response.status_code == 200
+
+            source_response = client.get(f"/api/config/osint-sources/{source_id}", headers=auth_header)
+            assert source_response.status_code == 200
+            TestSourcesConfigApi._assert_normalized_icon(source_response.json["icon"])
+        finally:
+            client.delete(f"/api/config/osint-sources/{source_id}", headers=auth_header)
+
     def test_worker_icon_upload_requires_api_key(self, client, auth_header, cleanup_sources):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
@@ -517,6 +554,44 @@ class TestWordListConfigApi(BaseTest):
         assert test_word_list
         assert test_word_list["description"] == "Test wordlist."
         assert len(test_word_list["entries"]) == 17
+        exported_values = [entry["value"] for entry in test_word_list["entries"]]
+        assert exported_values == sorted(exported_values)
+
+    def test_export_word_lists_orders_word_lists_by_name(self, client, auth_header, app):
+        from core.model.word_list import WordList
+
+        first_word_list = {
+            "id": str(uuid.uuid7()),
+            "name": "Zulu Wordlist",
+            "description": "last",
+            "usage": ["TAGGING_BOT"],
+            "link": "",
+            "entries": [],
+        }
+        second_word_list = {
+            "id": str(uuid.uuid7()),
+            "name": "Alpha Wordlist",
+            "description": "first",
+            "usage": ["TAGGING_BOT"],
+            "link": "",
+            "entries": [],
+        }
+
+        with app.app_context():
+            WordList.add(first_word_list)
+            WordList.add(second_word_list)
+
+        try:
+            response = self.assert_get_ok(client, "export-word-lists", auth_header)
+            exported_word_lists = response.json["data"]
+            exported_names = [
+                word_list["name"] for word_list in exported_word_lists if word_list["name"] in {"Zulu Wordlist", "Alpha Wordlist"}
+            ]
+            assert exported_names == ["Alpha Wordlist", "Zulu Wordlist"]
+        finally:
+            with app.app_context():
+                WordList.delete(first_word_list["id"])
+                WordList.delete(second_word_list["id"])
 
     def test_create_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_post_ok(client, uri="word-lists", json_data=cleanup_word_lists, auth_header=auth_header)
@@ -763,7 +838,11 @@ class TestBotConfigApi(BaseTest):
             "task": f"bot_{bot_id}",
             "worker_id": bot_id,
             "worker_type": cleanup_bot["type"].upper(),
-            "result": {"message": "Bot completed"},
+            "result": {
+                "message": "Bot completed",
+                "retryable": False,
+                "data": {"bot_id": bot_id, "result": {}},
+            },
             "status": "SUCCESS",
         }
 
@@ -821,7 +900,7 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": "source-1"}},
                 }
             )
             Task.add(
@@ -831,7 +910,7 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
                     "worker_id": "bot-1",
                     "worker_type": "WORDLIST_BOT",
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": "bot-1"}},
                 }
             )
 

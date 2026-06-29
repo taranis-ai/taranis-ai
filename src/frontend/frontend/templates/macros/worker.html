@@ -14,6 +14,7 @@ info
 
 {% macro worker_status(status) %}
   {% set result_class = status_class(status.status) %}
+  {% set task_message = status.result.message %}
   <div class="alert alert-{{ result_class }} flex flex-col gap-1 items-start">
     <div class="flex flex-row items-center">
       <p class="text-base-content/60 text-[0.7rem]">
@@ -27,14 +28,14 @@ info
     </div>
     <div class="divider my-0"></div>
     <div class="flex flex-row">
-      <span class="text-left">{{ status.result }}</span>
+      <span class="text-left">{{ task_message }}</span>
     </div>
   </div>
 {% endmacro %}
 
 {% macro worker_status_badge(status) %}
   {% set result_class = status_class(status.status) %}
-  <div class="tooltip" data-tip="{{ status.result }}">
+  <div class="tooltip" data-tip="{{ status.result.message }}">
     <div title="{{ status.status }}" class="badge badge-{{ result_class }}">{{ status.status }}</div>
   </div>
 {% endmacro %}

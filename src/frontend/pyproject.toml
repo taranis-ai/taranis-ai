@@ -10,13 +10,15 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Framework :: Flask",
     "Topic :: Security",
 ]
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.12,<3.15"
 dependencies = [
     "Flask",
     "Flask-JWT-Extended",
+    "flask-babel>=4,<5",
     "flask-htmx",
     "jinja2-fragments",
     "flask-cors",
@@ -26,6 +28,7 @@ dependencies = [
     "python-dotenv",
     "granian",
     "requests",
+    "sentry-sdk[flask]",
     "setuptools",
     "polyfactory",
     "uuid7",
@@ -55,7 +58,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "pytest-docker", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pytest-responses", "lxml", "rq>=2.5"]
+dev = ["ruff", "pytest", "pytest-flask", "pytest-docker", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pyright", "pytest-responses", "lxml", "rq>=2.5"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

@@ -50,6 +50,19 @@ def story_with_news_item_tags() -> dict:
     }
 
 
+def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int, position: int = 0) -> dict:
+    return {
+        "id": bookmark_id,
+        "name": name,
+        "position": position,
+        "created": "2026-06-01T10:00:00",
+        "updated": "2026-06-02T10:00:00",
+        "story_count": story_count,
+        "story_ids": [],
+        "stories": [],
+    }
+
+
 def test_story_diff_view_renders_compare_payload(app, authenticated_client, responses_mock):
     story_id = "story-1"
     responses_mock.get(
@@ -269,7 +282,7 @@ def test_story_to_core_dict_strips_export_only_fields():
 
 
 def test_story_update_payload_ignores_tags():
-    payload = StoryUpdatePayload(title="Updated Story", tags=[{"name": "story-tag", "tag_type": "misc"}])
+    payload = StoryUpdatePayload.model_validate({"title": "Updated Story", "tags": [{"name": "story-tag", "tag_type": "misc"}]})
 
     assert payload.model_dump(mode="json") == {"title": "Updated Story"}
 
@@ -512,6 +525,36 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert search_input.get("hx-trigger") is None
 
 
+def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):
+    story_payload = story_with_news_item_tags()
+    bookmark_payloads = [_bookmark_collection_payload(f"bookmark-{index}", f"Bookmark {index}", index, index - 1) for index in range(1, 8)]
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={"tags": [], "sources": [], "groups": [], "languages": []},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [story_payload], "total_count": 1},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
+        json={"items": bookmark_payloads[:6], "total_count": 7},
+    )
+
+    response = authenticated_client.get(url_for("assess.assess"))
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    bar = tree.xpath('//*[@data-testid="assess-bookmarks-bar"]')[0]
+    assert bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-1"]')
+    assert bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-6"]')
+    assert not bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-7"]')
+    all_bookmarks = bar.xpath('.//*[@data-testid="assess-all-bookmarks"]')[0]
+    assert all_bookmarks.get("href") == url_for("assess.bookmarks")
+    bookmark_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/bookmarks"))
+    assert parse_qs(urlparse(bookmark_request.request.url).query) == {"limit": ["6"], "order": ["position_asc"]}
+
+
 def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):
     with app.test_request_context():
         markup = render_template_string(
@@ -524,15 +567,6 @@ def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):
 
     assert '@click.outside="closeList()"' in markup
     assert '@blur="closeList()"' not in markup
-
-
-def test_language_filter_select_handles_missing_languages():
-    select_data = StoryView._build_language_filter_select(SimpleNamespace(languages=None), {"language": ["en"]})
-
-    assert select_data == {
-        "options": [],
-        "selected_items": [{"value": "en", "label": "EN", "name": "language"}],
-    }
 
 
 def test_source_filter_select_accepts_group_payloads_with_null_key():
@@ -859,5 +893,5 @@ def test_handle_news_item_response_returns_notification_and_content(app, monkeyp
             redirect_on_story=False,
         )
 
-    assert result.status_code == 200
-    assert result.get_data(as_text=True) == "notification<div>content</div>"
+    assert result.status_code == 200  # type: ignore
+    assert result.get_data(as_text=True) == "notification<div>content</div>"  # type: ignore

@@ -25,7 +25,7 @@ test_product = {
     "mime_type": "text/plain",
     "title": "A Test Report",
     "type": "text_presenter",
-    "type_id": 2,
+    "type_id": "0a428364-3af6-7a35-95fe-9c6f1f9df201",
     "report_items": [
         {
             "title": "The very best report you have ever seen",
@@ -160,7 +160,7 @@ test_stix_product = {
             "created": "2025-09-26T14:31:51.329753+02:00",
             "id": "09e63054-309a-459e-9dca-7544749e86dc",
             "last_updated": "2025-09-26T14:31:51.329758+02:00",
-            "report_item_type_id": 3,
+            "report_item_type_id": "0a428364-3af6-7a35-95fe-9c6f1f9df202",
             "stories": [
                 {
                     "attributes": {"TLP": {"key": "TLP", "value": "clear"}},
@@ -206,5 +206,5 @@ test_stix_product = {
     ],
     "title": "Stix product",
     "type": "stix_presenter",
-    "type_id": 6,
+    "type_id": "0a428364-3af6-7a35-95fe-9c6f1f9df203",
 }

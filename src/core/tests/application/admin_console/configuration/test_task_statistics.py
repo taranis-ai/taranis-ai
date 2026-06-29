@@ -73,7 +73,7 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "SUCCESS",
-                    "result": {"message": "ok"},
+                    "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
                 }
             )
             Task.add(
@@ -83,7 +83,7 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     "worker_id": "source-2",
                     "worker_type": "rss_collector",
                     "status": "SUCCESS",
-                    "result": {"message": "ok"},
+                    "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-2"}},
                 }
             )
             Task.add(
@@ -93,7 +93,7 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": "source-1"}},
                 }
             )
 
@@ -121,6 +121,7 @@ def test_get_status_counts_by_task_counts_latest_worker_outcomes_once(app):
 
 
 def test_get_status_totals_counts_latest_worker_statuses(app):
+    test_worker_type = "WORDLIST_BOT_STATS_TEST"
     task_ids = [
         "task-status-success-1",
         "task-status-success-2",
@@ -130,6 +131,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
 
     with app.app_context():
         try:
+            baseline_totals = Task.get_status_totals()
             Task.add(
                 {
                     "id": task_ids[0],
@@ -137,7 +139,7 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "worker_id": "source-1",
                     "worker_type": "rss_collector",
                     "status": "SUCCESS",
-                    "result": {"message": "ok"},
+                    "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
                 }
             )
             Task.add(
@@ -145,9 +147,9 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "id": task_ids[1],
                     "task": "bot_task",
                     "worker_id": "bot-1",
-                    "worker_type": "WORDLIST_BOT",
+                    "worker_type": test_worker_type,
                     "status": "SUCCESS",
-                    "result": {"message": "ok"},
+                    "result": {"message": "ok", "retryable": False, "data": {"bot_id": "bot-1", "result": {}}},
                 }
             )
             Task.add(
@@ -155,9 +157,9 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "id": task_ids[2],
                     "task": "bot_task",
                     "worker_id": "bot-1",
-                    "worker_type": "WORDLIST_BOT",
+                    "worker_type": test_worker_type,
                     "status": "FAILURE",
-                    "result": {"error": "boom"},
+                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": "bot-1"}},
                 }
             )
             Task.add(
@@ -165,28 +167,28 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     "id": task_ids[3],
                     "task": "bot_task",
                     "worker_id": "bot-2",
-                    "worker_type": "WORDLIST_BOT",
+                    "worker_type": test_worker_type,
                     "status": "STARTED",
-                    "result": {"message": "running"},
+                    "result": {"message": "running", "retryable": False, "data": {"bot_id": "bot-2"}},
                 }
             )
 
             totals = Task.get_status_totals()
             stats = Task.get_status_counts_by_task()
 
-            assert totals["successes"] == 1
-            assert totals["failures"] == 1
-            assert totals["total"] == 2
-            assert totals["success_pct"] == 50
+            assert totals["successes"] == baseline_totals["successes"] + 1
+            assert totals["failures"] == baseline_totals["failures"] + 1
+            assert totals["total"] == baseline_totals["total"] + 2
+            assert totals["success_pct"] == int((totals["successes"] * 100) / totals["total"])
             assert stats["rss_collector"]["successes"] == 1
             assert stats["rss_collector"]["failures"] == 0
-            assert stats["WORDLIST_BOT"]["successes"] == 0
-            assert stats["WORDLIST_BOT"]["failures"] == 1
+            assert stats[test_worker_type]["successes"] == 0
+            assert stats[test_worker_type]["failures"] == 1
             assert totals == {
                 "successes": sum(task_stats["successes"] for task_stats in stats.values()),
                 "failures": sum(task_stats["failures"] for task_stats in stats.values()),
                 "total": sum(task_stats["total"] for task_stats in stats.values()),
-                "success_pct": 50,
+                "success_pct": int((totals["successes"] * 100) / totals["total"]),
             }
         finally:
             for task_id in task_ids:

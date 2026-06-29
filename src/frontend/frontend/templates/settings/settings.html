@@ -1,9 +1,7 @@
 {% from "macros/variables.html" import tlp_levels %}
 {% from "macros/forms.html" import form_input %}
 
-{% set settings = settings | default([{}]) %}
-
-{% set current_settings = settings[0].settings | default({}) %}
+{% set current_settings = settings.settings | default({}) %}
 {% set links = {
   "delete_tags": "/api/settings/delete-tags",
   "delete_stories": "/api/settings/delete-stories",
@@ -67,8 +65,39 @@
             </p>
             {{ form_input('Default News Item Conflict Retention', 'settings[default_news_item_conflict_retention]', current_settings.default_news_item_conflict_retention, preserve=False, data_testid='settings-default-news-item-conflict-retention') }}
           </div>
+          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
+            <h3 class="font-semibold text-lg mb-2">Default Timezone</h3>
+            <p class="text-sm text-gray-500 mb-3">Set the timezone copied into new user profiles when none is supplied.</p>
+            <select id="default-timezone-select"
+                    name="settings[default_timezone]"
+                    class="select select-bordered w-full"
+                    data-testid="settings-default-timezone"
+                    data-choices-placeholder-value="Select timezone"
+                    data-choices-no-results-text="No timezones found"
+                    data-choices-no-choices-text="No timezones to choose from">
+              <option value="" {% if not current_settings.default_timezone %}selected{% endif %}>UTC for new users</option>
+              {% for timezone in timezone_options %}
+                <option value="{{ timezone }}" {% if timezone == current_settings.default_timezone %}selected{% endif %}>{{ timezone }}</option>
+              {% endfor %}
+            </select>
+          </div>
           <input type="submit" class="btn btn-primary w-full mt-4" value="Update Settings" data-testid="settings-submit" />
         </form>
+        <script type="text/javascript">
+          (function () {
+            function initDefaultTimezoneSelect() {
+              if (typeof initChoices === "function") {
+                initChoices("default-timezone-select");
+              }
+            }
+
+            if (document.readyState === "loading" && typeof initChoices !== "function") {
+              document.addEventListener("DOMContentLoaded", initDefaultTimezoneSelect, { once: true });
+            } else {
+              initDefaultTimezoneSelect();
+            }
+          })();
+        </script>
       </div>
     </div>
   </div>

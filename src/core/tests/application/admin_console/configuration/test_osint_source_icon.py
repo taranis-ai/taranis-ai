@@ -25,7 +25,7 @@ def _to_base64(data: bytes) -> str:
 _VALID_PNG_BYTES = _make_image_bytes((16, 16), "PNG")
 _VALID_PNG_BASE64 = _to_base64(_VALID_PNG_BYTES)
 _VALID_JPEG_BASE64 = _to_base64(_make_image_bytes((24, 12), "JPEG", mode="RGB", color=(80, 140, 220)))
-_VALID_GIF_BASE64 = _to_base64(_make_image_bytes((8, 8), "GIF", mode="P", color=1))
+_VALID_BMP_BASE64 = _to_base64(_make_image_bytes((8, 8), "BMP", mode="RGB", color=(120, 20, 60)))
 _WIDE_PNG_BASE64 = _to_base64(_make_image_bytes((Config.OSINT_SOURCE_ICON_PIXELS, Config.OSINT_SOURCE_ICON_PIXELS // 2), "PNG"))
 _INVALID_BASE64_IMAGE = _to_base64(b"not-an-image")
 _INVALID_IMAGE_BYTES = b"not-an-image"
@@ -188,10 +188,10 @@ def test_osint_source_creation_rejects_svg_icon():
 def test_osint_source_creation_rejects_unsupported_image_format():
     with pytest.raises(ValueError, match="Unsupported icon format"):
         OSINTSource(
-            name="GIF Icon",
+            name="BMP Icon",
             description="A test",
             type=COLLECTOR_TYPES.RSS_COLLECTOR,
-            icon=_VALID_GIF_BASE64,
+            icon=_VALID_BMP_BASE64,
         )
 
 

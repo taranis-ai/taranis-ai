@@ -1,29 +1,44 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@codemirror/commands@*": "6.10.3",
     "npm:@codemirror/commands@^6.10.3": "6.10.3",
+    "npm:@codemirror/language@*": "6.12.3",
     "npm:@codemirror/language@^6.12.3": "6.12.3",
+    "npm:@codemirror/legacy-modes@*": "6.5.3",
     "npm:@codemirror/legacy-modes@^6.5.3": "6.5.3",
-    "npm:@codemirror/merge@^6.12.1": "6.12.1",
+    "npm:@codemirror/merge@^6.12.2": "6.12.2",
+    "npm:@codemirror/state@*": "6.6.0",
     "npm:@codemirror/state@^6.6.0": "6.6.0",
-    "npm:@codemirror/view@^6.43.0": "6.43.0",
+    "npm:@codemirror/view@*": "6.43.1",
+    "npm:@codemirror/view@^6.43.1": "6.43.1",
     "npm:@tailwindcss/cli@*": "4.3.0",
-    "npm:@tailwindcss/cli@^4.3.0": "4.3.0",
+    "npm:@tailwindcss/cli@4.3.0": "4.3.0",
+    "npm:alpinejs@*": "3.15.12",
     "npm:alpinejs@^3.15.12": "3.15.12",
+    "npm:choices.js@*": "11.2.3",
     "npm:choices.js@^11.2.3": "11.2.3",
     "npm:codemirror@^6.0.2": "6.0.2",
-    "npm:daisyui@^5.5.20": "5.5.20",
-    "npm:fuse.js@^7.4.1": "7.4.1",
+    "npm:daisyui@^5.5.23": "5.5.23",
+    "npm:driver.js@*": "1.4.0",
+    "npm:driver.js@^1.4.0": "1.4.0",
+    "npm:fuse.js@*": "7.4.2",
+    "npm:fuse.js@^7.4.2": "7.4.2",
+    "npm:highlight-search-term@*": "1.0.3",
     "npm:highlight-search-term@^1.0.3": "1.0.3",
+    "npm:htmx-ext-response-targets@*": "2.0.4",
     "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
+    "npm:htmx.org@*": "2.0.10",
     "npm:htmx.org@^2.0.10": "2.0.10",
+    "npm:sortablejs@*": "1.15.7",
     "npm:sortablejs@^1.15.7": "1.15.7",
+    "npm:sweetalert2@*": "11.26.25",
     "npm:sweetalert2@^11.26.25": "11.26.25",
-    "npm:tailwindcss@^4.3.0": "4.3.0"
+    "npm:tailwindcss@4.3.0": "4.3.0"
   },
   "npm": {
-    "@codemirror/autocomplete@6.20.2": {
-      "integrity": "sha512-G5FPkgIiLjOgZMjqVjvuKQ1rGPtHogLldJr33eFJdVLtmwY+giGrlv/ewljLz6b9BSQLkjxuwBc6g6omDM+YxQ==",
+    "@codemirror/autocomplete@6.20.3": {
+      "integrity": "sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g==",
       "dependencies": [
         "@codemirror/language",
         "@codemirror/state",
@@ -57,16 +72,16 @@
         "@codemirror/language"
       ]
     },
-    "@codemirror/lint@6.9.6": {
-      "integrity": "sha512-6Kp7r6XfCi/D/5sdXieMfg9pJU1bUEx96WITuLU6ESaKizCz0QHFMjY/TaFSbigDdEAIgi93itLBIUETP4oK+A==",
+    "@codemirror/lint@6.9.7": {
+      "integrity": "sha512-28/+iWLYxKxsvGYhSYL7zaCZqLz5+FFFDq9tVsvGv9kv8RY4fFAchJ5WX9M3YrrRlTIsECjsXPqeNgnSmNP2dg==",
       "dependencies": [
         "@codemirror/state",
         "@codemirror/view",
         "crelt"
       ]
     },
-    "@codemirror/merge@6.12.1": {
-      "integrity": "sha512-GA8hBq2T+IFM0sb5fk8CunTrqOulA3zurJmHtzcU15EMnL8aYpVINfJ5bkfd53M4ikwoew4Y1ydtSaAlk6+B1w==",
+    "@codemirror/merge@6.12.2": {
+      "integrity": "sha512-V8JvyAPjHbPupqP7BeMcsdsYCbyPij74jxIbaIJDORI+VZzW44zFmon8bF+oxGWvOKhcRmkiUMXd8MxHr3YA2w==",
       "dependencies": [
         "@codemirror/language",
         "@codemirror/state",
@@ -75,8 +90,8 @@
         "style-mod"
       ]
     },
-    "@codemirror/search@6.7.0": {
-      "integrity": "sha512-ZvGm99wc/s2cITtMT15LFdn8aH/aS+V+DqyGq/N5ZlV5vWtH+nILvC2nw0zX7ByNoHHDZ2IxxdW38O0tc5nVHg==",
+    "@codemirror/search@6.7.1": {
+      "integrity": "sha512-uMe5UO6PamJtSHrXhhHOzSX3ReWtiJrva6GnPMwSOrZtiExb5X5eExhr2OUZQVvdxPsKpY3Ro2mFbQadpPWmHA==",
       "dependencies": [
         "@codemirror/state",
         "@codemirror/view",
@@ -89,8 +104,8 @@
         "@marijn/find-cluster-break"
       ]
     },
-    "@codemirror/view@6.43.0": {
-      "integrity": "sha512-V7ZCLQO3Jus9hzh2jVCCPW3mO4IBMr43O37PqSUYautJSnnJF41YlgLw21x0fLJTYvJ+Vkm6Gp+qKGH9pltgXA==",
+    "@codemirror/view@6.43.1": {
+      "integrity": "sha512-+BIjw/AG3tDQ4pJgTLPYdAW25eDE66YsvM4LKyVPgGzVgZ4a9Wj1SRX8kPVKgBDdPt8oHtZ15F0qx7p0oOHdHw==",
       "dependencies": [
         "@codemirror/state",
         "crelt",
@@ -370,21 +385,24 @@
     "crelt@1.0.6": {
       "integrity": "sha512-VQ2MBenTq1fWZUH9DJNGti7kKv6EeAuYr3cLwxUWhIu1baTaXh4Ib5W2CqHVqib4/MqbYGJqiL3Zb8GJZr3l4g=="
     },
-    "daisyui@5.5.20": {
-      "integrity": "sha512-HemJcjl0Gk9rQ8BcgofN6p+EURrqftQG9wK1Hkxs98i49xe68+QxpNvry+PyxwkIUgrbMpNmZ5ZWjmtffAjfhQ=="
+    "daisyui@5.5.23": {
+      "integrity": "sha512-xuheNUSL4T6ZVtWXoioqcNkjoyGX85QTDz4HTw2aBPfqk4fuMjax5HDo8qCmpV6M1YN8bGvfx5BpYCoDeRlt+A=="
     },
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
     },
-    "enhanced-resolve@5.21.5": {
-      "integrity": "sha512-mLCNbrQli11K1ySUmuNt4ZUB3OpGIDq4q2vTBTf5cL2lpsRjI9QKqSD0ndjW8FyvcW/Jj46gMe9syyHAsvMa/A==",
+    "driver.js@1.4.0": {
+      "integrity": "sha512-Gm64jm6PmcU+si21sQhBrTAM1JvUrR0QhNmjkprNLxohOBzul9+pNHXgQaT9lW84gwg9GMLB3NZGuGolsz5uew=="
+    },
+    "enhanced-resolve@5.24.0": {
+      "integrity": "sha512-SkE2t82KlkkxQRVMVLAGKxLfORGQfrkx5dkj+vlgXRVNEdPc4eZcR+J/Fvj8C+yKSFH5L0q3NFlyufOVQnCcYQ==",
       "dependencies": [
         "graceful-fs",
         "tapable"
       ]
     },
-    "fuse.js@7.4.1": {
-      "integrity": "sha512-AY7lKAXK71hi3WgUvDy6oZL67UEHOOtvCAwVdOXHyJd6ZzftBy7QqxuXt4HxmmAhYjmp/YCuOELZtIvAdlZ+fw=="
+    "fuse.js@7.4.2": {
+      "integrity": "sha512-LVbzjD4WA6UP5B1UnP8wuaXJiLnqMdM/E4fiJXTJ5haJ5b/MBNsK29h2fm6swEoQaVQjvYFWKLE2RanyZIoRVQ=="
     },
     "graceful-fs@4.2.11": {
       "integrity": "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="
@@ -533,21 +551,22 @@
       "npm:@codemirror/commands@^6.10.3",
       "npm:@codemirror/language@^6.12.3",
       "npm:@codemirror/legacy-modes@^6.5.3",
-      "npm:@codemirror/merge@^6.12.1",
+      "npm:@codemirror/merge@^6.12.2",
       "npm:@codemirror/state@^6.6.0",
-      "npm:@codemirror/view@^6.43.0",
-      "npm:@tailwindcss/cli@^4.3.0",
+      "npm:@codemirror/view@^6.43.1",
+      "npm:@tailwindcss/cli@4.3.0",
       "npm:alpinejs@^3.15.12",
       "npm:choices.js@^11.2.3",
       "npm:codemirror@^6.0.2",
-      "npm:daisyui@^5.5.20",
-      "npm:fuse.js@^7.4.1",
+      "npm:daisyui@^5.5.23",
+      "npm:driver.js@^1.4.0",
+      "npm:fuse.js@^7.4.2",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",
       "npm:htmx.org@^2.0.10",
       "npm:sortablejs@^1.15.7",
       "npm:sweetalert2@^11.26.25",
-      "npm:tailwindcss@^4.3.0"
+      "npm:tailwindcss@4.3.0"
     ]
   }
 }

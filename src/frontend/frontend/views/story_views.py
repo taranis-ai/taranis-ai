@@ -15,6 +15,7 @@ from models.assess import (
     FilterLists,
     NewsItem,
     Story,
+    StoryBookmark,
     StoryUpdatePayload,
 )
 from models.report import ReportItem
@@ -82,6 +83,7 @@ ASSESS_DEFAULT_FILTER_KEYS = frozenset(
 )
 ASSESS_DEFAULT_FILTER_MULTI_KEYS = frozenset({"source", "group", "tags", "language"})
 ASSESS_DEFAULT_FILTER_SESSION_KEY = "assess_default_filters_active"
+ASSESS_BOOKMARK_BAR_LIMIT = 6
 
 
 class StoryView(BaseView):
@@ -97,6 +99,26 @@ class StoryView(BaseView):
     _show_sidebar = True
 
     @classmethod
+    def _get_bookmark_bar_collections(cls) -> CacheObject[StoryBookmark]:
+        try:
+            paging_data = PagingData(
+                limit=ASSESS_BOOKMARK_BAR_LIMIT,
+                order="position_asc",
+                query_params={"limit": str(ASSESS_BOOKMARK_BAR_LIMIT), "order": "position_asc"},
+            )
+            return DataPersistenceLayer().get_objects(StoryBookmark, paging_data)
+        except ValidationError as exc:
+            logger.exception(format_pydantic_errors(exc, StoryBookmark))
+        except HTTPException:
+            raise
+        except ValueError as exc:
+            logger.exception(f"Failed to load bookmark collections for assess bar: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(f"Unexpected bookmark bar load error: {exc}")
+            return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
+        return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
+
+    @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         filter_lists = cls.get_filter_lists()
         base_context["filter_lists"] = filter_lists
@@ -104,6 +126,7 @@ class StoryView(BaseView):
         if request.endpoint == "assess.assess":
             assess_request_args = cls._get_assess_request_params()
             base_context["assess_request_args"] = assess_request_args
+        base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
         base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
         if stories := base_context.get("stories"):
@@ -324,13 +347,12 @@ class StoryView(BaseView):
             logger.warning(f"Failed to enrich share dialog: {exc}")
         except Exception as exc:
             logger.warning(f"Failed to enrich share dialog: {exc}")
-        finally:
-            return render_template(
-                "assess/story_sharing_dialog.html",
-                connectors=connectors,
-                story_ids=story_ids,
-                mail_sharing_link=mail_sharing_link,
-            )
+        return render_template(
+            "assess/story_sharing_dialog.html",
+            connectors=connectors,
+            story_ids=story_ids,
+            mail_sharing_link=mail_sharing_link,
+        )
 
     @classmethod
     @auth_required()
@@ -492,7 +514,7 @@ class StoryView(BaseView):
     @classmethod
     def _build_pagination_context(
         cls,
-        stories: CacheObject | None,
+        stories: CacheObject[Any] | None,
         paging: PagingData,
         request_params: dict[str, list[str]],
     ) -> dict[str, Any]:
@@ -542,6 +564,7 @@ class StoryView(BaseView):
         cls,
         paging_data: PagingData,
         request_params: dict[str, list[str]],
+        selected_story_ids: list[str] | None = None,
     ):
         try:
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
@@ -558,6 +581,7 @@ class StoryView(BaseView):
         context = cls.get_view_context(items, error)
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
         context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
+        context["selected_story_ids"] = selected_story_ids or []
 
         return render_template(cls.get_list_template(), **context), 200
 
@@ -573,13 +597,14 @@ class StoryView(BaseView):
 
         request_params = cls._get_assess_request_params(request_params)
         paging_data = parse_paging_data(request_params)
-        table, status = cls._render_story_list(paging_data, request_params)
+        selected_story_ids = request.form.getlist("story_ids") if request.method == "POST" else []
+        table, status = cls._render_story_list(paging_data, request_params, selected_story_ids=selected_story_ids)
         if notification:
             return make_response(notification + table, status)
         return make_response(table, status)
 
     @classmethod
-    def list_view(cls):
+    def list_view(cls) -> ResponseReturnValue:
         raw_request_params = request.args.to_dict(flat=False)
         if not is_htmx_request():
             filtered_request_params = {
@@ -705,7 +730,7 @@ class StoryView(BaseView):
     @classmethod
     def _handle_news_item_response(
         cls,
-        core_response,
+        core_response: Any,
         *,
         content_builder: Callable[[str], str] | None = None,
         redirect_on_story: bool = False,
@@ -741,7 +766,7 @@ class StoryView(BaseView):
         return response
 
     @classmethod
-    def news_item_edit_view(cls, core_response) -> ResponseReturnValue:
+    def news_item_edit_view(cls, core_response: Any) -> ResponseReturnValue:
         return cls._handle_news_item_response(core_response, redirect_on_story=True)
 
     @classmethod
@@ -1071,20 +1096,20 @@ class StoryView(BaseView):
         content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 
-    def get(self, **kwargs) -> tuple[str, int]:
+    def get(self, **kwargs: Any) -> ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
+    def post(self, *args: Any, **kwargs: Any) -> ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return abort(405)
 
         return self.patch_story(story_id=object_id)
 
-    def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
+    def put(self, **kwargs: Any) -> ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return abort(405)

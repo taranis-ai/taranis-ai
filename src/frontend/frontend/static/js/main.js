@@ -1,20 +1,28 @@
-function getCSRFToken() {
+function getCookieValue(name) {
   return document.cookie
     .split("; ")
-    .find((row) => row.startsWith("csrf_access_token="))
+    .find((row) => row.startsWith(`${name}=`))
     ?.split("=")[1];
 }
 
+function getCSRFToken() {
+  return getCookieValue("csrf_access_token");
+}
+
 function getConfirmOptions(el, question) {
+  const documentLabels = document.body?.dataset || {};
   const title = el.getAttribute("data-confirm-title") || question;
   const confirmButtonText = el.getAttribute("data-confirm-confirm") ||
-    (el.hasAttribute("hx-delete") ? "Delete" : "OK");
+    (el.hasAttribute("hx-delete")
+      ? documentLabels.confirmDelete
+      : documentLabels.confirmOk);
   return {
     title,
     text: title === question ? "" : question,
     icon: el.getAttribute("data-confirm-icon") || "question",
     confirmButtonText,
-    cancelButtonText: el.getAttribute("data-confirm-cancel") || "Cancel",
+    cancelButtonText: el.getAttribute("data-confirm-cancel") ||
+      documentLabels.confirmCancel,
   };
 }
 
@@ -26,7 +34,8 @@ const viewportWarningStorageKey = "taranis.viewportWarningDismissed";
 
 function loadViewportWarningDismissed() {
   try {
-    return window.localStorage.getItem(viewportWarningStorageKey) === "true";
+    return self.localStorage.getItem(viewportWarningStorageKey) ===
+      "true";
   } catch {
     return false;
   }
@@ -35,9 +44,9 @@ function loadViewportWarningDismissed() {
 function saveViewportWarningDismissed(value) {
   try {
     if (value) {
-      window.localStorage.setItem(viewportWarningStorageKey, "true");
+      self.localStorage.setItem(viewportWarningStorageKey, "true");
     } else {
-      window.localStorage.removeItem(viewportWarningStorageKey);
+      self.localStorage.removeItem(viewportWarningStorageKey);
     }
   } catch {
     // Ignore storage failures; the warning will still behave within this page load.
@@ -45,8 +54,8 @@ function saveViewportWarningDismissed(value) {
 }
 
 function isBelowWxgaPlus(
-  width = window.innerWidth,
-  height = window.innerHeight,
+  width = self.innerWidth,
+  height = self.innerHeight,
 ) {
   return width < 1440 || height < 600;
 }
@@ -99,7 +108,7 @@ function initViewportWarningBar() {
     });
 
   updateViewportWarningBar();
-  window.addEventListener("resize", updateViewportWarningBar, {
+  self.addEventListener("resize", updateViewportWarningBar, {
     passive: true,
   });
 }
@@ -133,6 +142,19 @@ function omniSearch(searchUrl) {
       this.$refs.omniInput.select();
     },
   };
+}
+
+function canUseAssessShortcut(event) {
+  if (event?.defaultPrevented) {
+    return false;
+  }
+
+  const target = event?.target;
+  if (target instanceof Element && target.closest("input, textarea, select, [contenteditable], dialog")) {
+    return false;
+  }
+
+  return !document.querySelector("dialog[open]");
 }
 
 if (document.readyState === "loading") {
@@ -177,16 +199,24 @@ function replaceNotificationBarFromResponse(responseText) {
     return;
   }
 
-  const template = document.createElement("template");
-  template.innerHTML = responseText.trim();
-  const nextNotificationBar = template.content.querySelector(
-    "#notification-bar",
-  );
+  const responseDoc = new DOMParser().parseFromString(responseText, "text/html");
+  const message = responseDoc
+    .querySelector("#notification-bar #notification-message")
+    ?.textContent.trim();
 
-  if (!nextNotificationBar || !nextNotificationBar.textContent.trim()) {
+  if (!message) {
     return;
   }
 
+  const nextNotificationBar = currentNotificationBar.cloneNode(false);
+  const alert = document.createElement("div");
+  alert.className = responseDoc.querySelector("#notification-bar .alert-error")
+    ? "alert alert-error"
+    : "alert alert-info";
+  alert.setAttribute("role", "alert");
+  alert.textContent = message;
+
+  nextNotificationBar.append(alert);
   currentNotificationBar.replaceWith(nextNotificationBar);
 }
 
@@ -194,34 +224,40 @@ document.body.addEventListener("htmx:responseError", function (evt) {
   replaceNotificationBarFromResponse(evt.detail.xhr?.responseText || "");
 });
 
-function initChoices(elementID, placeholder = "items", config = {}) {
+function initChoices(elementID, config = {}) {
   const select = document.getElementById(elementID);
   if (!select || select.classList.contains("choices__input")) {
     return;
   }
+  if (!config || typeof config !== "object") {
+    config = {};
+  }
 
   const classNames = {
-    containerOuter: ["choices", "!bg-base-200"],
-    containerInner: ["choices__inner", "!bg-base-200"],
-    input: ["choices__input", "!bg-base-200"],
-    inputCloned: ["choices__input--cloned", "!bg-base-200"],
-    list: ["choices__list", "!bg-base-200"],
+    containerOuter: ["choices", "w-full"],
+    containerInner: ["choices__inner"],
+    input: ["choices__input"],
+    inputCloned: ["choices__input--cloned"],
+    list: ["choices__list"],
     itemSelectable: [
       "choices__item--selectable",
       "choices-item-selectable-primary",
     ],
-    itemChoice: ["choices__item--choice", "!bg-base-200"],
+    itemChoice: ["choices__item--choice"],
     selectedState: ["is-selected", "choices-selected-primary"],
   };
 
   const defaultConfig = {
     removeItemButton: true,
-    placeholderValue: "Select " + placeholder,
-    noResultsText: "No " + placeholder + " found",
-    noChoicesText: "No " + placeholder + " to choose from",
+    placeholderValue: select.dataset.choicesPlaceholderValue,
+    noResultsText: select.dataset.choicesNoResultsText,
+    noChoicesText: select.dataset.choicesNoChoicesText,
+    itemSelectText: select.dataset.choicesItemSelectText,
     classNames: classNames,
   };
 
   const finalConfig = Object.assign({}, defaultConfig, config);
   return new Choices(select, finalConfig);
 }
+
+self.initChoices = initChoices;

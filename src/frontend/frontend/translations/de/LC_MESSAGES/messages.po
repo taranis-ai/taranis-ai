@@ -1,0 +1,460 @@
+# German translations for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-06-11 12:19+0200\n"
+"PO-Revision-Date: 2026-06-10 12:15+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: de\n"
+"Language-Team: de <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: frontend/i18n.py:105
+msgid "English"
+msgstr "Englisch"
+
+#: frontend/i18n.py:106
+msgid "German"
+msgstr "Deutsch"
+
+#: frontend/templates/base.html:6
+msgid "Taranis AI - Open-Source Intelligence leveraging AI"
+msgstr "Taranis AI - Open-Source Intelligence mit KI"
+
+#: frontend/templates/base.html:22 frontend/templates/login/index.html:20
+msgid "OK"
+msgstr "OK"
+
+#: frontend/templates/base.html:23 frontend/templates/login/index.html:20
+msgid "Delete"
+msgstr "Löschen"
+
+#: frontend/templates/base.html:24 frontend/templates/login/index.html:20
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: frontend/templates/analyze/attribute_macros.html:111
+msgid "Add Story"
+msgstr "Story hinzufügen"
+
+#: frontend/templates/analyze/attribute_macros.html:112
+msgid "No stories found"
+msgstr "Keine Storys gefunden"
+
+#: frontend/templates/analyze/attribute_macros.html:113
+msgid "No stories to choose from"
+msgstr "Keine Storys zur Auswahl"
+
+#: frontend/templates/attribute/attribute_form.html:52
+msgid "Select attributes"
+msgstr "Attribute auswählen"
+
+#: frontend/templates/attribute/attribute_form.html:53
+msgid "No attributes found"
+msgstr "Keine Attribute gefunden"
+
+#: frontend/templates/attribute/attribute_form.html:54
+msgid "No attributes to choose from"
+msgstr "Keine Attribute zur Auswahl"
+
+#: frontend/templates/dashboard/edit.html:34
+msgid "Select tags"
+msgstr "Tags auswählen"
+
+#: frontend/templates/dashboard/edit.html:35
+msgid "No tags found"
+msgstr "Keine Tags gefunden"
+
+#: frontend/templates/dashboard/edit.html:36
+msgid "No tags to choose from"
+msgstr "Keine Tags zur Auswahl"
+
+#: frontend/templates/login/index.html:6
+msgid "Taranis AI - Your AI-powered assistant platform."
+msgstr "Taranis AI - Ihre KI-gestützte Assistenzplattform."
+
+#: frontend/templates/login/index.html:28
+msgid "Error contacting Core API"
+msgstr "Fehler beim Kontaktieren der Core API"
+
+#: frontend/templates/login/login.html:5
+msgid "Taranis Logo"
+msgstr "Taranis Logo"
+
+#: frontend/templates/login/login.html:10
+#: frontend/templates/login/login.html:11
+msgid "Username"
+msgstr "Benutzername"
+
+#: frontend/templates/login/login.html:16
+#: frontend/templates/login/login.html:17
+#: frontend/templates/user_profile/settings_content.html:237
+msgid "Password"
+msgstr "Passwort"
+
+#: frontend/templates/login/login.html:22
+msgid "Login"
+msgstr "Anmelden"
+
+#: frontend/templates/partials/navbar.html:2
+msgid "Toggle sidebar"
+msgstr "Seitenleiste umschalten"
+
+#: frontend/templates/partials/navbar.html:6
+msgid "Taranis AI Logo"
+msgstr "Taranis AI Logo"
+
+#: frontend/templates/partials/navbar.html:17
+msgid "Administration"
+msgstr "Administration"
+
+#: frontend/templates/partials/navbar.html:24
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: frontend/templates/partials/navbar.html:30
+#: frontend/templates/user_profile/hotkey_kbd.html:9
+#: frontend/templates/user_profile/hotkey_kbd.html:20
+#: frontend/templates/user_profile/hotkey_kbd.html:31
+#: frontend/templates/user_profile/hotkey_kbd.html:42
+#: frontend/templates/user_profile/hotkey_kbd.html:53
+#: frontend/templates/user_profile/hotkey_kbd.html:64
+msgid "Assess"
+msgstr "Bewerten"
+
+#: frontend/templates/partials/navbar.html:36
+#: frontend/templates/user_profile/hotkey_kbd.html:65
+msgid "Analyze"
+msgstr "Analysieren"
+
+#: frontend/templates/partials/navbar.html:42
+#: frontend/templates/user_profile/hotkey_kbd.html:66
+msgid "Publish"
+msgstr "Veröffentlichen"
+
+#: frontend/templates/partials/navbar.html:48
+msgid "Assets"
+msgstr "Assets"
+
+#: frontend/templates/partials/navbar.html:57
+msgid "Profile"
+msgstr "Profil"
+
+#: frontend/templates/partials/navbar.html:60
+msgid "User Settings"
+msgstr "Benutzereinstellungen"
+
+#: frontend/templates/partials/navbar.html:63
+msgid "Logout"
+msgstr "Abmelden"
+
+#: frontend/templates/partials/navbar.html:63
+#: frontend/templates/bookmarks/bookmark_list.html:4
+#: frontend/templates/bookmarks/bookmark_detail.html:12
+#: frontend/templates/assess/bookmarks_bar.html:8
+msgid "Bookmarks"
+msgstr "Lesezeichen"
+
+#: frontend/templates/partials/viewport_notice.html:5
+msgid "Dismiss resolution warning"
+msgstr "Auflösungswarnung ausblenden"
+
+#: frontend/templates/partials/viewport_notice.html:5
+msgid "Resolutions below WXGA+ are not supported"
+msgstr "Auflösungen unter WXGA+ werden nicht unterstützt"
+
+#: frontend/templates/product_type/product_type_form.html:29
+msgid "Select report types"
+msgstr "Berichtstypen auswählen"
+
+#: frontend/templates/product_type/product_type_form.html:30
+msgid "No report types found"
+msgstr "Keine Berichtstypen gefunden"
+
+#: frontend/templates/product_type/product_type_form.html:31
+msgid "No report types to choose from"
+msgstr "Keine Berichtstypen zur Auswahl"
+
+#: frontend/templates/user/user_form.html:112
+msgid "Select roles"
+msgstr "Rollen auswählen"
+
+#: frontend/templates/user/user_form.html:113
+msgid "No roles found"
+msgstr "Keine Rollen gefunden"
+
+#: frontend/templates/user/user_form.html:114
+msgid "No roles to choose from"
+msgstr "Keine Rollen zur Auswahl"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:7
+msgid "Edit selected story"
+msgstr "Ausgewählte Story bearbeiten"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:11
+msgid "Requires exactly one story selected."
+msgstr "Erfordert genau eine ausgewählte Story."
+
+#: frontend/templates/user_profile/hotkey_kbd.html:18
+msgid "Add selection to report"
+msgstr "Auswahl zum Bericht hinzufügen"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:22
+#: frontend/templates/user_profile/hotkey_kbd.html:33
+#: frontend/templates/user_profile/hotkey_kbd.html:44
+msgid "Available when one or more stories are selected."
+msgstr "Verfügbar, wenn eine oder mehrere Storys ausgewählt sind."
+
+#: frontend/templates/user_profile/hotkey_kbd.html:29
+msgid "Mark selection as read"
+msgstr "Auswahl als gelesen markieren"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:40
+msgid "Mark selection as important"
+msgstr "Auswahl als wichtig markieren"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:51
+msgid "Cluster selected stories"
+msgstr "Ausgewählte Storys gruppieren"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:55
+msgid "Requires two or more stories selected."
+msgstr "Erfordert zwei oder mehr ausgewählte Storys."
+
+#: frontend/templates/user_profile/hotkey_kbd.html:62
+msgid "Select all items in view"
+msgstr "Alle Elemente in der Ansicht auswählen"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:68
+msgid "Available when story results are loaded."
+msgstr "Verfügbar, wenn Story-Ergebnisse geladen sind."
+
+#: frontend/templates/user_profile/hotkey_kbd.html:74
+msgid "Hold"
+msgstr "Halte"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:74
+msgid "while browsing Assess to reveal these shortcuts in the toolbar."
+msgstr ""
+"beim Browsen in Bewerten gedrückt, um diese Kurzbefehle in der "
+"Werkzeugleiste anzuzeigen."
+
+#: frontend/templates/user_profile/hotkey_kbd.html:80
+msgid "Shortcut"
+msgstr "Kurzbefehl"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:81
+msgid "Label"
+msgstr "Bezeichnung"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:82
+msgid "Hint"
+msgstr "Hinweis"
+
+#: frontend/templates/user_profile/hotkey_kbd.html:83
+msgid "Available in"
+msgstr "Verfügbar in"
+
+#: frontend/templates/user_profile/settings_content.html:13
+msgid "User"
+msgstr "Benutzer"
+
+#: frontend/templates/user_profile/settings_content.html:17
+msgid "Save changes"
+msgstr "Änderungen speichern"
+
+#: frontend/templates/user_profile/settings_content.html:24
+msgid "Split view"
+msgstr "Geteilte Ansicht"
+
+#: frontend/templates/user_profile/settings_content.html:25
+msgid "Show the assess interface and story details side by side."
+msgstr "Bewertungsansicht und Story-Details nebeneinander anzeigen."
+
+#: frontend/templates/user_profile/settings_content.html:42
+msgid "Compact view"
+msgstr "Kompakte Ansicht"
+
+#: frontend/templates/user_profile/settings_content.html:43
+msgid "Use condensed spacing for tables and lists."
+msgstr "Kompaktere Abstände für Tabellen und Listen verwenden."
+
+#: frontend/templates/user_profile/settings_content.html:59
+msgid "Show charts"
+msgstr "Diagramme anzeigen"
+
+#: frontend/templates/user_profile/settings_content.html:60
+msgid "Display dashboard visualisations when available."
+msgstr "Dashboard-Visualisierungen anzeigen, wenn sie verfügbar sind."
+
+#: frontend/templates/user_profile/settings_content.html:76
+msgid "Dark theme"
+msgstr "Dunkles Design"
+
+#: frontend/templates/user_profile/settings_content.html:77
+msgid "Prefer a dark colour palette across the application."
+msgstr "Eine dunkle Farbpalette in der gesamten Anwendung bevorzugen."
+
+#: frontend/templates/user_profile/settings_content.html:80
+msgid "Can only be changed in system or browser settings"
+msgstr "Kann nur in den System- oder Browsereinstellungen geändert werden"
+
+#: frontend/templates/user_profile/settings_content.html:87
+msgid "Infinite scroll"
+msgstr "Endloses Scrollen"
+
+#: frontend/templates/user_profile/settings_content.html:88
+msgid "Automatically load more results when you reach the bottom."
+msgstr "Automatisch weitere Ergebnisse laden, wenn du das Ende erreichst."
+
+#: frontend/templates/user_profile/settings_content.html:104
+msgid "Advanced story edit options"
+msgstr "Erweiterte Optionen zur Story-Bearbeitung"
+
+#: frontend/templates/user_profile/settings_content.html:105
+msgid "Expose additional actions in story edit view."
+msgstr "Zusätzliche Aktionen in der Story-Bearbeitung anzeigen."
+
+#: frontend/templates/user_profile/settings_content.html:123
+msgid "Language"
+msgstr "Sprache"
+
+#: frontend/templates/user_profile/settings_content.html:131
+msgid "Choose the interface language."
+msgstr "Sprache der Benutzeroberfläche auswählen."
+
+#: frontend/templates/user_profile/settings_content.html:132
+msgid "Experimental: currently only login and user settings are translated."
+msgstr "Experimentell: Derzeit sind nur Anmeldung und Benutzereinstellungen übersetzt."
+
+#: frontend/templates/user_profile/settings_content.html:139
+msgid "Timezone"
+msgstr "Zeitzone"
+
+#: frontend/templates/user_profile/settings_content.html:145
+msgid "Select timezone"
+msgstr "Zeitzone auswählen"
+
+#: frontend/templates/user_profile/settings_content.html:146
+msgid "No timezones found"
+msgstr "Keine Zeitzonen gefunden"
+
+#: frontend/templates/user_profile/settings_content.html:147
+msgid "No timezones to choose from"
+msgstr "Keine Zeitzonen zur Auswahl"
+
+#: frontend/templates/user_profile/settings_content.html:148
+msgid "Press to select"
+msgstr "Zum Auswählen drücken"
+
+#: frontend/templates/user_profile/settings_content.html:155
+msgid "Use browser timezone"
+msgstr "Browser-Zeitzone verwenden"
+
+#: frontend/templates/user_profile/settings_content.html:158
+msgid "Choose how local times are displayed."
+msgstr "Auswählen, wie lokale Zeiten angezeigt werden."
+
+#: frontend/templates/user_profile/settings_content.html:166
+msgid "End of shift"
+msgstr "Schichtende"
+
+#: frontend/templates/user_profile/settings_content.html:170
+msgid "Used to plan notifications and highlights."
+msgstr "Wird zur Planung von Benachrichtigungen und Hervorhebungen verwendet."
+
+#: frontend/templates/user_profile/settings_content.html:179
+msgid "Live updates"
+msgstr "Live-Aktualisierungen"
+
+#: frontend/templates/user_profile/settings_content.html:180
+msgid "Checking connection status..."
+msgstr "Verbindungsstatus wird geprüft..."
+
+#: frontend/templates/user_profile/settings_content.html:183
+msgid "Enable SSE"
+msgstr "SSE aktivieren"
+
+#: frontend/templates/user_profile/settings_content.html:187
+msgid "Server-sent events let the UI react to changes without refreshing."
+msgstr ""
+"Server-sent Events lassen die Oberfläche ohne Aktualisierung auf "
+"Änderungen reagieren."
+
+#: frontend/templates/user_profile/settings_content.html:238
+msgid "Change your password"
+msgstr "Passwort ändern"
+
+#: frontend/templates/user_profile/settings_content.html:239
+msgid "Keep this secure and avoid reusing passwords from other systems."
+msgstr ""
+"Halte es sicher und vermeide die Wiederverwendung von Passwörtern aus "
+"anderen Systemen."
+
+#: frontend/templates/user_profile/settings_content.html:245
+msgid "Current password"
+msgstr "Aktuelles Passwort"
+
+#: frontend/templates/user_profile/settings_content.html:257
+msgid "New password"
+msgstr "Neues Passwort"
+
+#: frontend/templates/user_profile/settings_content.html:264
+msgid "Confirm new password"
+msgstr "Neues Passwort bestätigen"
+
+#: frontend/templates/user_profile/settings_content.html:270
+msgid "Update password"
+msgstr "Passwort aktualisieren"
+
+#: frontend/templates/user_profile/settings_content.html:282
+msgid "Keyboard Shortcuts"
+msgstr "Tastaturkurzbefehle"
+
+#: frontend/templates/user_profile/settings_content.html:284
+msgid "HotKeys are currently static only."
+msgstr "HotKeys sind derzeit nur statisch."
+
+#: frontend/templates/user_profile/settings_content.html:286
+msgid "tracks progress on making them configurable."
+msgstr "verfolgt den Fortschritt, sie konfigurierbar zu machen."
+
+#: frontend/views/auth_views.py:43 frontend/views/auth_views.py:47
+#: frontend/views/auth_views.py:95
+msgid "Login failed, no response from server"
+msgstr "Anmeldung fehlgeschlagen, keine Antwort vom Server"
+
+#: frontend/views/auth_views.py:50
+msgid "Login failed"
+msgstr "Anmeldung fehlgeschlagen"
+
+#: frontend/views/auth_views.py:74
+msgid "Missing required authentication headers - contact your admin"
+msgstr "Erforderliche Authentifizierungs-Header fehlen - kontaktiere deinen Admin"
+
+#: frontend/views/auth_views.py:80
+#, python-format
+msgid "API is not reachable - %(url)s"
+msgstr "API ist nicht erreichbar - %(url)s"
+
+#: frontend/views/auth_views.py:88
+msgid "Username and password are required"
+msgstr "Benutzername und Passwort sind erforderlich"
+
+#: frontend/views/user_views.py:50
+msgid "Failed to change password."
+msgstr "Passwort konnte nicht geändert werden."
+
+#~ msgid "Detected from your browser and used to display local times."
+#~ msgstr ""
+#~ "Wird aus deinem Browser erkannt und "
+#~ "zur Anzeige lokaler Zeiten verwendet."

@@ -39,6 +39,10 @@ Assess keyword filters are implicit story mode. `vpn tag:apt read:false sort:rel
 
 Colon-containing terms that are not supported qualifiers, such as URLs or CVE-style identifiers, are preserved as plain search text.
 
+### Story Bookmarks
+
+Bookmarks are private story bookmarks organized into named collections. Assess shows the first six collections in the user's saved order and links to the full `/bookmarks` page, where users can drag collection cards to reorder them. Users can select stories in Assess, bookmark them into an existing or new collection with `Bookmark`, and later manage those collections from `/bookmarks`. A single story card's `Bookmark` action immediately adds the story to the first saved collection; if no collection exists yet, a default `Bookmarks` collection is created. Bookmarking a story does not hide it from Assess, and deleting a bookmark collection only removes the collection membership, not the stories.
+
 ### Cache configuration
 
 Frontend caching now uses Redis directly and falls back to a no-op cache when disabled or when Redis is unavailable.
@@ -49,6 +53,36 @@ Frontend caching now uses Redis directly and falls back to a no-op cache when di
 - `CACHE_REDIS_PASSWORD` optionally overrides the Redis password used for cache storage
 - when the cache-specific settings are unset, frontend falls back to `REDIS_URL` and `REDIS_PASSWORD`
 - unit tests disable caching by default unless `CACHE_ENABLED=true` is explicitly set in the test app config
+
+### Internationalization
+
+The frontend uses Flask-Babel for server-rendered translations. English is the default locale and German is the first translated catalog.
+
+Internationalization is currently experimental. At the moment, translated coverage includes login, user settings, and bookmarks.
+
+Extract strings after changing translated templates or Python strings:
+
+```bash
+uv run pybabel extract -F babel.cfg -o frontend/translations/messages.pot frontend
+```
+
+Initialize a new German catalog once:
+
+```bash
+uv run pybabel init -i frontend/translations/messages.pot -d frontend/translations -l de
+```
+
+Update existing catalogs after extraction:
+
+```bash
+uv run pybabel update -i frontend/translations/messages.pot -d frontend/translations
+```
+
+Compile catalogs before runtime or packaging:
+
+```bash
+uv run pybabel compile -d frontend/translations
+```
 
 ## Development Setup
 

@@ -43,6 +43,7 @@ dependencies = [
     "ioc-fanger",
     "pypandoc-binary>=1.15",
     "niquests",
+    "confluent-kafka>=2.14.2",
 ]
 dynamic = ["version"]
 
@@ -55,6 +56,7 @@ taranis-worker-healthcheck = "worker.healthcheck:main"
 dev = [
     "ruff",
     "pytest",
+    "pyright",
     "fakeredis",
     "requests-mock",
     "watchdog",

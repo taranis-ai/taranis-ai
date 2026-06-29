@@ -9,6 +9,9 @@ from models.types import BOT_TYPES
 from frontend.views.admin_views.bot_views import BotView
 
 
+pytestmark = pytest.mark.usefixtures("mock_worker_parameters_get")
+
+
 @pytest.mark.parametrize(
     "bot_type",
     [
@@ -38,6 +41,34 @@ def test_bot_parameters_include_optional_positive_integer_requests_timeout(authe
     assert requests_timeout_fields[0].get("required") is None
     assert refresh_interval_fields[0].get("required") is None
     assert response.text.index('name="parameters[ITEM_FILTER]"') < response.text.index('name="parameters[REQUESTS_TIMEOUT]"')
+
+
+def test_summary_bot_parameters_include_split_summary_and_title_endpoints(authenticated_client, htmx_header):
+    response = authenticated_client.get(
+        url_for("admin.bot_parameters", bot_id="0", type="summary_bot"),
+        headers=htmx_header,
+    )
+    assert response.status_code == 200
+
+    tree = html.fromstring(response.text)
+    summary_endpoint_fields = tree.xpath('//input[@name="parameters[SUMMARY_ENDPOINT]"]')
+    title_endpoint_fields = tree.xpath('//input[@name="parameters[TITLE_ENDPOINT]"]')
+
+    assert len(summary_endpoint_fields) == 1
+    assert len(title_endpoint_fields) == 1
+    assert summary_endpoint_fields[0].get("required") is None
+    assert title_endpoint_fields[0].get("required") is None
+
+    # Ensure ordering matches Worker._order_parameters: BOT_API_KEY, SUMMARY_ENDPOINT,
+    # TITLE_ENDPOINT, RUN_AFTER_COLLECTOR
+    bot_api_key_index = response.text.index('name="parameters[BOT_API_KEY]"')
+    summary_endpoint_index = response.text.index('name="parameters[SUMMARY_ENDPOINT]"')
+    title_endpoint_index = response.text.index('name="parameters[TITLE_ENDPOINT]"')
+    run_after_collector_index = response.text.index('name="parameters[RUN_AFTER_COLLECTOR]"')
+
+    assert bot_api_key_index < summary_endpoint_index
+    assert summary_endpoint_index < title_endpoint_index
+    assert title_endpoint_index < run_after_collector_index
 
 
 def test_bot_menu_badge_uses_task_failure_count(monkeypatch):

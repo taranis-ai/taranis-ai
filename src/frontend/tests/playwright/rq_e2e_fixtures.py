@@ -24,7 +24,7 @@ def _allow_local_http_passthrough() -> None:
     responses.add_passthru(LOCAL_HTTP_URL_PATTERN)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def allow_local_http_passthrough() -> None:
     _allow_local_http_passthrough()
 

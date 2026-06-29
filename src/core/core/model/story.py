@@ -8,7 +8,7 @@ from models.assess import Story as StoryPayload
 from pydantic import ValidationError
 from sqlalchemy import func, inspect, or_
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, aliased, relationship
 from sqlalchemy.sql import Select
@@ -256,6 +256,29 @@ class Story(BaseModel):
                 if tag.name:
                     tags_by_identity[(tag.name, tag.tag_type or "misc")] = tag
         return [tags_by_identity[identity] for identity in sorted(tags_by_identity)]
+
+    @staticmethod
+    def refresh_tag_summaries_for_news_items(news_items: list["NewsItem"]) -> None:
+        summary_keys = set()
+        for news_item in news_items:
+            summary_keys.update(news_item.get_tag_summary_keys())
+
+        if not summary_keys:
+            return
+
+        from core.model.news_item_tag import NewsItemTagCluster
+
+        db.session.flush()
+        NewsItemTagCluster.refresh_for_keys(summary_keys)
+
+    @classmethod
+    def refresh_tag_summaries_for_stories(cls, stories: list["Story"] | set["Story"]) -> None:
+        news_items_by_id = {}
+        for story in stories:
+            for news_item in story.news_items:
+                news_items_by_id[news_item.id] = news_item
+
+        cls.refresh_tag_summaries_for_news_items(list(news_items_by_id.values()))
 
     @property
     def relevance_source(self) -> int:
@@ -721,6 +744,7 @@ class Story(BaseModel):
                     news_item.last_change = actor
             db.session.add(story)
             db.session.flush()
+            cls.refresh_tag_summaries_for_news_items(story.news_items)
             story.update_status(change=resolved_actor, refresh_timestamps=False)
             story.record_revision(note="created")
             db.session.commit()
@@ -1108,6 +1132,7 @@ class Story(BaseModel):
             )
             for processed_story in processed_stories:
                 processed_story.record_revision(user, note="move_items_to_story")
+            cls.refresh_tag_summaries_for_stories(processed_stories)
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
@@ -1144,6 +1169,7 @@ class Story(BaseModel):
             )
             for story in processed_stories:
                 story.record_revision(user, note="group_stories")
+            cls.refresh_tag_summaries_for_stories(processed_stories)
             db.session.commit()
             return {"message": "Clustering Stories successful", "id": first_story.id}, 200
         except Exception:
@@ -1494,3 +1520,255 @@ class ReportItemStory(BaseModel):
     @classmethod
     def count(cls, story_id: str) -> int:
         return cls.get_filtered_count(db.select(cls).where(cls.story_id == story_id))
+
+
+class StoryBookmark(BaseModel):
+    __tablename__ = "story_bookmark"
+    __table_args__ = (db.UniqueConstraint("user_id", "name", name="ux_story_bookmark_user_name"),)
+
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    name: Mapped[str] = db.Column(db.String(120), nullable=False)
+    position: Mapped[int] = db.Column(db.Integer, default=0, nullable=False)
+    created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow, nullable=False)
+    updated: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow, nullable=False)
+
+    user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    user: Mapped["User"] = relationship("User")
+    stories: Mapped[list["Story"]] = relationship(
+        "Story", secondary="story_bookmark_story", cascade="save-update, merge", passive_deletes=True, single_parent=False, lazy="selectin"
+    )
+
+    def __init__(self, name: str, user_id: str, bookmark_id: str | None = None, stories: list[str] | None = None, position: int = 0):
+        self.id = self.normalize_uuid_id(bookmark_id)
+        self.name = self._clean_name(name)
+        self.position = position
+        self.user_id = user_id
+        self.created = self.utcnow()
+        self.updated = self.created
+        self.stories = Story.get_bulk(stories) if stories else []
+
+    @staticmethod
+    def _clean_name(raw_name: Any) -> str:
+        if name := str(raw_name or "").strip():
+            return name[:120]
+        raise ValueError("Bookmark collection name is required")
+
+    @staticmethod
+    def _dedupe_ids(ids: list[str]) -> list[str]:
+        return list(dict.fromkeys(item_id for item_id in ids if isinstance(item_id, str) and item_id))
+
+    @classmethod
+    def _next_position(cls, user_id: str) -> int:
+        max_position = db.session.execute(db.select(func.max(cls.position)).where(cls.user_id == user_id)).scalar()
+        return int(max_position if max_position is not None else -1) + 1
+
+    @classmethod
+    def get_for_user(cls, bookmark_id: str, user: User | None) -> "StoryBookmark | None":
+        if user is None:
+            return None
+        return cls.get_first(db.select(cls).where(cls.id == bookmark_id, cls.user_id == user.id))
+
+    @classmethod
+    def get_filter_query(cls, filter_args: dict[str, Any], user: User | None = None) -> Select:
+        query = db.select(cls)
+        if user:
+            query = query.where(cls.user_id == user.id)
+        if search := filter_args.get("search"):
+            query = query.where(cls.name.ilike(f"%{search}%"))
+        return query
+
+    @classmethod
+    def _add_sorting_to_query(cls, filter_args: dict[str, Any], query: Select) -> Select:
+        sort = str(filter_args.get("sort") or filter_args.get("order") or "position_asc").lower()
+        if sort == "name_asc":
+            return query.order_by(db.asc(cls.name), db.asc(cls.position))
+        if sort == "name_desc":
+            return query.order_by(db.desc(cls.name), db.asc(cls.position))
+        if sort == "position_desc":
+            return query.order_by(db.desc(cls.position), db.asc(cls.name))
+        return query.order_by(db.asc(cls.position), db.asc(cls.name))
+
+    @classmethod
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, user: User | None) -> tuple[dict[str, Any], int]:
+        if user is None:
+            return {"error": "User not found"}, 403
+        filter_args = filter_args or {}
+        base_query = cls.get_filter_query(filter_args, user)
+        query = cls._add_sorting_to_query(filter_args, base_query)
+        if filter_args.get("fetch_all") != "true":
+            query = cls._add_paging_to_query(filter_args, query)
+        bookmarks = cls.get_filtered(query) or []
+        return {"items": [bookmark.to_dict() for bookmark in bookmarks], "total_count": cls.get_filtered_count(base_query)}, 200
+
+    @classmethod
+    def add(cls, data: dict[str, Any], user: User | None) -> tuple[dict[str, Any], int]:
+        if user is None:
+            return {"error": "User not found"}, 403
+        try:
+            bookmark = cls(name=cls._clean_name(data.get("name")), user_id=user.id, position=cls._next_position(user.id))
+            db.session.add(bookmark)
+            db.session.commit()
+            return {"message": "Bookmark collection created", "id": bookmark.id, "bookmark": bookmark.to_detail_dict()}, 201
+        except ValueError:
+            db.session.rollback()
+            return {"error": "Invalid bookmark collection data"}, 400
+        except IntegrityError:
+            db.session.rollback()
+            return {"error": "A bookmark collection with this name already exists"}, 409
+        except SQLAlchemyError:
+            logger.exception("Failed to create story bookmark")
+            db.session.rollback()
+            return {"error": "Failed to create bookmark collection"}, 500
+
+    @classmethod
+    def update_for_api(cls, bookmark_id: str, data: dict[str, Any], user: User | None) -> tuple[dict[str, Any], int]:
+        bookmark = cls.get_for_user(bookmark_id, user)
+        if bookmark is None:
+            return {"error": "Bookmark collection not found"}, 404
+        try:
+            bookmark.name = cls._clean_name(data.get("name"))
+            bookmark.touch()
+            db.session.commit()
+            return {"message": "Bookmark collection updated", "id": bookmark.id, "bookmark": bookmark.to_detail_dict()}, 200
+        except ValueError:
+            db.session.rollback()
+            return {"error": "Invalid bookmark collection data"}, 400
+        except IntegrityError:
+            db.session.rollback()
+            return {"error": "A bookmark collection with this name already exists"}, 409
+        except SQLAlchemyError:
+            logger.exception("Failed to update story bookmark %s", bookmark_id)
+            db.session.rollback()
+            return {"error": "Failed to update bookmark collection"}, 500
+
+    @classmethod
+    def reorder_for_api(cls, bookmark_ids: list[str], user: User | None) -> tuple[dict[str, Any], int]:
+        if user is None:
+            return {"error": "User not found"}, 403
+        normalized_ids = cls._dedupe_ids(bookmark_ids)
+        if not normalized_ids or len(normalized_ids) != len(bookmark_ids):
+            return {"error": "Bookmark ids must be unique"}, 400
+
+        bookmarks = cls.get_filtered(db.select(cls).where(cls.user_id == user.id)) or []
+        bookmarks_by_id = {bookmark.id: bookmark for bookmark in bookmarks if bookmark.id}
+        if missing_ids := set(normalized_ids) - set(bookmarks_by_id):
+            return {"error": f"Bookmark collection not found: {sorted(missing_ids)[0]}"}, 404
+
+        ordered_bookmarks = [bookmarks_by_id[bookmark_id] for bookmark_id in normalized_ids]
+        remaining_bookmarks = sorted(
+            (bookmark for bookmark in bookmarks if bookmark.id not in normalized_ids),
+            key=lambda bookmark: (bookmark.position, bookmark.name),
+        )
+        for position, bookmark in enumerate([*ordered_bookmarks, *remaining_bookmarks]):
+            bookmark.position = position
+        db.session.commit()
+        return {"message": "Bookmark order updated"}, 200
+
+    @classmethod
+    def delete_for_api(cls, bookmark_id: str, user: User | None) -> tuple[dict[str, Any], int]:
+        bookmark = cls.get_for_user(bookmark_id, user)
+        if bookmark is None:
+            return {"error": "Bookmark collection not found"}, 404
+        db.session.delete(bookmark)
+        db.session.commit()
+        return {"message": "Bookmark collection deleted"}, 200
+
+    @classmethod
+    def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
+        if bookmark := cls.get_for_user(item_id, user):
+            story_ids = [story.id for story in bookmark.stories if story and story.id]
+            accessible_query = db.select(Story).where(Story.id.in_(story_ids))
+            accessible_query = Story._add_ACL_check(accessible_query, user)
+            accessible_query = Story._add_TLP_check(accessible_query, user)
+            stories_by_id = {story.id: story for story in db.session.execute(accessible_query).scalars().all() if story}
+            visible_stories = [stories_by_id.get(story_id) for story_id in story_ids if story_id in stories_by_id]
+
+            return bookmark.to_detail_dict(stories=visible_stories), 200
+        return {"error": "Bookmark collection not found"}, 404
+
+    @classmethod
+    def _get_accessible_stories(cls, story_ids: list[str], user: User) -> list[Story] | None:
+        query = db.select(Story).where(Story.id.in_(story_ids))
+        query = Story._add_ACL_check(query, user)
+        query = Story._add_TLP_check(query, user)
+        stories_by_id = {story.id: story for story in db.session.execute(query).scalars().all()}
+        if set(story_ids) - set(stories_by_id):
+            return None
+        return [stories_by_id[story_id] for story_id in story_ids]
+
+    @classmethod
+    def add_stories(cls, bookmark_id: str, story_ids: list[str], user: User | None) -> tuple[dict[str, Any], int]:
+        if user is None:
+            return {"error": "User not found"}, 403
+        bookmark = cls.get_for_user(bookmark_id, user)
+        if bookmark is None:
+            return {"error": "Bookmark collection not found"}, 404
+        normalized_story_ids = cls._dedupe_ids(story_ids)
+        if not normalized_story_ids:
+            return {"error": "No story ids provided"}, 400
+        stories = cls._get_accessible_stories(normalized_story_ids, user)
+        if stories is None:
+            return {"error": "One of the provided stories was not found"}, 404
+
+        existing_story_ids = {story.id for story in bookmark.stories}
+        added = 0
+        for story in stories:
+            if story.id in existing_story_ids:
+                continue
+            bookmark.stories.append(story)
+            existing_story_ids.add(story.id)
+            added += 1
+        bookmark.touch()
+        db.session.commit()
+        return {"message": f"{added} stories bookmarked", "added": added, "story_count": len(bookmark.stories)}, 200
+
+    @classmethod
+    def remove_stories(cls, bookmark_id: str, story_ids: list[str], user: User | None) -> tuple[dict[str, Any], int]:
+        if user is None:
+            return {"error": "User not found"}, 403
+        bookmark = cls.get_for_user(bookmark_id, user)
+        if bookmark is None:
+            return {"error": "Bookmark collection not found"}, 404
+        normalized_story_ids = set(cls._dedupe_ids(story_ids))
+        if not normalized_story_ids:
+            return {"error": "No story ids provided"}, 400
+
+        remaining_stories = []
+        removed = 0
+        for story in bookmark.stories:
+            if story.id in normalized_story_ids:
+                removed += 1
+                continue
+            remaining_stories.append(story)
+        bookmark.stories = remaining_stories
+        bookmark.touch()
+        db.session.commit()
+        return {
+            "message": f"{removed} stories removed from bookmark collection",
+            "removed": removed,
+            "story_count": len(bookmark.stories),
+        }, 200
+
+    def touch(self) -> None:
+        self.updated = self.utcnow()
+
+    def to_dict(self, stories: list[Story] | None = None) -> dict[str, Any]:
+        data = super().to_dict()
+        stories = self.stories if stories is None else stories
+        data["story_count"] = len(stories)
+        data["story_ids"] = [story.id for story in stories if story and story.id]
+        return data
+
+    def to_detail_dict(self, stories: list[Story] | None = None) -> dict[str, Any]:
+        stories = stories if stories is not None else self.stories
+        data = self.to_dict(stories=stories)
+        data["stories"] = [story.to_dict() for story in stories if story]
+        return data
+
+
+class StoryBookmarkStory(BaseModel):
+    __tablename__ = "story_bookmark_story"
+
+    bookmark_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story_bookmark.id", ondelete="CASCADE"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
+    __table_args__ = (db.UniqueConstraint("bookmark_id", "story_id", name="ux_story_bookmark_story"),)

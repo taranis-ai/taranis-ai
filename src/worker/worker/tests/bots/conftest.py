@@ -15,7 +15,7 @@ def stories():
         yield json.load(f)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def set_transformers_offline(requests_mock):
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["HF_DATASETS_OFFLINE"] = "1"
@@ -67,3 +67,12 @@ def story_attribute_update_mock(requests_mock):
 def cybersec_classifier_mock(requests_mock):
     print(f"Mocking: {Config.CYBERSEC_CLASSIFIER_API_ENDPOINT}/")
     yield requests_mock
+
+
+@pytest.fixture
+def story_update_mock(requests_mock):
+    def match_callback(request, context):
+        story_id = request.url.rsplit("/", 1)[-1]
+        return {"message": f"Successfully updated story with id: '{story_id}'"}
+
+    yield requests_mock.put(re.compile(rf"{Config.TARANIS_CORE_URL}/bots/story/.+"), json=match_callback)

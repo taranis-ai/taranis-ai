@@ -1,0 +1,88 @@
+{% from "assess/story_card.html" import story_card with context %}
+
+<div id="bookmark-detail-container"
+     class="p-4 space-y-4"
+     data-testid="bookmark-detail"
+     x-data='{ selectedItems: [], toggleSelection(id) { this.selectedItems = this.selectedItems.includes(id) ? this.selectedItems.filter(item => item !== id) : [...this.selectedItems, id]; this.$nextTick(() => this.syncSelectedCardState()); }, clearSelection() { this.selectedItems = []; this.syncSelectedCardState(); }, syncSelectedCardState() { const selectedIds = new Set(this.selectedItems); document.querySelectorAll("#bookmark-detail-container article[data-story-id]").forEach(node => { const selected = selectedIds.has(node.dataset.storyId); const read = node.dataset.storyRead === "true"; node.classList.toggle("bg-primary/5", selected); node.classList.toggle("border-primary", selected || !read); node.classList.toggle("border-base-200", !selected && read); node.classList.toggle("shadow-md", selected); node.setAttribute("aria-selected", selected.toString()); }); } }'
+     @keyup.escape.window="clearSelection()">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div class="min-w-0">
+      <a href="{{ url_for('assess.bookmarks') }}" class="btn btn-ghost btn-sm mb-2">
+        {{ heroicon_mini("arrow-left") }}
+        {{ _("Bookmarks") }}
+      </a>
+      <h1 class="truncate text-2xl font-semibold text-base-content">{{ bookmark.name }}</h1>
+      <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-base-content/70">
+        <span class="badge badge-outline">{{ bookmark.story_count }} stories</span>
+        {% if bookmark.updated %}<span>Updated {{ bookmark.updated | format_datetime }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <form class="flex gap-2"
+            hx-patch="{{ url_for('assess.bookmark_update', bookmark_id=bookmark.id) }}"
+            hx-target="#bookmark-detail-container"
+            hx-swap="outerHTML"
+            data-testid="rename-bookmark-detail-form">
+        <input type="hidden" name="return_to" value="detail">
+        <input type="text"
+               name="name"
+               value="{{ bookmark.name }}"
+               maxlength="120"
+               required
+               class="input input-sm w-full sm:w-64"
+               aria-label="Rename bookmark collection">
+        <button type="submit" class="btn btn-outline btn-sm" data-testid="rename-bookmark-detail">
+          {{ heroicon_mini("check") }}
+          Save
+        </button>
+      </form>
+      <button type="button"
+              class="btn btn-outline btn-error btn-sm"
+              hx-delete="{{ url_for('assess.bookmark_delete', bookmark_id=bookmark.id, redirect='bookmarks') }}"
+              hx-confirm="Delete this bookmark collection? Stories will stay in Assess."
+              data-testid="delete-bookmark-detail">
+        {{ heroicon_mini("trash") }}
+        Delete
+      </button>
+    </div>
+  </div>
+
+  {% if stories %}
+    <form id="bookmark-remove-form"
+          hx-post="{{ url_for('assess.bookmark_remove_stories', bookmark_id=bookmark.id) }}"
+          hx-target="#bookmark-detail-container"
+          hx-swap="outerHTML"
+          hx-confirm="Remove selected stories from this bookmark collection?">
+      <template x-for="storyId in selectedItems" :key="storyId">
+        <input type="hidden" name="story_ids" :value="storyId">
+      </template>
+    </form>
+    <div class="sticky z-10" style="top: calc(var(--app-header-height) + var(--viewport-warning-height))">
+      <div class="flex min-h-[3rem] flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex flex-wrap items-center gap-3" data-testid="bookmark-story-count">
+          <span class="badge badge-ghost badge-lg">{{ stories.total_count }} stories</span>
+          <span class="badge badge-primary badge-lg" x-show="selectedItems.length" x-cloak><span x-text="selectedItems.length"></span> selected</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-ghost btn-sm" x-show="selectedItems.length" x-cloak @click="clearSelection()">Clear</button>
+          <button type="submit"
+                  form="bookmark-remove-form"
+                  class="btn btn-outline btn-error btn-sm"
+                  :disabled="!selectedItems.length"
+                  data-testid="bookmark-remove-selected">
+            {{ heroicon_mini("x-mark") }}
+            Remove selected
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="bookmark-story-list">
+      {% for story in stories %}
+        {{ story_card(story, show_bookmark=False) }}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info" data-testid="empty-bookmark">This bookmark collection has no stories.</div>
+  {% endif %}
+</div>

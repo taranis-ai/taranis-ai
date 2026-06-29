@@ -10,11 +10,10 @@ from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count
 from frontend.log import logger
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class WordListView(AdminMixin, BaseView):
+class WordListView(AdminBaseView):
     model = WordList
     icon = "chat-bubble-bottom-center-text"
     _index = 170
@@ -27,23 +26,23 @@ class WordListView(AdminMixin, BaseView):
     def import_post_view(cls):
         word_lists = request.files.get("file")
         if not word_lists:
-            notification = render_template("notification/index.html", notification={"message": "No file provided", "error": True}, oob=True)
+            notification = render_template("notification/index.html", notification={"message": "No file provided", "error": True}, oob=False)
             return Response(notification, status=200)
         data = word_lists.read()
         try:
             data = json.loads(data)
         except ValueError as exc:
-            notification = render_template("notification/index.html", notification={"message": str(exc), "error": True}, oob=True)
+            notification = render_template("notification/index.html", notification={"message": str(exc), "error": True}, oob=False)
             return Response(notification, status=200)
 
         response = CoreApi().import_word_lists(data)
 
         if not response or not response.ok:
             if response:
-                notification = cls.get_notification_from_response(response, oob=True)
+                notification = cls.get_notification_from_response(response, oob=False)
             else:
                 notification = render_template(
-                    "notification/index.html", notification={"message": "Failed to import word lists", "error": True}, oob=True
+                    "notification/index.html", notification={"message": "Failed to import word lists", "error": True}, oob=False
                 )
 
             return Response(notification, status=200)

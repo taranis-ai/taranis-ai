@@ -1,4 +1,3 @@
-import os
 import shlex
 import shutil
 import subprocess
@@ -7,12 +6,6 @@ from pathlib import Path
 
 import pytest
 import requests
-
-
-os.environ.setdefault(
-    "TARANIS_E2E_UV_CACHE_DIR",
-    os.getenv("UV_CACHE_DIR", str(Path.home() / ".cache" / "uv")),
-)
 
 
 def wait_for_http_ok(url: str, timeout_seconds: int = 20, poll_interval: float = 0.5) -> None:
@@ -29,17 +22,27 @@ def wait_for_http_ok(url: str, timeout_seconds: int = 20, poll_interval: float =
     raise RuntimeError(f"Timed out waiting for {url}: {last_exc}")
 
 
+def _command_succeeds(command: list[str]) -> bool:
+    return subprocess.run(command, capture_output=True, check=False).returncode == 0
+
+
+def _docker_is_podman(docker_bin: str) -> bool:
+    result = subprocess.run([docker_bin, "--version"], capture_output=True, text=True, check=False)
+    return "podman" in f"{result.stdout}\n{result.stderr}".lower()
+
+
 def require_docker_compose_command() -> str:
     docker_bin = shutil.which("docker")
-    if docker_bin:
-        if subprocess.run([docker_bin, "compose", "version"], capture_output=True, check=False).returncode == 0:
-            if subprocess.run([docker_bin, "info"], capture_output=True, check=False).returncode == 0:
-                return "docker compose"
+    if docker_bin and not _docker_is_podman(docker_bin):
+        if _command_succeeds([docker_bin, "compose", "version"]) and _command_succeeds([docker_bin, "info"]):
+            return "docker compose"
 
-    if shutil.which("podman-compose"):
-        podman_bin = shutil.which("podman")
-        if podman_bin and subprocess.run([podman_bin, "info"], capture_output=True, check=False).returncode == 0:
+    podman_bin = shutil.which("podman")
+    if podman_bin and _command_succeeds([podman_bin, "info"]):
+        if shutil.which("podman-compose"):
             return "podman-compose"
+        if _command_succeeds([podman_bin, "compose", "version"]):
+            return "podman compose"
 
     pytest.skip("docker compose or podman-compose is not available - skipping docker-backed tests")
 

@@ -1,5 +1,5 @@
 from models.assess import NewsItem
-from models.user import UserProfile
+from models.user import USER_PRODUCT_OVERVIEW_TASK_ID, UserProfile
 
 from frontend.cache import FrontendCache, add_user_to_cache, cache, get_cache_keys, get_cached_users, get_user_from_cache
 
@@ -35,6 +35,7 @@ def test_user_cache_round_trips_user_profile(app, test_cache_backend):
         "organization": {"id": "1", "name": "Galactic Government"},
         "permissions": ["ALL"],
         "profile": {},
+        "pending_onboarding_tasks": [{"id": USER_PRODUCT_OVERVIEW_TASK_ID, "scope": "user"}],
         "roles": [{"id": "1", "name": "Admin"}],
     }
 
@@ -42,6 +43,7 @@ def test_user_cache_round_trips_user_profile(app, test_cache_backend):
         cached_user = add_user_to_cache(user_payload)
 
         assert isinstance(cached_user, UserProfile)
+        assert cached_user.pending_onboarding_tasks[0].id == USER_PRODUCT_OVERVIEW_TASK_ID
         assert get_user_from_cache("admin") == cached_user
         assert get_cache_keys() == ["taranis_frontend:user:admin:model:user_profile:profile:self"]
         assert get_cached_users() == [cached_user]

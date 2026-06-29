@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: timedelta = timedelta(hours=4)
+    JWT_DECODE_LEEWAY: int = 5
     JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
 
     DB_URL: str = "localhost"
@@ -64,7 +65,10 @@ class Settings(BaseSettings):
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
-    TARANIS_CORE_SENTRY_DSN: str | None = None
+    TARANIS_SENTRY_DSN: str | None = None
+    SENTRY_ENABLE_LOGS: bool = False
+    SENTRY_SEND_DEFAULT_PII: bool = False
+    SENTRY_ENABLE_DB_QUERY_SOURCE: bool = False
     DISABLE_PPN_COLLECTOR: bool = True
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
     OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024

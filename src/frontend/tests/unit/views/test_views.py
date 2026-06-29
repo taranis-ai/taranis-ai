@@ -3,13 +3,14 @@ import json
 from datetime import datetime
 from io import BytesIO
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import patch
 from urllib.parse import urlparse
 
 import pytest
 from flask import render_template
-from models.admin import OSINTSource
-from models.task import Task
+from models.admin import OSINTSource, ReportItemType
+from models.task import Task, TaskResultEnvelope
 from models.types import COLLECTOR_TYPES
 
 from frontend.cache import add_user_to_cache, cache
@@ -17,7 +18,10 @@ from frontend.config import Config
 from frontend.views.admin_views.dashboard_views import AdminDashboardView
 from frontend.views.admin_views.report_type_views import ReportItemTypeView
 from frontend.views.admin_views.source_views import SourceView
+from frontend.views.admin_views.word_list_views import WordListView
 from frontend.views.base_view import BaseView
+from frontend.views.product_views import ProductView
+from frontend.views.report_views import ReportItemView
 
 
 _VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
@@ -32,7 +36,7 @@ ADMIN_VIEWS = [(name, cls) for name, cls in VIEW_ITEMS if getattr(cls, "_is_admi
 ADMIN_IDS = [name for name, _ in ADMIN_VIEWS]
 
 
-def _json_request_body(call) -> dict:
+def _json_request_body(call: Any) -> dict[str, Any]:
     body = call.request.body
     if isinstance(body, bytes):
         body = body.decode("utf-8")
@@ -301,7 +305,16 @@ class TestSourceView:
         assert processed_data["icon"] == ""
 
     def test_osint_source_preview_shows_failure_and_retrigger_action(self, app):
-        task_result = Task(id="source_preview_42", status="FAILURE", result="Connection refused")
+        task_result = Task(
+            id="source_preview_42",
+            status="FAILURE",
+            result=TaskResultEnvelope(
+                message="Connection refused",
+                reason="preview_failed",
+                retryable=False,
+                data=None,
+            ),
+        )
 
         with app.test_request_context("/"):
             rendered = render_template(
@@ -318,6 +331,40 @@ class TestSourceView:
         assert "Retrigger preview" in rendered
 
 
+class TestWordListView:
+    def test_import_post_view_no_file_renders_inline_error(self, authenticated_client):
+        resp = authenticated_client.post(WordListView.get_import_route(), data={}, content_type="multipart/form-data")
+
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert "No file provided" in html
+        assert 'hx-swap-oob="true"' not in html
+
+    def test_import_post_view_api_failure_renders_inline_error(self, authenticated_client, responses_mock):
+        dummy_export_data = {"version": 1, "data": [{"name": "Test wordlist", "entries": []}]}
+        dummy_file_content = json.dumps(dummy_export_data).encode("utf-8")
+        dummy_file = BytesIO(dummy_file_content)
+        dummy_file.name = "test.json"
+
+        responses_mock.post(
+            f"{Config.TARANIS_CORE_URL}/config/import-word-lists",
+            json={"error": "Failed to import word lists"},
+            status=500,
+            content_type="application/json",
+        )
+
+        resp = authenticated_client.post(
+            WordListView.get_import_route(),
+            data={"file": (dummy_file, "test.json")},
+            content_type="multipart/form-data",
+        )
+
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert "Failed to import word lists" in html
+        assert 'hx-swap-oob="true"' not in html
+
+
 def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
     with app.test_request_context(
         "/admin/report-item-types/0",
@@ -332,14 +379,15 @@ def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
             "csrf_token": "secret",
         },
     ):
-        model = ReportItemTypeView._submitted_form_model()
+        model = cast(ReportItemType | None, ReportItemTypeView._submitted_form_model())
 
     assert model is not None
+    attribute_groups = model.attribute_groups or []
     assert model.title == "Incident Report"
-    assert len(model.attribute_groups or []) == 1
-    assert model.attribute_groups[0].title == "Indicators"
-    assert len(model.attribute_groups[0].attribute_group_items) == 1
-    assert model.attribute_groups[0].attribute_group_items[0].title == "Domain"
+    assert len(attribute_groups) == 1
+    assert attribute_groups[0].title == "Indicators"
+    assert len(attribute_groups[0].attribute_group_items) == 1
+    assert attribute_groups[0].attribute_group_items[0].title == "Domain"
 
 
 def test_osint_source_form_shows_current_icon_and_delete_option(app):
@@ -496,6 +544,45 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
     assert "Pre-seeded" in html
     assert "Redis" in html
     assert "Workers" in html
+
+
+def test_analyze_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints):
+    response = authenticated_client.get(ReportItemView.get_base_route())
+
+    assert response.status_code == 200
+    assert 'aria-label="Toggle sidebar"' not in response.get_data(as_text=True)
+
+
+def test_publish_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/publish/product-types",
+        json={"items": [], "total_count": 0},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/publish/publisher-presets",
+        json={"items": [], "total_count": 0},
+    )
+
+    response = authenticated_client.get(ProductView.get_base_route())
+
+    assert response.status_code == 200
+    assert 'aria-label="Toggle sidebar"' not in response.get_data(as_text=True)
+
+
+def test_assess_page_shows_sidebar_toggle_when_sidebar_exists(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={"tags": [], "sources": [], "groups": [], "languages": []},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [], "total_count": 0},
+    )
+
+    response = authenticated_client.get("/assess")
+
+    assert response.status_code == 200
+    assert 'aria-label="Toggle sidebar"' in response.get_data(as_text=True)
 
 
 def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fails(

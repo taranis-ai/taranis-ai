@@ -5,10 +5,10 @@
   <script type="text/javascript">
   if (typeof htmx !== 'undefined' && htmx.onLoad) {
     htmx.onLoad(function (elt) {
-      initChoices('trending-tag-filter-select', 'tags');
+      initChoices('trending-tag-filter-select');
     });
   } else {
-    initChoices('trending-tag-filter-select', 'tags');
+    initChoices('trending-tag-filter-select');
   }
   </script>
 
@@ -18,8 +18,8 @@
       <div class="mb-4">
         <div class="flex gap-2">
           <fieldset class="fieldset bg-base-100 flex-none w-1/4">
-            <legend class="fieldset-legend">Days to look back for trending clusters</legend>
-            {{ form_input_content(label="Trending Days", name="dashboard[trending_cluster_days]",
+            <legend class="fieldset-legend">Recent activity window</legend>
+            {{ form_input_content(label="Activity Window Days", name="dashboard[trending_cluster_days]",
                         value=dashboard.trending_cluster_days , type='number') }}
           </fieldset>
 
@@ -28,7 +28,12 @@
         </div>
 
         <div class="flex-none w-1/4">
-          <select name="dashboard[trending_cluster_filter][]" multiple id="trending-tag-filter-select">
+          <select name="dashboard[trending_cluster_filter][]"
+                  multiple
+                  id="trending-tag-filter-select"
+                  data-choices-placeholder-value="{{ _('Select tags') }}"
+                  data-choices-no-results-text="{{ _('No tags found') }}"
+                  data-choices-no-choices-text="{{ _('No tags to choose from') }}">
             {% for cluster in clusters %}
               <option value="{{ cluster }}" {% if cluster in dashboard.trending_cluster_filter %}selected{% endif %}>{{ cluster }}</option>
             {% endfor %}
