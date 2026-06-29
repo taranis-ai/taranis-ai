@@ -75,7 +75,7 @@ def test_users_import_success_redirects_without_rendering_nested_form(
             "count": 0,
             "skipped_users": [{"username": "external-user"}],
             "skipped_count": 1,
-            "message": "No users imported; skipped 1 existing user(s)",
+            "message": "Imported 0 user(s); skipped 1 user(s)",
         },
         status=200,
         content_type="application/json",
@@ -96,9 +96,11 @@ def test_users_import_success_redirects_without_rendering_nested_form(
     assert response.headers["HX-Redirect"] == url_for("admin.users")
     assert "Select JSON File" not in response.get_data(as_text=True)
     with authenticated_client.session_transaction() as session:
-        assert session["_flashes"] == [("warning", "No users imported; skipped 1 existing user(s)")]
+        assert session["_flashes"] == [("warning", "Imported 0 user(s); skipped 1 user(s)")]
 
-    post_call = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/config/users-import"))
+    assert len(responses_mock.calls) == 1
+    post_call = responses_mock.calls[0]
+    assert post_call.request.url == f"{Config.TARANIS_CORE_URL}/config/users-import"
     assert _json_request_body(post_call) == [
         {
             "username": "external-user",
