@@ -671,6 +671,7 @@ class TestUserConfigApi(BaseTest):
             assert response.json["count"] == 1
             assert response.json["skipped_count"] == 0
             assert response.json["users"] == [{"username": username}]
+            assert response.json["message"] == "Imported 1 user(s); skipped 0 user(s)"
 
             with app.app_context():
                 from core.model.user import User
@@ -726,7 +727,7 @@ class TestUserConfigApi(BaseTest):
             assert response.json["skipped_count"] == 1
             assert response.json["users"] == []
             assert response.json["skipped_users"] == [{"username": username, "reason": "user already exists"}]
-            assert response.json["message"] == "No users imported; skipped 1 existing user(s)"
+            assert response.json["message"] == "Imported 0 user(s); skipped 1 user(s)"
 
             list_response = self.assert_get_ok(client, uri=f"users?search={username}", auth_header=auth_header)
             assert list_response.json["total_count"] == 1
@@ -752,7 +753,7 @@ class TestUserConfigApi(BaseTest):
             assert response.json["skipped_count"] == 1
             assert response.json["users"] == [{"username": new_username}]
             assert response.json["skipped_users"] == [{"username": existing_username, "reason": "user already exists"}]
-            assert response.json["message"] == "Successfully imported 1 user(s); skipped 1 existing user(s)"
+            assert response.json["message"] == "Imported 1 user(s); skipped 1 user(s)"
         finally:
             delete_user_by_username(app, existing_username)
             delete_user_by_username(app, new_username)
@@ -782,6 +783,7 @@ class TestUserConfigApi(BaseTest):
                 {"username": "", "reason": "missing or invalid username"},
                 {"username": "missing-name", "reason": "missing or invalid name"},
             ]
+            assert response.json["message"] == "Imported 1 user(s); skipped 3 user(s)"
 
             with app.app_context():
                 from core.model.user import User
@@ -819,6 +821,7 @@ class TestUserConfigApi(BaseTest):
             {"username": first_username, "reason": "invalid user data"},
             {"username": second_username, "reason": "invalid user data"},
         ]
+        assert response.json["message"] == "Imported 0 user(s); skipped 2 user(s)"
 
         with app.app_context():
             from core.model.user import User
