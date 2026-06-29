@@ -50,7 +50,7 @@ in
       startLimitBurst = 30;
 
       serviceConfig = {
-        ExecStart = "${cfg.package}/bin/uvicorn main:app --host ${cfg.host} --port ${toString cfg.port} ${lib.escapeShellArgs cfg.extraArgs}";
+        ExecStart = "${lib.getExe' cfg.package "taranis-ai"} ${lib.escapeShellArgs cfg.extraArgs}";
         WorkingDirectory = "${self}"; # to load the yaml files
         DynamicUser = true;
         StateDirectoryMode = "0750";
