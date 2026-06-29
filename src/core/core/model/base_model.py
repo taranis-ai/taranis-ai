@@ -82,7 +82,7 @@ class BaseModel(db.Model):
 
     @classmethod
     def delete(cls: Type[T], id) -> tuple[dict[str, Any], int]:
-        model_name = str(getattr(cls, "__name__", "BaseModel"))
+        model_name = type.__getattribute__(cls, "__name__")
         if item := cls.get(id):
             db.session.delete(item)
             db.session.commit()
@@ -108,7 +108,7 @@ class BaseModel(db.Model):
     def delete_all(cls: Type[T]) -> tuple[dict[str, Any], int]:
         db.session.execute(db.delete(cls))
         db.session.commit()
-        model_name = str(getattr(cls, "__name__", "BaseModel"))
+        model_name = type.__getattribute__(cls, "__name__")
         logger.debug(f"All {model_name} deleted")
         return {"message": f"All {model_name} deleted"}, 200
 

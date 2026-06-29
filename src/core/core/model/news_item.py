@@ -1,6 +1,6 @@
 import hashlib
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, Sequence
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as AssessStory
@@ -426,7 +426,7 @@ class NewsItem(BaseModel):
         try:
             payload = AssessNewsItem.from_input(self.to_detail_dict() | data | {"osint_source_id": self.osint_source_id})
         except ValidationError as exc:
-            return AssessNewsItem.validation_error_response(cast(Any, exc), prefix="Invalid news item data"), 400
+            return AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data"), 400
 
         if duplicate_item := self.get_by_hash(payload.hash):
             if duplicate_item.id != self.id:
