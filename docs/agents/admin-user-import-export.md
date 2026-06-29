@@ -18,7 +18,7 @@ Frontend import/export lives in `src/frontend/frontend/views/admin_views/user_vi
 ## Data Flow
 The admin import form uploads an exported JSON file, selected organization, and selected roles. The frontend expands each exported user record with `organization` and `roles`, then posts the list to `/api/config/users-import`.
 
-Core creates only missing users, returns `users`/`count` for created users and `skipped_users`/`skipped_count` for duplicates or invalid entries, and always includes a user-facing `message` for successful or no-op imports. Skipped entries include `username` and `reason`.
+Core creates only missing users, returns `users`/`count` for created users and `skipped_users`/`skipped_count` for duplicates or invalid entries, and always includes a user-facing `message` with both imported and skipped counts. Skipped entries include `username` and `reason`.
 
 The frontend renders successful imports with no skipped users as success notifications. Any import response with `skipped_count > 0`, including all-skipped no-op imports, should show a warning notification.
 

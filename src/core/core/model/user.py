@@ -263,8 +263,16 @@ class User(BaseModel):
         export_data = {"version": 1, "data": [user.to_export_dict() for user in data]} if data else {}
         return json.dumps(export_data).encode("utf-8")
 
+    @staticmethod
+    def _skipped_import_user(username: Any, reason: str) -> dict[str, str]:
+        return {"username": "" if username is None else str(username).strip(), "reason": reason}
+
+    @staticmethod
+    def _import_message(imported_count: int, skipped_count: int) -> str:
+        return f"Imported {imported_count} user(s); skipped {skipped_count} user(s)"
+
     @classmethod
-    def import_users(cls, user_list: list) -> dict[str, list[dict[str, str]]]:
+    def import_users(cls, user_list: list) -> dict[str, Any]:
         imported_users = []
         skipped_users = []
         staged_users = []
@@ -272,29 +280,29 @@ class User(BaseModel):
         for user in user_list:
             if not isinstance(user, dict):
                 logger.warning("Skipped user import: item is not a dict")
-                skipped_users.append({"username": "", "reason": "invalid item type"})
+                skipped_users.append(cls._skipped_import_user(None, "invalid item type"))
                 continue
 
             username = user.get("username")
             if not isinstance(username, str) or not username.strip():
                 logger.warning("Skipped user import: missing or invalid username")
-                skipped_users.append({"username": "" if username is None else str(username), "reason": "missing or invalid username"})
+                skipped_users.append(cls._skipped_import_user(username, "missing or invalid username"))
                 continue
 
             name = user.get("name")
             if not isinstance(name, str):
                 logger.warning(f"Skipped user import for {username}: missing or invalid name")
-                skipped_users.append({"username": username.strip(), "reason": "missing or invalid name"})
+                skipped_users.append(cls._skipped_import_user(username, "missing or invalid name"))
                 continue
 
             username = username.strip()
             if cls.find_by_name(username):
                 logger.warning(f"User {username} already exists")
-                skipped_users.append({"username": username, "reason": "user already exists"})
+                skipped_users.append(cls._skipped_import_user(username, "user already exists"))
                 continue
             if username in seen_usernames:
                 logger.warning(f"Skipped user import for {username}: duplicate username in import file")
-                skipped_users.append({"username": username, "reason": "duplicate username in import file"})
+                skipped_users.append(cls._skipped_import_user(username, "duplicate username in import file"))
                 continue
             import_user = dict(user)
             import_user["username"] = username
@@ -305,7 +313,7 @@ class User(BaseModel):
                 seen_usernames.add(username)
             except (SQLAlchemyError, TypeError, ValueError, ValidationError) as exc:
                 logger.warning(f"Skipped user import for {username}: invalid user data ({exc})")
-                skipped_users.append({"username": username, "reason": "invalid user data"})
+                skipped_users.append(cls._skipped_import_user(username, "invalid user data"))
                 continue
 
         try:
@@ -314,10 +322,19 @@ class User(BaseModel):
         except SQLAlchemyError as exc:
             db.session.rollback()
             logger.warning(f"User import batch failed; rolled back staged users ({exc})")
-            skipped_users.extend({"username": username, "reason": "invalid user data"} for username, _ in staged_users)
+            skipped_users.extend(cls._skipped_import_user(username, "invalid user data") for username, _ in staged_users)
         else:
             imported_users = [{"username": username} for username, _ in staged_users]
-        return {"imported": imported_users, "skipped": skipped_users}
+
+        imported_count = len(imported_users)
+        skipped_count = len(skipped_users)
+        return {
+            "users": imported_users,
+            "count": imported_count,
+            "skipped_users": skipped_users,
+            "skipped_count": skipped_count,
+            "message": cls._import_message(imported_count, skipped_count),
+        }
 
 
 class UserRole(BaseModel):
