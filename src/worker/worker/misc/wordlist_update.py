@@ -34,7 +34,7 @@ def update_wordlist(word_list_id: str):
     if content_type == "text/csv" or url.endswith(".csv"):
         content_type = "text/csv"
         text_content = response.text
-        if text_content is None:
+        if not text_content:
             raise ValueError("Downloaded CSV word list is empty")
         content = text_content
     elif content_type == "application/json" or url.endswith(".json"):

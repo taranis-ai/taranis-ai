@@ -141,7 +141,7 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 - fix linting issues before committing code
 - after touching Python files, run `./dev/check_pyrefly.sh` to catch Pyrefly issues in changed files
 - don't write commit messages like "x tests are passing" or "resolves linting failures"
-- don't add comments like "Restore template files ..." directly in the code, when you add new codelines
+- don't add comments like "Restore template files ..." directly in the code, when you add new code lines
 
 ## Datetime Handling
 

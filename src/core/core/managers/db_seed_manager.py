@@ -85,7 +85,9 @@ def pre_seed_update(db_engine: Engine):
 
     for w in workers:
         w = cast(dict[str, Any], w)
-        if worker := Worker.filter_by_type(w["type"]):
+        worker_type = str(w["type"])
+        w["type"] = worker_type
+        if worker := Worker.filter_by_type(worker_type):
             worker.update(w)
         else:
             Worker.add(w)

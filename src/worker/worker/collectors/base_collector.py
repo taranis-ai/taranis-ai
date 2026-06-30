@@ -46,7 +46,7 @@ class BaseCollector:
         if include_patterns or exclude_patterns:
 
             def matches_filters(item: NewsItem) -> bool:
-                searchable_text = f"{item.title or ''}{item.content or ''}"
+                searchable_text = f"{item.title or ''} {item.content or ''}"
                 return (not include_patterns or any(pattern.search(searchable_text) for pattern in include_patterns)) and (
                     not exclude_patterns or all(not pattern.search(searchable_text) for pattern in exclude_patterns)
                 )

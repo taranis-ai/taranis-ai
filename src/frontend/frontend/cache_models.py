@@ -50,14 +50,12 @@ class CacheObject(list[T], Generic[T]):
     def __getitem__(self, item: slice) -> list[T]: ...
 
     def __getitem__(self, item: SupportsIndex | slice) -> T | list[T]:
-        if isinstance(item, slice):
-            return super().__getitem__(item)
         return super().__getitem__(item)
 
     @property
     def timeout(self) -> int:
         if self and hasattr(self[0], "_cache_timeout"):
-            return int(getattr(self[0], "_cache_timeout"))
+            return int(self[0]._cache_timeout)
         return Config.CACHE_DEFAULT_TIMEOUT
 
     @property

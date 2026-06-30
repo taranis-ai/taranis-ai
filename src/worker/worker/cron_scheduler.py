@@ -91,7 +91,7 @@ def compute_next(spec: dict[str, Any], base_ts: float) -> float:
         dt = datetime.fromtimestamp(base_ts, tz=timezone.utc)
         next_run = croniter(spec["cron"], dt).get_next(datetime)
         if not isinstance(next_run, datetime):
-            raise TypeError("croniter did not return a datetime")
+            raise ValueError("croniter did not return a datetime")
         return next_run.timestamp()
     interval = spec.get("interval")
     if interval is not None:

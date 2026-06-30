@@ -1,4 +1,4 @@
-# pyright: reportAttributeAccessIssue=false
+# pyrefly: ignore-errors
 import json
 import os
 import sys

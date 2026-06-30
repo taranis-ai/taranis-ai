@@ -245,6 +245,15 @@ def test_filter_by_word_list_empty_wordlist(rss_collector, input_news_items):
     assert emptylist_results == input_news_items
 
 
+def test_filter_by_word_list_matches_title_content_boundary(rss_collector):
+    from models.assess import NewsItem
+
+    item = NewsItem(osint_source_id="source-1", title="foo", content="bar")
+    word_lists = [{"usage": ["COLLECTOR_INCLUDELIST"], "entries": [{"value": "bar"}]}]
+
+    assert rss_collector.filter_by_word_list([item], word_lists) == [item]
+
+
 @pytest.mark.parametrize(
     "input_news_items,expected_news_items",
     [(news_items, news_items[:2]), (news_items[2:], []), (news_items[:: len(news_items) - 1], [news_items[0]]), ([news_items[-1]], [])],
