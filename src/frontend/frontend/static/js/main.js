@@ -144,7 +144,7 @@ function omniSearch(searchUrl) {
   };
 }
 
-function canUseAssessShortcut(event) {
+function canUseAssessShortcut(event, key = null) {
   if (event?.defaultPrevented) {
     return false;
   }
@@ -154,7 +154,11 @@ function canUseAssessShortcut(event) {
     return false;
   }
 
-  return !document.querySelector("dialog[open]");
+  if (document.querySelector("dialog[open]")) {
+    return false;
+  }
+
+  return key === null || (event?.shiftKey && event?.key?.toLowerCase() === key.toLowerCase());
 }
 
 if (document.readyState === "loading") {
