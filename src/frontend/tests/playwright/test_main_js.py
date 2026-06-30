@@ -87,7 +87,6 @@ def test_assess_shift_e_shortcut_uses_selected_story(page: Page):
 
     page.keyboard.press("e")
     page.keyboard.press("Shift+R")
-    page.wait_for_timeout(100)
 
     expect(page.locator("#opened")).to_have_text("")
 

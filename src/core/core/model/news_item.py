@@ -118,7 +118,7 @@ class NewsItem(BaseModel):
                 self.osint_source = osint_source
         else:
             logger.warning(f"OSINT Source {payload.osint_source_id} not found. Setting osint_source_id to manual.")
-            self.osint_source = cast(OSINTSource, OSINTSource.get_by_key("manual"))
+            self.osint_source = OSINTSource.get_manual()
         self.source = payload.source or ""
         self.link = payload.link or ""
         self.author = payload.author or ""

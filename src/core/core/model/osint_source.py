@@ -99,7 +99,7 @@ class OSINTSource(BaseModel):
         self.parameters = Worker.parse_parameters(self.type, payload.parameters)
 
     @classmethod
-    def get(cls, item_id: str) -> "OSINTSource | None":
+    def get(cls, item_id: str | None) -> "OSINTSource | None":
         if item_id is None:
             return None
         lookup_id = str(item_id)
@@ -134,8 +134,6 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def get_manual(cls) -> "OSINTSource":
-        if m := cls.get_first(db.select(cls).filter_by(key="manual")):
-            return m
         return cls.create_manual_source()
 
     @classmethod
@@ -843,7 +841,7 @@ class OSINTSourceGroup(BaseModel):
         return cls.get_first(db.select(cls).filter(OSINTSourceGroup.default))
 
     @classmethod
-    def get(cls, item_id: str) -> "OSINTSourceGroup | None":
+    def get(cls, item_id: str | None) -> "OSINTSourceGroup | None":
         if item_id is None:
             return None
         lookup_id = str(item_id)
