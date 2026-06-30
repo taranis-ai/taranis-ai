@@ -32,6 +32,7 @@ import contextlib
 import hashlib
 import json
 import time
+from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -225,7 +226,11 @@ class QueueManager:
 
         # Create queue instances
         for queue_name in self.queue_names:
-            self._queues[queue_name] = Queue(queue_name, connection=self._redis)
+            self._queues[queue_name] = Queue(
+                queue_name,
+                connection=self._redis,
+                default_timeout=Config.RQ_DEFAULT_JOB_TIMEOUT,
+            )
 
         app.extensions["rq"] = self
         logger.info(f"QueueManager initialized with Redis: {self.redis_url}")
@@ -363,10 +368,14 @@ class QueueManager:
             with contextlib.suppress(Exception):
                 if hasattr(queue, "get_job_ids"):
                     queued_ids = list(queue.get_job_ids())
-                elif callable(getattr(queue, "job_ids", None)):
-                    queued_ids = list(queue.job_ids())
-                elif getattr(queue, "job_ids", None) is not None:
-                    queued_ids = list(queue.job_ids)
+                else:
+                    job_ids_attr: object | None = getattr(queue, "job_ids", None)
+                    if callable(job_ids_attr):
+                        job_ids_value = job_ids_attr()
+                        if isinstance(job_ids_value, Iterable):
+                            queued_ids = list(job_ids_value)
+                    elif isinstance(job_ids_attr, Iterable):
+                        queued_ids = list(job_ids_attr)
 
             for job_id in queued_ids:
                 if not matches(job_id) or job_id in removed_ids:
