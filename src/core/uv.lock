@@ -1469,14 +1469,11 @@ requires-dist = [
     { name = "pillow" },
     { name = "psycopg" },
     { name = "pydantic-settings" },
-<<<<<<< HEAD
-=======
     { name = "pyright", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-docker", marker = "extra == 'dev'" },
     { name = "pytest-flask", marker = "extra == 'dev'" },
     { name = "pytest-playwright", marker = "extra == 'dev'" },
->>>>>>> e5b007805a6ad472472a2cb9a3fee5be1036297a
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "rq", specifier = ">=2.5" },
