@@ -52,7 +52,8 @@ class Settings(BaseSettings):
     def set_taranis_core(self) -> Self:
         if self.TARANIS_CORE_URL:
             return self
-        return self.model_copy(update={"TARANIS_CORE_URL": f"http://{self.TARANIS_CORE_HOST}{self.TARANIS_BASE_PATH}api"})
+        object.__setattr__(self, "TARANIS_CORE_URL", f"http://{self.TARANIS_CORE_HOST}{self.TARANIS_BASE_PATH}api")
+        return self
 
 
 Config = Settings()
