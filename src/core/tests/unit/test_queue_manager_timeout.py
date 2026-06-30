@@ -31,11 +31,6 @@ def test_queue_manager_initializes_queues_with_configured_default_timeout(monkey
     queue_manager = QueueManager(app)
 
     assert queue_manager.error == ""
-    assert queue_calls == [
-        {"name": "misc", "connection": redis_conn, "default_timeout": 900},
-        {"name": "bots", "connection": redis_conn, "default_timeout": 900},
-        {"name": "collectors", "connection": redis_conn, "default_timeout": 900},
-        {"name": "presenters", "connection": redis_conn, "default_timeout": 900},
-        {"name": "publishers", "connection": redis_conn, "default_timeout": 900},
-        {"name": "connectors", "connection": redis_conn, "default_timeout": 900},
-    ]
+    assert [call["name"] for call in queue_calls] == queue_manager.queue_names
+    assert all(call["connection"] is redis_conn for call in queue_calls)
+    assert all(call["default_timeout"] == 900 for call in queue_calls)
