@@ -320,17 +320,7 @@ def pre_seed_source_groups():
 def pre_seed_manual_source():
     from core.model.osint_source import OSINTSource
 
-    if not OSINTSource.get_by_key("manual"):
-        OSINTSource.add(
-            {
-                "id": "manual",
-                "name": "Manual",
-                "description": "Manual source",
-                "rank": 0,
-                "type": "MANUAL_COLLECTOR",
-                "parameters": {},
-            }
-        )
+    OSINTSource.create_manual_source()
 
 
 def pre_seed_workers():

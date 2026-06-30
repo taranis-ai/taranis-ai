@@ -117,7 +117,29 @@ class OSINTSource(BaseModel):
         return None
 
     @classmethod
-    def get_by_key(cls, key: str | None) -> "OSINTSource | None":
+    def create_manual_source(cls) -> "OSINTSource":
+        if existing_manual := cls.get_by_key("manual"):
+            return existing_manual
+
+        return cls.add(
+            {
+                "id": "manual",
+                "name": "Manual",
+                "description": "Manual source",
+                "rank": 0,
+                "type": "MANUAL_COLLECTOR",
+                "parameters": {},
+            }
+        )
+
+    @classmethod
+    def get_manual(cls) -> "OSINTSource":
+        if m := cls.get_first(db.select(cls).filter_by(key="manual")):
+            return m
+        return cls.create_manual_source()
+
+    @classmethod
+    def get_by_key(cls, key: str) -> "OSINTSource | None":
         if not key:
             return None
         return cls.get_first(db.select(cls).filter_by(key=key))

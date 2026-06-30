@@ -51,8 +51,8 @@ class Settings(BaseModel):
             return {"error": "settings must be a JSON object"}, 400
         try:
             update_data = cls._normalize_update_data(dict(raw_update_data))
-        except ValueError as exc:
-            return {"error": str(exc)}, 400
+        except ValueError:
+            return {"error": "Invalid timezone"}, 400
 
         if update_data:
             logger.debug(f"Settings update data: {update_data}")
@@ -89,7 +89,7 @@ class Settings(BaseModel):
         return normalized
 
     @staticmethod
-    def _validate_timezone(value: str | None) -> str | None:
+    def _validate_timezone(value: Any) -> str | None:
         if value is None:
             return None
         if not isinstance(value, str):
