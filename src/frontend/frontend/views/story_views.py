@@ -22,6 +22,7 @@ from models.assess import (
 from models.report import ReportItem
 from models.revision_diff import build_story_revision_diff_payload
 from pydantic import ValidationError
+from requests import Response as RequestsResponse
 from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import HTTPException
 
@@ -129,6 +130,7 @@ class StoryView(BaseView):
             assess_request_args = cls._get_assess_request_params()
             base_context["assess_request_args"] = assess_request_args
         base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
+        base_context["assess_bookmark_bar_limit"] = ASSESS_BOOKMARK_BAR_LIMIT
         base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
         base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
         if stories := base_context.get("stories"):
@@ -282,6 +284,27 @@ class StoryView(BaseView):
             if values:
                 params[key] = values
         return params
+
+    @classmethod
+    def _assess_filter_key(cls, filters: dict[str, Any]) -> tuple[tuple[str, str | tuple[str, ...]], ...]:
+        return tuple(
+            (key, tuple(sorted(value)) if isinstance(value, list) else str(value))
+            for key, value in sorted(cls._normalize_assess_filter_payload(filters).items())
+        )
+
+    @classmethod
+    def _find_duplicate_saved_filter(
+        cls, saved_filters: list[dict[str, Any]], filters: dict[str, Any], exclude_id: str | None = None
+    ) -> dict[str, Any] | None:
+        filter_key = cls._assess_filter_key(filters)
+        return next(
+            (
+                saved_filter
+                for saved_filter in saved_filters
+                if saved_filter["id"] != exclude_id and cls._assess_filter_key(saved_filter["filters"]) == filter_key
+            ),
+            None,
+        )
 
     @classmethod
     def _get_saved_assess_filters(cls) -> list[dict[str, Any]]:
@@ -577,14 +600,16 @@ class StoryView(BaseView):
         return {"assess_saved_filters": [saved_filter for saved_filter in normalized_filters if saved_filter["name"]]}
 
     @classmethod
-    def _update_saved_filters_profile(cls, saved_filters: list[dict[str, Any]]):
+    def _update_saved_filters_profile(cls, saved_filters: list[dict[str, Any]]) -> RequestsResponse:
         response = CoreApi().update_user_profile(cls._saved_filters_profile_payload(saved_filters))
         if getattr(response, "ok", False):
             update_current_user_cache()
         return response
 
     @classmethod
-    def _render_saved_filters_mutation_response(cls, response, success_message: str, saved_filters: list[dict[str, Any]]):
+    def _render_saved_filters_mutation_response(
+        cls, response: RequestsResponse, success_message: str, saved_filters: list[dict[str, Any]]
+    ) -> tuple[str, int]:
         if getattr(response, "ok", False):
             return cls._render_saved_filters_dialog({"message": success_message}, saved_filters=saved_filters)
 
@@ -623,12 +648,24 @@ class StoryView(BaseView):
             saved_filters = cls._get_saved_assess_filters()
             make_default = request.form.get("is_default") == "true"
             matching_filter = next((saved_filter for saved_filter in saved_filters if saved_filter["name"].lower() == name.lower()), None)
+            duplicate_filter = cls._find_duplicate_saved_filter(
+                saved_filters, filters, exclude_id=matching_filter["id"] if matching_filter else None
+            )
+            if duplicate_filter:
+                return cls._render_saved_filters_dialog(
+                    {"message": f"These filters are already saved as {duplicate_filter['name']}.", "error": True},
+                    400,
+                    saved_filters=saved_filters,
+                )
+
             if matching_filter:
                 matching_filter["name"] = name
                 matching_filter["filters"] = filters
                 matching_filter["is_default"] = make_default or matching_filter["is_default"]
+                message = "Assess filter updated."
             else:
                 saved_filters.append({"id": str(uuid.uuid7()), "name": name, "filters": filters, "is_default": make_default})
+                message = "Assess filter saved."
 
             if make_default:
                 default_id = matching_filter["id"] if matching_filter else saved_filters[-1]["id"]
@@ -637,8 +674,8 @@ class StoryView(BaseView):
 
             response = cls._update_saved_filters_profile(saved_filters)
             if getattr(response, "ok", False):
-                session[ASSESS_SAVED_FILTER_SESSION_KEY] = make_default
-            return cls._render_saved_filters_mutation_response(response, "Assess filter saved.", saved_filters)
+                session[ASSESS_SAVED_FILTER_SESSION_KEY] = any(saved_filter["is_default"] for saved_filter in saved_filters)
+            return cls._render_saved_filters_mutation_response(response, message, saved_filters)
         except HTTPException:
             raise
         except Exception:
@@ -672,6 +709,8 @@ class StoryView(BaseView):
             return cls._render_saved_filters_dialog({"message": "Saved filter not found.", "error": True}, 404)
 
         response = cls._update_saved_filters_profile(filtered_saved_filters)
+        if getattr(response, "ok", False):
+            session[ASSESS_SAVED_FILTER_SESSION_KEY] = any(saved_filter["is_default"] for saved_filter in filtered_saved_filters)
         return cls._render_saved_filters_mutation_response(response, "Assess filter deleted.", filtered_saved_filters)
 
     @classmethod

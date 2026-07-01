@@ -52,7 +52,7 @@
         <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="dashboard-saved-filters-default">
           {% for saved_filter in visible_saved_filters %}
             {% call dashboard_card(saved_filter.name, saved_filter.url, test_id='dashboard-saved-filter-card') %}
-              {{ saved_filter_card_body(saved_filter, show_name=false, show_apply_action=false) }}
+              {{ saved_filter_card_body(saved_filter, show_name=false, show_apply_action=false, show_delete_action=true) }}
             {% endcall %}
           {% endfor %}
         </div>
@@ -63,7 +63,7 @@
             <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="dashboard-saved-filters-extra">
               {% for saved_filter in hidden_saved_filters %}
                 {% call dashboard_card(saved_filter.name, saved_filter.url, test_id='dashboard-saved-filter-card') %}
-                  {{ saved_filter_card_body(saved_filter, show_name=false, show_apply_action=false) }}
+                  {{ saved_filter_card_body(saved_filter, show_name=false, show_apply_action=false, show_delete_action=true) }}
                 {% endcall %}
               {% endfor %}
             </div>

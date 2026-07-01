@@ -10,7 +10,7 @@ Assess filters let users narrow stories and news items from the assess workspace
 
 Filter option lists must reflect current user-visible database state. `/api/assess/filter-lists` builds those options on request and returns tags, sources, groups, and languages. The frontend may cache the response per user, so core writes that affect assess views must invalidate the relevant frontend cache scope.
 
-Saved assess default filters belong to the user profile. Applying defaults should preserve the same canonical query parameter shape used by normal sidebar filtering.
+Saved assess default filters belong to the user profile. Applying defaults should preserve the same canonical query parameter shape used by normal sidebar filtering. Saving with an existing saved filter name updates that filter, duplicate filter criteria under another name are rejected, and managed filters can be updated from the current sidebar filters.
 
 ## Code Paths
 
@@ -49,7 +49,7 @@ Core serves filter lists through `FilterLists.get()` in `src/core/core/api/asses
 
 Sidebar form submissions and saved defaults use query parameters. Multi-value filters such as source, group, language, and tags must stay list-shaped where the view/core expects lists.
 
-The dashboard can surface saved Assess filters as shortcut cards, but should reuse the same saved filter normalization and canonical `/assess` URL construction instead of adding a dashboard-specific endpoint or payload shape. Show only the first three saved filters by default and put the rest behind the dashboard's native Show more/Show less pattern.
+The dashboard can surface saved Assess filters as shortcut cards, but should reuse the same saved filter normalization, delete route, and canonical `/assess` URL construction instead of adding a dashboard-specific endpoint or payload shape. Show only the first three saved filters by default and put the rest behind the dashboard's native Show more/Show less pattern.
 
 Omnisearch only loads assess filter lists when value resolution or suggestions need them. Keep this lazy behavior so ordinary global search does not always fetch filter-list data.
 

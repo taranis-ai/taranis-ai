@@ -107,12 +107,18 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
     assert "Hidden queue" not in " ".join(card.text_content() for card in saved_filter_cards)
     assert len(extra_saved_filter_cards) == 1
     assert "Hidden queue" in extra_saved_filter_cards[0].text_content()
+    assert extra_saved_filter_cards[0].xpath('.//button[normalize-space()="Delete"]')
     assert "Default" in saved_filter_cards[2].xpath('.//*[@data-testid="saved-filter-filter-3"]')[0].text_content()
 
     saved_filter_row = saved_filter_cards[0].xpath('.//*[@data-testid="saved-filter-filter-1"]')[0]
     saved_filter_url = urlparse(saved_filter_cards[0].xpath('./a[text()="Shift queue"]')[0].get("href"))
+    delete_button = saved_filter_row.xpath('.//button[normalize-space()="Delete"]')[0]
 
-    assert not saved_filter_row.xpath('.//*[@data-testid="saved-filter-actions"]')
+    assert not saved_filter_row.xpath('.//button[normalize-space()="Update"]')
+    assert not saved_filter_row.xpath('.//button[normalize-space()="Set default"]')
+    assert delete_button.get("hx-delete") == url_for("assess.delete_saved_filter", filter_id="filter-1")
+    assert delete_button.get("hx-target") == "closest [data-testid='dashboard-saved-filter-card']"
+    assert delete_button.get("hx-swap") == "delete"
     assert saved_filter_url.path == url_for("assess.assess")
     assert parse_qs(saved_filter_url.query) == {"search": ["incident"], "tags": ["alpha"], "sort": ["date_desc"]}
 

@@ -1,5 +1,5 @@
-{% macro saved_filter_card_body(saved_filter, show_name=true, show_apply_action=true, show_management_actions=false) %}
-  <div class="grid gap-3{% if show_apply_action or show_management_actions %} md:grid-cols-[minmax(0,1fr)_auto] md:items-center{% endif %}"
+{% macro saved_filter_card_body(saved_filter, show_name=true, show_apply_action=true, show_management_actions=false, show_delete_action=false) %}
+  <div class="grid gap-3{% if show_apply_action or show_management_actions or show_delete_action %} md:grid-cols-[minmax(0,1fr)_auto] md:items-center{% endif %}"
        data-testid="saved-filter-{{ saved_filter.id }}">
     <div class="min-w-0">
       {% if show_name or saved_filter.is_default %}
@@ -12,10 +12,19 @@
            title="{{ saved_filter.url }}"
            data-testid="saved-filter-url">{{ saved_filter.url }}</div>
     </div>
-    {% if show_apply_action or show_management_actions %}
+    {% if show_apply_action or show_management_actions or show_delete_action %}
       <div class="flex shrink-0 flex-nowrap gap-2 md:justify-end" data-testid="saved-filter-actions">
         {% if show_apply_action %}<a class="btn btn-outline btn-xs whitespace-nowrap" href="{{ saved_filter.url }}">Apply</a>{% endif %}
         {% if show_management_actions %}
+          <button type="button"
+                  class="btn btn-outline btn-xs whitespace-nowrap"
+                  hx-post="{{ url_for('assess.save_saved_filter') }}"
+                  hx-vals='{"name": {{ saved_filter.name | tojson }}}'
+                  hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
+                  hx-target="#assess_saved_filters_dialog"
+                  hx-swap="outerHTML"
+                  hx-target-error="#assess_saved_filters_dialog"
+                  {% if not has_current_filters %}disabled title="Apply at least one Assess filter before updating."{% endif %}>Update</button>
           {% if saved_filter.is_default %}
             <button type="button"
                     class="btn btn-outline btn-xs whitespace-nowrap"
@@ -32,13 +41,13 @@
                     hx-swap="outerHTML"
                     hx-target-error="#assess_saved_filters_dialog">Set default</button>
           {% endif %}
+        {% endif %}
+        {% if show_management_actions or show_delete_action %}
           <button type="button"
                   class="btn btn-outline btn-error btn-xs whitespace-nowrap"
                   hx-delete="{{ url_for('assess.delete_saved_filter', filter_id=saved_filter.id) }}"
                   hx-confirm="Delete this saved filter?"
-                  hx-target="#assess_saved_filters_dialog"
-                  hx-swap="outerHTML"
-                  hx-target-error="#assess_saved_filters_dialog">Delete</button>
+                  {% if show_management_actions %} hx-target="#assess_saved_filters_dialog" hx-swap="outerHTML" hx-target-error="#assess_saved_filters_dialog" {% else %} hx-target="closest [data-testid='dashboard-saved-filter-card']" hx-swap="delete" {% endif %}>Delete</button>
         {% endif %}
       </div>
     {% endif %}
