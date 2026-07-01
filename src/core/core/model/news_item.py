@@ -118,7 +118,7 @@ class NewsItem(BaseModel):
                 self.osint_source = osint_source
         else:
             logger.warning(f"OSINT Source {payload.osint_source_id} not found. Setting osint_source_id to manual.")
-            self.osint_source = OSINTSource.get_by_key("manual")
+            self.osint_source = OSINTSource.get_manual()
         self.source = payload.source or ""
         self.link = payload.link or ""
         self.author = payload.author or ""
@@ -259,7 +259,7 @@ class NewsItem(BaseModel):
             self.story.update_status(change=change)
 
     @staticmethod
-    def _normalize_language(lang: str | None) -> str:
+    def _normalize_language(lang: Any) -> str:
         return validate_bcp47(lang) or ""
 
     @classmethod
@@ -269,8 +269,8 @@ class NewsItem(BaseModel):
             return {"error": "Invalid news item id"}, 400
         try:
             news_item.language = cls._normalize_language(lang)
-        except (TypeError, ValueError) as exc:
-            return {"error": f"Invalid news item data: language: {exc}"}, 400
+        except (TypeError, ValueError):
+            return {"error": "Invalid news item data: Invalid BCP 47 language tag"}, 400
         news_item._update_status(actor or "internal")
         if story := news_item.story:
             story.record_revision(note="update_news_item_lang")

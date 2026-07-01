@@ -19,7 +19,7 @@
     "npm:choices.js@*": "11.2.3",
     "npm:choices.js@^11.2.3": "11.2.3",
     "npm:codemirror@^6.0.2": "6.0.2",
-    "npm:daisyui@^5.6.3": "5.6.3",
+    "npm:daisyui@^5.6.6": "5.6.6",
     "npm:driver.js@*": "1.6.0",
     "npm:driver.js@^1.6.0": "1.6.0",
     "npm:fuse.js@*": "7.4.2",
@@ -385,8 +385,8 @@
     "crelt@1.0.6": {
       "integrity": "sha512-VQ2MBenTq1fWZUH9DJNGti7kKv6EeAuYr3cLwxUWhIu1baTaXh4Ib5W2CqHVqib4/MqbYGJqiL3Zb8GJZr3l4g=="
     },
-    "daisyui@5.6.3": {
-      "integrity": "sha512-QvdtXnQ/tD5a18Y/+NJkJ1+ggwRtMF84GHTHCCAto5SNqYwZj8SUQQviKMpe1cKR7vMo/evTBDExkYd19KloBQ=="
+    "daisyui@5.6.6": {
+      "integrity": "sha512-UFiuIZYucF7ylrnY3PT1SqwaEbVB10mqTZRyeRchZk0bud+HihYLLhXdxGDVmR/ftrM9G9YVr9FFPRVVIZJ5hA=="
     },
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
@@ -558,7 +558,7 @@
       "npm:alpinejs@^3.15.12",
       "npm:choices.js@^11.2.3",
       "npm:codemirror@^6.0.2",
-      "npm:daisyui@^5.6.3",
+      "npm:daisyui@^5.6.6",
       "npm:driver.js@^1.6.0",
       "npm:fuse.js@^7.4.2",
       "npm:highlight-search-term@^1.0.3",

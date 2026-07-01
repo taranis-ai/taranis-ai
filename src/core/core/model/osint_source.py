@@ -99,7 +99,7 @@ class OSINTSource(BaseModel):
         self.parameters = Worker.parse_parameters(self.type, payload.parameters)
 
     @classmethod
-    def get(cls, item_id: str) -> "OSINTSource | None":
+    def get(cls, item_id: str | None) -> "OSINTSource | None":
         if item_id is None:
             return None
         lookup_id = str(item_id)
@@ -117,7 +117,27 @@ class OSINTSource(BaseModel):
         return None
 
     @classmethod
-    def get_by_key(cls, key: str | None) -> "OSINTSource | None":
+    def create_manual_source(cls) -> "OSINTSource":
+        if existing_manual := cls.get_by_key("manual"):
+            return existing_manual
+
+        return cls.add(
+            {
+                "id": "manual",
+                "name": "Manual",
+                "description": "Manual source",
+                "rank": 0,
+                "type": "MANUAL_COLLECTOR",
+                "parameters": {},
+            }
+        )
+
+    @classmethod
+    def get_manual(cls) -> "OSINTSource":
+        return cls.create_manual_source()
+
+    @classmethod
+    def get_by_key(cls, key: str) -> "OSINTSource | None":
         if not key:
             return None
         return cls.get_first(db.select(cls).filter_by(key=key))
@@ -822,7 +842,7 @@ class OSINTSourceGroup(BaseModel):
         return cls.get_first(db.select(cls).filter(OSINTSourceGroup.default))
 
     @classmethod
-    def get(cls, item_id: str) -> "OSINTSourceGroup | None":
+    def get(cls, item_id: str | None) -> "OSINTSourceGroup | None":
         if item_id is None:
             return None
         lookup_id = str(item_id)
