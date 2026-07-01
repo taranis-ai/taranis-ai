@@ -4,7 +4,7 @@ from enum import IntEnum
 from typing import Any
 from urllib.parse import urlparse
 
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, relationship, selectinload
 from sqlalchemy.sql import Select
 
 from core.log import logger
@@ -184,7 +184,7 @@ class WordList(BaseModel):
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
-        query = db.select(cls)
+        query = db.select(cls).options(selectinload(cls.entries))
 
         if search := filter_args.get("search"):
             query = query.where(

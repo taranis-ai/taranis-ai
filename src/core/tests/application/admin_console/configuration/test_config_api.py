@@ -451,7 +451,13 @@ class TestSourcesConfigApi(BaseTest):
 class TestWorkerSourceIcon(BaseTest):
     base_uri = "/api/worker"
 
-    def test_worker_icon_upload_rejects_invalid_image(self, client, auth_header, api_header, cleanup_sources):
+    def test_worker_icon_upload_rejects_invalid_image(self, client, auth_header, api_header, cleanup_sources, monkeypatch):
+        error_messages: list[str] = []
+        warning_messages: list[str] = []
+
+        monkeypatch.setattr("core.api.worker.logger.error", error_messages.append)
+        monkeypatch.setattr("core.api.worker.logger.warning", warning_messages.append)
+
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
@@ -472,6 +478,8 @@ class TestWorkerSourceIcon(BaseTest):
 
             assert response.status_code == 400
             assert response.json["error"] == "Icon payload is not a valid image file."
+            assert f"Invalid icon upload for source {source_id}: Icon payload is not a valid image file." in warning_messages
+            assert error_messages == []
         finally:
             client.delete(f"/api/config/osint-sources/{source_id}", headers=auth_header)
 

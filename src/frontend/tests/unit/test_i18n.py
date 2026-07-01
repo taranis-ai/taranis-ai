@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 from flask_babel import get_locale
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, verify_jwt_in_request
 from models.user import ProfileSettings, UserProfile
 
 from frontend.auth import render_login_page
@@ -83,6 +83,7 @@ def test_authenticated_timezone_formats_naive_utc_datetime_as_local_time(app, te
     user = _user_with_language("de", timezone="Europe/Vienna")
 
     with _request_context(app, {"Accept-Language": "de"}, user):
+        verify_jwt_in_request(optional=True)
         assert format_datetime(LOCAL_TIME) == "11. Juni 2026 12:30"
 
 

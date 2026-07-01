@@ -1,5 +1,7 @@
 import os
 
+from core.auth.database_authenticator import DatabaseAuthenticator
+from core.log import logger as core_logger
 from core.managers import auth_manager
 from core.managers.auth_manager import api_key_or_auth_required, api_key_required, auth_required
 
@@ -89,3 +91,49 @@ class TestAuth:
 
         assert response == ({"error": "not authorized"}, 401)
         assert logged_messages == ["Incorrect api key"]
+
+    def test_database_auth_failure_logs_username_without_password(self, app, monkeypatch):
+        logged_messages: list[str] = []
+
+        monkeypatch.setattr("core.auth.database_authenticator.logger.store_auth_error_activity", logged_messages.append)
+
+        with app.test_request_context("/api/auth/login", method="POST", json={"username": "admin", "password": "wrong"}):
+            response = DatabaseAuthenticator().authenticate({"username": "admin", "password": "wrong"})
+
+        assert response.status_code == 401
+        assert logged_messages == ["Authentication failed for username: admin"]
+
+    def test_auth_error_activity_redacts_json_password(self, app, monkeypatch):
+        log_records: list[dict[str, str]] = []
+
+        monkeypatch.setattr("core.log.Config.DEBUG", False)
+        monkeypatch.setattr(core_logger, "rollback_and_store_to_db", lambda log_data: None)
+        monkeypatch.setattr(core_logger.logger, "error", lambda _message, log_data: log_records.append(log_data))
+
+        with app.test_request_context(
+            "/api/auth/login",
+            method="POST",
+            json={"username": "admin", "password": "wrong", "profile": {"token": "abc"}, "items": [{"api_key": "key"}]},
+        ):
+            core_logger.store_auth_error_activity("Authentication failed for username: admin")
+
+        assert log_records[0]["activity_detail"] == "Authentication failed for username: admin"
+        assert log_records[0]["activity_data"] == (
+            '{"items":[{"api_key":"***"}],"password":"***","profile":{"token":"***"},"username":"admin"}'
+        )
+
+    def test_auth_error_activity_keeps_json_password_in_debug(self, app, monkeypatch):
+        log_records: list[dict[str, str]] = []
+
+        monkeypatch.setattr("core.log.Config.DEBUG", True)
+        monkeypatch.setattr(core_logger, "rollback_and_store_to_db", lambda log_data: None)
+        monkeypatch.setattr(core_logger.logger, "error", lambda _message, log_data: log_records.append(log_data))
+
+        with app.test_request_context(
+            "/api/auth/login",
+            method="POST",
+            json={"username": "admin", "password": "debug-value", "profile": {"token": "debug-token"}},
+        ):
+            core_logger.store_auth_error_activity("Authentication failed for username: admin")
+
+        assert log_records[0]["activity_data"] == ('{"password":"debug-value","profile":{"token":"debug-token"},"username":"admin"}')

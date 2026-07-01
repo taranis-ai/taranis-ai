@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 import niquests as requests
 from models.product import WorkerProduct as Product
 from models.task import TaskResultEnvelope, TaskSubmission
+from niquests.typing import MultiPartFilesAltType
 from pydantic import ValidationError
 
 from worker.config import Config
@@ -387,8 +388,12 @@ class CoreApi:
             logger.exception("Can't run Post Collection Bots")
             return None
 
-    def update_osint_source_icon(self, osint_source_id: str, icon) -> dict | None:
+    def update_osint_source_icon(self, osint_source_id: str, icon: MultiPartFilesAltType) -> dict[str, Any] | None:
         try:
+            file_entry = icon.get("file") if isinstance(icon, dict) else None
+            if isinstance(file_entry, tuple) and len(file_entry) > 1 and not file_entry[1]:
+                logger.warning(f"Skipping empty icon upload for OSINT source {osint_source_id}")
+                return None
             url = f"{self.api_url}/worker/osint-sources/{osint_source_id}/icon"
             headers = self.headers.copy()
             headers.pop("Content-type", None)

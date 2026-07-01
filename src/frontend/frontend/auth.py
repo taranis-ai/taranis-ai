@@ -234,8 +234,10 @@ def update_current_user_cache() -> None | UserProfile:
 
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
-    identity = jwt_data[Config.JWT_IDENTITY_CLAIM]
-    return get_user_from_cache(identity) or update_current_user_cache()
+    if not hasattr(g, "jwt_user_lookup_user"):
+        identity = jwt_data[Config.JWT_IDENTITY_CLAIM]
+        g.jwt_user_lookup_user = get_user_from_cache(identity) or update_current_user_cache()
+    return g.jwt_user_lookup_user
 
 
 @jwt.user_identity_loader
