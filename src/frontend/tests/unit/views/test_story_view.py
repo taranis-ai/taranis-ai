@@ -412,6 +412,22 @@ def test_story_edit_renders_news_item_tag_editor(authenticated_client, responses
     assert not tree.xpath('//*[@data-testid="tag-value-input"]')
 
 
+def test_story_edit_advanced_view_renders_sentiment_status_chip(authenticated_client, responses_mock):
+    story_payload = story_with_news_item_tags()
+    story_payload["attributes"] = [
+        {"key": "cybersecurity", "value": "yes"},
+        {"key": "sentiment", "value": "negative"},
+    ]
+    mock_story_for_edit(responses_mock, story_payload)
+
+    response = authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"], layout="advanced"))
+
+    assert response.status_code == 200
+    assert "Story status" in response.text
+    assert "Cybersecurity · Yes" in response.text
+    assert "Sentiment · Negative" in response.text
+
+
 def test_update_news_item_tags_posts_to_news_item_endpoint_and_rerenders_card(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     responses_mock.put(

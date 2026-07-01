@@ -637,8 +637,14 @@ class StoryView(BaseView):
                 (attr.get("value") for attr in attributes if isinstance(attr, dict) and attr.get("key") == "cybersecurity"),
                 None,
             )
+            sentiment_value = next(
+                (attr.get("value") for attr in attributes if isinstance(attr, dict) and attr.get("key") == "sentiment"),
+                None,
+            )
             context["story_cyber_status"] = cls._format_cyber_status(cybersecurity_value)
             context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
+            context["story_sentiment_status"] = cls._format_sentiment_status(sentiment_value)
+            context["sentiment_chip_class"] = cls._get_sentiment_chip_class(context["story_sentiment_status"])
             context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
             sources = list(cls.get_filter_lists().sources)
             source_dict = {source.id: source for source in sources if source.id}
@@ -647,6 +653,8 @@ class StoryView(BaseView):
             context["has_rt_id"] = False
             context["story_cyber_status"] = "Not Classified"
             context["cyber_chip_class"] = "badge badge-outline"
+            context["story_sentiment_status"] = "Not Classified"
+            context["sentiment_chip_class"] = "badge badge-outline"
 
         return context
 
@@ -671,6 +679,31 @@ class StoryView(BaseView):
             "No": "badge badge-error badge-lg",
             "Mixed": "badge badge-secondary badge-lg",
             "Incomplete": "badge badge-warning badge-lg",
+            "Not Classified": "badge badge-outline badge-lg",
+        }
+        return mapping.get(status, "badge badge-outline badge-lg")
+
+    @staticmethod
+    def _format_sentiment_status(status: str | None) -> str:
+        if not status:
+            return "Not Classified"
+        normalized = status.strip().lower()
+        labels = {
+            "positive": "Positive",
+            "negative": "Negative",
+            "neutral": "Neutral",
+            "mixed": "Mixed",
+            "none": "Not Classified",
+        }
+        return labels.get(normalized, normalized.capitalize())
+
+    @staticmethod
+    def _get_sentiment_chip_class(status: str) -> str:
+        mapping = {
+            "Positive": "badge badge-success badge-lg",
+            "Negative": "badge badge-error badge-lg",
+            "Neutral": "badge badge-info badge-lg",
+            "Mixed": "badge badge-secondary badge-lg",
             "Not Classified": "badge badge-outline badge-lg",
         }
         return mapping.get(status, "badge badge-outline badge-lg")
