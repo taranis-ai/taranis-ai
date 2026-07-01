@@ -177,10 +177,11 @@ class RqE2EHarness:
     def queue(self, name: str) -> Queue:
         return Queue(name, connection=_redis_conn(self.redis_backend))
 
-    def create(self, path: str, payload: JsonDict, resource_label: str) -> Any:
+    def create(self, path: str, payload: JsonDict, resource_label: str) -> str:
         response_payload = self.core_client.json_request("POST", path, json_data=payload)
         assert isinstance(response_payload, dict), f"Expected {resource_label} create response to be a dict"
         resource_id = response_payload.get("id")
+        assert isinstance(resource_id, str), f"{resource_label} id must be a string"
         assert resource_id, f"{resource_label} id missing"
         return resource_id
 
@@ -191,14 +192,14 @@ class RqE2EHarness:
         link: str,
         usage: int,
         description: str = "E2E",
-    ) -> int:
+    ) -> str:
         return self.create(
             "/config/word-lists",
             {"name": name, "description": description, "usage": usage, "link": link},
             "wordlist",
         )
 
-    def gather_wordlist(self, wordlist_id: int) -> JsonDict:
+    def gather_wordlist(self, wordlist_id: str) -> JsonDict:
         gather_job_id = f"gather_word_list_{wordlist_id}"
         previous_result_id = _get_latest_result_marker(self.redis_backend, gather_job_id)
         self.core_client.post(f"/config/word-lists/gather/{wordlist_id}")
@@ -207,18 +208,18 @@ class RqE2EHarness:
         assert isinstance(wordlist, dict), f"Expected wordlist payload to be a dict, got {type(wordlist)!r}"
         return wordlist
 
-    def create_osint_source(self, payload: JsonDict) -> int:
+    def create_osint_source(self, payload: JsonDict) -> str:
         return self.create("/config/osint-sources", payload, "osint source")
 
-    def update_osint_source(self, source_id: int, payload: JsonDict) -> JsonDict:
+    def update_osint_source(self, source_id: str, payload: JsonDict) -> JsonDict:
         response_payload = self.core_client.json_request("PUT", f"/config/osint-sources/{source_id}", json_data=payload)
         assert isinstance(response_payload, dict), "Expected osint source update response to be a dict"
         return response_payload
 
-    def create_bot(self, payload: JsonDict) -> int:
+    def create_bot(self, payload: JsonDict) -> str:
         return self.create("/config/bots", payload, "bot")
 
-    def update_bot(self, bot_id: int, payload: JsonDict) -> JsonDict:
+    def update_bot(self, bot_id: str, payload: JsonDict) -> JsonDict:
         response_payload = self.core_client.json_request("PUT", f"/config/bots/{bot_id}", json_data=payload)
         assert isinstance(response_payload, dict), "Expected bot update response to be a dict"
         return response_payload

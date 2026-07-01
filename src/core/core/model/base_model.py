@@ -128,17 +128,15 @@ class BaseModel(db.Model):
         return [obj.to_dict() for obj in objects]
 
     @classmethod
-    def get(cls: Type[T], item_id: str | int) -> T | None:
-        if (isinstance(item_id, int) and (item_id < 0 or item_id > 2**63 - 1)) or item_id is None:
-            return None
-        return db.session.get(cls, item_id)
+    def get(cls: Type[T], item_id: str | None) -> T | None:
+        return None if item_id in (None, "") else db.session.get(cls, item_id)
 
     @classmethod
     def get_all_for_collector(cls: Type[T]) -> Sequence[T] | None:
         return db.session.execute(db.select(cls)).scalars().all()
 
     @classmethod
-    def get_bulk(cls: Type[T], item_ids: list[int] | list[str]) -> list[T]:
+    def get_bulk(cls: Type[T], item_ids: list[str]) -> list[T]:
         return list(db.session.execute(db.select(cls).filter(cls.id.in_(item_ids))).scalars().all())
 
     @classmethod

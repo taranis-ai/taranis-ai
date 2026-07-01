@@ -17,6 +17,7 @@ from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.views.base_view import BaseView
+from frontend.views.story_views import StoryView
 
 
 class DashboardView(BaseView):
@@ -51,12 +52,15 @@ class DashboardView(BaseView):
             trending_clusters = []
             dashboard_config = ProfileSettingsDashboard()
 
+        saved_filters = StoryView.get_saved_filter_links()
+
         return (
             render_template(
                 "dashboard/index.html",
                 data=dashboard,
                 clusters=trending_clusters,
                 dashboard_config=dashboard_config,
+                saved_filters=saved_filters,
             ),
             200,
         )
