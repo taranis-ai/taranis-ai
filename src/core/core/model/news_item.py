@@ -19,6 +19,7 @@ from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource
 from core.model.role import TLPLevel
 from core.model.role_based_access import ItemType, RoleBasedAccess
+from core.model.settings import Settings
 from core.model.user import User
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
@@ -416,7 +417,11 @@ class NewsItem(BaseModel):
 
     @property
     def tlp_level(self) -> TLPLevel:
-        source_tlp = self.osint_source.tlp_level if self.osint_source else TLPLevel.CLEAR
+        source_tlp = (
+            self.osint_source.tlp_level
+            if self.osint_source
+            else TLPLevel(Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value))
+        )
         return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), source_tlp)
 
     def update_item(self, data, actor: str | None = None) -> tuple[dict, int]:

@@ -5,6 +5,27 @@ from core.model.role import TLPLevel
 
 
 class TestRBAC:
+    def test_news_item_without_source_uses_default_tlp_setting(self, app):
+        from core.model.news_item import NewsItem
+        from core.model.settings import Settings
+
+        with app.app_context():
+            settings = Settings.get_settings_entry()
+            assert settings is not None
+            original_settings = dict(settings.settings or {})
+
+            try:
+                settings.settings = Settings.with_defaults(original_settings | {"default_tlp_level": TLPLevel.RED.value})
+                db.session.commit()
+
+                news_item = NewsItem(title="No source", content="content", osint_source_id="missing-source", hash="no-source-hash")
+                news_item.osint_source = None
+
+                assert news_item.tlp_level == TLPLevel.RED
+            finally:
+                settings.settings = original_settings
+                db.session.commit()
+
     def test_report_item_tlp_gate_blocks_read_and_update_below_required_level(self, report_items):
         from core.model.report_item import ReportItem
 

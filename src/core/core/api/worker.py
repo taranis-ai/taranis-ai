@@ -231,7 +231,7 @@ class BotInfo(MethodView):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
         if result := Bot.update(bot_id, data):
-            return jsonify({"message": "Bot updated", "id": result.id}), 200
+            return jsonify(result.to_dict()), 200
         return {"error": "Bot not found"}, 404
 
 

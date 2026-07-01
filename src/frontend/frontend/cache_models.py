@@ -47,9 +47,17 @@ class CacheObject(list[T], Generic[T]):
     def __getitem__(self, item: SupportsIndex) -> T: ...
 
     @overload
-    def __getitem__(self, item: slice) -> list[T]: ...
+    def __getitem__(self, item: slice) -> "CacheObject[T]": ...
 
-    def __getitem__(self, item: SupportsIndex | slice) -> T | list[T]:
+    def __getitem__(self, item: SupportsIndex | slice) -> T | "CacheObject[T]":
+        if isinstance(item, slice):
+            return CacheObject(
+                super().__getitem__(item),
+                page=self.page,
+                limit=self.limit,
+                order=self.order,
+                total_count=self._total_count,
+            )
         return super().__getitem__(item)
 
     @property

@@ -1397,8 +1397,7 @@ class Story(BaseModel):
         tlp_levels: list[TLPLevel] = []
         for news_item in self.news_items:
             if not news_item.tlp_level:
-                source_tlp = news_item.osint_source.tlp_level if news_item.osint_source else TLPLevel.CLEAR
-                news_item.add_attribute(NewsItemAttribute("TLP", source_tlp))
+                news_item.add_attribute(NewsItemAttribute("TLP", news_item.tlp_level))
             logger.debug(f"News item {news_item.id} has TLP level")
             tlp_levels.append(news_item.tlp_level)
         tlp_levels += [input_tlp] if input_tlp else []

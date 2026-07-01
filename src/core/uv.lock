@@ -9,7 +9,7 @@ required-markers = [
 ]
 
 [options]
-exclude-newer = "2026-06-24T14:12:33.566805Z"
+exclude-newer = "2026-06-24T17:33:32.680624Z"
 exclude-newer-span = "P1W"
 
 [[package]]
