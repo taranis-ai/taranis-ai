@@ -407,6 +407,7 @@ def test_story_edit_renders_news_item_tag_editor(authenticated_client, responses
 
     assert tree.xpath('//*[@data-testid="edit-newsitem-tags"]')
     assert tree.xpath('//*[@data-testid="news-item-tag-name-input"]')
+    assert "keydown[canUseAssessShortcut(event, 'r')]" in response.text
     assert "resetTags(); tagEditorOpen = false" in response.text
     assert not tree.xpath('//*[@data-testid="tag-name-input"]')
     assert not tree.xpath('//*[@data-testid="tag-value-input"]')

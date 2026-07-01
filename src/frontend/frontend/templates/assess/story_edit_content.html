@@ -63,7 +63,7 @@
           </a>
           <button type="button"
                   class="btn btn-outline btn-sm"
-                  hx-trigger="click, keyup[shiftKey && code == 'R' && canUseAssessShortcut(event)] from:body"
+                  hx-trigger="click, keydown[canUseAssessShortcut(event, 'r')] from:body"
                   hx-get="{{ url_for('assess.report_story') }}"
                   hx-target="body"
                   hx-swap="beforeend"
