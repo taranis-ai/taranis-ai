@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from 'dashboard/cards.html' import trending_card with context %}
+{% from 'assess/saved_filter_cards.html' import saved_filter_card_body with context %}
+{% from 'dashboard/cards.html' import dashboard_card, trending_card with context %}
 
 {% block content %}
   <div class="p-8" id="dashboard">
@@ -11,6 +12,8 @@
     {% include "dashboard/user_item_cards.html" %}
 
     {% if dashboard_config.show_trending_clusters and clusters %}
+      {% set visible_clusters = clusters[:3] %}
+      {% set hidden_clusters = clusters[3:] %}
       <div class="mb-4">
         <div class="text-3xl font-bold">Recently Active Tags</div>
         <p class="text-sm text-base-content/70">
@@ -18,12 +21,55 @@
         </p>
       </div>
 
-      <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4">
-        {% for cluster in clusters %}
+      <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="recently-active-tags-default">
+        {% for cluster in visible_clusters %}
           {% call trending_card(cluster) %}
           {% endcall %}
         {% endfor %}
       </div>
+
+      {% if hidden_clusters %}
+        <details class="mt-4" data-testid="recently-active-tags-more">
+          <summary class="btn btn-outline btn-sm">Show more</summary>
+          <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="recently-active-tags-extra">
+            {% for cluster in hidden_clusters %}
+              {% call trending_card(cluster) %}
+              {% endcall %}
+            {% endfor %}
+          </div>
+        </details>
+      {% endif %}
+    {% endif %}
+
+    {% if saved_filters %}
+      {% set visible_saved_filters = saved_filters[:3] %}
+      {% set hidden_saved_filters = saved_filters[3:] %}
+      <section class="mt-6" data-testid="dashboard-saved-filters">
+        <div class="mb-4">
+          <div class="text-3xl font-bold">Saved Filters</div>
+        </div>
+
+        <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="dashboard-saved-filters-default">
+          {% for saved_filter in visible_saved_filters %}
+            {% call dashboard_card(saved_filter.name, saved_filter.url, test_id='dashboard-saved-filter-card') %}
+              {{ saved_filter_card_body(saved_filter, show_name=false, show_apply_action=false, show_delete_action=true) }}
+            {% endcall %}
+          {% endfor %}
+        </div>
+
+        {% if hidden_saved_filters %}
+          <details class="mt-4" data-testid="dashboard-saved-filters-more">
+            <summary class="btn btn-outline btn-sm">Show more</summary>
+            <div class="grid grid-flow-row-dense grid-cols-3 gap-4 mt-4" data-testid="dashboard-saved-filters-extra">
+              {% for saved_filter in hidden_saved_filters %}
+                {% call dashboard_card(saved_filter.name, saved_filter.url, test_id='dashboard-saved-filter-card') %}
+                  {{ saved_filter_card_body(saved_filter, show_name=false, show_apply_action=false, show_delete_action=true) }}
+                {% endcall %}
+              {% endfor %}
+            </div>
+          </details>
+        {% endif %}
+      </section>
     {% endif %}
   </div>
 {% endblock content %}

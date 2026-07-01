@@ -1,3 +1,4 @@
+import uuid
 from typing import get_origin
 
 import pytest
@@ -7,7 +8,6 @@ from polyfactory.exceptions import ParameterException
 from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
-from uuid_extensions import uuid7str
 
 from frontend.config import Config
 from frontend.log import logger
@@ -28,6 +28,9 @@ def responses_mock():
 
 
 def get_items_from_factory(view_name, model):
+    if view_name == "Settings":
+        return [model(settings={"default_collector_proxy": "http://proxy.test", "default_timezone": "UTC"}).model_dump(mode="json")]
+
     factory = ModelFactory.create_factory(model=model)
 
     try:
@@ -36,11 +39,6 @@ def get_items_from_factory(view_name, model):
     except ParameterException as e:
         logger.warning(f"PolyFactory couldn’t build {model.__name__} for view {view_name}: {e}\nFalling back to a minimal stub.")
         items = [{"id": "test-1", "name": f"test_{view_name.lower()}"}]
-
-    if view_name == "Settings" and items:
-        settings = items[0].get("settings")
-        if isinstance(settings, dict):
-            settings["default_timezone"] = "UTC"
 
     return items
 
@@ -344,7 +342,7 @@ def mock_core_get_item_endpoint_data(core_payloads):
             if isinstance(ann, int) or issubclass(ann, int):
                 current_item["id"] = faker.pyint()
             elif isinstance(ann, str) or issubclass(ann, str):
-                current_item["id"] = uuid7str()
+                current_item["id"] = str(uuid.uuid7())
             else:
                 logger.warning(f"Unsupported type for ID field in {view_name}: {ann}")
                 current_item["id"] = "42"

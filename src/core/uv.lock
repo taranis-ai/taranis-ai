@@ -9,7 +9,7 @@ required-markers = [
 ]
 
 [options]
-exclude-newer = "2026-06-16T10:02:50.155454Z"
+exclude-newer = "2026-06-17T10:57:12.320684Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -93,11 +93,11 @@ wheels = [
 
 [[package]]
 name = "certifi"
-version = "2026.5.20"
+version = "2026.6.17"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f3/ce/ee2ecad540810a79593028e88299baeae54d346cc7a0d94b6199988b89b1/certifi-2026.5.20.tar.gz", hash = "sha256:69dea482ab64caa7b9f6aba1c6bf48bb6a5448d1c0f1b17ab42ad8c763a5344d", size = 135422, upload-time = "2026-05-20T11:46:50.073Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/c7/424b75da314c1045981bd9777432fad05a9e0c69daa4ed7e308bbaffe405/certifi-2026.6.17.tar.gz", hash = "sha256:024c88eeec92ca068db80f02b8b07c9cef7b9fe261d1d535abfd5abd6f6af432", size = 134594, upload-time = "2026-06-17T10:31:07.894Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/8c/57e832b7af6d7c5abe66eb3fbe3a3a32f4d11ea23a1aa7131371035be991/certifi-2026.5.20-py3-none-any.whl", hash = "sha256:3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897", size = 134134, upload-time = "2026-05-20T11:46:48.578Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/2f/c5464532e965badff2f4c4c1a3a83f5697f0d7c407ed0cda44aaa99bb451/certifi-2026.6.17-py3-none-any.whl", hash = "sha256:2227dcbaafe0d2f59279d1762ddddc37783ed4354594f194ffc31d20f41fc3db", size = 133289, upload-time = "2026-06-17T10:31:06.348Z" },
 ]
 
 [[package]]
@@ -1246,7 +1246,7 @@ wheels = [
 
 [[package]]
 name = "schemathesis"
-version = "4.21.7"
+version = "4.21.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1267,22 +1267,22 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "werkzeug" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9a/87/15cf3b592aee5e70537ce02db986e7f517521ee9fcfc0799f11463ff96e9/schemathesis-4.21.7.tar.gz", hash = "sha256:f2c8855591f2850671723bd7dd5d115430f78c20009d1ecea036e0e91814d240", size = 2281162, upload-time = "2026-06-15T21:13:51.107Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a0/6b/9faf5eecd4299b0151b0312465e21598e546ed87d63a3ac09ce52aab0caa/schemathesis-4.21.8.tar.gz", hash = "sha256:853f5167b15b4a8b23a9aa66d4fe3ab2ae055609aa0eb75806062ff5b6bc8b00", size = 2281677, upload-time = "2026-06-16T17:29:30.78Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/f9/109121477124a9098af637c3e02ecb5f482eb0fcb1afe9d5dabba838da4a/schemathesis-4.21.7-py3-none-any.whl", hash = "sha256:c8eab9cf2c1f5479cd743fba18a7d0f9a77fd75423f526ef0e1baa9959a5846a", size = 755300, upload-time = "2026-06-15T21:13:49.586Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/30/fee1cf04e753f5ea914d39195df68ff6a1f2001aa6e8c9608fcc694428f9/schemathesis-4.21.8-py3-none-any.whl", hash = "sha256:b0f6a3473d1401d1bf3f52eaf63d7d270f4bfcd04043890c284fe819e344b6e6", size = 755409, upload-time = "2026-06-16T17:29:28.947Z" },
 ]
 
 [[package]]
 name = "sentry-sdk"
-version = "2.62.0"
+version = "2.63.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f6/5d/a343201726150e05f2036eeb6e493e2e2f8bf8a66f5aa70f2f4ac96f9ca3/sentry_sdk-2.62.0.tar.gz", hash = "sha256:3c870b9f50d9fd15b58c817dbde1c7cfaa9fe3f05df0a4c6edd5571cb82f5491", size = 463986, upload-time = "2026-06-08T13:23:49.223Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/c8/b3c970a5b186722d276cd40a05b3254e03bccc0208560aff20f612e018e8/sentry_sdk-2.63.0.tar.gz", hash = "sha256:2a1502bf864769275dbc8c2c9fc7a0f7f5e18358180b615d262d13a31ffba216", size = 912449, upload-time = "2026-06-16T12:45:57.553Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3d/07/05440381627877aae223fd68f330df9b9fc6641d08bf65328b55235617a2/sentry_sdk-2.62.0-py3-none-any.whl", hash = "sha256:27f61d13a86c3c1648dec666dd5a64f79772dd6a84b446f11866601ecab24f6f", size = 490586, upload-time = "2026-06-08T13:23:47.486Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/57/cb205f7d93373120f666b9c5736dc0815524d96a9b278e7a728f018dc22a/sentry_sdk-2.63.0-py3-none-any.whl", hash = "sha256:3a9b5ddd403f79eb73bd670f75f04485819db53d28f76ced7bc09041cb0dfd6a", size = 495950, upload-time = "2026-06-16T12:45:55.819Z" },
 ]
 
 [package.optional-dependencies]

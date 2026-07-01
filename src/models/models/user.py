@@ -28,6 +28,13 @@ class OnboardingTask(TaranisBaseModel):
     scope: Literal["global", "user"]
 
 
+class AssessSavedFilter(TaranisBaseModel):
+    id: str
+    name: str
+    filters: dict[str, Any] = Field(default_factory=dict)
+    is_default: bool = False
+
+
 class ProfileSettings(TaranisBaseModel):
     _core_endpoint = "/users/profile"
     _model_name = "profile_settings"
@@ -43,7 +50,7 @@ class ProfileSettings(TaranisBaseModel):
     split_view: bool = False
     end_of_shift: str | None = None
     highlight: bool = False
-    assess_default_filters: dict[str, Any] = Field(default_factory=dict)
+    assess_saved_filters: list[AssessSavedFilter] = Field(default_factory=list)
     onboarding_tasks: dict[str, str] = Field(default_factory=dict)
     dashboard: ProfileSettingsDashboard = Field(default_factory=ProfileSettingsDashboard)
 

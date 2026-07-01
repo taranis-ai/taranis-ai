@@ -1,16 +1,19 @@
 import json
 from types import SimpleNamespace
+from typing import Any
 from urllib.parse import parse_qs, urlparse
+from uuid import UUID
 
-from flask import render_template_string, url_for
+from flask import render_template, render_template_string, url_for
 from lxml import html
 from models.assess import FilterLists, Story, StoryUpdatePayload
+from models.user import AssessSavedFilter
 from werkzeug.datastructures import MultiDict
 from werkzeug.exceptions import Forbidden
 
 from frontend.cache import add_user_to_cache
 from frontend.config import Config
-from frontend.views.story_views import StoryView, _normalize_story_import_payload
+from frontend.views.story_views import ASSESS_SAVED_FILTER_SESSION_KEY, StoryView, _normalize_story_import_payload
 
 
 def expected_search_trigger(input_id: str) -> str:
@@ -61,6 +64,25 @@ def _bookmark_collection_payload(bookmark_id: str, name: str, story_count: int, 
         "story_ids": [],
         "stories": [],
     }
+
+
+def _profile_update_payload(responses_mock: Any) -> dict[str, Any]:
+    profile_update_call = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/users/profile"))
+    request_body = profile_update_call.request.body
+    return json.loads(request_body.decode() if isinstance(request_body, bytes) else request_body)
+
+
+def _cache_saved_filters(auth_user: Any, saved_filters: list[AssessSavedFilter]) -> None:
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.assess_saved_filters = saved_filters
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+
+
+def _mock_profile_update(responses_mock: Any) -> None:
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/users/profile",
+        json={"message": "Profile updated", "id": "user-1", "user_profile": {"assess_saved_filters": []}},
+    )
 
 
 def test_story_diff_view_renders_compare_payload(app, authenticated_client, responses_mock):
@@ -511,6 +533,8 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     search_input = tree.xpath('//input[@id="story_search"]')[0]
     clear_button = tree.xpath("//button[@title='Clear time filters']")[0]
     changed_by_select = filter_form.xpath('.//label[.//span[text()="Changed by"]]/select')[0]
+    highlight_checkbox = tree.xpath('//input[@name="highlight"]')[0]
+    compact_checkbox = tree.xpath('//input[@name="compact_view"]')[0]
 
     assert search_form.get("hx-trigger") == expected_search_trigger("story_search")
     assert search_form.get("hx-include") == "#assess-sidebar, #selected-tags"
@@ -520,9 +544,28 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert filter_form.get("hx-on:submit") == "event.preventDefault()"
     assert clear_button.get("hx-include") == "#assess-sidebar, #assess-search-form, #selected-tags"
     assert [option.text for option in changed_by_select.xpath("./option")] == ["Any", "Me"]
+    assert highlight_checkbox.get("hx-vals") == "js:{highlight: this.checked}"
+    assert compact_checkbox.get("hx-vals") == "js:{compact_view: this.checked}"
     assert search_input.get("hx-get") is None
     assert search_input.get("hx-include") is None
     assert search_input.get("hx-trigger") is None
+
+
+def test_story_read_action_replaces_story_card(app):
+    story = SimpleNamespace(id="1", read=False, important=False, revision_count=0)
+
+    with app.test_request_context():
+        markup = render_template_string(
+            '{% from "assess/story_actions.html" import story_actions %}{{ story_actions(story) }}',
+            story=story,
+        )
+
+    tree = html.fromstring(f"<div>{markup}</div>")
+    toggle_read = tree.xpath('//*[@data-testid="toggle-read"]')[0]
+
+    assert toggle_read.get("hx-target") == "#story-1"
+    assert toggle_read.get("hx-select") == "#story-1"
+    assert toggle_read.get("hx-swap") == "outerHTML"
 
 
 def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):
@@ -553,6 +596,20 @@ def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticate
     assert all_bookmarks.get("href") == url_for("assess.bookmarks")
     bookmark_request = next(call for call in responses_mock.calls if urlparse(call.request.url).path.endswith("/assess/bookmarks"))
     assert parse_qs(urlparse(bookmark_request.request.url).query) == {"limit": ["6"], "order": ["position_asc"]}
+
+
+def test_assess_bookmarks_bar_uses_context_limit(app: Any) -> None:
+    bookmarks = [SimpleNamespace(id=f"bookmark-{index}", name=f"Bookmark {index}", story_count=index) for index in range(1, 4)]
+
+    with app.test_request_context():
+        markup = render_template("assess/bookmarks_bar.html", bookmark_collections=bookmarks, assess_bookmark_bar_limit=2)
+
+    tree = html.fromstring(markup)
+    bar = tree.xpath('//*[@data-testid="assess-bookmarks-bar"]')[0]
+
+    assert bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-1"]')
+    assert bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-2"]')
+    assert not bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-3"]')
 
 
 def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):
@@ -593,14 +650,21 @@ def test_assess_selection_key_ignores_paging_params():
     assert selection_key == "search=incident&sort=date_desc&tags=one&tags=two"
 
 
-def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, auth_user, responses_mock):
+def test_assess_redirects_default_saved_filter_into_browser_url(authenticated_client, auth_user, responses_mock):
     saved_user = auth_user.model_copy(deep=True)
-    saved_user.profile.assess_default_filters = {
-        "source": ["source-1"],
-        "language": ["en"],
-        "read": "true",
-        "sort": "date_desc",
-    }
+    saved_user.profile.assess_saved_filters = [
+        AssessSavedFilter(
+            id="filter-1",
+            name="Shift queue",
+            filters={
+                "source": ["source-1"],
+                "language": ["en"],
+                "read": "true",
+                "sort": "date_desc",
+            },
+            is_default=True,
+        )
+    ]
     add_user_to_cache(saved_user.model_dump(mode="json"))
 
     responses_mock.get(
@@ -658,27 +722,14 @@ def test_assess_redirects_saved_defaults_into_browser_url(authenticated_client, 
     assert parsed_query["sort"] == ["date_desc"]
 
 
-def test_assess_save_default_filters_posts_selected_filters_to_profile(authenticated_client, responses_mock):
+def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticated_client, responses_mock):
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/users",
         json={
             "id": "user-1",
             "username": "admin",
             "name": "Arthur Dent",
-            "profile": {
-                "assess_default_filters": {
-                    "source": ["source-1"],
-                    "group": ["group-1"],
-                    "tags": ["alpha", "beta"],
-                    "language": ["en", "de"],
-                    "read": "true",
-                    "important": "false",
-                    "sort": "date_desc",
-                    "range": "week",
-                    "timefrom": "2026-05-01T10:00",
-                    "timeto": "2026-05-02T11:00",
-                }
-            },
+            "profile": {"assess_saved_filters": []},
             "permissions": ["ALL"],
             "roles": [{"id": "role-1", "name": "Admin"}],
         },
@@ -688,27 +739,16 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
         json={
             "message": "Profile updated",
             "id": "user-1",
-            "user_profile": {
-                "assess_default_filters": {
-                    "source": ["source-1"],
-                    "group": ["group-1"],
-                    "tags": ["alpha", "beta"],
-                    "language": ["en", "de"],
-                    "read": "true",
-                    "important": "false",
-                    "sort": "date_desc",
-                    "range": "week",
-                    "timefrom": "2026-05-01T10:00",
-                    "timeto": "2026-05-02T11:00",
-                }
-            },
+            "user_profile": {"assess_saved_filters": []},
         },
     )
 
     response = authenticated_client.post(
-        url_for("assess.save_default_filters"),
+        url_for("assess.save_saved_filter"),
         data=MultiDict(
             [
+                ("name", "Shift queue"),
+                ("is_default", "true"),
                 ("source", "source-1"),
                 ("group", "group-1"),
                 ("tags", "alpha"),
@@ -726,12 +766,19 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
     )
 
     assert response.status_code == 200
-    assert "Assess defaults saved." in response.text
+    assert "Assess filter saved." in response.text
+    assert "Shift queue" in response.text
 
-    request_body = responses_mock.calls[0].request.body
-    payload = json.loads(request_body.decode() if isinstance(request_body, bytes) else request_body)
-    assert payload == {
-        "assess_default_filters": {
+    payload = _profile_update_payload(responses_mock)
+    assert "assess_default_filters" not in payload
+    assert len(payload["assess_saved_filters"]) == 1
+    saved_filter = payload["assess_saved_filters"][0]
+    assert saved_filter["id"]
+    assert UUID(saved_filter["id"]).version == 7
+    assert saved_filter == {
+        "id": saved_filter["id"],
+        "name": "Shift queue",
+        "filters": {
             "source": ["source-1"],
             "group": ["group-1"],
             "tags": ["alpha", "beta"],
@@ -742,8 +789,140 @@ def test_assess_save_default_filters_posts_selected_filters_to_profile(authentic
             "range": "week",
             "timefrom": "2026-05-01T10:00",
             "timeto": "2026-05-02T11:00",
-        }
+        },
+        "is_default": True,
     }
+
+
+def test_assess_save_saved_filter_updates_existing_name(authenticated_client: Any, auth_user: Any, responses_mock: Any) -> None:
+    _cache_saved_filters(
+        auth_user,
+        [
+            AssessSavedFilter(id="filter-1", name="Shift queue", filters={"search": "old"}, is_default=False),
+        ],
+    )
+    _mock_profile_update(responses_mock)
+
+    response = authenticated_client.post(
+        url_for("assess.save_saved_filter"),
+        data=MultiDict([("name", "Shift queue"), ("search", "incident"), ("tags", "alpha"), ("sort", "date_desc")]),
+    )
+
+    assert response.status_code == 200
+    assert "Assess filter updated." in response.text
+    assert _profile_update_payload(responses_mock)["assess_saved_filters"] == [
+        {
+            "id": "filter-1",
+            "name": "Shift queue",
+            "filters": {"search": "incident", "tags": ["alpha"], "sort": "date_desc"},
+            "is_default": False,
+        }
+    ]
+
+
+def test_assess_save_saved_filter_rejects_duplicate_filters(authenticated_client: Any, auth_user: Any, responses_mock: Any) -> None:
+    _cache_saved_filters(
+        auth_user,
+        [
+            AssessSavedFilter(id="filter-1", name="Existing", filters={"search": "incident", "tags": ["alpha", "beta"]}, is_default=False),
+        ],
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.save_saved_filter"),
+        data=MultiDict([("name", "Different"), ("search", "incident"), ("tags", "beta"), ("tags", "alpha")]),
+    )
+
+    assert response.status_code == 400
+    assert "These filters are already saved as Existing." in response.text
+    assert not any(urlparse(call.request.url).path.endswith("/users/profile") for call in responses_mock.calls)
+
+
+def test_assess_delete_saved_filter_persists_remaining_filters(authenticated_client: Any, auth_user: Any, responses_mock: Any) -> None:
+    _cache_saved_filters(
+        auth_user,
+        [
+            AssessSavedFilter(id="filter-1", name="Old default", filters={"search": "old"}, is_default=True),
+            AssessSavedFilter(id="filter-2", name="Keep", filters={"search": "keep"}, is_default=False),
+        ],
+    )
+    _mock_profile_update(responses_mock)
+
+    with authenticated_client.session_transaction() as session:
+        session[ASSESS_SAVED_FILTER_SESSION_KEY] = True
+
+    response = authenticated_client.delete(url_for("assess.delete_saved_filter", filter_id="filter-1"))
+
+    assert response.status_code == 200
+    assert "Assess filter deleted." in response.text
+    assert "Old default" not in response.text
+    assert "Keep" in response.text
+    assert _profile_update_payload(responses_mock)["assess_saved_filters"] == [
+        {"id": "filter-2", "name": "Keep", "filters": {"search": "keep"}, "is_default": False}
+    ]
+
+    with authenticated_client.session_transaction() as session:
+        assert session[ASSESS_SAVED_FILTER_SESSION_KEY] is False
+
+
+def test_assess_set_saved_filter_default_does_not_update_session_on_profile_error(authenticated_client, auth_user, responses_mock):
+    _cache_saved_filters(
+        auth_user,
+        [
+            AssessSavedFilter(id="filter-1", name="Shift queue", filters={"search": "old"}, is_default=False),
+        ],
+    )
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/users/profile",
+        json={"error": "Profile update failed"},
+        status=400,
+    )
+
+    with authenticated_client.session_transaction() as session:
+        session[ASSESS_SAVED_FILTER_SESSION_KEY] = True
+
+    response = authenticated_client.post(url_for("assess.set_saved_filter_default", filter_id="filter-1"))
+
+    assert response.status_code == 400
+
+    with authenticated_client.session_transaction() as session:
+        assert session[ASSESS_SAVED_FILTER_SESSION_KEY] is True
+
+
+def test_assess_saved_filters_dialog_uses_submit_button(authenticated_client):
+    response = authenticated_client.get(url_for("assess.saved_filters"))
+    tree = html.fromstring(response.text)
+
+    form = tree.xpath('//form[@id="saved-filter-form"]')[0]
+    button = form.xpath('.//button[@type="submit"]')[0]
+    disabled_reason = tree.xpath('//*[@id="saved-filter-disabled-reason"]')[0]
+
+    assert form.get("method") == "post"
+    assert form.get("action") == url_for("assess.save_saved_filter")
+    assert form.get("hx-target-error") == "#assess_saved_filters_dialog"
+    assert button.get("type") == "submit"
+    assert button.get("disabled") == "disabled"
+    assert button.get("aria-describedby") == "saved-filter-disabled-reason"
+    assert disabled_reason.text_content() == "Apply at least one Assess filter before saving."
+
+
+def test_assess_saved_filter_update_button_reuses_save_endpoint(authenticated_client: Any, auth_user: Any) -> None:
+    _cache_saved_filters(
+        auth_user,
+        [
+            AssessSavedFilter(id="filter-1", name="Shift queue", filters={"search": "old"}, is_default=False),
+        ],
+    )
+
+    response = authenticated_client.get(url_for("assess.saved_filters", search="incident"))
+    tree = html.fromstring(response.text)
+    update_button = tree.xpath('//button[normalize-space()="Update"]')[0]
+    update_values = update_button.get("hx-vals")
+
+    assert update_button.get("hx-post") == url_for("assess.save_saved_filter")
+    assert update_values is not None
+    assert json.loads(update_values) == {"name": "Shift queue"}
+    assert update_button.get("disabled") is None
 
 
 def test_table_search_bar_uses_form_level_search_trigger(app):

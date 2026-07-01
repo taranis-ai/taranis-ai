@@ -97,10 +97,14 @@ class BaseWebCollector(BaseCollector):
                 return None
         return None
 
+    def _fetch_icon(self, icon_url: str) -> requests.Response:
+        with requests.Session(disable_http3=True) as session:
+            return session.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=5)
+
     def update_favicon(self, web_url: str, osint_source_id: str):
         # TODO: Try getting apple-touch-icon first
         icon_url = f"{urlparse(web_url).scheme}://{urlparse(web_url).netloc}/favicon.ico"
-        r = requests.get(icon_url, headers=self.headers, proxies=self.proxies)
+        r = self._fetch_icon(icon_url)
         if not r.ok:
             return None
 
