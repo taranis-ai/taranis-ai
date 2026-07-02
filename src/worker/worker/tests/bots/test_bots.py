@@ -191,3 +191,31 @@ def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_
         d["value"] for attributes_list in request_json_list for d in extract_attributes(attributes_list) if d["key"] == "cybersecurity"
     ]
     assert set(cybersec_status_list) == {"none"}
+
+
+def test_sentiment_analysis_bot_accepts_flat_response_and_normalizes_label(
+    stories,
+    story_get_mock,
+    news_item_attribute_update_mock,
+    requests_mock,
+):
+    import worker.bots as bots
+
+    requests_mock.post(
+        f"{Config.SENTIMENT_ANALYSIS_API_ENDPOINT}/",
+        json={"label": "Neutral", "score": 0.49320945143699646},
+    )
+
+    sentiment_bot = bots.SentimentAnalysisBot()
+    result_msg = sentiment_bot.execute()
+
+    assert result_msg == {"message": "Sentiment analysis complete"}
+    assert story_get_mock.call_count == 1
+    assert news_item_attribute_update_mock.call_count > 0
+
+    request_json_list = [req.json() for req in news_item_attribute_update_mock.request_history if req.method == "PUT"]
+    sentiment_categories = [
+        attr["value"] for payload in request_json_list for attr in payload.get("attributes", []) if attr["key"] == "sentiment_category"
+    ]
+    assert sentiment_categories
+    assert set(sentiment_categories) == {"neutral"}
