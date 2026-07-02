@@ -408,6 +408,7 @@ run_seed() {
   (
     cd "$FRONTEND_DIR/tests/load"
     DEBUG=true \
+      PYTHONPATH="$LOAD_PYTHONPATH" \
       CORE_API_URL="http://127.0.0.1:$LOAD_TEST_INGRESS_PORT/api" \
       API_KEY="load_testing_api_key" \
       uv run python -m tests.load.load_support.seed
