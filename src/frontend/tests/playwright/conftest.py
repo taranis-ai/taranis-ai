@@ -9,7 +9,6 @@ import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
 from pathlib import Path
-from typing import Any
 
 import pytest
 import responses
@@ -38,6 +37,7 @@ from tests.playwright.fixtures.test_news_item_list import news_items_list  # noq
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
 from tests.playwright.htmx_helpers import install_htmx_support
 from tests.playwright.notification_helpers import dismiss_notifications
+from tests.playwright.story_seed_payloads import load_playwright_story_fixtures, normalize_playwright_story_payload
 
 
 def _configure_live_server_start_method() -> None:
@@ -587,44 +587,14 @@ def stories_session_wrapper(api_header, fake_source, core_request_client):
 
 def stories(core_request_client, api_header, fake_source):
     """
-    Loads stories from test_stories.json, normalizes them to the structure
-    defined in story_item_list (only keeping relevant keys and nested keys),
-    and yields the cleaned list.
+    Loads stories from test_stories.json, applies E2E seed defaults,
+    and posts the cleaned list.
     """
     allow_requests_passthru()
 
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    story_json = os.path.join(dir_path, "test_stories.json")
-
-    with open(story_json, encoding="utf-8") as f:
-        stories_raw = json.load(f)
-
-    def clean_news_item(item: dict[str, Any], story_id: str):
-        item.setdefault("language", None)
-        item["story_id"] = story_id
-        item["osint_source_id"] = fake_source
-        return item
-
-    def clean_story(story):
-        cleaned_story = {k: v for k, v in story.items()}
-
-        # Make sure all required top-level keys exist
-        cleaned_story.setdefault("description", "")
-        cleaned_story.setdefault("comments", "")
-        cleaned_story.setdefault("summary", "")
-        cleaned_story.setdefault("read", False)
-        cleaned_story.setdefault("important", False)
-        cleaned_story.setdefault("likes", 0)
-        cleaned_story.setdefault("dislikes", 0)
-        cleaned_story.setdefault("relevance", 0)
-
-        # Clean news_items list
-        news_items = story.get("news_items", [])
-        cleaned_story["news_items"] = [clean_news_item(item, story["id"]) for item in news_items]
-
-        return cleaned_story
-
-    cleaned_stories = [clean_story(s) for s in stories_raw]
+    cleaned_stories = [
+        normalize_playwright_story_payload(story, fake_source, keep_extra_fields=True) for story in load_playwright_story_fixtures()
+    ]
 
     # === Timestamp and importance logic ===
     def _renew_story_timestamps():
