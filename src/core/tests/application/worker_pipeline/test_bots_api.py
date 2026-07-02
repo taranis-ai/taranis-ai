@@ -118,6 +118,36 @@ class TestBotsApi(BaseTest):
         assert "Invalid BCP 47 language tag" in error
         assert "invalid_language" not in error
 
+    def test_news_item_attribute_update_invalidates_story_report_views(self, client, stories, auth_header, api_header, monkeypatch):
+        response = client.get(f"/api/assess/story/{stories[0]}", headers=auth_header)
+        self.assert_json_ok(response)
+        news_item_id = response.get_json()["news_items"][0]["id"]
+
+        invalidation_calls = []
+
+        def capture_invalidation(status_code, **kwargs):
+            invalidation_calls.append((status_code, kwargs))
+            return 0
+
+        monkeypatch.setattr("core.api.bots.invalidate_frontend_cache_on_success", capture_invalidation)
+
+        response = client.put(
+            f"{self.base_uri}/news-item/{news_item_id}/attributes",
+            json={"attributes": [{"key": "sentiment_category", "value": "neutral"}]},
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        assert invalidation_calls == [
+            (
+                200,
+                {
+                    "scopes": ("assess_views", "story_report_views"),
+                    "object_ids": {"news_item": news_item_id},
+                },
+            )
+        ]
+
 
 class TestTaggingBotsResults(BaseTest):
     base_uri = "/api/tasks"
