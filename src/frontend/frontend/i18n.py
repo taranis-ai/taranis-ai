@@ -4,8 +4,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 from flask import Flask, current_app, g, request
 from flask_babel import Babel, get_locale, get_timezone, gettext
-from flask_jwt_extended import current_user, verify_jwt_in_request
-from flask_jwt_extended.exceptions import JWTExtendedException
+from flask_jwt_extended import current_user
 
 
 babel = Babel()
@@ -31,7 +30,10 @@ def _profile_value(user: Any, key: str) -> str | None:
         value = profile.get(key)
     else:
         value = getattr(profile, key, None)
-    return value.strip() or None if isinstance(value, str) else None
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None
 
 
 def _profile_language(user: Any) -> str | None:
@@ -62,34 +64,32 @@ def _accepted_locale() -> str | None:
     return None
 
 
+def _current_request_user() -> Any | None:
+    if getattr(g, "skip_current_user_injection", False):
+        return None
+
+    try:
+        return current_user if current_user else None
+    except RuntimeError:
+        return None
+
+
 def select_locale() -> str:
     supported_locales = _supported_locales()
     default_locale = _default_locale()
 
-    if not getattr(g, "skip_current_user_injection", False):
-        try:
-            verify_jwt_in_request(optional=True)
-        except JWTExtendedException:
-            pass
-        else:
-            if current_user:
-                language = _profile_language(current_user)
-                if language in supported_locales:
-                    return language
+    if user := _current_request_user():
+        language = _profile_language(user)
+        if language in supported_locales:
+            return language
 
     return _accepted_locale() or default_locale
 
 
 def select_timezone() -> str:
-    if not getattr(g, "skip_current_user_injection", False):
-        try:
-            verify_jwt_in_request(optional=True)
-        except JWTExtendedException:
-            pass
-        else:
-            if current_user:
-                if timezone_name := _valid_timezone(_profile_value(current_user, "timezone")):
-                    return timezone_name
+    if user := _current_request_user():
+        if timezone_name := _valid_timezone(_profile_value(user, "timezone")):
+            return timezone_name
 
     return _default_timezone()
 

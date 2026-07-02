@@ -1,6 +1,7 @@
 from typing import Any
 
 from sqlalchemy import func, or_
+from sqlalchemy.orm import undefer
 
 from core.managers.db_manager import db
 
@@ -33,6 +34,7 @@ class FilterData:
         from core.model.osint_source import OSINTSource
 
         query = OSINTSource.get_filter_query_with_acl({}, user) if user else OSINTSource.get_filter_query({})
+        query = query.options(undefer(OSINTSource.icon))
         sources = OSINTSource.get_filtered(query) or []
         return [source.to_assess_dict() for source in sources if source]
 
