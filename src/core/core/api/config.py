@@ -443,10 +443,10 @@ class UsersImport(MethodView):
         user_list = request.json
         if not isinstance(user_list, list):
             return {"error": "Invalid data format"}, 400
-        if users := user.User.import_users(user_list):
+        result = user.User.import_users(user_list)
+        if result["count"]:
             _invalidate_admin_cache(200)
-            return jsonify({"users": users, "count": len(users), "message": "Successfully imported users"})
-        return {"error": "Unable to import"}, 400
+        return jsonify(result), 200
 
 
 class UsersExport(MethodView):

@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from flask import Response, render_template, request
+from flask import flash, render_template, request
 from flask_jwt_extended import get_jwt_identity
 from models.admin import Organization, Role, User
 
@@ -58,20 +58,37 @@ class UserView(AdminBaseView):
         users = request.files.get("file")
         if not users or organization in {"0", ""}:
             return cls.import_view("No file or organization provided")
-        data = users.read()
-        data = json.loads(data)
-        for user in data["data"]:
+        try:
+            data = json.loads(users.read())
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return cls.render_response_notification({"error": "Invalid JSON file"}), 400
+
+        if not isinstance(data, dict) or data.get("version") != 1:
+            return cls.render_response_notification({"error": "Invalid user import file format"}), 400
+
+        import_users = data.get("data") if isinstance(data, dict) else None
+        if not isinstance(import_users, list):
+            return cls.render_response_notification({"error": "Invalid user import file format"}), 400
+
+        for user in import_users:
+            if not isinstance(user, dict):
+                return cls.render_response_notification({"error": "Invalid user import file format"}), 400
             user["roles"] = roles
             user["organization"] = organization
-        data = json.dumps(data["data"])
+        response = CoreApi().import_users(import_users)
 
-        response = CoreApi().import_users(json.loads(data))
+        if response is None:
+            return cls.render_response_notification({"error": "Failed to import users"}), 500
 
-        if not response:
-            error = "Failed to import users"
-            return cls.import_view(error)
+        if not response.ok:
+            return cls.get_notification_from_response(response), response.status_code or 500
 
-        return Response(status=200, headers={"HX-Refresh": "true"})
+        response_payload = response.json()
+        if response_payload.get("skipped_count", 0) > 0:
+            flash(response_payload.get("message", "User import completed with skipped users"), "warning")
+        else:
+            cls.add_flash_notification(response_payload)
+        return cls.redirect_htmx(cls.get_base_route())
 
     @classmethod
     @admin_required()

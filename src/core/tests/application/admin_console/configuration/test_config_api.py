@@ -6,10 +6,12 @@ import uuid
 from io import BytesIO
 
 from PIL import Image
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.datastructures import FileStorage
 
 from core.config import Config
 from tests.application.support.api_test_base import BaseTest
+from tests.application.support.builders import build_import_user_payload, delete_user_by_username
 
 
 _INVALID_IMAGE_BYTES = b"not-an-image"
@@ -659,6 +661,179 @@ class TestUserConfigApi(BaseTest):
         user_id = cleanup_user["id"]
         response = self.assert_delete_ok(client, uri=f"users/{user_id}", auth_header=auth_header)
         assert response.json["message"] == "User deleted"
+
+    def test_import_user_without_password_creates_passwordless_user(self, app, client, auth_header):
+        username = f"external-import-{uuid.uuid4().hex[:8]}"
+        payload = build_import_user_payload(app, username, "External Import")
+
+        try:
+            response = self.assert_post_ok(client, uri="users-import", json_data=[payload], auth_header=auth_header)
+            assert response.json["count"] == 1
+            assert response.json["skipped_count"] == 0
+            assert response.json["users"] == [{"username": username}]
+            assert response.json["message"] == "Imported 1 user(s); skipped 0 user(s)"
+
+            with app.app_context():
+                from core.model.user import User
+
+                imported_user = User.find_by_name(username)
+                assert imported_user is not None
+                assert imported_user.password is None
+        finally:
+            delete_user_by_username(app, username)
+
+    def test_export_passwordless_user_omits_password(self, app, client, auth_header):
+        username = f"external-export-{uuid.uuid4().hex[:8]}"
+        name = "External Export"
+        payload = build_import_user_payload(app, username, name)
+
+        try:
+            self.assert_post_ok(client, uri="users-import", json_data=[payload], auth_header=auth_header)
+            with app.app_context():
+                from core.model.user import User
+
+                imported_user = User.find_by_name(username)
+                assert imported_user is not None
+                assert imported_user.password is None
+                user_id = imported_user.id
+
+            response = client.get(self.concat_url("users-export"), query_string={"ids": [user_id]}, headers=auth_header)
+
+            assert response.status_code == 200
+            assert response.mimetype == "application/json"
+            export_data = json.loads(response.data)
+            assert export_data == {
+                "version": 1,
+                "data": [
+                    {
+                        "name": name,
+                        "username": username,
+                    }
+                ],
+            }
+            assert "password" not in export_data["data"][0]
+        finally:
+            delete_user_by_username(app, username)
+
+    def test_import_existing_user_returns_skipped_response(self, app, client, auth_header):
+        username = f"existing-import-{uuid.uuid4().hex[:8]}"
+        payload = build_import_user_payload(app, username, "Existing Import")
+
+        try:
+            self.assert_post_ok(client, uri="users-import", json_data=[payload], auth_header=auth_header)
+            response = self.assert_post_ok(client, uri="users-import", json_data=[payload], auth_header=auth_header)
+
+            assert response.json["count"] == 0
+            assert response.json["skipped_count"] == 1
+            assert response.json["users"] == []
+            assert response.json["skipped_users"] == [{"username": username, "reason": "user already exists"}]
+            assert response.json["message"] == "Imported 0 user(s); skipped 1 user(s)"
+
+            list_response = self.assert_get_ok(client, uri=f"users?search={username}", auth_header=auth_header)
+            assert list_response.json["total_count"] == 1
+        finally:
+            delete_user_by_username(app, username)
+
+    def test_import_mixed_new_and_existing_users_returns_created_and_skipped(self, app, client, auth_header):
+        existing_username = f"mixed-existing-{uuid.uuid4().hex[:8]}"
+        new_username = f"mixed-new-{uuid.uuid4().hex[:8]}"
+        existing_payload = build_import_user_payload(app, existing_username, "Mixed Existing")
+        new_payload = build_import_user_payload(app, new_username, "Mixed New")
+
+        try:
+            self.assert_post_ok(client, uri="users-import", json_data=[existing_payload], auth_header=auth_header)
+            response = self.assert_post_ok(
+                client,
+                uri="users-import",
+                json_data=[existing_payload, new_payload],
+                auth_header=auth_header,
+            )
+
+            assert response.json["count"] == 1
+            assert response.json["skipped_count"] == 1
+            assert response.json["users"] == [{"username": new_username}]
+            assert response.json["skipped_users"] == [{"username": existing_username, "reason": "user already exists"}]
+            assert response.json["message"] == "Imported 1 user(s); skipped 1 user(s)"
+        finally:
+            delete_user_by_username(app, existing_username)
+            delete_user_by_username(app, new_username)
+
+    def test_import_skips_invalid_entries_and_continues(self, app, client, auth_header):
+        username = f"valid-after-invalid-{uuid.uuid4().hex[:8]}"
+        valid_payload = build_import_user_payload(app, username, "Valid After Invalid")
+
+        try:
+            response = self.assert_post_ok(
+                client,
+                uri="users-import",
+                json_data=[
+                    "not-a-user",
+                    {"name": "Missing Username"},
+                    {"username": "missing-name"},
+                    valid_payload,
+                ],
+                auth_header=auth_header,
+            )
+
+            assert response.json["count"] == 1
+            assert response.json["skipped_count"] == 3
+            assert response.json["users"] == [{"username": username}]
+            assert response.json["skipped_users"] == [
+                {"username": "", "reason": "invalid item type"},
+                {"username": "", "reason": "missing or invalid username"},
+                {"username": "missing-name", "reason": "missing or invalid name"},
+            ]
+            assert response.json["message"] == "Imported 1 user(s); skipped 3 user(s)"
+
+            with app.app_context():
+                from core.model.user import User
+
+                assert User.find_by_name(username) is not None
+                assert User.find_by_name("missing-name") is None
+        finally:
+            delete_user_by_username(app, username)
+
+    def test_import_rolls_back_staged_users_when_batch_commit_fails(self, app, client, auth_header, monkeypatch):
+        first_username = f"rollback-first-{uuid.uuid4().hex[:8]}"
+        second_username = f"rollback-second-{uuid.uuid4().hex[:8]}"
+        first_payload = build_import_user_payload(app, first_username, "Rollback First")
+        second_payload = build_import_user_payload(app, second_username, "Rollback Second")
+
+        with app.app_context():
+            from core.managers.db_manager import db
+
+            def fail_commit():
+                raise SQLAlchemyError("forced commit failure")
+
+            monkeypatch.setattr(db.session, "commit", fail_commit)
+
+        response = self.assert_post_ok(
+            client,
+            uri="users-import",
+            json_data=[first_payload, second_payload],
+            auth_header=auth_header,
+        )
+
+        assert response.json["count"] == 0
+        assert response.json["skipped_count"] == 2
+        assert response.json["users"] == []
+        assert response.json["skipped_users"] == [
+            {"username": first_username, "reason": "invalid user data"},
+            {"username": second_username, "reason": "invalid user data"},
+        ]
+        assert response.json["message"] == "Imported 0 user(s); skipped 2 user(s)"
+
+        with app.app_context():
+            from core.model.user import User
+
+            assert User.find_by_name(first_username) is None
+            assert User.find_by_name(second_username) is None
+
+    def test_import_users_rejects_invalid_payload(self, client, auth_header):
+        response = client.post(self.concat_url("users-import"), json={"data": []}, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid data format"
 
 
 class TestRoleConfigApi(BaseTest):
