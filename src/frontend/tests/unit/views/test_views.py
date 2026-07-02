@@ -3,14 +3,17 @@ import json
 from datetime import datetime
 from io import BytesIO
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import patch
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import pytest
-from flask import render_template
-from models.admin import OSINTSource
-from models.task import Task
+from flask import render_template, url_for
+from lxml import html
+from models.admin import OSINTSource, ReportItemType
+from models.task import Task, TaskResultEnvelope
 from models.types import COLLECTOR_TYPES
+from models.user import AssessSavedFilter
 
 from frontend.cache import add_user_to_cache, cache
 from frontend.config import Config
@@ -19,6 +22,8 @@ from frontend.views.admin_views.report_type_views import ReportItemTypeView
 from frontend.views.admin_views.source_views import SourceView
 from frontend.views.admin_views.word_list_views import WordListView
 from frontend.views.base_view import BaseView
+from frontend.views.product_views import ProductView
+from frontend.views.report_views import ReportItemView
 
 
 _VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
@@ -33,11 +38,89 @@ ADMIN_VIEWS = [(name, cls) for name, cls in VIEW_ITEMS if getattr(cls, "_is_admi
 ADMIN_IDS = [name for name, _ in ADMIN_VIEWS]
 
 
-def _json_request_body(call) -> dict:
+def _json_request_body(call: Any) -> dict[str, Any]:
     body = call.request.body
     if isinstance(body, bytes):
         body = body.decode("utf-8")
     return json.loads(body or "{}")
+
+
+def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_client, auth_user, responses_mock, mock_core_get_endpoints):
+    _ = mock_core_get_endpoints
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.assess_saved_filters = [
+        AssessSavedFilter(
+            id="filter-1",
+            name="Shift queue",
+            filters={"search": "incident", "tags": ["alpha"], "sort": "date_desc"},
+        ),
+        AssessSavedFilter(
+            id="filter-2",
+            name="Relevant queue",
+            filters={"relevant": "true"},
+        ),
+        AssessSavedFilter(
+            id="filter-3",
+            name="Default queue",
+            filters={"range": "shift"},
+            is_default=True,
+        ),
+        AssessSavedFilter(
+            id="filter-4",
+            name="Hidden queue",
+            filters={"search": "hidden"},
+        ),
+    ]
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/dashboard/trending-clusters",
+        json={
+            "items": [
+                {"name": "Location", "size": 10, "tags": [{"name": "USA", "size": 6}]},
+                {"name": "Organization", "size": 8, "tags": [{"name": "AIT", "size": 3}]},
+                {"name": "Product", "size": 6, "tags": [{"name": "Taranis", "size": 2}]},
+                {"name": "Person", "size": 4, "tags": [{"name": "Arthur", "size": 1}]},
+            ],
+            "total_count": 4,
+        },
+    )
+
+    response = authenticated_client.get("/")
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+
+    default_cards = tree.xpath('//*[@data-testid="recently-active-tags-default"]//*[@data-testid="trending-card"]')
+    extra_cards = tree.xpath('//*[@data-testid="recently-active-tags-extra"]//*[@data-testid="trending-card"]')
+
+    assert len(default_cards) == 3
+    assert "Person" not in " ".join(card.text_content() for card in default_cards)
+    assert len(extra_cards) == 1
+    assert "Person" in extra_cards[0].text_content()
+
+    saved_filter_cards = tree.xpath('//*[@data-testid="dashboard-saved-filters-default"]//*[@data-testid="dashboard-saved-filter-card"]')
+    extra_saved_filter_cards = tree.xpath('//*[@data-testid="dashboard-saved-filters-extra"]//*[@data-testid="dashboard-saved-filter-card"]')
+
+    assert tree.xpath('//*[@data-testid="dashboard-saved-filters"]//*[text()="Saved Filters"]')
+    assert len(saved_filter_cards) == 3
+    assert "Hidden queue" not in " ".join(card.text_content() for card in saved_filter_cards)
+    assert len(extra_saved_filter_cards) == 1
+    assert "Hidden queue" in extra_saved_filter_cards[0].text_content()
+    assert extra_saved_filter_cards[0].xpath('.//button[normalize-space()="Delete"]')
+    assert "Default" in saved_filter_cards[2].xpath('.//*[@data-testid="saved-filter-filter-3"]')[0].text_content()
+
+    saved_filter_row = saved_filter_cards[0].xpath('.//*[@data-testid="saved-filter-filter-1"]')[0]
+    saved_filter_url = urlparse(saved_filter_cards[0].xpath('./a[text()="Shift queue"]')[0].get("href"))
+    delete_button = saved_filter_row.xpath('.//button[normalize-space()="Delete"]')[0]
+
+    assert not saved_filter_row.xpath('.//button[normalize-space()="Update"]')
+    assert not saved_filter_row.xpath('.//button[normalize-space()="Set default"]')
+    assert delete_button.get("hx-delete") == url_for("assess.delete_saved_filter", filter_id="filter-1")
+    assert delete_button.get("hx-target") == "closest [data-testid='dashboard-saved-filter-card']"
+    assert delete_button.get("hx-swap") == "delete"
+    assert saved_filter_url.path == url_for("assess.assess")
+    assert parse_qs(saved_filter_url.query) == {"search": ["incident"], "tags": ["alpha"], "sort": ["date_desc"]}
 
 
 @pytest.mark.parametrize("view_name,view_cls", ADMIN_VIEWS, ids=ADMIN_IDS)
@@ -305,7 +388,12 @@ class TestSourceView:
         task_result = Task(
             id="source_preview_42",
             status="FAILURE",
-            result={"message": "Connection refused", "reason": "preview_failed", "retryable": False, "data": None},
+            result=TaskResultEnvelope(
+                message="Connection refused",
+                reason="preview_failed",
+                retryable=False,
+                data=None,
+            ),
         )
 
         with app.test_request_context("/"):
@@ -371,14 +459,15 @@ def test_report_item_type_submitted_form_model_uses_shared_normalization(app):
             "csrf_token": "secret",
         },
     ):
-        model = ReportItemTypeView._submitted_form_model()
+        model = cast(ReportItemType | None, ReportItemTypeView._submitted_form_model())
 
     assert model is not None
+    attribute_groups = model.attribute_groups or []
     assert model.title == "Incident Report"
-    assert len(model.attribute_groups or []) == 1
-    assert model.attribute_groups[0].title == "Indicators"
-    assert len(model.attribute_groups[0].attribute_group_items) == 1
-    assert model.attribute_groups[0].attribute_group_items[0].title == "Domain"
+    assert len(attribute_groups) == 1
+    assert attribute_groups[0].title == "Indicators"
+    assert len(attribute_groups[0].attribute_group_items) == 1
+    assert attribute_groups[0].attribute_group_items[0].title == "Domain"
 
 
 def test_osint_source_form_shows_current_icon_and_delete_option(app):
@@ -535,6 +624,45 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
     assert "Pre-seeded" in html
     assert "Redis" in html
     assert "Workers" in html
+
+
+def test_analyze_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints):
+    response = authenticated_client.get(ReportItemView.get_base_route())
+
+    assert response.status_code == 200
+    assert 'aria-label="Toggle sidebar"' not in response.get_data(as_text=True)
+
+
+def test_publish_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/publish/product-types",
+        json={"items": [], "total_count": 0},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/publish/publisher-presets",
+        json={"items": [], "total_count": 0},
+    )
+
+    response = authenticated_client.get(ProductView.get_base_route())
+
+    assert response.status_code == 200
+    assert 'aria-label="Toggle sidebar"' not in response.get_data(as_text=True)
+
+
+def test_assess_page_shows_sidebar_toggle_when_sidebar_exists(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={"tags": [], "sources": [], "groups": [], "languages": []},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/stories",
+        json={"items": [], "total_count": 0},
+    )
+
+    response = authenticated_client.get("/assess")
+
+    assert response.status_code == 200
+    assert 'aria-label="Toggle sidebar"' in response.get_data(as_text=True)
 
 
 def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fails(

@@ -114,7 +114,9 @@ class TestBotsApi(BaseTest):
         response = client.put(f"{self.base_uri}/news-item/{news_item_id}", json={"language": "invalid_language"}, headers=api_header)
 
         assert response.status_code == 400
-        assert "Invalid BCP 47 language tag" in response.get_json()["error"]
+        error = response.get_json()["error"]
+        assert "Invalid BCP 47 language tag" in error
+        assert "invalid_language" not in error
 
 
 class TestTaggingBotsResults(BaseTest):

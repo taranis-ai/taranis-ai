@@ -67,7 +67,9 @@ class TestAdminApi(BaseTest):
         )
 
         assert response.status_code == 400
-        assert "Invalid timezone" in response.get_json()["error"]
+        error = response.get_json()["error"]
+        assert "Invalid timezone" in error
+        assert "Not/A_Timezone" not in error
 
     def test_settings_rejects_non_string_default_timezone(self, client, auth_header):
         response = client.put(

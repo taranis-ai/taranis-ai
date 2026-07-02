@@ -42,8 +42,8 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
         "task_history_response",
     ),
     SCOPE_TRENDING_CLUSTERS: ("trending_clusters",),
-    SCOPE_ASSESS_VIEWS: ("story", "news_item", "filter_lists"),
-    SCOPE_STORY_VIEWS: ("story", "news_item", "report_item"),
+    SCOPE_ASSESS_VIEWS: ("story", "news_item", "filter_lists", "story_bookmark"),
+    SCOPE_STORY_VIEWS: ("story", "news_item", "report_item", "story_bookmark"),
     SCOPE_STORY_REPORT_VIEWS: ("story", "report_item"),
     SCOPE_REPORT_VIEWS: ("report", "story", "product"),
     SCOPE_PUBLISH_VIEWS: ("product",),
@@ -54,6 +54,7 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
         "story_conflicts",
         "news_item_conflict",
         "story",
+        "story_bookmark",
         "news_item",
         "report_item",
         "filter_lists",
@@ -112,7 +113,7 @@ class FrontendCacheInvalidationService:
     def invalidate_all(self) -> int:
         return self._delete_matching_patterns([build_namespace_pattern(Config.CACHE_KEY_PREFIX)])
 
-    def invalidate_model(self, model_name: str, object_id: str | int | None = None) -> int:
+    def invalidate_model(self, model_name: str, object_id: str | None = None) -> int:
         if object_id is None:
             patterns = [build_model_pattern(Config.CACHE_KEY_PREFIX, model_name)]
         else:
@@ -129,7 +130,7 @@ class FrontendCacheInvalidationService:
             return ()
         return model_names
 
-    def invalidate_scope(self, scope_name: str, object_ids: Mapping[str, str | int] | None = None) -> int:
+    def invalidate_scope(self, scope_name: str, object_ids: Mapping[str, str] | None = None) -> int:
         object_ids = object_ids or {}
         return sum(self.invalidate_model(model_name, object_ids.get(model_name)) for model_name in self.get_scope_model_names(scope_name))
 
@@ -147,7 +148,7 @@ def invalidate_frontend_cache_on_success(
     models: Iterable[str] = (),
     scopes: Iterable[str] = (),
     user_profiles: Iterable[str] = (),
-    object_ids: dict[str, str | int] | None = None,
+    object_ids: dict[str, str] | None = None,
 ) -> int:
     if not 200 <= status_code < 300:
         return 0

@@ -1,51 +1,53 @@
 <div class="flex items-center space-x-4">
-  <button @click="sidebarOpen = !sidebarOpen" class="btn btn-ghost btn-square mr-4" aria-label="{{ _('Toggle sidebar') }}">
-    {{ heroicon_outline("bars-3") }}
-  </button>
+  {% if _show_sidebar and templates and templates.get('sidebar_template') %}
+    <button @click="sidebarOpen = !sidebarOpen" class="btn btn-ghost btn-square mr-4" aria-label="{{ _('Toggle sidebar') }}">
+      {{ heroicon_outline("bars-3") }}
+    </button>
+  {% endif %}
   <a href="{{ url_for('base.dashboard') }}" class="btn btn-ghost normal-case text-xl">
     <img src="{{ url_for('static', filename='assets/taranis-logo.svg') }}" alt="{{ _('Taranis AI Logo') }}" height="auto" width="auto" class="h-8">
   </a>
   {% include "partials/omnisearch/omni_search.html" %}
 </div>
 
-<nav>
-  <ul class="menu bg-base-200 menu-horizontal rounded-box">
+<nav class="shrink-0">
+  <ul class="menu bg-base-200 menu-horizontal rounded-box flex-nowrap">
     {% if is_admin %}
       <li>
-        <a href="{{ url_for('admin.dashboard') }}" data-tour-target="nav-admin">
+        <a href="{{ url_for('admin.dashboard') }}" data-tour-target="nav-admin" class="whitespace-nowrap">
           {{ heroicon_outline("cog-6-tooth") }}
-          {{ _("Administration") }}
+          <span class="sr-only 2xl:not-sr-only">{{ _("Administration") }}</span>
         </a>
       </li>
     {% endif %}
     <li>
-      <a href="{{ url_for('base.dashboard') }}" data-tour-target="nav-dashboard">
+      <a href="{{ url_for('base.dashboard') }}" data-tour-target="nav-dashboard" class="whitespace-nowrap">
         {{ heroicon_outline("squares-2x2") }}
-        {{ _("Dashboard") }}
+        <span class="sr-only 2xl:not-sr-only">{{ _("Dashboard") }}</span>
       </a>
     </li>
     <li>
-      <a href="{{ url_for('assess.assess') }}" data-tour-target="nav-assess">
+      <a href="{{ url_for('assess.assess') }}" data-tour-target="nav-assess" class="whitespace-nowrap">
         {{ heroicon_outline("newspaper") }}
-        {{ _("Assess") }}
+        <span class="sr-only 2xl:not-sr-only">{{ _("Assess") }}</span>
       </a>
     </li>
     <li>
-      <a href="{{ url_for('analyze.analyze') }}" data-tour-target="nav-analyze">
+      <a href="{{ url_for('analyze.analyze') }}" data-tour-target="nav-analyze" class="whitespace-nowrap">
         {{ heroicon_outline("presentation-chart-bar") }}
-        {{ _("Analyze") }}
+        <span class="sr-only 2xl:not-sr-only">{{ _("Analyze") }}</span>
       </a>
     </li>
     <li>
-      <a href="{{ url_for('publish.publish') }}" data-tour-target="nav-publish">
+      <a href="{{ url_for('publish.publish') }}" data-tour-target="nav-publish" class="whitespace-nowrap">
         {{ heroicon_outline("paper-airplane") }}
-        {{ _("Publish") }}
+        <span class="sr-only 2xl:not-sr-only">{{ _("Publish") }}</span>
       </a>
     </li>
     <li>
-      <a href="{{ url_for('assets.assets') }}">
+      <a href="{{ url_for('assets.assets') }}" class="whitespace-nowrap">
         {{ heroicon_outline("document-chart-bar") }}
-        {{ _("Assets") }}
+        <span class="sr-only 2xl:not-sr-only">{{ _("Assets") }}</span>
       </a>
     </li>
     <li class="dropdown dropdown-end z-50">
@@ -58,6 +60,9 @@
         </li>
         <li>
           <a href="{{ url_for('user.settings') }}">{{ _("User Settings") }}</a>
+        </li>
+        <li>
+          <a href="{{ url_for('assess.bookmarks') }}" data-tour-target="nav-bookmarks">{{ _("Bookmarks") }}</a>
         </li>
         <li>
           <a href="{{ url_for('base.logout') }}" data-viewport-warning-reset-on-logout="true" data-testid="logout-link">{{ _("Logout") }}</a>

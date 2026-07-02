@@ -1,4 +1,4 @@
-{% macro story_card(story, detail_view=False) %}
+{% macro story_card(story, detail_view=False, show_bookmark=True) %}
   {% from "assess/story_actions.html" import story_card_actions %}
   {% from "assess/story_tags.html" import story_tags %}
   {% from "assess/news_item_card.html" import news_item_card %}
@@ -151,7 +151,7 @@
 
         <!-- actions column -->
         <section class="flex flex-col items-end gap-1 text-xs lg:flex-shrink-0 lg:ml-auto" @click.stop>
-          {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view) }}
+          {{ story_card_actions(story, compact_view=compact_view, detail_view=detail_view, show_bookmark=show_bookmark) }}
         </section>
       </div>
 

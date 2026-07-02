@@ -71,7 +71,7 @@ start_parallel_step() {
 }
 
 wait_parallel_steps() {
-  local failed=0
+  local failed_steps=()
   local index
   local status
 
@@ -81,14 +81,14 @@ wait_parallel_steps() {
     else
       status=$?
       printf '\n==> %s (failed with exit %s)\n' "${PARALLEL_NAMES[$index]}" "$status" >&2
-      failed=1
+      failed_steps+=("${PARALLEL_NAMES[$index]} (exit $status)")
     fi
 
     cat "${PARALLEL_LOGS[$index]}"
   done
 
-  if [ "$failed" -ne 0 ]; then
-    fail "One or more parallel steps failed."
+  if [ "${#failed_steps[@]}" -ne 0 ]; then
+    fail "Parallel steps failed: ${failed_steps[*]}."
   fi
 }
 

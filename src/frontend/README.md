@@ -37,7 +37,13 @@ Scope prefixes jump straight to the existing list views: `story: <search>` opens
 
 Assess keyword filters are implicit story mode. `vpn tag:apt read:false sort:relevance` opens `/assess` with the same query parameters as the Assess sidebar. Supported Assess qualifiers are `source:`, `group:`, `tag:`/`tags:`, `read:`, `important:`, `relevant:`, `in-report:`/`report:`, `cybersecurity:`/`cyber:`, `changed-by:`, `range:`, `from:`, `to:`, and `sort:`. `range:` accepts `shift`, `24h`, `week`, `day`, `month`, and `last<N>` values such as `last7`.
 
+Assess sidebar filters can be saved per user from the Saved filters dialog. Saving with an existing saved filter name updates it, duplicate filter criteria under another name are rejected, and each saved filter can be updated from the current sidebar filters or deleted from the dashboard cards. One saved filter can be marked as the default; loading `/assess` without query parameters redirects to that saved filter, while `?reset=true` shows the unfiltered list.
+
 Colon-containing terms that are not supported qualifiers, such as URLs or CVE-style identifiers, are preserved as plain search text.
+
+### Story Bookmarks
+
+Bookmarks are private story bookmarks organized into named collections. Assess shows the first six collections in the user's saved order and links to the full `/bookmarks` page, where users can drag collection cards to reorder them. Users can select stories in Assess, bookmark them into an existing or new collection with `Bookmark`, and later manage those collections from `/bookmarks`. A single story card's `Bookmark` action immediately adds the story to the first saved collection; if no collection exists yet, a default `Bookmarks` collection is created. Bookmarking a story does not hide it from Assess, and deleting a bookmark collection only removes the collection membership, not the stories.
 
 ### Cache configuration
 
@@ -54,7 +60,7 @@ Frontend caching now uses Redis directly and falls back to a no-op cache when di
 
 The frontend uses Flask-Babel for server-rendered translations. English is the default locale and German is the first translated catalog.
 
-Internationalization is currently experimental. At the moment, translated coverage is limited to login and user settings.
+Internationalization is currently experimental. At the moment, translated coverage includes login, user settings, and bookmarks.
 
 Extract strings after changing translated templates or Python strings:
 

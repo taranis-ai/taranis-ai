@@ -1,0 +1,24 @@
+{% set bookmark_collections = bookmark_collections | default([]) %}
+{% set assess_bookmark_bar_limit = assess_bookmark_bar_limit | default(bookmark_collections | length) %}
+<nav class="mb-3 flex min-h-10 items-center justify-between gap-3 rounded-box border border-base-300 bg-base-100 px-2 py-2 shadow-sm"
+     aria-label="Story bookmarks"
+     data-testid="assess-bookmarks-bar">
+  <div class="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+    <span class="inline-flex items-center gap-1 whitespace-nowrap px-2 text-xs font-semibold uppercase text-base-content/60">
+      {{ heroicon_mini("bookmark", class="h-4 w-4") }}
+      {{ _("Bookmarks") }}
+    </span>
+    {% for bookmark in bookmark_collections[:assess_bookmark_bar_limit] %}
+      <a href="{{ url_for('assess.bookmark', bookmark_id=bookmark.id) }}"
+         class="btn btn-ghost btn-sm min-w-0 max-w-[12rem] flex-nowrap justify-start gap-2"
+         data-testid="assess-bookmark-{{ bookmark.id }}">
+        <span class="truncate">{{ bookmark.name }}</span>
+        <span class="badge badge-sm badge-ghost">{{ bookmark.story_count }}</span>
+      </a>
+    {% endfor %}
+  </div>
+  <a href="{{ url_for('assess.bookmarks') }}" class="btn btn-outline btn-sm shrink-0 gap-2" data-testid="assess-all-bookmarks">
+    {{ heroicon_mini("queue-list", class="h-4 w-4") }}
+    <span>All bookmarks</span>
+  </a>
+</nav>

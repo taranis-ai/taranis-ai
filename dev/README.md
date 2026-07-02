@@ -177,7 +177,7 @@ uv venv
 source .venv/bin/activate
 
 # Install requirements
-uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv sync --all-extras --frozen --python 3.14 --no-install-package taranis-models
 uv pip install -e ../models
 
 # Run the frontend dev server
