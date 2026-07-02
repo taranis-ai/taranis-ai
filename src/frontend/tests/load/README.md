@@ -7,7 +7,7 @@ Manual browser end-to-end load testing for Taranis AI using Locust and `locust-p
 - starts a disposable Docker stack with `ingress`, `core`, `frontend`, PostgreSQL, and Redis
 - seeds synthetic sources, stories, report types, and reports
 - runs low-concurrency browser flows against `/frontend/login`, `/frontend/`, `/frontend/assess`, and `/frontend/analyze`
-- stores Locust reports, compose logs, recovery checks, and page-ready timing summaries under `src/frontend/tests/load/artifacts/`
+- stores Locust reports, compose logs, seed logs, and page-ready timing summaries under `src/frontend/tests/load/artifacts/`
 
 ## Local usage
 
@@ -31,9 +31,8 @@ Runner flow:
 
 - `dev/run_e2e_load_tests.sh` starts or reuses `tests.load.load_support.report_server` on the host so each run can be opened from a stable localhost URL.
 - Docker Compose starts the disposable database, Redis, core, frontend, and ingress stack.
-- The one-shot `seed` service runs `tests.load.load_support.seed` to create synthetic sources, stories, report types, and reports through the core API.
-- The one-shot `check_recovery` service records a baseline before Locust and verifies the same health snapshot after Locust finishes.
-- The `locust` service runs `locustfile.py`, which builds browser tasks from the shared frontend workflow definitions in `tests.load.load_testing.frontend_flows`.
+- The host runner runs `tests.load.load_support.seed` against the exposed ingress API to create synthetic sources, stories, report types, and reports.
+- The `locust` service runs `tests.load.load_support.run_locust`, which starts `locustfile.py` and formats the generated HTML report.
 - After Locust writes CSV output, the host runner calls `tests.load.load_support.summarize_stats` to generate the UX timing markdown and JSON summaries.
 
 Defaults:
@@ -103,7 +102,7 @@ cd src/frontend/tests/load && DEBUG=true uv run pytest test_frontend_flows.py
 
 - This harness is intentionally browser-first and user-workspace-only.
 - Seed data is treated as disposable for this harness. Rerunning the seed step against the same database may create additional rows instead of updating previous seeded records.
-- It does not include `worker` or `cron` in the baseline stack.
+- It does not include `worker` or `cron` in the load-test stack.
 - The Locust user class is generated from the same E2E-derived flow registry used by frontend workflow tests.
 - By default, all load-enabled flows emit:
   - `login:ready`
@@ -112,4 +111,3 @@ cd src/frontend/tests/load && DEBUG=true uv run pytest test_frontend_flows.py
   - `assess:detail_ready`
   - `analyze:list_ready`
   - `analyze:report_detail_ready`
-- `/api/health` is compared against the pre-load baseline instead of assuming a healthy `200`, because the current core health model reports worker availability when Redis is configured.

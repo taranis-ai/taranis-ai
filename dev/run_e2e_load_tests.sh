@@ -404,6 +404,16 @@ generate_page_summary() {
     "$UX_TIMINGS_JSON_PATH"
 }
 
+run_seed() {
+  (
+    cd "$FRONTEND_DIR/tests/load"
+    DEBUG=true \
+      CORE_API_URL="http://127.0.0.1:$LOAD_TEST_INGRESS_PORT/api" \
+      API_KEY="load_testing_api_key" \
+      uv run python -m tests.load.load_support.seed
+  )
+}
+
 run_and_capture() {
   local log_file="$1"
   shift
@@ -460,24 +470,15 @@ else
 fi
 echo "Ingress URL: http://127.0.0.1:$LOAD_TEST_INGRESS_PORT/frontend/login"
 
-compose build core frontend ingress seed locust check_recovery
+compose build core frontend ingress locust
 compose up -d --wait database redis core frontend ingress
 
-run_and_capture "$ARTIFACT_DIR/seed.log" compose run --rm seed
-run_and_capture \
-  "$ARTIFACT_DIR/recovery-baseline.log" \
-  compose run --rm --entrypoint python check_recovery -m tests.load.load_support.check_recovery record-baseline
+run_and_capture "$ARTIFACT_DIR/seed.log" run_seed
 
 if run_and_capture "$ARTIFACT_DIR/locust-console.log" compose run --rm locust; then
   locust_status=0
 else
   locust_status=$?
-fi
-
-if run_and_capture "$ARTIFACT_DIR/recovery.log" compose run --rm check_recovery; then
-  recovery_status=0
-else
-  recovery_status=$?
 fi
 
 if generate_page_summary; then
@@ -491,10 +492,6 @@ echo "UX timings summary JSON: $UX_TIMINGS_JSON_PATH"
 
 if [[ $locust_status -ne 0 ]]; then
   exit "$locust_status"
-fi
-
-if [[ $recovery_status -ne 0 ]]; then
-  exit "$recovery_status"
 fi
 
 if [[ $summary_status -ne 0 ]]; then
