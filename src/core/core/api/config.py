@@ -5,7 +5,6 @@ from typing import Any
 
 from flask import Blueprint, Flask, jsonify, request, send_file
 from flask.views import MethodView
-from flask_jwt_extended import current_user
 from models.admin import OSINTSource as OSINTSourceModel
 from psycopg.errors import NotNullViolation, UniqueViolation  # noqa: F401
 from pydantic import ValidationError
@@ -173,7 +172,7 @@ class ReportItemTypes(MethodView):
     def get(self, type_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if type_id:
             return report_item_type.ReportItemType.get_for_api(type_id)
-        return report_item_type.ReportItemType.get_all_for_api(filter_args, True, current_user)
+        return report_item_type.ReportItemType.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
@@ -209,7 +208,7 @@ class ProductTypes(MethodView):
     def get(self, type_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if type_id:
             return product_type.ProductType.get_for_api(type_id)
-        return product_type.ProductType.get_all_for_api(filter_args, True, current_user)
+        return product_type.ProductType.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self):
@@ -234,7 +233,7 @@ class ProductTypes(MethodView):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
         try:
-            response, status = product_type.ProductType.update(type_id, request.json, current_user)
+            response, status = product_type.ProductType.update(type_id, request.json)
             _invalidate_admin_cache(status)
             return response, status
         except InvalidPresenterTemplatePathError as e:
@@ -655,7 +654,7 @@ class Connectors(MethodView):
     def get(self, connector_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if connector_id:
             return connector.Connector.get_for_api(connector_id)
-        return connector.Connector.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        return connector.Connector.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_CONNECTOR_CREATE")
     def post(self):
@@ -727,7 +726,7 @@ class OSINTSources(MethodView):
     def get(self, source_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if source_id:
             return osint_source.OSINTSource.get_for_api(source_id)
-        return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
@@ -869,7 +868,7 @@ class OSINTSourceGroups(MethodView):
     def get(self, group_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if group_id:
             return osint_source.OSINTSourceGroup.get_for_api(group_id)
-        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
@@ -883,7 +882,7 @@ class OSINTSourceGroups(MethodView):
             return {"error": "No group_id provided"}, 400
         if not (data := request.json):
             return {"error": "No data provided"}, 400
-        response, status = osint_source.OSINTSourceGroup.update(group_id, data, user=current_user)
+        response, status = osint_source.OSINTSourceGroup.update(group_id, data)
         _invalidate_admin_cache(status)
         return response, status
 
@@ -951,7 +950,7 @@ class WordLists(MethodView):
     def get(self, word_list_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if word_list_id:
             return word_list.WordList.get_for_api(word_list_id)
-        return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):

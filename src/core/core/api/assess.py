@@ -53,7 +53,7 @@ class NewsItems(MethodView):
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 1000)
         page = int(request.args.get("page", 0))
         filter_args["offset"] = min(int(request.args.get("offset", page * filter_args["limit"])), (2**31) - 1)
-        return news_item.NewsItem.get_all_for_api(filter_args, current_user)
+        return news_item.NewsItem.get_all_for_api(filter_args, user=current_user)
 
     @auth_required("ASSESS_CREATE")
     @validate_json
