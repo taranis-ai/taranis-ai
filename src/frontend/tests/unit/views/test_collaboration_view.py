@@ -168,8 +168,8 @@ def test_collaboration_dialog_submit_creates_new_channel_from_workspace(authenti
         headers={"HX-Request": "true"},
     )
 
-    assert response.status_code == 200
-    assert response.headers["HX-Redirect"].endswith("/collaboration/channel-2")
+    assert response.status_code == 204
+    assert response.headers["HX-Redirect"].endswith("/collaboration?channel_id=channel-2")
     request_body = json.loads(responses_mock.calls[0].request.body)
     assert request_body == {"topic": "Fresh Topic", "story_ids": []}
 
@@ -183,12 +183,59 @@ def test_collaboration_dialog_submit_creates_new_channel_with_plain_redirect(aut
     response = authenticated_client.post(
         "/collaboration/dialog",
         data={"topic": "Fresh Topic"},
-        headers={"HX-Request": "false"},
         follow_redirects=False,
     )
 
     assert response.status_code == 302
-    assert response.headers["Location"].endswith("/collaboration/channel-2")
+    assert response.headers["Location"].endswith("/collaboration?channel_id=channel-2")
+
+
+def test_collaboration_dialog_submit_creates_story_backed_channel_into_room(authenticated_client, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
+        json={"channel_id": "channel-2"},
+    )
+
+    response = authenticated_client.post(
+        "/collaboration/dialog",
+        data={"topic": "Fresh Topic", "story_ids": ["story-1"]},
+        headers={"HX-Request": "true"},
+    )
+
+    assert response.status_code == 204
+    assert response.headers["HX-Redirect"].endswith("/collaboration/channel-2")
+
+
+def test_collaboration_close_redirects_to_closed_channel_archive(authenticated_client, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-1/close",
+        json={"channel_id": "channel-1", "status": "closed"},
+    )
+
+    with authenticated_client.session_transaction() as flask_session:
+        flask_session["collab_channels"] = ["channel-1", "channel-2"]
+        flask_session["collab_current_channel"] = "channel-1"
+
+    response = authenticated_client.post("/collaboration/channel-1/close", follow_redirects=False)
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/collaboration?channel_id=channel-1")
+
+
+def test_collaboration_close_last_channel_redirects_to_closed_channel_archive(authenticated_client, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-1/close",
+        json={"channel_id": "channel-1", "status": "closed"},
+    )
+
+    with authenticated_client.session_transaction() as flask_session:
+        flask_session["collab_channels"] = ["channel-1"]
+        flask_session["collab_current_channel"] = "channel-1"
+
+    response = authenticated_client.post("/collaboration/channel-1/close", follow_redirects=False)
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/collaboration?channel_id=channel-1")
 
 
 def test_collaboration_workspace_renders_active_channel(authenticated_client, responses_mock):
@@ -291,8 +338,9 @@ def test_collaboration_workspace_renders_active_channel(authenticated_client, re
     assert "data-collab-connection-status" in html
     assert "Live sync idle." in html
     assert "Add From Assess" in html
+    assert ">Close<" in html
     assert "Open Live Room" not in html
-    assert "New Channel" in html
+    assert "New Channel" not in html
     assert "Channel Tasks" in html
     assert "Shared across all stories" in html
     assert "Open Original Story" not in html
@@ -410,6 +458,7 @@ def test_collaboration_overview_renders_dashboard_surface(authenticated_client, 
     assert "Channel Tasks" in html
     assert "Notes" in html
     assert "Recent Activity" in html
+    assert ">Close<" not in html
     assert "Impact" not in html
     assert "Key Takeaways" not in html
     assert "Source Labels" not in html
@@ -418,3 +467,298 @@ def test_collaboration_overview_renders_dashboard_surface(authenticated_client, 
     assert "Story title" not in html
     assert html.count("data-collab-copy-link") == 1
     assert html.index("Second Channel") < html.index("Live Demo")
+
+
+def test_collaboration_overview_renders_closed_channel_as_read_only_archive(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
+        json={
+            "items": [
+                {
+                    "channel_id": "channel-1",
+                    "topic": "Archived Channel",
+                    "status": "closed",
+                    "owner_base_url": "https://alpha.demo",
+                    "story_count": 1,
+                    "participant_count": 2,
+                    "created_at": "2026-05-08T10:00:00",
+                    "updated_at": "2026-05-08T11:00:00",
+                    "invite": {
+                        "owner_base_url": "https://alpha.demo",
+                        "channel_id": "channel-1",
+                        "token": "token-1",
+                        "join_url": "/collaboration/join?channel_id=channel-1",
+                    },
+                }
+            ],
+            "total_count": 1,
+        },
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-1",
+        json={
+            "channel_id": "channel-1",
+            "topic": "Archived Channel",
+            "status": "closed",
+            "owner_base_url": "https://alpha.demo",
+            "active_instance_base_url": "https://alpha.demo",
+            "invite": {
+                "owner_base_url": "https://alpha.demo",
+                "channel_id": "channel-1",
+                "token": "token-1",
+                "join_url": "/collaboration/join?channel_id=channel-1",
+            },
+            "participants": [{"base_url": "https://alpha.demo", "role": "owner", "joined_at": "2026-05-08T10:00:00"}],
+            "presence": [],
+            "locks": [],
+            "workspace": {
+                "focused_story_id": "snapshot-1",
+                "active_mode": "briefing",
+                "briefing": {
+                    "impact": "High",
+                    "key_takeaways": [],
+                    "risks": [],
+                    "key_questions": [],
+                    "related_story_ids": [],
+                    "source_labels": [],
+                },
+                "decisions": [{"id": "decision-1", "text": "Archive this channel", "owner": "alice", "status": "done"}],
+                "tasks": [{"id": "task-1", "text": "Verify IOC", "owner": "alice", "status": "done"}],
+                "comments": [{"id": "comment-1", "author": "alice", "text": "Final archived note"}],
+                "chat_messages": [],
+                "timeline_events": [],
+                "activity_items": [{"id": "activity-1", "text": "closed channel", "actor": "alice"}],
+            },
+            "stories": [
+                {
+                    "id": "snapshot-1",
+                    "title": "Archived Story",
+                    "description": "Final description",
+                    "created": "2026-05-08T10:00:00",
+                    "source_instance": "https://alpha.demo",
+                    "source_story_id": "story-1",
+                    "story": {"id": "story-1", "title": "Archived Story", "summary": "Shared summary", "news_items": []},
+                }
+            ],
+            "result_stories": [],
+            "created_at": "2026-05-08T10:00:00",
+            "updated_at": "2026-05-08T11:00:00",
+            "is_owner": True,
+        },
+    )
+
+    response = authenticated_client.get("/collaboration?channel_id=channel-1")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Archived Channel" in html
+    assert "Archived" in html
+    assert "This channel is archived. The snapshot below reflects its final state when it was closed." in html
+    assert "This channel is archived and read-only." in html
+    assert "Open Live Room" not in html
+    assert "Open Archive" in html
+    assert "Add channel task" not in html
+    assert "Add note" not in html
+    assert "Add decision" not in html
+    assert "Finalize Stories" not in html
+    assert ">Close<" not in html
+
+
+def test_collaboration_workspace_renders_closed_channel_as_read_only_archive_room(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
+        json={
+            "items": [
+                {
+                    "channel_id": "channel-1",
+                    "topic": "Archived Channel",
+                    "status": "closed",
+                    "owner_base_url": "https://alpha.demo",
+                    "story_count": 1,
+                    "participant_count": 2,
+                    "created_at": "2026-05-08T10:00:00",
+                    "updated_at": "2026-05-08T11:00:00",
+                    "invite": {
+                        "owner_base_url": "https://alpha.demo",
+                        "channel_id": "channel-1",
+                        "token": "token-1",
+                        "join_url": "/collaboration/join?channel_id=channel-1",
+                    },
+                }
+            ],
+            "total_count": 1,
+        },
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-1",
+        json={
+            "channel_id": "channel-1",
+            "topic": "Archived Channel",
+            "status": "closed",
+            "owner_base_url": "https://alpha.demo",
+            "active_instance_base_url": "https://alpha.demo",
+            "invite": {
+                "owner_base_url": "https://alpha.demo",
+                "channel_id": "channel-1",
+                "token": "token-1",
+                "join_url": "/collaboration/join?channel_id=channel-1",
+            },
+            "participants": [{"base_url": "https://alpha.demo", "role": "owner", "joined_at": "2026-05-08T10:00:00"}],
+            "presence": [],
+            "locks": [],
+            "workspace": {
+                "focused_story_id": "snapshot-1",
+                "active_mode": "story",
+                "briefing": {
+                    "impact": "High",
+                    "key_takeaways": [],
+                    "risks": [],
+                    "key_questions": [],
+                    "related_story_ids": [],
+                    "source_labels": [],
+                },
+                "decisions": [],
+                "tasks": [],
+                "comments": [],
+                "chat_messages": [{"id": "msg-1", "author": "alice", "text": "Archived chat message"}],
+                "timeline_events": [],
+                "activity_items": [],
+            },
+            "stories": [
+                {
+                    "id": "snapshot-1",
+                    "title": "Archived Story",
+                    "description": "Final description",
+                    "created": "2026-05-08T10:00:00",
+                    "source_instance": "https://alpha.demo",
+                    "source_story_id": "story-1",
+                    "story": {"id": "story-1", "title": "Archived Story", "summary": "Shared summary", "news_items": []},
+                }
+            ],
+            "result_stories": [],
+            "created_at": "2026-05-08T10:00:00",
+            "updated_at": "2026-05-08T11:00:00",
+            "is_owner": True,
+        },
+    )
+
+    response = authenticated_client.get("/collaboration/channel-1")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Archived Story Room" in html
+    assert "Read-only archive of the channel" in html
+    assert "Team Chat" in html
+    assert "Archived" in html
+    assert "Type a message" not in html
+    assert "Add channel task" not in html
+    assert "Add note" not in html
+    assert "Add From Assess" not in html
+    assert ">Close<" not in html
+    assert "Overview" in html
+
+
+def test_collaboration_overview_defaults_to_first_archived_channel_when_no_open_channels(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
+        json={
+            "items": [
+                {
+                    "channel_id": "channel-2",
+                    "topic": "Newest Archived",
+                    "status": "closed",
+                    "owner_base_url": "https://bravo.demo",
+                    "story_count": 1,
+                    "participant_count": 1,
+                    "created_at": "2026-05-08T11:00:00",
+                    "updated_at": "2026-05-08T12:00:00",
+                    "invite": {
+                        "owner_base_url": "https://bravo.demo",
+                        "channel_id": "channel-2",
+                        "token": "token-2",
+                        "join_url": "/collaboration/join?channel_id=channel-2",
+                    },
+                },
+                {
+                    "channel_id": "channel-1",
+                    "topic": "Older Archived",
+                    "status": "closed",
+                    "owner_base_url": "https://alpha.demo",
+                    "story_count": 1,
+                    "participant_count": 2,
+                    "created_at": "2026-05-08T10:00:00",
+                    "updated_at": "2026-05-08T11:00:00",
+                    "invite": {
+                        "owner_base_url": "https://alpha.demo",
+                        "channel_id": "channel-1",
+                        "token": "token-1",
+                        "join_url": "/collaboration/join?channel_id=channel-1",
+                    },
+                },
+            ],
+            "total_count": 2,
+        },
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-2",
+        json={
+            "channel_id": "channel-2",
+            "topic": "Newest Archived",
+            "status": "closed",
+            "owner_base_url": "https://bravo.demo",
+            "active_instance_base_url": "https://bravo.demo",
+            "invite": {
+                "owner_base_url": "https://bravo.demo",
+                "channel_id": "channel-2",
+                "token": "token-2",
+                "join_url": "/collaboration/join?channel_id=channel-2",
+            },
+            "participants": [{"base_url": "https://bravo.demo", "role": "owner", "joined_at": "2026-05-08T11:00:00"}],
+            "presence": [],
+            "locks": [],
+            "workspace": {
+                "focused_story_id": "snapshot-2",
+                "active_mode": "briefing",
+                "briefing": {
+                    "impact": None,
+                    "key_takeaways": [],
+                    "risks": [],
+                    "key_questions": [],
+                    "related_story_ids": [],
+                    "source_labels": [],
+                },
+                "decisions": [],
+                "tasks": [],
+                "comments": [],
+                "chat_messages": [],
+                "timeline_events": [],
+                "activity_items": [],
+            },
+            "stories": [
+                {
+                    "id": "snapshot-2",
+                    "title": "Newest Archived Story",
+                    "description": "Final state",
+                    "created": "2026-05-08T11:00:00",
+                    "source_instance": "https://bravo.demo",
+                    "source_story_id": "story-2",
+                    "story": {"id": "story-2", "title": "Newest Archived Story", "summary": "Summary", "news_items": []},
+                }
+            ],
+            "result_stories": [],
+            "created_at": "2026-05-08T11:00:00",
+            "updated_at": "2026-05-08T12:00:00",
+            "is_owner": True,
+        },
+    )
+
+    response = authenticated_client.get("/collaboration")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "No Active Collaboration Selected" not in html
+    assert "Newest Archived" in html
+    assert "Older Archived" in html
+    assert "This channel is archived. The snapshot below reflects its final state when it was closed." in html
+    assert "Open Live Room" not in html
+    assert "Open Archive" in html

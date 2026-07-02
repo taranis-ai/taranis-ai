@@ -25,14 +25,18 @@
           <div class="text-xs font-semibold uppercase tracking-[0.24em] text-primary/70">Cross-Instance Collaboration</div>
           <h1 class="mt-2 text-4xl font-semibold tracking-tight text-primary">
             {% if is_room_view %}
-              Live Story Room
+              {% if active_channel.status == 'open' %}Live Story Room{% else %}Archived Story Room{% endif %}
             {% else %}
               Collaborative Briefing
             {% endif %}
           </h1>
           <p class="mt-2 max-w-3xl text-sm text-base-content/70">
             {% if is_room_view %}
-              Real-time story collaboration across connected Taranis instances.
+              {% if active_channel.status == 'open' %}
+                Real-time story collaboration across connected Taranis instances.
+              {% else %}
+                Read-only archive of the channel's final shared state, including story edits and chat history.
+              {% endif %}
             {% else %}
               Review multiple stories together, coordinate actions, and maintain shared context in real time.
             {% endif %}
@@ -44,11 +48,14 @@
             Back to Assess
           </a>
           {% if active_channel %}
-            <span class="rounded-box border border-success/30 bg-success/10 px-4 py-2 text-sm font-medium text-success" data-collab-connection-status>Connecting…</span>
+            <span class="rounded-box border {% if active_channel.status == 'open' %}border-success/30 bg-success/10 text-success{% else %}border-base-300 bg-base-100 text-base-content/70{% endif %} px-4 py-2 text-sm font-medium"
+                  data-collab-connection-status>{% if active_channel.status == 'open' %}Connecting…{% else %}Archived{% endif %}</span>
             {% if is_room_view %}
               <a class="btn btn-outline" href="{{ url_for('collaboration.workspace', channel_id=active_channel.channel_id) }}">Overview</a>
-            {% else %}
+            {% elif active_channel.status == 'open' %}
               <a class="btn btn-primary" href="{{ url_for('collaboration.workspace_channel', channel_id=active_channel.channel_id) }}">Open Room</a>
+            {% else %}
+              <a class="btn btn-primary" href="{{ url_for('collaboration.workspace_channel', channel_id=active_channel.channel_id) }}">Open Archive</a>
             {% endif %}
           {% endif %}
         </div>
@@ -81,10 +88,12 @@
                 <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
                 <button class="btn btn-primary btn-sm" type="submit">Finalize Stories</button>
               </form>
-              <form method="post" action="{{ url_for('collaboration.close', channel_id=active_channel.channel_id) }}">
-                <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
-                <button class="btn btn-ghost btn-sm text-error" type="submit">Close</button>
-              </form>
+              {% if is_room_view %}
+                <form method="post" action="{{ url_for('collaboration.close', channel_id=active_channel.channel_id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                  <button class="btn btn-ghost btn-sm text-error" type="submit">Close</button>
+                </form>
+              {% endif %}
             {% endif %}
           </div>
         </div>
@@ -115,7 +124,7 @@
                       <div class="h-2.5 w-2.5 rounded-full {% if selected_story_id == story.id %}bg-success{% else %}bg-base-300{% endif %}"></div>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-base-content/60">
-                      <span class="rounded-full bg-base-200 px-2 py-1"><span data-collab-news-count="{{ story.id }}">{{ (story.story.news_items or []) | length }}</span> evidence</span>
+                      <span class="rounded-full bg-base-200 px-2 py-1"><span data-collab-news-count="{{ story.id }}">{{ (story.story.news_items or []) | length }}</span> News Items</span>
                     </div>
                     <p class="mt-3 line-clamp-3 text-sm text-base-content/70" data-collab-story-summary="{{ story.id }}">{{ story.story.summary or story.description or "" }}</p>
                   </button>
@@ -123,15 +132,9 @@
               </div>
               <div class="mt-4">
                 <div class="grid gap-2">
-                  <a class="btn btn-outline w-full" href="{{ url_for('assess.assess') }}">Add From Assess</a>
-                  <form method="get"
-                        action="{{ url_for('collaboration.dialog') }}"
-                        hx-get="{{ url_for('collaboration.dialog') }}?force_new=1"
-                        hx-target="body"
-                        hx-swap="beforeend">
-                    <input type="hidden" name="force_new" value="1">
-                    <button class="btn btn-ghost w-full" type="submit">New Channel</button>
-                  </form>
+                  {% if active_channel.status == 'open' %}
+                    <a class="btn btn-outline w-full" href="{{ url_for('assess.assess') }}">Add From Assess</a>
+                  {% endif %}
                 </div>
               </div>
             </aside>
@@ -140,7 +143,13 @@
               <div class="mb-5 flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <div class="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/50">Live Story Workspace</div>
-                  <div class="mt-1 text-sm text-base-content/60">Edits apply to the selected story only.</div>
+                  <div class="mt-1 text-sm text-base-content/60">
+                    {% if active_channel.status == 'open' %}
+                      Edits apply to the selected story only.
+                    {% else %}
+                      Archived stories are read-only.
+                    {% endif %}
+                  </div>
                 </div>
                 <div class="flex items-center gap-3 text-sm text-base-content/60">
                   <span data-collab-save-status>Live sync idle.</span>
@@ -151,7 +160,9 @@
                 <div class="mb-5 flex items-start justify-between gap-4">
                   <div>
                     <div class="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/50">Headline</div>
-                    <h2 class="mt-2 text-3xl font-semibold" data-collab-room-title>{{ selected_story.story.title or selected_story.title or "Untitled Story" }}</h2>
+                    <h2 class="mt-2 text-3xl font-semibold" data-collab-room-title>
+                      {{ selected_story_story.title or (selected_story.title if selected_story else "No story selected") }}
+                    </h2>
                   </div>
                   <div class="flex -space-x-2" data-collab-participant-stack>
                     {% for presence in active_channel.presence[:6] %}
@@ -227,21 +238,25 @@
                     <span class="text-xs text-base-content/50">Shared across all stories</span>
                   </div>
                   <div class="space-y-3" data-collab-tasks-list></div>
-                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="task">
-                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add channel task">
-                    <button class="btn btn-primary btn-sm" type="submit">Add</button>
-                  </form>
+                  {% if active_channel.status == 'open' %}
+                    <form class="mt-4 flex gap-2" data-collab-entry-form data-target="task">
+                      <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add channel task">
+                      <button class="btn btn-primary btn-sm" type="submit">Add</button>
+                    </form>
+                  {% endif %}
                 </section>
                 <section>
                   <div class="mb-3 flex items-center justify-between">
                     <h3 class="font-semibold">Team Chat</h3>
-                    <span class="text-xs text-base-content/50">Live</span>
+                    <span class="text-xs text-base-content/50">{% if active_channel.status == 'open' %}Live{% else %}Archived{% endif %}</span>
                   </div>
                   <div class="space-y-3" data-collab-chat-list></div>
-                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="chat_message">
-                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Type a message">
-                    <button class="btn btn-primary btn-sm" type="submit">Send</button>
-                  </form>
+                  {% if active_channel.status == 'open' %}
+                    <form class="mt-4 flex gap-2" data-collab-entry-form data-target="chat_message">
+                      <input class="input input-bordered input-sm flex-1" name="text" placeholder="Type a message">
+                      <button class="btn btn-primary btn-sm" type="submit">Send</button>
+                    </form>
+                  {% endif %}
                 </section>
               </div>
               <div class="hidden" data-collab-sidebar-panel="notes">
@@ -251,10 +266,12 @@
                     <span class="text-xs text-base-content/50">Channel-only</span>
                   </div>
                   <div class="space-y-3" data-collab-comments-list></div>
-                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="comment">
-                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add note">
-                    <button class="btn btn-primary btn-sm" type="submit">Save</button>
-                  </form>
+                  {% if active_channel.status == 'open' %}
+                    <form class="mt-4 flex gap-2" data-collab-entry-form data-target="comment">
+                      <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add note">
+                      <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                    </form>
+                  {% endif %}
                 </section>
               </div>
               <div class="hidden" data-collab-sidebar-panel="activity">
@@ -263,7 +280,7 @@
                     <h3 class="font-semibold">Activity</h3>
                     <span class="text-xs text-base-content/50">Recent changes</span>
                   </div>
-                  <div class="space-y-3" data-collab-activity-list></div>
+                  <div class="max-h-96 space-y-3 overflow-y-auto pr-1" data-collab-activity-list></div>
                 </section>
               </div>
             </aside>
@@ -315,7 +332,9 @@
                 <div class="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/50">Channel Overview</div>
                 <h2 class="mt-2 text-3xl font-semibold">{{ active_channel.topic }}</h2>
                 <p class="mt-3 text-sm text-base-content/70">
-                  {% if selected_story and active_channel.stories | length == 1 %}
+                  {% if active_channel.status != 'open' %}
+                    This channel is archived. The snapshot below reflects its final state when it was closed.
+                  {% elif selected_story and active_channel.stories | length == 1 %}
                     Current focus: {{ selected_story.story.title or selected_story.title or "Untitled Story" }}.
                   {% elif selected_story %}
                     This channel currently groups {{ active_channel.stories | length }} stories. The room remains the place for detailed story editing.
@@ -343,11 +362,7 @@
                 </div>
               </div>
 
-              <div class="mt-4 grid gap-4 lg:grid-cols-2">
-                <div class="rounded-[1.25rem] border border-base-300 p-4">
-                  <h3 class="font-semibold">Recent Activity</h3>
-                  <div class="mt-3 space-y-3" data-collab-activity-list></div>
-                </div>
+              <div class="mt-4">
                 <div class="rounded-[1.25rem] border border-base-300 p-4">
                   <h3 class="font-semibold">Current Focus</h3>
                   <div class="mt-3">
@@ -377,10 +392,12 @@
                     <span class="text-xs text-base-content/50">Shared queue</span>
                   </div>
                   <div class="space-y-3" data-collab-tasks-list></div>
-                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="task">
-                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add channel task">
-                    <button class="btn btn-primary btn-sm" type="submit">Add</button>
-                  </form>
+                  {% if active_channel.status == 'open' %}
+                    <form class="mt-4 flex gap-2" data-collab-entry-form data-target="task">
+                      <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add channel task">
+                      <button class="btn btn-primary btn-sm" type="submit">Add</button>
+                    </form>
+                  {% endif %}
                 </div>
                 <div class="rounded-[1.25rem] border border-base-300 p-4">
                   <div class="mb-3 flex items-center justify-between">
@@ -388,17 +405,19 @@
                     <span class="text-xs text-base-content/50">Changes and context</span>
                   </div>
                   <div class="space-y-3" data-collab-comments-list></div>
-                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="comment">
-                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add note">
-                    <button class="btn btn-primary btn-sm" type="submit">Save</button>
-                  </form>
+                  {% if active_channel.status == 'open' %}
+                    <form class="mt-4 flex gap-2" data-collab-entry-form data-target="comment">
+                      <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add note">
+                      <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                    </form>
+                  {% endif %}
                 </div>
                 <div class="rounded-[1.25rem] border border-base-300 p-4">
                   <div class="mb-3 flex items-center justify-between">
                     <h3 class="font-semibold">Recent Activity</h3>
                     <span class="text-xs text-base-content/50">Latest changes</span>
                   </div>
-                  <div class="space-y-3" data-collab-activity-list></div>
+                  <div class="max-h-96 space-y-3 overflow-y-auto pr-1" data-collab-activity-list></div>
                 </div>
               </div>
             </section>
@@ -417,20 +436,31 @@
                   <span class="text-xs text-base-content/50">Management only</span>
                 </div>
                 <div class="space-y-3" data-collab-decisions-list></div>
-                <form class="mt-4 flex gap-2" data-collab-entry-form data-target="decision">
-                  <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add decision">
-                  <button class="btn btn-primary btn-sm" type="submit">Add</button>
-                </form>
+                {% if active_channel.status == 'open' %}
+                  <form class="mt-4 flex gap-2" data-collab-entry-form data-target="decision">
+                    <input class="input input-bordered input-sm flex-1" name="text" placeholder="Add decision">
+                    <button class="btn btn-primary btn-sm" type="submit">Add</button>
+                  </form>
+                {% endif %}
               </section>
               <section class="mb-5">
                 <div class="mb-3 flex items-center justify-between">
                   <h3 class="font-semibold">Channel Actions</h3>
                   <span class="text-xs text-base-content/50">Room and intake</span>
                 </div>
-                <div class="grid gap-2">
-                  <a class="btn btn-primary btn-sm" href="{{ url_for('collaboration.workspace_channel', channel_id=active_channel.channel_id) }}">Open Live Room</a>
-                  <a class="btn btn-outline btn-sm" href="{{ url_for('assess.assess') }}">Add Stories From Assess</a>
-                </div>
+                {% if active_channel.status == 'open' %}
+                  <div class="grid gap-2">
+                    <a class="btn btn-primary btn-sm" href="{{ url_for('collaboration.workspace_channel', channel_id=active_channel.channel_id) }}">Open Live Room</a>
+                    <a class="btn btn-outline btn-sm" href="{{ url_for('assess.assess') }}">Add Stories From Assess</a>
+                  </div>
+                {% else %}
+                  <div class="grid gap-2">
+                    <a class="btn btn-primary btn-sm" href="{{ url_for('collaboration.workspace_channel', channel_id=active_channel.channel_id) }}">Open Archive</a>
+                    <div class="rounded-[1rem] border border-base-300 bg-base-100 px-4 py-3 text-sm text-base-content/60">
+                      This channel is archived and read-only.
+                    </div>
+                  </div>
+                {% endif %}
               </section>
               <section>
                 <div class="mb-3 flex items-center justify-between">

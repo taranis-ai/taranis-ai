@@ -45,7 +45,7 @@
 
       {% if can_add_existing %}
         <section class="rounded-[1.25rem] border border-base-300 bg-base-100/90 p-5" x-show="mode === 'existing'" x-cloak>
-          <label class="form-control">
+          <label class="form-control space-y-2">
             <span class="label-text font-medium">Open channel</span>
             <select class="select select-bordered" :name="mode === 'existing' ? 'channel_id' : null" x-model="selectedChannel" :disabled="mode !== 'existing'">
               <option value="">Select a channel</option>
@@ -55,12 +55,12 @@
                 </option>
               {% endfor %}
             </select>
-            <span class="label-text-alt text-base-content/60">Pick one of the open channels.</span>
           </label>
+          <p class="mt-2 max-w-md text-xs leading-relaxed text-base-content/60">Pick one of the open channels.</p>
         </section>
 
         <section class="rounded-[1.25rem] border border-base-300 bg-base-100/90 p-5" x-show="mode === 'new'" x-cloak>
-          <label class="form-control">
+          <label class="form-control space-y-2">
             <span class="label-text font-medium">New channel name</span>
             <input class="input input-bordered"
                    type="text"
@@ -68,16 +68,16 @@
                    value="{{ topic }}"
                    placeholder="Example: Ransomware cluster review"
                    :disabled="mode !== 'new'">
-            <span class="label-text-alt text-base-content/60">Choose a short name others will recognize.</span>
           </label>
+          <p class="mt-2 max-w-md text-xs leading-relaxed text-base-content/60">Choose a short name others will recognize.</p>
         </section>
       {% else %}
         <section class="rounded-[1.25rem] border border-base-300 bg-base-100/90 p-5">
-          <label class="form-control">
+          <label class="form-control space-y-2">
             <span class="label-text font-medium">New channel name</span>
             <input class="input input-bordered" type="text" name="topic" value="{{ topic }}" placeholder="Example: Ransomware cluster review">
-            <span class="label-text-alt text-base-content/60">Choose a short name others will recognize.</span>
           </label>
+          <p class="mt-2 max-w-md text-xs leading-relaxed text-base-content/60">Choose a short name others will recognize.</p>
         </section>
       {% endif %}
 

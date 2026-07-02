@@ -91,13 +91,18 @@ class CollaborationView:
         known_ids = [item.get("channel_id") for item in channels if item.get("status") == "open" and item.get("channel_id")]
         cls._set_session_channels([channel_id for channel_id in cls._get_session_channels() if channel_id in known_ids])
 
-        active_id = active_channel_id or request.args.get("channel_id") or session.get(COLLAB_SESSION_CURRENT_KEY) or ""
+        explicit_active_id = active_channel_id or request.args.get("channel_id") or ""
+        active_id = explicit_active_id or session.get(COLLAB_SESSION_CURRENT_KEY) or ""
         if not active_id and channels:
             active_id = channels[0].get("channel_id", "")
 
         active_channel = api.get_collaboration_channel(active_id) if active_id else None
         if active_channel and active_channel.get("status") == "open":
             cls._remember_channel(active_id)
+        elif active_channel:
+            if session.get(COLLAB_SESSION_CURRENT_KEY) == active_id:
+                remaining_channels = cls._get_session_channels()
+                session[COLLAB_SESSION_CURRENT_KEY] = remaining_channels[0] if remaining_channels else ""
         elif active_id:
             cls._forget_channel(active_id)
             active_channel = None
@@ -110,7 +115,7 @@ class CollaborationView:
 
         return {
             "_show_sidebar": False,
-            "is_room_view": bool(active_channel_id),
+            "is_room_view": bool(active_channel_id and active_channel),
             "channels": channels,
             "active_channel": active_channel,
             "active_channel_id": active_id if active_channel else "",
@@ -186,12 +191,13 @@ class CollaborationView:
             return make_response(notification_html, getattr(core_response, "status_code", 500) or 500)
 
         cls._remember_channel(target_channel_id)
-        redirect_target = url_for("collaboration.workspace_channel", channel_id=target_channel_id)
-        if request.headers.get("HX-Request") == "true":
-            response = make_response(notification_html, 200)
-            response.headers["HX-Redirect"] = redirect_target
-            return response
-        return redirect(redirect_target, code=302)
+        redirect_target = (
+            url_for("collaboration.workspace_channel", channel_id=target_channel_id)
+            if story_ids
+            else url_for("collaboration.workspace", channel_id=target_channel_id)
+        )
+        BaseView.add_flash_notification(core_response)
+        return BaseView.redirect_htmx(redirect_target)
 
     @classmethod
     @auth_required()
@@ -297,7 +303,8 @@ class CollaborationView:
         BaseView.add_flash_notification(core_response)
         if core_response.ok:
             cls._forget_channel(channel_id)
+            return BaseView.redirect_htmx(url_for("collaboration.workspace", channel_id=channel_id))
         next_channel = session.get(COLLAB_SESSION_CURRENT_KEY) or ""
         if next_channel:
-            return redirect(url_for("collaboration.workspace_channel", channel_id=next_channel), code=302)
-        return redirect(url_for("collaboration.workspace"), code=302)
+            return BaseView.redirect_htmx(url_for("collaboration.workspace", channel_id=next_channel))
+        return BaseView.redirect_htmx(url_for("collaboration.workspace"))

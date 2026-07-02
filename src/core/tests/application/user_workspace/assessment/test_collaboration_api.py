@@ -1,11 +1,24 @@
+from datetime import datetime, timedelta
+
 import pytest
 
+from core.model.collaboration_channel import CollaborationChannelRecord
 from core.service.collaboration import collaboration_service
 
 
-def test_create_collaboration_channel_from_story(client, auth_header, stories):
-    collaboration_service.channels.clear()
+@pytest.fixture(autouse=True)
+def _clear_collaboration_state(app):
+    with app.app_context():
+        collaboration_service.channels.clear()
+        collaboration_service._persistence_disabled_reason = None
+        CollaborationChannelRecord.delete_all()
+        yield
+        collaboration_service.channels.clear()
+        collaboration_service._persistence_disabled_reason = None
+        CollaborationChannelRecord.delete_all()
 
+
+def test_create_collaboration_channel_from_story(client, auth_header, stories):
     response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Demo Topic", "story_ids": [stories[0]]},
@@ -24,7 +37,6 @@ def test_create_collaboration_channel_from_story(client, auth_header, stories):
 
 
 def test_collaboration_channel_invite_can_be_redeemed_multiple_times(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Shared Topic", "story_ids": [stories[0]]},
@@ -51,7 +63,6 @@ def test_collaboration_channel_invite_can_be_redeemed_multiple_times(client, aut
 
 
 def test_collaboration_channel_list_is_sorted_by_creation_time(client, auth_header):
-    collaboration_service.channels.clear()
     first_token = collaboration_service._build_token("channel-1")
     second_token = collaboration_service._build_token("channel-2")
     collaboration_service.channels["channel-1"] = {
@@ -87,7 +98,6 @@ def test_collaboration_channel_list_is_sorted_by_creation_time(client, auth_head
 
 
 def test_finalize_collaboration_channel_creates_local_stories_for_remote_origin(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Finalize Topic", "story_ids": [stories[0]]},
@@ -113,7 +123,6 @@ def test_finalize_collaboration_channel_creates_local_stories_for_remote_origin(
 
 
 def test_finalize_collaboration_channel_updates_local_origin_story_in_place(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Finalize Local Update", "story_ids": [stories[0]]},
@@ -137,7 +146,6 @@ def test_finalize_collaboration_channel_updates_local_origin_story_in_place(clie
 
 
 def test_finalize_collaboration_channel_reuses_remote_persisted_story(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Finalize Remote Update", "story_ids": [stories[0]]},
@@ -171,7 +179,6 @@ def test_finalize_collaboration_channel_reuses_remote_persisted_story(client, au
 
 
 def test_collaboration_live_state_tracks_presence_and_locks(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Live Topic", "story_ids": [stories[0]]},
@@ -210,7 +217,6 @@ def test_collaboration_live_state_tracks_presence_and_locks(client, auth_header,
 
 
 def test_collaboration_live_lock_blocks_other_session(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Live Locks", "story_ids": [stories[0]]},
@@ -256,7 +262,6 @@ def test_collaboration_live_lock_blocks_other_session(client, auth_header, stori
 
 
 def test_collaboration_live_workspace_patch_updates_channel_state(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Workspace Topic", "story_ids": [stories[0]]},
@@ -289,7 +294,6 @@ def test_collaboration_live_workspace_patch_updates_channel_state(client, auth_h
 
 
 def test_collaboration_live_chat_message_tracks_instance_metadata(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Chat Topic", "story_ids": [stories[0]]},
@@ -322,7 +326,6 @@ def test_collaboration_live_chat_message_tracks_instance_metadata(client, auth_h
 
 
 def test_collaboration_live_task_and_comment_track_instance_metadata(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Metadata Topic", "story_ids": [stories[0]]},
@@ -370,7 +373,6 @@ def test_collaboration_live_task_and_comment_track_instance_metadata(client, aut
 
 
 def test_collaboration_story_ops_merge_concurrent_updates(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Ops Topic", "story_ids": [stories[0]]},
@@ -415,7 +417,6 @@ def test_collaboration_story_ops_merge_concurrent_updates(client, auth_header, s
 
 
 def test_collaboration_story_ops_rebase_stale_version(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Rebase Topic", "story_ids": [stories[0]]},
@@ -455,7 +456,6 @@ def test_collaboration_story_ops_rebase_stale_version(client, auth_header, stori
 
 
 def test_collaboration_text_selection_lifecycle(client, auth_header, stories):
-    collaboration_service.channels.clear()
     create_response = client.post(
         "/api/assess/collab/channels",
         json={"topic": "Selection Topic", "story_ids": [stories[0]]},
@@ -500,3 +500,206 @@ def test_collaboration_text_selection_lifecycle(client, auth_header, stories):
     )
     detail = collaboration_service.unregister_presence(channel_id, "session-a", active_instance_base_url=base_url)
     assert detail.text_selections == []
+
+
+def test_closed_collaboration_channel_survives_in_memory_reset(client, auth_header, stories):
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Archived Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+
+    close_response = client.post(f"/api/assess/collab/channels/{channel_id}/close", headers=auth_header)
+
+    assert close_response.status_code == 200
+
+    collaboration_service.channels.clear()
+
+    list_response = client.get("/api/assess/collab/channels", headers=auth_header)
+    detail_response = client.get(f"/api/assess/collab/channels/{channel_id}", headers=auth_header)
+
+    assert list_response.status_code == 200
+    assert detail_response.status_code == 200
+    assert [item["channel_id"] for item in list_response.get_json()["items"]] == [channel_id]
+    assert list_response.get_json()["items"][0]["status"] == "closed"
+    assert detail_response.get_json()["channel_id"] == channel_id
+    assert detail_response.get_json()["status"] == "closed"
+
+
+def test_collaboration_live_mutations_are_debounced_until_interval_elapsed(client, auth_header, stories, monkeypatch):
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Debounce Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    channel_state = collaboration_service.channels[channel_id]
+    channel_state["_last_persisted_at"] = datetime(2026, 7, 1, 10, 0, 0).isoformat()
+
+    persisted_states: list[dict] = []
+    original_upsert = CollaborationChannelRecord.upsert_state
+
+    def spy_upsert(channel_payload):
+        persisted_states.append(channel_payload)
+        return original_upsert(channel_payload)
+
+    monkeypatch.setattr("core.service.collaboration.CollaborationChannelRecord.upsert_state", spy_upsert)
+    monkeypatch.setattr("core.service.collaboration._utcnow", lambda: datetime(2026, 7, 1, 10, 1, 0))
+
+    first_response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/workspace-patch",
+        json={
+            "target": "chat_message",
+            "action": "upsert",
+            "actor": {"base_url": collaboration_service.external_base_url(), "session_id": "session-a", "username": "alice"},
+            "data": {"text": "not yet persisted"},
+        },
+        headers=auth_header,
+    )
+
+    assert first_response.status_code == 200
+    assert persisted_states == []
+
+    monkeypatch.setattr("core.service.collaboration._utcnow", lambda: datetime(2026, 7, 1, 10, 3, 0))
+
+    second_response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/workspace-patch",
+        json={
+            "target": "chat_message",
+            "action": "upsert",
+            "actor": {"base_url": collaboration_service.external_base_url(), "session_id": "session-a", "username": "alice"},
+            "data": {"text": "persist now"},
+        },
+        headers=auth_header,
+    )
+
+    assert second_response.status_code == 200
+    assert len(persisted_states) == 1
+    assert persisted_states[0]["workspace"]["chat_messages"][0]["text"] == "persist now"
+
+
+def test_collaboration_open_channel_persistence_excludes_ephemeral_runtime_state(client, auth_header, stories, monkeypatch):
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Ephemeral Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    payload = create_response.get_json()
+    channel_id = payload["channel_id"]
+    snapshot_id = payload["stories"][0]["id"]
+    base_url = collaboration_service.external_base_url()
+
+    collaboration_service.register_presence(channel_id, participant_base_url=base_url, session_id="session-a", username="alice")
+    collaboration_service.acquire_field_lock(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="summary",
+        participant_base_url=base_url,
+        session_id="session-a",
+        username="alice",
+        selected_story_id=snapshot_id,
+    )
+    collaboration_service.update_story_selection_live(
+        channel_id,
+        snapshot_id=snapshot_id,
+        field_name="summary",
+        anchor=1,
+        head=3,
+        participant_base_url=base_url,
+        session_id="session-a",
+        username="alice",
+    )
+
+    collaboration_service.channels[channel_id]["_last_persisted_at"] = datetime(2026, 7, 1, 10, 0, 0).isoformat()
+    monkeypatch.setattr("core.service.collaboration._utcnow", lambda: datetime(2026, 7, 1, 10, 3, 0))
+
+    workspace_response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/workspace-patch",
+        json={
+            "target": "chat_message",
+            "action": "upsert",
+            "actor": {"base_url": base_url, "session_id": "session-a", "username": "alice"},
+            "data": {"text": "persist durable only"},
+        },
+        headers=auth_header,
+    )
+
+    assert workspace_response.status_code == 200
+
+    record = CollaborationChannelRecord.get(channel_id)
+    assert record is not None
+    assert record.state["runtime"]["presence"] == []
+    assert record.state["runtime"]["locks"] == []
+    assert record.state["runtime"]["text_selections"] == {}
+
+    collaboration_service.channels.clear()
+
+    reloaded = collaboration_service.get_channel(channel_id, active_instance_base_url=base_url)
+    assert reloaded.presence == []
+    assert reloaded.locks == []
+    assert reloaded.text_selections == []
+    assert reloaded.workspace.chat_messages[0].text == "persist durable only"
+
+
+def test_collaboration_close_forces_immediate_persistence(client, auth_header, stories, monkeypatch):
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Close Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    collaboration_service.channels[channel_id]["_last_persisted_at"] = datetime(2026, 7, 1, 10, 0, 0).isoformat()
+
+    persisted_states: list[dict] = []
+    original_upsert = CollaborationChannelRecord.upsert_state
+
+    def spy_upsert(channel_payload):
+        persisted_states.append(channel_payload)
+        return original_upsert(channel_payload)
+
+    monkeypatch.setattr("core.service.collaboration.CollaborationChannelRecord.upsert_state", spy_upsert)
+    monkeypatch.setattr("core.service.collaboration._utcnow", lambda: datetime(2026, 7, 1, 10, 0, 30))
+
+    detail = collaboration_service.close_channel(channel_id)
+
+    assert detail.status == "closed"
+    assert len(persisted_states) == 1
+    assert persisted_states[0]["status"] == "closed"
+
+
+def test_collaboration_live_workspace_patch_still_works_when_persistence_is_unavailable(client, auth_header, stories, monkeypatch):
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Fallback Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    collaboration_service.channels[channel_id]["_last_persisted_at"] = (datetime(2026, 7, 1, 10, 0, 0) - timedelta(minutes=3)).isoformat()
+    actor = {
+        "base_url": collaboration_service.external_base_url(),
+        "session_id": "session-a",
+        "username": "alice",
+    }
+    monkeypatch.setattr("core.service.collaboration._utcnow", lambda: datetime(2026, 7, 1, 10, 0, 0))
+
+    monkeypatch.setattr(
+        "core.service.collaboration.CollaborationChannelRecord.upsert_state",
+        lambda _channel_state: (_ for _ in ()).throw(RuntimeError("persistence unavailable")),
+    )
+
+    response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/workspace-patch",
+        json={
+            "target": "chat_message",
+            "action": "upsert",
+            "actor": actor,
+            "data": {"text": "Still works"},
+        },
+        headers=auth_header,
+    )
+
+    assert response.status_code == 200
+    workspace_payload = response.get_json()["workspace"]
+    assert workspace_payload["chat_messages"][0]["text"] == "Still works"
+    assert collaboration_service._persistence_disabled_reason == "persistence unavailable"

@@ -30,6 +30,7 @@ from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
 from core.managers.sse_manager import sse_manager
+from core.model.collaboration_channel import CollaborationChannelRecord
 from core.model.news_item import NewsItem
 from core.model.story import Story
 from core.model.user import User
@@ -49,7 +50,90 @@ class CollaborationService:
         self.serializer = URLSafeSerializer(Config.API_KEY.get_secret_value(), salt="collaboration-channel")
         self.timeout = 15
         self.lock_ttl_seconds = 10
+        self.persistence_interval = timedelta(minutes=2)
         self.text_collab = StoryTextCollabService()
+        self._persistence_disabled_reason: str | None = None
+
+    @staticmethod
+    def _parse_timestamp(value: str | None) -> datetime | None:
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return None
+
+    def _hydrate_channel_state(self, channel_state: dict[str, Any], *, persisted_at: datetime | None = None) -> dict[str, Any]:
+        hydrated = copy.deepcopy(channel_state)
+        if not hydrated.get("token") and hydrated.get("channel_id"):
+            hydrated["token"] = self._build_token(hydrated["channel_id"])
+        self.text_collab.ensure_runtime(hydrated)
+        runtime = hydrated.setdefault("runtime", {})
+        runtime.setdefault("shared_docs", {})
+        runtime["presence"] = []
+        runtime["locks"] = []
+        runtime["text_selections"] = {}
+        hydrated.setdefault("workspace", self._default_workspace_state(hydrated))
+        if persisted_at is not None:
+            hydrated["_last_persisted_at"] = persisted_at.isoformat()
+        self._refresh_shared_docs_from_stories(hydrated)
+        return hydrated
+
+    def _disable_persistence(self, exc: Exception) -> None:
+        if self._persistence_disabled_reason is not None:
+            return
+        self._persistence_disabled_reason = str(exc)
+        logger.warning(f"Collaboration channel persistence disabled: {exc}")
+
+    def _channel_state_for_persistence(self, channel_state: dict[str, Any]) -> dict[str, Any]:
+        persisted = copy.deepcopy(channel_state)
+        persisted.pop("_last_persisted_at", None)
+        runtime = persisted.setdefault("runtime", {})
+        runtime["presence"] = []
+        runtime["locks"] = []
+        runtime["text_selections"] = {}
+        runtime.setdefault("shared_docs", {})
+        return persisted
+
+    def _should_persist_channel(self, channel_state: dict[str, Any], *, force: bool) -> bool:
+        if force:
+            return True
+        last_persisted_at = self._parse_timestamp(channel_state.get("_last_persisted_at"))
+        if last_persisted_at is None:
+            return True
+        return _utcnow() - last_persisted_at >= self.persistence_interval
+
+    def _persist_channel_state(self, channel_state: dict[str, Any], *, force: bool = False) -> None:
+        if self._persistence_disabled_reason is not None:
+            return
+        if not self._should_persist_channel(channel_state, force=force):
+            return
+        try:
+            CollaborationChannelRecord.upsert_state(self._channel_state_for_persistence(channel_state))
+            channel_state["_last_persisted_at"] = _utcnow().isoformat()
+        except Exception as exc:
+            self._disable_persistence(exc)
+
+    def _load_persisted_channel(self, channel_id: str) -> dict[str, Any] | None:
+        if self._persistence_disabled_reason is not None:
+            return None
+        try:
+            if record := CollaborationChannelRecord.get(channel_id):
+                channel_state = self._hydrate_channel_state(record.state or {}, persisted_at=record.updated_at)
+                self.channels[channel_id] = channel_state
+                return channel_state
+        except Exception as exc:
+            self._disable_persistence(exc)
+        return None
+
+    def _load_persisted_channels(self) -> None:
+        if self._persistence_disabled_reason is not None:
+            return
+        try:
+            for record in CollaborationChannelRecord.get_all():
+                self.channels[record.channel_id] = self._hydrate_channel_state(record.state or {}, persisted_at=record.updated_at)
+        except Exception as exc:
+            self._disable_persistence(exc)
 
     def _sync_channel_to_participant(self, channel_id: str, base_url: str, sync_payload: dict[str, Any]) -> None:
         try:
@@ -716,10 +800,14 @@ class CollaborationService:
     def _require_channel(self, channel_id: str) -> dict[str, Any]:
         channel = self.channels.get(channel_id)
         if channel is None:
+            channel = self._load_persisted_channel(channel_id)
+        if channel is None:
             raise KeyError(channel_id)
         return channel
 
     def list_channels(self) -> dict[str, Any]:
+        if not self.channels:
+            self._load_persisted_channels()
         items = [self._channel_to_summary(channel).model_dump(mode="json") for channel in self.channels.values()]
         items.sort(key=lambda item: item.get("created_at") or "", reverse=True)
         return {"items": items, "total_count": len(items)}
@@ -760,6 +848,7 @@ class CollaborationService:
         snapshots = [self._build_snapshot_from_story(payload, self.external_base_url()) for payload in story_payloads]
         self._merge_story_snapshots(channel_state, snapshots)
         self.channels[channel_id] = channel_state
+        self._persist_channel_state(channel_state, force=True)
         self._broadcast_update(channel_state)
         return self._channel_to_detail(channel_state)
 
@@ -773,6 +862,7 @@ class CollaborationService:
         if normalized_base_url not in {participant["base_url"] for participant in channel_state["participants"]}:
             channel_state["participants"].append({"base_url": normalized_base_url, "role": "participant", "joined_at": _utcnow().isoformat()})
             self._touch_channel(channel_state)
+            self._persist_channel_state(channel_state, force=True)
             self._broadcast_update(channel_state, skip_participants={normalized_base_url})
         return self._channel_to_detail(channel_state, active_instance_base_url=normalized_base_url)
 
@@ -792,6 +882,7 @@ class CollaborationService:
         channel_state.setdefault("workspace", self._default_workspace_state(channel_state))
         self._refresh_shared_docs_from_stories(channel_state)
         self.channels[channel_id] = channel_state
+        self._persist_channel_state(channel_state, force=True)
         sse_manager.collab_channel_updated(detail.model_dump(mode="json"))
         return self._channel_to_detail(channel_state, active_instance_base_url=partner_base_url)
 
@@ -807,6 +898,7 @@ class CollaborationService:
         channel_state.setdefault("workspace", self._default_workspace_state(channel_state))
         self._refresh_shared_docs_from_stories(channel_state)
         self.channels[channel_id] = channel_state
+        self._persist_channel_state(channel_state, force=channel_state.get("status") == "closed")
         detail = self._channel_to_detail(channel_state, active_instance_base_url=self.external_base_url())
         if detail.status == "closed":
             sse_manager.collab_channel_closed(detail.model_dump(mode="json"))
@@ -1031,6 +1123,7 @@ class CollaborationService:
                 self._assert_field_lock(channel_state, snapshot_id, field, session_id=session_id)
         self._apply_story_update(channel_state, snapshot_id, payload)
         self._refresh_shared_docs_from_stories(channel_state)
+        self._persist_channel_state(channel_state)
         return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
 
     def submit_story_ops_live(
@@ -1087,6 +1180,7 @@ class CollaborationService:
         )
         self._update_story_field_text(channel_state, snapshot_id, field_name, next_text)
         self._touch_channel(channel_state)
+        self._persist_channel_state(channel_state)
         detail = self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
         return detail, {
             "snapshot_id": snapshot_id,
@@ -1174,6 +1268,7 @@ class CollaborationService:
             selected_story_id=source_snapshot_id,
         )
         self._apply_move_news_item(channel_state, source_snapshot_id, target_snapshot_id, news_item_id)
+        self._persist_channel_state(channel_state)
         return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
 
     def update_workspace_live(
@@ -1202,6 +1297,7 @@ class CollaborationService:
             username=username,
             participant_base_url=self._normalize_base_url(participant_base_url),
         )
+        self._persist_channel_state(channel_state)
         return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
 
     def add_story_payloads(self, channel_id: str, story_payloads: list[dict[str, Any]], user: User | None = None) -> CollabChannelDetail:
@@ -1211,6 +1307,7 @@ class CollaborationService:
         source_instance = self.external_base_url()
         snapshots = [self._build_snapshot_from_story(payload, source_instance) for payload in story_payloads]
         self._merge_story_snapshots(channel_state, snapshots)
+        self._persist_channel_state(channel_state)
         self._broadcast_update(channel_state)
         return self._channel_to_detail(channel_state)
 
@@ -1225,6 +1322,7 @@ class CollaborationService:
         self._assert_known_participant(channel_state, partner_base_url)
         snapshots = [CollabStorySnapshot.model_validate(story) for story in stories]
         self._merge_story_snapshots(channel_state, snapshots)
+        self._persist_channel_state(channel_state, force=True)
         self._broadcast_update(channel_state, skip_participants={partner_base_url})
         return self._channel_to_detail(channel_state)
 
@@ -1233,6 +1331,7 @@ class CollaborationService:
         if channel_state["status"] != "open":
             raise ValueError("Channel is closed")
         self._apply_story_update(channel_state, snapshot_id, payload)
+        self._persist_channel_state(channel_state, force=True)
         self._broadcast_update(channel_state)
         return self._channel_to_detail(channel_state)
 
@@ -1246,6 +1345,7 @@ class CollaborationService:
             raise PermissionError("Invalid collaboration token")
         self._assert_known_participant(channel_state, partner_base_url)
         self._apply_story_update(channel_state, snapshot_id, payload)
+        self._persist_channel_state(channel_state)
         self._broadcast_update(channel_state, skip_participants={partner_base_url})
         return self._channel_to_detail(channel_state)
 
@@ -1254,6 +1354,7 @@ class CollaborationService:
         if channel_state["status"] != "open":
             raise ValueError("Channel is closed")
         self._apply_move_news_item(channel_state, source_snapshot_id, target_snapshot_id, news_item_id)
+        self._persist_channel_state(channel_state, force=True)
         self._broadcast_update(channel_state)
         return self._channel_to_detail(channel_state)
 
@@ -1273,13 +1374,19 @@ class CollaborationService:
             raise PermissionError("Invalid collaboration token")
         self._assert_known_participant(channel_state, partner_base_url)
         self._apply_move_news_item(channel_state, source_snapshot_id, target_snapshot_id, news_item_id)
+        self._persist_channel_state(channel_state)
         self._broadcast_update(channel_state, skip_participants={partner_base_url})
         return self._channel_to_detail(channel_state)
 
     def close_channel(self, channel_id: str) -> CollabChannelDetail:
         channel_state = self._require_channel(channel_id)
         channel_state["status"] = "closed"
+        runtime = self.text_collab.ensure_runtime(channel_state)
+        runtime["presence"] = []
+        runtime["locks"] = []
+        runtime["text_selections"] = {}
         self._touch_channel(channel_state)
+        self._persist_channel_state(channel_state, force=True)
         self._broadcast_update(channel_state, closed=True)
         return self._channel_to_detail(channel_state)
 
@@ -1292,7 +1399,8 @@ class CollaborationService:
         )
         response.raise_for_status()
         detail = CollabChannelDetail.model_validate(response.json())
-        self.channels[channel_id] = {**detail.model_dump(mode="json"), "token": token}
+        self.channels[channel_id] = self._hydrate_channel_state({**detail.model_dump(mode="json"), "token": token})
+        self._persist_channel_state(self.channels[channel_id], force=True)
         return detail
 
     def finalize_channel(self, channel_id: str, user: User | None = None, story_ids: list[str] | None = None) -> CollabFinalizeResult:
@@ -1313,6 +1421,7 @@ class CollaborationService:
             else:
                 updated_story_ids.append(story_id)
 
+        self._persist_channel_state(channel_state, force=True)
         self._broadcast_update(channel_state)
         return CollabFinalizeResult(
             channel_id=channel_id,

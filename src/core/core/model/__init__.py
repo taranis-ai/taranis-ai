@@ -18,6 +18,7 @@ __all__ = [
     "word_list",
     "asset",
     "bot",
+    "collaboration_channel",
     "token_blacklist",
     "worker",
 ]

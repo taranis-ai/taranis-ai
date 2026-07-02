@@ -39,6 +39,7 @@
   const selectedStory = () => store.selectedStory();
   const workspace = () => store.workspace();
   const isConnected = () => Boolean(runtime.socket) && runtime.socket.readyState === WebSocket.OPEN;
+  const isReadOnly = () => store.state.channel?.status !== "open";
 
   const setSaveStatus = (text) => {
     if (saveStatusNode) {
@@ -319,17 +320,19 @@
     renderList("[data-collab-decisions-list]", workspace().decisions || [], "No decisions yet.", (item) => `
       <div class="rounded-[1rem] border border-base-300 p-3">
         <div class="flex items-start justify-between gap-2">
-          <div>
-            <div class="text-sm font-medium">${escapeHtml(item.text)}</div>
-            <div class="mt-1 flex items-center gap-2 text-xs text-base-content/55">
-              <span>${escapeHtml(item.owner || "unknown")}</span>
-              ${item.created_at ? `<span>• ${escapeHtml(formatTimestamp(item.created_at))}</span>` : ""}
+          <div class="min-w-0">
+            <div class="break-all text-sm font-medium">${escapeHtml(item.text)}</div>
+            <div class="mt-1 flex flex-wrap items-start gap-x-2 gap-y-1 text-xs text-base-content/55">
+              <span class="break-all">${escapeHtml(item.owner || "unknown")}</span>
+              ${item.created_at ? `<span class="break-all">• ${escapeHtml(formatTimestamp(item.created_at))}</span>` : ""}
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button class="btn btn-ghost btn-xs" type="button" data-collab-item-toggle="decision" data-collab-item-id="${escapeHtml(item.id)}">${item.status === "done" ? "Reopen" : "Done"}</button>
-            <button class="btn btn-ghost btn-xs text-error" type="button" data-collab-item-remove="decision" data-collab-item-id="${escapeHtml(item.id)}">Remove</button>
-          </div>
+          ${isReadOnly() ? "" : `
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <button class="btn btn-ghost btn-xs" type="button" data-collab-item-toggle="decision" data-collab-item-id="${escapeHtml(item.id)}">${item.status === "done" ? "Reopen" : "Done"}</button>
+              <button class="btn btn-ghost btn-xs text-error" type="button" data-collab-item-remove="decision" data-collab-item-id="${escapeHtml(item.id)}">Remove</button>
+            </div>
+          `}
         </div>
       </div>
     `);
@@ -338,19 +341,21 @@
   const renderTasks = () => {
     renderList("[data-collab-tasks-list]", workspace().tasks || [], "No tasks yet.", (item) => `
       <div class="rounded-[1rem] border border-base-300 p-3">
-        <div class="flex items-start justify-between gap-2">
-          <div>
-            <div class="text-sm font-medium">${escapeHtml(item.text)}</div>
-            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-base-content/55">
-              <span title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</span>
+        <div class="flex flex-col gap-3">
+          <div class="min-w-0">
+            <div class="break-all text-sm font-medium">${escapeHtml(item.text)}</div>
+            <div class="mt-1 flex flex-wrap items-start gap-x-2 gap-y-1 text-xs text-base-content/55">
+              <span class="min-w-0 break-all" title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</span>
               ${item.status ? `<span>${escapeHtml(item.status)}</span>` : ""}
-              ${item.created_at ? `<span>${escapeHtml(formatTimestamp(item.created_at))}</span>` : ""}
+              ${item.created_at ? `<span class="break-all">${escapeHtml(formatTimestamp(item.created_at))}</span>` : ""}
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button class="btn btn-ghost btn-xs" type="button" data-collab-item-toggle="task" data-collab-item-id="${escapeHtml(item.id)}">${item.status === "done" ? "Reopen" : "Done"}</button>
-            <button class="btn btn-ghost btn-xs text-error" type="button" data-collab-item-remove="task" data-collab-item-id="${escapeHtml(item.id)}">Remove</button>
-          </div>
+          ${isReadOnly() ? "" : `
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <button class="btn btn-ghost btn-xs" type="button" data-collab-item-toggle="task" data-collab-item-id="${escapeHtml(item.id)}">${item.status === "done" ? "Reopen" : "Done"}</button>
+              <button class="btn btn-ghost btn-xs text-error" type="button" data-collab-item-remove="task" data-collab-item-id="${escapeHtml(item.id)}">Remove</button>
+            </div>
+          `}
         </div>
       </div>
     `);
@@ -360,10 +365,10 @@
     renderList("[data-collab-comments-list]", workspace().comments || [], "No comments yet.", (item) => `
       <div class="rounded-[1rem] border border-base-300 p-3">
         <div class="flex items-center justify-between gap-3">
-          <div class="text-xs font-semibold text-primary" title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</div>
-          ${item.created_at ? `<div class="text-[11px] text-base-content/55">${escapeHtml(formatTimestamp(item.created_at))}</div>` : ""}
+          <div class="min-w-0 break-all text-xs font-semibold text-primary" title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</div>
+          ${item.created_at ? `<div class="break-all text-[11px] text-base-content/55">${escapeHtml(formatTimestamp(item.created_at))}</div>` : ""}
         </div>
-        <div class="mt-2 text-sm">${escapeHtml(item.text)}</div>
+        <div class="mt-2 break-all text-sm">${escapeHtml(item.text)}</div>
       </div>
     `);
   };
@@ -372,10 +377,10 @@
     renderList("[data-collab-chat-list]", workspace().chat_messages || [], "No chat messages yet.", (item) => `
       <div class="rounded-[1rem] border p-3 shadow-sm transition-colors hover:border-primary/40" style="${chatBubbleStyle(item)}">
         <div class="flex items-center justify-between gap-3">
-          <div class="text-xs font-semibold text-primary" title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</div>
-          ${item.created_at ? `<div class="text-[11px] text-base-content/55">${escapeHtml(formatTimestamp(item.created_at))}</div>` : ""}
+          <div class="min-w-0 break-all text-xs font-semibold text-primary" title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</div>
+          ${item.created_at ? `<div class="break-all text-[11px] text-base-content/55">${escapeHtml(formatTimestamp(item.created_at))}</div>` : ""}
         </div>
-        <div class="mt-2 text-sm">${escapeHtml(item.text)}</div>
+        <div class="mt-2 break-all text-sm">${escapeHtml(item.text)}</div>
       </div>
     `);
   };
@@ -383,10 +388,10 @@
   const renderActivity = () => {
     renderList("[data-collab-activity-list]", workspace().activity_items || [], "No recent activity yet.", (item) => `
       <div class="rounded-[1rem] border border-base-300 p-3">
-        <div class="text-sm font-medium">${escapeHtml(item.text)}</div>
-        <div class="mt-1 flex items-center justify-between gap-3 text-xs text-base-content/55">
-          <div title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</div>
-          ${item.created_at ? `<div>${escapeHtml(formatTimestamp(item.created_at))}</div>` : ""}
+        <div class="break-all text-sm font-medium">${escapeHtml(item.text)}</div>
+        <div class="mt-1 flex flex-wrap items-start justify-between gap-3 text-xs text-base-content/55">
+          <div class="min-w-0 break-all" title="${escapeHtml(instanceTitle(item))}">${escapeHtml(instanceLabel(item))}</div>
+          ${item.created_at ? `<div class="break-all">${escapeHtml(formatTimestamp(item.created_at))}</div>` : ""}
         </div>
       </div>
     `);
@@ -396,15 +401,17 @@
     renderList("[data-collab-timeline-list]", workspace().timeline_events || [], "No timeline events yet.", (item) => `
       <div class="rounded-[1rem] border border-base-300 p-3">
         <div class="flex items-start justify-between gap-3">
-          <div>
-            <div class="text-sm font-medium">${escapeHtml(item.title)}</div>
-            ${item.note ? `<div class="mt-1 text-sm text-base-content/70">${escapeHtml(item.note)}</div>` : ""}
+          <div class="min-w-0">
+            <div class="break-all text-sm font-medium">${escapeHtml(item.title)}</div>
+            ${item.note ? `<div class="mt-1 break-all text-sm text-base-content/70">${escapeHtml(item.note)}</div>` : ""}
           </div>
-          ${item.time_label ? `<div class="text-xs text-base-content/55">${escapeHtml(item.time_label)}</div>` : ""}
+          ${item.time_label ? `<div class="break-all text-xs text-base-content/55">${escapeHtml(item.time_label)}</div>` : ""}
         </div>
-        <div class="mt-3 flex justify-end">
-          <button class="btn btn-ghost btn-xs text-error" type="button" data-collab-item-remove="timeline_event" data-collab-item-id="${escapeHtml(item.id)}">Remove</button>
-        </div>
+        ${isReadOnly() ? "" : `
+          <div class="mt-3 flex justify-end">
+            <button class="btn btn-ghost btn-xs text-error" type="button" data-collab-item-remove="timeline_event" data-collab-item-id="${escapeHtml(item.id)}">Remove</button>
+          </div>
+        `}
       </div>
     `);
   };
@@ -434,7 +441,7 @@
               <div class="text-sm font-semibold">${escapeHtml(newsItem.title || "Untitled News Item")}</div>
               ${newsItem.link ? `<a class="mt-2 block truncate text-xs text-primary underline" href="${escapeHtml(newsItem.link)}" target="_blank" rel="noreferrer">${escapeHtml(newsItem.link)}</a>` : ""}
               ${newsItem.content ? `<p class="mt-3 line-clamp-6 text-sm text-base-content/70">${escapeHtml(newsItem.content)}</p>` : ""}
-              ${(store.state.channel.stories || []).length > 1 ? `
+              ${store.state.channel.status === "open" && (store.state.channel.stories || []).length > 1 ? `
                 <div class="mt-4 flex gap-2">
                   <select class="select select-bordered select-sm flex-1" data-collab-move-target="${escapeHtml(newsItem.id)}">
                     ${(store.state.channel.stories || []).filter((candidate) => candidate.id !== store.state.selectedStoryId).map((candidate) => `<option value="${escapeHtml(candidate.id)}">${escapeHtml(candidate.title || "Untitled Story")}</option>`).join("")}
@@ -491,7 +498,71 @@
       ...workspaceState,
       activity_items: [nextItem, ...(workspaceState.activity_items || [])].slice(0, 20),
     };
-    render();
+  };
+
+  const applyOptimisticWorkspacePatch = (target, action, data = {}, itemId = null) => {
+    const workspaceState = workspace();
+    const collectionKey = {
+      decision: "decisions",
+      task: "tasks",
+      comment: "comments",
+      chat_message: "chat_messages",
+      timeline_event: "timeline_events",
+    }[target];
+
+    if (!collectionKey) {
+      return;
+    }
+
+    const items = [...(workspaceState[collectionKey] || [])];
+    if (action === "remove") {
+      store.state.channel.workspace = {
+        ...workspaceState,
+        [collectionKey]: items.filter((item) => item.id !== itemId),
+      };
+      return;
+    }
+
+    if (action !== "upsert") {
+      return;
+    }
+
+    const optimisticId = itemId || data.id || `optimistic-${Date.now()}`;
+    const currentUser = data.author || data.owner || currentPresence()?.username || "current user";
+    const currentBaseUrl = data.participant_base_url || currentPresence()?.participant_base_url || store.state.channel.active_instance_base_url || "";
+    const nextItem = {
+      ...data,
+      id: optimisticId,
+      text: data.text || data.title || "",
+      created_at: data.created_at || new Date().toISOString(),
+    };
+    if (target === "decision") {
+      nextItem.owner = nextItem.owner || currentUser;
+      nextItem.status = nextItem.status || "open";
+    }
+    if (target === "task") {
+      nextItem.owner = nextItem.owner || currentUser;
+      nextItem.status = nextItem.status || "todo";
+      nextItem.participant_base_url = nextItem.participant_base_url || currentBaseUrl;
+      nextItem.participant_short_name = nextItem.participant_short_name || shortNameFromBaseUrl(currentBaseUrl);
+    }
+    if (target === "comment" || target === "chat_message") {
+      nextItem.author = nextItem.author || currentUser;
+      nextItem.participant_base_url = nextItem.participant_base_url || currentBaseUrl;
+      nextItem.participant_short_name = nextItem.participant_short_name || shortNameFromBaseUrl(currentBaseUrl);
+    }
+
+    const existingIndex = items.findIndex((item) => item.id === optimisticId);
+    if (existingIndex >= 0) {
+      items[existingIndex] = { ...items[existingIndex], ...nextItem };
+    } else {
+      items.unshift(nextItem);
+    }
+
+    store.state.channel.workspace = {
+      ...workspaceState,
+      [collectionKey]: items,
+    };
   };
 
   const workspaceActivityText = (target, action) => {
@@ -537,7 +608,13 @@
   };
 
   const sendWorkspacePatch = (target, action, data = {}, itemId = null) => {
+    if (isReadOnly()) {
+      setSaveStatus("Archived channel is read-only.");
+      return;
+    }
+    applyOptimisticWorkspacePatch(target, action, data, itemId);
     appendOptimisticActivity(workspaceActivityText(target, action));
+    render();
     sendMessage("collab.workspace.patch", {
       target,
       action,
@@ -689,12 +766,20 @@
 
     const removeButton = event.target.closest("[data-collab-item-remove]");
     if (removeButton) {
+      if (isReadOnly()) {
+        setSaveStatus("Archived channel is read-only.");
+        return;
+      }
       sendWorkspacePatch(removeButton.dataset.collabItemRemove, "remove", {}, removeButton.dataset.collabItemId);
       return;
     }
 
     const toggleButton = event.target.closest("[data-collab-item-toggle]");
     if (toggleButton) {
+      if (isReadOnly()) {
+        setSaveStatus("Archived channel is read-only.");
+        return;
+      }
       const target = toggleButton.dataset.collabItemToggle;
       const itemId = toggleButton.dataset.collabItemId;
       const items = workspace()[target === "decision" ? "decisions" : "tasks"] || [];
@@ -709,6 +794,10 @@
 
     const moveButton = event.target.closest("[data-collab-move-news-item]");
     if (moveButton) {
+      if (isReadOnly()) {
+        setSaveStatus("Archived channel is read-only.");
+        return;
+      }
       const newsItemId = moveButton.dataset.collabMoveNewsItem;
       const select = document.querySelector(`[data-collab-move-target="${CSS.escape(newsItemId)}"]`);
       if (!select?.value) {
@@ -728,6 +817,10 @@
     const entryForm = event.target.closest("[data-collab-entry-form]");
     if (entryForm) {
       event.preventDefault();
+      if (isReadOnly()) {
+        setSaveStatus("Archived channel is read-only.");
+        return;
+      }
       const target = entryForm.dataset.target;
       const formData = new FormData(entryForm);
       const data = Object.fromEntries(formData.entries());
@@ -748,6 +841,10 @@
     const briefingListForm = event.target.closest("[data-collab-briefing-list-form]");
     if (briefingListForm) {
       event.preventDefault();
+      if (isReadOnly()) {
+        setSaveStatus("Archived channel is read-only.");
+        return;
+      }
       const field = briefingListForm.dataset.field;
       const value = (new FormData(briefingListForm).get("value") || "").toString().trim();
       if (!value) {
@@ -763,6 +860,10 @@
     const briefingSetForm = event.target.closest("[data-collab-briefing-set-form]");
     if (briefingSetForm) {
       event.preventDefault();
+      if (isReadOnly()) {
+        setSaveStatus("Archived channel is read-only.");
+        return;
+      }
       const field = briefingSetForm.dataset.field;
       const value = (new FormData(briefingSetForm).get("value") || "").toString().trim();
       sendWorkspacePatch("briefing", "set", { [field]: value || null });
@@ -782,5 +883,11 @@
 
   mountEditors();
   render({ forceEditorSync: true });
-  connect();
+  if (pageData.channel?.status === "open") {
+    connect();
+  } else {
+    setConnectionState("Archived", "rounded-box border border-base-300 bg-base-100 px-4 py-2 text-sm font-medium text-base-content/70");
+    setSaveStatus("Archived channel snapshot.");
+    syncEditorStory({ force: true });
+  }
 }());
