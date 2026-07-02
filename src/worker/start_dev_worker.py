@@ -9,7 +9,7 @@ from watchdog.observers import Observer
 
 class RQRestartHandler(FileSystemEventHandler):
     def __init__(self):
-        self.rq_process = None
+        self.rq_process: subprocess.Popen[bytes] | None = None
         self.restart_rq()
 
     def restart_rq(self):
@@ -38,7 +38,8 @@ if __name__ == "__main__":
             time.sleep(1)
     except KeyboardInterrupt:
         observer.stop()
-        event_handler.rq_process.terminate()
-        event_handler.rq_process.wait()
+        if event_handler.rq_process:
+            event_handler.rq_process.terminate()
+            event_handler.rq_process.wait()
 
     observer.join()

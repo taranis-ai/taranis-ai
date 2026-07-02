@@ -2,12 +2,11 @@ import datetime
 import logging
 from urllib.parse import urljoin, urlparse
 
-import dateutil.parser as dateparser
 import feedparser
 import niquests as requests
 from models.assess import NewsItem
 
-from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
+from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError, parse_datetime
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
 
@@ -130,7 +129,7 @@ class RSSCollector(BaseWebCollector):
         return ""
 
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime | None:
-        published: str | datetime.datetime = str(
+        published: str = str(
             feed_entry.get(
                 "published",
                 feed_entry.get(
@@ -139,7 +138,7 @@ class RSSCollector(BaseWebCollector):
             )
         )
         try:
-            return dateparser.parse(published, ignoretz=True) if published else None
+            return parse_datetime(published) if published else None
         except Exception:
             logger.info("Could not parse published date from feed")
             return None
@@ -195,12 +194,12 @@ class RSSCollector(BaseWebCollector):
     # TODO: This function is renamed because of inheritance issues.
     def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
         if last_modified := feed_content.headers.get("Last-Modified"):
-            return dateparser.parse(last_modified, ignoretz=True)
+            return parse_datetime(last_modified)
         elif last_modified := feed.get(
             "updated", feed.get("modified", feed.get("created", feed.get("pubDate", feed.get("lastBuildDate", None))))
         ):
             try:
-                return dateparser.parse(str(last_modified), ignoretz=True)
+                return parse_datetime(str(last_modified))
             except Exception:
                 return None
         return None

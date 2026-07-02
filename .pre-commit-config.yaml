@@ -2,7 +2,7 @@ exclude: ^src/frontend/frontend/static/.*$
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.19
+    rev: v0.15.20
     hooks:
       - id: ruff-check
         files: ^(src/core|src/worker|src/frontend|src/models)
@@ -27,10 +27,10 @@ repos:
         pass_filenames: false
         entry: uv run --directory src/frontend --frozen --all-extras djlint --profile=jinja --reformat frontend/templates
         types_or: [jinja, html]
-      - id: pyright-changed-python
-        name: pyright changed python
+      - id: pyrefly-changed-python
+        name: pyrefly changed python
         language: system
         files: ^src/(core|frontend|models|worker)/.*\.py$
         pass_filenames: false
-        entry: dev/check_touched_pyright.sh --staged
+        entry: dev/check_pyrefly.sh --staged
         types: [python]

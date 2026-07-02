@@ -138,10 +138,14 @@ class Worker(BaseModel):
     def _parameter_order_by_worker_type() -> dict[str, dict[str, int]]:
         from core.managers.pre_seed_data import workers
 
-        return {
-            worker["type"].lower(): {parameter["parameter"]: idx for idx, parameter in enumerate(worker.get("parameters", []))}
-            for worker in workers
-        }
+        order_by_type: dict[str, dict[str, int]] = {}
+        for worker in workers:
+            worker_type = str(worker["type"])
+            parameters = worker.get("parameters", [])
+            if not isinstance(parameters, list):
+                parameters = []
+            order_by_type[worker_type.lower()] = {parameter["parameter"]: idx for idx, parameter in enumerate(parameters)}
+        return order_by_type
 
     @classmethod
     def _order_parameters(cls, worker_type: str | WORKER_TYPES, parameters: list[ParameterValue]) -> list[ParameterValue]:

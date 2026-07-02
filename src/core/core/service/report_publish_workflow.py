@@ -31,11 +31,14 @@ class ReportPublishWorkflowService:
             if status != 200:
                 db.session.rollback()
                 return report_item, status
+            assert isinstance(report_item, ReportItem)
 
             product, status = cls._create_product(product_data, report_item)
             if status != 200:
                 db.session.rollback()
                 return product, status
+            assert isinstance(product, Product)
+            assert product.default_publisher is not None
 
             db.session.commit()
         except Exception:

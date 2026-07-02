@@ -64,9 +64,9 @@ class User(BaseModel):
         self.name = name
         if password:
             self.password = generate_password_hash(password)
-        if organization_id := organization.get("id") if isinstance(organization, dict) else organization:
-            if org := Organization.get(organization_id):
-                self.organization = org
+        organization_id = organization.get("id") if isinstance(organization, dict) else organization
+        if isinstance(organization_id, str) and (org := Organization.get(organization_id)):
+            self.organization = org
         self.roles = Role.get_bulk(roles)
         profile_payload = dict(profile or {})
         if not profile_payload.get("timezone"):
@@ -177,9 +177,10 @@ class User(BaseModel):
             return {"error": "User not found"}, 404
         data.pop("id", None)
         if organization := data.pop("organization", None):
-            if organization_id := organization.get("id") if isinstance(organization, dict) else organization:
-                if org := Organization.get(organization_id):
-                    user.organization = org
+            if isinstance(organization, dict):
+                organization = organization.get("id") or organization.get("name")
+            if isinstance(organization, str) and (update_org := Organization.get(organization)):
+                user.organization = update_org
         if (roles := data.pop("roles", None)) is not None:
             user.roles = Role.get_bulk(roles)
         if update_password := data.pop("password", None):

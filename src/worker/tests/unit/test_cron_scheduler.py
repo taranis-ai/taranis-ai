@@ -83,6 +83,17 @@ def test_sync_next_index_skips_invalid_specs_without_crashing():
     assert redis_conn.zscore(NEXT_KEY, "job_invalid") is None
 
 
+def test_compute_next_rejects_non_datetime_croniter_result(monkeypatch):
+    class FakeCroniter:
+        def get_next(self, _return_type):
+            return object()
+
+    monkeypatch.setattr(cron_scheduler, "croniter", lambda *_args: FakeCroniter())
+
+    with pytest.raises(ValueError, match="croniter did not return a datetime"):
+        cron_scheduler.compute_next({"cron": "* * * * *"}, 1000.0)
+
+
 def test_decode_rejects_awaitable_values():
     async def awaitable_value():
         return b"job-1"

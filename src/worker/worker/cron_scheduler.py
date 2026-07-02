@@ -2,9 +2,8 @@ import inspect
 import json
 import os
 import time
-from collections.abc import Awaitable
 from datetime import datetime, timezone
-from typing import Any, TypeVar, cast
+from typing import Any
 
 from croniter import croniter
 from models.task import CronTaskSpec
@@ -28,16 +27,14 @@ TASK_FUNCTION_MAP = {
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
 }
 
-T = TypeVar("T")
 
-
-def _sync_response(value: T | Awaitable[T], operation: str) -> T:
+def _sync_response(value: Any, operation: str) -> Any:
     if inspect.isawaitable(value):
         raise TypeError(f"{operation} returned an awaitable; cron scheduler requires a synchronous Redis client")
-    return cast(T, value)
+    return value
 
 
-def _decode(value: bytes | str | Awaitable[bytes | str], operation: str = "Redis response") -> str:
+def _decode(value: Any, operation: str = "Redis response") -> str:
     decoded_value = _sync_response(value, operation)
     if isinstance(decoded_value, bytes):
         return decoded_value.decode()
@@ -55,7 +52,7 @@ def _normalize_spec(spec: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _load_spec(redis: Redis, job_id: str) -> dict[str, Any] | None:
-    raw_spec = cast(bytes | str | None, _sync_response(redis.hget(DEFS_KEY, job_id), "redis.hget"))
+    raw_spec = _sync_response(redis.hget(DEFS_KEY, job_id), "redis.hget")
     if not raw_spec:
         return None
     parsed = json.loads(_decode(raw_spec, "redis.hget"))
@@ -63,7 +60,7 @@ def _load_spec(redis: Redis, job_id: str) -> dict[str, Any] | None:
 
 
 def _sync_next_index(redis: Redis, base_ts: float) -> dict[str, dict[str, Any]]:
-    raw_specs = cast(dict[bytes | str, bytes | str], _sync_response(redis.hgetall(DEFS_KEY), "redis.hgetall"))
+    raw_specs: dict[Any, Any] = _sync_response(redis.hgetall(DEFS_KEY), "redis.hgetall")
     specs: dict[str, dict[str, Any]] = {}
 
     for raw_job_id, raw_spec in raw_specs.items():
@@ -71,10 +68,7 @@ def _sync_next_index(redis: Redis, base_ts: float) -> dict[str, dict[str, Any]]:
         if parsed := _normalize_spec(json.loads(_decode(raw_spec, "redis.hgetall value"))):
             specs[job_id] = parsed
 
-    next_ids = {
-        _decode(raw_id, "redis.zrange item")
-        for raw_id in cast(list[bytes | str], _sync_response(redis.zrange(NEXT_KEY, 0, -1), "redis.zrange"))
-    }
+    next_ids = {_decode(raw_id, "redis.zrange item") for raw_id in _sync_response(redis.zrange(NEXT_KEY, 0, -1), "redis.zrange")}
     spec_ids = set(specs.keys())
 
     if stale_ids := next_ids - spec_ids:
@@ -95,7 +89,10 @@ def _sync_next_index(redis: Redis, base_ts: float) -> dict[str, dict[str, Any]]:
 def compute_next(spec: dict[str, Any], base_ts: float) -> float:
     if spec.get("cron"):
         dt = datetime.fromtimestamp(base_ts, tz=timezone.utc)
-        return croniter(spec["cron"], dt).get_next(datetime).timestamp()
+        next_run = croniter(spec["cron"], dt).get_next(datetime)
+        if not isinstance(next_run, datetime):
+            raise ValueError("croniter did not return a datetime")
+        return next_run.timestamp()
     interval = spec.get("interval")
     if interval is not None:
         return base_ts + int(interval)
@@ -115,7 +112,8 @@ def _enqueue_due_job(
 ) -> str:
     queue_name = spec["queue_name"]
     queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
-    task = TASK_FUNCTION_MAP.get(spec["func_path"], spec["func_path"])
+    func_path = str(spec["func_path"])
+    task = TASK_FUNCTION_MAP.get(func_path, func_path)
     job_options = dict(spec.get("job_options") or {})
     kwargs = dict(spec.get("kwargs") or {})
 
@@ -149,7 +147,7 @@ def acquire_leader(redis: Redis, node_id: str, ttl_seconds: int = 10) -> bool:
 
 
 def renew_leader(redis: Redis, node_id: str, ttl_seconds: int = 10) -> bool:
-    owner = cast(bytes | str | None, _sync_response(redis.get(LOCK_KEY), "redis.get"))
+    owner = _sync_response(redis.get(LOCK_KEY), "redis.get")
     if owner and _decode(owner, "redis.get") == node_id:
         redis.expire(LOCK_KEY, ttl_seconds)
         return True
@@ -175,10 +173,7 @@ def run_scheduler(
 
         now_ts = time.time()
         specs = _sync_next_index(redis, now_ts)
-        due_ids = cast(
-            list[bytes | str],
-            _sync_response(redis.zrangebyscore(NEXT_KEY, min=0, max=now_ts, start=0, num=100), "redis.zrangebyscore"),
-        )
+        due_ids = _sync_response(redis.zrangebyscore(NEXT_KEY, min=0, max=now_ts, start=0, num=100), "redis.zrangebyscore")
 
         for raw_job_id in due_ids:
             job_id = _decode(raw_job_id, "redis.zrangebyscore item")

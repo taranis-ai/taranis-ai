@@ -229,6 +229,22 @@ class NewsItemTagCluster(BaseModel):
     story_count: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     last_story_created: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
 
+    def __init__(
+        self,
+        name: str,
+        tag_type_key: str,
+        tag_type: str | None = None,
+        news_item_count: int = 0,
+        story_count: int = 0,
+        last_story_created: datetime | None = None,
+    ):
+        self.name = name
+        self.tag_type_key = tag_type_key
+        self.tag_type = tag_type
+        self.news_item_count = news_item_count
+        self.story_count = story_count
+        self.last_story_created = last_story_created
+
     @classmethod
     def refresh_for_keys(cls, keys: set[tuple[str, str]], session=None) -> None:
         if not keys:

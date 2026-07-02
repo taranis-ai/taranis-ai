@@ -46,14 +46,14 @@ fi > "$candidate_file"
 files=()
 while IFS= read -r file; do
   case "$file" in
-    src/core/*.py|src/frontend/*.py|src/models/*.py|src/worker/*.py)
+    src/core/core/*.py|src/frontend/frontend/*.py|src/models/models/*.py|src/worker/worker/*.py)
       [[ -f "$file" ]] && files+=("$file")
       ;;
   esac
 done < <(awk 'NF && !seen[$0]++' "$candidate_file")
 
 if ((${#files[@]} == 0)); then
-  echo "pyright: no Python files"
+  echo "pyrefly: no Python files"
   exit 0
 fi
 
@@ -72,10 +72,10 @@ for component in core frontend models worker; do
     continue
   fi
 
-  echo "pyright: src/$component"
+  echo "pyrefly: src/$component"
   (
     cd "src/$component"
-    uv run --frozen --all-extras pyright "${rel_files[@]}"
+    uvx pyrefly check --summarize-errors "${rel_files[@]}"
   ) || status=$?
 done
 

@@ -63,7 +63,7 @@ def news_item_upload_mock(requests_mock):
 
 @pytest.fixture
 def web_collector_url_mock(requests_mock):
-    from worker.tests.testdata import head_request, web_collector_ref_url, web_collector_url
+    from tests.testdata import head_request, web_collector_ref_url, web_collector_url
 
     requests_mock.head(web_collector_url, json=head_request)
     requests_mock.get(web_collector_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
@@ -86,7 +86,7 @@ def base_web_collector_mock(requests_mock):
 
 @pytest.fixture
 def rss_collector_mock(requests_mock, collectors_mock):
-    from worker.tests.testdata import (
+    from tests.testdata import (
         rss_collector_fav_icon_url,
         rss_collector_targets,
         rss_collector_url,
@@ -105,7 +105,7 @@ def rss_collector_mock(requests_mock, collectors_mock):
 
 @pytest.fixture
 def simple_web_collector_mock(requests_mock, collectors_mock, web_collector_url_mock):
-    from worker.tests.testdata import web_collector_fav_icon_url
+    from tests.testdata import web_collector_fav_icon_url
 
     requests_mock.get(web_collector_fav_icon_url, json={})
 
@@ -144,7 +144,7 @@ def browser_web_collector_instance(simple_web_collector):
 
 @pytest.fixture
 def rt_mock(requests_mock, collectors_mock):
-    import worker.tests.collectors.rt_testdata as rt_testdata
+    import tests.collectors.rt_testdata as rt_testdata
 
     requests_mock.get(rt_testdata.rt_ticket_search_url, json=rt_testdata.rt_ticket_search_result)
     requests_mock.get(rt_testdata.rt_no_tickets_url, json={"items": []})
@@ -158,7 +158,7 @@ def rt_mock(requests_mock, collectors_mock):
 
 @pytest.fixture
 def misp_collector_mock(requests_mock):
-    from worker.tests.misp_collector_test_data import taranis_events
+    from tests.misp_collector_test_data import taranis_events
 
     requests_mock.get("https://test.misp.test/servers/getVersion", json={"version": "2.5.10"})
     requests_mock.get("https://test.misp.test/servers/getPyMISPVersion.json", json={"version": "2.5.10"})

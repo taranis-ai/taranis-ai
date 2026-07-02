@@ -42,7 +42,7 @@ class StoryBookmarkView(BaseView):
         except HTTPException:
             raise
         except ValueError as exc:
-            logger.exception("Failed to invalidate local story bookmark cache: %s", exc)
+            logger.exception(f"Failed to invalidate local story bookmark cache: {exc}")
         except Exception:  # noqa: BLE001
             logger.exception("Failed to invalidate local story bookmark cache")
             return
@@ -144,6 +144,7 @@ class StoryBookmarkView(BaseView):
         bookmark = DataPersistenceLayer().get_object(StoryBookmark, bookmark_id)
         if bookmark is None:
             abort(404)
+            raise RuntimeError("abort did not raise")
         return bookmark
 
     @classmethod

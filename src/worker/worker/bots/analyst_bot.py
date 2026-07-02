@@ -16,6 +16,7 @@ class AnalystBot(BaseBot):
         self.attr_name = []
 
     def execute(self, parameters=None):
+        parameters = parameters or {}
         regex = parameters.get("REGULAR_EXPRESSION", "")
         attr = parameters.get("ATTRIBUTE_NAME", "")
         if not regex or not attr:

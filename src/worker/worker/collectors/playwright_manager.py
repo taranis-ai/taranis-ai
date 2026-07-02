@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 
-from playwright.sync_api import BrowserContext, TimeoutError, sync_playwright
+from playwright.sync_api import Browser, BrowserContext, Page, Playwright, TimeoutError, sync_playwright
 
 from worker.log import logger
 
@@ -9,10 +9,10 @@ class PlaywrightManager:
     def __init__(self, proxies: dict | None = None, headers: dict | None = None) -> None:
         self.proxies = proxies
         self.headers = headers
-        self.playwright = None
-        self.browser = None
-        self.context = None
-        self.page = None
+        self.playwright: Playwright | None = None
+        self.browser: Browser | None = None
+        self.context: BrowserContext | None = None
+        self.page: Page | None = None
 
     def _ensure_started(self) -> None:
         if self.playwright and self.browser and self.context and self.page:
@@ -24,6 +24,8 @@ class PlaywrightManager:
         self.page = self.context.new_page()
 
     def setup_context(self, headers: dict | None = None) -> BrowserContext:
+        if self.browser is None:
+            raise RuntimeError("Playwright browser is not started")
         if headers and None not in headers.values():
             return self.browser.new_context(extra_http_headers=headers)
         return self.browser.new_context()
@@ -60,19 +62,22 @@ class PlaywrightManager:
     def fetch_content_with_js(self, url: str, xpath: str = "") -> str:
         logger.debug(f"Getting web content with JS for {url} - {xpath=}")
         self._ensure_started()
+        page = self.page
+        if page is None:
+            raise RuntimeError("Playwright page is not started")
         try:
-            self.page.goto(url)
+            page.goto(url)
 
             if xpath:
-                locator = self.page.locator(f"xpath={xpath}")
+                locator = page.locator(f"xpath={xpath}")
                 locator.wait_for(state="visible")
-                return self.page.content() or ""
+                return page.content() or ""
 
-            self.page.wait_for_load_state("networkidle")
+            page.wait_for_load_state("networkidle")
         except TimeoutError as e:
             logger.error(
                 f"Fetching content with JS for {url} with {xpath=} has timed out, invalid XPath could be the reason, check for details. \nDetails: \n{str(e)}"
             )
         except Exception as e:
             logger.error(f"Error fetching content with JS: {str(e)}")
-        return self.page.content() or ""
+        return page.content() or ""

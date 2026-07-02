@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
         return f"/{v.strip('/')}/"
 
     @model_validator(mode="after")
-    def set_taranis_core(self) -> "Settings":
+    def set_taranis_core(self) -> Self:
         if self.TARANIS_CORE_URL:
             return self
         object.__setattr__(self, "TARANIS_CORE_URL", f"http://{self.TARANIS_CORE_HOST}{self.TARANIS_BASE_PATH}api")

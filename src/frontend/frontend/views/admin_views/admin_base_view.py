@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 from flask import current_app
 from flask.typing import ResponseReturnValue
@@ -11,10 +11,13 @@ from frontend.views.base_view import BaseView
 
 
 class AdminBaseView(BaseView):
-    decorators = [admin_required()]
-    _is_admin = True
-    _show_sidebar = True
-    _read_only = False
+    decorators: ClassVar[list[Any]] = [admin_required()]
+    base_route: ClassVar[str] = ""
+    edit_route: ClassVar[str] = ""
+    import_route: ClassVar[str] = ""
+    _is_admin: ClassVar[bool] = True
+    _show_sidebar: ClassVar[bool] = True
+    _read_only: ClassVar[bool] = False
 
     @classmethod
     def get_sidebar_template(cls) -> str:

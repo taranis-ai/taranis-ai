@@ -1,3 +1,5 @@
+from typing import Any
+
 import sentry_sdk
 
 from core.config import Config
@@ -7,7 +9,7 @@ def initialize():
     if not Config.TARANIS_SENTRY_DSN:
         return
 
-    sentry_options = {
+    sentry_options: dict[str, Any] = {
         "dsn": Config.TARANIS_SENTRY_DSN,
         "traces_sample_rate": 1.0,
         "profiles_sample_rate": 1.0,

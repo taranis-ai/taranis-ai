@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 from worker.log import logger
 
@@ -14,7 +15,7 @@ class WordlistBot(BaseBot):
         self.name = "Wordlist Bot"
         self.description = "Bot for tagging news items by wordlist"
 
-    def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
+    def execute(self, parameters: dict | None = None) -> dict[str, Any]:
         if not parameters:
             parameters = {}
         ignore_case = self._set_ignore_case_flag(parameters)

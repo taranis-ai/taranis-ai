@@ -30,12 +30,19 @@ def update_wordlist(word_list_id: str):
         raise RuntimeError(f"Failed to download word list {word_list_name} ({word_list_id}) from {url}: {response.status_code}")
 
     content_type = response.headers.get("content-type", "")
+    content: str | dict | list
     if content_type == "text/csv" or url.endswith(".csv"):
         content_type = "text/csv"
-        content = response.text
+        text_content = response.text
+        if not text_content:
+            raise ValueError("Downloaded CSV word list is empty")
+        content = text_content
     elif content_type == "application/json" or url.endswith(".json"):
         content_type = "application/json"
-        content = response.json()
+        json_content = response.json()
+        if not isinstance(json_content, (str, dict, list)):
+            raise ValueError("Downloaded JSON word list must be a JSON object, list, or string")
+        content = json_content
     else:
         logger.error("Could not determine content type.")
         raise ValueError("Could not determine content type.")

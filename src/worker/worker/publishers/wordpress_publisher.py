@@ -27,7 +27,7 @@ class WORDPRESSPublisher(BasePublisher):
 
         headers = {"Authorization": "Basic " + token.decode("utf-8")}
 
-        bytes_data = rendered_product.data.decode("utf-8")
+        bytes_data = self._require_rendered_data(rendered_product).decode("utf-8")
 
         post = {"title": product.get("title"), "status": "publish", "content": bytes_data}
 

@@ -44,7 +44,7 @@ class BaseView(MethodView):
 
     @classmethod
     def _common_context(cls, error: str | None = None, object_id: str = "0") -> dict[str, Any]:
-        context = {
+        context: dict[str, Any] = {
             "name": cls.pretty_name(),
             "templates": cls.get_template_urls(),
             "columns": cls.get_columns(),
@@ -472,7 +472,7 @@ class BaseView(MethodView):
 
         category = "error" if notification.get("error") else "success"
         if message := notification.get("message"):
-            flash(message, category)
+            flash(str(message), category)
 
     @classmethod
     def redirect_htmx(cls, target: str) -> ResponseReturnValue:

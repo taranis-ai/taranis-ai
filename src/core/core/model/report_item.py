@@ -128,7 +128,8 @@ class ReportItem(BaseModel):
         attributes = []
         for attribute in self.attributes:
             attr = attribute.to_report_dict()
-            render_data = dict(attr.get("render_data") or {})
+            raw_render_data = attr.get("render_data")
+            render_data = dict(raw_render_data) if isinstance(raw_render_data, dict) else {}
             if attribute.attribute_type == AttributeType.STORY:
                 render_data["story_choices"] = story_choices
             attr["render_data"] = render_data
@@ -354,7 +355,8 @@ class ReportItem(BaseModel):
             for attribute_group_item in sorted_items:
                 attribute_enums = AttributeEnum.get_all_for_attribute(attribute_group_item.attribute.id)
                 attribute_enum_data = [attribute_enum.to_small_dict() for attribute_enum in attribute_enums] if attribute_enums else None
-                attr = {
+                render_data: dict[str, Any] = {}
+                attr: dict[str, Any] = {
                     "title": attribute_group_item.title,
                     "description": attribute_group_item.description,
                     "index": next_index,
@@ -362,12 +364,12 @@ class ReportItem(BaseModel):
                     "attribute_type": attribute_group_item.attribute.type,
                     "group_title": attribute_group.title,
                     "value": attribute_group_item.attribute.default_value or None,
-                    "render_data": {},
+                    "render_data": render_data,
                 }
                 if attribute_enum_data:
-                    attr["render_data"]["attribute_enums"] = attribute_enum_data
+                    render_data["attribute_enums"] = attribute_enum_data
                 if default_value := attribute_group_item.attribute.default_value:
-                    attr["render_data"]["default_value"] = default_value
+                    render_data["default_value"] = default_value
                 if attribute_group_item.attribute.type == AttributeType.TLP:
                     attr["value"] = "clear"
                 self.attributes.append(ReportItemAttribute(**attr))

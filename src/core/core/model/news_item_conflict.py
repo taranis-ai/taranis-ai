@@ -28,27 +28,26 @@ class NewsItemConflict:
         existing_story_id: str,
         incoming_story: dict[str, Any],
         misp_address: str | None = None,
-    ) -> "NewsItemConflict":
+    ) -> dict[str, Any]:
         key = f"{incoming_story_id}:{news_item_id}"
         story_data_copy = copy.deepcopy(incoming_story)
         cls.story_index[incoming_story_id] = story_data_copy
 
         if key in cls.conflict_store:
-            existing_conflict = cls.conflict_store[key]
-            existing_conflict.existing_story_id = existing_story_id
-            existing_conflict.incoming_story = story_data_copy
+            conflict = cls.conflict_store[key]
+            conflict.existing_story_id = existing_story_id
+            conflict.incoming_story = story_data_copy
             logger.debug(f"Updated conflict {key} -> existing_story_id={existing_story_id}")
-            return existing_conflict
-
-        conflict = cls(
-            incoming_story_id=incoming_story_id,
-            news_item_id=news_item_id,
-            existing_story_id=existing_story_id,
-            incoming_story=story_data_copy,
-            misp_address=misp_address,
-        )
-        cls.conflict_store[key] = conflict
-        logger.debug(f"Registered conflict {key}")
+        else:
+            conflict = cls(
+                incoming_story_id=incoming_story_id,
+                news_item_id=news_item_id,
+                existing_story_id=existing_story_id,
+                incoming_story=story_data_copy,
+                misp_address=misp_address,
+            )
+            cls.conflict_store[key] = conflict
+            logger.debug(f"Registered conflict {key}")
         return NewsItemConflictModel(
             incoming_story_id=conflict.incoming_story_id,
             news_item_id=conflict.news_item_id,
