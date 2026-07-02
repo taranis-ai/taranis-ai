@@ -1,0 +1,31 @@
+[project]
+name = "taranis-load-tests"
+version = "0.1.0"
+description = "Manual Locust + Playwright load testing for Taranis AI"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "locust>=2.37,<3",
+    "locust-plugins[playwright]>=4.7,<5",
+    "playwright>=1.55,<2",
+    "requests>=2.32,<3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.uv]
+package = false
+required-environments = [
+  "sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["../.."]
+
+[tool.ruff]
+line-length = 142
+target-version = "py314"

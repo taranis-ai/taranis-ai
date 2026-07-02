@@ -97,6 +97,8 @@ sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
 sudo nginx -t && sudo systemctl restart nginx
 ```
 
+Run `./dev/run_e2e_load_tests.sh` to execute the browser end-to-end load harness; it prints the artifact directory and Locust report path.
+
 Start a tmux session with multiple panes for the different processes:
 
 ```bash

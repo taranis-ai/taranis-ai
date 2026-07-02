@@ -30,4 +30,11 @@ src/worker/tests
 **/build
 **/dist
 **/tests
+!src/
+!src/frontend/
+!src/frontend/tests/
+!src/frontend/tests/load/
+!src/frontend/tests/load/Containerfile
+!src/frontend/tests/load/pyproject.toml
+!src/frontend/tests/load/uv.lock
 **/*.zip
