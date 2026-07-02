@@ -29,10 +29,6 @@ from tests.external_e2e import (
     login_to_core,
     wait_for_server_to_be_healthy,
 )
-from tests.load.load_testing.seed_data import (
-    LOAD_TEST_REPORT_TYPE_DEFINITION,
-    build_report_payload,
-)
 from tests.playwright.e2e_harness import (
     docker_cleanup_commands,
     docker_setup_commands,
@@ -946,34 +942,6 @@ def report_item_dict(story_item_list):
                 "render_data": {},
             },
         ],
-    }
-
-
-@pytest.fixture(scope="session")
-def load_measured_report_seed(core_request_client, pre_seed_report_stories):
-    report_type_payload = copy.deepcopy(LOAD_TEST_REPORT_TYPE_DEFINITION)
-    report_type_payload["title"] = "Frontend Flow Load Report Type"
-    report_type_response = core_request_client.post(
-        "/config/report-item-types",
-        json_data=report_type_payload,
-    )
-    report_type_id = report_type_response.json()["id"]
-
-    report_payload = build_report_payload(
-        story_ids=[story["id"] for story in pre_seed_report_stories[:2]],
-        report_type_id=report_type_id,
-        title="Load Test Report 1",
-    )
-    report_response = core_request_client.post(
-        "/analyze/report-items",
-        json_data=report_payload,
-    )
-    report = report_response.json()
-
-    return {
-        "report_id": report["id"],
-        "report_title": report_payload["title"],
-        "story_ids": report_payload["stories"],
     }
 
 

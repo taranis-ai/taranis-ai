@@ -6,90 +6,23 @@ import pytest
 from base_e2e_test import BaseE2ETest
 from playwright.sync_api import Page, expect
 
-from tests.load.load_testing.frontend_flows import (
-    FLOW_ANALYZE_LIST,
-    FLOW_ANALYZE_REPORT_DETAIL,
-    FLOW_ASSESS_DETAIL,
-    FLOW_ASSESS_LIST,
-    FLOW_DASHBOARD,
-    FLOW_LOGIN,
-    FrontendFlowConfig,
-    load_measured_flow,
-    run_sync_frontend_flow,
-)
-
 
 @pytest.mark.usefixtures("e2e_ci")
 @pytest.mark.e2e_user_workflow
 @pytest.mark.usefixtures("ensure_basic_user_permissions")
 class TestUserWorkflow(BaseE2ETest):
-    @load_measured_flow(FLOW_LOGIN)
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
-        run_sync_frontend_flow(FLOW_LOGIN, page, FrontendFlowConfig())
+        self.login_with_credentials(page, username="user", password="test")
+        self.assert_dashboard_sections_visible(page, ["Assess", "Analyze", "Publish", "Connectors"])
         assert page.get_by_role("link", name="Administration").count() == 0
 
-    @load_measured_flow(FLOW_DASHBOARD)
-    def test_dashboard_read_only(
-        self,
-        non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
-    ):
+    def test_instance_setup(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, fake_source):
         page = non_admin_logged_in_page
-        run_sync_frontend_flow(FLOW_DASHBOARD, page, FrontendFlowConfig())
+        self.navigate_to_assess(page)
+        expect(page.get_by_test_id("assess")).to_be_visible()
         assert page.get_by_role("link", name="Administration").count() == 0
-
-    @load_measured_flow(FLOW_ASSESS_LIST)
-    def test_instance_setup(
-        self,
-        non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
-        stories_date_descending_not_important: list,
-    ):
-        page = non_admin_logged_in_page
-        run_sync_frontend_flow(FLOW_ASSESS_LIST, page, FrontendFlowConfig())
-        assert page.get_by_role("link", name="Administration").count() == 0
-
-    @load_measured_flow(FLOW_ASSESS_DETAIL)
-    def test_assess_detail_read_only(
-        self,
-        non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
-        stories_date_descending_not_important: list,
-    ):
-        page = non_admin_logged_in_page
-        run_sync_frontend_flow(FLOW_ASSESS_DETAIL, page, FrontendFlowConfig())
-        assert page.get_by_role("link", name="Administration").count() == 0
-
-    @load_measured_flow(FLOW_ANALYZE_LIST)
-    def test_analyze_list_read_only(
-        self,
-        non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
-        load_measured_report_seed,
-    ):
-        page = non_admin_logged_in_page
-        run_sync_frontend_flow(
-            FLOW_ANALYZE_LIST,
-            page,
-            FrontendFlowConfig(expected_report_title=load_measured_report_seed["report_title"]),
-        )
-        assert page.get_by_role("link", name="Administration").count() == 0
-
-    @load_measured_flow(FLOW_ANALYZE_REPORT_DETAIL)
-    def test_analyze_report_detail_read_only(
-        self,
-        non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
-        load_measured_report_seed,
-    ):
-        page = non_admin_logged_in_page
-        run_sync_frontend_flow(
-            FLOW_ANALYZE_REPORT_DETAIL,
-            page,
-            FrontendFlowConfig(expected_report_title=load_measured_report_seed["report_title"]),
-        )
-        assert page.get_by_role("link", name="Administration").count() == 0
+        expect(page.get_by_role("searchbox", name="Select sources")).to_be_visible()
 
     def test_story_bookmarks(
         self,

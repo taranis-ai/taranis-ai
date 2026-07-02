@@ -7,7 +7,7 @@ Manual browser end-to-end load testing for Taranis AI using Locust and `locust-p
 - starts a disposable Docker stack with `ingress`, `core`, `frontend`, PostgreSQL, and Redis
 - seeds synthetic sources, stories, report types, and reports
 - runs low-concurrency browser flows against `/frontend/login`, `/frontend/`, `/frontend/assess`, and `/frontend/analyze`
-- stores Locust reports, compose logs, seed logs, and page-ready timing summaries under `src/frontend/tests/load/artifacts/`
+- stores Locust reports, CSV stats, compose logs, and seed logs under `src/frontend/tests/load/artifacts/`
 
 ## Local usage
 
@@ -19,21 +19,15 @@ From the repository root:
 ./dev/run_e2e_load_tests.sh --profile smoke --flows login,dashboard
 ./dev/run_e2e_load_tests.sh --profile browser_load --assess-count 2000 --report-count 500
 ./dev/run_e2e_load_tests.sh --profile browser_load --device-read-iops=/dev/sda:500 --device-write-iops=/dev/sda:500
-./dev/run_e2e_load_tests.sh --stop-report-server
 ```
 
-The runner keeps the newest completed artifact set linked at `src/frontend/tests/load/artifacts/latest/`.
-It also starts or reuses a small local HTTP server for `src/frontend/tests/load/artifacts/`, starting at `http://127.0.0.1:18081/` and moving to the next free port if needed.
-The exact Locust report URL is printed by the runner, and the preferred starting port can be changed with `--report-port` or `LOAD_TEST_REPORT_PORT`.
-Use `--stop-report-server` to stop that local HTTP server when you no longer need it.
+The runner prints the artifact directory and the main Locust output paths at startup. At the end of each run it updates `src/frontend/tests/load/artifacts/latest` to point at the run artifacts and prints a direct `file://` link to the latest Locust report.
 
 Runner flow:
 
-- `dev/run_e2e_load_tests.sh` starts or reuses `tests.load.load_support.report_server` on the host so each run can be opened from a stable localhost URL.
 - Docker Compose starts the disposable database, Redis, core, frontend, and ingress stack.
 - The host runner runs `tests.load.load_support.seed` against the exposed ingress API to create synthetic sources, stories, report types, and reports.
-- The `locust` service runs `tests.load.load_support.run_locust`, which starts `locustfile.py` and formats the generated HTML report.
-- After Locust writes CSV output, the host runner calls `tests.load.load_support.summarize_stats` to generate the UX timing markdown and JSON summaries.
+- The `locust` service runs `locustfile.py` and writes standard Locust HTML and CSV artifacts.
 
 Defaults:
 
@@ -49,13 +43,9 @@ Optional seed sizing:
 
 - `--assess-count N` or `--story-count N`
 - `--report-count N`
-- `--source-count N`
-- `--report-type-count N`
 - environment overrides:
   - `LOAD_TEST_STORY_COUNT`
   - `LOAD_TEST_REPORT_COUNT`
-  - `LOAD_TEST_SOURCE_COUNT`
-  - `LOAD_TEST_REPORT_TYPE_COUNT`
 
 Optional PostgreSQL IOPS throttling:
 
@@ -75,27 +65,25 @@ Optional E2E-derived flow selection:
   - `analyze_report_detail`
 
 Artifacts are written to a timestamped directory below `src/frontend/tests/load/artifacts/`.
-The newest HTML report is always linked at `src/frontend/tests/load/artifacts/latest/locust-report.html`.
-The runner also writes:
+The runner writes `locust-report.html`, `locust_stats.csv`, `locust_failures.csv`, `locust_exceptions.csv`, `seed.log`, `locust-console.log`, `compose.log`, and `compose-ps.txt` when those outputs are available.
 
-- `ux-timings-summary.md` with Locust `PAGE` rows sorted by slowest `p95`
-- `ux-timings-summary.json` with the same data in machine-readable form
+Open the latest HTML report directly from disk:
+
+```bash
+xdg-open src/frontend/tests/load/artifacts/latest/locust-report.html
+```
 
 ## Reading the Locust report
 
-- In this browser harness, the Locust HTML `Aggregated` row combines all recorded Locust events, not just one page type.
-- That means it includes coarse `TASK` rows such as `FrontendSelectedE2EFlowUser.assess_list_flow` and custom `PAGE` rows such as `assess:list_ready`.
-- The `Aggregated Min` value is the single fastest recorded event across the full report. It is not an average of per-row minimums.
-- The `Aggregated RPS` value is total recorded Locust events per second over the whole run.
-- In this harness, `RPS` is therefore not backend HTTP requests per second and not “browser sessions per second”.
-- For example, when a flow records both one `TASK` event and one `PAGE` event, both count toward the aggregate request total.
-- For user-facing performance analysis, prefer the `PAGE` rows and the generated `ux-timings-summary.md`.
+- Each Locust row represents one browser flow task, such as `FrontendSelectedE2EFlowUser.assess_list_flow`.
+- The `Aggregated` row combines all browser flow task events over the whole run.
+- `RPS` is Locust task events per second, not backend HTTP requests per second.
 
 Feature-specific local test:
 
 ```bash
-cd src/frontend/tests/load && DEBUG=true uv run pytest test_summarize_stats.py
 cd src/frontend/tests/load && DEBUG=true uv run pytest test_frontend_flows.py
+cd src/frontend/tests/load && DEBUG=true uv run pytest test_seed_data.py
 ```
 
 ## Notes
@@ -103,11 +91,4 @@ cd src/frontend/tests/load && DEBUG=true uv run pytest test_frontend_flows.py
 - This harness is intentionally browser-first and user-workspace-only.
 - Seed data is treated as disposable for this harness. Rerunning the seed step against the same database may create additional rows instead of updating previous seeded records.
 - It does not include `worker` or `cron` in the load-test stack.
-- The Locust user class is generated from the same E2E-derived flow registry used by frontend workflow tests.
-- By default, all load-enabled flows emit:
-  - `login:ready`
-  - `dashboard:ready`
-  - `assess:list_ready`
-  - `assess:detail_ready`
-  - `analyze:list_ready`
-  - `analyze:report_detail_ready`
+- The Locust user class is generated from the load-test flow registry.

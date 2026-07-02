@@ -112,16 +112,36 @@ services:
     build:
       context: ../../../..
       dockerfile: src/frontend/tests/load/Containerfile
-    working_dir: /workspace
-    command: ["python", "-m", "tests.load.load_support.run_locust"]
+    working_dir: /artifacts
+    command:
+      [
+        "locust",
+        "--headless",
+        "--only-summary",
+        "--exit-code-on-error",
+        "1",
+        "--stop-timeout",
+        "30",
+        "--host",
+        "http://ingress:8080",
+        "--users",
+        "${LOCUST_USERS:-1}",
+        "--spawn-rate",
+        "${LOCUST_SPAWN_RATE:-1}",
+        "--run-time",
+        "${LOCUST_RUN_TIME:-2m}",
+        "--html",
+        "/artifacts/locust-report.html",
+        "--csv",
+        "/artifacts/locust",
+        "-f",
+        "/workspace/src/frontend/tests/load/locustfile.py",
+      ]
     environment:
       PYTHONPATH: /workspace/src/frontend
       PWHEADLESS: "1"
       PWBROWSER: chromium
       TARGET_HOST: http://ingress:8080
-      LOCUST_USERS: ${LOCUST_USERS:-1}
-      LOCUST_SPAWN_RATE: ${LOCUST_SPAWN_RATE:-1}
-      LOCUST_RUN_TIME: ${LOCUST_RUN_TIME:-2m}
       TARANIS_LOAD_FLOWS: ${TARANIS_LOAD_FLOWS:-}
       TARANIS_LOAD_USERNAME: user
       TARANIS_LOAD_PASSWORD: test

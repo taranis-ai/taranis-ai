@@ -97,8 +97,7 @@ sudo cp dev/nginx.conf /etc/nginx/conf.d/local.taranis.ai.conf
 sudo nginx -t && sudo systemctl restart nginx
 ```
 
-Load test artifacts are served by the browser end-to-end load harness through its own lightweight localhost server.
-Run `./dev/run_e2e_load_tests.sh` to execute the browser end-to-end load harness; it prints a localhost URL for the latest Locust HTML report from its own lightweight artifact server.
+Run `./dev/run_e2e_load_tests.sh` to execute the browser end-to-end load harness; it prints the artifact directory and Locust report path.
 
 Start a tmux session with multiple panes for the different processes:
 

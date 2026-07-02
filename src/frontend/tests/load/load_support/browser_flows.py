@@ -1,9 +1,9 @@
+# pyright: reportMissingImports=false
+
 import os
 
 from locust import between, task
-from locust_plugins.users.playwright import PlaywrightUser
-from tests.load.load_support.playwright_stats import event, pw
-from tests.load.load_testing.browser_contract import PAGE_REQUEST_TYPE
+from locust_plugins.users.playwright import PlaywrightUser, pw
 from tests.load.load_testing.frontend_flows import (
     FLOW_LOGIN,
     FrontendFlowConfig,
@@ -39,8 +39,7 @@ def build_selected_e2e_flow_user_class() -> type[PlaywrightUser]:
         )
         if flow_definition.name != FLOW_LOGIN:
             await ensure_logged_in(page, config)
-        async with event(self, flow_definition.page_event_name, request_type=PAGE_REQUEST_TYPE):
-            await flow_definition.async_runner(page, config)
+        await flow_definition.async_runner(page, config)
 
     attributes = {
         "host": os.getenv("TARGET_HOST", "http://ingress:8080"),
