@@ -1,14 +1,9 @@
 import json
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
-from importlib import import_module
 from pathlib import Path
 from typing import Any
-
-try:
-    from uuid import uuid7 as stdlib_uuid7
-except ImportError:
-    stdlib_uuid7 = None
+from uuid import uuid7
 
 SeedPayload = dict[str, Any]
 
@@ -57,10 +52,7 @@ LOAD_TEST_REPORT_TYPE_DEFINITION: SeedPayload = {
 
 
 def uuid7str() -> str:
-    if stdlib_uuid7 is not None:
-        return str(stdlib_uuid7())
-    fallback_uuid7str = getattr(import_module("uuid_extensions"), "uuid7str")
-    return str(fallback_uuid7str())
+    return str(uuid7())
 
 
 def build_fake_source_payload(source_id: str = DEFAULT_STORY_SOURCE_ID, *, index: int = 1) -> SeedPayload:
