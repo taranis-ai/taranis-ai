@@ -55,6 +55,18 @@ Core owns frontend cache invalidation for write operations.
 - the manual invalidation endpoint is `POST /api/admin/cache/invalidate`
 - `/api/assess/filter-lists` builds filter options from current database state on request; frontend caching may cache that response by user
 
+## Audit Logging
+
+Core writes v1 audit events as JSON lines to stdout.
+
+- `AUDIT_LOG_ENABLED=true|false` toggles audit logging; it defaults to `true`
+- audit events are emitted for human JWT-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` API requests
+- `/api/auth/login` is audited without a JWT actor and records only the attempted username and response status
+- audit records include timestamp, method, path, endpoint, status, user id, username, organization id, client IP, and route ids
+- request bodies, passwords, tokens, connector secrets, story content, and before/after values are not logged
+- API-key-only worker and bot routes, ordinary `GET` reads, and `GET` export endpoints are not audited in v1
+- audit retention, search, and forwarding belong to the deployment log collector
+
 ## Health Endpoints
 
 Core exposes two unauthenticated endpoints for monitoring:

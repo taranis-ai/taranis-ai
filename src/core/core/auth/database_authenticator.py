@@ -20,7 +20,7 @@ class DatabaseAuthenticator(BaseAuthenticator):
         if user and user.password and check_password_hash(user.password, password):
             return BaseAuthenticator.generate_jwt(username)
 
-        logger.store_auth_error_activity(f"Authentication failed with credentials: {credentials}")
+        logger.store_auth_error_activity(f"Authentication failed for username: {username}")
         return BaseAuthenticator.generate_error()
 
     def change_password(self, user: "User", old_password: str, new_password: str) -> Response:

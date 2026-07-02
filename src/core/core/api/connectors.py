@@ -2,7 +2,6 @@ from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.audit import audit_logger
 from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import auth_required
@@ -114,5 +113,4 @@ def initialize(app: Flask):
     conflicts_bp.add_url_rule("/story-summary/<string:story_id>", view_func=StoryInfo.as_view("story_summary"))
     conflicts_bp.add_url_rule("/conflicts/clear", view_func=ConflictStore.as_view("clear_conflicts"))
 
-    conflicts_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(conflicts_bp)

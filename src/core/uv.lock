@@ -9,7 +9,7 @@ required-markers = [
 ]
 
 [options]
-exclude-newer = "2026-06-17T10:57:12.320684Z"
+exclude-newer = "2026-06-25T13:03:06.964082Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -1440,7 +1440,7 @@ dependencies = [
     { name = "yoyo-migrations" },
 ]
 
-[package.dev-dependencies]
+[package.optional-dependencies]
 dev = [
     { name = "build" },
     { name = "fakeredis" },
@@ -1459,14 +1459,17 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "authlib" },
+    { name = "build", marker = "extra == 'dev'" },
     { name = "click" },
     { name = "croniter", specifier = ">=6.0.0" },
+    { name = "fakeredis", marker = "extra == 'dev'" },
     { name = "flask" },
     { name = "flask-cors" },
     { name = "flask-jwt-extended" },
     { name = "flask-sqlalchemy" },
     { name = "granian" },
     { name = "pillow" },
+    { name = "playwright", marker = "extra == 'dev'" },
     { name = "psycopg" },
     { name = "pydantic-settings" },
     { name = "pyright", marker = "extra == 'dev'" },
@@ -1477,28 +1480,18 @@ requires-dist = [
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "rq", specifier = ">=2.5" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "schemathesis", marker = "extra == 'dev'", specifier = ">=4,<5" },
     { name = "sentry-sdk", extras = ["flask"] },
     { name = "sentry-sdk", extras = ["sqlalchemy"] },
     { name = "setuptools" },
+    { name = "setuptools-scm", marker = "extra == 'dev'" },
     { name = "sqlalchemy" },
     { name = "taranis-models", editable = "../models" },
+    { name = "wheel", marker = "extra == 'dev'" },
     { name = "yoyo-migrations" },
 ]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "build" },
-    { name = "fakeredis" },
-    { name = "playwright" },
-    { name = "pytest" },
-    { name = "pytest-docker" },
-    { name = "pytest-flask" },
-    { name = "pytest-playwright" },
-    { name = "ruff" },
-    { name = "schemathesis", specifier = ">=4,<5" },
-    { name = "setuptools-scm" },
-    { name = "wheel" },
-]
+provides-extras = ["dev"]
 
 [[package]]
 name = "taranis-models"

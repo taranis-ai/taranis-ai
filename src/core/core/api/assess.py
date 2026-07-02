@@ -6,7 +6,6 @@ from flask_jwt_extended import current_user
 from models.assess import StoryBookmarkCreatePayload, StoryBookmarkOrderPayload, StoryBookmarkStoryPayload, StoryBookmarkUpdatePayload
 from pydantic import ValidationError
 
-from core.audit import audit_logger
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
@@ -518,5 +517,4 @@ def initialize(app: Flask):
         view_func=StoryRevisionData.as_view("story_revision_data"),
     )
 
-    assess_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(assess_bp)

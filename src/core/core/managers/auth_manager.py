@@ -96,7 +96,7 @@ def api_key_required(fn):
         if not _has_valid_api_key(log_failures=True):
             return AUTH_ERROR
 
-        # allow
+        g.authenticated_user = None
         return fn(*args, **kwargs)
 
     return wrapper
