@@ -15,7 +15,7 @@ from worker.log import logger
 class RSSCollectorError(Exception):
     """Custom exception for RSSCollector errors."""
 
-    def __init__(self, message="Error parsing RSS feed"):
+    def __init__(self, message: str = "Error parsing RSS feed"):
         super().__init__(message)
         logger.info(message)
 
@@ -49,10 +49,7 @@ class RSSCollector(BaseWebCollector):
                 return use_feed_param.strip().lower() == "true"
 
         content_location = params.get("CONTENT_LOCATION")
-        if isinstance(content_location, str) and content_location.strip():
-            return True
-
-        return False
+        return bool(isinstance(content_location, str) and content_location.strip())
 
     def parse_source(self, source: dict):
         super().parse_source(source)
@@ -123,13 +120,11 @@ class RSSCollector(BaseWebCollector):
             if isinstance(value, list) and value:
                 first = value[0]
                 if isinstance(first, dict) and "value" in first:
-                    content = str(first["value"]).strip()
-                    if content:
+                    if content := str(first["value"]).strip():
                         return content
 
             if isinstance(value, str):
-                content = value.strip()
-                if content:
+                if content := value.strip():
                     return content
 
         return ""
@@ -181,7 +176,7 @@ class RSSCollector(BaseWebCollector):
             published = published or web_content.get("published_date") or self.last_modified
 
         else:
-            logger.warning("No content could be extracted for RSS entry %r", feed_entry.get("id", link or title))
+            logger.warning(f"No content could be extracted for RSS entry {feed_entry.get('id', link or title)}")
 
         if content == description:
             description = ""
@@ -222,7 +217,7 @@ class RSSCollector(BaseWebCollector):
             icon_url = urljoin(self.feed_url, possible_icon_url)
 
         try:
-            r = requests.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
+            r = self._fetch_icon(icon_url)
             if not r.ok:
                 logger.warning(f"Failed to fetch icon from {icon_url}, status: {r.status_code}")
                 return None

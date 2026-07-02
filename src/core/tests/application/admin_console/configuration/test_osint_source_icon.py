@@ -1,3 +1,4 @@
+# pyright: reportMissingParameterType=false
 import base64
 from io import BytesIO
 
@@ -87,8 +88,9 @@ def test_osint_source_creation_contains_non_square_icon(session):
     expected_bbox = (0, top_offset, target_size, top_offset + wide_height)
     alpha = normalized.split()[-1]
     assert alpha.getbbox() == expected_bbox
-    assert normalized.getpixel((target_size // 2, 0))[3] == 0
-    assert normalized.getpixel((target_size // 2, target_size // 2))[3] == 255
+    alpha_channel = normalized.getchannel("A")
+    assert alpha_channel.getpixel((target_size // 2, 0)) == 0
+    assert alpha_channel.getpixel((target_size // 2, target_size // 2)) == 255
 
 
 @pytest.mark.usefixtures("app")

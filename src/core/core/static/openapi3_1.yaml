@@ -9375,9 +9375,20 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/hotkey'
-        assess_default_filters:
-          type: object
-          additionalProperties: true
+        assess_saved_filters:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              filters:
+                type: object
+                additionalProperties: true
+              is_default:
+                type: boolean
     permission:
       type: object
       properties:
