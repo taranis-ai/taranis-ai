@@ -1,14 +1,11 @@
-import json
-from copy import deepcopy
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 from uuid import uuid7
 
-SeedPayload = dict[str, Any]
+from tests.playwright.story_seed_payloads import load_playwright_story_fixtures, normalize_playwright_story_payload
 
-FRONTEND_TESTS_ROOT = Path(__file__).resolve().parents[2]
-PLAYWRIGHT_STORY_FIXTURE = FRONTEND_TESTS_ROOT / "playwright/test_stories.json"
+
+SeedPayload = dict[str, Any]
 
 DEFAULT_STORY_SOURCE_ID = "99"
 LOAD_TEST_REPORT_TYPE_TITLE = "Load Testing Report Type"
@@ -86,59 +83,6 @@ def build_report_type_titles(
     return [base_title] + [f"{base_title} {index}" for index in range(2, count + 1)]
 
 
-def _normalize_story_payload(raw_story: SeedPayload, source_id: str) -> SeedPayload:
-    allowed_story_fields = {
-        "id",
-        "title",
-        "description",
-        "created",
-        "read",
-        "important",
-        "likes",
-        "dislikes",
-        "relevance",
-        "comments",
-        "summary",
-        "news_items",
-        "tags",
-        "attributes",
-    }
-    allowed_news_item_fields = {
-        "id",
-        "title",
-        "content",
-        "author",
-        "source",
-        "link",
-        "language",
-        "review",
-        "collected",
-        "published",
-        "story_id",
-        "hash",
-    }
-
-    story = {key: deepcopy(value) for key, value in raw_story.items() if key in allowed_story_fields}
-    story.setdefault("description", "")
-    story.setdefault("comments", "")
-    story.setdefault("summary", "")
-    story.setdefault("read", False)
-    story.setdefault("important", False)
-    story.setdefault("likes", 0)
-    story.setdefault("dislikes", 0)
-    story.setdefault("relevance", 0)
-
-    clean_news_items = []
-    for raw_item in raw_story.get("news_items", []):
-        clean_item = {key: deepcopy(value) for key, value in raw_item.items() if key in allowed_news_item_fields}
-        clean_item.setdefault("language", None)
-        clean_item["story_id"] = story["id"]
-        clean_item["osint_source_id"] = source_id
-        clean_news_items.append(clean_item)
-    story["news_items"] = clean_news_items
-    return story
-
-
 def _build_story_identifier() -> str:
     return uuid7str()
 
@@ -158,9 +102,7 @@ def load_story_seed_payloads(
     if limit < 1:
         raise ValueError("story count must be at least 1")
 
-    raw_stories = json.loads(PLAYWRIGHT_STORY_FIXTURE.read_text(encoding="utf-8"))
-    if not raw_stories:
-        raise RuntimeError(f"No load-test story fixtures found in {PLAYWRIGHT_STORY_FIXTURE}")
+    raw_stories = load_playwright_story_fixtures()
 
     if source_ids is None:
         source_ids = build_source_ids(DEFAULT_STORY_SOURCE_ID, 1)
@@ -174,8 +116,7 @@ def load_story_seed_payloads(
     for index in range(limit):
         template = raw_stories[index % len(raw_stories)]
         source_id = source_ids[index % len(source_ids)]
-        story = _normalize_story_payload(template, source_id)
-        story["id"] = _build_story_identifier()
+        story = normalize_playwright_story_payload(template, source_id, story_id=_build_story_identifier())
         story["important"] = index % 10 == 0
 
         if index >= len(raw_stories):
@@ -184,8 +125,6 @@ def load_story_seed_payloads(
         for news_item_offset, news_item in enumerate(story["news_items"]):
             news_item["id"] = _build_news_item_identifier()
             news_item["hash"] = _build_news_item_hash(index + 1, news_item_offset + 1)
-            news_item["story_id"] = story["id"]
-            news_item["osint_source_id"] = source_id
             if index < fresh_story_count:
                 published_at = now - timedelta(hours=index + news_item_offset + 1)
             else:
