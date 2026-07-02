@@ -57,7 +57,7 @@ class UserView(AdminBaseView):
         organization = request.form.get("organization", "0")
         users = request.files.get("file")
         if not users or organization in {"0", ""}:
-            return cls.import_view("No file or organization provided")
+            return cls.render_form_error("No file or organization provided")
         data = users.read()
         data = json.loads(data)
         for user in data["data"]:
@@ -67,9 +67,8 @@ class UserView(AdminBaseView):
 
         response = CoreApi().import_users(json.loads(data))
 
-        if not response:
-            error = "Failed to import users"
-            return cls.import_view(error)
+        if not response or not response.ok:
+            return cls.render_form_error(cls.get_response_error_message(response, "Failed to import users"))
 
         return Response(status=200, headers={"HX-Refresh": "true"})
 

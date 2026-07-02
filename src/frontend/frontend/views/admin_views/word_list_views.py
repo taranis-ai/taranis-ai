@@ -26,26 +26,17 @@ class WordListView(AdminBaseView):
     def import_post_view(cls):
         word_lists = request.files.get("file")
         if not word_lists:
-            notification = render_template("notification/index.html", notification={"message": "No file provided", "error": True}, oob=False)
-            return Response(notification, status=200)
+            return cls.render_form_error("No file provided")
         data = word_lists.read()
         try:
             data = json.loads(data)
         except ValueError as exc:
-            notification = render_template("notification/index.html", notification={"message": str(exc), "error": True}, oob=False)
-            return Response(notification, status=200)
+            return cls.render_form_error(str(exc))
 
         response = CoreApi().import_word_lists(data)
 
         if not response or not response.ok:
-            if response:
-                notification = cls.get_notification_from_response(response, oob=False)
-            else:
-                notification = render_template(
-                    "notification/index.html", notification={"message": "Failed to import word lists", "error": True}, oob=False
-                )
-
-            return Response(notification, status=200)
+            return cls.render_form_error(cls.get_response_error_message(response, "Failed to import word lists"))
 
         return Response(status=200, headers={"HX-Refresh": "true"})
 
@@ -73,17 +64,17 @@ class WordListView(AdminBaseView):
         core_response = CoreApi().import_word_lists(response)
 
         if not core_response.ok:
-            return cls.get_notification_from_response(core_response), core_response.status_code
-
-        response = cls.get_notification_from_response(core_response)
+            error = cls.get_response_error_message(core_response, "Unknown error")
+            error_message = f"Failed to import default word lists: {error}"
+            logger.error(error_message)
+            return render_template(
+                "notification/index.html", notification={"message": error_message, "error": True}
+            ), core_response.status_code
 
         dpl.invalidate_cache_by_object(cls.model)
         dpl.invalidate_model_cache_locally(cls.model)
-
-        table, table_response = cls.render_list()
-        if table_response == 200:
-            response += table
-        return response, core_response.status_code
+        items = dpl.get_objects(cls.model)
+        return render_template(cls.get_list_template(), **cls.get_view_context(items)), core_response.status_code
 
     @classmethod
     @admin_required()

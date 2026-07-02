@@ -450,6 +450,25 @@ class BaseView(MethodView):
         return render_template("notification/index.html", notification=cls.get_notification_from_dict(payload), oob=oob)
 
     @classmethod
+    def get_response_error_message(cls, response: RequestsResponse | None, default: str) -> str:
+        if not response:
+            return default
+
+        try:
+            payload = response.json() if response.content else None
+        except Exception:
+            payload = None
+
+        if isinstance(payload, dict):
+            return payload.get("error") or payload.get("message") or default
+
+        return default
+
+    @classmethod
+    def render_form_error(cls, error: str):
+        return make_response(render_template("partials/admin_form_error.html", error=error), 200)
+
+    @classmethod
     def render_response_notification(cls, response: dict) -> str:
         return render_template("notification/index.html", notification=cls.get_notification_from_dict(response))
 

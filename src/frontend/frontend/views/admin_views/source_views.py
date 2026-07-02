@@ -127,15 +127,14 @@ class SourceView(AdminBaseView):
     def import_post_view(cls):
         sources = request.files.get("file")
         if not sources:
-            return cls.import_view("No file or organization provided")
+            return cls.render_form_error("No file or organization provided")
         data = sources.read()
         json_data = json.loads(data)
 
         response = CoreApi().import_sources(json_data)
 
-        if not response:
-            error = "Failed to import sources"
-            return cls.import_view(error)
+        if not response or not response.ok:
+            return cls.render_form_error(cls.get_response_error_message(response, "Failed to import sources"))
 
         cls.add_flash_notification(response)
         return cls.redirect_htmx(cls.get_base_route())
@@ -208,7 +207,7 @@ class SourceView(AdminBaseView):
         response = CoreApi().import_sources(response)
 
         if not response.ok:
-            error = response.json().get("error", "Unknown error")
+            error = cls.get_response_error_message(response, "Unknown error")
             error_message = f"Failed to import default OSINT sources: {error}"
             logger.error(error_message)
             return render_template("notification/index.html", notification={"message": error_message, "error": True})
