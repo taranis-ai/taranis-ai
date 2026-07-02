@@ -1,9 +1,16 @@
 import json
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
+from importlib import import_module
 from pathlib import Path
+from typing import Any
 
-from uuid_extensions import uuid7str
+try:
+    from uuid import uuid7 as stdlib_uuid7
+except ImportError:
+    stdlib_uuid7 = None
+
+SeedPayload = dict[str, Any]
 
 FRONTEND_TESTS_ROOT = Path(__file__).resolve().parents[2]
 PLAYWRIGHT_STORY_FIXTURE = FRONTEND_TESTS_ROOT / "playwright/test_stories.json"
@@ -16,7 +23,7 @@ DEFAULT_STORY_COUNT = 1000
 DEFAULT_REPORT_TYPE_COUNT = 5
 DEFAULT_REPORT_COUNT = 250
 
-LOAD_TEST_REPORT_TYPE_DEFINITION: dict = {
+LOAD_TEST_REPORT_TYPE_DEFINITION: SeedPayload = {
     "title": LOAD_TEST_REPORT_TYPE_TITLE,
     "description": "Report type used by the manual browser load test harness.",
     "attribute_groups": [
@@ -49,7 +56,14 @@ LOAD_TEST_REPORT_TYPE_DEFINITION: dict = {
 }
 
 
-def build_fake_source_payload(source_id: str = DEFAULT_STORY_SOURCE_ID, *, index: int = 1) -> dict:
+def uuid7str() -> str:
+    if stdlib_uuid7 is not None:
+        return str(stdlib_uuid7())
+    fallback_uuid7str = getattr(import_module("uuid_extensions"), "uuid7str")
+    return str(fallback_uuid7str())
+
+
+def build_fake_source_payload(source_id: str = DEFAULT_STORY_SOURCE_ID, *, index: int = 1) -> SeedPayload:
     source_name = "Load Test Source" if index == 1 else f"Load Test Source {index}"
     return {
         "id": source_id,
@@ -80,7 +94,7 @@ def build_report_type_titles(
     return [base_title] + [f"{base_title} {index}" for index in range(2, count + 1)]
 
 
-def _normalize_story_payload(raw_story: dict, source_id: str) -> dict:
+def _normalize_story_payload(raw_story: SeedPayload, source_id: str) -> SeedPayload:
     allowed_story_fields = {
         "id",
         "title",
@@ -148,7 +162,7 @@ def _build_news_item_hash(story_index: int, news_item_index: int) -> str:
 def load_story_seed_payloads(
     source_ids: list[str] | None = None,
     limit: int = DEFAULT_STORY_COUNT,
-) -> list[dict]:
+) -> list[SeedPayload]:
     if limit < 1:
         raise ValueError("story count must be at least 1")
 
@@ -163,7 +177,7 @@ def load_story_seed_payloads(
 
     now = datetime.now(timezone.utc).replace(microsecond=0)
     fresh_story_count = max(limit - 5, 1)
-    stories: list[dict] = []
+    stories: list[SeedPayload] = []
 
     for index in range(limit):
         template = raw_stories[index % len(raw_stories)]
@@ -203,7 +217,7 @@ def build_report_payload(
     report_type_id: str,
     title: str,
     report_id: str | None = None,
-) -> dict:
+) -> SeedPayload:
     return {
         "id": report_id or uuid7str(),
         "title": title,
