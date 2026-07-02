@@ -20,11 +20,10 @@
         </div>
 
         {{ form_textarea(label='Group Description', name=name_prefix ~ '[description]', value=group.description or '', required=False) }}
-        {% set highest_index = group.attribute_group_items | map(attribute='index') | list | max | default(-1) %}
         <button type="button"
                 class="btn btn-primary"
                 hx-post="{{ url_for('admin.add_report_item_types_group_item') }}"
-                hx-vals='{"attribute_group_index": "{{ group.index }}", "attribute_index": "{{ highest_index + 1 }}"}'
+          hx-vals='js:{"attribute_group_index": {{ group.index }}, "attribute_index": Math.max(-1, ...Array.from(document.querySelectorAll("#attribute-items-container-{{ group.index }} input[name$=\"[index]\"]")).map((input) => Number(input.value) || -1)) + 1}'
                 hx-target="#attribute-items-container-{{ group.index }}"
                 hx-swap="beforeend">+ Add New Attribute</button>
 
@@ -44,10 +43,10 @@
   {% set name_prefix = 'attribute_groups[' ~ group_index ~ '][attribute_group_items][' ~ attribute_index ~ ']' %}
   <div class="card bg-base-100">
     <div class="join gap-1">
-      {{ form_input_content(label='Attribute Title', name=name_prefix ~ '[title]', value=attribute.title or '', input_class="input-sm") }}
+      {{ form_input_content(label='Attribute Title', name=name_prefix ~ '[title]', value=attribute.title or '', input_class="input-sm", preserve=False) }}
       {{ form_select(label='Attribute Type', name=name_prefix ~ '[attribute_id]', value=attribute.attribute_id or '', options=attribute_types, width="w-full select-sm") }}
-      {{ form_input_content(label='Attribute Index', name=name_prefix ~ '[index]', value=attribute_index, type="number", input_class="input-sm", width="w-xs") }}
-      {{ form_input_content(label='Attribute Description', name=name_prefix ~ '[description]', value=attribute.description or '', input_class="input-sm", required=false) }}
+      {{ form_input_content(label='Attribute Index', name=name_prefix ~ '[index]', value=attribute_index, type="number", input_class="input-sm", width="w-xs", preserve=False) }}
+      {{ form_input_content(label='Attribute Description', name=name_prefix ~ '[description]', value=attribute.description or '', input_class="input-sm", required=false, preserve=False) }}
       <fieldset class="fieldset bg-base-100 border-base-300 px-2 -mt-6">
         <legend class="fieldset-legend text-xs mb-0">Required</legend>
         <label class="label -mt-2 w-10 inline-block">
