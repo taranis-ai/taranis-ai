@@ -1,0 +1,42 @@
+@keyframes fadeInUp {
+  from { opacity:0; transform: translateY(20px) scale(0.95); }
+  to { opacity:1; transform: translateY(0) scale(1); }
+}
+
+svg path { opacity: 0; }
+svg path:nth-of-type(1) {
+  animation: fadeInUp 0.8s ease-out 0.0s both;
+}
+svg path:nth-of-type(2) {
+  animation: fadeInUp 0.8s ease-out 0.1s both;
+}
+svg path:nth-of-type(3) {
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+svg path:nth-of-type(4) {
+  animation: fadeInUp 0.8s ease-out 0.3s both;
+}
+svg path:nth-of-type(5) {
+  animation: fadeInUp 0.8s ease-out 0.4s both;
+}
+svg path:nth-of-type(6) {
+  animation: fadeInUp 0.8s ease-out 0.5s both;
+}
+svg path:nth-of-type(7) {
+  animation: fadeInUp 0.8s ease-out 0.6s both;
+}
+svg path:nth-of-type(8) {
+  animation: fadeInUp 0.8s ease-out 0.7s both;
+}
+svg path:nth-of-type(9) {
+  animation: fadeInUp 0.8s ease-out 0.8s both;
+}
+svg path:nth-of-type(10) {
+  animation: fadeInUp 0.8s ease-out 0.9s both;
+}
+svg path:nth-of-type(11) {
+  animation: fadeInUp 0.8s ease-out 1.0s both;
+}
+svg path:nth-of-type(12) {
+  animation: fadeInUp 0.8s ease-out 1.1s both;
+}
