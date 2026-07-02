@@ -28,7 +28,7 @@
                 x-show="selectedItems.length === 1"
                 data-tip="{{ _('Edit') }}"
                 @click="openStoryEdit()"
-                @keyup.shift.e.prevent.window="canUseAssessShortcut($event) && selectedItems.length === 1 && openStoryEdit()">
+                @keyup.window="canUseAssessShortcut($event, 'e') && selectedItems.length === 1 && openStoryEdit()">
           {{ heroicon_mini("pencil") }}
           <span class="text-sm sr-only 2xl:not-sr-only">Edit</span>
           <span class="text-xs opacity-80" x-show="showHints">
@@ -42,7 +42,7 @@
                 x-show="selectedItems.length >= 2"
                 data-tip="{{ _('Cluster') }}"
                 hx-trigger="click"
-                @keyup.shift.g.prevent.window="canUseAssessShortcut($event) && selectedItems.length >= 2 && $refs.clusterButton.click()"
+                @keyup.window="canUseAssessShortcut($event, 'g') && selectedItems.length >= 2 && $refs.clusterButton.click()"
                 hx-get="{{ url_for('assess.cluster_story') }}"
                 hx-target="body"
                 hx-swap="beforeend"
@@ -135,7 +135,7 @@
           <button type="button"
                   class="btn btn-outline tooltip"
                   data-tip="{{ _('Select all') }}"
-                  @keyup.shift.a.window="canUseAssessShortcut($event) && selectAll()"
+                  @keyup.window="canUseAssessShortcut($event, 'a') && selectAll()"
                   @click="selectAll() "
                   data-testid="assess-select-all-button">
             {{ heroicon_mini("check-circle") }}

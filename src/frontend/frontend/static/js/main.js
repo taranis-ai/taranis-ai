@@ -26,8 +26,8 @@ function getConfirmOptions(el, question) {
   };
 }
 
-function showConfirmDialog(opts) {
-  return Swal.fire({ ...opts, showCancelButton: true });
+function showConfirmDialog(opts, target) {
+  return Swal.fire({ ...opts, target, showCancelButton: true });
 }
 
 const viewportWarningStorageKey = "taranis.viewportWarningDismissed";
@@ -144,7 +144,7 @@ function omniSearch(searchUrl) {
   };
 }
 
-function canUseAssessShortcut(event) {
+function canUseAssessShortcut(event, key = null) {
   if (event?.defaultPrevented) {
     return false;
   }
@@ -154,7 +154,11 @@ function canUseAssessShortcut(event) {
     return false;
   }
 
-  return !document.querySelector("dialog[open]");
+  if (document.querySelector("dialog[open]")) {
+    return false;
+  }
+
+  return key === null || (event?.shiftKey && event?.key?.toLowerCase() === key.toLowerCase());
 }
 
 if (document.readyState === "loading") {
@@ -181,7 +185,7 @@ document.body.addEventListener("htmx:confirm", function (evt) {
 
   evt.preventDefault();
   const opts = getConfirmOptions(triggerElement, evt.detail.question);
-  showConfirmDialog(opts).then((r) => {
+  showConfirmDialog(opts, triggerElement.closest("dialog[open]") || document.body).then((r) => {
     if (r.isConfirmed) {
       evt.detail.issueRequest(true);
     }

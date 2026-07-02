@@ -78,8 +78,10 @@ class Settings(BaseSettings):
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
         if not self.SQLALCHEMY_DATABASE_URI or len(self.SQLALCHEMY_DATABASE_URI) < 1:
-            self.SQLALCHEMY_DATABASE_URI = (
-                f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD.get_secret_value()}@{self.DB_URL}/{self.DB_DATABASE}"
+            object.__setattr__(
+                self,
+                "SQLALCHEMY_DATABASE_URI",
+                f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD.get_secret_value()}@{self.DB_URL}/{self.DB_DATABASE}",
             )
         if self.SQLALCHEMY_DATABASE_URI.startswith("sqlite:"):
             self.SQLALCHEMY_ENGINE_OPTIONS.update({"connect_args": {"timeout": self.SQLALCHEMY_CONNECT_TIMEOUT}})
@@ -97,7 +99,7 @@ class Settings(BaseSettings):
         if self.SQLALCHEMY_POOL_RECYCLE is not None:
             update_payload["pool_recycle"] = self.SQLALCHEMY_POOL_RECYCLE
         self.SQLALCHEMY_ENGINE_OPTIONS.update(update_payload)
-        self.SQLALCHEMY_DATABASE_URI_MASK = mask_db_uri(self.SQLALCHEMY_DATABASE_URI)
+        object.__setattr__(self, "SQLALCHEMY_DATABASE_URI_MASK", mask_db_uri(self.SQLALCHEMY_DATABASE_URI))
         return self
 
     TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "dev"] = "database"
@@ -115,6 +117,7 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: SecretStr | None = None
+    RQ_DEFAULT_JOB_TIMEOUT: int = 180
     CACHE_ENABLED: bool = CACHE_ENABLED_DEFAULT
     CACHE_DEFAULT_TIMEOUT: int = CACHE_DEFAULT_TIMEOUT_DEFAULT
     CACHE_KEY_PREFIX: str = CACHE_KEY_PREFIX_DEFAULT
