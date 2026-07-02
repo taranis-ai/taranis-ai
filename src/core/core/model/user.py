@@ -272,42 +272,49 @@ class User(BaseModel):
         return f"Imported {imported_count} user(s); skipped {skipped_count} user(s)"
 
     @classmethod
+    def _sanity_check_import_user(cls, user: Any, seen_usernames: set[str]) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+        if not isinstance(user, dict):
+            logger.warning("Skipped user import: item is not a dict")
+            return None, cls._skipped_import_user(None, "invalid item type")
+
+        username = user.get("username")
+        if not isinstance(username, str) or not username.strip():
+            logger.warning("Skipped user import: missing or invalid username")
+            return None, cls._skipped_import_user(username, "missing or invalid username")
+
+        name = user.get("name")
+        if not isinstance(name, str):
+            logger.warning(f"Skipped user import for {username}: missing or invalid name")
+            return None, cls._skipped_import_user(username, "missing or invalid name")
+
+        username = username.strip()
+        if cls.find_by_name(username):
+            logger.warning(f"User {username} already exists")
+            return None, cls._skipped_import_user(username, "user already exists")
+        if username in seen_usernames:
+            logger.warning(f"Skipped user import for {username}: duplicate username in import file")
+            return None, cls._skipped_import_user(username, "duplicate username in import file")
+
+        import_user = dict(user)
+        import_user["username"] = username
+        import_user.setdefault("organization", None)
+        import_user.setdefault("roles", [])
+        return import_user, None
+
+    @classmethod
     def import_users(cls, user_list: list) -> dict[str, Any]:
         imported_users = []
         skipped_users = []
         staged_users = []
         seen_usernames = set()
         for user in user_list:
-            if not isinstance(user, dict):
-                logger.warning("Skipped user import: item is not a dict")
-                skipped_users.append(cls._skipped_import_user(None, "invalid item type"))
+            import_user, skipped_user = cls._sanity_check_import_user(user, seen_usernames)
+            if skipped_user is not None:
+                skipped_users.append(skipped_user)
                 continue
-
-            username = user.get("username")
-            if not isinstance(username, str) or not username.strip():
-                logger.warning("Skipped user import: missing or invalid username")
-                skipped_users.append(cls._skipped_import_user(username, "missing or invalid username"))
+            if import_user is None:
                 continue
-
-            name = user.get("name")
-            if not isinstance(name, str):
-                logger.warning(f"Skipped user import for {username}: missing or invalid name")
-                skipped_users.append(cls._skipped_import_user(username, "missing or invalid name"))
-                continue
-
-            username = username.strip()
-            if cls.find_by_name(username):
-                logger.warning(f"User {username} already exists")
-                skipped_users.append(cls._skipped_import_user(username, "user already exists"))
-                continue
-            if username in seen_usernames:
-                logger.warning(f"Skipped user import for {username}: duplicate username in import file")
-                skipped_users.append(cls._skipped_import_user(username, "duplicate username in import file"))
-                continue
-            import_user = dict(user)
-            import_user["username"] = username
-            import_user.setdefault("organization", None)
-            import_user.setdefault("roles", [])
+            username = import_user["username"]
             try:
                 staged_users.append((username, cls.from_dict(import_user)))
                 seen_usernames.add(username)
