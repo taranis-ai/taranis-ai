@@ -1,16 +1,17 @@
-name: Manual load testing
+name: Release gate tests
 
 on:
   workflow_dispatch:
     inputs:
-      profile:
-        description: "Load profile"
+      tests:
+        description: "Release gate to run"
         required: true
-        default: "smoke"
+        default: "all"
         type: choice
         options:
-          - smoke
-          - browser_load
+          - all
+          - postgres-tls
+          - load
       users:
         description: "Optional Locust user override"
         required: false
@@ -31,39 +32,29 @@ permissions:
   contents: read
 
 jobs:
-  load_test:
+  release_gate:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Run browser load test
+      - name: Run release gate tests
         env:
-          LOAD_RUN_ID: github-${{ github.run_id }}
-          LOAD_ARTIFACT_DIR: ${{ github.workspace }}/src/frontend/tests/load/artifacts/github-${{ github.run_id }}
+          DOCKER_IMAGE_NAMESPACE: ghcr.io/taranis-ai
+          TARANIS_TAG: latest
+          LOAD_RUN_ID: ${{ github.run_id }}
+          LOAD_ARTIFACT_DIR: ${{ github.workspace }}/release-gate-artifacts/load-${{ github.run_id }}
+          LOCUST_USERS: ${{ inputs.users }}
+          LOCUST_SPAWN_RATE: ${{ inputs.spawn_rate }}
+          LOCUST_RUN_TIME: ${{ inputs.run_time }}
         run: |
-          chmod +x ./dev/run_e2e_load_tests.sh
-          args=(--profile "${{ inputs.profile }}")
+          ./docker/run_release_gate_tests.sh "${{ inputs.tests }}"
 
-          if [ -n "${{ inputs.users }}" ]; then
-            args+=(--users "${{ inputs.users }}")
-          fi
-
-          if [ -n "${{ inputs.spawn_rate }}" ]; then
-            args+=(--spawn-rate "${{ inputs.spawn_rate }}")
-          fi
-
-          if [ -n "${{ inputs.run_time }}" ]; then
-            args+=(--run-time "${{ inputs.run_time }}")
-          fi
-
-          ./dev/run_e2e_load_tests.sh "${args[@]}"
-
-      - name: Upload load test artifacts
+      - name: Upload release gate artifacts
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: load-test-artifacts-${{ github.run_id }}
-          path: src/frontend/tests/load/artifacts/github-${{ github.run_id }}
+          name: release-gate-artifacts-${{ github.run_id }}
+          path: release-gate-artifacts
           if-no-files-found: warn

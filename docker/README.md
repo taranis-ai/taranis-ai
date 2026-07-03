@@ -54,6 +54,48 @@ http://<url>:<TARANIS_PORT>/login
 
 See [dev Readme](/dev/README.md) for a quick way to get a development environment running.
 
+## Release gate tests
+
+Before tagging or publishing a release, run the release gate against the already published `:latest` images from `ghcr.io/taranis-ai`:
+
+```bash
+./docker/run_release_gate_tests.sh
+```
+
+The default gate runs the PostgreSQL TLS multiprocess smoke test and then the load test. To rerun one gate:
+
+```bash
+./docker/run_release_gate_tests.sh postgres-tls
+./docker/run_release_gate_tests.sh load
+```
+
+The same gate is available as the manual GitHub Actions workflow `Release gate tests`. It does not build application images. It pulls `ghcr.io/taranis-ai/taranis-core:latest`, `ghcr.io/taranis-ai/taranis-frontend:latest`, `ghcr.io/taranis-ai/taranis-ingress:latest`, and `ghcr.io/taranis-ai/load-test:latest`.
+
+Useful overrides:
+
+```bash
+DOCKER_IMAGE_NAMESPACE=ghcr.io/taranis-ai TARANIS_TAG=latest ./docker/run_release_gate_tests.sh
+LOCUST_USERS=10 LOCUST_SPAWN_RATE=2 LOCUST_RUN_TIME=10m ./docker/run_release_gate_tests.sh load
+```
+
+Load-test artifacts are written to `$LOAD_ARTIFACT_DIR` when set, otherwise to a temporary directory.
+
+## PostgreSQL TLS multiprocess smoke test
+
+To verify that the `core` service works with PostgreSQL TLS and multiple Granian workers:
+
+```bash
+./docker/test_core_postgres_tls_multiprocess.sh
+```
+
+The script pulls the configured `taranis-core` image, starts only `database`, `redis`, and `core`, requires PostgreSQL TLS, probes `/api/health`, checks for SSL worker failures, and cleans up its containers and volumes.
+
+For Podman-compatible environments, use an existing image and pass the compose command explicitly if needed:
+
+```bash
+CONTAINER_CLI=podman COMPOSE_CMD="podman compose" ./docker/test_core_postgres_tls_multiprocess.sh
+```
+
 ## Initial Setup 👤
 
 **The default credentials are `user` / `user` and `admin` / `admin`.**
