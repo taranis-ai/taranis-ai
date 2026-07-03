@@ -36,7 +36,7 @@ Start-up application
 docker compose up -d
 ```
 
-Worker-related services (`collector`, `workers`, `cron`) use the packaged `taranis-worker-healthcheck` command for container health probes.
+The `core` healthcheck runs every 5 minutes because it performs non-trivial service checks. Worker-related services (`collector`, `workers`, `cron`) use the packaged `taranis-worker-healthcheck` command for container health probes.
 
 **Note:** If you have development environment variables set (e.g., from sourcing `dev/env.dev`), unset `TARANIS_CORE_URL` for the Docker command to avoid configuration conflicts:
 
@@ -116,6 +116,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
 | `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
+| `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
 
 ### `worker`
 
@@ -136,6 +137,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `JWT_SECRET_KEY`        | JWT token secret key.                      | `supersecret`               |
 | `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
 | `DEBUG`                 | Debug logging                              | `False`                     |
+| `GRANIAN_WORKERS_MAX_RSS` | Per-worker Granian RSS recycle limit in MiB | `1024`       |
 
 
 > [!NOTE]
