@@ -16,6 +16,7 @@ from models.types import COLLECTOR_TYPES
 from models.user import AssessSavedFilter
 
 from frontend.cache import add_user_to_cache, cache
+from frontend.cache_models import CacheObject
 from frontend.config import Config
 from frontend.views.admin_views.dashboard_views import AdminDashboardView
 from frontend.views.admin_views.report_type_views import ReportItemTypeView
@@ -412,6 +413,29 @@ class TestSourceView:
 
 
 class TestWordListView:
+    def test_table_container_actions_replace_outer_html(self, app):
+        with app.test_request_context("/admin/word_lists"):
+            word_lists = CacheObject([])
+            context = WordListView.get_view_context(word_lists)
+            context["word_lists"] = word_lists
+            tree = html.fromstring(render_template(WordListView.get_htmx_list_template(), **context))
+
+        container_nodes = tree.xpath('//*[@id="word_list-table-container"]')
+        assert container_nodes, "Expected #word_list-table-container in rendered template"
+
+        load_default_buttons = tree.xpath('//*[@data-testid="load-default-word_list-button"]')
+        assert load_default_buttons, "Expected load-default-word_list-button in rendered template"
+        load_default_button = load_default_buttons[0]
+
+        delete_buttons = tree.xpath('//*[@data-testid="delete-word_list-button"]')
+        assert delete_buttons, "Expected delete-word_list-button in rendered template"
+        delete_button = delete_buttons[0]
+
+        assert load_default_button.get("hx-target") == "#word_list-table-container"
+        assert load_default_button.get("hx-swap") == "outerHTML"
+        assert delete_button.get("hx-target") == "#word_list-table-container"
+        assert delete_button.get("hx-swap") == "outerHTML"
+
     def test_import_post_view_no_file_renders_inline_error(self, authenticated_client):
         resp = authenticated_client.post(WordListView.get_import_route(), data={}, content_type="multipart/form-data")
 
