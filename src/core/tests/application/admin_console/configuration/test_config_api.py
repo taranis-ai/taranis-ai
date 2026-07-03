@@ -454,12 +454,6 @@ class TestWorkerSourceIcon(BaseTest):
     base_uri = "/api/worker"
 
     def test_worker_icon_upload_rejects_invalid_image(self, client, auth_header, api_header, cleanup_sources, monkeypatch):
-        error_messages: list[str] = []
-        warning_messages: list[str] = []
-
-        monkeypatch.setattr("core.api.worker.logger.error", error_messages.append)
-        monkeypatch.setattr("core.api.worker.logger.warning", warning_messages.append)
-
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
@@ -468,6 +462,11 @@ class TestWorkerSourceIcon(BaseTest):
         assert create_response.status_code == 201
 
         try:
+            error_messages: list[str] = []
+            warning_messages: list[str] = []
+            monkeypatch.setattr("core.api.worker.logger.error", error_messages.append)
+            monkeypatch.setattr("core.api.worker.logger.warning", warning_messages.append)
+
             upload_headers = dict(api_header)
             upload_headers.pop("Content-type", None)
 
