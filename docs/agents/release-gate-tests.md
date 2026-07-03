@@ -9,12 +9,13 @@ Release gates run against already published images, defaulting to `ghcr.io/taran
 ## Code Paths
 - `docker/run_release_gate_tests.sh`
 - `docker/test_core_postgres_tls_multiprocess.sh`
+- `docker/postgres-tls/`
 - `docker/compose-variations/compose.load.yml`
 - `.github/workflows/load_testing.yml`
 - `docker/README.md`
 
 ## Data Flow
-The release-gate runner exports shared image defaults, then dispatches named shell gates. The TLS gate uses `docker/compose.yml` plus `docker/compose.core-postgres-tls.yml`. The load gate uses `docker/compose-variations/compose.load.yml` and writes Locust artifacts to `LOAD_ARTIFACT_DIR`.
+The release-gate runner exports shared image defaults, then dispatches named shell gates. The TLS gate creates temporary PostgreSQL certs, then uses `docker/compose.yml` plus `docker/compose.core-postgres-tls.yml`; static TLS entrypoint/init scripts live in `docker/postgres-tls/`. The load gate uses `docker/compose-variations/compose.load.yml` and writes Locust artifacts to `LOAD_ARTIFACT_DIR`.
 
 ## Testing
 Run `bash -n docker/run_release_gate_tests.sh docker/test_core_postgres_tls_multiprocess.sh`. Render the load compose config and confirm release app services have `image` entries and no `build` blocks. When Docker is available, run `./docker/run_release_gate_tests.sh postgres-tls` and `./docker/run_release_gate_tests.sh load`.

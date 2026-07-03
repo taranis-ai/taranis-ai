@@ -18,7 +18,7 @@ services:
       start_period: 10s
 
   database:
-    entrypoint: ["/bin/sh", "/tls/postgres-entrypoint.sh"]
+    entrypoint: ["/bin/sh", "/postgres-tls/postgres-entrypoint.sh"]
     command:
       [
         "postgres",
@@ -36,4 +36,5 @@ services:
     volumes:
       - "database_data:/var/lib/postgresql/data"
       - "${TARANIS_POSTGRES_TLS_DIR:?set TARANIS_POSTGRES_TLS_DIR}/:/tls:ro"
-      - "${TARANIS_POSTGRES_TLS_DIR:?set TARANIS_POSTGRES_TLS_DIR}/001-require-ssl.sh:/docker-entrypoint-initdb.d/001-require-ssl.sh:ro"
+      - "./postgres-tls/001-require-ssl.sh:/docker-entrypoint-initdb.d/001-require-ssl.sh:ro"
+      - "./postgres-tls/postgres-entrypoint.sh:/postgres-tls/postgres-entrypoint.sh:ro"

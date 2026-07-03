@@ -82,34 +82,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-cat >"$TMP_DIR/postgres-entrypoint.sh" <<'SH'
-#!/bin/sh
-set -eu
-
-cp /tls/server.crt /var/lib/postgresql/server.crt
-cp /tls/server.key /var/lib/postgresql/server.key
-chmod 0644 /var/lib/postgresql/server.crt
-chmod 0600 /var/lib/postgresql/server.key
-chown postgres:postgres /var/lib/postgresql/server.crt /var/lib/postgresql/server.key 2>/dev/null || true
-
-exec docker-entrypoint.sh "$@"
-SH
-chmod +x "$TMP_DIR/postgres-entrypoint.sh"
-
-cat >"$TMP_DIR/001-require-ssl.sh" <<'SH'
-#!/bin/sh
-set -eu
-
-cat >"$PGDATA/pg_hba.conf" <<'HBA'
-local all all trust
-hostnossl all all 0.0.0.0/0 reject
-hostnossl all all ::/0 reject
-hostssl all all 0.0.0.0/0 scram-sha-256
-hostssl all all ::/0 scram-sha-256
-HBA
-SH
-chmod +x "$TMP_DIR/001-require-ssl.sh"
-
 openssl req \
   -new \
   -x509 \
