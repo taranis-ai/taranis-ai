@@ -6,6 +6,8 @@ from flask import Flask, current_app, g, request
 from flask_babel import Babel, get_locale, get_timezone, gettext
 from flask_jwt_extended import current_user
 
+from frontend.log import logger
+
 
 babel = Babel()
 
@@ -65,29 +67,39 @@ def _accepted_locale() -> str | None:
 
 
 def _current_request_user() -> Any | None:
-    if getattr(g, "skip_current_user_injection", False):
-        return None
-
     try:
-        return current_user if current_user else None
+        user = current_user if current_user else None
     except RuntimeError:
-        return None
+        user = None
+
+    if user is None and not getattr(g, "missing_i18n_user_logged", False):
+        g.missing_i18n_user_logged = True
+        logger.error("i18n requested without authenticated user; route should verify JWT before rendering")
+
+    return user
 
 
 def select_locale() -> str:
     supported_locales = _supported_locales()
-    default_locale = _default_locale()
 
-    if user := _current_request_user():
+    if getattr(g, "skip_current_user_injection", False):
+        return _accepted_locale() or _default_locale()
+
+    user = _current_request_user()
+    if user:
         language = _profile_language(user)
         if language in supported_locales:
             return language
 
-    return _accepted_locale() or default_locale
+    return _accepted_locale() or _default_locale()
 
 
 def select_timezone() -> str:
-    if user := _current_request_user():
+    if getattr(g, "skip_current_user_injection", False):
+        return _default_timezone()
+
+    user = _current_request_user()
+    if user:
         if timezone_name := _valid_timezone(_profile_value(user, "timezone")):
             return timezone_name
 
