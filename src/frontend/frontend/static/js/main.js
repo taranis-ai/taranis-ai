@@ -26,8 +26,8 @@ function getConfirmOptions(el, question) {
   };
 }
 
-function showConfirmDialog(opts) {
-  return Swal.fire({ ...opts, showCancelButton: true });
+function showConfirmDialog(opts, target) {
+  return Swal.fire({ ...opts, target, showCancelButton: true });
 }
 
 const viewportWarningStorageKey = "taranis.viewportWarningDismissed";
@@ -185,7 +185,7 @@ document.body.addEventListener("htmx:confirm", function (evt) {
 
   evt.preventDefault();
   const opts = getConfirmOptions(triggerElement, evt.detail.question);
-  showConfirmDialog(opts).then((r) => {
+  showConfirmDialog(opts, triggerElement.closest("dialog[open]") || document.body).then((r) => {
     if (r.isConfirmed) {
       evt.detail.issueRequest(true);
     }

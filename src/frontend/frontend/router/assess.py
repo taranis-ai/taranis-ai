@@ -51,7 +51,20 @@ def init(app: Flask):
     assess_bp.add_url_rule("/ungroup/<string:story_id>", view_func=StoryView.ungroup, methods=["POST"], endpoint="ungroup")
     assess_bp.add_url_rule("/search", view_func=StoryView.get_search_dialog, methods=["GET"], endpoint="search_stories")
     assess_bp.add_url_rule("/search", view_func=StoryView.submit_search_dialog, methods=["POST"], endpoint="submit_search_stories")
-    assess_bp.add_url_rule("/default-filters", view_func=StoryView.save_default_filters, methods=["POST"], endpoint="save_default_filters")
+    assess_bp.add_url_rule("/saved-filters", view_func=StoryView.get_saved_filters_dialog, methods=["GET"], endpoint="saved_filters")
+    assess_bp.add_url_rule("/saved-filters", view_func=StoryView.save_saved_filter, methods=["POST"], endpoint="save_saved_filter")
+    assess_bp.add_url_rule(
+        "/saved-filters/<string:filter_id>/default",
+        view_func=StoryView.set_saved_filter_default,
+        methods=["POST"],
+        endpoint="set_saved_filter_default",
+    )
+    assess_bp.add_url_rule(
+        "/saved-filters/<string:filter_id>",
+        view_func=StoryView.delete_saved_filter,
+        methods=["DELETE"],
+        endpoint="delete_saved_filter",
+    )
     assess_bp.add_url_rule("/story/sharing", view_func=StoryView.get_sharing_dialog, methods=["GET"], endpoint="share_story")
     assess_bp.add_url_rule("/story/sharing", view_func=StoryView.submit_sharing_dialog, methods=["POST"], endpoint="submit_share_story")
     assess_bp.add_url_rule("/story/report", view_func=StoryView.get_report_dialog, methods=["GET"], endpoint="report_story")

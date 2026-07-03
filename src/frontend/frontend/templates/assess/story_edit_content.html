@@ -63,7 +63,7 @@
           </a>
           <button type="button"
                   class="btn btn-outline btn-sm"
-                  hx-trigger="click, keyup[shiftKey && code == 'R' && canUseAssessShortcut(event)] from:body"
+                  hx-trigger="click, keydown[canUseAssessShortcut(event, 'r')] from:body"
                   hx-get="{{ url_for('assess.report_story') }}"
                   hx-target="body"
                   hx-swap="beforeend"
@@ -216,6 +216,7 @@
             <h3 class="card-title text-lg">Story status</h3>
             <div class="flex flex-wrap gap-3 text-sm">
               <span class="{{ cyber_chip_class }}">Cybersecurity · {{ story_cyber_status }}</span>
+              <span class="{{ sentiment_chip_class }}">Sentiment · {{ story_sentiment_status }}</span>
             </div>
           </div>
         </div>

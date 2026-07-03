@@ -1,5 +1,4 @@
 import json
-import secrets
 from datetime import datetime
 from typing import Any, Sequence
 
@@ -16,6 +15,7 @@ from models.user import (
     UserProfile,
 )
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 from werkzeug.security import generate_password_hash
@@ -29,6 +29,7 @@ from core.model.settings import Settings
 
 
 PROFILE_TEMPLATE: dict[str, Any] = ProfileSettings().model_dump(mode="json")
+REMOVED_PROFILE_KEYS = frozenset({"assess_default_filters"})
 ADMIN_ONBOARDING_TASK_IDS = (ADMIN_WELCOME_TOUR_ID, ADMIN_ADVANCED_TOUR_ID)
 USER_PRODUCT_OVERVIEW_PERMISSIONS = frozenset({"ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS"})
 
@@ -48,20 +49,29 @@ class User(BaseModel):
     roles: Mapped[list["Role"]] = relationship("Role", secondary="user_role")
     profile: Mapped[dict[str, Any]] = db.Column(db.JSON)
 
-    def __init__(self, username: str, name: str, organization: str | dict, roles: list[str], password=None, id=None, profile=None):
+    def __init__(
+        self,
+        username: str,
+        name: str,
+        organization: str | dict[str, str] | None,
+        roles: list[str],
+        password=None,
+        id=None,
+        profile: dict[str, Any] | None = None,
+    ):
         self.id = self.normalize_uuid_id(id)
         self.username = username
         self.name = name
         if password:
             self.password = generate_password_hash(password)
         organization_id = organization.get("id") if isinstance(organization, dict) else organization
-        if org := Organization.get(organization_id):
+        if organization_id is not None and (org := Organization.get(organization_id)):
             self.organization = org
         self.roles = Role.get_bulk(roles)
-        profile = dict(profile or {})
-        if not profile.get("timezone"):
-            profile["timezone"] = Settings.get_settings().get("default_timezone") or "UTC"
-        self.profile = ProfileSettings.model_validate(profile).model_dump(mode="json")
+        profile_payload = dict(profile or {})
+        if not profile_payload.get("timezone"):
+            profile_payload["timezone"] = Settings.get_settings().get("default_timezone") or "UTC"
+        self.profile = ProfileSettings.model_validate(profile_payload).model_dump(mode="json")
 
     @classmethod
     def find_by_name(cls, username: str) -> "User|None":
@@ -123,9 +133,13 @@ class User(BaseModel):
             *cls._pending_user_onboarding_tasks(profile, permissions),
         ]
 
+    @staticmethod
+    def _clean_profile_payload(profile: dict[str, Any] | None) -> dict[str, Any]:
+        return {key: value for key, value in (profile or {}).items() if key not in REMOVED_PROFILE_KEYS}
+
     def to_user_profile(self) -> UserProfile:
         permissions = self.get_permissions()
-        profile = ProfileSettings.model_validate(self.profile or {})
+        profile = ProfileSettings.model_validate(self._clean_profile_payload(self.profile))
         return UserProfile(
             id=self.id,
             username=self.username,
@@ -165,7 +179,7 @@ class User(BaseModel):
         if organization := data.pop("organization", None):
             if isinstance(organization, dict):
                 organization = organization.get("id") or organization.get("name")
-            if update_org := Organization.get(organization):
+            if organization is not None and (update_org := Organization.get(organization)):
                 user.organization = update_org
         if (roles := data.pop("roles", None)) is not None:
             user.roles = Role.get_bulk(roles)
@@ -236,12 +250,12 @@ class User(BaseModel):
         }
 
     def get_profile(self) -> dict:
-        return ProfileSettings.model_validate(self.profile or {}).model_dump(mode="json")
+        return ProfileSettings.model_validate(self._clean_profile_payload(self.profile)).model_dump(mode="json")
 
     @classmethod
     def update_profile(cls, user: "User", data: dict) -> tuple[dict, int]:
         logger.debug(f"Updating profile for user {user.username} with data: {data}")
-        merged = {**(user.profile or {}), **data}
+        merged = {**cls._clean_profile_payload(user.profile), **cls._clean_profile_payload(data)}
 
         try:
             validated = ProfileSettings.model_validate(merged)
@@ -263,17 +277,85 @@ class User(BaseModel):
         export_data = {"version": 1, "data": [user.to_export_dict() for user in data]} if data else {}
         return json.dumps(export_data).encode("utf-8")
 
+    @staticmethod
+    def _skipped_import_user(username: Any, reason: str) -> dict[str, str]:
+        return {"username": "" if username is None else str(username).strip(), "reason": reason}
+
+    @staticmethod
+    def _import_message(imported_count: int, skipped_count: int) -> str:
+        return f"Imported {imported_count} user(s); skipped {skipped_count} user(s)"
+
     @classmethod
-    def import_users(cls, user_list: list) -> list:
-        result = []
+    def _sanity_check_import_user(cls, user: Any, seen_usernames: set[str]) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+        if not isinstance(user, dict):
+            logger.warning("Skipped user import: item is not a dict")
+            return None, cls._skipped_import_user(None, "invalid item type")
+
+        username = user.get("username")
+        if not isinstance(username, str) or not username.strip():
+            logger.warning("Skipped user import: missing or invalid username")
+            return None, cls._skipped_import_user(username, "missing or invalid username")
+
+        name = user.get("name")
+        if not isinstance(name, str):
+            logger.warning(f"Skipped user import for {username}: missing or invalid name")
+            return None, cls._skipped_import_user(username, "missing or invalid name")
+
+        username = username.strip()
+        if cls.find_by_name(username):
+            logger.warning(f"User {username} already exists")
+            return None, cls._skipped_import_user(username, "user already exists")
+        if username in seen_usernames:
+            logger.warning(f"Skipped user import for {username}: duplicate username in import file")
+            return None, cls._skipped_import_user(username, "duplicate username in import file")
+
+        import_user = dict(user)
+        import_user["username"] = username
+        import_user.setdefault("organization", None)
+        import_user.setdefault("roles", [])
+        return import_user, None
+
+    @classmethod
+    def import_users(cls, user_list: list) -> dict[str, Any]:
+        imported_users = []
+        skipped_users = []
+        staged_users = []
+        seen_usernames = set()
         for user in user_list:
-            if cls.find_by_name(user["username"]):
-                logger.warning(f"User {user['username']} already exists")
+            import_user, skipped_user = cls._sanity_check_import_user(user, seen_usernames)
+            if skipped_user is not None:
+                skipped_users.append(skipped_user)
                 continue
-            user["password"] = secrets.token_urlsafe(16)
-            cls.add(user)
-            result.append({"username": user["username"], "password": user["password"]})
-        return result
+            if import_user is None:
+                continue
+            username = import_user["username"]
+            try:
+                staged_users.append((username, cls.from_dict(import_user)))
+                seen_usernames.add(username)
+            except (SQLAlchemyError, TypeError, ValueError, ValidationError) as exc:
+                logger.warning(f"Skipped user import for {username}: invalid user data ({exc})")
+                skipped_users.append(cls._skipped_import_user(username, "invalid user data"))
+                continue
+
+        try:
+            db.session.add_all([user for _, user in staged_users])
+            db.session.commit()
+        except SQLAlchemyError as exc:
+            db.session.rollback()
+            logger.warning(f"User import batch failed; rolled back staged users ({exc})")
+            skipped_users.extend(cls._skipped_import_user(username, "invalid user data") for username, _ in staged_users)
+        else:
+            imported_users = [{"username": username} for username, _ in staged_users]
+
+        imported_count = len(imported_users)
+        skipped_count = len(skipped_users)
+        return {
+            "users": imported_users,
+            "count": imported_count,
+            "skipped_users": skipped_users,
+            "skipped_count": skipped_count,
+            "message": cls._import_message(imported_count, skipped_count),
+        }
 
 
 class UserRole(BaseModel):

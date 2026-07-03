@@ -41,7 +41,7 @@ class ProductView(BaseView):
         ]
 
     @classmethod
-    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+    def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         product_types = DataPersistenceLayer().get_objects(ProductType)
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
         publishers = DataPersistenceLayer().get_objects(PublisherPreset)
@@ -101,14 +101,12 @@ class ProductView(BaseView):
     @classmethod
     @auth_required()
     def product_render(cls, product_id: str):
-        error = "Failed to render product"
         try:
             core_resp = CoreApi().render_product(product_id)
             if not core_resp.ok:
-                error = core_resp.json().get("error", "Unknown error")
+                return cls.get_notification_from_response(core_resp), core_resp.status_code
 
-            message = core_resp.json().get("message", "Unknown error")
-            return render_template("notification/index.html", notification={"message": message, "error": False}), 200
+            return cls.render_worker_task_notification(core_resp), 200
         except HTTPException:
             raise
         except Exception as e:
@@ -119,15 +117,13 @@ class ProductView(BaseView):
 
     @classmethod
     def product_publish(cls, product_id: str):
-        error = "Failed to publish product"
         try:
             publisher = request.form.get("publisher", "")
             core_resp = CoreApi().publish_product(product_id, publisher_id=publisher)
             if not core_resp.ok:
-                error = core_resp.json().get("error", "Unknown error")
+                return cls.get_notification_from_response(core_resp), core_resp.status_code
 
-            message = core_resp.json().get("message", "Unknown error")
-            return render_template("notification/index.html", notification={"message": message, "error": False}), 200
+            return cls.render_worker_task_notification(core_resp), 200
         except HTTPException:
             raise
         except Exception as e:

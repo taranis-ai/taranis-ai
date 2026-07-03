@@ -144,7 +144,7 @@
   {% set suggestion_list_id = id ~ "-suggestion-list" %}
   {% set selected_id = selected_container_id if selected_container_id else id ~ "-selected" %}
   {# djlint:off #}
-  <section class="space-y-2 relative"
+  <section class="relative"
            data-filter-id="{{ id }}"
            x-data='createAssessFilterSelect({
              id: {{ id | tojson }},
@@ -204,7 +204,7 @@
       </ul>
     </div>
 
-    <div id="{{ selected_id }}" class="mt-2 flex flex-wrap gap-2" data-test-id="{{ selected_id }}">
+    <div id="{{ selected_id }}" class="flex flex-wrap" data-test-id="{{ selected_id }}">
       <template x-for="item in selectedItems" :key="itemKey(item)">
         <div class="badge badge-primary inline-flex max-w-full items-center gap-2 overflow-hidden"
              :title="item.group ? item.group + ': ' + item.label : item.label">

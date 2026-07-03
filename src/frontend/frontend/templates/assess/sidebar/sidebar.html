@@ -68,7 +68,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
 
 </script>
 
-<div class="p-4 space-y-4">
+<div class="p-4">
   <section class="space-y-3">
     <div class="flex items-center justify-between">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Search &amp; Scope</h3>
@@ -116,7 +116,6 @@ document.addEventListener('htmx:afterSwap', function (event) {
         hx-include="#selected-tags"
         hx-trigger="change"
         hx-on:submit="event.preventDefault()">
-    {% include "assess/sidebar/source_select.html" %}
 
     <div class="divider text-xs">Filter</div>
     {# djlint: off #}
@@ -142,7 +141,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
              }'>
     {# djlint:on #}
     <button type="button"
-            class="btn btn-outline btn-sm mb-2 w-full"
+            class="btn btn-outline btn-xs mb-1 w-full"
             title="Clear time filters"
             hx-get="{{ base_url }}"
             hx-params="not timefrom,timeto,range"
@@ -190,6 +189,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
   </section>
 
   <section class="space-y-3 mt-2">
+    {% include "assess/sidebar/source_select.html" %}
     {% include "assess/sidebar/language_select.html" %}
 
     {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
@@ -243,6 +243,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
            hx-post="{{ url_for('user.settings') }}"
            hx-trigger="change"
            hx-swap="none"
+           hx-vals="js:{highlight: this.checked}"
            hx-on::after-request="window.location.reload()"
            {% if highlight %}checked{% endif %}>
     <span class="label-text">Highlight searchterms</span>
@@ -255,13 +256,14 @@ document.addEventListener('htmx:afterSwap', function (event) {
            hx-post="{{ url_for('user.settings') }}"
            hx-trigger="change"
            hx-swap="none"
+           hx-vals="js:{compact_view: this.checked}"
            hx-on::after-request="window.location.reload()"
            {% if compact_view %}checked{% endif %}>
     <span class="label-text">Compact view</span>
   </label>
 </section>
 
-<div class="space-y-3">
+<div class="space-y-2 mb-1">
   <a href="{{ base_url }}?reset=true" class="btn btn-primary btn-sm w-full" @keyup.ctrl.escape.prevent.window="$el.click()">
     {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
     Reset filters
@@ -271,11 +273,15 @@ document.addEventListener('htmx:afterSwap', function (event) {
   </a>
   <button type="button"
           class="btn btn-secondary btn-sm w-full"
-          data-tour-target="assess-save-default-filters"
-          hx-post="{{ url_for('assess.save_default_filters') }}"
+          data-testid="assess-saved-filters-button"
+          hx-get="{{ url_for('assess.saved_filters') }}"
           hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
-          hx-target="#notification-bar"
-          hx-target-error="#notification-bar">Save as default</button>
+          hx-target="body"
+          hx-swap="beforeend"
+          hx-on::before-request="document.getElementById('assess_saved_filters_dialog')?.remove()">
+    {{ heroicon_outline('bookmark-square', class='h-4 w-4') }}
+    Saved filters
+  </button>
   <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.get_news_item', news_item_id='0') }}">
     {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
     Create new item

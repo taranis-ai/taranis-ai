@@ -484,7 +484,7 @@ class ReportItem(BaseModel):
         return {"message": "Successfully added stories"}, 200
 
     @classmethod
-    def remove_stories(cls, report_id: str, story_ids: list[int], user: User) -> tuple[dict, int]:
+    def remove_stories(cls, report_id: str, story_ids: list[str], user: User) -> tuple[dict, int]:
         report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
         if err or not report_item:
             return err, status

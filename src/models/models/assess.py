@@ -163,7 +163,7 @@ class NewsItem(TaranisBaseModel):
     def sanitize_html(cls, value: str, info: ValidationInfo) -> str:
         if not value:
             return ""
-        html = re.sub(r"(?i)(&nbsp;|\xa0)", " ", value, re.DOTALL)
+        html = re.sub(r"(?i)(&nbsp;|\xa0)", " ", value)
         return BeautifulSoup(html, "lxml").text
 
     @field_validator("link", mode="before")

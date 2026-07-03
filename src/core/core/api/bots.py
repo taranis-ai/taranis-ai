@@ -93,7 +93,11 @@ class UpdateNewsItemAttributes(MethodView):
     @api_key_required
     def put(self, news_item_id):
         response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=_bot_actor())
-        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
+        invalidate_frontend_cache_on_success(
+            status,
+            scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS),
+            object_ids={"news_item": news_item_id},
+        )
         return response, status
 
 
