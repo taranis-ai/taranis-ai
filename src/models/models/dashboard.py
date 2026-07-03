@@ -22,6 +22,16 @@ class DashboardHealth(BaseModel):
     services: DashboardHealthServices
 
 
+class CoreHealth(TaranisBaseModel):
+    _core_endpoint = "/health"
+    _model_name = "core_health"
+    _pretty_name = "Core Health"
+    _cache_timeout = 5
+
+    healthy: bool
+    services: DashboardHealthServices
+
+
 class TaskStatusTotals(BaseModel):
     successes: int = 0
     failures: int = 0

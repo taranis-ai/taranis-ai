@@ -61,6 +61,7 @@ Task modules:
 - admin/config endpoints under `src/core/core/api/config.py` are for admin workflows; do not use them from user-facing views
 - when a user workflow needs product or publish-related reference data, expose it through a user-scoped endpoint in `src/core/core/api/publish.py`
 - declare matching user-facing model classes in `src/models/models/product.py` and import those from frontend publish views
+- frontend views should prefer `DataPersistenceLayer` over direct `CoreApi()` calls so cache behavior stays consistent; use `CoreApi()` directly only for raw response handling, downloads/streams, or endpoints that intentionally bypass cached model access
 
 ## Agent Memory Files
 

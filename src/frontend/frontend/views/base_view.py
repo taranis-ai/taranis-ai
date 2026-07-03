@@ -439,31 +439,59 @@ class BaseView(MethodView):
 
     @classmethod
     def get_notification_from_response(cls, response: RequestsResponse, oob: bool = True) -> str:
-        payload = None
-        try:
-            if response.content:
-                payload = response.json()
-        except Exception:
-            payload = None
+        payload = cls._response_payload(response)
         if not isinstance(payload, dict):
             return render_template("notification/index.html", notification={"message": "No response from core API", "error": True}, oob=oob)
         return render_template("notification/index.html", notification=cls.get_notification_from_dict(payload), oob=oob)
 
+    @staticmethod
+    def _response_payload(response: RequestsResponse | None) -> dict[str, Any] | None:
+        try:
+            if response is not None and response.content:
+                payload = response.json()
+                return payload if isinstance(payload, dict) else None
+        except Exception:
+            return None
+        return None
+
     @classmethod
-    def render_response_notification(cls, response: dict) -> str:
+    def render_response_notification(cls, response: dict[str, Any]) -> str:
         return render_template("notification/index.html", notification=cls.get_notification_from_dict(response))
+
+    @classmethod
+    def render_worker_task_notification(cls, response: RequestsResponse | None, oob: bool = True) -> str:
+        if response is None or not response.ok:
+            return (
+                cls.get_notification_from_response(response, oob=oob)
+                if response is not None
+                else render_template("notification/index.html", notification={"message": "No response from core API", "error": True}, oob=oob)
+            )
+
+        payload = cls._response_payload(response)
+        if not isinstance(payload, dict):
+            return render_template("notification/index.html", notification={"message": "No response from core API", "error": True}, oob=oob)
+
+        notification = cls.get_notification_from_dict(payload)
+        notification.setdefault("icon", "check-circle")
+        notification.setdefault("class", "alert-success")
+
+        health = DataPersistenceLayer().get_core_health()
+        if not notification.get("error") and health is not None and health.services.workers == "down":
+            message = str(notification.get("message") or "Task queued").rstrip(".")
+            notification |= {
+                "message": f"{message}. No workers are connected, so it may not be processed until a worker starts.",
+                "icon": "exclamation-triangle",
+                "class": "alert-warning",
+            }
+
+        return render_template("notification/index.html", notification=notification, oob=oob)
 
     @classmethod
     def add_flash_notification(cls, response: RequestsResponse | dict[str, Any] | None):
         if isinstance(response, dict):
             notification = cls.get_notification_from_dict(response)
         else:
-            payload = None
-            try:
-                if response and response.content:
-                    payload = response.json()
-            except Exception:
-                payload = None
+            payload = cls._response_payload(response)
             notification = (
                 cls.get_notification_from_dict(payload)
                 if isinstance(payload, dict)

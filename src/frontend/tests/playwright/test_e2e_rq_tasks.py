@@ -3,7 +3,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import redis
@@ -98,7 +98,10 @@ def _wait_for_next_job_result(
         raise RuntimeError(f"Timed out waiting for a fresh RQ result stream entry for job {job_id}")
 
     _, entries = response[0]  # type: ignore[assignment]
-    result_id, payload = entries[-1]
+    if not entries:
+        raise RuntimeError(f"Received an empty RQ result stream response for job {job_id}")
+    stream_entries = cast(list[tuple[bytes | str, Any]], entries)
+    result_id, payload = stream_entries[-1]
     decoded_result_id = _decode_redis_string(result_id)
     if not decoded_result_id:
         raise RuntimeError(f"Received an empty result stream id for job {job_id}")
