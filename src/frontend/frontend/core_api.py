@@ -91,6 +91,16 @@ class CoreApi:
             return None
         return self.check_response(response, url)
 
+    def get_health(self) -> dict[str, Any] | None:
+        url = f"{self.api_url}/health"
+        try:
+            response = self.session.get(url=url, headers=self.headers, timeout=self.timeout)
+            payload = response.json()
+        except (requests.exceptions.RequestException, ValueError) as e:
+            logger.error(f"Health check failed: {e}")
+            return None
+        return payload if isinstance(payload, dict) else None
+
     def api_download(self, endpoint: str, params: dict | None = None) -> requests.Response:
         url = f"{self.api_url}{endpoint}"
         return self.session.get(url=url, headers=self.headers, timeout=self.timeout, params=params, stream=True)
