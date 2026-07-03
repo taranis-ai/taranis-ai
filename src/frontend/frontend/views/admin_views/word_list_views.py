@@ -19,7 +19,7 @@ class WordListView(AdminBaseView):
     _index = 170
 
     @classmethod
-    def import_view(cls, error=None):
+    def import_view(cls, error: str | None = None):
         return render_template(f"{cls.model_name().lower()}/{cls.model_name().lower()}_import.html", error=error)
 
     @classmethod
@@ -90,11 +90,11 @@ class WordListView(AdminBaseView):
     def update_word_lists(cls, word_list_id: str | None = None):
         dpl = DataPersistenceLayer()
         core_response = CoreApi().update_word_lists(word_list_id)
-        if not core_response.ok:
-            response = cls.get_notification_from_response(core_response)
-            return response, core_response.status_code
+        if core_response is None or not core_response.ok:
+            response = cls.render_worker_task_notification(core_response)
+            return response, core_response.status_code if core_response is not None else 500
 
-        response = cls.get_notification_from_response(core_response)
+        response = cls.render_worker_task_notification(core_response)
 
         dpl.invalidate_cache_by_object(cls.model)
         dpl.invalidate_model_cache_locally(cls.model)

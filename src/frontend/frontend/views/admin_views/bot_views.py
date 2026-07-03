@@ -51,7 +51,7 @@ class BotView(AdminBaseView):
         return 0
 
     @classmethod
-    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+    def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         parameters = {}
         parameter_values = {}
 
@@ -100,9 +100,7 @@ class BotView(AdminBaseView):
     @admin_required()
     def execute_bot(cls, bot_id: str):
         response = CoreApi().execute_bot(bot_id)
-        if not response:
+        if response is None:
             logger.error("Failed to execute bot.")
-            return render_template("notification/index.html", notification={"message": "Failed to execute bot.", "error": True}), 500
-        return render_template(
-            "notification/index.html", notification={"message": "Bot executed successfully", "class": "alert-success"}
-        ), 200
+        status = response.status_code if response is not None else 500
+        return cls.render_worker_task_notification(response), status

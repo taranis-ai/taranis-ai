@@ -6,6 +6,7 @@ from flask import request
 from flask_jwt_extended import get_jwt_identity
 from models.base import T, TaranisBaseModel
 from models.cache_contract import CACHE_DEFAULT_LIST_SUFFIX, build_model_pattern
+from models.dashboard import CoreHealth
 from requests import Response
 
 from frontend.cache import cache
@@ -143,6 +144,20 @@ class DataPersistenceLayer:
             return cache_object
         logger.warning(f"Failed to fetch object from: {endpoint}")
 
+    def get_core_health(self) -> CoreHealth | None:
+        cache_key = self.make_detail_cache_key(CoreHealth)
+        cached_object = self._load_cached_object(cache_key, CoreHealth)
+        if cached_object is not None:
+            logger.debug(f"Cache hit for {cache_key}")
+            return cached_object
+
+        result = self.api.get_health()
+        if isinstance(result, dict):
+            health = CoreHealth(**result)
+            cache.set(key=cache_key, value=health.model_dump(mode="json"), timeout=CoreHealth._cache_timeout)
+            return health
+        logger.warning(f"Failed to fetch object from: {CoreHealth._core_endpoint}")
+
     def invalidate_cache(self, suffix: str | None = None) -> Response:
         if not suffix:
             return self._post_cache_invalidation(CACHE_INVALIDATION_MODE_ALL)
@@ -208,6 +223,7 @@ class DataPersistenceLayer:
     ) -> CacheObject[T]:
         cache_object = self._build_cache_object(object_model, result, paging_data)
         timeout = getattr(object_model, "_cache_timeout", cache_object.timeout)
+        timeout = int(timeout) if timeout is not None else None
         logger.debug(f"Adding {len(cache_object)} items from {endpoint} to cache with timeout: {timeout}")
         cache.set(key=self.make_list_cache_key(object_model, endpoint, paging_data), value=result, timeout=timeout)
         return cache_object
