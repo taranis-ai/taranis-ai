@@ -82,6 +82,7 @@ docker build -t taranis-core . -f ./docker/Containerfile.core
 docker build -t taranis-ingress . -f ./docker/Containerfile.ingress
 docker build -t taranis-worker . -f ./docker/Containerfile.worker
 docker build -t taranis-frontend . -f ./docker/Containerfile.frontend
+docker build -t taranis-locust . -f ./docker/Containerfile.locust
 ```
 
 There are several Dockerfiles and each of them builds a different component of the system. These Dockerfiles exist:
@@ -90,6 +91,7 @@ There are several Dockerfiles and each of them builds a different component of t
 - [Dockerfile.core](Dockerfile.core)
 - [Dockerfile.ingress](Dockerfile.ingress)
 - [Dockerfile.frontend](Dockerfile.frontend)
+- [Dockerfile.locust](Containerfile.locust) - internal load-testing image used by `./dev/run_e2e_load_tests.sh`, not part of the production deployment compose
 
 # Configuration
 

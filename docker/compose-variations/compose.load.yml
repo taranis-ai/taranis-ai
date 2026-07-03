@@ -26,7 +26,7 @@ services:
 
   core:
     build:
-      context: ../../../..
+      context: .
       dockerfile: docker/Containerfile.core
     environment:
       DB_URL: database
@@ -62,7 +62,7 @@ services:
 
   frontend:
     build:
-      context: ../../../..
+      context: .
       dockerfile: docker/Containerfile.frontend
     environment:
       TARANIS_CORE_URL: http://core:8080/api
@@ -85,7 +85,7 @@ services:
 
   ingress:
     build:
-      context: ../../../..
+      context: .
       dockerfile: docker/Containerfile.ingress
     environment:
       NGINX_WORKERS: "2"
@@ -110,8 +110,8 @@ services:
 
   locust:
     build:
-      context: ../../../..
-      dockerfile: src/frontend/tests/load/Containerfile
+      context: .
+      dockerfile: docker/Containerfile.locust
     working_dir: /artifacts
     command:
       [
@@ -147,7 +147,7 @@ services:
       TARANIS_LOAD_PASSWORD: test
       TARANIS_EXPECTED_REPORT_TITLE: Load Test Report ${SEED_REPORT_COUNT:-250}
     volumes:
-      - ../../../..:/workspace
+      - .:/workspace
       - ${LOAD_ARTIFACT_DIR:?set LOAD_ARTIFACT_DIR}:/artifacts
     depends_on:
       ingress:

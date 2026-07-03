@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FRONTEND_DIR="$ROOT_DIR/src/frontend"
-COMPOSE_FILE="$ROOT_DIR/src/frontend/tests/load/docker-compose.load.yml"
+COMPOSE_FILE="$ROOT_DIR/docker/compose-variations/compose.load.yml"
 ARTIFACTS_ROOT="$ROOT_DIR/src/frontend/tests/load/artifacts"
 LATEST_ARTIFACT_LINK="$ARTIFACTS_ROOT/latest"
 
@@ -120,7 +120,7 @@ export SEED_REPORT_COUNT="$REPORT_COUNT"
 mkdir -p "$ARTIFACT_DIR"
 
 compose() {
-  docker compose "${COMPOSE_ARGS[@]}" "$@"
+  docker compose --project-directory "$ROOT_DIR" "${COMPOSE_ARGS[@]}" "$@"
 }
 
 validate_iops_limit() {

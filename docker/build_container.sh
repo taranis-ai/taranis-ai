@@ -48,6 +48,13 @@ build_frontend() {
     --load .
 }
 
+build_locust() {
+  docker buildx build --file docker/Containerfile.locust \
+    --tag "${REPO}/taranis-locust:latest" \
+    --tag "${REPO}/taranis-locust:${CURRENT_BRANCH}" \
+    --load .
+}
+
 if [[ $# -eq 0 ]]; then
   echo "No specific container specified. Building all containers..."
   build_core
@@ -72,9 +79,13 @@ else
       echo "Building frontend container..."
       build_frontend
       ;;
+    locust)
+      echo "Building locust container..."
+      build_locust
+      ;;
     *)
       echo "Unknown container: $1"
-      echo "Usage: $0 [core|worker|ingress|frontend]"
+      echo "Usage: $0 [core|worker|ingress|frontend|locust]"
       exit 1
       ;;
   esac

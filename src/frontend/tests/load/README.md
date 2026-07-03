@@ -26,6 +26,7 @@ The runner prints the artifact directory and the main Locust output paths at sta
 Runner flow:
 
 - Docker Compose starts the disposable database, Redis, core, frontend, and ingress stack.
+- The Docker-facing load-test definitions live under `docker/` as an internal monorepo image setup, while the Locust code stays in `src/frontend/tests/load/`.
 - The host runner runs `tests.load.load_support.seed` against the exposed ingress API to create synthetic sources, stories, report types, and reports.
 - The `locust` service runs `locustfile.py` and writes standard Locust HTML and CSV artifacts.
 
@@ -89,6 +90,7 @@ cd src/frontend/tests/load && DEBUG=true uv run pytest test_seed_data.py
 ## Notes
 
 - This harness is intentionally browser-first and user-workspace-only.
+- The `locust` container is a monorepo-managed internal testing image. It is not part of the production deployment compose or release contract.
 - Seed data is treated as disposable for this harness. Rerunning the seed step against the same database may create additional rows instead of updating previous seeded records.
 - It does not include `worker` or `cron` in the load-test stack.
 - The Locust user class is generated from the load-test flow registry.
