@@ -109,9 +109,8 @@ services:
       start_period: 10s
 
   locust:
-    build:
-      context: .
-      dockerfile: docker/Containerfile.locust
+    image: ghcr.io/taranis-ai/load-test:latest
+    pull_policy: always
     working_dir: /artifacts
     command:
       [
@@ -135,10 +134,9 @@ services:
         "--csv",
         "/artifacts/locust",
         "-f",
-        "/workspace/src/frontend/tests/load/locustfile.py",
+        "/opt/loadtest/tests/load/locustfile.py",
       ]
     environment:
-      PYTHONPATH: /workspace/src/frontend
       PWHEADLESS: "1"
       PWBROWSER: chromium
       TARGET_HOST: http://ingress:8080
@@ -147,7 +145,6 @@ services:
       TARANIS_LOAD_PASSWORD: test
       TARANIS_EXPECTED_REPORT_TITLE: Load Test Report ${SEED_REPORT_COUNT:-250}
     volumes:
-      - .:/workspace
       - ${LOAD_ARTIFACT_DIR:?set LOAD_ARTIFACT_DIR}:/artifacts
     depends_on:
       ingress:
