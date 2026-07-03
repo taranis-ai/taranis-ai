@@ -551,13 +551,13 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_word_list():
             page.goto(url_for("admin.word_lists", _external=True))
-            expect(page.locator("#word_list-table-container")).to_be_visible()
+            expect(page.get_by_test_id("word_list-table-container")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_word_lists.png")
 
         def load_default_word_list():
-            load_default_button = page.get_by_role("button", name="Load default Word List")
+            load_default_button = page.get_by_test_id("load-default-word_list-button")
             expect(load_default_button).to_be_visible()
-            with_htmx_wait(page, load_default_button.click)
+            with_htmx_wait(page, lambda: load_default_button.click())
             page.get_by_role("row", name="Name Description Words Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-word_list-button")
             expect(delete_button).to_contain_text("Delete 9 Word List")
@@ -600,7 +600,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             with_htmx_wait(page, lambda: page.get_by_role("button", name="Import").click())
             page.get_by_role("button", name="Choose File").set_input_files(test_wordlist)
             with_htmx_wait(page, lambda: page.get_by_role("button", name="Submit").click())
-            expect(page.locator("#word_list-table-container")).to_be_visible()
+            expect(page.get_by_test_id("word_list-table-container")).to_be_visible()
+            expect(page.get_by_test_id("word_list-table_name").filter(has_text="Test wordlist")).to_be_visible()
             with page.expect_download() as download_info:
                 page.get_by_role("link", name="Export").click()
             assert download_info.value is not None

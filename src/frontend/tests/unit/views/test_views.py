@@ -420,8 +420,16 @@ class TestWordListView:
             context["word_lists"] = word_lists
             tree = html.fromstring(render_template(WordListView.get_htmx_list_template(), **context))
 
-        load_default_button = tree.xpath('//button[contains(normalize-space(), "Load default Word List")]')[0]
-        delete_button = tree.xpath('//*[@data-testid="delete-word_list-button"]')[0]
+        container_nodes = tree.xpath('//*[@id="word_list-table-container"]')
+        assert container_nodes, "Expected #word_list-table-container in rendered template"
+
+        load_default_buttons = tree.xpath('//*[@data-testid="load-default-word_list-button"]')
+        assert load_default_buttons, "Expected load-default-word_list-button in rendered template"
+        load_default_button = load_default_buttons[0]
+
+        delete_buttons = tree.xpath('//*[@data-testid="delete-word_list-button"]')
+        assert delete_buttons, "Expected delete-word_list-button in rendered template"
+        delete_button = delete_buttons[0]
 
         assert load_default_button.get("hx-target") == "#word_list-table-container"
         assert load_default_button.get("hx-swap") == "outerHTML"
