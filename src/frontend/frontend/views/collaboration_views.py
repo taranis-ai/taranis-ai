@@ -1,4 +1,4 @@
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote, urlparse
 
 from flask import flash, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
@@ -17,6 +17,20 @@ COLLAB_SESSION_FINALIZE_RESULTS_KEY = "collab_finalize_results"
 
 
 class CollaborationView:
+    @staticmethod
+    def _parse_invite_value(raw_value: str) -> tuple[str, str, str] | None:
+        if not raw_value:
+            return None
+
+        parsed = urlparse(raw_value.strip())
+        query = parse_qs(parsed.query, keep_blank_values=False)
+        owner_base_url = (query.get("owner_base_url") or [""])[0]
+        channel_id = (query.get("channel_id") or [""])[0]
+        token = (query.get("token") or [""])[0]
+        if not owner_base_url or not channel_id or not token:
+            return None
+        return owner_base_url, channel_id, token
+
     @staticmethod
     def _selected_story_id(active_channel: dict | None, selected_story_id: str | None) -> str:
         stories = (active_channel or {}).get("stories") or []
@@ -225,6 +239,27 @@ class CollaborationView:
         cls._remember_channel(channel_id)
         flash("Joined collaboration channel.", "success")
         return redirect(url_for("collaboration.workspace_channel", channel_id=channel_id))
+
+    @classmethod
+    @auth_required()
+    def submit_join(cls) -> tuple[str, int] | ResponseReturnValue:
+        invite_value = request.form.get("invite_path", "").strip()
+        active_channel_id = request.form.get("active_channel_id", "").strip() or None
+        if not invite_value:
+            return cls._render_workspace(
+                active_channel_id=active_channel_id,
+                notification=BaseView.render_response_notification({"error": "Paste a channel invite path."}),
+            )
+
+        parsed_invite = cls._parse_invite_value(invite_value)
+        if not parsed_invite:
+            return cls._render_workspace(
+                active_channel_id=active_channel_id,
+                notification=BaseView.render_response_notification({"error": "Paste a valid collaboration invite path."}),
+            )
+
+        owner_base_url, channel_id, token = parsed_invite
+        return redirect(url_for("collaboration.join", owner_base_url=owner_base_url, channel_id=channel_id, token=token))
 
     @classmethod
     @auth_required()

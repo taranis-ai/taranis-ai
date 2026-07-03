@@ -1,4 +1,5 @@
 import json
+from urllib.parse import parse_qs, urlparse
 
 from frontend.config import Config
 
@@ -552,6 +553,169 @@ def test_collaboration_overview_renders_dashboard_surface(authenticated_client, 
     assert "Story title" not in html
     assert html.count("data-collab-copy-link") == 1
     assert html.index("Second Channel") < html.index("Live Demo")
+
+
+def test_collaboration_overview_removes_open_invite_button_and_renders_join_form(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
+        json={
+            "items": [
+                {
+                    "channel_id": "channel-1",
+                    "topic": "Live Demo",
+                    "status": "open",
+                    "owner_base_url": "https://alpha.demo",
+                    "story_count": 1,
+                    "participant_count": 2,
+                    "created_at": "2026-05-08T10:00:00",
+                    "updated_at": "2026-05-08T10:00:00",
+                    "invite": {
+                        "owner_base_url": "https://alpha.demo",
+                        "channel_id": "channel-1",
+                        "token": "token-1",
+                        "join_url": "/collaboration/join?owner_base_url=https%3A%2F%2Falpha.demo&channel_id=channel-1&token=token-1",
+                    },
+                }
+            ],
+            "total_count": 1,
+        },
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-1",
+        json={
+            "channel_id": "channel-1",
+            "topic": "Live Demo",
+            "status": "open",
+            "owner_base_url": "https://alpha.demo",
+            "active_instance_base_url": "https://alpha.demo",
+            "invite": {
+                "owner_base_url": "https://alpha.demo",
+                "channel_id": "channel-1",
+                "token": "token-1",
+                "join_url": "/collaboration/join?owner_base_url=https%3A%2F%2Falpha.demo&channel_id=channel-1&token=token-1",
+            },
+            "participants": [{"base_url": "https://alpha.demo", "role": "owner", "joined_at": "2026-05-08T10:00:00"}],
+            "presence": [],
+            "locks": [],
+            "workspace": {
+                "focused_story_id": "snapshot-1",
+                "active_mode": "briefing",
+                "briefing": {
+                    "impact": None,
+                    "key_takeaways": [],
+                    "risks": [],
+                    "key_questions": [],
+                    "related_story_ids": [],
+                    "source_labels": [],
+                },
+                "decisions": [],
+                "tasks": [],
+                "comments": [],
+                "chat_messages": [],
+                "timeline_events": [],
+                "activity_items": [],
+            },
+            "stories": [
+                {
+                    "id": "snapshot-1",
+                    "title": "Story in Channel",
+                    "description": "Joined from assess",
+                    "created": "2026-05-08T10:00:00",
+                    "source_instance": "https://alpha.demo",
+                    "source_story_id": "story-1",
+                    "story": {"id": "story-1", "title": "Story in Channel", "summary": "Shared summary", "news_items": []},
+                }
+            ],
+            "result_stories": [],
+            "created_at": "2026-05-08T10:00:00",
+            "updated_at": "2026-05-08T10:00:00",
+            "is_owner": True,
+        },
+    )
+
+    response = authenticated_client.get("/collaboration?channel_id=channel-1")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Copy Invite" in html
+    assert "Open Invite" not in html
+    assert "Join Channel" in html
+    assert "Paste channel invite path" in html
+    assert 'name="invite_path"' in html
+    assert 'action="/collaboration/join"' in html
+
+
+def test_collaboration_overview_join_form_redirects_path_only_frontend_invite(authenticated_client):
+    response = authenticated_client.post(
+        "/collaboration/join",
+        data={
+            "invite_path": "/frontend/collaboration/join?owner_base_url=https%3A%2F%2Falpha.demo&channel_id=channel-1&token=token-1",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    parsed = urlparse(response.headers["Location"])
+    assert parsed.path == "/collaboration/join"
+    assert parse_qs(parsed.query) == {
+        "owner_base_url": ["https://alpha.demo"],
+        "channel_id": ["channel-1"],
+        "token": ["token-1"],
+    }
+
+
+def test_collaboration_overview_join_form_redirects_path_only_invite(authenticated_client):
+    response = authenticated_client.post(
+        "/collaboration/join",
+        data={
+            "invite_path": "/collaboration/join?owner_base_url=https%3A%2F%2Falpha.demo&channel_id=channel-2&token=token-2",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    parsed = urlparse(response.headers["Location"])
+    assert parsed.path == "/collaboration/join"
+    assert parse_qs(parsed.query) == {
+        "owner_base_url": ["https://alpha.demo"],
+        "channel_id": ["channel-2"],
+        "token": ["token-2"],
+    }
+
+
+def test_collaboration_overview_join_form_redirects_full_external_invite(authenticated_client):
+    response = authenticated_client.post(
+        "/collaboration/join",
+        data={
+            "invite_path": "https://remote.example/frontend/collaboration/join?owner_base_url=https%3A%2F%2Falpha.demo&channel_id=channel-3&token=token-3",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    parsed = urlparse(response.headers["Location"])
+    assert parsed.path == "/collaboration/join"
+    assert parse_qs(parsed.query) == {
+        "owner_base_url": ["https://alpha.demo"],
+        "channel_id": ["channel-3"],
+        "token": ["token-3"],
+    }
+
+
+def test_collaboration_overview_join_form_shows_error_for_malformed_input(authenticated_client, responses_mock):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/collab/channels", json={"items": [], "total_count": 0})
+
+    response = authenticated_client.post(
+        "/collaboration/join",
+        data={"invite_path": "not-a-valid-invite"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Paste a valid collaboration invite path." in html
+    assert "No Active Collaboration Selected" in html
+    assert "Join Channel" in html
 
 
 def test_collaboration_overview_renders_closed_channel_as_read_only_archive(authenticated_client, responses_mock):

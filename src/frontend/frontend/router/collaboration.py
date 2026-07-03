@@ -22,6 +22,12 @@ def init(app: Flask):
     )
     collaboration_bp.add_url_rule("/collaboration/join", view_func=CollaborationView.join, methods=["GET"], endpoint="join")
     collaboration_bp.add_url_rule(
+        "/collaboration/join",
+        view_func=CollaborationView.submit_join,
+        methods=["POST"],
+        endpoint="submit_join",
+    )
+    collaboration_bp.add_url_rule(
         "/collaboration/<string:channel_id>/stories/<string:snapshot_id>/update",
         view_func=CollaborationView.update_story,
         methods=["POST"],

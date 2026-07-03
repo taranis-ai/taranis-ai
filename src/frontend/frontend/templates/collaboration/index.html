@@ -14,6 +14,23 @@
   <span class="badge {% if tone == 'success' %}badge-success{% elif tone == 'warning' %}badge-warning{% elif tone == 'error' %}badge-error{% else %}badge-outline{% endif %}">{{ label }}</span>
 {%- endmacro %}
 
+{% macro join_channel_form(active_channel_id='') -%}
+  <form class="space-y-3" method="post" action="{{ url_for('collaboration.submit_join') }}">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+    {% if active_channel_id %}
+      <input type="hidden" name="active_channel_id" value="{{ active_channel_id }}">
+    {% endif %}
+    <label class="form-control">
+      <span class="label-text text-sm font-medium">Paste channel invite path</span>
+      <input class="input input-bordered w-full"
+             type="text"
+             name="invite_path"
+             placeholder="/collaboration/join?owner_base_url=...&amp;channel_id=...&amp;token=...">
+    </label>
+    <button class="btn btn-primary w-full" type="submit">Join Channel</button>
+  </form>
+{%- endmacro %}
+
 {% block content %}
   <div class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.08),_transparent_32%),linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(248,250,252,0.98))] px-6 pb-8 pt-6"
        id="collaboration-workspace">
@@ -537,8 +554,14 @@
                 </div>
                 <div class="mt-4 flex flex-wrap gap-2">
                   <button class="btn btn-outline btn-sm" type="button" data-collab-copy-link="{{ active_channel.invite.join_url if active_channel.invite else '' }}">Copy Invite</button>
-                  <a class="btn btn-outline btn-sm" href="{{ active_channel.invite.join_url if active_channel.invite else '#' }}">Open Invite</a>
                 </div>
+              </section>
+              <section class="mt-5 border-t border-base-300 pt-5">
+                <div class="mb-3 flex items-center justify-between">
+                  <h3 class="font-semibold">Join Channel</h3>
+                  <span class="text-xs text-base-content/50">Redeem an invite</span>
+                </div>
+                {{ join_channel_form(active_channel.channel_id) }}
               </section>
             </aside>
           </div>
@@ -556,10 +579,25 @@
         <script src="{{ url_for('static', filename='js/collaboration_workspace_store.js') }}" defer></script>
         <script src="{{ url_for('static', filename='js/collaboration_workspace.js') }}" defer></script>
       {% else %}
-        <div class="flex min-h-[420px] items-center justify-center rounded-[1.75rem] border border-dashed border-base-300 bg-base-100/80">
-          <div class="text-center">
+        <div class="grid min-h-[420px] gap-4 rounded-[1.75rem] border border-dashed border-base-300 bg-base-100/80 p-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
+          <div class="text-center lg:text-left">
             <h2 class="text-2xl font-semibold">No Active Collaboration Selected</h2>
-            <p class="mt-3 text-sm text-base-content/60">Start a channel from Assess or open an invite link on this instance.</p>
+            <p class="mt-3 text-sm text-base-content/60">Start a channel from Assess or paste an invite path to join it on this instance.</p>
+            <form class="mt-5 inline-flex"
+                  method="get"
+                  action="{{ url_for('collaboration.dialog') }}"
+                  hx-get="{{ url_for('collaboration.dialog') }}"
+                  hx-target="body"
+                  hx-swap="beforeend">
+              <button class="btn btn-outline" type="submit">New Channel</button>
+            </form>
+          </div>
+          <div class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-5 shadow-sm">
+            <div class="mb-3 flex items-center justify-between">
+              <h3 class="font-semibold">Join Channel</h3>
+              <span class="text-xs text-base-content/50">Paste an invite</span>
+            </div>
+            {{ join_channel_form() }}
           </div>
         </div>
       {% endif %}
