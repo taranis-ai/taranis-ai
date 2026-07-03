@@ -130,9 +130,16 @@ class CollabWorkspaceBriefing(TaranisBaseModel):
     source_labels: list[str] = Field(default_factory=list)
 
 
+class CollabWorkspaceChannelInfo(TaranisBaseModel):
+    chat_url: str | None = None
+    resource_url: str | None = None
+    notes: str | None = None
+
+
 class CollabWorkspaceState(TaranisBaseModel):
     focused_story_id: str | None = None
     active_mode: Literal["story", "briefing"] = "story"
+    channel_info: CollabWorkspaceChannelInfo = Field(default_factory=CollabWorkspaceChannelInfo)
     briefing: CollabWorkspaceBriefing = Field(default_factory=CollabWorkspaceBriefing)
     decisions: list[CollabWorkspaceDecision] = Field(default_factory=list)
     tasks: list[CollabWorkspaceTask] = Field(default_factory=list)
@@ -298,8 +305,19 @@ class CollabLiveMoveNewsItem(TaranisBaseModel):
     actor: CollabLiveActor
 
 
+class CollabLiveRemoveStory(TaranisBaseModel):
+    snapshot_id: str
+    actor: CollabLiveActor
+
+
+class CollabLiveRemoveNewsItem(TaranisBaseModel):
+    snapshot_id: str
+    news_item_id: str
+    actor: CollabLiveActor
+
+
 class CollabLiveWorkspacePatch(TaranisBaseModel):
-    target: Literal["workspace", "briefing", "decision", "task", "comment", "chat_message", "timeline_event", "activity_item"]
+    target: Literal["workspace", "channel_info", "briefing", "decision", "task", "comment", "chat_message", "timeline_event", "activity_item"]
     action: Literal["set", "upsert", "remove"]
     actor: CollabLiveActor
     item_id: str | None = None

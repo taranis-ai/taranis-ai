@@ -6,6 +6,7 @@
 
   const pageData = JSON.parse(pageDataNode.textContent || "{}");
   const channelId = pageData.channelId;
+  const newsItemUrlTemplate = pageData.newsItemUrlTemplate || "";
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const rootPrefix = window.location.pathname.includes("/frontend")
     ? window.location.pathname.split("/frontend", 1)[0]
@@ -60,6 +61,13 @@
       return;
     }
     runtime.socket.send(JSON.stringify({ type, channel_id: channelId, payload }));
+  };
+
+  const newsItemDetailUrl = (newsItemId) => {
+    if (!newsItemUrlTemplate || !newsItemId) {
+      return "";
+    }
+    return newsItemUrlTemplate.replace("__NEWS_ITEM_ID__", encodeURIComponent(newsItemId));
   };
 
   const syncEditorSelections = () => {
@@ -181,26 +189,56 @@
   };
 
   const renderStoryButtons = () => {
-    document.querySelectorAll("[data-collab-focus-story]").forEach((button) => {
-      const storyId = button.dataset.collabFocusStory;
-      const active = storyId === store.state.selectedStoryId;
-      button.classList.toggle("border-primary", active);
-      button.classList.toggle("bg-primary/6", active);
+    const stories = store.state.channel.stories || [];
+    const storyListRoot = document.querySelector("[data-collab-story-list]");
+    if (storyListRoot) {
+      storyListRoot.innerHTML = stories.map((story) => {
+        const active = story.id === store.state.selectedStoryId;
+        return `
+          <div class="rounded-[1.25rem] border p-4 transition ${active ? "border-primary bg-primary/6" : "border-base-300 hover:border-primary/40"}">
+            <button type="button" class="block w-full text-left" data-collab-focus-story="${escapeHtml(story.id)}">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="truncate font-semibold" data-collab-story-title="${escapeHtml(story.id)}">${escapeHtml(story.title || "Untitled Story")}</div>
+                  <div class="mt-1 break-all text-xs text-base-content/60">${escapeHtml(story.source_instance || "")}</div>
+                </div>
+                <div class="h-2.5 w-2.5 rounded-full ${active ? "bg-success" : "bg-base-300"}"></div>
+              </div>
+              <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-base-content/60">
+                <span class="rounded-full bg-base-200 px-2 py-1"><span data-collab-news-count="${escapeHtml(story.id)}">${escapeHtml(String((story.story?.news_items || []).length))}</span> News Items</span>
+              </div>
+              <p class="mt-3 line-clamp-3 break-all text-sm text-base-content/70" data-collab-story-summary="${escapeHtml(story.id)}">${escapeHtml(story.story?.summary || story.description || "")}</p>
+            </button>
+            ${store.state.channel.status === "open" ? `
+              <div class="mt-3 flex justify-end">
+                <button class="btn btn-ghost btn-xs text-error" type="button" data-collab-remove-story="${escapeHtml(story.id)}">Remove Story</button>
+              </div>
+            ` : ""}
+          </div>
+        `;
+      }).join("");
+    }
+
+    document.querySelectorAll("[data-collab-channel-story-count], [data-collab-story-queue-count], [data-collab-overview-story-count]").forEach((node) => {
+      node.textContent = String(stories.length);
     });
-    (store.state.channel.stories || []).forEach((story) => {
-      const titleNode = document.querySelector(`[data-collab-story-title="${CSS.escape(story.id)}"]`);
-      if (titleNode) {
-        titleNode.textContent = story.title || "Untitled Story";
-      }
-      const summaryNode = document.querySelector(`[data-collab-story-summary="${CSS.escape(story.id)}"]`);
-      if (summaryNode) {
-        summaryNode.textContent = story.story?.summary || story.description || "";
-      }
-      const countNode = document.querySelector(`[data-collab-news-count="${CSS.escape(story.id)}"]`);
-      if (countNode) {
-        countNode.textContent = String((story.story?.news_items || []).length);
-      }
+    document.querySelectorAll("[data-collab-channel-participant-count], [data-collab-overview-participant-count]").forEach((node) => {
+      node.textContent = String((store.state.channel.participants || []).length);
     });
+
+    const overviewDescriptionNode = document.querySelector("[data-collab-overview-description]");
+    if (overviewDescriptionNode) {
+      const selected = selectedStory();
+      if (store.state.channel.status !== "open") {
+        overviewDescriptionNode.textContent = "This channel is archived. The snapshot below reflects its final state when it was closed.";
+      } else if (selected && stories.length === 1) {
+        overviewDescriptionNode.textContent = `Current focus: ${selected.story?.title || selected.title || "Untitled Story"}.`;
+      } else if (selected) {
+        overviewDescriptionNode.textContent = `This channel currently groups ${stories.length} stories. The room remains the place for detailed story editing.`;
+      } else {
+        overviewDescriptionNode.textContent = "This channel has no stories yet. Add stories from Assess to begin live collaboration.";
+      }
+    }
   };
 
   const renderPresence = () => {
@@ -316,6 +354,44 @@
     }
   };
 
+  const renderChannelInfo = () => {
+    const channelInfo = workspace().channel_info || {};
+    const chatUrl = String(channelInfo.chat_url || "").trim();
+    const resourceUrl = String(channelInfo.resource_url || "").trim();
+    const notes = String(channelInfo.notes || "").trim();
+
+    document.querySelectorAll("[data-collab-channel-info-chat]").forEach((node) => {
+      node.innerHTML = chatUrl
+        ? `<a class="link link-primary break-all text-sm" href="${escapeHtml(chatUrl)}" target="_blank" rel="noreferrer">${escapeHtml(chatUrl)}</a>`
+        : `<span class="text-sm text-base-content/55">No chat room pinned.</span>`;
+    });
+    document.querySelectorAll("[data-collab-channel-info-resource]").forEach((node) => {
+      node.innerHTML = resourceUrl
+        ? `<a class="link link-primary break-all text-sm" href="${escapeHtml(resourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(resourceUrl)}</a>`
+        : `<span class="text-sm text-base-content/55">No shared resource pinned.</span>`;
+    });
+    document.querySelectorAll("[data-collab-channel-info-notes]").forEach((node) => {
+      node.textContent = notes || "No pinned channel notes yet.";
+      node.classList.toggle("text-base-content/55", !notes);
+    });
+
+    document.querySelectorAll("[data-collab-channel-info-input='chat_url']").forEach((node) => {
+      if (document.activeElement !== node) {
+        node.value = chatUrl;
+      }
+    });
+    document.querySelectorAll("[data-collab-channel-info-input='resource_url']").forEach((node) => {
+      if (document.activeElement !== node) {
+        node.value = resourceUrl;
+      }
+    });
+    document.querySelectorAll("[data-collab-channel-info-input='notes']").forEach((node) => {
+      if (document.activeElement !== node) {
+        node.value = notes;
+      }
+    });
+  };
+
   const renderDecisions = () => {
     renderList("[data-collab-decisions-list]", workspace().decisions || [], "No decisions yet.", (item) => `
       <div class="rounded-[1rem] border border-base-300 p-3">
@@ -418,11 +494,22 @@
 
   const renderRoomStory = ({ forceEditorSync = false } = {}) => {
     const story = selectedStory();
+    const titleNode = document.querySelector("[data-collab-room-title]");
+    const newsRoot = document.querySelector("[data-collab-news-items]");
     if (!story) {
+      if (titleNode) {
+        titleNode.textContent = "No story selected";
+      }
+      fieldElements.forEach((fieldElement) => {
+        fieldElement.disabled = true;
+      });
+      runtime.fields.forEach((field) => field.sync({ force: true, connected: false }));
+      if (newsRoot) {
+        newsRoot.innerHTML = `<div class="rounded-[1.25rem] border border-dashed border-base-300 p-4 text-sm text-base-content/55">No stories remain in this collaboration channel.</div>`;
+      }
       return;
     }
 
-    const titleNode = document.querySelector("[data-collab-room-title]");
     if (titleNode) {
       titleNode.textContent = story.story?.title || story.title || "Untitled Story";
     }
@@ -433,20 +520,26 @@
     renderFieldPresenceLabels();
     syncEditorStory({ force: forceEditorSync });
 
-    const newsRoot = document.querySelector("[data-collab-news-items]");
     if (newsRoot) {
       newsRoot.innerHTML = (story.story?.news_items || []).length
         ? (story.story.news_items || []).map((newsItem) => `
             <article class="rounded-[1.25rem] border border-base-300 bg-base-100/80 p-4">
               <div class="text-sm font-semibold">${escapeHtml(newsItem.title || "Untitled News Item")}</div>
-              ${newsItem.link ? `<a class="mt-2 block truncate text-xs text-primary underline" href="${escapeHtml(newsItem.link)}" target="_blank" rel="noreferrer">${escapeHtml(newsItem.link)}</a>` : ""}
+              <div class="mt-2 flex flex-wrap gap-2">
+                ${newsItem.id ? `<a class="link link-primary text-xs" href="${escapeHtml(newsItemDetailUrl(newsItem.id))}">Open details</a>` : ""}
+                ${newsItem.link ? `<a class="link link-primary text-xs" href="${escapeHtml(newsItem.link)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
+              </div>
+              ${newsItem.link ? `<div class="mt-2 break-all text-xs text-base-content/60">${escapeHtml(newsItem.link)}</div>` : ""}
               ${newsItem.content ? `<p class="mt-3 line-clamp-6 text-sm text-base-content/70">${escapeHtml(newsItem.content)}</p>` : ""}
-              ${store.state.channel.status === "open" && (store.state.channel.stories || []).length > 1 ? `
-                <div class="mt-4 flex gap-2">
-                  <select class="select select-bordered select-sm flex-1" data-collab-move-target="${escapeHtml(newsItem.id)}">
-                    ${(store.state.channel.stories || []).filter((candidate) => candidate.id !== store.state.selectedStoryId).map((candidate) => `<option value="${escapeHtml(candidate.id)}">${escapeHtml(candidate.title || "Untitled Story")}</option>`).join("")}
-                  </select>
-                  <button class="btn btn-outline btn-sm" type="button" data-collab-move-news-item="${escapeHtml(newsItem.id)}">Move</button>
+              ${store.state.channel.status === "open" ? `
+                <div class="mt-4 flex flex-wrap gap-2">
+                  ${(store.state.channel.stories || []).length > 1 ? `
+                    <select class="select select-bordered select-sm flex-1" data-collab-move-target="${escapeHtml(newsItem.id)}">
+                      ${(store.state.channel.stories || []).filter((candidate) => candidate.id !== store.state.selectedStoryId).map((candidate) => `<option value="${escapeHtml(candidate.id)}">${escapeHtml(candidate.title || "Untitled Story")}</option>`).join("")}
+                    </select>
+                    <button class="btn btn-outline btn-sm" type="button" data-collab-move-news-item="${escapeHtml(newsItem.id)}">Move</button>
+                  ` : ""}
+                  <button class="btn btn-ghost btn-sm text-error" type="button" data-collab-remove-news-item="${escapeHtml(newsItem.id)}">Remove</button>
                 </div>
               ` : ""}
             </article>
@@ -467,6 +560,7 @@
   const render = ({ forceEditorSync = false } = {}) => {
     renderStoryButtons();
     renderPresence();
+    renderChannelInfo();
     renderBriefing();
     renderDecisions();
     renderTasks();
@@ -502,6 +596,16 @@
 
   const applyOptimisticWorkspacePatch = (target, action, data = {}, itemId = null) => {
     const workspaceState = workspace();
+    if (target === "channel_info" && action === "set") {
+      store.state.channel.workspace = {
+        ...workspaceState,
+        channel_info: {
+          ...(workspaceState.channel_info || {}),
+          ...data,
+        },
+      };
+      return;
+    }
     const collectionKey = {
       decision: "decisions",
       task: "tasks",
@@ -571,6 +675,9 @@
     }
     if (target === "briefing" && action === "set") {
       return "updated briefing";
+    }
+    if (target === "channel_info" && action === "set") {
+      return "updated channel info";
     }
     if (action === "remove") {
       return `removed ${String(target || "").replaceAll("_", " ")}`;
@@ -757,6 +864,9 @@
 
     const storyButton = event.target.closest("[data-collab-focus-story]");
     if (storyButton) {
+      if (event.target.closest("[data-collab-remove-story]")) {
+        return;
+      }
       clearActiveSelection();
       store.switchStory(storyButton.dataset.collabFocusStory);
       sendWorkspacePatch("workspace", "set", { focused_story_id: store.state.selectedStoryId });
@@ -808,6 +918,40 @@
         source_snapshot_id: store.state.selectedStoryId,
         target_snapshot_id: select.value,
         news_item_id: newsItemId,
+        selected_story_id: store.state.selectedStoryId,
+      });
+    }
+
+    const removeStoryButton = event.target.closest("[data-collab-remove-story]");
+    if (removeStoryButton) {
+      if (isReadOnly()) {
+        setSaveStatus("Archived channel is read-only.");
+        return;
+      }
+      if (!window.confirm("Remove this story from the collaboration channel?")) {
+        return;
+      }
+      setSaveStatus("Removing story...");
+      sendMessage("collab.story.remove", {
+        snapshot_id: removeStoryButton.dataset.collabRemoveStory,
+        selected_story_id: store.state.selectedStoryId,
+      });
+      return;
+    }
+
+    const removeNewsItemButton = event.target.closest("[data-collab-remove-news-item]");
+    if (removeNewsItemButton) {
+      if (isReadOnly()) {
+        setSaveStatus("Archived channel is read-only.");
+        return;
+      }
+      if (!window.confirm("Remove this news item from the collaboration story?")) {
+        return;
+      }
+      setSaveStatus("Removing news item...");
+      sendMessage("collab.news_item.remove", {
+        snapshot_id: store.state.selectedStoryId,
+        news_item_id: removeNewsItemButton.dataset.collabRemoveNewsItem,
         selected_story_id: store.state.selectedStoryId,
       });
     }
@@ -868,6 +1012,22 @@
       const value = (new FormData(briefingSetForm).get("value") || "").toString().trim();
       sendWorkspacePatch("briefing", "set", { [field]: value || null });
       briefingSetForm.reset();
+      return;
+    }
+
+    const channelInfoForm = event.target.closest("[data-collab-channel-info-form]");
+    if (channelInfoForm) {
+      event.preventDefault();
+      if (isReadOnly()) {
+        setSaveStatus("Archived channel is read-only.");
+        return;
+      }
+      const formData = new FormData(channelInfoForm);
+      sendWorkspacePatch("channel_info", "set", {
+        chat_url: (formData.get("chat_url") || "").toString().trim() || null,
+        resource_url: (formData.get("resource_url") || "").toString().trim() || null,
+        notes: (formData.get("notes") || "").toString().trim() || null,
+      });
     }
   });
 

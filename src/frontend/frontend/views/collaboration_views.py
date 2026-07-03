@@ -267,9 +267,16 @@ class CollaborationView:
     @classmethod
     @auth_required()
     def submit_report_dialog(cls) -> ResponseReturnValue:
-        story_ids = request.form.getlist("story_ids")
         report_id = request.form.get("report", "").strip()
         channel_id = request.form.get("channel_id", "").strip()
+        story_ids = request.form.getlist("story_ids")
+        if channel_id:
+            finalized_story_ids = list(cls._get_finalize_result(channel_id).get("report_story_ids", []))
+            if story_ids and finalized_story_ids:
+                finalized_story_ids_set = set(finalized_story_ids)
+                story_ids = [story_id for story_id in story_ids if story_id in finalized_story_ids_set]
+            elif finalized_story_ids:
+                story_ids = finalized_story_ids
         core_response = CoreApi().add_collaboration_stories_to_report(report_id, story_ids)
         BaseView.add_flash_notification(core_response)
         return BaseView.redirect_htmx(url_for("collaboration.workspace_channel", channel_id=channel_id))

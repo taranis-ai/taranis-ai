@@ -490,7 +490,7 @@ class ReportItem(BaseModel):
         db.session.commit()
 
         logger.debug(f"Added {story_ids} stories to Report Item {report_item.id}")
-        return {"message": f"Successfully added {len(story_ids)} stories to {report_item.title}"}, 200
+        return {"message": f"Successfully added {len(stories)} stories to {report_item.title}"}, 200
 
     @classmethod
     def remove_stories(cls, report_id: str, story_ids: list[int], user: User) -> tuple[dict, int]:

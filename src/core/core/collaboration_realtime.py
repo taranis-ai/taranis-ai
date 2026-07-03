@@ -51,6 +51,8 @@ class CollaborationRealtimeHub:
             "collab.story.selection.update": self._handle_selection_update,
             "collab.story.selection.clear": self._handle_selection_clear,
             "collab.news_item.move": self._handle_news_item_move,
+            "collab.story.remove": self._handle_story_remove,
+            "collab.news_item.remove": self._handle_news_item_remove,
             "collab.workspace.patch": self._handle_workspace_patch,
         }
         self.owner_result_broadcasters = {
@@ -281,6 +283,25 @@ class CollaborationRealtimeHub:
                 "actor": actor,
                 "source_snapshot_id": payload.get("source_snapshot_id"),
                 "target_snapshot_id": payload.get("target_snapshot_id"),
+                "news_item_id": payload.get("news_item_id"),
+            },
+        )
+
+    async def _handle_story_remove(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/remove-story",
+            {
+                "actor": actor,
+                "snapshot_id": payload.get("snapshot_id"),
+            },
+        )
+
+    async def _handle_news_item_remove(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/remove-news-item",
+            {
+                "actor": actor,
+                "snapshot_id": payload.get("snapshot_id"),
                 "news_item_id": payload.get("news_item_id"),
             },
         )

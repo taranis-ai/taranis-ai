@@ -30,6 +30,9 @@
               Collaborative Briefing
             {% endif %}
           </h1>
+          {% if is_room_view and active_channel %}
+            <div class="mt-2 text-lg font-medium text-base-content/75">{{ active_channel.topic }}</div>
+          {% endif %}
           <p class="mt-2 max-w-3xl text-sm text-base-content/70">
             {% if is_room_view %}
               {% if active_channel.status == 'open' %}
@@ -71,8 +74,8 @@
           <div class="flex flex-wrap items-center gap-3">
             {{ status_badge(active_channel.status|capitalize, 'success' if active_channel.status == 'open' else 'outline') }}
             <span class="text-sm text-base-content/60">Owner: {{ active_channel.owner_base_url }}</span>
-            <span class="text-sm text-base-content/60">Stories: {{ active_channel.stories | length }}</span>
-            <span class="text-sm text-base-content/60">Participants: {{ active_channel.participants | length }}</span>
+            <span class="text-sm text-base-content/60">Stories: <span data-collab-channel-story-count>{{ active_channel.stories | length }}</span></span>
+            <span class="text-sm text-base-content/60">Participants: <span data-collab-channel-participant-count>{{ active_channel.participants | length }}</span></span>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             {% if active_channel.status == 'open' %}
@@ -109,7 +112,7 @@
             <aside class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-4 shadow-sm">
               <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-lg font-semibold">Story Queue</h2>
-                <span class="rounded-full bg-base-200 px-2 py-1 text-xs font-semibold">{{ active_channel.stories | length }}</span>
+                <span class="rounded-full bg-base-200 px-2 py-1 text-xs font-semibold" data-collab-story-queue-count>{{ active_channel.stories | length }}</span>
               </div>
               <div class="space-y-3" data-collab-story-list>
                 {% for story in active_channel.stories %}
@@ -227,6 +230,37 @@
               <div data-collab-sidebar-panel="collaboration">
                 <section class="mb-5">
                   <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Channel Info</h3>
+                    <span class="text-xs text-base-content/50">Pinned for everyone</span>
+                  </div>
+                  <div class="space-y-3 rounded-[1rem] border border-base-300 p-3">
+                    <div>
+                      <div class="text-xs uppercase tracking-[0.16em] text-base-content/50">Chat Room</div>
+                      <div class="mt-1" data-collab-channel-info-chat></div>
+                    </div>
+                    <div>
+                      <div class="text-xs uppercase tracking-[0.16em] text-base-content/50">Shared Resource</div>
+                      <div class="mt-1" data-collab-channel-info-resource></div>
+                    </div>
+                    <div>
+                      <div class="text-xs uppercase tracking-[0.16em] text-base-content/50">Pinned Notes</div>
+                      <div class="mt-1 whitespace-pre-wrap break-all text-sm" data-collab-channel-info-notes></div>
+                    </div>
+                  </div>
+                  {% if active_channel.status == 'open' %}
+                    <form class="mt-4 space-y-2" data-collab-channel-info-form>
+                      <input class="input input-bordered input-sm w-full" name="chat_url" placeholder="Chat room link" data-collab-channel-info-input="chat_url">
+                      <input class="input input-bordered input-sm w-full" name="resource_url" placeholder="Resource link" data-collab-channel-info-input="resource_url">
+                      <textarea class="textarea textarea-bordered textarea-sm w-full"
+                                name="notes"
+                                placeholder="Pinned context for everyone"
+                                data-collab-channel-info-input="notes"></textarea>
+                      <button class="btn btn-primary btn-sm w-full" type="submit">Save Channel Info</button>
+                    </form>
+                  {% endif %}
+                </section>
+                <section class="mb-5">
+                  <div class="mb-3 flex items-center justify-between">
                     <h3 class="font-semibold">Participants</h3>
                     <span class="text-xs text-primary">{{ active_channel.presence | length }} live</span>
                   </div>
@@ -331,7 +365,7 @@
               <div class="rounded-[1.5rem] border border-base-300 bg-base-100/90 p-5">
                 <div class="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/50">Channel Overview</div>
                 <h2 class="mt-2 text-3xl font-semibold">{{ active_channel.topic }}</h2>
-                <p class="mt-3 text-sm text-base-content/70">
+                <p class="mt-3 text-sm text-base-content/70" data-collab-overview-description>
                   {% if active_channel.status != 'open' %}
                     This channel is archived. The snapshot below reflects its final state when it was closed.
                   {% elif selected_story and active_channel.stories | length == 1 %}
@@ -345,11 +379,11 @@
                 <div class="mt-5 grid gap-3 sm:grid-cols-4">
                   <div class="rounded-[1rem] border border-base-300 bg-base-100 p-4">
                     <div class="text-xs uppercase tracking-[0.2em] text-base-content/50">Stories</div>
-                    <div class="mt-2 text-lg font-semibold">{{ active_channel.stories | length }}</div>
+                    <div class="mt-2 text-lg font-semibold" data-collab-overview-story-count>{{ active_channel.stories | length }}</div>
                   </div>
                   <div class="rounded-[1rem] border border-base-300 bg-base-100 p-4">
                     <div class="text-xs uppercase tracking-[0.2em] text-base-content/50">Partners</div>
-                    <div class="mt-2 text-lg font-semibold">{{ active_channel.participants | length }}</div>
+                    <div class="mt-2 text-lg font-semibold" data-collab-overview-participant-count>{{ active_channel.participants | length }}</div>
                   </div>
                   <div class="rounded-[1rem] border border-base-300 bg-base-100 p-4">
                     <div class="text-xs uppercase tracking-[0.2em] text-base-content/50">Live</div>
@@ -385,7 +419,38 @@
                 </div>
               </div>
 
-              <div class="mt-4 grid gap-4 lg:grid-cols-3">
+              <div class="mt-4 grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
+                <div class="rounded-[1.25rem] border border-base-300 p-4">
+                  <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Channel Info</h3>
+                    <span class="text-xs text-base-content/50">Pinned for everyone</span>
+                  </div>
+                  <div class="space-y-3 rounded-[1rem] border border-base-300 p-3">
+                    <div>
+                      <div class="text-xs uppercase tracking-[0.16em] text-base-content/50">Chat Room</div>
+                      <div class="mt-1" data-collab-channel-info-chat></div>
+                    </div>
+                    <div>
+                      <div class="text-xs uppercase tracking-[0.16em] text-base-content/50">Shared Resource</div>
+                      <div class="mt-1" data-collab-channel-info-resource></div>
+                    </div>
+                    <div>
+                      <div class="text-xs uppercase tracking-[0.16em] text-base-content/50">Pinned Notes</div>
+                      <div class="mt-1 whitespace-pre-wrap break-all text-sm" data-collab-channel-info-notes></div>
+                    </div>
+                  </div>
+                  {% if active_channel.status == 'open' %}
+                    <form class="mt-4 space-y-2" data-collab-channel-info-form>
+                      <input class="input input-bordered input-sm w-full" name="chat_url" placeholder="Chat room link" data-collab-channel-info-input="chat_url">
+                      <input class="input input-bordered input-sm w-full" name="resource_url" placeholder="Resource link" data-collab-channel-info-input="resource_url">
+                      <textarea class="textarea textarea-bordered textarea-sm w-full"
+                                name="notes"
+                                placeholder="Pinned context for everyone"
+                                data-collab-channel-info-input="notes"></textarea>
+                      <button class="btn btn-primary btn-sm w-full" type="submit">Save Channel Info</button>
+                    </form>
+                  {% endif %}
+                </div>
                 <div class="rounded-[1.25rem] border border-base-300 p-4">
                   <div class="mb-3 flex items-center justify-between">
                     <h3 class="font-semibold">Channel Tasks</h3>
@@ -484,7 +549,8 @@
             "mode": "room" if is_room_view else "overview",
             "channelId": active_channel.channel_id,
             "selectedStoryId": selected_story_id if is_room_view else "",
-            "channel": active_channel
+            "channel": active_channel,
+            "newsItemUrlTemplate": url_for('assess.get_news_item', news_item_id='__NEWS_ITEM_ID__')
           } | tojson }}
         </script>
         <script src="{{ url_for('static', filename='js/collaboration_workspace_store.js') }}" defer></script>

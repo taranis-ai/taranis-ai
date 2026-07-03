@@ -9,6 +9,8 @@ from models.collaboration import (
     CollabLiveLockRequest,
     CollabLiveMoveNewsItem,
     CollabLivePresenceRequest,
+    CollabLiveRemoveNewsItem,
+    CollabLiveRemoveStory,
     CollabLiveSelectionClear,
     CollabLiveSelectionUpdate,
     CollabLiveStoryOpsSubmit,
@@ -418,6 +420,57 @@ class CollaborationLiveMoveNewsItemView(MethodView):
         return detail.model_dump(mode="json"), 200
 
 
+class CollaborationLiveRemoveStoryView(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveRemoveStory.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        try:
+            detail = collaboration_service.remove_story_live(
+                channel_id,
+                payload.snapshot_id,
+                participant_base_url=payload.actor.base_url,
+                session_id=payload.actor.session_id,
+                username=payload.actor.username,
+            )
+        except KeyError:
+            return {"error": "Collaboration story not found"}, 404
+        except PermissionError as exc:
+            return {"error": str(exc)}, 409
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLiveRemoveNewsItemView(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveRemoveNewsItem.model_validate(request.get_json(silent=True) or {})
+        except ValidationError as exc:
+            return _validation_error(exc)
+
+        try:
+            detail = collaboration_service.remove_news_item_live(
+                channel_id,
+                payload.snapshot_id,
+                payload.news_item_id,
+                participant_base_url=payload.actor.base_url,
+                session_id=payload.actor.session_id,
+                username=payload.actor.username,
+            )
+        except KeyError:
+            return {"error": "Collaboration item not found"}, 404
+        except PermissionError as exc:
+            return {"error": str(exc)}, 409
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return detail.model_dump(mode="json"), 200
+
+
 class CollaborationLiveWorkspacePatchView(MethodView):
     @api_key_or_auth_required()
     def post(self, channel_id: str):
@@ -725,6 +778,16 @@ def initialize(app: Flask):
     collab_bp.add_url_rule(
         "/channels/<string:channel_id>/live/move-news-item",
         view_func=CollaborationLiveMoveNewsItemView.as_view("collab_live_move_news_item"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/remove-story",
+        view_func=CollaborationLiveRemoveStoryView.as_view("collab_live_remove_story"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/remove-news-item",
+        view_func=CollaborationLiveRemoveNewsItemView.as_view("collab_live_remove_news_item"),
         methods=["POST"],
     )
     collab_bp.add_url_rule(

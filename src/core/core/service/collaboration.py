@@ -18,6 +18,7 @@ from models.collaboration import (
     CollabStorySnapshot,
     CollabWorkspaceActivityItem,
     CollabWorkspaceBriefing,
+    CollabWorkspaceChannelInfo,
     CollabWorkspaceChatMessage,
     CollabWorkspaceComment,
     CollabWorkspaceDecision,
@@ -35,6 +36,7 @@ from core.model.news_item import NewsItem
 from core.model.story import Story
 from core.model.user import User
 from core.service.collaboration_text import StoryTextCollabService
+from core.service.report_story_sync import ReportStorySyncService
 
 
 EDITABLE_TEXT_FIELDS = ("title", "description", "summary", "comments")
@@ -410,11 +412,14 @@ class CollaborationService:
                 continue
 
             if existing_item.story_id != target_story.id:
-                if source_story := Story.get(existing_item.story_id):
+                if existing_item.story_id and (source_story := Story.get(existing_item.story_id)):
                     source_stories[source_story.id] = source_story
                     if existing_item in source_story.news_items:
                         source_story.news_items.remove(existing_item)
-                target_story.news_items.append(existing_item)
+                    else:
+                        existing_item.story = None
+                if existing_item not in target_story.news_items:
+                    target_story.news_items.append(existing_item)
             desired_ids.append(existing_item.id)
 
         for existing_item in target_story.news_items[:]:
@@ -426,6 +431,8 @@ class CollaborationService:
         processed_stories = {target_story, *source_stories.values()}
         for story in processed_stories:
             story.update_status(change=actor)
+        persisted_stories = ReportStorySyncService.retag_stories_from_membership(processed_stories)
+        for story in persisted_stories:
             story.record_revision(note="collaboration_finalize")
 
     def _persist_snapshot(
@@ -484,6 +491,11 @@ class CollaborationService:
         return {
             "focused_story_id": focused_story_id,
             "active_mode": "story",
+            "channel_info": {
+                "chat_url": None,
+                "resource_url": None,
+                "notes": None,
+            },
             "briefing": {
                 "impact": None,
                 "key_takeaways": [],
@@ -505,6 +517,7 @@ class CollaborationService:
         if not isinstance(workspace, dict):
             workspace = self._default_workspace_state(channel_state)
             channel_state["workspace"] = workspace
+        workspace.setdefault("channel_info", self._default_workspace_state(channel_state)["channel_info"])
         workspace.setdefault("briefing", self._default_workspace_state(channel_state)["briefing"])
         for key in ("decisions", "tasks", "comments", "chat_messages", "timeline_events", "activity_items"):
             workspace.setdefault(key, [])
@@ -596,6 +609,20 @@ class CollaborationService:
                 channel_state,
                 actor=username,
                 text="updated briefing",
+                participant_base_url=participant_base_url,
+            )
+            self._touch_channel(channel_state)
+            return
+
+        if target == "channel_info":
+            if action != "set":
+                raise ValueError("Channel info only supports set")
+            merged_channel_info = {**(workspace.get("channel_info") or {}), **data}
+            workspace["channel_info"] = CollabWorkspaceChannelInfo.model_validate(merged_channel_info).model_dump(mode="json")
+            self._append_activity(
+                channel_state,
+                actor=username,
+                text="updated channel info",
                 participant_base_url=participant_base_url,
             )
             self._touch_channel(channel_state)
@@ -968,6 +995,50 @@ class CollaborationService:
         self._replace_story_snapshot(channel_state, source_snapshot_id, source_story)
         self._replace_story_snapshot(channel_state, target_snapshot_id, target_story)
 
+    def _remove_snapshot_runtime(self, channel_state: dict[str, Any], snapshot_id: str) -> None:
+        runtime = self.text_collab.ensure_runtime(channel_state)
+        runtime["locks"] = [lock for lock in runtime.get("locks", []) if lock.get("snapshot_id") != snapshot_id]
+        runtime["text_selections"] = {
+            key: value for key, value in runtime.get("text_selections", {}).items() if value.get("snapshot_id") != snapshot_id
+        }
+        runtime["shared_docs"] = {
+            key: value for key, value in runtime.get("shared_docs", {}).items() if value.get("snapshot_id") != snapshot_id
+        }
+
+    def _apply_remove_story(self, channel_state: dict[str, Any], snapshot_id: str) -> None:
+        story_ids = {snapshot.get("id") for snapshot in channel_state.get("stories", [])}
+        if snapshot_id not in story_ids:
+            raise KeyError(snapshot_id)
+
+        channel_state["stories"] = [snapshot for snapshot in channel_state.get("stories", []) if snapshot.get("id") != snapshot_id]
+        channel_state["result_stories"] = [
+            snapshot for snapshot in channel_state.get("result_stories", []) if snapshot.get("id") != snapshot_id
+        ]
+        self._remove_snapshot_runtime(channel_state, snapshot_id)
+
+        workspace = self._ensure_workspace_state(channel_state)
+        if workspace.get("focused_story_id") == snapshot_id:
+            workspace["focused_story_id"] = channel_state["stories"][0].get("id") if channel_state.get("stories") else None
+        briefing = workspace.get("briefing") or {}
+        briefing["related_story_ids"] = [story_id for story_id in briefing.get("related_story_ids", []) if story_id != snapshot_id]
+        for presence in self.text_collab.presence(channel_state):
+            if presence.get("selected_story_id") == snapshot_id:
+                presence["selected_story_id"] = workspace.get("focused_story_id")
+        self._touch_channel(channel_state)
+
+    def _apply_remove_news_item(self, channel_state: dict[str, Any], snapshot_id: str, news_item_id: str) -> None:
+        snapshot = self._find_snapshot(channel_state, snapshot_id)
+        if snapshot is None:
+            raise KeyError(snapshot_id)
+
+        story_payload = copy.deepcopy(snapshot.get("story") or {})
+        source_news = list(story_payload.get("news_items") or [])
+        remaining_news = [news_item for news_item in source_news if not (isinstance(news_item, dict) and news_item.get("id") == news_item_id)]
+        if len(remaining_news) == len(source_news):
+            raise KeyError(news_item_id)
+        story_payload["news_items"] = remaining_news
+        self._replace_story_snapshot(channel_state, snapshot_id, story_payload)
+
     def _assert_field_lock(
         self,
         channel_state: dict[str, Any],
@@ -1268,6 +1339,53 @@ class CollaborationService:
             selected_story_id=source_snapshot_id,
         )
         self._apply_move_news_item(channel_state, source_snapshot_id, target_snapshot_id, news_item_id)
+        self._persist_channel_state(channel_state)
+        return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
+
+    def remove_story_live(
+        self,
+        channel_id: str,
+        snapshot_id: str,
+        *,
+        participant_base_url: str,
+        session_id: str,
+        username: str,
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Channel is closed")
+        self._upsert_presence(
+            channel_state,
+            session_id=session_id,
+            participant_base_url=self._normalize_base_url(participant_base_url),
+            username=username,
+            selected_story_id=snapshot_id,
+        )
+        self._apply_remove_story(channel_state, snapshot_id)
+        self._persist_channel_state(channel_state)
+        return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
+
+    def remove_news_item_live(
+        self,
+        channel_id: str,
+        snapshot_id: str,
+        news_item_id: str,
+        *,
+        participant_base_url: str,
+        session_id: str,
+        username: str,
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Channel is closed")
+        self._upsert_presence(
+            channel_state,
+            session_id=session_id,
+            participant_base_url=self._normalize_base_url(participant_base_url),
+            username=username,
+            selected_story_id=snapshot_id,
+        )
+        self._apply_remove_news_item(channel_state, snapshot_id, news_item_id)
         self._persist_channel_state(channel_state)
         return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
 

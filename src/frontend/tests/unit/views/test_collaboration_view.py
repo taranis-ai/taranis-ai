@@ -238,6 +238,91 @@ def test_collaboration_close_last_channel_redirects_to_closed_channel_archive(au
     assert response.headers["Location"].endswith("/collaboration?channel_id=channel-1")
 
 
+def test_collaboration_submit_report_dialog_honors_submitted_finalized_story_ids(authenticated_client, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/report-1/stories",
+        json={"message": "Stories added"},
+    )
+
+    with authenticated_client.session_transaction() as flask_session:
+        flask_session["collab_finalize_results"] = {
+            "channel-1": {
+                "report_story_ids": ["story-1", "story-2", "story-3"],
+            }
+        }
+
+    response = authenticated_client.post(
+        "/collaboration/report",
+        data={
+            "report": "report-1",
+            "channel_id": "channel-1",
+            "story_ids": ["story-2"],
+        },
+        headers={"HX-Request": "true"},
+    )
+
+    assert response.status_code == 204
+    assert response.headers["HX-Redirect"].endswith("/collaboration/channel-1")
+    request_body = json.loads(responses_mock.calls[0].request.body)
+    assert request_body == ["story-2"]
+
+
+def test_collaboration_submit_report_dialog_falls_back_to_all_finalized_channel_stories(authenticated_client, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/report-1/stories",
+        json={"message": "Stories added"},
+    )
+
+    with authenticated_client.session_transaction() as flask_session:
+        flask_session["collab_finalize_results"] = {
+            "channel-1": {
+                "report_story_ids": ["story-1", "story-2", "story-3"],
+            }
+        }
+
+    response = authenticated_client.post(
+        "/collaboration/report",
+        data={
+            "report": "report-1",
+            "channel_id": "channel-1",
+        },
+        headers={"HX-Request": "true"},
+    )
+
+    assert response.status_code == 204
+    assert response.headers["HX-Redirect"].endswith("/collaboration/channel-1")
+    request_body = json.loads(responses_mock.calls[0].request.body)
+    assert request_body == ["story-1", "story-2", "story-3"]
+
+
+def test_collaboration_report_dialog_renders_all_finalized_channel_story_ids(authenticated_client, responses_mock):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items",
+        json={"items": [{"id": "report-1", "title": "Daily Report"}], "total_count": 1},
+    )
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-1/finalize",
+        json={
+            "channel_id": "channel-1",
+            "report_story_ids": ["story-1", "story-2", "story-3"],
+            "created_story_ids": [],
+            "updated_story_ids": ["story-1", "story-2", "story-3"],
+            "persisted_story_ids": ["story-1", "story-2", "story-3"],
+        },
+    )
+
+    response = authenticated_client.post("/collaboration/channel-1/report-dialog")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert html.count('name="story_ids" value="story-1"') == 1
+    assert html.count('name="story_ids" value="story-2"') == 1
+    assert html.count('name="story_ids" value="story-3"') == 1
+    assert "story_ids=story-1" in html
+    assert "story_ids=story-2" in html
+    assert "story_ids=story-3" in html
+
+
 def test_collaboration_workspace_renders_active_channel(authenticated_client, responses_mock):
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/collab/channels",

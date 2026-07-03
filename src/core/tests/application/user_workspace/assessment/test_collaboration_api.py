@@ -2,7 +2,10 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from core.managers.db_manager import db
 from core.model.collaboration_channel import CollaborationChannelRecord
+from core.model.report_item import ReportItem
+from core.model.story import Story
 from core.service.collaboration import collaboration_service
 
 
@@ -145,6 +148,38 @@ def test_finalize_collaboration_channel_updates_local_origin_story_in_place(clie
     assert story_response.get_json()["summary"] == "Updated through collaboration finalize"
 
 
+def test_finalize_collaboration_channel_preserves_report_tag_for_existing_report_story(
+    client, auth_header, stories, app, cleanup_report_item, admin_user
+):
+    with app.app_context():
+        report_item, status = ReportItem.add(cleanup_report_item, admin_user)
+        assert status == 200
+        response, status = ReportItem.add_stories(report_item.id, [stories[0]], admin_user)
+        assert status == 200
+        assert response["message"].startswith("Successfully added 1 stories")
+        report_id = report_item.id
+
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Finalize Keeps Report Tag", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    snapshot = collaboration_service.channels[channel_id]["result_stories"][0]
+    snapshot["story"]["summary"] = "Updated through collaboration finalize"
+
+    finalize_response = client.post(f"/api/assess/collab/channels/{channel_id}/finalize", json={}, headers=auth_header)
+
+    assert finalize_response.status_code == 200
+
+    with app.app_context():
+        db.session.expire_all()
+        story = Story.get(stories[0])
+        assert story is not None
+        report_tag_types = {tag.tag_type for tag in story.tags if tag.tag_type.startswith("report_")}
+        assert report_tag_types == {f"report_{report_id}"}
+
+
 def test_finalize_collaboration_channel_reuses_remote_persisted_story(client, auth_header, stories):
     create_response = client.post(
         "/api/assess/collab/channels",
@@ -176,6 +211,154 @@ def test_finalize_collaboration_channel_reuses_remote_persisted_story(client, au
     story_response = client.get(f"/api/assess/story/{created_story_id}", headers=auth_header)
     assert story_response.status_code == 200
     assert story_response.get_json()["summary"] == "Updated after first persistence"
+
+
+def test_finalize_collaboration_channel_reassigns_conflicting_news_item_to_channel_state(
+    client, auth_header, stories, app, cleanup_report_item, admin_user
+):
+    with app.app_context():
+        conflicting_story = Story.get(stories[1])
+        assert conflicting_story is not None
+        conflicting_news_item = conflicting_story.news_items[0]
+        report_item, status = ReportItem.add(cleanup_report_item, admin_user)
+        assert status == 200
+        response, status = ReportItem.add_stories(report_item.id, [conflicting_story.id], admin_user)
+        assert status == 200
+        assert response["message"].startswith("Successfully added 1 stories")
+        conflicting_story_id = conflicting_story.id
+        conflicting_news_item_id = conflicting_news_item.id
+        conflicting_news_item_payload = conflicting_news_item.to_detail_dict()
+        report_id = report_item.id
+
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Finalize Conflict", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    snapshot = collaboration_service.channels[channel_id]["result_stories"][0]
+    snapshot["source_instance"] = "https://remote.demo"
+    snapshot["source_story_id"] = "remote-story-conflict"
+    snapshot["persisted_local_story_id"] = None
+    snapshot["story"]["news_items"] = [conflicting_news_item_payload]
+
+    finalize_response = client.post(f"/api/assess/collab/channels/{channel_id}/finalize", json={}, headers=auth_header)
+
+    assert finalize_response.status_code == 200
+    payload = finalize_response.get_json()
+    created_story_id = payload["created_story_ids"][0]
+
+    with app.app_context():
+        db.session.expire_all()
+        refreshed_conflicting_story = Story.get(conflicting_story_id)
+        finalized_story = Story.get(created_story_id)
+        refreshed_report = ReportItem.get(report_id)
+        assert finalized_story is not None
+        assert refreshed_report is not None
+        assert refreshed_conflicting_story is None
+        assert [item.id for item in finalized_story.news_items] == [conflicting_news_item_id]
+
+        response, status = ReportItem.add_stories(refreshed_report.id, payload["report_story_ids"], admin_user)
+        assert status == 200
+        assert response["message"].startswith("Successfully added 1 stories")
+
+        db.session.expire_all()
+        refreshed_report = ReportItem.get(report_id)
+        assert refreshed_report is not None
+        assert {story.id for story in refreshed_report.stories} == {created_story_id}
+        report_story_map = {story.id: [item.id for item in story.news_items] for story in refreshed_report.stories}
+        assert report_story_map[created_story_id] == [conflicting_news_item_id]
+
+
+def test_finalize_collaboration_channel_retags_surviving_conflicting_source_story_from_report_membership(
+    client, auth_header, app, cleanup_report_item, admin_user
+):
+    with app.app_context():
+        source_story_payload = {
+            "title": "Source Story",
+            "description": "Has two news items",
+            "news_items": [
+                {
+                    "id": "source-news-1",
+                    "title": "Source News 1",
+                    "content": "content-1",
+                    "source": "unit-test",
+                    "link": "https://example.invalid/source-1",
+                    "osint_source_id": "manual",
+                    "hash": "source-news-hash-1",
+                    "collected": "2026-07-03T08:00:00",
+                    "published": "2026-07-03T08:00:00",
+                },
+                {
+                    "id": "source-news-2",
+                    "title": "Source News 2",
+                    "content": "content-2",
+                    "source": "unit-test",
+                    "link": "https://example.invalid/source-2",
+                    "osint_source_id": "manual",
+                    "hash": "source-news-hash-2",
+                    "collected": "2026-07-03T08:05:00",
+                    "published": "2026-07-03T08:05:00",
+                },
+            ],
+        }
+        target_story_payload = {
+            "title": "Target Story",
+            "description": "Will be finalized",
+            "news_items": [
+                {
+                    "id": "target-news-1",
+                    "title": "Target News 1",
+                    "content": "target-content",
+                    "source": "unit-test",
+                    "link": "https://example.invalid/target-1",
+                    "osint_source_id": "manual",
+                    "hash": "target-news-hash-1",
+                    "collected": "2026-07-03T08:10:00",
+                    "published": "2026-07-03T08:10:00",
+                }
+            ],
+        }
+        source_result, source_status = Story.add(source_story_payload, actor="internal")
+        target_result, target_status = Story.add(target_story_payload, actor="internal")
+        assert source_status == 200
+        assert target_status == 200
+        source_story_id = source_result["story_id"]
+        target_story_id = target_result["story_id"]
+        source_story = Story.get(source_story_id)
+        assert source_story is not None
+        moved_item_payload = source_story.news_items[0].to_detail_dict()
+
+        report_item, status = ReportItem.add(cleanup_report_item, admin_user)
+        assert status == 200
+        response, status = ReportItem.add_stories(report_item.id, [source_story_id], admin_user)
+        assert status == 200
+        assert response["message"].startswith("Successfully added 1 stories")
+        report_id = report_item.id
+
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Finalize Conflict Retag", "story_ids": [target_story_id]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    snapshot = collaboration_service.channels[channel_id]["result_stories"][0]
+    snapshot["source_instance"] = "https://remote.demo"
+    snapshot["source_story_id"] = "remote-story-conflict-retag"
+    snapshot["persisted_local_story_id"] = None
+    snapshot["story"]["news_items"] = [moved_item_payload]
+
+    finalize_response = client.post(f"/api/assess/collab/channels/{channel_id}/finalize", json={}, headers=auth_header)
+
+    assert finalize_response.status_code == 200
+
+    with app.app_context():
+        db.session.expire_all()
+        source_story = Story.get(source_story_id)
+        assert source_story is not None
+        assert len(source_story.news_items) == 1
+        report_tag_types = {tag.tag_type for tag in source_story.tags if tag.tag_type.startswith("report_")}
+        assert report_tag_types == {f"report_{report_id}"}
 
 
 def test_collaboration_live_state_tracks_presence_and_locks(client, auth_header, stories):
@@ -291,6 +474,42 @@ def test_collaboration_live_workspace_patch_updates_channel_state(client, auth_h
     assert workspace_payload["decisions"][0]["text"] == "Publish TLP:AMBER advisory"
     assert workspace_payload["activity_items"][0]["actor"] == "alice"
     assert workspace_payload["activity_items"][0]["participant_base_url"] == actor["base_url"]
+
+
+def test_collaboration_live_channel_info_patch_updates_shared_metadata(client, auth_header, stories):
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Channel Info Topic", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    channel_id = create_response.get_json()["channel_id"]
+    actor = {
+        "base_url": collaboration_service.external_base_url(),
+        "session_id": "session-a",
+        "username": "alice",
+    }
+
+    response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/workspace-patch",
+        json={
+            "target": "channel_info",
+            "action": "set",
+            "actor": actor,
+            "data": {
+                "chat_url": "https://chat.example/room-7",
+                "resource_url": "https://wiki.example/playbook",
+                "notes": "Use this room for partner coordination.",
+            },
+        },
+        headers=auth_header,
+    )
+
+    assert response.status_code == 200
+    workspace_payload = response.get_json()["workspace"]
+    assert workspace_payload["channel_info"]["chat_url"] == "https://chat.example/room-7"
+    assert workspace_payload["channel_info"]["resource_url"] == "https://wiki.example/playbook"
+    assert workspace_payload["channel_info"]["notes"] == "Use this room for partner coordination."
+    assert workspace_payload["activity_items"][0]["text"] == "updated channel info"
 
 
 def test_collaboration_live_chat_message_tracks_instance_metadata(client, auth_header, stories):
@@ -453,6 +672,68 @@ def test_collaboration_story_ops_rebase_stale_version(client, auth_header, stori
     assert applied["version"] == 2
     assert detail.stories[0].story["title"].startswith("First Second ") or detail.stories[0].story["title"].startswith("Second First ")
     assert any(doc.field_name == "title" and doc.version == 2 for doc in detail.shared_docs)
+
+
+def test_collaboration_live_remove_news_item_updates_story_state(client, auth_header, stories):
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Remove News Item", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+    payload = create_response.get_json()
+    channel_id = payload["channel_id"]
+    snapshot_id = payload["stories"][0]["id"]
+    actor = {
+        "base_url": collaboration_service.external_base_url(),
+        "session_id": "session-a",
+        "username": "alice",
+    }
+    news_item_id = payload["stories"][0]["story"]["news_items"][0]["id"]
+
+    response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/remove-news-item",
+        json={
+            "snapshot_id": snapshot_id,
+            "news_item_id": news_item_id,
+            "actor": actor,
+        },
+        headers=auth_header,
+    )
+
+    assert response.status_code == 200
+    story_payload = response.get_json()["stories"][0]["story"]
+    assert story_payload["news_items"] == []
+
+
+def test_collaboration_live_remove_story_updates_channel_state(client, auth_header, stories):
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Remove Story", "story_ids": stories[:2]},
+        headers=auth_header,
+    )
+    payload = create_response.get_json()
+    channel_id = payload["channel_id"]
+    removed_snapshot_id = payload["stories"][0]["id"]
+    remaining_snapshot_id = payload["stories"][1]["id"]
+    actor = {
+        "base_url": collaboration_service.external_base_url(),
+        "session_id": "session-a",
+        "username": "alice",
+    }
+
+    response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/remove-story",
+        json={
+            "snapshot_id": removed_snapshot_id,
+            "actor": actor,
+        },
+        headers=auth_header,
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert [story["id"] for story in payload["stories"]] == [remaining_snapshot_id]
+    assert payload["workspace"]["focused_story_id"] == remaining_snapshot_id
 
 
 def test_collaboration_text_selection_lifecycle(client, auth_header, stories):

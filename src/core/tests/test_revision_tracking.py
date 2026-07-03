@@ -12,6 +12,7 @@ from core.model.revision import ReportRevision, StoryRevision
 from core.model.story import Story
 from core.service.news_item import NewsItemService
 from core.service.news_item_tag import NewsItemTagService
+from core.service.report_story_sync import ReportStorySyncService
 
 
 def _news_item_payload(source: str = "unit-test") -> dict:
@@ -343,6 +344,56 @@ def test_report_add_stories_creates_created_and_update_revisions(sample_report_t
     revisions = _fetch_report_revisions(report_item.id)
     assert report_item.revision == 2
     assert [revision.note for revision in revisions] == ["created", "add_stories"]
+
+
+@pytest.mark.usefixtures("session")
+def test_report_add_stories_reports_actual_newly_attached_count(sample_report_type, admin_user):
+    payload = {
+        "title": "Initial Report",
+        "completed": False,
+        "report_item_type_id": sample_report_type.id,
+        "stories": [],
+    }
+    report_item, status = ReportItem.add(payload, admin_user)
+    assert isinstance(report_item, ReportItem)
+    assert status == 200
+    story = _create_story()
+
+    first_response, first_status = ReportItem.add_stories(report_item.id, [story.id], admin_user)
+    second_response, second_status = ReportItem.add_stories(report_item.id, [story.id], admin_user)
+
+    assert first_status == 200
+    assert first_response["message"].startswith("Successfully added 1 stories")
+    assert second_status == 200
+    assert second_response["message"].startswith("Successfully added 0 stories")
+
+
+@pytest.mark.usefixtures("session")
+def test_retag_story_from_membership_restores_report_tags_without_touching_other_tags(sample_report_type, admin_user):
+    payload = {
+        "title": "Initial Report",
+        "completed": False,
+        "report_item_type_id": sample_report_type.id,
+        "stories": [],
+    }
+    report_item, status = ReportItem.add(payload, admin_user)
+    assert isinstance(report_item, ReportItem)
+    assert status == 200
+    story = _create_story()
+    story.set_tags(["apt29"], actor=Story.resolve_actor(user=admin_user))
+
+    response, status = ReportItem.add_stories(report_item.id, [story.id], admin_user)
+    assert status == 200
+    assert response["message"].startswith("Successfully added 1 stories")
+
+    story.tags = [tag for tag in story.tags if not tag.tag_type.startswith("report_")]
+    ReportStorySyncService.retag_story_from_membership(story)
+    db.session.flush()
+
+    report_tag_types = {tag.tag_type for tag in story.tags if tag.tag_type.startswith("report_")}
+    non_report_tag_names = {tag.name for tag in story.tags if not tag.tag_type.startswith("report_")}
+    assert report_tag_types == {f"report_{report_item.id}"}
+    assert "apt29" in non_report_tag_names
 
 
 @pytest.mark.usefixtures("session")
