@@ -1,6 +1,6 @@
 {% from "macros/forms.html" import form_input, form_select %}
 
-{% set create = user_id == 0 | default('true') %}
+{% set create = (user_id | default("0")) == "0" %}
 
 {% set form_error = form_error | default({}) %}
 {% set roles = roles | default([]) %}
@@ -14,23 +14,44 @@
   {% endif %}
 {% endfor %}
 {% set user_role_ids = role_ns.ids %}
+{% if user.organization %}
+  {% set user_organization_id = user.organization.id %}
+{% else %}
+  {% set user_organization_id = "" %}
+{% endif %}
 
 <script type="text/javascript">
   if (typeof htmx !== 'undefined' && htmx.onLoad) {
     htmx.onLoad(function (elt) {
-      initChoices('user-role-select', 'roles');
+      initChoices('user-role-select');
     });
   } else {
-    initChoices('user-role-select', 'roles');
+    initChoices('user-role-select');
   }
 
   function generatePassword(
     length = 20,
     characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz~!@-#$'
   ) {
-    return Array.from(crypto.getRandomValues(new Uint32Array(length)))
-      .map((x) => characters[x % characters.length])
-      .join('');
+    const characterCount = characters.length;
+    const maxValidByte = Math.floor(256 / characterCount) * characterCount - 1;
+    const randomBytes = new Uint8Array(length);
+    let password = '';
+
+    while (password.length < length) {
+      crypto.getRandomValues(randomBytes);
+      for (const byte of randomBytes) {
+        if (byte > maxValidByte) {
+          continue;
+        }
+        password += characters[byte % characterCount];
+        if (password.length === length) {
+          break;
+        }
+      }
+    }
+
+    return password;
   }
 </script>
 
@@ -84,7 +105,13 @@
     </div>
 
     <div class="mb-5 w-3/4">
-      <select name="roles[]" multiple required id="user-role-select">
+      <select name="roles[]"
+              multiple
+              required
+              id="user-role-select"
+              data-choices-placeholder-value="{{ _('Select roles') }}"
+              data-choices-no-results-text="{{ _('No roles found') }}"
+              data-choices-no-choices-text="{{ _('No roles to choose from') }}">
         {% for role in roles %}
           <option value="{{ role.id }}" {% if role.id | string in user_role_ids %}selected{% endif %}>
             {{ role.name }} - {{ role.description | default(' ', true) | truncate(50, true) }}
@@ -93,7 +120,7 @@
       </select>
     </div>
 
-    {{ form_select('Organization', 'organization', user.organization, organizations, width="w-3/4") }}
+    {{ form_select(label='Organization', name='organization', value=user_organization_id, options=organizations, width="w-3/4") }}
 
     <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
   </form>

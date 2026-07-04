@@ -49,17 +49,19 @@ class SentimentAnalysisBot(BaseBot):
                     logger.error(response["error"])
                     continue
 
-                sentiment = response.get("sentiment")
-                if not sentiment:
+                sentiment = response.get("sentiment") if isinstance(response, dict) else None
+                sentiment_payload = sentiment if isinstance(sentiment, dict) else response if isinstance(response, dict) else None
+                if not sentiment_payload:
                     continue
 
-                label = sentiment.get("label")
-                score = sentiment.get("score")
+                label = sentiment_payload.get("label")
+                score = sentiment_payload.get("score")
                 logger.debug(f"Received sentiment label: {label} with score: {score}")
 
                 news_item_id = news_item.get("id")
-                if news_item_id is not None:
-                    results[news_item_id] = {"sentiment": score, "category": label}
+                normalized_label = str(label).lower() if label not in (None, "") else ""
+                if news_item_id is not None and normalized_label:
+                    results[news_item_id] = {"sentiment": score, "category": normalized_label}
 
         return results
 

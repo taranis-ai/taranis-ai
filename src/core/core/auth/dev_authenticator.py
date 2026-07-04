@@ -21,9 +21,8 @@ class DevAuthenticator(BaseAuthenticator):
         self.name = "DevAuthenticator"
 
     def authenticate(self, credentials: dict[str, str]) -> Response:
-        logger.debug(f"DEV AUTH with {credentials}")
-
         username, password = credentials.get("username"), credentials.get("password")
+        logger.debug("DEV AUTH attempt for username: %s", username)
 
         if not username or not password:
             return BaseAuthenticator.generate_error()
@@ -31,5 +30,5 @@ class DevAuthenticator(BaseAuthenticator):
         if users.get(username) == password:
             return BaseAuthenticator.generate_jwt(username)
 
-        logger.store_auth_error_activity(f"Authentication failed with credentials: {credentials}")
+        logger.store_auth_error_activity(f"Authentication failed for username: {username}")
         return BaseAuthenticator.generate_error()

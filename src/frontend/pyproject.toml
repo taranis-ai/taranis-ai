@@ -8,15 +8,15 @@ maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Framework :: Flask",
     "Topic :: Security",
 ]
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.14,<3.15"
 dependencies = [
     "Flask",
     "Flask-JWT-Extended",
+    "flask-babel>=4,<5",
     "flask-htmx",
     "jinja2-fragments",
     "flask-cors",
@@ -26,15 +26,15 @@ dependencies = [
     "python-dotenv",
     "granian",
     "requests",
+    "sentry-sdk[flask]",
     "setuptools",
     "polyfactory",
-    "uuid7",
     "filetype",
     "heroicons[jinja]>=2.11.0",
     "plotly[express]",
     "pandas",
     "redis",
-    "taranis-models>=1.3.3.dev5",
+    "taranis-models",
 ]
 dynamic = ["version"]
 
@@ -44,7 +44,7 @@ packages = ["frontend"]
 [build-system]
 requires = [
     "setuptools>=45",
-    "setuptools_scm[toml]>=6.2",
+    "setuptools_scm>=6.2",
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
@@ -55,7 +55,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "pytest-docker", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pytest-responses", "lxml", "rq>=2.5"]
+dev = ["ruff", "pytest", "pytest-flask", "pytest-docker", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pyright", "pytest-responses", "lxml", "rq>=2.5"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -65,7 +65,7 @@ taranis-frontend-healthcheck = "frontend.healthcheck:main"
 
 [tool.ruff]
 line-length = 142
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
@@ -125,6 +125,7 @@ reportUnusedImport = "warning"
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
+exclude-newer = "1 week"
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",

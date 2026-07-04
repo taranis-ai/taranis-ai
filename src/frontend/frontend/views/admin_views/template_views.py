@@ -3,15 +3,15 @@ from typing import Any
 
 from flask import request
 from models.admin import Template
+from werkzeug.exceptions import HTTPException
 
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class TemplateView(AdminMixin, BaseView):
+class TemplateView(AdminBaseView):
     model = Template
     icon = "document-text"
     _index = 160
@@ -53,15 +53,17 @@ class TemplateView(AdminMixin, BaseView):
         return base_context
 
     @classmethod
-    def process_form_data(cls, object_id: str | int):
+    def process_form_data(cls, object_id: str):
         try:
             form_data = parse_formdata(request.form)
             obj = Template(**form_data)
             if obj.content:
                 obj.content = b64encode(obj.content.encode("utf-8")).decode("utf-8")
             dpl = DataPersistenceLayer()
-            result = dpl.store_object(obj) if object_id == 0 else dpl.update_object(obj, object_id)
+            result = dpl.store_object(obj) if cls.is_create_object_id(object_id) else dpl.update_object(obj, object_id)
             return (result.json(), None) if result.ok else (None, result.json().get("error"))
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.error(f"Error storing form data: {str(exc)}")
             return None, str(exc)

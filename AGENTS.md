@@ -61,6 +61,16 @@ Task modules:
 - admin/config endpoints under `src/core/core/api/config.py` are for admin workflows; do not use them from user-facing views
 - when a user workflow needs product or publish-related reference data, expose it through a user-scoped endpoint in `src/core/core/api/publish.py`
 - declare matching user-facing model classes in `src/models/models/product.py` and import those from frontend publish views
+- frontend views should prefer `DataPersistenceLayer` over direct `CoreApi()` calls so cache behavior stays consistent; use `CoreApi()` directly only for raw response handling, downloads/streams, or endpoints that intentionally bypass cached model access
+
+## Agent Memory Files
+
+- feature and workflow context lives in `docs/agents/`
+- when a task mentions an application feature, workflow, route, model, template, or user-facing behavior, first inspect `docs/agents/README.md` for a matching memory file
+- read every matching memory file before planning or editing related code
+- memory files provide expected behavior, code paths, tests, and known pitfalls; the implementation remains the final source of truth
+- if a change updates behavior, code paths, cache behavior, validation, or test strategy covered by a memory file, update that memory file in the same task
+- if a task introduces a substantial feature or workflow that is likely to be revisited, add a new memory file and link it from `docs/agents/README.md`
 
 ## Testing
 
@@ -89,7 +99,9 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 **Important Notes:**
 
 - You must run commands separately in each src directory to ensure all dependencies are installed
-- For `src/core` migration work, first launch core once so it bootstraps the current database state; only after that should you apply migrations
+- Do not create migration files for new tables. New SQLAlchemy tables are created from model metadata during core startup through `src/core/core/managers/db_manager.py` (`db.init_app(app)` followed by metadata setup).
+- Create core migration files only when changing existing tables or deleting existing tables.
+- For `src/core` migration work on existing tables, first launch core once so it bootstraps the current database state; only after that should you apply migrations
 - If the latest core migration was only marked as applied, undo or unmark that last migration first and then reapply it
 - Always execute test and lint commands from within the corresponding component directory (`cd src/<component>`), then run `uv run ...`
 - E2E tests require the application to be running (they start their own test server)
@@ -107,11 +119,15 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 - avoid inline fake classes or ad-hoc test doubles inside test functions; put shared fakes in the nearest `conftest.py` or a dedicated support module instead
 - avoid unit tests for orchestration methods whose collaborators are almost entirely monkeypatched or stubbed out; those tests tend to prove call wiring rather than behavior
 - for admin/frontend workflows that depend on cache invalidation, scheduling, seeding, or similar cross-component side effects, prefer frontend e2e coverage over heavily mocked unit tests
+- for e2e tests, prefer adding a `data-test-id` attribute as the selector when possible
+- do not use pytest autouse fixtures; request fixtures explicitly or use module/class-level `pytest.mark.usefixtures` when a whole module needs setup
 
 ## Development Guidelines
 
 - The best code is no code.
 - Complexity is bad. Keep designs as simple as possible.
+- New WIP features must use one canonical field/API shape; do not introduce "legacy" aliases, migration validators, or compatibility payloads in the same branch unless the compatibility is for behavior already released to users.
+- For settings JSON, prefer simple flat keys and direct values; do not add nested metadata structures, constants, validators, or helper layers unless they are clearly needed now.
 - Mocking is also bad. Use it only when it is absolutely necessary.
 - DRY matters, but do not force reuse if it hurts readability.
 - When creating branches, use only `fix/`, `feature/`, or `chore/` prefixes.
@@ -124,6 +140,7 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 - run tests before committing code
 - write tests for new features and bug fixes
 - fix linting issues before committing code
+- after touching Python files, run `./dev/check_touched_pyright.sh` to catch Pylance/Pyright issues in changed files
 - don't write commit messages like "x tests are passing" or "resolves linting failures"
 - don't add comments like "Restore template files ..." directly in the code, when you add new codelines
 

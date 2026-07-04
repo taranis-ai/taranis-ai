@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from sqlalchemy import inspect, or_
 from sqlalchemy.orm import Mapped, relationship
@@ -13,7 +12,7 @@ from sqlalchemy.sql.expression import false
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.attribute import AttributeEnum, AttributeType
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.report_item_type import AttributeGroup, AttributeGroupItem, ReportItemType
 from core.model.revision import ReportRevision
 from core.model.role_based_access import ItemType, RoleBasedAccess
@@ -26,7 +25,7 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 class ReportItem(BaseModel):
     __tablename__ = "report_item"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
 
     title: Mapped[str] = db.Column(db.String())
 
@@ -35,10 +34,10 @@ class ReportItem(BaseModel):
     completed: Mapped[bool] = db.Column(db.Boolean, default=False)
     revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
-    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id"), nullable=True)
     user: Mapped["User"] = relationship("User")
 
-    report_item_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), nullable=True)
+    report_item_type_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item_type.id"), nullable=True)
     report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
 
     stories: Mapped[list["Story"]] = relationship(
@@ -68,7 +67,7 @@ class ReportItem(BaseModel):
         report_item_cpes=None,
         id=None,
     ):
-        self.id = id or str(uuid.uuid4())
+        self.id = self.normalize_uuid_id(id)
         self.title = title
         self.report_item_type_id = report_item_type_id
         self.attributes = attributes or []
@@ -87,9 +86,9 @@ class ReportItem(BaseModel):
         # sourcery skip: assign-if-exp, reintroduce-else, swap-if-else-branches, use-named-expression
         item = cls.get(item_id)
         if not item:
-            return {"error": f"{cls.__name__} {item_id} not found"}, 404
+            return {"error": f"{cls.__name__} not found"}, 404
         if user and not item.access_allowed(user, False):
-            return {"error": f"User {user.id} is not allowed to read Report {item.id}"}, 403
+            return {"error": "User is not allowed to read report"}, 403
 
         return item.to_detail_dict(), 200
 
@@ -124,7 +123,27 @@ class ReportItem(BaseModel):
         return response, status_code
 
     def get_attribute_dict(self) -> list[dict[str, Any]]:
-        return [attribute.to_report_dict() for attribute in self.attributes]
+        story_choices = [{"id": story.id, "title": story.title or story.id} for story in self.stories if story and story.id]
+
+        attributes = []
+        for attribute in self.attributes:
+            attr = attribute.to_report_dict()
+            render_data = dict(attr.get("render_data") or {})
+            if attribute.attribute_type == AttributeType.STORY:
+                render_data["story_choices"] = story_choices
+            attr["render_data"] = render_data
+            attributes.append(attr)
+
+        return attributes
+
+    @staticmethod
+    def _get_used_story_ids(attributes: list["ReportItemAttribute"]) -> list[str]:
+        used_story_ids: list[str] = []
+        for attribute in attributes:
+            if attribute.attribute_type != AttributeType.STORY:
+                continue
+            used_story_ids.extend(story_id.strip() for story_id in str(attribute.value).split(",") if story_id and story_id.strip())
+        return list(dict.fromkeys(used_story_ids))
 
     def get_grouped_attributes(self, attributes: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         attribute_dicts = attributes if attributes is not None else self.get_attribute_dict()
@@ -143,6 +162,7 @@ class ReportItem(BaseModel):
         attributes = self.get_attribute_dict()
         data["grouped_attributes"] = self.get_grouped_attributes(attributes)
         data["stories"] = [story.to_dict() for story in self.stories if story]
+        data["used_story_ids"] = self._get_used_story_ids(self.attributes or [])
         data["revision_count"] = self.get_revision_count()
         return data
 
@@ -230,12 +250,8 @@ class ReportItem(BaseModel):
         report_item_type_id_raw = data.get("report_item_type_id")
         if report_item_type_id_raw is None:
             return None, ({"error": "report_item_type_id is required"}, 400)
-        try:
-            report_item_type_id = int(report_item_type_id_raw)
-        except (TypeError, ValueError):
-            return None, ({"error": "report_item_type_id must be an integer"}, 400)
-
-        if report_item_type_id <= 0 or not ReportItemType.get(report_item_type_id):
+        report_item_type_id = str(report_item_type_id_raw)
+        if not ReportItemType.get(report_item_type_id):
             return None, ({"error": "Invalid report item type"}, 400)
 
         sanitized: dict[str, Any] = {
@@ -254,9 +270,6 @@ class ReportItem(BaseModel):
             if normalized_stories is None:
                 return None, ({"error": "stories must be a list of story ids"}, 400)
             sanitized["stories"] = normalized_stories
-
-        if "report_item_cpes" in data:
-            sanitized["report_item_cpes"] = data["report_item_cpes"]
 
         if raw_id := data.get("id"):
             if isinstance(raw_id, str) and raw_id.strip():
@@ -294,7 +307,7 @@ class ReportItem(BaseModel):
         new_report.record_revision(user, note="cloned")
         db.session.commit()
         return {
-            "message": f"Successfully cloned Report '{new_report.title}'",
+            "message": "Report cloned",
             "report": new_report.to_detail_dict(),
             "id": new_report.id,
         }, 200
@@ -304,7 +317,7 @@ class ReportItem(BaseModel):
         return [cls.from_dict(report_item) for report_item in data]
 
     @classmethod
-    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem" | dict[str, Any], int]:
+    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem", Literal[200]] | tuple[dict[str, Any], int]:
         sanitized_data, error = cls._sanitize_create_payload(report_item_data)
         if error:
             return error[0], error[1]
@@ -315,7 +328,7 @@ class ReportItem(BaseModel):
 
         if user:
             if not report_item.access_allowed(user, True):
-                return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
+                return {"error": "User is not allowed to create report"}, 403
 
             report_item.user_id = user.id
         report_item.add_attributes()
@@ -408,7 +421,7 @@ class ReportItem(BaseModel):
             if filter_range.upper() == "MONTH":
                 date_limit = date_limit.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                 query = query.filter(ReportItem.created >= date_limit)
-        
+
         if story_id := filter_args.get("story_id"):
             query = query.filter(cls.stories.any(Story.id == story_id))
 
@@ -418,6 +431,11 @@ class ReportItem(BaseModel):
 
         if completed == "false":
             query = query.filter(ReportItem.completed == false())
+
+        report_item_type_id_raw = filter_args.get("report_item_type_id")
+        report_item_type_id = str(report_item_type_id_raw) if report_item_type_id_raw is not None else None
+        if report_item_type_id:
+            query = query.filter(ReportItem.report_item_type_id == report_item_type_id)
 
         return query
 
@@ -445,7 +463,7 @@ class ReportItem(BaseModel):
             return None, {"error": "Report Item not Found"}, 404
 
         if not report_item.access_allowed(user, True):
-            return None, {"error": f"User {user.id} is not allowed to update Report {report_item.id}"}, 403
+            return None, {"error": "User is not allowed to update report"}, 403
 
         return report_item, {}, 200
 
@@ -463,10 +481,10 @@ class ReportItem(BaseModel):
         db.session.commit()
 
         logger.debug(f"Added {story_ids} stories to Report Item {report_item.id}")
-        return {"message": f"Successfully added {len(story_ids)} stories to {report_item.title}"}, 200
+        return {"message": "Successfully added stories"}, 200
 
     @classmethod
-    def remove_stories(cls, report_id: str, story_ids: list[int], user: User) -> tuple[dict, int]:
+    def remove_stories(cls, report_id: str, story_ids: list[str], user: User) -> tuple[dict, int]:
         report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
         if err or not report_item:
             return err, status
@@ -477,12 +495,12 @@ class ReportItem(BaseModel):
         report_item.record_revision(user, note="remove_stories")
         db.session.commit()
 
-        return {"message": f"Successfully removed {story_ids} from {report_item.id}"}, 200
+        return {"message": "Successfully removed stories"}, 200
 
     @classmethod
     def set_stories(cls, report_id: str, story_ids: list, user: User) -> tuple[dict, int]:
         new_report, status = cls.update_report_item(report_id, {"story_ids": story_ids}, user)
-        return {"message": f"Successfully updated Report Item {report_id}", "report": new_report}, status
+        return {"message": "Successfully updated Report Item", "report": new_report}, status
 
     def update_stories(self, story_ids: list[str]):
         new_stories = Story.get_bulk(story_ids)
@@ -558,9 +576,11 @@ class ReportItem(BaseModel):
 
         report = cls.get(report_id)
         if not report:
+            logger.warning(f"Attempted to delete Report Item {report_id} which does not exist")
             return {"error": "Report not found"}, 404
 
         if ProductReportItem.assigned(report_id):
+            logger.warning(f"Attempted to delete Report Item {report_id} which is still assigned to a Product")
             return {"error": "Report is used in a product"}, 409
 
         affected_stories = list(report.stories)
@@ -568,7 +588,7 @@ class ReportItem(BaseModel):
         ReportStorySyncService.sync_report_membership(report, affected_stories, "detach")
         db.session.delete(report)
         db.session.commit()
-        return {"message": f"Successfully deleted report '{report.title}'"}, 200
+        return {"message": "Successfully deleted report"}, 200
 
     @classmethod
     def delete_all(cls) -> tuple[dict[str, Any], int]:
@@ -587,7 +607,7 @@ class ReportItem(BaseModel):
 class ReportItemAttribute(BaseModel):
     __tablename__ = "report_item_attribute"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     value: Mapped[str] = db.Column(db.String())
 
     title: Mapped[str] = db.Column(db.String())
@@ -599,7 +619,7 @@ class ReportItemAttribute(BaseModel):
     group_title: Mapped[str] = db.Column(db.String())
     render_data = db.Column(db.JSON)
 
-    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
+    report_item_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
     report_item = relationship("ReportItem")
 
     def __init__(
@@ -614,8 +634,7 @@ class ReportItemAttribute(BaseModel):
         render_data=None,
         id=None,
     ):
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
         self.value = value or ""
         self.title = title or ""
         self.description = description or ""
@@ -669,11 +688,12 @@ class ReportItemAttribute(BaseModel):
 
 
 class ReportItemCpe(BaseModel):
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     value: Mapped[str] = db.Column(db.String())
 
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
+    report_item_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item.id", ondelete="CASCADE"))
     report_item: Mapped["ReportItem"] = relationship("ReportItem")
 
     def __init__(self, value):
+        self.id = self.uuid7_str()
         self.value = value

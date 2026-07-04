@@ -1,0 +1,92 @@
+{% set context = search_context %}
+{% set parsed = context.parsed_query %}
+
+<div class="rounded-box border border-base-300 bg-base-100 shadow-xl" data-testid="omnisearch-suggestions">
+  {% if context.errors %}
+    <div class="border-b border-base-300 p-3 text-sm text-error" data-testid="omnisearch-errors">
+      {% for error in context.errors %}<div>{{ error }}</div>{% endfor %}
+    </div>
+  {% endif %}
+  {% if not parsed.raw %}
+    <ul class="menu menu-sm p-2">
+      {% for scope in context.scopes %}
+        <li>
+          <button type="button" class="flex items-center gap-2" data-query="{{ scope.command }}: " @click="applyOmniSearch($el.dataset.query)">
+            {{ heroicon_outline(scope.icon, class='h-4 w-4') }}
+            <span class="font-medium">{{ scope.command }}:</span>
+            <span class="text-xs text-base-content/60">{{ scope.plural_label }}</span>
+          </button>
+        </li>
+      {% endfor %}
+      {% for suggestion in context.assess_suggestions %}
+        <li>
+          <button type="button" class="flex items-center gap-2" data-query="{{ suggestion.replacement_query }}" @click="applyOmniSearch($el.dataset.query)">
+            {{ heroicon_outline('funnel', class='h-4 w-4') }}
+            <span class="font-medium">{{ suggestion.label }}</span>
+            <span class="text-xs text-base-content/60">{{ suggestion.detail }}</span>
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="max-h-[28rem] overflow-y-auto p-2">
+      {% if context.assess_suggestions %}
+        <ul class="menu menu-sm mb-2 border-b border-base-300 pb-2" data-testid="omnisearch-assess-suggestions">
+          {% for suggestion in context.assess_suggestions %}
+            <li>
+              <button type="button"
+                      class="flex items-center justify-between gap-3 text-left"
+                      data-query="{{ suggestion.replacement_query }}"
+                      @click="applyOmniSearch($el.dataset.query)">
+                <span class="min-w-0 truncate font-medium">{{ suggestion.label }}</span>
+                <span class="text-xs text-base-content/60">{{ suggestion.detail }}</span>
+              </button>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      {% if context.quick_links %}
+        <ul class="menu menu-sm mb-2 border-b border-base-300 pb-2">
+          {% for link in context.quick_links %}
+            <li>
+              <a href="{{ link.search_url }}" class="flex items-center gap-2">
+                {{ heroicon_outline(link.icon, class='h-4 w-4') }}
+                <span>Search {{ link.plural_label | lower }}</span>
+                <span class="truncate text-xs text-base-content/60">{{ parsed.term }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      {% for bucket in context.buckets %}
+        <section class="py-1" data-testid="omnisearch-scope-{{ bucket.scope }}">
+          <div class="flex items-center justify-between px-3 py-1 text-xs font-semibold uppercase text-base-content/60">
+            <span class="flex items-center gap-2">
+              {{ heroicon_outline(bucket.icon, class='h-4 w-4') }}
+              {{ bucket.plural_label }}
+            </span>
+            {% if bucket.total_count %}<a href="{{ bucket.search_url }}" class="link-hover normal-case">{{ bucket.total_count }} total</a>{% endif %}
+          </div>
+          {% if bucket.error %}
+            <div class="px-3 py-2 text-sm text-error">{{ bucket.error }}</div>
+          {% elif bucket.items %}
+            <ul class="menu menu-sm p-0">
+              {% for item in bucket.items %}
+                <li>
+                  <a href="{{ item.url }}" class="block min-w-0" data-testid="omnisearch-result-{{ item.scope }}">
+                    <span class="block truncate font-medium">{{ item.title }}</span>
+                    {% if item.description %}<span class="block truncate text-xs text-base-content/60">{{ item.description }}</span>{% endif %}
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="px-3 py-2 text-sm text-base-content/60">No matching {{ bucket.plural_label | lower }}</div>
+          {% endif %}
+        </section>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>

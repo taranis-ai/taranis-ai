@@ -3,16 +3,16 @@ from typing import Any
 from flask import render_template, request
 from models.admin import ProductType, PublisherPreset, ReportItemType, Template
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
+from werkzeug.exceptions import HTTPException
 
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_item_type
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class PublisherView(AdminMixin, BaseView):
+class PublisherView(AdminBaseView):
     model = PublisherPreset
     icon = "envelope-open"
     _index = 140
@@ -56,7 +56,7 @@ class PublisherView(AdminMixin, BaseView):
         ]
 
 
-class ProductTypeView(AdminMixin, BaseView):
+class ProductTypeView(AdminBaseView):
     model = ProductType
     icon = "envelope"
     _index = 150
@@ -85,10 +85,12 @@ class ProductTypeView(AdminMixin, BaseView):
         return base_context
 
     @classmethod
-    def process_form_data(cls, object_id: int | str):
+    def process_form_data(cls, object_id: str):
         try:
             form_data = parse_formdata(request.form)
             return cls.store_form_data(form_data, object_id)
+        except HTTPException:
+            raise
         except Exception as exc:
             return None, str(exc)
 
@@ -105,7 +107,7 @@ class ProductTypeView(AdminMixin, BaseView):
         return [{"id": t.id, "name": t.id} for t in DataPersistenceLayer().get_objects(Template).items]
 
     @classmethod
-    def get_product_type_parameters_view(cls, product_type_id: int, presenter_type: str) -> str:
+    def get_product_type_parameters_view(cls, product_type_id: str, presenter_type: str) -> str:
         if not product_type_id and not presenter_type:
             logger.warning("No Product Type ID or Presenter Type provided.")
 

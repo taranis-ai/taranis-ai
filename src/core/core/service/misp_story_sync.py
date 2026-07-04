@@ -11,16 +11,17 @@ def handle_misp_connector_result(result: dict[str, Any]) -> None:
         logger.info(f"Skipping unsupported connector task result: {result.get('connector_type')}")
         return
 
+    connector_id = result.get("connector_id")
     sync_results = result.get("sync_results", [])
     if not isinstance(sync_results, list):
         logger.error("Invalid MISP connector task result: sync_results must be a list")
         return
 
     for payload in sync_results:
-        apply_misp_sync_story_result(payload)
+        apply_misp_sync_story_result(payload, connector_id=connector_id if isinstance(connector_id, str) else None)
 
 
-def apply_misp_sync_story_result(payload: dict[str, Any]) -> bool:
+def apply_misp_sync_story_result(payload: dict[str, Any], connector_id: str | None = None) -> bool:
     if not isinstance(payload, dict):
         logger.error(f"Invalid MISP sync payload type: {type(payload)}")
         return False
@@ -56,8 +57,9 @@ def apply_misp_sync_story_result(payload: dict[str, Any]) -> bool:
         story.patch_attributes([{"key": "misp_event_uuid", "value": misp_event_uuid}])  # type: ignore TODO: parse attributes before patching
         changed = True
 
-    if story.last_change != "external":
-        story.last_change = "external"
+    connector_actor = f"connector_{connector_id}" if connector_id else "external"
+    if story.last_change != connector_actor:
+        story.last_change = connector_actor
         changed = True
 
     for news_item_id in news_item_ids:
@@ -67,8 +69,8 @@ def apply_misp_sync_story_result(payload: dict[str, Any]) -> bool:
         if news_item.story_id != story.id:
             logger.warning(f"Could not apply MISP sync result: news item {news_item_id} does not belong to story {story_id}")
             continue
-        if news_item.last_change != "external":
-            news_item.last_change = "external"
+        if news_item.last_change != connector_actor:
+            news_item.last_change = connector_actor
             news_item.updated = news_item.utcnow()
             changed = True
 

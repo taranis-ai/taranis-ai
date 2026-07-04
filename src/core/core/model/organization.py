@@ -5,21 +5,20 @@ from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
 
 class Organization(BaseModel):
     __tablename__ = "organization"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
     address: Mapped["dict"] = db.Column(db.JSON)
 
-    def __init__(self, name: str, description: str | None = None, address: dict | None = None, id: int | None = None):
-        if id:
-            self.id = id
+    def __init__(self, name: str, description: str | None = None, address: dict | None = None, id: str | None = None):
+        self.id = self.normalize_uuid_id(id)
         self.name = name
         if description:
             self.description = description
@@ -62,7 +61,7 @@ class Organization(BaseModel):
         logger.debug(f"Updating organization {organization_id} with data: {data}")
         organization = cls.get(organization_id)
         if organization is None:
-            return {"error": f"Organization {organization_id} not found"}, 404
+            return {"error": "Organization not found"}, 404
 
         update_organization = cls.from_dict(data)
         organization.name = update_organization.name
@@ -71,4 +70,4 @@ class Organization(BaseModel):
             organization.address = update_organization.address
 
         db.session.commit()
-        return {"message": f"Successfully updated {organization.name}", "id": f"{organization.id}"}, 200
+        return {"message": "Organization updated", "id": organization.id}, 200

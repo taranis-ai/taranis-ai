@@ -6,7 +6,7 @@ It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLA
 
 ## Requirements
 
-* Python version 3.12 or greater.
+* Python version 3.14 or greater.
 * SQLite or PostgreSQL
 * Redis
 
@@ -27,7 +27,7 @@ Source venv and install dependencies
 
 ```bash
 source .venv/bin/activate
-uv sync --all-extras --frozen --python 3.13 --no-install-package taranis-models
+uv sync --all-extras --frozen --python 3.14 --no-install-package taranis-models
 uv pip install -e ../models
 ```
 
@@ -48,10 +48,12 @@ Core owns frontend cache invalidation for write operations.
 - `CACHE_ENABLED=true|false` toggles frontend-cache invalidation support in core
 - `CACHE_REDIS_URL` optionally overrides the Redis URL used for frontend cache invalidation
 - `CACHE_REDIS_PASSWORD` optionally overrides the Redis password used for frontend cache invalidation
+- `RQ_DEFAULT_JOB_TIMEOUT` sets the default RQ job execution timeout in seconds for queues created by core
 - when the cache-specific settings are unset, core falls back to `REDIS_URL` and `REDIS_PASSWORD`
 - unit tests keep cache disabled by default through `build_config_overrides`
 - admin configuration writes under `/api/config/*` currently invalidate the full frontend cache by design
 - the manual invalidation endpoint is `POST /api/admin/cache/invalidate`
+- `/api/assess/filter-lists` builds filter options from current database state on request; frontend caching may cache that response by user
 
 ## Health Endpoints
 
@@ -61,6 +63,10 @@ Core exposes two unauthenticated endpoints for monitoring:
 * `/api/health` is the readiness and dependency health endpoint for database, broker, and workers where applicable.
 
 `/api/health` returns `200` when all required services are healthy and `503` when a required dependency is down. In local or test environments using an in-memory broker, broker and worker checks are reported as `n/a`.
+
+## API Error Responses
+
+Core API handlers return JSON responses for structured payloads. Unexpected failures should be logged server-side and exposed to clients as generic error messages, not raw exception text or stack traces. Keep public validation messages only when clients need them to correct a submitted value.
 
 ## Development Setup
 

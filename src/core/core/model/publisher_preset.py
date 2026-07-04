@@ -1,4 +1,3 @@
-import uuid
 from typing import Any
 
 from models.types import PUBLISHER_TYPES
@@ -7,7 +6,7 @@ from sqlalchemy.sql.expression import Select
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.worker import Worker
 
@@ -15,7 +14,7 @@ from core.model.worker import Worker
 class PublisherPreset(BaseModel):
     __tablename__ = "publisher_preset"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[PUBLISHER_TYPES] = db.Column(db.Enum(PUBLISHER_TYPES))
@@ -31,7 +30,7 @@ class PublisherPreset(BaseModel):
         parameters=None,
         id: str | None = None,
     ):
-        self.id = id or str(uuid.uuid4())
+        self.id = self.normalize_uuid_id(id)
         self.name = name
         self.description = description
         self.type = type
@@ -60,7 +59,7 @@ class PublisherPreset(BaseModel):
         preset = cls.get(preset_id)
         if not preset:
             logger.error(f"Could not find preset with id {preset_id}")
-            return {"error": f"Could not find preset with id {preset_id}"}, 404
+            return {"error": "Preset not found"}, 404
         if name := data.get("name"):
             preset.name = name
 
@@ -89,7 +88,7 @@ class PublisherPreset(BaseModel):
     def get_for_publish_api(cls, preset_id: str) -> tuple[dict[str, Any], int]:
         if preset := cls.get(preset_id):
             return preset.to_user_dict(), 200
-        return {"error": f"{cls.__name__} {preset_id} not found"}, 404
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def get_all_for_publish_api(cls, filter_args: dict[str, Any] | None) -> tuple[dict[str, Any], int]:
@@ -108,5 +107,5 @@ class PublisherPreset(BaseModel):
 
 
 class PublisherPresetParameterValue(BaseModel):
-    publisher_preset_id = db.Column(db.String, db.ForeignKey("publisher_preset.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)
+    publisher_preset_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("publisher_preset.id", ondelete="CASCADE"), primary_key=True)
+    parameter_value_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id"), primary_key=True)

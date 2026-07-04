@@ -19,21 +19,21 @@
             "link": "https://url/",
             "language": null,
             "osint_source_id": "78049551-dcef-45bd-a5cd-4fe842c4d5e2",
-            "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebq",
+            "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebf",
             "story_id": "78049551-dcef-45bd-a5cd-4fe842c4d5e3",
             "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c82",
             "title": "Test News Item 13",
             "content": "Microsoft announced a security update addressing CVE-2020-1234. Experts at Google found vulnerabilities impacting Linux systems. Cisco advises users to update their security protocols to prevent potential breaches. The security community is on alert for new threats.",
             "collected": "2023-08-01T17:01:04.802015",
             "published": "2023-08-01T17:01:04.801998",
-            "updated": "2023-08-01T17:00:39.893435"
+            "updated": "2023-08-01T17:00:39.893435",
+            "tags": [
+                { "name": "this", "tag_type": "misc" },
+                { "name": "is", "tag_type": "misc" },
+                { "name": "tag", "tag_type": "misc" }
+            ]
         }
         ],
-        "tags": {
-            "this":{ "name": "this", "tag_type": "misc" },
-            "is":{ "name": "is", "tag_type": "misc" },
-            "tag":{ "name": "tag", "tag_type": "misc" }
-        },
         "attributes": {
             "attribute":{ "key": "attribute", "value": "custom" },
             "hip":{ "key": "hip", "value": "hop" },
@@ -67,7 +67,12 @@
                 "content": "A previously unknown zero-day vulnerability was discovered in a major enterprise software platform. Security experts recommend immediate mitigation. Details remain limited as investigation continues.",
                 "collected": "2024-07-12T20:12:01.100000",
                 "published": "2024-07-12T19:45:00.000000",
-                "updated": "2024-07-12T19:50:00.000000"
+                "updated": "2024-07-12T19:50:00.000000",
+                "tags": [
+                    { "name": "test", "tag_type": "misc" },
+                    { "name": "story", "tag_type": "misc" },
+                    { "name": "news", "tag_type": "misc" }
+                ]
             },
             {
                 "review": "",
@@ -83,13 +88,13 @@
                 "content": "Vendors have released official mitigation guidance in response to the recent zero-day exploit. Organizations are urged to apply the latest patches and review their security posture.",
                 "collected": "2024-07-12T20:12:01.200000",
                 "published": "2024-07-12T20:00:00.000000",
-                "updated": "2024-07-12T20:05:00.000000"
+                "updated": "2024-07-12T20:05:00.000000",
+                "tags": [
+                    { "name": "test", "tag_type": "misc" },
+                    { "name": "story", "tag_type": "misc" },
+                    { "name": "news", "tag_type": "misc" }
+                ]
             }
-        ],
-        "tags": [
-            { "name": "test", "tag_type": "misc" },
-            { "name": "story", "tag_type": "misc" },
-            { "name": "news", "tag_type": "misc" }
         ],
         "attributes": [
             { "key": "severity", "value": "high" },

@@ -57,7 +57,7 @@ class RecordingCoreApi:
         self.put_calls.append({"url": url, "json": json_data})
         return self.put_response
 
-    def save_task_result(self, job_id, task_name, result, status, *, worker_id=None, worker_type=None):
+    def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, result=None, **task_kwargs):
         self.put_calls.append(
             {
                 "url": "/tasks",
@@ -66,7 +66,7 @@ class RecordingCoreApi:
                     "task": task_name,
                     "worker_id": worker_id,
                     "worker_type": worker_type,
-                    "result": result,
+                    "result": task_kwargs if result is None else result,
                     "status": status,
                 },
             }
@@ -103,6 +103,21 @@ def s3_publisher_testdata():
         "S3_BUCKET_NAME": "taranis-test-bucket",
     }
     yield {"parameters": s3_publisher_data}
+
+
+@pytest.fixture
+def kafka_publisher():
+    yield publishers.KafkaPublisher()
+
+
+@pytest.fixture
+def kafka_publisher_testdata():
+    kafka_publisher_data = {
+        "KAFKA_BOOTSTRAP_SERVERS": "localhost:9092",
+        "KAFKA_TOPIC": "test-topic",
+        "KAFKA_SEND_TIMEOUT": 30,
+    }
+    yield {"parameters": kafka_publisher_data}
 
 
 @pytest.fixture

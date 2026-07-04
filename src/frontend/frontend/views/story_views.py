@@ -1,77 +1,52 @@
 import datetime
-from difflib import SequenceMatcher
+import uuid
 from json import JSONDecodeError
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from flask import Response, abort, flash, json, make_response, redirect, render_template, request, url_for
+from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
-from markupsafe import Markup, escape
-from models.assess import AssessSource, BulkAction, Connector, FilterLists, NewsItem, Story, StoryUpdatePayload
+from models.assess import (
+    NEWS_ITEM_IMPORT_FIELDS,
+    STORY_IMPORT_FIELDS,
+    AssessSource,
+    BulkAction,
+    Connector,
+    FilterLists,
+    NewsItem,
+    Story,
+    StoryBookmark,
+    StoryUpdatePayload,
+)
 from models.report import ReportItem
+from models.revision_diff import build_story_revision_diff_payload
 from pydantic import ValidationError
+from requests import Response as RequestsResponse
 from werkzeug.datastructures import FileStorage
+from werkzeug.exceptions import HTTPException
 
-from frontend.auth import auth_required
+from frontend.auth import auth_required, update_current_user_cache
 from frontend.cache import add_model_to_cache, get_model_from_cache
 from frontend.cache_models import CacheObject, PagingData
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.log import logger
 from frontend.utils.form_data_parser import parse_formdata
-from frontend.utils.router_helpers import parse_paging_data
+from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
 
-_STORY_IMPORT_FIELDS = {
-    "id",
-    "title",
-    "description",
-    "created",
-    "likes",
-    "dislikes",
-    "relevance",
-    "read",
-    "important",
-    "summary",
-    "comments",
-    "revision",
-    "attributes",
-    "tags",
-    "news_items",
-    "last_change",
-}
-
-_NEWS_ITEM_IMPORT_FIELDS = {
-    "id",
-    "title",
-    "source",
-    "content",
-    "osint_source_id",
-    "review",
-    "author",
-    "link",
-    "language",
-    "hash",
-    "attributes",
-    "last_change",
-    "published",
-    "collected",
-    "story_id",
-}
-
-
 def _sanitize_news_item_import_payload(news_item_data: dict[str, Any], story_id: str | None = None) -> dict[str, Any]:
-    sanitized_payload = {key: value for key, value in news_item_data.items() if key in _NEWS_ITEM_IMPORT_FIELDS}
+    sanitized_payload = {key: value for key, value in news_item_data.items() if key in NEWS_ITEM_IMPORT_FIELDS}
     if story_id:
         sanitized_payload["story_id"] = story_id
     return sanitized_payload
 
 
 def _sanitize_story_import_payload(story_data: dict[str, Any]) -> dict[str, Any]:
-    sanitized_payload = {key: value for key, value in story_data.items() if key in _STORY_IMPORT_FIELDS}
+    sanitized_payload = {key: value for key, value in story_data.items() if key in STORY_IMPORT_FIELDS}
     if news_items := story_data.get("news_items"):
         sanitized_payload["news_items"] = [
             _sanitize_news_item_import_payload(news_item_data, sanitized_payload.get("id")) for news_item_data in news_items
@@ -89,6 +64,31 @@ def _normalize_story_import_payload(json_data: dict[str, Any] | list[dict[str, A
     return json_data
 
 
+ASSESS_FILTER_KEYS = frozenset(
+    {
+        "search",
+        "source",
+        "group",
+        "tags",
+        "language",
+        "read",
+        "important",
+        "in_report",
+        "relevant",
+        "cybersecurity",
+        "changed_by",
+        "range",
+        "sort",
+        "timefrom",
+        "timeto",
+    }
+)
+ASSESS_FILTER_MULTI_KEYS = frozenset({"source", "group", "tags", "language"})
+ASSESS_SAVED_FILTER_SESSION_KEY = "assess_saved_filter_active"
+ASSESS_SAVED_FILTER_NAME_MAX_LENGTH = 80
+ASSESS_BOOKMARK_BAR_LIMIT = 6
+
+
 class StoryView(BaseView):
     model = Story
     icon = "newspaper"
@@ -102,8 +102,37 @@ class StoryView(BaseView):
     _show_sidebar = True
 
     @classmethod
+    def _get_bookmark_bar_collections(cls) -> CacheObject[StoryBookmark]:
+        try:
+            paging_data = PagingData(
+                limit=ASSESS_BOOKMARK_BAR_LIMIT,
+                order="position_asc",
+                query_params={"limit": str(ASSESS_BOOKMARK_BAR_LIMIT), "order": "position_asc"},
+            )
+            return DataPersistenceLayer().get_objects(StoryBookmark, paging_data)
+        except ValidationError as exc:
+            logger.exception(format_pydantic_errors(exc, StoryBookmark))
+        except HTTPException:
+            raise
+        except ValueError as exc:
+            logger.exception(f"Failed to load bookmark collections for assess bar: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(f"Unexpected bookmark bar load error: {exc}")
+            return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
+        return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
+
+    @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
-        base_context["filter_lists"] = cls._get_filter_lists()
+        filter_lists = cls.get_filter_lists()
+        base_context["filter_lists"] = filter_lists
+        assess_request_args: dict[str, list[str]] = {}
+        if request.endpoint == "assess.assess":
+            assess_request_args = cls._get_assess_request_params()
+            base_context["assess_request_args"] = assess_request_args
+        base_context["bookmark_collections"] = cls._get_bookmark_bar_collections()
+        base_context["assess_bookmark_bar_limit"] = ASSESS_BOOKMARK_BAR_LIMIT
+        base_context["source_filter_select"] = cls._build_source_filter_select(filter_lists, assess_request_args)
+        base_context["language_filter_select"] = cls._build_language_filter_select(filter_lists, assess_request_args)
         if stories := base_context.get("stories"):
             enhanced_stories = cls._get_enhanced_stories(stories, list(base_context["filter_lists"].sources))
             base_context["story_ids"] = [story.id for story in enhanced_stories if getattr(story, "id", None)]
@@ -138,7 +167,7 @@ class StoryView(BaseView):
         return story
 
     @staticmethod
-    def _get_filter_lists() -> FilterLists:
+    def get_filter_lists() -> FilterLists:
         username = getattr(current_user, "username", getattr(current_user, "id", "anonymous"))
         if filter_lists := get_model_from_cache(FilterLists._model_name, "", username):
             return FilterLists(**filter_lists)
@@ -148,6 +177,248 @@ class StoryView(BaseView):
             return filter_lists
         return FilterLists(tags=[], sources=[], groups=[])
 
+    @staticmethod
+    def _filter_token_item(value: str, label: str, name: str, group: str | None = None) -> dict[str, str]:
+        item = {"value": value, "label": label, "name": name}
+        if group:
+            item["group"] = group
+        return item
+
+    @staticmethod
+    def _get_group_field(group: Any, field: str) -> str:
+        value = group.get(field) if isinstance(group, dict) else getattr(group, field, None)
+        return str(value) if value not in (None, "") else ""
+
+    @classmethod
+    def _build_source_filter_select(cls, filter_lists: FilterLists, request_args: dict[str, list[str]]) -> dict[str, list[dict[str, str]]]:
+        selected_sources = request_args.get("source", [])
+        selected_groups = request_args.get("group", [])
+        selected_source_ids = set(selected_sources)
+        selected_group_ids = set(selected_groups)
+        source_ids: set[str] = set()
+        group_ids: set[str] = set()
+        options: list[dict[str, str]] = []
+        selected_items: list[dict[str, str]] = []
+
+        for source in filter_lists.sources:
+            source_id = str(source.id) if source.id else ""
+            if not source_id:
+                continue
+            source_ids.add(source_id)
+            option = cls._filter_token_item(source_id, source.name, "source", "Source")
+            options.append(option)
+            if source_id in selected_source_ids:
+                selected_items.append(option)
+
+        for group in filter_lists.groups:
+            group_id = cls._get_group_field(group, "id")
+            if not group_id:
+                continue
+            group_ids.add(group_id)
+            group_name = cls._get_group_field(group, "name") or group_id
+            option = cls._filter_token_item(group_id, group_name, "group", "Group")
+            options.append(option)
+            if group_id in selected_group_ids:
+                selected_items.append(option)
+
+        selected_items.extend(
+            cls._filter_token_item(source_id, source_id, "source", "Source") for source_id in selected_sources if source_id not in source_ids
+        )
+        selected_items.extend(
+            cls._filter_token_item(group_id, group_id, "group", "Group") for group_id in selected_groups if group_id not in group_ids
+        )
+
+        return {"options": options, "selected_items": selected_items}
+
+    @classmethod
+    def _build_language_filter_select(cls, filter_lists: FilterLists, request_args: dict[str, list[str]]) -> dict[str, list[dict[str, str]]]:
+        selected_languages = request_args.get("language", [])
+        available_languages = [str(language) for language in (filter_lists.languages or []) if language not in (None, "")]
+        available_language_ids = set(available_languages)
+        selected_language_ids = set(selected_languages)
+        options: list[dict[str, str]] = []
+        selected_items: list[dict[str, str]] = []
+
+        for language in available_languages:
+            option = cls._filter_token_item(language, language.upper(), "language")
+            options.append(option)
+            if language in selected_language_ids:
+                selected_items.append(option)
+
+        selected_items.extend(
+            cls._filter_token_item(language, language.upper(), "language")
+            for language in selected_languages
+            if language not in available_language_ids
+        )
+
+        return {"options": options, "selected_items": selected_items}
+
+    @staticmethod
+    def _normalize_assess_filter_values(values: Any) -> list[str]:
+        if values in (None, ""):
+            return []
+        if isinstance(values, (list, tuple, set)):
+            return [str(value) for value in values if value not in (None, "")]
+        return [str(values)]
+
+    @classmethod
+    def _normalize_assess_filter_payload(cls, filters: dict[str, Any]) -> dict[str, Any]:
+        normalized: dict[str, Any] = {}
+        for key, values in filters.items():
+            if key not in ASSESS_FILTER_KEYS:
+                continue
+            normalized_values = cls._normalize_assess_filter_values(values)
+            if not normalized_values:
+                continue
+            if key in ASSESS_FILTER_MULTI_KEYS:
+                normalized[key] = normalized_values
+            else:
+                normalized[key] = normalized_values[0]
+        return normalized
+
+    @classmethod
+    def _filter_payload_to_request_params(cls, filters: dict[str, Any]) -> dict[str, list[str]]:
+        params: dict[str, list[str]] = {}
+        for key, value in cls._normalize_assess_filter_payload(filters).items():
+            values = [str(item) for item in value if item not in (None, "")] if isinstance(value, list) else [str(value)]
+            if values:
+                params[key] = values
+        return params
+
+    @classmethod
+    def _assess_filter_key(cls, filters: dict[str, Any]) -> tuple[tuple[str, str | tuple[str, ...]], ...]:
+        return tuple(
+            (key, tuple(sorted(value)) if isinstance(value, list) else str(value))
+            for key, value in sorted(cls._normalize_assess_filter_payload(filters).items())
+        )
+
+    @classmethod
+    def _find_duplicate_saved_filter(
+        cls, saved_filters: list[dict[str, Any]], filters: dict[str, Any], exclude_id: str | None = None
+    ) -> dict[str, Any] | None:
+        filter_key = cls._assess_filter_key(filters)
+        return next(
+            (
+                saved_filter
+                for saved_filter in saved_filters
+                if saved_filter["id"] != exclude_id and cls._assess_filter_key(saved_filter["filters"]) == filter_key
+            ),
+            None,
+        )
+
+    @classmethod
+    def _get_saved_assess_filters(cls) -> list[dict[str, Any]]:
+        profile = getattr(current_user, "profile", None)
+        raw_filters = getattr(profile, "assess_saved_filters", None) if profile is not None else None
+        if not isinstance(raw_filters, list):
+            return []
+
+        saved_filters: list[dict[str, Any]] = []
+        default_seen = False
+        for raw_filter in raw_filters:
+            if not hasattr(raw_filter, "model_dump"):
+                continue
+            saved_filter = raw_filter.model_dump(mode="json")
+
+            filter_id = str(saved_filter.get("id") or "").strip()
+            name = str(saved_filter.get("name") or "").strip()
+            filters = saved_filter.get("filters")
+            if not filter_id or not name or not isinstance(filters, dict):
+                continue
+            normalized_filters = cls._normalize_assess_filter_payload(filters)
+            if not normalized_filters:
+                continue
+            is_default = bool(saved_filter.get("is_default")) and not default_seen
+            default_seen = default_seen or is_default
+            saved_filters.append({"id": filter_id, "name": name, "filters": normalized_filters, "is_default": is_default})
+        return saved_filters
+
+    @classmethod
+    def _get_default_assess_saved_filter_params(cls) -> dict[str, list[str]]:
+        default_filter = next((saved_filter for saved_filter in cls._get_saved_assess_filters() if saved_filter["is_default"]), None)
+        if not default_filter:
+            return {}
+        return cls._filter_payload_to_request_params(default_filter["filters"])
+
+    @classmethod
+    def _get_saved_filters_dialog_context(cls, saved_filters: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        saved_filters = saved_filters if saved_filters is not None else cls._get_saved_assess_filters()
+        return {
+            "saved_filters": cls.get_saved_filter_links(saved_filters),
+            "has_current_filters": bool(cls._extract_assess_filters_from_request()),
+            "assess_saved_filter_name_max_length": ASSESS_SAVED_FILTER_NAME_MAX_LENGTH,
+        }
+
+    @classmethod
+    def get_saved_filter_links(cls, saved_filters: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+        saved_filters = saved_filters if saved_filters is not None else cls._get_saved_assess_filters()
+        return [
+            {
+                **saved_filter,
+                "url": cls._build_assess_filters_url(cls._filter_payload_to_request_params(saved_filter["filters"])),
+            }
+            for saved_filter in saved_filters
+        ]
+
+    @classmethod
+    def _get_assess_request_params(cls, request_params: dict[str, list[str]] | None = None) -> dict[str, list[str]]:
+        params = {
+            key: [value for value in values if value not in (None, "")]
+            for key, values in (request_params or request.args.to_dict(flat=False)).items()
+        }
+        has_reset = "reset" in params
+        params.pop("reset", None)
+        if has_reset:
+            session.pop(ASSESS_SAVED_FILTER_SESSION_KEY, None)
+            return {}
+
+        if not params:
+            saved_defaults = cls._get_default_assess_saved_filter_params()
+            if saved_defaults and not is_htmx_request():
+                session[ASSESS_SAVED_FILTER_SESSION_KEY] = True
+                return {key: values[:] for key, values in saved_defaults.items()}
+
+            if request.method == "GET" and is_htmx_request():
+                session.pop(ASSESS_SAVED_FILTER_SESSION_KEY, None)
+            elif request.method == "POST" and session.get(ASSESS_SAVED_FILTER_SESSION_KEY) and saved_defaults:
+                return {key: values[:] for key, values in saved_defaults.items()}
+            return {}
+
+        if request.method == "GET" and is_htmx_request() and not set(params).intersection(ASSESS_FILTER_KEYS):
+            session.pop(ASSESS_SAVED_FILTER_SESSION_KEY, None)
+            return params
+
+        return params
+
+    @classmethod
+    def _extract_assess_filters_from_request(cls) -> dict[str, Any]:
+        filters: dict[str, Any] = {}
+        request_values = request.form if request.method != "GET" else request.args
+        for key in ASSESS_FILTER_MULTI_KEYS:
+            values = [value for value in request_values.getlist(key) if value not in (None, "")]
+            if values:
+                filters[key] = values
+        for key in ASSESS_FILTER_KEYS - ASSESS_FILTER_MULTI_KEYS:
+            value = request_values.get(key, "")
+            if value not in ("", None):
+                filters[key] = value
+        return cls._normalize_assess_filter_payload(filters)
+
+    @classmethod
+    def _build_assess_filters_url(cls, request_params: dict[str, list[str]]) -> str:
+        query_string = urlencode(request_params, doseq=True)
+        base_url = cls.get_base_route()
+        return f"{base_url}?{query_string}" if query_string else base_url
+
+    @classmethod
+    def _build_assess_selection_key(cls, request_params: dict[str, list[str]]) -> str:
+        selection_params = {key: values[:] for key, values in sorted(request_params.items()) if key not in {"offset", "page"} and values}
+        return urlencode(selection_params, doseq=True)
+
+    @classmethod
+    def default_share_story_link(cls) -> str:
+        return f"mailto:?{urlencode({'subject': 'sharing stories from taranis ai'}, quote_via=quote)}"
+
     @classmethod
     @auth_required()
     def get_sharing_dialog(cls) -> str:
@@ -155,14 +426,20 @@ class StoryView(BaseView):
         if not story_ids and (story_id := request.args.get("story_id", "")):
             story_ids = [story_id]
 
-        mail_sharing_link = cls.share_story_link(story_ids)
+        connectors = []
+        mail_sharing_link = cls.default_share_story_link()
         try:
+            mail_sharing_link = cls.share_story_link(story_ids)
             connectors = DataPersistenceLayer().get_objects(Connector)
-        except Exception as e:
-            logger.error(f"Failed to fetch connectors for share dialog: {e}")
-            connectors = []
+        except HTTPException as exc:
+            logger.warning(f"Failed to enrich share dialog: {exc}")
+        except Exception as exc:
+            logger.warning(f"Failed to enrich share dialog: {exc}")
         return render_template(
-            "assess/story_sharing_dialog.html", connectors=connectors, story_ids=story_ids, mail_sharing_link=mail_sharing_link
+            "assess/story_sharing_dialog.html",
+            connectors=connectors,
+            story_ids=story_ids,
+            mail_sharing_link=mail_sharing_link,
         )
 
     @classmethod
@@ -181,6 +458,8 @@ class StoryView(BaseView):
             core_response = CoreApi().api_post(f"/assess/story/{connector_id}/share", json_data={"story_ids": story_ids})
             notification_html = cls.get_notification_from_response(core_response)
             status_code = getattr(core_response, "status_code", 500) or 500
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to share stories with connector.")
             notification_html = cls.render_response_notification({"error": "Failed to share stories with connector."})
@@ -190,7 +469,18 @@ class StoryView(BaseView):
 
     @classmethod
     def share_story_link(cls, story_ids: list[str]) -> str:
-        stories: list[Story] = [story for story_id in story_ids if (story := DataPersistenceLayer().get_object(Story, story_id)) is not None]
+        stories: list[Story] = []
+        for story_id in story_ids:
+            try:
+                story = DataPersistenceLayer().get_object(Story, story_id)
+            except HTTPException as exc:
+                logger.warning(f"Failed to load story {story_id} for sharing link: {exc}")
+                continue
+            except Exception as exc:
+                logger.warning(f"Failed to load story {story_id} for sharing link: {exc}")
+                continue
+            if story is not None:
+                stories.append(story)
 
         subject = "sharing stories from taranis ai"
         if len(stories) == 1:
@@ -271,6 +561,160 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
+    def get_saved_filters_dialog(cls) -> tuple[str, int]:
+        return cls._render_saved_filters_dialog()
+
+    @classmethod
+    def _render_saved_filters_dialog(
+        cls,
+        notification: dict[str, Any] | None = None,
+        status: int = 200,
+        saved_filters: list[dict[str, Any]] | None = None,
+    ) -> tuple[str, int]:
+        context = cls._get_saved_filters_dialog_context(saved_filters)
+        if notification:
+            context["notification"] = notification
+        return render_template("assess/sidebar/saved_filters_dialog.html", **context), status
+
+    @classmethod
+    def _saved_filters_profile_payload(cls, saved_filters: list[dict[str, Any]]) -> dict[str, Any]:
+        default_seen = False
+        normalized_filters = []
+        for saved_filter in saved_filters:
+            filters = saved_filter.get("filters")
+            if not isinstance(filters, dict):
+                continue
+            normalized = cls._normalize_assess_filter_payload(filters)
+            if not normalized:
+                continue
+            is_default = bool(saved_filter.get("is_default")) and not default_seen
+            default_seen = default_seen or is_default
+            normalized_filters.append(
+                {
+                    "id": str(saved_filter.get("id") or uuid.uuid7()),
+                    "name": str(saved_filter.get("name") or "").strip(),
+                    "filters": normalized,
+                    "is_default": is_default,
+                }
+            )
+        return {"assess_saved_filters": [saved_filter for saved_filter in normalized_filters if saved_filter["name"]]}
+
+    @classmethod
+    def _update_saved_filters_profile(cls, saved_filters: list[dict[str, Any]]) -> RequestsResponse:
+        response = CoreApi().update_user_profile(cls._saved_filters_profile_payload(saved_filters))
+        if getattr(response, "ok", False):
+            update_current_user_cache()
+        return response
+
+    @classmethod
+    def _render_saved_filters_mutation_response(
+        cls, response: RequestsResponse, success_message: str, saved_filters: list[dict[str, Any]]
+    ) -> tuple[str, int]:
+        if getattr(response, "ok", False):
+            return cls._render_saved_filters_dialog({"message": success_message}, saved_filters=saved_filters)
+
+        payload = None
+        try:
+            if response and response.content:
+                payload = response.json()
+        except Exception:
+            payload = None
+
+        if isinstance(payload, dict):
+            notification = cls.get_notification_from_dict(payload)
+        else:
+            notification = {"message": "No response from core API", "error": True}
+
+        return cls._render_saved_filters_dialog(
+            notification=notification,
+            status=getattr(response, "status_code", 500) or 500,
+            saved_filters=saved_filters,
+        )
+
+    @classmethod
+    @auth_required()
+    def save_saved_filter(cls):
+        try:
+            name = request.form.get("name", "").strip()
+            if not name:
+                return cls._render_saved_filters_dialog({"message": "Saved filter name is required.", "error": True}, 400)
+            if len(name) > ASSESS_SAVED_FILTER_NAME_MAX_LENGTH:
+                return cls._render_saved_filters_dialog({"message": "Saved filter name must be 80 characters or fewer.", "error": True}, 400)
+
+            filters = cls._extract_assess_filters_from_request()
+            if not filters:
+                return cls._render_saved_filters_dialog({"message": "Choose at least one filter before saving.", "error": True}, 400)
+
+            saved_filters = cls._get_saved_assess_filters()
+            make_default = request.form.get("is_default") == "true"
+            matching_filter = next((saved_filter for saved_filter in saved_filters if saved_filter["name"].lower() == name.lower()), None)
+            duplicate_filter = cls._find_duplicate_saved_filter(
+                saved_filters, filters, exclude_id=matching_filter["id"] if matching_filter else None
+            )
+            if duplicate_filter:
+                return cls._render_saved_filters_dialog(
+                    {"message": f"These filters are already saved as {duplicate_filter['name']}.", "error": True},
+                    400,
+                    saved_filters=saved_filters,
+                )
+
+            if matching_filter:
+                matching_filter["name"] = name
+                matching_filter["filters"] = filters
+                matching_filter["is_default"] = make_default or matching_filter["is_default"]
+                message = "Assess filter updated."
+            else:
+                saved_filters.append({"id": str(uuid.uuid7()), "name": name, "filters": filters, "is_default": make_default})
+                message = "Assess filter saved."
+
+            if make_default:
+                default_id = matching_filter["id"] if matching_filter else saved_filters[-1]["id"]
+                for saved_filter in saved_filters:
+                    saved_filter["is_default"] = saved_filter["id"] == default_id
+
+            response = cls._update_saved_filters_profile(saved_filters)
+            if getattr(response, "ok", False):
+                session[ASSESS_SAVED_FILTER_SESSION_KEY] = any(saved_filter["is_default"] for saved_filter in saved_filters)
+            return cls._render_saved_filters_mutation_response(response, message, saved_filters)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to save assess filter.")
+            return cls._render_saved_filters_dialog({"message": "Failed to save assess filter.", "error": True}, 500)
+
+    @classmethod
+    @auth_required()
+    def set_saved_filter_default(cls, filter_id: str):
+        saved_filters = cls._get_saved_assess_filters()
+        default_filter = next((saved_filter for saved_filter in saved_filters if saved_filter["id"] == filter_id), None)
+        if not default_filter:
+            return cls._render_saved_filters_dialog({"message": "Saved filter not found.", "error": True}, 404)
+
+        clear_default = request.form.get("clear_default") == "true"
+        for saved_filter in saved_filters:
+            saved_filter["is_default"] = False if clear_default else saved_filter["id"] == filter_id
+
+        response = cls._update_saved_filters_profile(saved_filters)
+        if getattr(response, "ok", False):
+            session[ASSESS_SAVED_FILTER_SESSION_KEY] = not clear_default
+        message = "Assess default cleared." if clear_default else "Assess default saved."
+        return cls._render_saved_filters_mutation_response(response, message, saved_filters)
+
+    @classmethod
+    @auth_required()
+    def delete_saved_filter(cls, filter_id: str):
+        saved_filters = cls._get_saved_assess_filters()
+        filtered_saved_filters = [saved_filter for saved_filter in saved_filters if saved_filter["id"] != filter_id]
+        if len(filtered_saved_filters) == len(saved_filters):
+            return cls._render_saved_filters_dialog({"message": "Saved filter not found.", "error": True}, 404)
+
+        response = cls._update_saved_filters_profile(filtered_saved_filters)
+        if getattr(response, "ok", False):
+            session[ASSESS_SAVED_FILTER_SESSION_KEY] = any(saved_filter["is_default"] for saved_filter in filtered_saved_filters)
+        return cls._render_saved_filters_mutation_response(response, "Assess filter deleted.", filtered_saved_filters)
+
+    @classmethod
+    @auth_required()
     def submit_search_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         logger.debug(f"Submitting cluster dialog for stories {story_ids}")
@@ -293,7 +737,7 @@ class StoryView(BaseView):
     @classmethod
     def _build_pagination_context(
         cls,
-        stories: CacheObject | None,
+        stories: CacheObject[Any] | None,
         paging: PagingData,
         request_params: dict[str, list[str]],
     ) -> dict[str, Any]:
@@ -343,6 +787,7 @@ class StoryView(BaseView):
         cls,
         paging_data: PagingData,
         request_params: dict[str, list[str]],
+        selected_story_ids: list[str] | None = None,
     ):
         try:
             items = DataPersistenceLayer().get_objects(cls.model, paging_data=paging_data)
@@ -350,12 +795,16 @@ class StoryView(BaseView):
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, cls.model))
             items, error = None, format_pydantic_errors(exc, cls.model)
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"Error retrieving {cls.model_name()} items")
             items, error = None, str(exc)
 
         context = cls.get_view_context(items, error)
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
+        context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
+        context["selected_story_ids"] = selected_story_ids or []
 
         return render_template(cls.get_list_template(), **context), 200
 
@@ -369,20 +818,35 @@ class StoryView(BaseView):
             parsed_url = urlparse(url)
             request_params = parse_qs(parsed_url.query)
 
+        request_params = cls._get_assess_request_params(request_params)
         paging_data = parse_paging_data(request_params)
-        table, status = cls._render_story_list(paging_data, request_params)
+        selected_story_ids = request.form.getlist("story_ids") if request.method == "POST" else []
+        table, status = cls._render_story_list(paging_data, request_params, selected_story_ids=selected_story_ids)
         if notification:
             return make_response(notification + table, status)
         return make_response(table, status)
 
     @classmethod
-    def list_view(cls):
-        request_params = request.args.to_dict(flat=False)
+    def list_view(cls) -> ResponseReturnValue:
+        raw_request_params = request.args.to_dict(flat=False)
+        if not is_htmx_request():
+            filtered_request_params = {
+                key: [value for value in values if value not in (None, "")] for key, values in raw_request_params.items()
+            }
+            has_reset = "reset" in filtered_request_params
+            filtered_request_params.pop("reset", None)
+            if not has_reset and not filtered_request_params:
+                saved_defaults = cls._get_default_assess_saved_filter_params()
+                if saved_defaults:
+                    session[ASSESS_SAVED_FILTER_SESSION_KEY] = True
+                    return redirect(cls._build_assess_filters_url(saved_defaults))
+
+        request_params = cls._get_assess_request_params(raw_request_params)
         paging_data = parse_paging_data(request_params)
         return cls._render_story_list(paging_data, request_params)
 
     @classmethod
-    def get_item_context(cls, object_id: int | str) -> dict[str, Any]:
+    def get_item_context(cls, object_id: str) -> dict[str, Any]:
         context = super().get_item_context(object_id)
         context["_show_sidebar"] = False
         context["form_action"] = f"hx-post={url_for('assess.story_edit', story_id=object_id)}"
@@ -396,16 +860,24 @@ class StoryView(BaseView):
                 (attr.get("value") for attr in attributes if isinstance(attr, dict) and attr.get("key") == "cybersecurity"),
                 None,
             )
+            sentiment_value = next(
+                (attr.get("value") for attr in attributes if isinstance(attr, dict) and attr.get("key") == "sentiment"),
+                None,
+            )
             context["story_cyber_status"] = cls._format_cyber_status(cybersecurity_value)
             context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
+            context["story_sentiment_status"] = cls._format_sentiment_status(sentiment_value)
+            context["sentiment_chip_class"] = cls._get_sentiment_chip_class(context["story_sentiment_status"])
             context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
-            sources = list(cls._get_filter_lists().sources)
+            sources = list(cls.get_filter_lists().sources)
             source_dict = {source.id: source for source in sources if source.id}
             cls._enhance_story_with_details(story, source_dict)
         else:
             context["has_rt_id"] = False
             context["story_cyber_status"] = "Not Classified"
             context["cyber_chip_class"] = "badge badge-outline"
+            context["story_sentiment_status"] = "Not Classified"
+            context["sentiment_chip_class"] = "badge badge-outline"
 
         return context
 
@@ -434,6 +906,31 @@ class StoryView(BaseView):
         }
         return mapping.get(status, "badge badge-outline badge-lg")
 
+    @staticmethod
+    def _format_sentiment_status(status: str | None) -> str:
+        if not status:
+            return "Not Classified"
+        normalized = status.strip().lower()
+        labels = {
+            "positive": "Positive",
+            "negative": "Negative",
+            "neutral": "Neutral",
+            "mixed": "Mixed",
+            "none": "Not Classified",
+        }
+        return labels.get(normalized, normalized.capitalize())
+
+    @staticmethod
+    def _get_sentiment_chip_class(status: str) -> str:
+        mapping = {
+            "Positive": "badge badge-success badge-lg",
+            "Negative": "badge badge-error badge-lg",
+            "Neutral": "badge badge-info badge-lg",
+            "Mixed": "badge badge-secondary badge-lg",
+            "Not Classified": "badge badge-outline badge-lg",
+        }
+        return mapping.get(status, "badge badge-outline badge-lg")
+
     @classmethod
     @auth_required()
     def story_view(cls, story_id: str):
@@ -451,6 +948,8 @@ class StoryView(BaseView):
         try:
             response = api.api_post("/assess/stories/botactions", json_data={"story_id": story_id, "bot_id": bot_id})
             payload = response.json()
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to decode bot action response.")
             notification = {"message": "Failed to decode bot action response", "error": True}
@@ -471,6 +970,8 @@ class StoryView(BaseView):
         api = CoreApi()
         try:
             tags = api.api_get(f"/assess/taglist?search={query}")
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to fetch tag suggestions.")
             tags = []
@@ -485,14 +986,17 @@ class StoryView(BaseView):
     @classmethod
     def _handle_news_item_response(
         cls,
-        core_response,
+        core_response: Any,
         *,
         content_builder: Callable[[str], str] | None = None,
         redirect_on_story: bool = False,
         status_override: int | None = None,
     ) -> ResponseReturnValue:
         try:
-            story_id = core_response.json().get("story_id", "")
+            payload = core_response.json()
+            story_id = payload.get("story_id", "")
+            if not story_id and (story_ids := payload.get("story_ids")):
+                story_id = story_ids[0] if isinstance(story_ids, list) else story_ids
         except Exception:
             story_id = ""
 
@@ -508,7 +1012,17 @@ class StoryView(BaseView):
         return make_response(notification + content, status)
 
     @classmethod
-    def news_item_edit_view(cls, core_response) -> ResponseReturnValue:
+    def _validation_error_notification(cls, exc: ValidationError, model: type) -> ResponseReturnValue:
+        logger.exception(format_pydantic_errors(exc, model))
+        notification = {"message": format_pydantic_errors(exc, model), "error": True}
+        notification_html = render_template("notification/index.html", notification=notification, oob=False)
+        response = make_response(notification_html, 400)
+        response.headers["HX-Retarget"] = "#notification-bar"
+        response.headers["HX-Reswap"] = "outerHTML"
+        return response
+
+    @classmethod
+    def news_item_edit_view(cls, core_response: Any) -> ResponseReturnValue:
         return cls._handle_news_item_response(core_response, redirect_on_story=True)
 
     @classmethod
@@ -516,7 +1030,8 @@ class StoryView(BaseView):
     def create_news_item(cls):
         logger.debug(f"Creating news item with form fields: {[key for key in request.form.keys() if key != 'csrf_token']}")
         if url := request.form.get("fetch_url"):
-            return cls._create_news_item_from_url(url)
+            form_data = parse_formdata(request.form)
+            return cls._create_news_item_from_url(url, form_data.get("parameters", {}))
 
         if upload_file := request.files.get("file"):
             return cls._create_news_item_from_file(upload_file)
@@ -526,11 +1041,8 @@ class StoryView(BaseView):
         try:
             news_item = NewsItem(**item_data)
         except ValidationError as e:
-            logger.exception(format_pydantic_errors(e, NewsItem))
-            notification = {"message": format_pydantic_errors(e, NewsItem), "error": True}
-            notification_html = render_template("notification/index.html", notification=notification)
-            return make_response(notification_html, 400)
-        core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.model_dump(mode="json"))
+            return cls._validation_error_notification(e, NewsItem)
+        core_response = CoreApi().api_post("/assess/news-items", json_data=news_item.to_core_dict())
         return cls.news_item_edit_view(core_response)
 
     @classmethod
@@ -540,17 +1052,76 @@ class StoryView(BaseView):
         try:
             news_item = NewsItem(**form_data)
         except ValidationError as e:
-            logger.exception(format_pydantic_errors(e, NewsItem))
-            notification = {"message": format_pydantic_errors(e, NewsItem), "error": True}
-            notification_html = render_template("notification/index.html", notification=notification)
-            return make_response(notification_html, 400)
+            return cls._validation_error_notification(e, NewsItem)
 
-        core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.model_dump(mode="json"))
+        core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}", json_data=news_item.to_core_dict())
 
         return cls._handle_news_item_response(
             core_response,
             content_builder=lambda _: cls.news_item_view(news_item_id=news_item_id)[0],
         )
+
+    @classmethod
+    @auth_required()
+    def update_news_item_tags(cls, news_item_id: str):
+        form_data = parse_formdata(request.form)
+        story_id = str(form_data.get("story_id") or "")
+        tags = cls._normalize_news_item_tags(form_data.get("tags") or [])
+        try:
+            core_response = CoreApi().api_put(f"/assess/news-items/{news_item_id}/tags", json_data=tags)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to update news item tags.")
+            return make_response(cls.render_response_notification({"error": "Failed to update news item tags."}), 500)
+
+        notification_html = cls.get_notification_from_response(core_response)
+        status = 200 if getattr(core_response, "ok", False) else getattr(core_response, "status_code", 400) or 400
+        if not getattr(core_response, "ok", False):
+            return make_response(notification_html, status)
+
+        content = cls._get_news_item_tag_update_content(story_id, news_item_id)
+        return make_response(notification_html + content, status)
+
+    @staticmethod
+    def _normalize_news_item_tags(tags: Any) -> list[dict[str, str]]:
+        if isinstance(tags, dict):
+            tags = [tags] if "name" in tags else list(tags.values())
+        if not isinstance(tags, list):
+            return []
+
+        normalized_tags = []
+        for tag in tags:
+            if isinstance(tag, str):
+                name = tag.strip()
+                tag_type = "misc"
+            elif isinstance(tag, dict):
+                name = str(tag.get("name") or "").strip()
+                tag_type = str(tag.get("tag_type") or "misc").strip() or "misc"
+            else:
+                continue
+
+            if name:
+                normalized_tags.append({"name": name, "tag_type": tag_type})
+
+        return normalized_tags
+
+    @staticmethod
+    def _get_news_item_tag_update_content(story_id: str, news_item_id: str) -> str:
+        if not story_id:
+            return ""
+
+        story = StoryView.get_object_by_id(story_id)
+        if not isinstance(story, Story):
+            logger.warning(f"Story {story_id} not found")
+            return render_template("partials/404.html")
+
+        news_item = next((item for item in story.news_items or [] if item.id == news_item_id), None)
+        if not news_item:
+            logger.warning(f"News item {news_item_id} not found on story {story_id}")
+            return render_template("partials/404.html")
+
+        return render_template("assess/news_item_card_fragment.html", news_item=news_item, story=story, edit_tags=True)
 
     @classmethod
     def _create_news_item_from_file(cls, file: FileStorage):
@@ -567,6 +1138,8 @@ class StoryView(BaseView):
             core_response = CoreApi().api_post("/assess/import", json_data=json_data)
             cls.add_flash_notification(core_response)
             return cls.redirect_htmx(url_for("assess.get_news_item", news_item_id=core_response.json().get("id", "0")))
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to create news item from file.")
             flash("Failed to create news item from file", "error")
@@ -589,6 +1162,8 @@ class StoryView(BaseView):
         except JSONDecodeError:
             logger.warning("Failed to decode story import JSON payload.")
             return make_response(cls.render_response_notification({"error": "Invalid JSON file."}), 400)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to import stories.")
             return make_response(cls.render_response_notification({"error": "Failed to import stories."}), 500)
@@ -608,11 +1183,24 @@ class StoryView(BaseView):
         response.headers["HX-Refresh"] = "true"
         return response
 
+    @staticmethod
+    def _build_simple_web_collector_payload(url: str, parameters: dict[str, Any] | None = None) -> dict[str, Any]:
+        collector_parameters = {key: value for key, value in (parameters or {}).items() if value not in ("", None) and key != "WEB_URL"}
+        collector_parameters["WEB_URL"] = url.strip()
+        return {
+            "id": "manual",
+            "type": "simple_web_collector",
+            "parameters": collector_parameters,
+        }
+
     @classmethod
-    def _create_news_item_from_url(cls, url: str):
+    def _create_news_item_from_url(cls, url: str, parameters: dict[str, Any] | None = None):
         try:
-            core_response = CoreApi().api_post("/assess/news-items/fetch", json_data={"url": url})
+            payload = cls._build_simple_web_collector_payload(url, parameters)
+            core_response = CoreApi().api_post("/assess/news-items/fetch", json_data=payload)
             return cls.news_item_edit_view(core_response)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to create news item from URL.")
             return cls.render_response_notification({"error": "Failed to create news item from URL."})
@@ -622,8 +1210,22 @@ class StoryView(BaseView):
     def delete_news_item(cls, news_item_id: str):
         try:
             core_response = CoreApi().api_delete(f"/assess/news-items/{news_item_id}")
+        except HTTPException:
+            raise
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete news item"})
+
+        payload = core_response.json()
+        story_id = payload.get("story_id") or payload.get("story_ids", [""])[0]
+
+        current_url_path = cls._get_current_url_path()
+        if story_id and current_url_path in {
+            url_for("assess.story", story_id=story_id),
+            url_for("assess.story_edit", story_id=story_id),
+        }:
+            if CoreApi().api_get(f"/assess/stories/{story_id}") is None:
+                cls.add_flash_notification(core_response)
+                return cls.redirect_htmx(url_for("assess.assess"))
 
         return cls._handle_news_item_response(
             core_response,
@@ -636,8 +1238,14 @@ class StoryView(BaseView):
     def delete_story(cls, story_id: str):
         try:
             core_response = CoreApi().api_delete(f"/assess/story/{story_id}")
+        except HTTPException:
+            raise
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete story"})
+
+        if cls._get_current_url_path() == url_for("assess.assess"):
+            notification_html = cls.get_notification_from_response(core_response)
+            return cls.rerender_list(notification=notification_html)
 
         cls.add_flash_notification(core_response)
         return cls.redirect_htmx(url_for("assess.assess"))
@@ -687,6 +1295,8 @@ class StoryView(BaseView):
                 notification_html = cls.get_notification_from_response(response)
                 content = cls._get_action_response_content(story_id)
                 return make_response(notification_html + content, 200)
+            except HTTPException:
+                raise
             except Exception:
                 logger.exception("Failed to ungroup news item.")
                 return cls.render_response_notification({"error": "Failed to ungroup news item."})
@@ -695,6 +1305,8 @@ class StoryView(BaseView):
                 core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
                 cls.add_flash_notification(core_response)
                 return cls.redirect_htmx(url_for("assess.assess"))
+            except HTTPException:
+                raise
             except Exception:
                 logger.exception("Failed to ungroup story.")
                 return cls.render_response_notification({"error": "Failed to ungroup story."})
@@ -710,7 +1322,7 @@ class StoryView(BaseView):
         try:
             paging_data = PagingData(query_params={"story_ids": story_ids}, limit=len(story_ids))
             stories = DataPersistenceLayer().get_objects(Story, paging_data)
-            export_data = [story.model_dump(mode="json") for story in stories.items]
+            export_data = [story.to_core_dict() for story in stories.items]
 
             response_data = json.dumps({"total_count": len(export_data), "items": export_data}, indent=2)
             flask_response = make_response(response_data, 200)
@@ -719,6 +1331,8 @@ class StoryView(BaseView):
                 f'attachment; filename="stories_export_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
             )
             return flask_response
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to export stories.")
             return cls.render_response_notification({"error": "Failed to export stories."}), 500
@@ -730,10 +1344,7 @@ class StoryView(BaseView):
             form_data = parse_formdata(request.form)
             story_update = StoryUpdatePayload(**form_data)
         except ValidationError as exc:
-            logger.exception(format_pydantic_errors(exc, StoryUpdatePayload))
-            notification = {"message": format_pydantic_errors(exc, StoryUpdatePayload), "error": True}
-            notification_html = render_template("notification/index.html", notification=notification)
-            return make_response(notification_html, 400)
+            return cls._validation_error_notification(exc, StoryUpdatePayload)
 
         response = CoreApi().api_patch(f"/assess/stories/{story_id}", json_data=story_update.model_dump(mode="json"))
         notification_html = cls.get_notification_from_response(response)
@@ -741,23 +1352,20 @@ class StoryView(BaseView):
         content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 
-    def get(self, **kwargs) -> tuple[str, int]:
+    def get(self, **kwargs: Any) -> ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
-            if request.args.get("reset"):
-                logger.debug("Droping cache & resitting filters")
-                return redirect(url_for("assess.assess"))  # type: ignore
             return self.list_view()
         return self.edit_view(object_id=object_id)
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
+    def post(self, *args: Any, **kwargs: Any) -> ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return abort(405)
 
         return self.patch_story(story_id=object_id)
 
-    def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
+    def put(self, **kwargs: Any) -> ResponseReturnValue:
         object_id = kwargs.get("story_id")
         if object_id is None:
             return abort(405)
@@ -794,176 +1402,20 @@ class StoryView(BaseView):
         if not story_id:
             return abort(400, description="No story ID provided.")
 
-        # Get story data
-        story = DataPersistenceLayer().get_object(Story, story_id)
-        if not story:
-            return abort(404, description="Story not found.")
-
-        # Get revision data from core API
-        from_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions/{from_rev}")
-        to_data = CoreApi().api_get(f"/assess/stories/{story_id}/revisions/{to_rev}")
-
-        if not from_data or not to_data:
+        core_api = CoreApi()
+        from_revision = core_api.api_get(f"/assess/stories/{story_id}/revisions/{from_rev}")
+        to_revision = core_api.api_get(f"/assess/stories/{story_id}/revisions/{to_rev}")
+        if not from_revision or not to_revision:
             return abort(404, description="Revision not found.")
 
-        # Calculate diff
-        from_revision_data = from_data.get("data", {})
-        to_revision_data = to_data.get("data", {})
-
-        # Prepare diff data
-        diff_data = {
-            "from_revision": from_data,
-            "to_revision": to_data,
-            "changes": _calculate_story_diff(from_revision_data, to_revision_data),
-        }
+        story_title = to_revision.get("data", {}).get("title") or from_revision.get("data", {}).get("title")
+        diff = build_story_revision_diff_payload(story_id, story_title, from_revision, to_revision)
 
         context = {
-            "story": story,
-            "diff": diff_data,
+            "diff": diff,
             "from_rev": from_rev,
             "to_rev": to_rev,
+            "story_id": story_id,
         }
 
         return render_template("assess/story_diff.html", **context), 200
-
-
-def _calculate_story_diff(from_data: dict, to_data: dict) -> list[dict[str, Any]]:
-    """Calculate differences between two story data dictionaries"""
-    changes = []
-
-    def _inline_text_diff(old_text: str, new_text: str) -> tuple[Markup, Markup]:
-        old_parts: list[str] = []
-        new_parts: list[str] = []
-        matcher = SequenceMatcher(a=old_text, b=new_text)
-
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            old_segment = escape(old_text[i1:i2])
-            new_segment = escape(new_text[j1:j2])
-
-            if tag == "equal":
-                old_parts.append(str(old_segment))
-                new_parts.append(str(new_segment))
-                continue
-
-            if tag in {"delete", "replace"} and i1 != i2:
-                old_parts.append(f'<span class="line-through bg-error/20 text-error rounded px-0.5">{old_segment}</span>')
-
-            if tag in {"insert", "replace"} and j1 != j2:
-                new_parts.append(f'<span class="bg-success/20 text-success rounded px-0.5">{new_segment}</span>')
-
-        return Markup("".join(old_parts)), Markup("".join(new_parts))
-
-    def _append_text_change(field: str, old_value: Any, new_value: Any) -> None:
-        if old_value == new_value:
-            return
-
-        change: dict[str, Any] = {
-            "field": field,
-            "old_value": old_value,
-            "new_value": new_value,
-        }
-
-        if isinstance(old_value, str) and isinstance(new_value, str):
-            old_value_diff, new_value_diff = _inline_text_diff(old_value, new_value)
-            change["old_value_diff"] = old_value_diff
-            change["new_value_diff"] = new_value_diff
-            change["inline_diff"] = True
-
-        changes.append(change)
-
-    def _normalized_tag_names(data: dict) -> set[str]:
-        tag_names = set()
-        for tag in data.get("tags") or []:
-            if not isinstance(tag, dict):
-                continue
-            name = tag.get("name")
-            if not isinstance(name, str):
-                continue
-            normalized_name = name.strip()
-            if normalized_name:
-                tag_names.add(normalized_name)
-        return tag_names
-
-    # Compare title
-    _append_text_change("Title", from_data.get("title"), to_data.get("title"))
-
-    # Compare description
-    _append_text_change("Description", from_data.get("description"), to_data.get("description"))
-
-    # Compare summary
-    _append_text_change("Summary", from_data.get("summary"), to_data.get("summary"))
-
-    # Compare comments
-    _append_text_change("Comments", from_data.get("comments"), to_data.get("comments"))
-
-    # Compare tags
-    from_tags = _normalized_tag_names(from_data)
-    to_tags = _normalized_tag_names(to_data)
-
-    added_tags = to_tags - from_tags
-    removed_tags = from_tags - to_tags
-
-    if added_tags:
-        changes.append(
-            {
-                "field": "Tags Added",
-                "old_value": None,
-                "new_value": ", ".join(sorted(added_tags)),
-            }
-        )
-
-    if removed_tags:
-        changes.append(
-            {
-                "field": "Tags Removed",
-                "old_value": ", ".join(sorted(removed_tags)),
-                "new_value": None,
-            }
-        )
-
-    # Compare news items
-    from_news_items = {item.get("id") for item in from_data.get("news_items", [])}
-    to_news_items = {item.get("id") for item in to_data.get("news_items", [])}
-
-    added_items = to_news_items - from_news_items
-    removed_items = from_news_items - to_news_items
-
-    if added_items:
-        item_titles = [item.get("title", item.get("id")) for item in to_data.get("news_items", []) if item.get("id") in added_items]
-        changes.append(
-            {
-                "field": "News Items Added",
-                "old_value": None,
-                "new_value": ", ".join(item_titles[:5]) + (f" and {len(item_titles) - 5} more" if len(item_titles) > 5 else ""),
-            }
-        )
-
-    if removed_items:
-        item_titles = [item.get("title", item.get("id")) for item in from_data.get("news_items", []) if item.get("id") in removed_items]
-        changes.append(
-            {
-                "field": "News Items Removed",
-                "old_value": ", ".join(item_titles[:5]) + (f" and {len(item_titles) - 5} more" if len(item_titles) > 5 else ""),
-                "new_value": None,
-            }
-        )
-
-    # Compare attributes
-    from_attrs = {attr.get("key"): attr.get("value") for attr in from_data.get("attributes", [])}
-    to_attrs = {attr.get("key"): attr.get("value") for attr in to_data.get("attributes", [])}
-
-    # Find changed, added, and removed attributes
-    all_keys = set(from_attrs.keys()) | set(to_attrs.keys())
-    for key in sorted(all_keys):
-        from_val = from_attrs.get(key)
-        to_val = to_attrs.get(key)
-        if from_val != to_val:
-            changes.append(
-                {
-                    "field": f"Attribute: {key}",
-                    "old_value": from_val,
-                    "new_value": to_val,
-                }
-            )
-
-    return changes

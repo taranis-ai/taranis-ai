@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
+    # This defines the execution order of worker types. RQ will process queues in the order they are defined here.
     WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers", "Connectors", "Misc"]] = [
         "Bots",
         "Collectors",
@@ -48,10 +49,10 @@ class Settings(BaseSettings):
         return f"/{v.strip('/')}/"
 
     @model_validator(mode="after")
-    def set_taranis_core(self):
+    def set_taranis_core(self) -> "Settings":
         if self.TARANIS_CORE_URL:
             return self
-        self.TARANIS_CORE_URL = f"http://{self.TARANIS_CORE_HOST}{self.TARANIS_BASE_PATH}api"
+        object.__setattr__(self, "TARANIS_CORE_URL", f"http://{self.TARANIS_CORE_HOST}{self.TARANIS_BASE_PATH}api")
         return self
 
 

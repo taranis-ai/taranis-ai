@@ -1,3 +1,4 @@
+# pyright: reportMissingParameterType=false
 import base64
 from io import BytesIO
 
@@ -25,7 +26,7 @@ def _to_base64(data: bytes) -> str:
 _VALID_PNG_BYTES = _make_image_bytes((16, 16), "PNG")
 _VALID_PNG_BASE64 = _to_base64(_VALID_PNG_BYTES)
 _VALID_JPEG_BASE64 = _to_base64(_make_image_bytes((24, 12), "JPEG", mode="RGB", color=(80, 140, 220)))
-_VALID_GIF_BASE64 = _to_base64(_make_image_bytes((8, 8), "GIF", mode="P", color=1))
+_VALID_BMP_BASE64 = _to_base64(_make_image_bytes((8, 8), "BMP", mode="RGB", color=(120, 20, 60)))
 _WIDE_PNG_BASE64 = _to_base64(_make_image_bytes((Config.OSINT_SOURCE_ICON_PIXELS, Config.OSINT_SOURCE_ICON_PIXELS // 2), "PNG"))
 _INVALID_BASE64_IMAGE = _to_base64(b"not-an-image")
 _INVALID_IMAGE_BYTES = b"not-an-image"
@@ -87,8 +88,9 @@ def test_osint_source_creation_contains_non_square_icon(session):
     expected_bbox = (0, top_offset, target_size, top_offset + wide_height)
     alpha = normalized.split()[-1]
     assert alpha.getbbox() == expected_bbox
-    assert normalized.getpixel((target_size // 2, 0))[3] == 0
-    assert normalized.getpixel((target_size // 2, target_size // 2))[3] == 255
+    alpha_channel = normalized.getchannel("A")
+    assert alpha_channel.getpixel((target_size // 2, 0)) == 0
+    assert alpha_channel.getpixel((target_size // 2, target_size // 2)) == 255
 
 
 @pytest.mark.usefixtures("app")
@@ -188,10 +190,10 @@ def test_osint_source_creation_rejects_svg_icon():
 def test_osint_source_creation_rejects_unsupported_image_format():
     with pytest.raises(ValueError, match="Unsupported icon format"):
         OSINTSource(
-            name="GIF Icon",
+            name="BMP Icon",
             description="A test",
             type=COLLECTOR_TYPES.RSS_COLLECTOR,
-            icon=_VALID_GIF_BASE64,
+            icon=_VALID_BMP_BASE64,
         )
 
 

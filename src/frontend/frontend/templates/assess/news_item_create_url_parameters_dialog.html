@@ -1,0 +1,90 @@
+<dialog id="create_from_url_parameters_dialog" class="modal">
+  <div class="modal-box max-w-3xl">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+    </form>
+    <h3 class="font-bold text-lg mt-1 mb-4">Simple Web Collector Parameters</h3>
+    <div class="grid gap-4 md:grid-cols-2">
+      <label class="input w-full">
+        <span class="label-text font-semibold">XPath</span>
+        <input form="news-item-create-from-url-form" type="text" name="parameters[XPATH]" placeholder="//article" class="input input-bordered w-full">
+      </label>
+
+      <label class="input w-full">
+        <span class="label-text font-semibold">User agent</span>
+        <input form="news-item-create-from-url-form"
+               type="text"
+               name="parameters[USER_AGENT]"
+               placeholder="TaranisAI/1.0"
+               class="input input-bordered w-full">
+      </label>
+
+      <label class="input w-full">
+        <span class="label-text font-semibold">Proxy server</span>
+        <input form="news-item-create-from-url-form"
+               type="url"
+               name="parameters[PROXY_SERVER]"
+               placeholder="http://proxy.example:8080"
+               class="input input-bordered w-full">
+      </label>
+
+      <label class="input w-full">
+        <span class="label-text font-semibold">TLP level</span>
+        <select form="news-item-create-from-url-form" name="parameters[TLP_LEVEL]" class="select select-bordered w-full">
+          <option value="">Default</option>
+          <option value="clear">Clear</option>
+          <option value="green">Green</option>
+          <option value="amber">Amber</option>
+          <option value="amber+strict">Amber+Strict</option>
+          <option value="red">Red</option>
+        </select>
+      </label>
+
+      <label class="input w-full md:col-span-2">
+        <span class="label-text font-semibold">Additional headers</span>
+        <input form="news-item-create-from-url-form"
+               type="text"
+               name="parameters[ADDITIONAL_HEADERS]"
+               placeholder='{"Accept": "text/html"}'
+               class="input input-bordered w-full">
+      </label>
+
+      <fieldset class="fieldset rounded-box border border-base-300 px-4 py-3">
+        <legend class="fieldset-legend">Browser mode</legend>
+        <label class="label justify-start gap-3">
+          <input form="news-item-create-from-url-form" type="hidden" name="parameters[BROWSER_MODE]" value="false">
+          <input form="news-item-create-from-url-form" type="checkbox" name="parameters[BROWSER_MODE]" value="true" class="toggle toggle-primary">
+          <span>Use browser rendering</span>
+        </label>
+      </fieldset>
+
+      <fieldset class="fieldset rounded-box border border-base-300 px-4 py-3">
+        <legend class="fieldset-legend">Digest splitting</legend>
+        <label class="label justify-start gap-3">
+          <input form="news-item-create-from-url-form" type="hidden" name="parameters[DIGEST_SPLITTING]" value="false">
+          <input form="news-item-create-from-url-form" type="checkbox" name="parameters[DIGEST_SPLITTING]" value="true" class="toggle toggle-primary">
+          <span>Split linked articles</span>
+        </label>
+      </fieldset>
+
+      <label class="input w-full">
+        <span class="label-text font-semibold">Digest limit</span>
+        <input form="news-item-create-from-url-form"
+               type="number"
+               name="parameters[DIGEST_SPLITTING_LIMIT]"
+               min="1"
+               max="100"
+               value="30"
+               class="input input-bordered w-full">
+      </label>
+    </div>
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn btn-primary">Done</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

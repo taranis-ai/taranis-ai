@@ -1,22 +1,24 @@
-{% from 'assess/sidebar/tri_state_filter.html' import tri_state_filter %}
+{% from "assess/sidebar/tri_state_filter.html" import tri_state_filter %}
+{% from "assess/sidebar/filter_token_select.html" import filter_token_select_assets %}
+{% from "macros/htmx.html" import search_trigger %}
 {% set base_url = routes.base_route %}
-{% set selected_groups = request.args.getlist('group') %}
-{% set selected_sources = request.args.getlist('source') %}
-{% set selected_tags = request.args.getlist('tags') %}
-{% set current_search = request.args.get('search', '') %}
-{% set current_limit = request.args.get('limit', 20) %}
-{% set current_sort = request.args.get('sort', '') %}
-{% set current_preset = request.args.get('range', '') %}
-{% set time_from = request.args.get('timefrom', '') %}
-{% set time_to = request.args.get('timeto', '') %}
+{% set request_args = assess_request_args | default({}) %}
+{% set selected_tags = request_args.get('tags', []) %}
+{% set current_search = request_args.get('search', ['']) | first %}
+{% set current_limit = request_args.get('limit', [20]) | first %}
+{% set current_sort = request_args.get('sort', ['']) | first %}
+{% set current_preset = request_args.get('range', ['']) | first %}
+{% set time_from = request_args.get('timefrom', ['']) | first %}
+{% set time_to = request_args.get('timeto', ['']) | first %}
 {% set highlight = current_user.profile.highlight | default(false) %}
 {% set show_week_chart = current_user.profile.show_charts %}
 {% set compact_view = current_user.profile.compact_view %}
-{% set read_filter = request.args.get('read', '') %}
-{% set important_filter = request.args.get('important', '') %}
-{% set in_report_filter = request.args.get('in_report', '') %}
-{% set relevant_filter = request.args.get('relevant', '') %}
-{% set cybersecurity_filter = request.args.get('cybersecurity', '') %}
+{% set read_filter = request_args.get('read', ['']) | first %}
+{% set important_filter = request_args.get('important', ['']) | first %}
+{% set in_report_filter = request_args.get('in_report', ['']) | first %}
+{% set relevant_filter = request_args.get('relevant', ['']) | first %}
+{% set cybersecurity_filter = request_args.get('cybersecurity', ['']) | first %}
+{% set changed_by_filter = request_args.get('changed_by', ['']) | first %}
 {% set sort_choices = sort_choices | default([
   {'label': 'Newest first', 'value': 'date_desc'},
   {'label': 'Oldest first', 'value': 'date_asc'},
@@ -36,31 +38,14 @@
   {'name': 'relevant', 'label': 'Relevance', 'value': relevant_filter}
 ] %}
 
+{{ filter_token_select_assets() }}
+
 <script type="text/javascript">
-const classNames = {
-  containerOuter: ['choices', '!bg-base-200'],
-  containerInner: ['choices__inner', '!bg-base-200'],
-  input: ['choices__input', '!bg-base-200'],
-  inputCloned: ['choices__input--cloned', '!bg-base-200'],
-  list: ['choices__list', '!bg-base-200'],
-  itemSelectable: ['choices__item--selectable', 'choices-item-selectable-primary'],
-  itemChoice: ['choices__item--choice', '!bg-base-200', '!truncate', '!w-54'],
-  selectedState: ['is-selected', 'choices-selected-primary'],
-};
-
-const choicesConfig = {
-  itemSelectText: '✓',
-  appendGroupInSearch: true,
-  classNames: classNames
-}
-
 if (typeof htmx !== 'undefined' && htmx.onLoad) {
   htmx.onLoad(function (elt) {
-    initChoices('source-filter', 'sources', choicesConfig);
     highlightSearch({{ current_search | tojson }});
   });
 } else {
-  initChoices('source-filter', 'sources', choicesConfig);
   highlightSearch({{ current_search | tojson }});
 }
 
@@ -83,25 +68,26 @@ document.addEventListener('htmx:afterSwap', function (event) {
 
 </script>
 
-<div class="p-4 space-y-4">
-  <form id="assess-sidebar"
-        hx-get="{{ base_url }}"
-        hx-target="#assess"
-        hx-swap="outerHTML"
-        hx-push-url="true"
-        hx-trigger="change from:form, keyup changed delay:500ms from:input, search from:input">
-    <section class="space-y-3">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Search &amp; Scope</h3>
-        <a href="https://taranis.ai/docs/assess/#details"
-           target="_blank"
-           rel="noopener"
-           class="link link-hover text-xs text-base-content/60 inline-flex items-center">
-          help
-          {{ heroicon_outline('arrow-top-right-on-square', class='h-3 w-3') }}
-        </a>
-      </div>
-
+<div class="p-4">
+  <section class="space-y-3">
+    <div class="flex items-center justify-between">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Search &amp; Scope</h3>
+      <a href="https://taranis.ai/docs/assess/#details"
+         target="_blank"
+         rel="noopener"
+         class="link link-hover text-xs text-base-content/60 inline-flex items-center">
+        help
+        {{ heroicon_outline('arrow-top-right-on-square', class='h-3 w-3') }}
+      </a>
+    </div>
+    <form id="assess-search-form"
+          hx-get="{{ base_url }}"
+          hx-target="#assess"
+          hx-swap="outerHTML"
+          hx-push-url="true"
+          hx-include="#assess-sidebar, #selected-tags"
+          hx-trigger="{{ search_trigger('story_search') }}"
+          hx-on:submit="event.preventDefault()">
       <label class="input input-bordered input-sm flex items-center gap-2">
         {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
         <input type="search"
@@ -112,16 +98,24 @@ document.addEventListener('htmx:afterSwap', function (event) {
                placeholder="Search stories"
                class="grow"
                autocomplete="off"
-               @keydown.window.prevent.ctrl.k="$el.focus()"
-               hx-trigger="keyup changed delay:500ms, search">
+               @keydown.window.prevent.ctrl.k="$el.focus()">
         <span class="text-xs">
           <kbd class="kbd kbd-xs text-base-content">ctrl+k</kbd>
         </span>
       </label>
-      {% include 'assess/sidebar/tags_select.html' %}
-    </section>
+    </form>
+    {% include "assess/sidebar/tags_select.html" %}
+  </section>
 
-    {% include 'assess/sidebar/source_select.html' %}
+  <form id="assess-sidebar"
+        data-tour-target="assess-filters"
+        hx-get="{{ base_url }}"
+        hx-target="#assess"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-include="#selected-tags"
+        hx-trigger="change"
+        hx-on:submit="event.preventDefault()">
 
     <div class="divider text-xs">Filter</div>
     {# djlint: off #}
@@ -147,11 +141,11 @@ document.addEventListener('htmx:afterSwap', function (event) {
              }'>
     {# djlint:on #}
     <button type="button"
-            class="btn btn-outline btn-sm mb-2 w-full"
+            class="btn btn-outline btn-xs mb-1 w-full"
             title="Clear time filters"
             hx-get="{{ base_url }}"
             hx-params="not timefrom,timeto,range"
-            hx-include="#assess-sidebar"
+            hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
             hx-target="#assess"
             hx-swap="outerHTML"
             @click="clearTimeFilters()">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear time filters</button>
@@ -194,9 +188,21 @@ document.addEventListener('htmx:afterSwap', function (event) {
     </div>
   </section>
 
-  <div class="divider text-xs">Status</div>
-  <section class="space-y-3">
+  <section class="space-y-3 mt-2">
+    {% include "assess/sidebar/source_select.html" %}
+    {% include "assess/sidebar/language_select.html" %}
+
     {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
+    <label class="select w-full">
+      <span class="label">Changed by</span>
+      <select {% if changed_by_filter %}name="changed_by"{% endif %}
+              onchange="this.name = this.value ? 'changed_by' : ''"
+              class="select select-bordered select-sm"
+              hx-trigger="change">
+        <option value="" {% if changed_by_filter in ['', None] %}selected{% endif %}>Any</option>
+        <option value="me" {% if changed_by_filter == 'me' %}selected{% endif %}>Me</option>
+      </select>
+    </label>
     <label class="select w-full">
       <span class="label">Cybersecurity</span>
       <select {% if cybersecurity_filter %}name="cybersecurity"{% endif %}
@@ -236,7 +242,9 @@ document.addEventListener('htmx:afterSwap', function (event) {
            value="true"
            hx-post="{{ url_for('user.settings') }}"
            hx-trigger="change"
-           hx-on::after-swap="window.location.reload()"
+           hx-swap="none"
+           hx-vals="js:{highlight: this.checked}"
+           hx-on::after-request="window.location.reload()"
            {% if highlight %}checked{% endif %}>
     <span class="label-text">Highlight searchterms</span>
   </label>
@@ -247,13 +255,15 @@ document.addEventListener('htmx:afterSwap', function (event) {
            value="true"
            hx-post="{{ url_for('user.settings') }}"
            hx-trigger="change"
-           hx-on::after-swap="window.location.reload()"
+           hx-swap="none"
+           hx-vals="js:{compact_view: this.checked}"
+           hx-on::after-request="window.location.reload()"
            {% if compact_view %}checked{% endif %}>
     <span class="label-text">Compact view</span>
   </label>
 </section>
 
-<div class="space-y-3">
+<div class="space-y-2 mb-1">
   <a href="{{ base_url }}?reset=true" class="btn btn-primary btn-sm w-full" @keyup.ctrl.escape.prevent.window="$el.click()">
     {{ heroicon_outline('arrow-path', class='h-4 w-4') }}
     Reset filters
@@ -261,6 +271,17 @@ document.addEventListener('htmx:afterSwap', function (event) {
       <kbd class="kbd kbd-xs text-base-content">ctrl+esc</kbd>
     </span>
   </a>
+  <button type="button"
+          class="btn btn-secondary btn-sm w-full"
+          data-testid="assess-saved-filters-button"
+          hx-get="{{ url_for('assess.saved_filters') }}"
+          hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
+          hx-target="body"
+          hx-swap="beforeend"
+          hx-on::before-request="document.getElementById('assess_saved_filters_dialog')?.remove()">
+    {{ heroicon_outline('bookmark-square', class='h-4 w-4') }}
+    Saved filters
+  </button>
   <a class="btn btn-secondary btn-sm w-full" href="{{ url_for('assess.get_news_item', news_item_id='0') }}">
     {{ heroicon_outline('pencil-square', class='h-4 w-4') }}
     Create new item

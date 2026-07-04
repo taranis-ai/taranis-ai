@@ -1,0 +1,38 @@
+{% macro render_diff_value(change, side) -%}
+  {% set segments = change.old_segments if side == 'old' else change.new_segments %}
+  {% set value = change.old_value if side == 'old' else change.new_value %}
+  {% set container_class = 'bg-error/10 text-error' if side == 'old' else 'bg-success/10 text-success' %}
+  {% set highlight_class = 'line-through bg-error/20 text-error' if side == 'old' else 'bg-success/20 text-success' %}
+  {% if segments %}
+    <div class="{{ container_class }} p-2 rounded whitespace-pre-wrap break-words">
+      {% for segment in segments %}
+        {% if segment.highlighted %}
+          <span class="{{ highlight_class }} rounded px-0.5">{{ segment.text }}</span>
+        {% else %}
+          {{ segment.text }}
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% elif value is not none %}
+    <div class="{{ container_class }} p-2 rounded">
+      {% if side == 'old' %}
+        <span class="line-through">{{ value }}</span>
+      {% else %}
+        <span>{{ value }}</span>
+      {% endif %}
+    </div>
+  {% else %}
+    <span class="text-base-content/40">-</span>
+  {% endif %}
+{%- endmacro %}
+
+{% macro render_change_row(change) -%}
+  <tr>
+    <td class="font-semibold">
+      {{ change.field }}
+      {% if change.group %}<div class="text-xs text-base-content/60">{{ change.group }}</div>{% endif %}
+    </td>
+    <td>{{ render_diff_value(change, 'old') }}</td>
+    <td>{{ render_diff_value(change, 'new') }}</td>
+  </tr>
+{%- endmacro %}

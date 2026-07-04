@@ -1,9 +1,11 @@
 from datetime import timedelta
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
-from flask import make_response, url_for
+from flask import Flask, make_response, render_template_string, url_for
 from flask_jwt_extended import create_access_token
+from models.user import UserProfile
 
 import frontend.auth as auth_module
 import frontend.views.auth_views as auth_views_module
@@ -84,6 +86,31 @@ def test_user_has_admin_permissions(permissions, expected):
     assert auth_module.user_has_admin_permissions(permissions) is expected
 
 
+def test_authenticated_request_fetches_user_info_once(app: Flask, auth_user: UserProfile, monkeypatch: pytest.MonkeyPatch) -> None:
+    user_info_calls: list[str] = []
+
+    class CoreApiStub:
+        def api_get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+            user_info_calls.append(endpoint)
+            return auth_user.model_dump(mode="json")
+
+    monkeypatch.setattr(auth_module, "CoreApi", CoreApiStub)
+
+    with app.app_context():
+        access_token = create_access_token(identity=auth_user)
+
+    protected_view = auth_module.auth_required()(
+        lambda: render_template_string("{{ get_locale() }} {{ get_timezone() }} {{ authenticated_user.username }}")
+    )
+    headers = {"Cookie": f"{auth_module.Config.JWT_ACCESS_COOKIE_NAME}={access_token}"}
+    with app.test_request_context("/frontend/admin/osint-sources", headers=headers):
+        response = protected_view()
+        assert isinstance(response, str)
+        assert "admin" in response
+
+    assert user_info_calls == ["/users"]
+
+
 def test_admin_required_redirects_when_current_user_is_missing(app, monkeypatch):
     monkeypatch.setattr(auth_module, "verify_jwt_in_request", lambda: None)
     monkeypatch.setattr(auth_module, "get_jwt_identity", lambda: "admin")
@@ -117,7 +144,8 @@ def test_expired_token_callback_redirects_to_login_and_clears_jwt_cookies(app):
 
 def test_protected_route_with_expired_cookie_redirects_to_login_with_next(app, auth_user):
     with app.app_context():
-        expired_token = create_access_token(identity=auth_user, expires_delta=timedelta(seconds=-1))
+        expires_delta = timedelta(seconds=-(app.config["JWT_DECODE_LEEWAY"] + 5))
+        expired_token = create_access_token(identity=auth_user, expires_delta=expires_delta)
         protected_path = url_for("base.notification")
         login_path = url_for("base.login", next=protected_path)
 
@@ -135,7 +163,8 @@ def test_login_page_renders_with_expired_cookie(app, auth_user, monkeypatch):
     monkeypatch.setattr(auth_views_module, "CoreApi", lambda: mock_api)
 
     with app.app_context():
-        expired_token = create_access_token(identity=auth_user, expires_delta=timedelta(seconds=-1))
+        expires_delta = timedelta(seconds=-(app.config["JWT_DECODE_LEEWAY"] + 5))
+        expired_token = create_access_token(identity=auth_user, expires_delta=expires_delta)
         login_path = url_for("base.login")
 
     client = app.test_client()

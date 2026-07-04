@@ -2,44 +2,51 @@ import importlib.util
 import sys
 import uuid
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
+
+
+def _tag_names(tags: list[dict] | dict[str, dict]) -> set[str]:
+    if isinstance(tags, dict):
+        tags = list(tags.values())
+    return {tag["name"] for tag in tags}
+
+
+def _expected_story_tag_names(story: dict) -> set[str]:
+    return {tag["name"] for item in story.get("news_items", []) for tag in item.get("tags", [])}
 
 
 class TestWorkerApi:
     base_uri = "/api/worker"
 
-    def test_worker_task_results_persists_empty_dict(self, client, api_header, app):
+    @pytest.mark.parametrize(
+        "result_payload",
+        [
+            {"message": "", "reason": None, "retryable": False, "data": []},
+            {"message": "Preview finished", "reason": None, "retryable": False, "data": False},
+            {"message": "Preview finished", "reason": None, "retryable": False, "data": 0},
+        ],
+    )
+    def test_worker_task_results_preserves_falsy_result_fields(self, client, api_header, app, result_payload):
         from core.model.task import Task
 
-        task_id = f"presenter-task-{uuid.uuid4().hex}"
-        product_id = f"product-{uuid.uuid4().hex}"
+        task_id = f"task-result-{uuid.uuid4().hex}"
 
-        payload = {
-            "id": task_id,
-            "task": "presenter_task",
-            "worker_id": product_id,
-            "worker_type": "html_presenter",
-            "result": {},
-            "status": "SUCCESS",
-        }
+        payload = {"id": task_id, "task": "collector_preview", "result": result_payload, "status": "SUCCESS"}
 
         try:
             response = client.post("/api/tasks", json=payload, headers=api_header)
 
             assert response.status_code == 200
-            assert response.get_json()["task"] == "presenter_task"
-            assert response.get_json()["worker_id"] == product_id
-            assert response.get_json()["worker_type"] == "html_presenter"
-            assert response.get_json()["result"] == {}
+            assert response.get_json()["task"] == "collector_preview"
+            assert response.get_json()["result"] == result_payload
 
             with app.app_context():
                 stored = Task.get(task_id)
                 assert stored is not None
-                assert stored.to_dict()["result"] == {}
-                assert stored.to_dict()["worker_id"] == product_id
-                assert stored.to_dict()["worker_type"] == "html_presenter"
-                assert stored.task == "presenter_task"
+                assert stored.to_dict()["result"] == result_payload
+                assert stored.task == "collector_preview"
         finally:
             with app.app_context():
                 if Task.get(task_id):
@@ -109,9 +116,9 @@ class TestWorkerApi:
 
         update_data = cleanup_story_update_data.copy()
         update_data["id"] = story_1_id  # reuse the story id from the previous test
-        update_data["news_items"] = [cleanup_news_item]
+        expected_tags = [{"name": "tag1", "tag_type": "misc"}, {"name": "tag2", "tag_type": "misc"}]
+        update_data["news_items"] = [{**cleanup_news_item, "tags": expected_tags}]
         update_data["attributes"].append({"key": "status", "value": "updated"})
-        update_data["tags"] = ["tag1", "tag2"]
 
         response = client.post(
             f"{self.base_uri}/stories",
@@ -142,7 +149,7 @@ class TestWorkerApi:
         assert attributes_in_story["status"].get("value") == "updated", (
             f"Expected 'updated' but got '{attributes_in_story['status'].get('value')}'"
         )
-        assert len(updated_story.get("tags")) == 2
+        assert _tag_names(updated_story.get("tags", {})) == _tag_names(expected_tags)
 
     def test_worker_story_update_including_existing_news_items(
         self, client, stories, cleanup_news_item_2, cleanup_story_update_data, api_header
@@ -156,11 +163,12 @@ class TestWorkerApi:
         assert response.status_code == 200
         original_story = response.get_json()[0]
         original_news_items = original_story.get("news_items", [])
-        original_news_items.append(cleanup_news_item_2)
+        expected_tags = [{"name": "tag1", "tag_type": "misc"}, {"name": "tag2", "tag_type": "misc"}]
+        new_news_item = {**cleanup_news_item_2, "tags": expected_tags}
 
         update_data = cleanup_story_update_data.copy()
         update_data["id"] = story_1_id
-        update_data["news_items"] = original_news_items
+        update_data["news_items"] = [*original_news_items, new_news_item]
 
         response = client.post(
             f"{self.base_uri}/stories",
@@ -181,8 +189,8 @@ class TestWorkerApi:
 
         assert response.status_code == 200
         assert response.get_json()[0].get("title") == update_data["title"]
-        assert len(response.get_json()[0].get("news_items", [])) == len(original_news_items)
-        assert len(response.get_json()[0].get("tags")) == 2
+        assert len(response.get_json()[0].get("news_items", [])) == len(update_data["news_items"])
+        assert _tag_names(response.get_json()[0].get("tags", {})) == _tag_names(expected_tags)
 
     def test_worker_story_update_with_conflict(self, client, stories, cleanup_news_item_2, cleanup_story_update_data, api_header):
         story_2_id = stories[1]
@@ -247,7 +255,10 @@ class TestWorkerApi:
         assert story.get("id") == new_story_id
         assert story.get("title") == full_story[0].get("title")
         assert len(story.get("news_items", [])) == len(full_story[0].get("news_items", []))
-        assert len(story.get("tags", [])) == len(full_story[0].get("tags", []))
+        assert _tag_names(story.get("tags", [])) == _expected_story_tag_names(full_story[0])
+        for news_item in story.get("news_items", []):
+            expected_item = next(item for item in full_story[0].get("news_items", []) if item["id"] == news_item["id"])
+            assert _tag_names(news_item.get("tags", [])) == _tag_names(expected_item.get("tags", []))
         assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1  # TLP is automatically added
 
     def test_worker_post_to_misp_endpoint(self, client, full_story: list[dict], api_header):
@@ -275,42 +286,59 @@ class TestWorkerApi:
         assert story.get("id") == story_id
         assert story.get("title") == full_story[0].get("title")
         assert len(story.get("news_items", [])) == len(full_story[0].get("news_items", []))
-        assert len(story.get("tags", [])) == len(full_story[0].get("tags", []))
+        assert _tag_names(story.get("tags", [])) == _expected_story_tag_names(full_story[0])
+        for news_item in story.get("news_items", []):
+            expected_item = next(item for item in full_story[0].get("news_items", []) if item["id"] == news_item["id"])
+            assert _tag_names(news_item.get("tags", [])) == _tag_names(expected_item.get("tags", []))
         assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1
 
     def test_worker_put_tags(self, client, stories, api_header):
         story_1_id = stories[0]
         tags = ["tag3", "tag4"]
+        story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
+        news_item_id = story_response.get_json()[0]["news_items"][0]["id"]
 
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: tags}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: tags}, headers=api_header)
 
         assert response.status_code == 200
         assert response.get_json().get("message") == "Tags updated"
 
+        updated_story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
+        assert updated_story_response.status_code == 200
+
+        updated_story = updated_story_response.get_json()[0]
+        updated_news_item = next(news_item for news_item in updated_story.get("news_items", []) if news_item["id"] == news_item_id)
+
+        updated_tags = updated_news_item.get("tags", [])
+        assert [tag.get("name") for tag in updated_tags] == tags
+        assert all(tag.get("tag_type") == "misc" for tag in updated_tags)
+
     def test_worker_put_tags_invalid_cases(self, client, stories, api_header):
         story_1_id = stories[0]
+        story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
+        news_item_id = story_response.get_json()[0]["news_items"][0]["id"]
 
         # Empty list
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: []}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: []}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
 
         # Tags not a list
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: "notalist"}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: "notalist"}, headers=api_header)
         assert response.status_code == 207
         assert "message" in response.get_json()
 
-        # Missing story id
-        response = client.put(f"{self.base_uri}/tags", json={"not_a_story_id": ["tag1"]}, headers=api_header)
+        # Missing news item id
+        response = client.put(f"{self.base_uri}/tags", json={"not_a_news_item_id": ["tag1"]}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
 
         # Tags list contains non-string elements
-        response = client.put(f"{self.base_uri}/tags", json={story_1_id: [123, None]}, headers=api_header)
+        response = client.put(f"{self.base_uri}/tags", json={news_item_id: [123, None]}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
 
-        # Story ID is not a string
+        # News item ID is not a string
         response = client.put(f"{self.base_uri}/tags", json={123: ["tag1"]}, headers=api_header)
         assert response.status_code == 207
         assert "errors" in response.get_json()
@@ -325,6 +353,37 @@ class TestWorkerApi:
         assert response.status_code == 400
         assert "error" in response.get_json()
 
+    def test_worker_story_roundtrip_preserves_news_item_tag_distribution(self, client, full_story_with_multiple_items_id, api_header):
+        story_id, _ = full_story_with_multiple_items_id
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
+        assert response.status_code == 200
+        story = response.get_json()[0]
+        news_items = story["news_items"]
+        assert len(news_items) == 2
+
+        first_item_id = news_items[0]["id"]
+        second_item_id = news_items[1]["id"]
+        tag_payload = {
+            first_item_id: [{"name": "roundtrip-first", "tag_type": "specific"}],
+            second_item_id: [{"name": "roundtrip-second", "tag_type": "specific"}],
+        }
+        response = client.put(f"{self.base_uri}/tags", json=tag_payload, headers=api_header)
+        assert response.status_code == 200
+
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
+        assert response.status_code == 200
+        roundtrip_payload = response.get_json()[0]
+        response = client.post(f"{self.base_uri}/stories", json=roundtrip_payload, headers=api_header)
+        assert response.status_code == 200
+
+        response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
+        assert response.status_code == 200
+        updated_story = response.get_json()[0]
+        updated_tags = {item["id"]: {tag["name"] for tag in item["tags"]} for item in updated_story["news_items"]}
+
+        assert updated_tags[first_item_id] == {"roundtrip-first"}
+        assert updated_tags[second_item_id] == {"roundtrip-second"}
+
     def test_worker_get_tags(self, client, api_header, stories):
         from core.model.news_item_tag import NewsItemTag
         from core.model.story import Story
@@ -335,7 +394,7 @@ class TestWorkerApi:
 
         story = Story.get(stories[0])
         assert story is not None
-        update_result, update_status = story.set_tags(sorted(expected_tags))
+        update_result, update_status = story.news_items[0].set_tags(sorted(expected_tags))
         assert update_status == 200, update_result
 
         response = client.get(f"{self.base_uri}/tags", headers=api_header)
@@ -351,10 +410,13 @@ class TestWorkerTaskResults:
     @pytest.mark.parametrize(
         ("payload", "expected_error"),
         [
-            ({"status": "SUCCESS", "result": {}}, "id"),
-            ({"id": "task-1", "result": {}}, "status"),
-            ({"id": 123, "status": "SUCCESS", "result": {}}, "id"),
-            ({"id": "task-1", "status": 123, "result": {}}, "status"),
+            ({"status": "SUCCESS", "result": {"message": "ok", "retryable": False}}, "id"),
+            ({"id": "task-1", "result": {"message": "ok", "retryable": False}}, "status"),
+            ({"id": 123, "status": "SUCCESS", "result": {"message": "ok", "retryable": False}}, "id"),
+            ({"id": "task-1", "status": 123, "result": {"message": "ok", "retryable": False}}, "status"),
+            ({"id": "task-1", "status": "SUCCESS"}, "result"),
+            ({"id": "task-1", "status": "SUCCESS", "kwargs": {}}, "result"),
+            ({"id": "task-1", "status": "SUCCESS", "result": {"retryable": False}}, "message"),
         ],
     )
     def test_worker_task_results_rejects_missing_or_invalid_required_fields(self, client, api_header, payload, expected_error):
@@ -366,7 +428,7 @@ class TestWorkerTaskResults:
     def test_worker_task_results_rejects_invalid_task_field(self, client, api_header):
         response = client.post(
             self.base_uri,
-            json={"id": "task-1", "task": ["bad"], "result": {}, "status": "SUCCESS"},
+            json={"id": "task-1", "task": ["bad"], "result": {"message": "ok", "retryable": False}, "status": "SUCCESS"},
             headers=api_header,
         )
 
@@ -377,7 +439,7 @@ class TestWorkerTaskResults:
         from core.model.product import Product
         from core.model.task import Task
 
-        product_id = f"worker-product-{uuid.uuid4().hex}"
+        product_id = str(uuid.uuid7())
         task_id = f"presenter-job-{uuid.uuid4().hex}"
         render_result = "YmFzZTY0"
 
@@ -387,7 +449,11 @@ class TestWorkerTaskResults:
         payload = {
             "id": task_id,
             "task": "presenter_task",
-            "result": {"product_id": product_id, "render_result": render_result, "message": "ok"},
+            "result": {
+                "message": "ok",
+                "retryable": False,
+                "data": {"product_id": product_id, "render_result": render_result},
+            },
             "status": "SUCCESS",
         }
 
@@ -430,7 +496,9 @@ class TestWorkerTaskResults:
 
                 story_data = story_response.get_json()
                 structured_tags = {tag["name"]: tag["tag_type"] for tag in story_data.get("tags", [])}
-                expected_tags = wordlist_bot_result["result"].get(story_id, {})
+                expected_tags = {}
+                for news_item in story_data.get("news_items", []):
+                    expected_tags |= wordlist_bot_result["result"]["data"]["result"].get(news_item["id"], {})
 
                 assert structured_tags == expected_tags
                 attr_by_key = {attribute.get("key"): attribute.get("value") for attribute in story_data.get("attributes", [])}
@@ -447,18 +515,389 @@ class TestWorkerTaskResults:
         payload = {
             "task_id": task_id,
             "task": "collector_task",
-            "result": {"message": "ok"},
+            "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
             "status": "SUCCESS",
         }
 
         try:
             response = client.post(self.base_uri, json=payload, headers=api_header)
             assert response.status_code == 200
-            assert response.get_json()["id"] == task_id
+            assert response.get_json()["job_id"] == task_id
         finally:
             with app.app_context():
                 if Task.get(task_id):
                     Task.delete(task_id)
+
+    def test_gather_word_list_success_result_replays_with_canonical_result_data(self, client, api_header, app, monkeypatch):
+        from core.model.task import Task
+        from core.model.word_list import WordList
+
+        task_id = f"gather-word-list-{uuid.uuid4().hex}"
+        update_word_list = Mock(return_value=None)
+        monkeypatch.setattr(WordList, "update_word_list", update_word_list)
+
+        payload = {
+            "id": task_id,
+            "task": "gather_word_list",
+            "worker_id": "word-list-1",
+            "worker_type": "gather_word_list",
+            "result": {
+                "message": "Successfully updated wordlist",
+                "reason": None,
+                "retryable": False,
+                "data": {
+                    "word_list_id": "word-list-1",
+                    "content": "alpha,beta",
+                    "content_type": "text/csv",
+                },
+            },
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            update_word_list.assert_called_once_with(
+                word_list_id="word-list-1",
+                content="alpha,beta",
+                content_type="text/csv",
+            )
+            assert "message" not in response.get_json()["result"]["data"]
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_tasks_get_returns_strict_canonical_rows_only(self, client, api_header, app):
+        from core.model.task import Task
+
+        task_id = f"strict-task-{uuid.uuid4().hex}"
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "worker_id": "source-1",
+            "worker_type": "rss_collector",
+            "result": {
+                "message": "Collected 1 item",
+                "reason": None,
+                "retryable": False,
+                "data": {"source_id": "source-1"},
+            },
+            "status": "SUCCESS",
+        }
+
+        try:
+            create_response = client.post(self.base_uri, json=payload, headers=api_header)
+            assert create_response.status_code == 200
+
+            history_response = client.get(self.base_uri, headers=api_header)
+            assert history_response.status_code == 200
+
+            history = history_response.get_json()
+            task_row = next(item for item in history["items"] if item["job_id"] == task_id)
+            assert task_row["result"] == payload["result"]
+
+            detail_response = client.get(f"{self.base_uri}/{task_id}", headers=api_header)
+            assert detail_response.status_code == 200
+            assert detail_response.get_json()["result"] == payload["result"]
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    @pytest.mark.parametrize(
+        ("status", "result_message"),
+        [
+            ("FAILURE", "Error: feed retrieval failed"),
+        ],
+    )
+    def test_collector_non_success_result_invalidates_only_osint_source_cache(
+        self, client, api_header, app, monkeypatch, status, result_message
+    ):
+        import fakeredis
+
+        from core.model.task import Task
+        from core.service import cache_invalidation as cache_invalidation_module
+
+        source_id = f"source-{uuid.uuid4().hex}"
+        task_id = f"collect_rss_collector_{source_id}"
+        redis_client = fakeredis.FakeRedis(decode_responses=True)
+        cached_keys = {
+            "taranis_frontend:user:alice:model:osint_source:list:default",
+            f"taranis_frontend:user:alice:model:osint_source:detail:{source_id}",
+            "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+            f"taranis_frontend:user:alice:model:task:detail:{task_id}",
+            "taranis_frontend:user:alice:model:job:list:default",
+            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
+            "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
+            "taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton",
+            "taranis_frontend:user:alice:model:active_job:list:default",
+            "taranis_frontend:user:alice:model:failed_job:list:default",
+            "taranis_frontend:user:alice:model:queue_status:list:default",
+            "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
+            "taranis_frontend:user:alice:model:story:list:default",
+        }
+        redis_client.mset(dict.fromkeys(cached_keys, "1"))
+
+        service = cache_invalidation_module.FrontendCacheInvalidationService()
+        service._client = redis_client
+        monkeypatch.setattr(cache_invalidation_module, "cache_invalidation_service", service)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_ENABLED", True)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_KEY_PREFIX", "taranis_frontend")
+
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "rss_collector",
+            "result": {
+                "message": result_message,
+                "reason": "collection_failed" if status == "FAILURE" else None,
+                "retryable": False,
+                "data": {"source_id": source_id},
+            },
+            "status": status,
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            assert response.get_json()["status"] == status
+            expected_keys = {
+                "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+                f"taranis_frontend:user:alice:model:task:detail:{task_id}",
+                "taranis_frontend:user:alice:model:job:list:default",
+                "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
+                "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
+                "taranis_frontend:user:alice:model:active_job:list:default",
+                "taranis_frontend:user:alice:model:failed_job:list:default",
+                "taranis_frontend:user:alice:model:queue_status:list:default",
+                "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
+                "taranis_frontend:user:alice:model:story:list:default",
+            }
+            assert set(redis_client.scan_iter(match="*")) == expected_keys
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_collector_success_result_restores_full_cache_invalidation(self, client, api_header, app, monkeypatch):
+        import fakeredis
+
+        from core.model.task import Task
+        from core.service import cache_invalidation as cache_invalidation_module
+
+        source_id = f"source-{uuid.uuid4().hex}"
+        task_id = f"collect_rss_collector_{source_id}"
+        redis_client = fakeredis.FakeRedis(decode_responses=True)
+        cached_keys = {
+            "taranis_frontend:user:alice:model:osint_source:list:default",
+            f"taranis_frontend:user:alice:model:osint_source:detail:{source_id}",
+            "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+            f"taranis_frontend:user:alice:model:task:detail:{task_id}",
+            "taranis_frontend:user:alice:model:job:list:default",
+            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
+            "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
+            "taranis_frontend:user:alice:model:active_job:list:default",
+            "taranis_frontend:user:alice:model:failed_job:list:default",
+            "taranis_frontend:user:alice:model:queue_status:list:default",
+            "taranis_frontend:user:alice:model:worker_stats:detail:singleton",
+            "taranis_frontend:user:alice:model:story:list:default",
+        }
+        redis_client.mset(dict.fromkeys(cached_keys, "1"))
+
+        service = cache_invalidation_module.FrontendCacheInvalidationService()
+        service._client = redis_client
+        monkeypatch.setattr(cache_invalidation_module, "cache_invalidation_service", service)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_ENABLED", True)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_KEY_PREFIX", "taranis_frontend")
+
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "rss_collector",
+            "result": {
+                "message": "Collected 3 new items",
+                "retryable": False,
+                "data": {"source_id": source_id},
+            },
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            assert response.get_json()["status"] == "SUCCESS"
+            assert set(redis_client.scan_iter(match="*")) == set()
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_collector_not_modified_updates_last_success_and_task_statistics(self, client, api_header, app):
+        from core.model.task import Task
+
+        source_id = f"source-{uuid.uuid4().hex}"
+        task_id = f"collect_rss_collector_{source_id}"
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "rss_collector",
+            "result": {
+                "message": "No changes: feed was not modified",
+                "reason": "collector_not_modified",
+                "retryable": False,
+                "data": {"source_id": source_id},
+            },
+            "status": "NOT_MODIFIED",
+        }
+
+        try:
+            response = client.post(self.base_uri.replace("/worker", "/tasks"), json=payload, headers=api_header)
+            assert response.status_code == 200
+
+            with app.app_context():
+                stored = Task.get(task_id)
+                assert stored is not None
+                assert stored.status == "NOT_MODIFIED"
+                assert stored.last_run is not None
+                assert stored.last_success is not None
+
+            history_response = client.get("/api/tasks", headers=api_header)
+            assert history_response.status_code == 200
+
+            history = history_response.get_json()
+            collector_stats = history["task_stats"]["rss_collector"]
+            assert collector_stats["successes"] >= 1
+            assert collector_stats["total"] >= collector_stats["successes"]
+            assert history["totals"]["successes"] >= 1
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_synthetic_cron_collector_failure_updates_source_status_last_run(self, client, api_header, app):
+        from core.model.osint_source import OSINTSource
+        from core.model.task import Task
+
+        source_id = f"cron-failure-{uuid.uuid4().hex}"
+        source = {
+            "id": source_id,
+            "name": f"Cron Failure Source {source_id}",
+            "description": "Cron failure source",
+            "parameters": {"FEED_URL": "https://example.invalid/cron-failure.xml"},
+            "type": "rss_collector",
+        }
+        with app.app_context():
+            OSINTSource.add(source)
+            persisted_source = OSINTSource.get(source_id)
+            assert persisted_source is not None
+            cron_task_id = f"cron_osint_source_{persisted_source.id}_1777459628"
+        payload = {
+            "id": cron_task_id,
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "collector_task",
+            "result": {
+                "message": "Collector worker was killed",
+                "reason": "work_horse_killed",
+                "retryable": True,
+                "data": {"source_id": source_id, "retpid": 456, "ret_val": 9},
+            },
+            "status": "FAILURE",
+        }
+
+        try:
+            response = client.post(self.base_uri.replace("/worker", "/tasks"), json=payload, headers=api_header)
+            assert response.status_code == 200
+
+            with app.app_context():
+                stored = Task.get(cron_task_id)
+                assert stored is not None
+                assert stored.status == "FAILURE"
+                assert stored.last_run is not None
+                assert stored.last_success is None
+
+                refreshed_source = OSINTSource.get(source_id)
+                assert refreshed_source is not None
+                assert refreshed_source.status is not None
+                assert refreshed_source.status["job_id"] == cron_task_id
+                assert refreshed_source.status["status"] == "FAILURE"
+                assert refreshed_source.status["last_run"] is not None
+        finally:
+            with app.app_context():
+                if Task.get(cron_task_id):
+                    Task.delete(cron_task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
+
+    def test_collector_not_modified_clears_admin_badges_cache_after_failure(self, client, api_header, app, monkeypatch):
+        import fakeredis
+
+        from core.model.task import Task
+        from core.service import cache_invalidation as cache_invalidation_module
+
+        source_id = f"source-{uuid.uuid4().hex}"
+        task_id = f"collect_rss_collector_{source_id}"
+        previous_failure_id = f"{task_id}-failed"
+        redis_client = fakeredis.FakeRedis(decode_responses=True)
+        cached_keys = {
+            "taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton",
+            f"taranis_frontend:user:alice:model:osint_source:detail:{source_id}",
+            "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+        }
+        redis_client.mset(dict.fromkeys(cached_keys, "1"))
+
+        service = cache_invalidation_module.FrontendCacheInvalidationService()
+        service._client = redis_client
+        monkeypatch.setattr(cache_invalidation_module, "cache_invalidation_service", service)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_ENABLED", True)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_KEY_PREFIX", "taranis_frontend")
+
+        try:
+            with app.app_context():
+                Task.add(
+                    {
+                        "id": previous_failure_id,
+                        "task": "collector_task",
+                        "worker_id": source_id,
+                        "worker_type": "rss_collector",
+                        "status": "FAILURE",
+                        "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": source_id}},
+                    }
+                )
+
+            response = client.post(
+                self.base_uri,
+                json={
+                    "id": task_id,
+                    "task": "collector_task",
+                    "worker_id": source_id,
+                    "worker_type": "rss_collector",
+                    "result": {
+                        "message": "No changes: feed was not modified",
+                        "reason": "collector_not_modified",
+                        "retryable": False,
+                        "data": {"source_id": source_id},
+                    },
+                    "status": "NOT_MODIFIED",
+                },
+                headers=api_header,
+            )
+
+            assert response.status_code == 200
+            assert "taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton" not in set(redis_client.scan_iter(match="*"))
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+                if Task.get(previous_failure_id):
+                    Task.delete(previous_failure_id)
 
     def test_tasks_get_allows_jwt_auth(self, client, auth_header):
         response = client.get(self.base_uri, headers=auth_header)
@@ -478,7 +917,14 @@ class TestWorkerTaskResults:
 
         task_id = f"delete-task-{uuid.uuid4().hex}"
         with app.app_context():
-            Task.add({"id": task_id, "task": "collector_task", "result": {"message": "ok"}, "status": "SUCCESS"})
+            Task.add(
+                {
+                    "id": task_id,
+                    "task": "collector_task",
+                    "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
+                    "status": "SUCCESS",
+                }
+            )
 
         response = client.delete(f"{self.base_uri}/{task_id}", headers=auth_header)
         assert response.status_code == 200
@@ -540,9 +986,16 @@ class TestConnector:
             "TLP": {"key": "TLP", "value": "clear"},
             "test": {"key": "test", "value": "test"},
         }
-        story["tags"] = {"test_tag": {"name": "test_tag", "tag_type": "misc"}}
+        news_item_id = story["news_items"][0]["id"]
+        story.pop("tags", None)
+        for news_item in story.get("news_items", []):
+            news_item.pop("tags", None)
 
         client.post(f"{self.base_uri}/stories", json=story, headers=api_header)
+        tag_response = client.put(
+            f"{self.base_uri}/tags", json={news_item_id: [{"name": "test_tag", "tag_type": "misc"}]}, headers=api_header
+        )
+        assert tag_response.status_code == 200
 
         response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_id})
         updated_story = response.get_json()[0]

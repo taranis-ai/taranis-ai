@@ -32,7 +32,7 @@ class BasePublisher:
         product_title = product.get("title")
         mime_type = product.get("mime_type")
 
-        file_extension = mimetypes.guess_extension(mime_type, strict=False)
+        file_extension = mimetypes.guess_extension(mime_type, strict=False) or ""
         return f"{product_title}_{datetime.now().strftime('%d-%m-%Y_%H-%M')}{file_extension}"
 
     def _extract_parameters(self, publisher: dict[str, Any]) -> dict[str, Any]:

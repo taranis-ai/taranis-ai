@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
+    JWT_DECODE_LEEWAY: int = 5
     JWT_TOKEN_LOCATION: list[str] = ["headers", "cookies"]
     JWT_CSRF_CHECK_FORM: bool = True
     JWT_ACCESS_COOKIE_NAME: str = "access_token_cookie"
@@ -41,10 +42,12 @@ class Settings(BaseSettings):
     CORE_API_KEY: SecretStr = SecretStr("supersecret")
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
     OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
-    OSINT_SOURCE_ICON_ALLOWED_MIMETYPES: str = "image/png,image/jpeg,image/webp"
+    OSINT_SOURCE_ICON_ALLOWED_MIMETYPES: str = "image/png,image/jpeg,image/webp,image/gif"
 
-    # BABEL_DEFAULT_LOCALE: str = "en"
-    # BABEL_DEFAULT_TIMEZONE: str = "UTC"
+    BABEL_DEFAULT_LOCALE: str = "en"
+    BABEL_DEFAULT_TIMEZONE: str = "UTC"
+    BABEL_TRANSLATION_DIRECTORIES: str = "translations"
+    BABEL_SUPPORTED_LOCALES: list[str] = ["en", "de"]
     CACHE_ENABLED: bool = CACHE_ENABLED_DEFAULT
     CACHE_DEFAULT_TIMEOUT: int = CACHE_DEFAULT_TIMEOUT_DEFAULT
     CACHE_KEY_PREFIX: str = CACHE_KEY_PREFIX_DEFAULT
@@ -52,6 +55,9 @@ class Settings(BaseSettings):
     CACHE_REDIS_PASSWORD: SecretStr | None = None
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
+    TARANIS_SENTRY_DSN: str | None = None
+    SENTRY_ENABLE_LOGS: bool = False
+    SENTRY_SEND_DEFAULT_PII: bool = False
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:

@@ -3,6 +3,8 @@ from typing import Any
 from flask import abort, render_template, request
 from flask.typing import ResponseReturnValue
 from models.product import Product, ProductType, PublisherPreset
+from models.report import ReportItem
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
 from frontend.core_api import CoreApi
@@ -39,7 +41,7 @@ class ProductView(BaseView):
         ]
 
     @classmethod
-    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+    def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         product_types = DataPersistenceLayer().get_objects(ProductType)
         base_context["product_types"] = [{"id": pt.id, "name": pt.title} for pt in product_types]
         publishers = DataPersistenceLayer().get_objects(PublisherPreset)
@@ -51,6 +53,24 @@ class ProductView(BaseView):
             if is_edit:
                 base_context["submit_text"] = f"Update {cls.pretty_name()} - {product.title}"
             base_context["is_edit"] = is_edit
+
+            selected_report_items = [
+                str(report_item_id) for report_item_id in (getattr(product, "report_items", None) or []) if report_item_id
+            ]
+            supported_reports = list(getattr(product, "supported_reports", None) or [])
+
+            if report_id := request.args.get("report_id"):
+                report = DataPersistenceLayer().get_object(ReportItem, report_id)
+                if report:
+                    if report.id and report.id not in selected_report_items:
+                        selected_report_items.append(report.id)
+
+                    report_payload = report.model_dump(mode="json")
+                    if report.id and not any(str(item.get("id")) == str(report.id) for item in supported_reports if isinstance(item, dict)):
+                        supported_reports.append(report_payload)
+
+            base_context["selected_report_items"] = selected_report_items
+            base_context["supported_reports"] = supported_reports
 
         return base_context
 
@@ -70,6 +90,8 @@ class ProductView(BaseView):
                 error = error_payload.get("error", "Unknown error")
 
             logger.error(f"Download product failed with status {core_resp.status_code}: {error}")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Download product failed: {str(e)}")
             error = f"Failed to download product - {str(e)}"
@@ -79,14 +101,14 @@ class ProductView(BaseView):
     @classmethod
     @auth_required()
     def product_render(cls, product_id: str):
-        error = "Failed to render product"
         try:
             core_resp = CoreApi().render_product(product_id)
             if not core_resp.ok:
-                error = core_resp.json().get("error", "Unknown error")
+                return cls.get_notification_from_response(core_resp), core_resp.status_code
 
-            message = core_resp.json().get("message", "Unknown error")
-            return render_template("notification/index.html", notification={"message": message, "error": False}), 200
+            return cls.render_worker_task_notification(core_resp), 200
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Render product failed: {str(e)}")
             error = f"Failed to render product - {str(e)}"
@@ -95,15 +117,15 @@ class ProductView(BaseView):
 
     @classmethod
     def product_publish(cls, product_id: str):
-        error = "Failed to publish product"
         try:
             publisher = request.form.get("publisher", "")
             core_resp = CoreApi().publish_product(product_id, publisher_id=publisher)
             if not core_resp.ok:
-                error = core_resp.json().get("error", "Unknown error")
+                return cls.get_notification_from_response(core_resp), core_resp.status_code
 
-            message = core_resp.json().get("message", "Unknown error")
-            return render_template("notification/index.html", notification={"message": message, "error": False}), 200
+            return cls.render_worker_task_notification(core_resp), 200
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Publish product failed: {str(e)}")
             error = f"Failed to publish product - {str(e)}"
@@ -111,7 +133,7 @@ class ProductView(BaseView):
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        return self.update_view(object_id=0)
+        return self.update_view(object_id="0")
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)

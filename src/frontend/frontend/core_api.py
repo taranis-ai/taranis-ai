@@ -2,6 +2,7 @@ from typing import IO, Any, cast
 
 import requests
 from flask import Response, request
+from werkzeug.exceptions import Forbidden, HTTPException
 from werkzeug.wsgi import wrap_file
 
 from frontend.config import Config
@@ -20,6 +21,17 @@ class CoreApi:
         self.session.verify = self.verify
         self.timeout = Config.REQUESTS_TIMEOUT
 
+    @staticmethod
+    def _extract_forbidden_message(response: requests.Response) -> str:
+        message = "Access denied"
+        try:
+            payload = response.json()
+            if isinstance(payload, dict):
+                message = payload.get("error") or payload.get("message") or message
+        except Exception:
+            message = response.text or message
+        return message
+
     def get_headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.jwt_token}", "Content-type": "application/json"}
 
@@ -27,6 +39,10 @@ class CoreApi:
         return request.cookies.get(Config.JWT_ACCESS_COOKIE_NAME)
 
     def check_response(self, response: requests.Response, url: str):
+        if response.status_code == 403:
+            message = self._extract_forbidden_message(response)
+            logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
+            raise Forbidden(description=message)
         try:
             if response.ok:
                 return response.json()
@@ -49,22 +65,22 @@ class CoreApi:
         return False
 
     def api_put(self, endpoint: str, json_data=None) -> requests.Response:
-        if not json_data:
+        if json_data is None:
             json_data = {}
         return self.session.put(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
     def api_post(self, endpoint: str, json_data=None) -> requests.Response:
-        if not json_data:
+        if json_data is None:
             json_data = {}
         return self.session.post(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
     def api_patch(self, endpoint: str, json_data=None) -> requests.Response:
-        if not json_data:
+        if json_data is None:
             json_data = {}
         return self.session.patch(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
-    def api_delete(self, endpoint: str) -> requests.Response:
-        return self.session.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, timeout=self.timeout)
+    def api_delete(self, endpoint: str, params: dict[str, Any] | None = None) -> requests.Response:
+        return self.session.delete(url=f"{self.api_url}{endpoint}", headers=self.headers, params=params, timeout=self.timeout)
 
     def api_get(self, endpoint: str, params: dict | None = None):
         url = f"{self.api_url}{endpoint}"
@@ -74,6 +90,16 @@ class CoreApi:
             logger.error(f"Call to {url} failed {e}")
             return None
         return self.check_response(response, url)
+
+    def get_health(self) -> dict[str, Any] | None:
+        url = f"{self.api_url}/health"
+        try:
+            response = self.session.get(url=url, headers=self.headers, timeout=self.timeout)
+            payload = response.json()
+        except (requests.exceptions.RequestException, ValueError) as e:
+            logger.error(f"Health check failed: {e}")
+            return None
+        return payload if isinstance(payload, dict) else None
 
     def api_download(self, endpoint: str, params: dict | None = None) -> requests.Response:
         url = f"{self.api_url}{endpoint}"
@@ -121,6 +147,8 @@ class CoreApi:
     def load_default_osint_sources(self):
         try:
             return self.api_get("/static/default_sources.json")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Load default OSINT sources failed: {e}")
             return None
@@ -128,8 +156,17 @@ class CoreApi:
     def get_osint_source_preview(self, osint_source_id: str):
         try:
             return self.api_get(f"/config/osint-sources/{osint_source_id}/preview")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Retrieving OSINT source preview failed: {e}")
+            return None
+
+    def retrigger_osint_source_preview(self, osint_source_id: str):
+        try:
+            return self.api_post(f"/config/osint-sources/{osint_source_id}/preview")
+        except Exception as e:
+            logger.error(f"Retriggering OSINT source preview failed: {e}")
             return None
 
     def collect_osint_source(self, osint_source_id: str):
@@ -163,11 +200,13 @@ class CoreApi:
     def load_default_word_lists(self):
         try:
             return self.api_get("/static/default_word_lists.json")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Load default word lists failed: {e}")
             return None
 
-    def update_word_lists(self, word_list_id: int | None = None):
+    def update_word_lists(self, word_list_id: str | None = None):
         uri = f"/config/word-lists/gather/{word_list_id}" if word_list_id else "/config/word-lists/gather"
         return self.api_post(uri)
 

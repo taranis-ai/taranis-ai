@@ -1,0 +1,21 @@
+{% if data.task_status_totals %}
+  {% set totals = data.task_status_totals %}
+  {% call dashboard_card('Task Status', None) %}
+    <div class="flex flex-col gap-1 text-sm">
+      <div>
+        <span class="badge badge-success">{{ totals.successes }}</span>
+        <span class="ml-1">success</span>
+      </div>
+      <div>
+        <span class="badge badge-error">{{ totals.failures }}</span>
+        <span class="ml-1">failure</span>
+      </div>
+
+      <div class="mt-2 text-xs">Success rate: {{ totals.success_pct }}%</div>
+      <div class="w-full h-2 rounded bg-base-300 overflow-hidden">
+        <div class="h-full bg-success" style="width: {{ totals.success_pct }}%"></div>
+      </div>
+      <div class="mt-1 text-[0.7rem] text-base-content/60">Total: {{ totals.total }}</div>
+    </div>
+  {% endcall %}
+{% endif %}

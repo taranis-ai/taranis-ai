@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from tests.application.support.api_test_base import BaseTest
@@ -24,6 +25,7 @@ class TestAdminApi(BaseTest):
                 "default_tlp_level": "clear",
                 "default_story_conflict_retention": "150",
                 "default_news_item_conflict_retention": "150",
+                "default_timezone": "Europe/Vienna",
             }
         }
 
@@ -31,7 +33,63 @@ class TestAdminApi(BaseTest):
         response_settings = response.get_json()
 
         assert response_settings["message"] == "Successfully updated settings"
-        assert response_settings["settings"] == test_settings["settings"]
+        for key, value in test_settings["settings"].items():
+            assert response_settings["settings"][key] == value
+
+    def test_settings_patch_updates_single_field(self, client, auth_header):
+        initial_settings = {
+            "settings": {
+                "default_collector_proxy": "http://initial-proxy.test:1111",
+                "default_collector_interval": "5 5 * * *",
+                "default_tlp_level": "clear",
+                "default_story_conflict_retention": "150",
+                "default_news_item_conflict_retention": "150",
+            }
+        }
+        self.assert_put_ok(client, "settings", initial_settings, auth_header)
+
+        response = self.assert_patch_ok(
+            client,
+            "settings",
+            {"settings": {"default_collector_proxy": "http://patched-proxy.test:2222"}},
+            auth_header,
+        )
+
+        response_settings = response.get_json()["settings"]
+        assert response_settings["default_collector_proxy"] == "http://patched-proxy.test:2222"
+        assert response_settings["default_collector_interval"] == initial_settings["settings"]["default_collector_interval"]
+
+    def test_settings_rejects_invalid_default_timezone(self, client, auth_header):
+        response = client.put(
+            self.concat_url("settings"),
+            json={"settings": {"default_timezone": "Not/A_Timezone"}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        error = response.get_json()["error"]
+        assert "Invalid timezone" in error
+        assert "Not/A_Timezone" not in error
+
+    def test_settings_rejects_non_string_default_timezone(self, client, auth_header):
+        response = client.put(
+            self.concat_url("settings"),
+            json={"settings": {"default_timezone": 123}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert "Invalid timezone" in response.get_json()["error"]
+
+    def test_settings_clears_default_timezone(self, client, auth_header):
+        response = self.assert_put_ok(
+            client,
+            "settings",
+            {"settings": {"default_timezone": ""}},
+            auth_header,
+        )
+
+        assert response.get_json()["settings"]["default_timezone"] is None
 
 
 def test_export_stories_and_metadata(client, full_story, api_header, auth_header):
@@ -57,7 +115,7 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     assert data[0]["id"] == story_id
     assert data[0]["news_items"][0].get("author") is None
 
-    expected_created = min(datetime.fromisoformat(item["published"]) for item in full_story[0]["news_items"]).isoformat()
+    expected_created = datetime.fromisoformat(full_story[0]["created"]).isoformat()
     assert data[0]["created"] == expected_created
 
     exported_news_item_ids = {ni["id"] for ni in data[0].get("news_items", [])}
@@ -113,6 +171,40 @@ def test_export_stories_and_metadata(client, full_story, api_header, auth_header
     # assert attrs.get("status") == "updated"
 
 
+def test_import_stories_ignores_export_only_fields(client, auth_header):
+    story_id = str(uuid.uuid4())
+    news_item_id = str(uuid.uuid4())
+    payload = [
+        {
+            "id": story_id,
+            "title": "Imported Story",
+            "relevance_override": 7,
+            "links": ["https://example.com/story/export-only"],
+            "news_items": [
+                {
+                    "id": news_item_id,
+                    "title": "Imported Story News 1",
+                    "content": "content",
+                    "source": "https://example.com/source",
+                    "link": "https://example.com/news",
+                    "osint_source_id": "manual",
+                    "links": ["https://example.com/news/export-only"],
+                }
+            ],
+        }
+    ]
+
+    response = client.post("/api/assess/import", json=payload, headers=auth_header)
+
+    assert response.status_code == 200
+    imported_story = response.get_json()["imported_stories"][0]
+    assert imported_story["id"] == story_id
+    assert imported_story["relevance_override"] == 7
+    assert imported_story["links"] == ["https://example.com/news"]
+    assert imported_story["news_items"][0]["id"] == news_item_id
+    assert imported_story["news_items"][0]["link"] == "https://example.com/news"
+
+
 def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
     r = client.get("/api/settings/export-stories?timefrom=invalid", headers=auth_header)
 
@@ -157,4 +249,4 @@ def test_cache_invalidate_scope_endpoint_rejects_unknown_scope(client, auth_head
     response = client.post("/api/admin/cache/invalidate", json={"mode": "scope", "scope": "unknown"}, headers=auth_header)
 
     assert response.status_code == 400
-    assert response.get_json()["error"] == "Unknown scope: unknown"
+    assert response.get_json()["error"] == "Unknown scope"

@@ -10,10 +10,12 @@ From `src/frontend` folder run:
 pytest --e2e-ci
 ```
 
-The E2E harness starts and stops a dedicated Core Docker Compose service automatically for the test session.
+The E2E harness starts and stops a dedicated Docker/Podman Compose test stack automatically for the session.
 Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
-You only need Docker/Compose available locally.
+You need Docker Compose or Podman Compose available locally. For Podman, install `podman` and either `podman-compose` or a working `podman compose` provider.
 The same frontend-owned test root also contains the RQ/Redis integration E2E suite.
+The Playwright bootstrap selects the `fork` multiprocessing start method when available because `pytest-flask`'s live server is
+not compatible with Python 3.14's default pickling-based start methods.
 
 ### Run tests in headful mode
 
@@ -64,6 +66,22 @@ PWDEBUG=1 pytest <--flag>
 
 To halt a test at a certain point, use classic breakpoints, or place `page.pause()` where you want the debugger to stop (works also without `PWDEBUG=1`).
 
+## Waiting for HTMX updates
+
+Prefer Playwright locator assertions when the expected visible result fully describes the wait:
+
+```python
+expect(page.get_by_test_id("assess")).to_be_visible()
+```
+
+Use `with_htmx_wait(page, action)` when an action triggers HTMX and the next step reads or clicks DOM that may be swapped:
+
+```python
+with_htmx_wait(page, lambda: page.locator("#infinite-scroll-trigger").click())
+```
+
+Keep `page.expect_response(...)` for tests where the response itself is the behavior under test, such as downloads, imports, or settings submissions.
+
 ## Pictures for documentation
 
 To generate most of the pictures for documentation, run:
@@ -82,7 +100,7 @@ It takes two arguments:
 
 Script has variables to influence dest. subdirectories of respective pictures. Change as needed.
 
-## DB file for E2E
+## Database for E2E
 
-The Core service uses an internal SQLite file inside its container for each test session.
+The local Playwright E2E stack runs Core against an ephemeral SQLite database and Redis-backed worker services.
 No manual cleanup is required.

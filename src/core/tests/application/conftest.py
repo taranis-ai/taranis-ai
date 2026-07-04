@@ -20,7 +20,7 @@ def fake_source(app):
         from core.model.osint_source import OSINTSource
 
         source_data = {
-            "id": "99",
+            "id": str(uuid.uuid7()),
             "description": "This is a test source",
             "name": "Test Source",
             "rank": 0,
@@ -43,7 +43,7 @@ def ranked_source(app):
         from core.model.osint_source import OSINTSource
 
         source_data = {
-            "id": "source-rank-4",
+            "id": str(uuid.uuid7()),
             "description": "Ranked source",
             "name": "Ranked Source",
             "rank": 4,
@@ -187,7 +187,7 @@ def cleanup_news_item_2(fake_source):
     from core.model.news_item import NewsItem
 
     news_item = {
-        "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebt",
+        "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebe",
         "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c46",
         "title": "Test News Item 14",
         "review": "CVE-2020-5678 - Test Story 1 - news item 2",
@@ -228,16 +228,17 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
         from core.model.osint_source import OSINTSource, OSINTSourceGroup
         from core.model.report_item import ReportItem
         from core.model.story import Story, StoryNewsItemAttribute
+        from core.model.user import User
 
         extra_source = OSINTSource(
-            id="story-filter-source-extra",
+            id=str(uuid.uuid7()),
             name="Story Filter Extra Source",
             description="Additional source for story filter tests",
             type="rss_collector",
             parameters={"FEED_URL": "https://example.invalid/story-filter-extra.xml"},
         )
         source_group = OSINTSourceGroup(
-            id="story-filter-group",
+            id=str(uuid.uuid7()),
             name="Story Filter Group",
             description="Source group for story filter tests",
         )
@@ -250,7 +251,7 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
             "title": "Story Filter Extra Source Story",
             "news_items": [
                 {
-                    "id": "story-filter-news-item-extra",
+                    "id": str(uuid.uuid7()),
                     "title": "Story Filter Extra Source Story",
                     "content": "Story Filter Extra Source Story Content",
                     "source": "unit-test",
@@ -277,6 +278,11 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
         assert manual_important is not None
         assert source_only is not None
 
+        assert grouped_flagged.news_items[0].set_tags(["filter-alpha"])[1] == 200
+        assert grouped_plain.news_items[0].set_tags(["filter-beta"])[1] == 200
+        assert manual_important.news_items[0].set_tags(["filter-gamma"])[1] == 200
+        assert source_only.news_items[0].set_tags(["filter-delta"])[1] == 200
+
         grouped_flagged.read = True
         grouped_flagged.important = True
         grouped_flagged.relevance = 10
@@ -291,16 +297,22 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
 
         source_only.read = True
         source_only.important = False
-        source_only.relevance = 5
+        grouped_flagged.news_items[0].language = "en"
+        grouped_plain.news_items[0].language = "de"
+        manual_important.news_items[0].language = "en"
+        source_only.news_items[0].language = "fr"
+
+        for story in (grouped_flagged, grouped_plain, manual_important, source_only):
+            story.recompute_relevance(in_reports_count=0)
+
+        admin_user = User.find_by_name("admin")
+        assert admin_user is not None
+        admin_actor = Story.last_change_for_user(admin_user)
+        grouped_flagged.last_change = admin_actor
         db.session.commit()
 
-        assert grouped_flagged.set_tags(["filter-alpha"])[1] == 200
-        assert grouped_plain.set_tags(["filter-beta"])[1] == 200
-        assert manual_important.set_tags(["filter-gamma"])[1] == 200
-        assert source_only.set_tags(["filter-delta"])[1] == 200
-
         report_payload = deepcopy(cleanup_report_item)
-        report_payload["id"] = "story-filter-report-item"
+        report_payload["id"] = str(uuid.uuid7())
         report_payload["title"] = "Story Filter Report Item"
         report_payload["stories"] = [grouped_flagged.id]
         report_item, status = ReportItem.add(report_payload)
@@ -327,6 +339,14 @@ def story_filter_data(app, stories, fake_source, cleanup_report_item):
                 "gamma": "filter-gamma",
                 "delta": "filter-delta",
             },
+            "languages": {
+                "english": "en",
+                "german": "de",
+                "french": "fr",
+            },
+            "actors": {
+                "admin": admin_actor,
+            },
         }
 
         ReportItem.delete_all()
@@ -351,7 +371,7 @@ def cleanup_report_item(app):
         first_report_type = report_types[0].id
 
         yield {
-            "id": "42",
+            "id": str(uuid.uuid7()),
             "title": "Test Report",
             "completed": False,
             "report_item_type_id": first_report_type,
@@ -374,13 +394,118 @@ def cleanup_product(app):
             raise ValueError("No text presenter found")
 
         yield {
-            "id": "42",
+            "id": str(uuid.uuid7()),
             "title": "Test Product",
             "description": "This is a test product",
             "product_type_id": text_presenter.id,
         }
 
         Product.delete_all()
+
+
+@pytest.fixture
+def workflow_publish_resources(app):
+    with app.app_context():
+        from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
+
+        from core.managers.db_manager import db
+        from core.model.attribute import Attribute, AttributeType
+        from core.model.product import Product
+        from core.model.product_type import ProductType
+        from core.model.publisher_preset import PublisherPreset
+        from core.model.report_item import ReportItem
+        from core.model.report_item_type import ReportItemType
+
+        suffix = uuid.uuid4().hex
+
+        summary_attribute = Attribute(
+            name=f"workflow_summary_{suffix}",
+            description="Workflow summary attribute",
+            attribute_type=AttributeType.STRING,
+            default_value="Default executive summary",
+        )
+        recommendation_attribute = Attribute(
+            name=f"workflow_recommendation_{suffix}",
+            description="Workflow recommendation attribute",
+            attribute_type=AttributeType.STRING,
+            default_value="Default recommendation",
+        )
+        db.session.add_all([summary_attribute, recommendation_attribute])
+        db.session.flush()
+
+        report_type = ReportItemType(
+            title=f"Workflow Report Type {suffix}",
+            description="Workflow report type for publish endpoint tests",
+            attribute_groups=[
+                {
+                    "index": 0,
+                    "title": "Workflow Group",
+                    "description": "Workflow attributes",
+                    "attribute_group_items": [
+                        {
+                            "index": 0,
+                            "attribute_id": summary_attribute.id,
+                            "title": "Executive Summary",
+                            "description": "Summary field",
+                            "required": False,
+                        },
+                        {
+                            "index": 1,
+                            "attribute_id": recommendation_attribute.id,
+                            "title": "Recommendation",
+                            "description": "Recommendation field",
+                            "required": False,
+                        },
+                    ],
+                }
+            ],
+        )
+        db.session.add(report_type)
+        db.session.flush()
+
+        product_type = ProductType(
+            title=f"Workflow Product Type {suffix}",
+            type=PRESENTER_TYPES.HTML_PRESENTER,
+            description="Workflow product type",
+            parameters={"TEMPLATE_PATH": "cert_at_daily_report.html"},
+            report_types=[report_type.id],
+        )
+        publisher_preset = PublisherPreset(
+            id=str(uuid.uuid7()),
+            name=f"Workflow Publisher {suffix}",
+            description="Workflow publisher preset",
+            type=PUBLISHER_TYPES.FTP_PUBLISHER,
+            parameters={"FTP_URL": "ftp://example.invalid/out"},
+        )
+
+        db.session.add_all([product_type, publisher_preset])
+        db.session.commit()
+
+        yield {
+            "report_type_id": report_type.id,
+            "product_type_id": product_type.id,
+            "publisher_preset_id": publisher_preset.id,
+            "group_title": "Workflow Group",
+            "summary_title": "Executive Summary",
+            "summary_default": "Default executive summary",
+            "recommendation_title": "Recommendation",
+            "recommendation_default": "Default recommendation",
+        }
+
+        Product.delete_all()
+        ReportItem.delete_all()
+
+        if PublisherPreset.get(publisher_preset.id):
+            db.session.delete(PublisherPreset.get(publisher_preset.id))
+        if ProductType.get(product_type.id):
+            db.session.delete(ProductType.get(product_type.id))
+        if ReportItemType.get(report_type.id):
+            db.session.delete(ReportItemType.get(report_type.id))
+        if Attribute.get(summary_attribute.id):
+            db.session.delete(Attribute.get(summary_attribute.id))
+        if Attribute.get(recommendation_attribute.id):
+            db.session.delete(Attribute.get(recommendation_attribute.id))
+        db.session.commit()
 
 
 @pytest.fixture(scope="class")
@@ -466,7 +591,7 @@ def report_items(app):
         }
 
         report_item4_data = {
-            "id": "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6",
+            "id": str(uuid.uuid7()),
             "title": "CERT Report without TLP",
             "completed": False,
             "report_item_type_id": cert_report_type_id,
@@ -498,7 +623,7 @@ def stories_with_tlp(app, fake_source):
 
         news_items = [
             {
-                "id": "tlp-news-green",
+                "id": str(uuid.uuid7()),
                 "title": "TLP News Item",
                 "content": "This is TLP-related content.",
                 "source": "https://example.com/news/tlp",
@@ -510,7 +635,7 @@ def stories_with_tlp(app, fake_source):
                 "attributes": [{"key": "TLP", "value": TLPLevel.GREEN.value}],
             },
             {
-                "id": "tlp-news-clear",
+                "id": str(uuid.uuid7()),
                 "title": "Plain News Item",
                 "content": "This is just a regular news item.",
                 "source": "https://example.com/news/plain",
@@ -521,7 +646,7 @@ def stories_with_tlp(app, fake_source):
                 "hash": "plain-news-hash",
             },
             {
-                "id": "tlp-news-red",
+                "id": str(uuid.uuid7()),
                 "title": "Another TLP News Item",
                 "content": "This is another TLP-related content.",
                 "source": "https://example.com/news/tlp2",
@@ -747,12 +872,18 @@ def cleanup_publisher(app):
 
 
 def remap_result_keys(payload: dict, stories) -> dict:
+    from core.model.story import Story
+
     payload = deepcopy(payload)
 
-    old = payload["result"]
-    story_ids = [str(getattr(s, "id", s)) for s in stories]
+    old = payload["result"]["data"]["result"]
+    news_item_ids = []
+    for story_ref in stories:
+        story_id = str(getattr(story_ref, "id", story_ref))
+        if story := Story.get(story_id):
+            news_item_ids.extend(news_item.id for news_item in story.news_items[:1])
 
-    payload["result"] = {story_id: tags_dict for story_id, tags_dict in zip(story_ids, old.values())}
+    payload["result"]["data"]["result"] = {news_item_id: tags_dict for news_item_id, tags_dict in zip(news_item_ids, old.values())}
     return payload
 
 
