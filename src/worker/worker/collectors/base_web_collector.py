@@ -86,13 +86,13 @@ class BaseWebCollector(BaseCollector):
 
     def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
         if last_modified := response.headers.get("Last-Modified", None):
-            return dateparser.parse(last_modified, ignoretz=True)
+            return dateparser.parse(last_modified)
         return None
 
     def get_last_attempted(self, source: dict) -> datetime.datetime | None:
         if last_attempted := source.get("last_attempted"):
             try:
-                return dateparser.parse(last_attempted, ignoretz=True)
+                return dateparser.parse(last_attempted)
             except Exception:
                 return None
         return None

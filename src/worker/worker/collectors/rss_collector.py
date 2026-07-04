@@ -1,6 +1,7 @@
 import datetime
 import logging
 from urllib.parse import urljoin, urlparse
+import re
 
 import dateutil.parser as dateparser
 import feedparser
@@ -138,8 +139,11 @@ class RSSCollector(BaseWebCollector):
                 ),
             )
         )
+        # Normalize ambiguous "GMT+HHMM"/"GMT-HHMM" — dateutil interprets these
+        # with a reversed sign (POSIX TZ convention), unlike standard RFC formats.
+        published = re.sub(r"\bGMT([+-]\d{4})\b", r"\1", published)
         try:
-            return dateparser.parse(published, ignoretz=True) if published else None
+            return dateparser.parse(published) if published else None
         except Exception:
             logger.info("Could not parse published date from feed")
             return None
@@ -195,12 +199,12 @@ class RSSCollector(BaseWebCollector):
     # TODO: This function is renamed because of inheritance issues.
     def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
         if last_modified := feed_content.headers.get("Last-Modified"):
-            return dateparser.parse(last_modified, ignoretz=True)
+            return dateparser.parse(last_modified)
         elif last_modified := feed.get(
             "updated", feed.get("modified", feed.get("created", feed.get("pubDate", feed.get("lastBuildDate", None))))
         ):
             try:
-                return dateparser.parse(str(last_modified), ignoretz=True)
+                return dateparser.parse(str(last_modified))
             except Exception:
                 return None
         return None

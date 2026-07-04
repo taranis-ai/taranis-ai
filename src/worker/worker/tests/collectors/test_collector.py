@@ -38,6 +38,15 @@ def test_rss_collector(rss_collector_mock, rss_collector):
 
     assert result is None
 
+def test_rss_collector_preserves_published_timezone(rss_collector_mock, rss_collector):
+    import datetime
+
+    from worker.tests.testdata import rss_collector_source_data
+
+    rss_collector.collect(rss_collector_source_data)
+
+    assert rss_collector.news_items
+    assert rss_collector.news_items[0].published == datetime.datetime(2024, 1, 15, 13, 30, 22)
 
 def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
     from worker.collectors.base_web_collector import NoChangeError

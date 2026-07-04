@@ -33,7 +33,7 @@ requests_mock_response._http_adapter = niquests.adapters.HTTPAdapter()
 
 current_path = os.getcwd()
 
-if not current_path.endswith("src/worker"):
+if not current_path.replace("\\", "/").endswith("src/worker"):
     sys.exit("Tests must be run from within src/worker")
 
 
