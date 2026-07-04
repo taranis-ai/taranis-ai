@@ -60,7 +60,7 @@ class UserView(AdminBaseView):
             return cls.import_view("No file or organization provided")
         try:
             data = json.loads(users.read())
-        except (UnicodeDecodeError, json.JSONDecodeError):
+        except UnicodeDecodeError, json.JSONDecodeError:
             return cls.render_response_notification({"error": "Invalid JSON file"}), 400
 
         if not isinstance(data, dict) or data.get("version") != 1:
