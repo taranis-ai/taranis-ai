@@ -15,5 +15,17 @@ def init(app: Flask):
     analyze_bp.add_url_rule(
         "/analyze/clone/<string:report_id>", view_func=ReportItemView.clone_report, methods=["POST"], endpoint="clone_report"
     )
+    analyze_bp.add_url_rule(
+        "/report/<string:report_id>/bots",
+        view_func=ReportItemView.trigger_bot_action,
+        methods=["POST"],
+        endpoint="report_trigger_bot",
+    )
+    analyze_bp.add_url_rule(
+        "/reports/bots",
+        view_func=ReportItemView.trigger_bot_action,
+        methods=["POST"],
+        endpoint="reports_trigger_bot",
+    )
 
     app.register_blueprint(analyze_bp)

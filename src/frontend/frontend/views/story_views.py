@@ -963,6 +963,19 @@ class StoryView(BaseView):
         content = StoryView._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 
+    @classmethod
+    @auth_required()
+    def trigger_stories_bot_action(cls):
+        story_ids = request.form.getlist("story_ids")
+        bot_id = request.form.get("bot_id")
+        if not story_ids:
+            return cls.rerender_list(notification=cls.render_response_notification({"error": "No stories selected for bot action."}))
+        if not bot_id:
+            return cls.rerender_list(notification=cls.render_response_notification({"error": "Bot identifier is required."}))
+
+        response = CoreApi().api_post("/assess/stories/botactions", json_data={"story_ids": story_ids, "bot_id": bot_id})
+        return cls.rerender_list(notification=cls.get_notification_from_response(response))
+
     @staticmethod
     @auth_required()
     def get_tags():

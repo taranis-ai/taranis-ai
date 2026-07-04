@@ -148,6 +148,22 @@ workers = [
         "description": "Bot for extracting indicators of compromise from news items",
     },
     {
+        "type": "INTEL_OWL_BOT",
+        "name": "IntelOwl Bot",
+        "parameters": [
+            {"parameter": "INTEL_OWL_URL", "rules": "required"},
+            {"parameter": "INTEL_OWL_API_KEY", "rules": "required"},
+            {"parameter": "INTEL_OWL_TLS_VERIFY", "type": "switch", "value": "true"},
+            {"parameter": "INTEL_OWL_EMAIL_ENRICHMENT", "type": "switch"},
+            {"parameter": "INTEL_OWL_TLP", "value": "CLEAR"},
+            {"parameter": "REPORT_ATTRIBUTE_TITLE", "value": "IntelOwl Enrichment"},
+            {"parameter": "ITEM_FILTER"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
+        ],
+        "description": "Bot for submitting observables to IntelOwl",
+    },
+    {
         "type": "TAGGING_BOT",
         "name": "Tagging Bot",
         "parameters": [
@@ -389,6 +405,19 @@ bots = [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
             {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
+        ],
+    },
+    {
+        "name": "IntelOwl Bot",
+        "description": "Bot for submitting observables to IntelOwl",
+        "type": "INTEL_OWL_BOT",
+        "enabled": False,
+        "parameters": [
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
+            {"parameter": "INTEL_OWL_TLS_VERIFY", "type": "switch", "value": "true"},
+            {"parameter": "INTEL_OWL_EMAIL_ENRICHMENT", "type": "switch"},
+            {"parameter": "INTEL_OWL_TLP", "value": "CLEAR"},
+            {"parameter": "REPORT_ATTRIBUTE_TITLE", "value": "IntelOwl Enrichment"},
         ],
     },
     {

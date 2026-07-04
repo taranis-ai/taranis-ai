@@ -136,7 +136,7 @@ class CoreApi:
     def api_get(self, url: str, params=None):
         url = f"{self.api_url}{url}"
         if params:
-            url += f"?{urlencode(params)}"
+            url += f"?{urlencode(params, doseq=True)}"
         response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
@@ -267,6 +267,9 @@ class CoreApi:
 
     def get_product(self, product_id: str) -> dict | None:
         return self.api_get(f"/worker/products/{product_id}")
+
+    def get_report_item(self, report_id: str) -> dict | None:
+        return self.api_get(f"/worker/report-items/{report_id}")
 
     def get_product_render(self, product_id: str) -> Product | None:
         try:

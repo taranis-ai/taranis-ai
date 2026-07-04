@@ -4,7 +4,7 @@ from flask_jwt_extended import current_user
 
 from core.config import Config
 from core.log import logger
-from core.managers import asset_manager
+from core.managers import asset_manager, queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
@@ -12,6 +12,19 @@ from core.model.revision import ReportRevision
 from core.service.cache_invalidation import SCOPE_PUBLISH_VIEWS, SCOPE_REPORT_VIEWS, invalidate_frontend_cache_on_success
 from core.service.product import ProductService
 from core.service.report_publish_workflow import ReportPublishWorkflowService
+
+
+def _request_id_list(payload: dict, singular_key: str, plural_key: str) -> list[str]:
+    values: list[str] = []
+    singular = payload.get(singular_key)
+    if singular:
+        values.append(str(singular))
+    plural = payload.get(plural_key)
+    if isinstance(plural, list):
+        values.extend(str(item) for item in plural if item)
+    elif plural:
+        values.append(str(plural))
+    return list(dict.fromkeys(value for value in values if value))
 
 
 class ReportTypes(MethodView):
@@ -145,6 +158,22 @@ class ReportItemPublishProduct(MethodView):
         return json_response
 
 
+class ReportBotActions(MethodView):
+    @auth_required("ANALYZE_UPDATE")
+    def post(self):
+        payload = request.get_json(silent=True) or {}
+        bot_id = payload.get("bot_id")
+        if not bot_id:
+            return {"error": "No bot_id provided"}, 400
+        report_ids = _request_id_list(payload, "report_id", "report_ids")
+        if not report_ids:
+            return {"error": "No report_id provided"}, 400
+
+        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter={"report_ids": report_ids})
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_REPORT_VIEWS,))
+        return response, code
+
+
 class CloneReportItem(MethodView):
     @auth_required("ANALYZE_CREATE")
     def post(self, report_item_id: str):
@@ -271,6 +300,7 @@ def initialize(app: Flask):
         "/report-items/publish-product",
         view_func=ReportItemPublishProduct.as_view("report_items_publish_product"),
     )
+    analyze_bp.add_url_rule("/report-items/botactions", view_func=ReportBotActions.as_view("report_bot_actions"))
     analyze_bp.add_url_rule("/reports", view_func=ReportItem.as_view("reports"))
     analyze_bp.add_url_rule(
         "/report-items/<string:report_item_id>",

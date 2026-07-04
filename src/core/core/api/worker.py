@@ -132,10 +132,11 @@ class Stories(MethodView):
             "exclude_attr",
             "include_attr",
             "story_id",
+            "story_ids",
             "cybersecurity",
         ]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
-        filter_list_keys = ["source", "group"]
+        filter_list_keys = ["source", "group", "story_ids"]
         for key in filter_list_keys:
             filter_args[key] = request.args.getlist(key)
 
@@ -234,7 +235,11 @@ class BotInfo(MethodView):
 
     @api_key_required
     def put(self, bot_id):
-        response, status = Bot.update(bot_id, request.json)
+        bot = Bot.update(bot_id, request.json or {})
+        if not bot:
+            return {"error": "Bot not found"}, 404
+        response = bot.to_dict()
+        status = 200
         json_response = jsonify(response)
         json_response.status_code = status
         return json_response

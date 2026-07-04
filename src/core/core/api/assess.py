@@ -32,6 +32,19 @@ def _validation_error_response(exc: ValidationError) -> tuple[dict[str, str], in
     return {"error": str(message)}, 400
 
 
+def _request_id_list(payload: dict, singular_key: str, plural_key: str) -> list[str]:
+    values: list[str] = []
+    singular = payload.get(singular_key)
+    if singular:
+        values.append(str(singular))
+    plural = payload.get(plural_key)
+    if isinstance(plural, list):
+        values.extend(str(item) for item in plural if item)
+    elif plural:
+        values.append(str(plural))
+    return list(dict.fromkeys(value for value in values if value))
+
+
 class OSINTSourceGroupsList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
@@ -315,16 +328,26 @@ class BotActions(MethodView):
     @validate_json
     def post(self):
         if not request.json:
-            return {"error": "Please provide story_id & bot_id"}, 400
+            return {"error": "Please provide bot_id and at least one story_id or report_id"}, 400
         bot_id = request.json.get("bot_id")
         if not bot_id:
             return {"error": "No bot_id provided"}, 400
-        story_id = request.json.get("story_id")
-        if not story_id:
-            return {"error": "No story_id provided"}, 400
-        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter={"story_id": story_id})
+        story_ids = _request_id_list(request.json, "story_id", "story_ids")
+        report_ids = _request_id_list(request.json, "report_id", "report_ids")
+        if not story_ids and not report_ids:
+            return {"error": "No story_id or report_id provided"}, 400
+
+        filter_data = {}
+        if len(story_ids) == 1:
+            filter_data["story_id"] = story_ids[0]
+        elif story_ids:
+            filter_data["story_ids"] = story_ids
+        if report_ids:
+            filter_data["report_ids"] = report_ids
+
+        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data)
         sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story",), object_ids={"story": story_id})
+        invalidate_frontend_cache_on_success(code, models=("story", "report_item"))
         return response, code
 
 

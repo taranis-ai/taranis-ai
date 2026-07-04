@@ -78,6 +78,18 @@
       {% if routes.edit_route %}
         <div class="grow-0">
           <button type="button"
+                  class="btn btn-outline"
+                  data-testid="intelowl-{{ model_name }}-button"
+                  :hx-vals="JSON.stringify({ report_ids: selectedItems, bot_id: 'intel_owl_bot' })"
+                  hx-post="{{ url_for('analyze.reports_trigger_bot') }}"
+                  hx-target="#notification-bar"
+                  hx-target-error="#notification-bar"
+                  :disabled="selectedItems.length === 0">
+            IntelOwl <span x-text="selectedItems.length" x-show="selectedItems.length > 0"></span>
+          </button>
+        </div>
+        <div class="grow-0">
+          <button type="button"
                   class="btn btn-error"
                   data-testid="delete-{{ model_name }}-button"
                   :hx-vals="JSON.stringify({ ids: selectedItems })"

@@ -101,6 +101,7 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str
         "nlp_bot": worker.bots.NLPBot(),
         "story_bot": worker.bots.StoryBot(),
         "ioc_bot": worker.bots.IOCBot(),
+        "intel_owl_bot": worker.bots.IntelOwlBot(),
         "summary_bot": worker.bots.SummaryBot(),
         "sentiment_analysis_bot": worker.bots.SentimentAnalysisBot(),
         "cybersec_classifier_bot": worker.bots.CyberSecClassifierBot(),

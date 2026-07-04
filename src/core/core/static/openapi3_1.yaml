@@ -477,6 +477,46 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /analyze/report-items/botactions:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - analyze
+      description: queue a bot action for one or more report items
+      operationId: analyze.report_bot_actions.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bot_id
+              properties:
+                bot_id:
+                  type: string
+                report_id:
+                  type: string
+                report_ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /analyze/report-items/publish-product:
     post:
       security:
@@ -1995,6 +2035,16 @@ paths:
       - APIKey: []
       description: Get stories
       operationId: worker.stories_worker.get
+      parameters:
+      - name: story_ids
+        in: query
+        description: Filter to one or more story IDs. Repeat the query parameter for multiple stories.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
       responses:
         '200':
           description: OK
@@ -5766,7 +5816,7 @@ paths:
       - UserAuth: []
       tags:
       - assess
-      description: run bot actions
+      description: queue a bot action for one or more stories or reports
       operationId: assess.bot_actions.post
       requestBody:
         required: true
@@ -5774,6 +5824,23 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+              - bot_id
+              properties:
+                bot_id:
+                  type: string
+                story_id:
+                  type: string
+                story_ids:
+                  type: array
+                  items:
+                    type: string
+                report_id:
+                  type: string
+                report_ids:
+                  type: array
+                  items:
+                    type: string
       responses:
         '200':
           description: success

@@ -41,6 +41,7 @@ dependencies = [
     # Bots
     "ioc-finder",
     "ioc-fanger",
+    "pyintelowl",
     "pypandoc-binary>=1.15",
     "niquests",
     "confluent-kafka>=2.14.2",

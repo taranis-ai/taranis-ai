@@ -33,6 +33,7 @@ def init(app: Flask):
     assess_bp.add_url_rule(
         "/story/<string:story_id>/bots", view_func=StoryView.trigger_bot_action, methods=["POST"], endpoint="story_trigger_bot"
     )
+    assess_bp.add_url_rule("/stories/bots", view_func=StoryView.trigger_stories_bot_action, methods=["POST"], endpoint="stories_trigger_bot")
     assess_bp.add_url_rule(
         "/news-item/<string:news_item_id>", view_func=StoryView.update_news_item, methods=["POST"], endpoint="update_news_item"
     )
