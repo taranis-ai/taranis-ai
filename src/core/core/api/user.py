@@ -5,7 +5,7 @@ from flask_jwt_extended import current_user, jwt_required
 from core.config import Config
 from core.managers.sse_manager import sse_manager
 from core.model.user import User
-from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import SCOPE_TRENDING_CLUSTERS, invalidate_frontend_cache_on_success
 
 
 class UserInfo(MethodView):
@@ -24,7 +24,7 @@ class UserProfile(MethodView):
         if not (json_data := request.json):
             return {"error": "No input data provided"}, 400
         response, status = User.update_profile(current_user, json_data)
-        invalidate_frontend_cache_on_success(status, scopes=("trending_clusters",), user_profiles=(current_user.username,))
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_TRENDING_CLUSTERS,), user_profiles=(current_user.username,))
         return response, status
 
     @jwt_required()
@@ -32,7 +32,7 @@ class UserProfile(MethodView):
         if not (json_data := request.json):
             return {"error": "No input data provided"}, 400
         response, status = User.update_profile(current_user, json_data)
-        invalidate_frontend_cache_on_success(status, scopes=("trending_clusters",), user_profiles=(current_user.username,))
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_TRENDING_CLUSTERS,), user_profiles=(current_user.username,))
         return response, status
 
 

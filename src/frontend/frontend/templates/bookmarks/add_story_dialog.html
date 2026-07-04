@@ -1,0 +1,65 @@
+<dialog id="story_bookmark_dialog"
+        class="modal"
+        x-data="{ mode: '{{ 'existing' if bookmarks else 'new' }}' }"
+        x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
+        x-on:close="$el.remove()"
+        data-testid="story-bookmark-dialog">
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">x</button>
+    </form>
+    <h3 class="mb-1 mt-1 text-lg font-bold">Bookmark Stories</h3>
+    <p class="mb-4 text-sm text-base-content/70">{{ story_ids | length }} stories selected</p>
+
+    <form id="story-bookmark-form"
+          class="space-y-4"
+          hx-post="{{ url_for('assess.submit_bookmark_story') }}"
+          hx-target="#notification-bar"
+          hx-on::after-request="if (event.detail.successful) document.getElementById('story_bookmark_dialog').close()">
+      {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
+      <input type="hidden" name="mode" :value="mode">
+
+      <div class="join w-full">
+        <button type="button"
+                class="btn join-item w-1/2"
+                :class="mode === 'existing' ? 'btn-primary' : 'btn-outline'"
+                {% if not bookmarks %}disabled{% endif %}
+                @click="mode = 'existing'"
+                data-testid="bookmark-mode-existing">Existing</button>
+        <button type="button"
+                class="btn join-item w-1/2"
+                :class="mode === 'new' ? 'btn-primary' : 'btn-outline'"
+                @click="mode = 'new'"
+                data-testid="bookmark-mode-new">New</button>
+      </div>
+
+      <label class="select w-full" x-show="mode === 'existing'">
+        <span class="label">Collection</span>
+        <select name="bookmark_id" class="select w-full" :disabled="mode !== 'existing'" :required="mode === 'existing'" data-testid="bookmark-select">
+          <option value="" selected disabled>Select a collection</option>
+          {% for bookmark in bookmarks %}<option value="{{ bookmark.id }}">{{ bookmark.name }} ({{ bookmark.story_count }})</option>{% endfor %}
+        </select>
+      </label>
+
+      <label class="input w-full" x-show="mode === 'new'">
+        {{ heroicon_mini("bookmark") }}
+        <input type="text"
+               name="name"
+               maxlength="120"
+               placeholder="New collection name"
+               aria-label="New collection name"
+               :disabled="mode !== 'new'"
+               :required="mode === 'new'"
+               data-testid="new-bookmark-name">
+      </label>
+
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary w-1/2" data-testid="submit-bookmark-story">
+          {{ heroicon_mini("bookmark") }}
+          Bookmark
+        </button>
+        <button type="button" class="btn btn-outline w-1/2" onclick="document.getElementById('story_bookmark_dialog').close()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</dialog>

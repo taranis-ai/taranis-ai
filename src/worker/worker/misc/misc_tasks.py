@@ -8,9 +8,12 @@ from datetime import datetime, timezone
 from croniter import croniter
 from rq import get_current_job
 
-from worker.core_api import CoreApi
+from worker.core_api import CoreApi, build_success_task_result
 from worker.log import logger
 from worker.misc.wordlist_update import update_wordlist
+
+
+TOKEN_CLEANUP_TASK_ID = "cleanup_token_blacklist"
 
 
 def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
@@ -28,7 +31,6 @@ def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
         str: Status message describing the action.
     """
     logger.info("Running token blacklist cleanup")
-
     if reschedule:
         _reschedule_cleanup()
 
@@ -40,10 +42,10 @@ def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
         core_api.save_task_result(
             job.id,
             "cleanup_token_blacklist",
-            message,
             "SUCCESS",
             worker_id=job.id,
-            worker_type="cleanup_token_blacklist",
+            worker_type=TOKEN_CLEANUP_TASK_ID,
+            result=build_success_task_result(default_message=message),
         )
 
     return message
@@ -83,7 +85,7 @@ def _reschedule_cleanup():
         logger.error(f"Failed to reschedule token cleanup: {e}")
 
 
-def gather_word_list(word_list_id: int):
+def gather_word_list(word_list_id: str):
     """Gather and update a word list.
 
     Args:
@@ -93,4 +95,25 @@ def gather_word_list(word_list_id: int):
         Result from wordlist update
     """
     logger.info(f"Gathering word list {word_list_id}")
-    return update_wordlist(word_list_id)
+    result = update_wordlist(word_list_id)
+    if job := get_current_job():
+        core_api = CoreApi()
+        result_data = {
+            "word_list_id": word_list_id,
+            "content": result.get("content") if isinstance(result, dict) else None,
+            "content_type": result.get("content_type") if isinstance(result, dict) else None,
+        }
+        core_api.save_task_result(
+            job.id,
+            "gather_word_list",
+            "SUCCESS",
+            worker_id=word_list_id,
+            worker_type="gather_word_list",
+            result=build_success_task_result(
+                default_message=str(result.get("message"))
+                if isinstance(result, dict) and result.get("message")
+                else f"Word list {word_list_id} updated",
+                data=result_data,
+            ),
+        )
+    return result

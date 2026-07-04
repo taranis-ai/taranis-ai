@@ -1,3 +1,4 @@
+import uuid
 from contextlib import suppress
 
 import pytest
@@ -10,7 +11,7 @@ def publish_publisher_preset(app):
         from core.model.publisher_preset import PublisherPreset
 
         publisher_preset = {
-            "id": "publish-user-preset",
+            "id": str(uuid.uuid7()),
             "name": "publish_user_preset",
             "description": "User publish preset",
             "type": "ftp_publisher",

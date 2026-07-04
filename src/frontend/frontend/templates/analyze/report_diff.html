@@ -1,16 +1,17 @@
 {% extends "base.html" %}
+{% from "shared/revision_diff_macros.html" import render_change_row %}
 
 {% block content %}
   <div class="p-4 card bg-base-100 shadow">
     <div class="card-body gap-4">
       <div class="flex items-center gap-3">
-        <a href="{{ url_for('analyze.report_versions', report_id=report.id) }}" class="btn btn-sm btn-ghost">
+        <a href="{{ url_for('analyze.report_versions', report_id=report_id) }}" class="btn btn-sm btn-ghost">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
           </svg>
           Back to Versions
         </a>
-        <h2 class="card-title flex-1">Changes: {{ report.title }}</h2>
+        <h2 class="card-title flex-1">Changes: {{ diff.resource.title or report_id }}</h2>
       </div>
 
       <div class="flex gap-4 p-4 bg-base-200 rounded-lg">
@@ -49,29 +50,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for change in diff.changes %}
-                <tr>
-                  <td class="font-semibold">{{ change.field }}</td>
-                  <td>
-                    {% if change.old_value is not none %}
-                      <div class="bg-error/10 text-error p-2 rounded">
-                        <span class="line-through">{{ change.old_value }}</span>
-                      </div>
-                    {% else %}
-                      <span class="text-base-content/40">-</span>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {% if change.new_value is not none %}
-                      <div class="bg-success/10 text-success p-2 rounded">
-                        <span>{{ change.new_value }}</span>
-                      </div>
-                    {% else %}
-                      <span class="text-base-content/40">-</span>
-                    {% endif %}
-                  </td>
-                </tr>
-              {% endfor %}
+              {% for change in diff.changes %}{{ render_change_row(change) }}{% endfor %}
             </tbody>
           </table>
         </div>

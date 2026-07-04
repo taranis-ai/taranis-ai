@@ -7,7 +7,7 @@ from sqlalchemy.sql.expression import Select
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.attribute import Attribute
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
@@ -15,22 +15,21 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 class AttributeGroupItem(BaseModel):
     __tablename__ = "attribute_group_item"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
     index: Mapped[int] = db.Column(db.Integer)
     required: Mapped[bool] = db.Column(db.Boolean, default=False)
 
-    attribute_group_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
+    attribute_group_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
     attribute_group: Mapped["AttributeGroup"] = relationship("AttributeGroup")
 
-    attribute_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute.id"))
+    attribute_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("attribute.id"))
     attribute: Mapped["Attribute"] = relationship("Attribute")
 
     def __init__(self, title: str, description: str, index: int, attribute_id=None, attribute=None, required=False, id=None):
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
         self.title = title
         self.description = description
         self.index = index
@@ -76,13 +75,13 @@ class AttributeGroupItem(BaseModel):
 class AttributeGroup(BaseModel):
     __tablename__ = "attribute_group"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
 
     index: Mapped[int] = db.Column(db.Integer)
 
-    report_item_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("report_item_type.id", ondelete="CASCADE"))
+    report_item_type_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item_type.id", ondelete="CASCADE"))
     report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
 
     attribute_group_items: Mapped[list["AttributeGroupItem"]] = relationship(
@@ -92,8 +91,7 @@ class AttributeGroup(BaseModel):
     )
 
     def __init__(self, title, index, description="", attribute_group_items=None, id=None):
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
         self.title = title
         self.index = index
         self.description = description
@@ -155,7 +153,7 @@ class AttributeGroup(BaseModel):
 class ReportItemType(BaseModel):
     __tablename__ = "report_item_type"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     title: Mapped[str] = db.Column(db.String(), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
@@ -165,12 +163,11 @@ class ReportItemType(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title: str, description: str = "", attribute_groups=None, id: int | None = None):
+    def __init__(self, title: str, description: str = "", attribute_groups=None, id: str | None = None):
         self.title = title
         self.description = description
         self.attribute_groups = AttributeGroup.load_multiple(attribute_groups) if attribute_groups else []
-        if id:
-            self.id = id
+        self.id = self.normalize_uuid_id(id)
 
     @classmethod
     def get_by_title(cls, title):
@@ -288,7 +285,7 @@ class ReportItemType(BaseModel):
         return cls.add_multiple(data)
 
     @classmethod
-    def delete(cls, item_id: int) -> tuple[dict[str, Any], int]:
+    def delete(cls, item_id: str) -> tuple[dict[str, Any], int]:
         from core.model.product_type import ProductType
         from core.model.report_item import ReportItem
 
@@ -296,12 +293,12 @@ class ReportItemType(BaseModel):
         if not report_type:
             return {"error": "Report type not found"}, 404
 
-        if report := ReportItem.query.filter_by(report_item_type_id=item_id).first():
-            return {"error": f"Report type is used in a report - {report.title}"}, 409
+        if ReportItem.query.filter_by(report_item_type_id=item_id).first():
+            return {"error": "Report type is used in a report"}, 409
 
-        if product_type := ProductType.query.filter(ProductType.report_types.any(id=item_id)).first():  # type: ignore
-            return {"error": f"Report is used in a product type - {product_type.title}"}, 409
+        if ProductType.query.filter(ProductType.report_types.any(id=item_id)).first():  # type: ignore
+            return {"error": "Report type is used in a product type"}, 409
 
         db.session.delete(report_type)
         db.session.commit()
-        return {"message": f"ReportItemType {item_id} deleted"}, 200
+        return {"message": "ReportItemType deleted"}, 200

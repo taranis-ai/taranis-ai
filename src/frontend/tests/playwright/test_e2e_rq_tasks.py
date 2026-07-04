@@ -2,10 +2,12 @@ import json
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, cast
 
 import pytest
 import redis
+from croniter import croniter
 from rq import Queue
 from rq.job import Job
 from rq.results import Result
@@ -13,12 +15,17 @@ from rq.results import Result
 from tests.core_requests import CoreRequestClient
 
 
+pytest_plugins = ("tests.playwright.rq_e2e_fixtures",)
+
 CRON_ENQUEUE_KEY_PREFIX = "rq:cron:enqueue:"
+CRON_NEXT_KEY = "rq:cron:next"
 DEFAULT_JOB_TIMEOUT_SECONDS = 30
-CRON_JOB_TIMEOUT_SECONDS = 90
+CRON_JOB_TIMEOUT_SECONDS = 20
 
 RedisBackend = dict[str, str]
 JsonDict = dict[str, Any]
+
+pytestmark = pytest.mark.usefixtures("allow_local_http_passthrough")
 
 
 def _parse_cron_spec(raw_spec: object) -> dict[str, Any]:
@@ -91,7 +98,10 @@ def _wait_for_next_job_result(
         raise RuntimeError(f"Timed out waiting for a fresh RQ result stream entry for job {job_id}")
 
     _, entries = response[0]  # type: ignore[assignment]
-    result_id, payload = entries[-1]
+    if not entries:
+        raise RuntimeError(f"Received an empty RQ result stream response for job {job_id}")
+    stream_entries = cast(list[tuple[bytes | str, Any]], entries)
+    result_id, payload = stream_entries[-1]
     decoded_result_id = _decode_redis_string(result_id)
     if not decoded_result_id:
         raise RuntimeError(f"Received an empty result stream id for job {job_id}")
@@ -117,7 +127,7 @@ def _assert_cron_registration(
 ) -> tuple[dict[str, Any], float]:
     redis_conn = _redis_conn(redis_backend)
     raw_spec = redis_conn.hget("rq:cron:def", job_id)
-    next_run_raw = redis_conn.zscore("rq:cron:next", job_id)
+    next_run_raw = redis_conn.zscore(CRON_NEXT_KEY, job_id)
     assert isinstance(raw_spec, (bytes, str)), f"Missing cron registration for {job_id}"
     assert isinstance(next_run_raw, (int, float)), f"Missing or invalid next run entry for {job_id}"
     next_run = float(next_run_raw)
@@ -125,6 +135,25 @@ def _assert_cron_registration(
     if expected_cron is not None:
         assert parsed.get("cron") == expected_cron
     return parsed, next_run
+
+
+def _previous_scheduled_timestamp(cron_spec: dict[str, Any], current_next_run: float) -> float:
+    if cron_expression := cron_spec.get("cron"):
+        current_next_run_dt = datetime.fromtimestamp(current_next_run, tz=timezone.utc)
+        return croniter(str(cron_expression), current_next_run_dt).get_prev(datetime).timestamp()
+
+    if interval := cron_spec.get("interval"):
+        return current_next_run - float(interval)
+
+    return current_next_run - 1
+
+
+def _force_cron_job_due(redis_backend: RedisBackend, job_id: str) -> float:
+    redis_conn = _redis_conn(redis_backend)
+    cron_spec, current_next_run = _assert_cron_registration(redis_backend, job_id)
+    due_timestamp = _previous_scheduled_timestamp(cron_spec, current_next_run)
+    redis_conn.zadd(CRON_NEXT_KEY, {job_id: due_timestamp})
+    return due_timestamp
 
 
 def _wait_for_cron_enqueue_event(
@@ -151,10 +180,11 @@ class RqE2EHarness:
     def queue(self, name: str) -> Queue:
         return Queue(name, connection=_redis_conn(self.redis_backend))
 
-    def create(self, path: str, payload: JsonDict, resource_label: str) -> Any:
+    def create(self, path: str, payload: JsonDict, resource_label: str) -> str:
         response_payload = self.core_client.json_request("POST", path, json_data=payload)
         assert isinstance(response_payload, dict), f"Expected {resource_label} create response to be a dict"
         resource_id = response_payload.get("id")
+        assert isinstance(resource_id, str), f"{resource_label} id must be a string"
         assert resource_id, f"{resource_label} id missing"
         return resource_id
 
@@ -165,14 +195,14 @@ class RqE2EHarness:
         link: str,
         usage: int,
         description: str = "E2E",
-    ) -> int:
+    ) -> str:
         return self.create(
             "/config/word-lists",
             {"name": name, "description": description, "usage": usage, "link": link},
             "wordlist",
         )
 
-    def gather_wordlist(self, wordlist_id: int) -> JsonDict:
+    def gather_wordlist(self, wordlist_id: str) -> JsonDict:
         gather_job_id = f"gather_word_list_{wordlist_id}"
         previous_result_id = _get_latest_result_marker(self.redis_backend, gather_job_id)
         self.core_client.post(f"/config/word-lists/gather/{wordlist_id}")
@@ -181,18 +211,18 @@ class RqE2EHarness:
         assert isinstance(wordlist, dict), f"Expected wordlist payload to be a dict, got {type(wordlist)!r}"
         return wordlist
 
-    def create_osint_source(self, payload: JsonDict) -> int:
+    def create_osint_source(self, payload: JsonDict) -> str:
         return self.create("/config/osint-sources", payload, "osint source")
 
-    def update_osint_source(self, source_id: int, payload: JsonDict) -> JsonDict:
+    def update_osint_source(self, source_id: str, payload: JsonDict) -> JsonDict:
         response_payload = self.core_client.json_request("PUT", f"/config/osint-sources/{source_id}", json_data=payload)
         assert isinstance(response_payload, dict), "Expected osint source update response to be a dict"
         return response_payload
 
-    def create_bot(self, payload: JsonDict) -> int:
+    def create_bot(self, payload: JsonDict) -> str:
         return self.create("/config/bots", payload, "bot")
 
-    def update_bot(self, bot_id: int, payload: JsonDict) -> JsonDict:
+    def update_bot(self, bot_id: str, payload: JsonDict) -> JsonDict:
         response_payload = self.core_client.json_request("PUT", f"/config/bots/{bot_id}", json_data=payload)
         assert isinstance(response_payload, dict), "Expected bot update response to be a dict"
         return response_payload
@@ -216,6 +246,9 @@ class RqE2EHarness:
         expected_cron: str | None = None,
     ) -> tuple[dict[str, Any], float]:
         return _assert_cron_registration(self.redis_backend, job_id, expected_cron=expected_cron)
+
+    def force_cron_job_due(self, job_id: str) -> float:
+        return _force_cron_job_due(self.redis_backend, job_id)
 
     def wait_for_cron_task_result(
         self,
@@ -281,18 +314,23 @@ def test_rq_scheduled_collector_cron(
     source_id = rq_harness.create_osint_source(source_payload)
     cron_job_id = f"osint_source_{source_id}"
     rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
     assert payload.get("status") == "SUCCESS"
-    assert source_payload["name"] in (payload.get("result") or "")
+    result = payload.get("result") or {}
+    result_message = result.get("message") if isinstance(result, dict) else result
+    assert source_payload["name"] in (result_message or "")
+    _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    assert next_run_after_execution > forced_due_timestamp
 
 
 @pytest.mark.e2e_ci
 def test_rq_osint_cron_update_immediately_refreshes_next_run(
-    cron_process: None,
     rq_harness: RqE2EHarness,
     rss_server: str,
 ) -> None:
+    # Core updates the Redis cron registration synchronously; no running cron scheduler is needed for this check.
     initial_cron = "0 0 1 1 *"
     updated_cron = "*/1 * * * *"
 
@@ -358,7 +396,10 @@ def test_rq_scheduled_wordlist_bot_cron(
     rq_harness.update_bot(bot_id, bot_payload)
     cron_job_id = f"bot_{bot_id}"
     rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
     assert payload.get("status") == "SUCCESS"
     assert payload.get("task") == f"bot_{bot_id}"
+    _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
+    assert next_run_after_execution > forced_due_timestamp

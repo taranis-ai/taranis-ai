@@ -3,11 +3,11 @@
   <channel>
     <title>Taranis E2E Feed</title>
     <description>Fixture feed for RQ E2E tests</description>
-    <link>http://fixtures/feed.xml</link>
+    <link>http://testdata/feed.xml</link>
     <item>
       <title>Fixture Item</title>
       <description>Fixture content for collector tests.</description>
-      <link>http://fixtures/item1.html</link>
+      <link>http://testdata/item1.html</link>
       <guid>fixture-item-1</guid>
       <pubDate>Tue, 09 Feb 2026 12:00:00 GMT</pubDate>
     </item>

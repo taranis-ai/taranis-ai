@@ -1,6 +1,5 @@
 import base64
 import json
-import uuid
 from datetime import datetime
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Sequence
@@ -16,8 +15,9 @@ from sqlalchemy.sql import Select
 
 from core.config import Config
 from core.log import logger
+from core.managers import queue_manager
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.role import TLPLevel
 from core.model.role_based_access import ItemType, RoleBasedAccess
@@ -33,10 +33,17 @@ if TYPE_CHECKING:
     from core.model.user import User
 
 
+class InvalidOSINTSourceIconError(ValueError):
+    def __init__(self, public_message: str):
+        super().__init__(public_message)
+        self.public_message = public_message
+
+
 class OSINTSource(BaseModel):
     __tablename__ = "osint_source"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    key: Mapped[str | None] = db.Column(db.String(64), unique=True, nullable=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
     rank: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
@@ -50,7 +57,7 @@ class OSINTSource(BaseModel):
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
-    _ALLOWED_ICON_FORMATS = {"ICO", "PNG", "JPEG", "WEBP"}
+    _ALLOWED_ICON_FORMATS = {"GIF", "ICO", "PNG", "JPEG", "WEBP"}
 
     def __init__(
         self,
@@ -76,7 +83,11 @@ class OSINTSource(BaseModel):
             }
         )
 
-        self.id = payload.id or str(uuid.uuid4())
+        try:
+            self.id = self.normalize_uuid_id(payload.id)
+        except ValueError:
+            self.id = self.uuid7_str()
+            self.key = str(payload.id)
         self.name = payload.name
         self.description = payload.description
         self.rank = payload.rank
@@ -87,6 +98,50 @@ class OSINTSource(BaseModel):
         self.enabled = True if payload.enabled is None else payload.enabled
         self.parameters = Worker.parse_parameters(self.type, payload.parameters)
 
+    @classmethod
+    def get(cls, item_id: str | None) -> "OSINTSource | None":
+        if item_id is None:
+            return None
+        lookup_id = str(item_id)
+        if osint_source := super().get(lookup_id):
+            return osint_source
+        try:
+            normalized_id = cls.normalize_uuid_id(item_id)
+        except (TypeError, ValueError):
+            normalized_id = None
+        if normalized_id and normalized_id != lookup_id:
+            if osint_source := super().get(normalized_id):
+                return osint_source
+        if lookup_id:
+            return cls.get_by_key(lookup_id)
+        return None
+
+    @classmethod
+    def create_manual_source(cls) -> "OSINTSource":
+        if existing_manual := cls.get_by_key("manual"):
+            return existing_manual
+
+        return cls.add(
+            {
+                "id": "manual",
+                "name": "Manual",
+                "description": "Manual source",
+                "rank": 0,
+                "type": "MANUAL_COLLECTOR",
+                "parameters": {},
+            }
+        )
+
+    @classmethod
+    def get_manual(cls) -> "OSINTSource":
+        return cls.create_manual_source()
+
+    @classmethod
+    def get_by_key(cls, key: str) -> "OSINTSource | None":
+        if not key:
+            return None
+        return cls.get_first(db.select(cls).filter_by(key=key))
+
     @property
     def tlp_level(self) -> TLPLevel:
         if value := ParameterValue.find_value_by_parameter(self.parameters, "TLP_LEVEL"):
@@ -95,7 +150,11 @@ class OSINTSource(BaseModel):
 
     @property
     def status(self):
-        if task_result := TaskModel.get(self.task_id):
+        if task_result := TaskModel.get_latest_matching(
+            exact_ids={self.task_id},
+            prefixes=[self.cron_run_prefix],
+            task_name="collector_task",
+        ):
             return task_result.to_dict()
         return None
 
@@ -164,7 +223,7 @@ class OSINTSource(BaseModel):
     @classmethod
     def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = dict(filter_args or {})
-        filter_args["filter_manual"] = filter_args.get("filter_manual", True)
+        filter_args["filter_manual"] = cls._filter_manual_enabled(filter_args.get("filter_manual", True))
 
         response, status_code = super().get_all_for_api(filter_args=filter_args, with_count=with_count, user=user)
         items = response.get("items", [])
@@ -174,6 +233,10 @@ class OSINTSource(BaseModel):
             items.sort(key=lambda item: (item.get("status") or {}).get("status", ""), reverse=True)
 
         return response, status_code
+
+    @staticmethod
+    def _filter_manual_enabled(value: Any) -> bool:
+        return str(value).strip().lower() not in {"", "false", "0", "off", "no"}
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
@@ -250,6 +313,7 @@ class OSINTSource(BaseModel):
     def to_assess_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
+            "key": self.key,
             "icon": base64.b64encode(self.icon).decode("utf-8") if self.icon else None,
             "name": self.name,
             "rank": self.rank,
@@ -325,7 +389,7 @@ class OSINTSource(BaseModel):
     def toggle_state(cls, source_id: str, state: str) -> tuple[dict, int]:
         osint_source = cls.get(source_id)
         if not osint_source:
-            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
+            return {"error": "OSINT Source not found"}, 404
 
         if state == "enabled":
             logger.debug(f"Enabling OSINT Source: {osint_source.name}")
@@ -340,7 +404,7 @@ class OSINTSource(BaseModel):
             return {"error": "Invalid state"}, 400
 
         db.session.commit()
-        return {"message": f"OSINT Source {osint_source.name} state set to: {state}", "id": f"{source_id}"}, 200
+        return {"message": "OSINT Source state updated", "id": osint_source.id}, 200
 
     @classmethod
     def update(cls, osint_source_id: str, data: dict[str, Any]) -> "OSINTSource|None":
@@ -361,6 +425,10 @@ class OSINTSource(BaseModel):
         if "parameters" in update_fields and validated_update.parameters is not None:
             osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
         db.session.commit()
+
+        if "parameters" in update_fields and validated_update.parameters is not None:
+            queue_manager.queue_manager.purge_job_artifacts(exact_ids={f"source_preview_{osint_source_id}"})
+
         osint_source.schedule_osint_source()
         return osint_source
 
@@ -373,9 +441,9 @@ class OSINTSource(BaseModel):
                 return b""
             icon_bytes = self.is_valid_base64(icon)
         if not icon_bytes:
-            raise ValueError("Invalid icon payload provided; expected base64 string or bytes.")
+            raise InvalidOSINTSourceIconError("Invalid icon payload provided; expected base64 string or bytes.")
         if len(icon_bytes) > Config.OSINT_SOURCE_ICON_MAX_BYTES:
-            raise ValueError(f"Icon payload exceeds the maximum size of {Config.OSINT_SOURCE_ICON_MAX_BYTES} bytes.")
+            raise InvalidOSINTSourceIconError(f"Icon payload exceeds the maximum size of {Config.OSINT_SOURCE_ICON_MAX_BYTES} bytes.")
         return self._normalize_icon_image(icon_bytes)
 
     @classmethod
@@ -384,14 +452,14 @@ class OSINTSource(BaseModel):
             with Image.open(BytesIO(icon_bytes)) as image:
                 image_format = image.format.upper() if image.format else None
                 if image_format not in cls._ALLOWED_ICON_FORMATS:
-                    raise ValueError(
+                    raise InvalidOSINTSourceIconError(
                         f"Unsupported icon format: {image_format or 'UNKNOWN'}. Allowed formats: {', '.join(cls._ALLOWED_ICON_FORMATS)}."
                     )
                 image.load()
                 normalized = ImageOps.exif_transpose(image).convert("RGBA")
         except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
             logger.warning(f"Pillow decode failed for icon: {exc}")
-            raise ValueError("Icon payload is not a valid image file.") from exc
+            raise InvalidOSINTSourceIconError("Icon payload is not a valid image file.") from exc
 
         target_size = Config.OSINT_SOURCE_ICON_PIXELS
         normalized.thumbnail((target_size, target_size), Image.Resampling.LANCZOS)
@@ -417,12 +485,12 @@ class OSINTSource(BaseModel):
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
         from core.managers import queue_manager
-
-        if source_id == "manual":
-            return {"error": "The manual source cannot be deleted"}, 400
+        from core.service.story import StoryService
 
         if not (source := cls.get(source_id)):
-            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
+            return {"error": "OSINT Source not found"}, 404
+        if source.key == "manual":
+            return {"error": "The manual source cannot be deleted"}, 400
 
         try:
             source.unschedule_osint_source()
@@ -434,12 +502,13 @@ class OSINTSource(BaseModel):
                 news_item_table = db.metadata.tables.get("news_item")
                 if news_item_table is not None:
                     db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
+                StoryService.delete_stories_with_no_items()
             db.session.delete(source)
             db.session.commit()
-            return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
+            return {"message": "OSINT Source deleted", "id": source.id}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
-            return {"error": f"Deleting OSINT Source with ID: {source_id} failed {str(e)}"}, 500
+            return {"error": "Deleting OSINT Source failed"}, 500
 
     @classmethod
     def schedule_all_osint_sources(cls):
@@ -474,7 +543,7 @@ class OSINTSource(BaseModel):
 
         if not self.enabled:
             logger.warning(f"OSINT Source: {self.name} is disabled, skipping scheduling")
-            return {"error": f"OSINT Source: {self.name} is disabled", "id": f"{self.id}"}, 400
+            return {"error": "OSINT Source is disabled", "id": f"{self.id}"}, 400
 
         return queue_manager.queue_manager.register_cron_job(self.get_cron_spec())
 
@@ -704,14 +773,19 @@ class OSINTSource(BaseModel):
 
 
 class OSINTSourceParameterValue(BaseModel):
-    osint_source_id: Mapped[str] = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True)
+    osint_source_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True
+    )
+    parameter_value_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True
+    )
 
 
 class OSINTSourceGroup(BaseModel):
     __tablename__ = "osint_source_group"
 
-    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    key: Mapped[str | None] = db.Column(db.String(64), unique=True, nullable=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
     default: Mapped[bool] = db.Column(db.Boolean(), default=False)
@@ -724,7 +798,11 @@ class OSINTSourceGroup(BaseModel):
     word_lists: Mapped[list["WordList"]] = relationship("WordList", secondary="osint_source_group_word_list")
 
     def __init__(self, name, description="", osint_sources=None, default=False, word_lists=None, id=None):
-        self.id = id or str(uuid.uuid4())
+        try:
+            self.id = self.normalize_uuid_id(id)
+        except ValueError:
+            self.id = self.uuid7_str()
+            self.key = str(id)
         self.name = name
         self.description = description
         self.default = default
@@ -761,6 +839,30 @@ class OSINTSourceGroup(BaseModel):
     @classmethod
     def get_default(cls):
         return cls.get_first(db.select(cls).filter(OSINTSourceGroup.default))
+
+    @classmethod
+    def get(cls, item_id: str | None) -> "OSINTSourceGroup | None":
+        if item_id is None:
+            return None
+        lookup_id = str(item_id)
+        if osint_source_group := super().get(lookup_id):
+            return osint_source_group
+        try:
+            normalized_id = cls.normalize_uuid_id(item_id)
+        except (TypeError, ValueError):
+            normalized_id = None
+        if normalized_id and normalized_id != lookup_id:
+            if osint_source_group := super().get(normalized_id):
+                return osint_source_group
+        if lookup_id:
+            return cls.get_by_key(lookup_id)
+        return None
+
+    @classmethod
+    def get_by_key(cls, key: str | None) -> "OSINTSourceGroup | None":
+        if not key:
+            return None
+        return cls.get_first(db.select(cls).filter_by(key=key))
 
     @classmethod
     def add_source_to_default(cls, osint_source: OSINTSource):
@@ -806,7 +908,7 @@ class OSINTSourceGroup(BaseModel):
 
         db.session.delete(osint_source_group)
         db.session.commit()
-        return {"message": f"Successfully deleted {osint_source_group.id}"}, 200
+        return {"message": "OSINT source group deleted"}, 200
 
     @classmethod
     def update(cls, osint_source_group_id: str, data: dict[str, Any], user: "User | None" = None) -> tuple[dict[str, str], int]:
@@ -827,11 +929,12 @@ class OSINTSourceGroup(BaseModel):
         word_lists = data.get("word_lists", [])
         osint_source_group.word_lists = WordList.get_bulk(word_lists)
         db.session.commit()
-        return {"message": f"Successfully updated {osint_source_group.name}", "id": f"{osint_source_group.id}"}, 201
+        return {"message": "OSINT source group updated", "id": f"{osint_source_group.id}"}, 201
 
     def to_assess_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
+            "key": self.key,
             "name": self.name,
         }
 
@@ -849,10 +952,14 @@ class OSINTSourceGroup(BaseModel):
 
 
 class OSINTSourceGroupOSINTSource(BaseModel):
-    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id", ondelete="SET NULL"), primary_key=True)
-    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="SET NULL"), primary_key=True)
+    osint_source_group_id = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source_group.id", ondelete="SET NULL"), primary_key=True
+    )
+    osint_source_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source.id", ondelete="SET NULL"), primary_key=True)
 
 
 class OSINTSourceGroupWordList(BaseModel):
-    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id", ondelete="SET NULL"), primary_key=True)
-    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="SET NULL"), primary_key=True)
+    osint_source_group_id = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source_group.id", ondelete="SET NULL"), primary_key=True
+    )
+    word_list_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("word_list.id", ondelete="SET NULL"), primary_key=True)

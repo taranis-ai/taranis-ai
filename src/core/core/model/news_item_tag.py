@@ -1,27 +1,36 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func
+from sqlalchemy import Index, func, literal_column, tuple_
 from sqlalchemy.orm import Mapped, relationship
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import BaseModel
+from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
 
 if TYPE_CHECKING:
-    from core.model.story import Story
+    from core.model.news_item import NewsItem
 
 
 class NewsItemTag(BaseModel):
     __tablename__ = "news_item_tag"
+    __table_args__ = (
+        Index("ix_news_item_tag_news_item_name", "news_item_id", "name"),
+        Index("ix_news_item_tag_name_type_item", "name", "tag_type", "news_item_id"),
+        Index("ix_news_item_tag_type_name_item", "tag_type", "name", "news_item_id"),
+    )
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(255))
     tag_type: Mapped[str] = db.Column(db.String(255))
-    story_id: Mapped[str] = db.Column(db.ForeignKey("story.id", ondelete="CASCADE"))
-    story: Mapped["Story"] = relationship("Story", back_populates="tags")
+    news_item_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("news_item.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    news_item: Mapped["NewsItem"] = relationship("NewsItem", back_populates="tags")
 
     def __init__(self, name: str, tag_type: str = "misc"):
+        self.id = self.uuid7_str()
         if not isinstance(name, str):
             raise TypeError(f"Tag name must be a string, got {type(name)}")
         self.name = name
@@ -31,7 +40,10 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def get_filtered_tags(cls, filter_args: dict) -> dict[str, str]:
-        query = db.select(cls.name, cls.tag_type).where(cls.tag_type.not_ilike("report_%"))
+        from core.model.news_item import NewsItem
+
+        story_count = func.count(func.distinct(NewsItem.story_id))
+        query = db.select(cls.name, cls.tag_type, story_count.label("story_count")).join(NewsItem)
 
         if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
@@ -39,20 +51,21 @@ class NewsItemTag(BaseModel):
         if tag_type := filter_args.get("tag_type"):
             query = query.filter(cls.tag_type == tag_type)
 
+        query = query.group_by(cls.name, cls.tag_type)
         if min_size := filter_args.get("min_size"):
             # returns only tags where the name appears at least min_size times in the database
-            query = query.group_by(cls.name, cls.tag_type).having(func.count(cls.name) >= min_size)
-            query = query.order_by(func.count(cls.name).desc())
+            query = query.having(story_count >= min_size)
+            query = query.order_by(story_count.desc())
 
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
         query = query.offset(offset).limit(limit)
         result = db.session.execute(query).tuples()
-        return {name: tag_type for name, tag_type in result}
+        return {name: tag_type for name, tag_type, _ in result}
 
     @classmethod
     def get_all_for_collector(cls):
-        return cls.get_filtered(db.select(cls).where(cls.tag_type.not_ilike("report_%")))
+        return cls.get_filtered(db.select(cls))
 
     @classmethod
     def get_list(cls, filter_args: dict) -> list[str]:
@@ -61,7 +74,12 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def remove_by_story(cls, story):
-        db.session.execute(db.delete(cls).where(cls.story_id == story.id))
+        from core.model.news_item import NewsItem
+
+        news_item_ids = db.select(NewsItem.id).where(NewsItem.story_id == story.id)
+        tag_keys = cls.get_summary_keys_for_news_item_ids(news_item_ids)
+        db.session.execute(db.delete(cls).where(cls.news_item_id.in_(news_item_ids)))
+        NewsItemTagCluster.refresh_for_keys(tag_keys)
 
     def to_dict(self) -> dict[str, Any]:
         return {"name": self.name, "tag_type": self.tag_type}
@@ -71,30 +89,33 @@ class NewsItemTag(BaseModel):
         return cls.get_first(db.select(cls).filter(cls.name.ilike(tag_name)))
 
     @classmethod
-    def apply_sort(cls, query, sort_str: str):
+    def apply_sort(cls, query, sort_str: str, *, size_column=None, name_column=None):
+        size_column = size_column if size_column is not None else literal_column("size")
+        name_column = name_column if name_column is not None else literal_column("name")
+
         if sort_str == "size_desc":
-            return query.order_by(func.count(cls.name).desc())
+            return query.order_by(size_column.desc(), name_column.asc())
         elif sort_str == "size_asc":
-            return query.order_by(func.count(cls.name).asc())
+            return query.order_by(size_column.asc(), name_column.asc())
         elif sort_str == "name_asc":
-            return query.order_by(cls.name.asc())
+            return query.order_by(name_column.asc())
         elif sort_str == "name_desc":
-            return query.order_by(cls.name.desc())
+            return query.order_by(name_column.desc())
 
         return query
 
     @classmethod
     def get_cluster_by_filter(cls, filter_args: dict):
-        query = db.select(cls).with_only_columns(cls.name, func.count(cls.name).label("size"))
+        query = db.select(NewsItemTagCluster.name, NewsItemTagCluster.story_count.label("size"))
         if tag_type := filter_args.get("tag_type"):
-            query = query.filter(cls.tag_type == tag_type).group_by(cls.name)
-
-        count = cls.get_filtered_count(query)
+            query = query.filter(NewsItemTagCluster.tag_type_key == cls.summary_tag_type_key(tag_type))
 
         if search := filter_args.get("search"):
-            query = query.filter(cls.name.ilike(f"%{search}%"))
+            query = query.filter(NewsItemTagCluster.name.ilike(f"%{search}%"))
+
+        count = db.session.execute(db.select(func.count()).select_from(query.subquery())).scalar_one()
         if sort := filter_args.get("sort", "size_desc"):
-            query = cls.apply_sort(query, sort)
+            query = cls.apply_sort(query, sort, size_column=NewsItemTagCluster.story_count, name_column=NewsItemTagCluster.name)
 
         if offset := filter_args.get("offset"):
             query = query.offset(offset)
@@ -134,6 +155,9 @@ class NewsItemTag(BaseModel):
             else:
                 raise ValueError(f"Invalid tag format for key '{tag_key}': {type(tag_data).__name__} - must be str or dict")
 
+            if not isinstance(name, str) or not name.strip():
+                continue
+            name = name.strip()
             tag_type = tag_type if tag_type else "misc"
             parsed_tags[name] = NewsItemTag(name=name, tag_type=tag_type)
 
@@ -160,3 +184,108 @@ class NewsItemTag(BaseModel):
             tags = cls._parse_list_tags(tags)
 
         return [{"name": tag.name, "tag_type": tag.tag_type} for tag in tags.values()]
+
+    @staticmethod
+    def summary_tag_type_key(tag_type: str | None) -> str:
+        return tag_type or ""
+
+    @classmethod
+    def get_summary_key(cls, tag_name: str, tag_type: str | None) -> tuple[str, str]:
+        return tag_name, cls.summary_tag_type_key(tag_type)
+
+    @classmethod
+    def get_summary_keys_for_tag_types(cls, tag_name: str, *tag_types: str | None) -> set[tuple[str, str]]:
+        return {cls.get_summary_key(tag_name, tag_type) for tag_type in tag_types if tag_name}
+
+    @classmethod
+    def get_summary_keys_for_news_item_ids(cls, news_item_ids) -> set[tuple[str, str]]:
+        rows = db.session.execute(
+            db.select(cls.name, func.coalesce(cls.tag_type, ""))
+            .where(cls.news_item_id.in_(news_item_ids))
+            .where(cls.name.is_not(None), cls.name != "")
+            .distinct()
+        ).all()
+        return {(name, tag_type_key) for name, tag_type_key in rows}
+
+    @classmethod
+    def get_summary_keys_for_name(cls, tag_name: str) -> set[tuple[str, str]]:
+        rows = db.session.execute(
+            db.select(cls.name, func.coalesce(cls.tag_type, ""))
+            .where(cls.name == tag_name)
+            .where(cls.name.is_not(None), cls.name != "")
+            .distinct()
+        ).all()
+        return {(name, tag_type_key) for name, tag_type_key in rows}
+
+
+class NewsItemTagCluster(BaseModel):
+    __tablename__ = "news_item_tag_cluster"
+    __table_args__ = (Index("ix_news_item_tag_cluster_type_count", "tag_type_key", "story_count"),)
+
+    name: Mapped[str] = db.Column(db.String(255), primary_key=True)
+    tag_type_key: Mapped[str] = db.Column(db.String(255), primary_key=True)
+    tag_type: Mapped[str | None] = db.Column(db.String(255), nullable=True)
+    news_item_count: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
+    story_count: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
+    last_story_created: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
+
+    @classmethod
+    def refresh_for_keys(cls, keys: set[tuple[str, str]], session=None) -> None:
+        if not keys:
+            return
+        session = session or db.session
+        cls._delete_keys(keys, session=session)
+        cls._insert_current_keys(keys, session=session)
+
+    @classmethod
+    def rebuild_all(cls, session=None) -> None:
+        session = session or db.session
+        session.execute(db.delete(cls))
+        keys = {
+            (name, tag_type_key)
+            for name, tag_type_key in session.execute(
+                db.select(NewsItemTag.name, func.coalesce(NewsItemTag.tag_type, ""))
+                .where(NewsItemTag.name.is_not(None), NewsItemTag.name != "")
+                .distinct()
+            ).all()
+        }
+        cls._insert_current_keys(keys, session=session)
+
+    @classmethod
+    def _delete_keys(cls, keys: set[tuple[str, str]], session) -> None:
+        session.execute(db.delete(cls).where(tuple_(cls.name, cls.tag_type_key).in_(keys)))
+
+    @classmethod
+    def _insert_current_keys(cls, keys: set[tuple[str, str]], session) -> None:
+        from core.model.news_item import NewsItem
+        from core.model.story import Story
+
+        if not keys:
+            return
+        tag_type_key = func.coalesce(NewsItemTag.tag_type, "")
+        rows = session.execute(
+            db.select(
+                NewsItemTag.name,
+                func.min(NewsItemTag.tag_type),
+                tag_type_key,
+                func.count(func.distinct(NewsItemTag.news_item_id)),
+                func.count(func.distinct(NewsItem.story_id)),
+                func.max(Story.created),
+            )
+            .join(NewsItem, NewsItemTag.news_item_id == NewsItem.id)
+            .join(Story, NewsItem.story_id == Story.id)
+            .where(tuple_(NewsItemTag.name, tag_type_key).in_(keys))
+            .where(NewsItemTag.name.is_not(None), NewsItemTag.name != "")
+            .group_by(NewsItemTag.name, tag_type_key)
+        ).all()
+        session.add_all(
+            cls(
+                name=name,
+                tag_type=tag_type,
+                tag_type_key=tag_type_key_value,
+                news_item_count=news_item_count,
+                story_count=story_count,
+                last_story_created=last_story_created,
+            )
+            for name, tag_type, tag_type_key_value, news_item_count, story_count, last_story_created in rows
+        )

@@ -1,10 +1,13 @@
-from flask import Blueprint, Flask, Response, jsonify, render_template, send_from_directory
+from flask import Blueprint, Flask, Response, jsonify, redirect, render_template, request, send_from_directory, url_for
 from flask.views import MethodView
+from models.assess import FilterLists
 
 from frontend.auth import auth_required, logout
 from frontend.cache import get_cache_keys, get_cached_users
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.views import AuthView, DashboardView
+from frontend.omnisearch import build_omnisearch_context, build_omnisearch_navigation, needs_assess_filter_lists
+from frontend.views import AuthView, DashboardView, OnboardingPromptView
+from frontend.views.story_views import StoryView
 
 
 class InvalidateCache(MethodView):
@@ -64,11 +67,60 @@ class FaviconView(MethodView):
 
 
 class OmniSearch(MethodView):
+    @auth_required()
     def get(self):
-        return render_template("partials/omnisearch/search_dialog.html")
+        current_search = request.args.get("q", "").strip()
+        if not current_search:
+            return redirect(url_for("base.dashboard"))
 
-    def post(self):
-        print("TODO: Implement")
+        filter_lists = _get_omnisearch_filter_lists(current_search)
+        navigation = build_omnisearch_navigation(current_search, filter_lists)
+        if navigation.errors:
+            return (
+                render_template(
+                    "partials/omnisearch/results.html",
+                    search_context=build_omnisearch_context(
+                        current_search,
+                        limit_per_scope=10,
+                        filter_lists=filter_lists,
+                        errors=navigation.errors,
+                    ),
+                    current_search=current_search,
+                ),
+                400,
+            )
+
+        if navigation.url:
+            return redirect(navigation.url)
+
+        return render_template(
+            "partials/omnisearch/results.html",
+            search_context=build_omnisearch_context(current_search, limit_per_scope=10, filter_lists=filter_lists),
+            current_search=current_search,
+        )
+
+
+class OmniSearchSuggestions(MethodView):
+    @auth_required()
+    def get(self):
+        current_search = request.args.get("q", "")
+        filter_lists = _get_omnisearch_filter_lists(current_search)
+        navigation = build_omnisearch_navigation(current_search, filter_lists)
+        return render_template(
+            "partials/omnisearch/suggestions.html",
+            search_context=build_omnisearch_context(
+                current_search,
+                limit_per_scope=4,
+                filter_lists=filter_lists,
+                errors=navigation.errors,
+            ),
+        )
+
+
+def _get_omnisearch_filter_lists(query: str) -> FilterLists:
+    if needs_assess_filter_lists(query):
+        return StoryView.get_filter_lists()
+    return FilterLists(tags=[], sources=[], groups=[])
 
 
 class NewsItemConflictsView(MethodView):
@@ -112,6 +164,8 @@ def init(app: Flask):
     base_bp.add_url_rule("/open_api", view_func=OpenAPIView.as_view("open_api"))
     base_bp.add_url_rule("/notification", view_func=NotificationView.as_view("notification"))
     base_bp.add_url_rule("/search", view_func=OmniSearch.as_view("omnisearch"))
+    base_bp.add_url_rule("/onboarding/prompt", view_func=OnboardingPromptView.as_view("onboarding_prompt"))
+    base_bp.add_url_rule("/search/suggestions", view_func=OmniSearchSuggestions.as_view("omnisearch_suggestions"))
 
     base_bp.add_url_rule("/invalidate_cache", view_func=InvalidateCache.as_view("invalidate_cache"))
     base_bp.add_url_rule("/invalidate_cache/<string:suffix>", view_func=InvalidateCache.as_view("invalidate_cache_suffix"))

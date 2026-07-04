@@ -21,13 +21,16 @@ from worker.core_api import CoreApi
 from worker.log import logger
 
 
-def get_redis_connection():
+def get_redis_connection(*, spawn_safe: bool = False):
     """Get Redis connection from config."""
-    return redis.from_url(
-        Config.REDIS_URL,
-        password=Config.REDIS_PASSWORD,
-        decode_responses=False,
-    )
+    redis_kwargs = {
+        "password": Config.REDIS_PASSWORD,
+        "decode_responses": False,
+    }
+    if spawn_safe:
+        redis_kwargs["protocol"] = 2
+
+    return redis.from_url(Config.REDIS_URL, **redis_kwargs)
 
 
 def get_queues():
@@ -79,25 +82,21 @@ def start_worker():
     # Initialize core API for worker tasks to use
     CoreApi()
 
-    # Import task modules to register functions
     register_task_modules()
 
-    # Get Redis connection
-    redis_conn = get_redis_connection()
-
-    # Get queue names
     queue_names = get_queues()
     if not queue_names:
         logger.error("No worker types configured. Set WORKER_TYPES in config.")
         sys.exit(1)
 
-    # Create Queue objects
+    worker_class = resolve_worker_class()
+
+    redis_conn = get_redis_connection(spawn_safe=worker_class is SpawnWorker)
+
     queues = [Queue(name, connection=redis_conn) for name in queue_names]
 
     logger.info(f"Starting RQ worker for queues: {', '.join(queue_names)}")
-    worker_class = resolve_worker_class()
     logger.info(f"Using RQ worker class: {worker_class.__name__} (RQ_WORKER_CLASS={Config.RQ_WORKER_CLASS}, platform={sys.platform})")
 
-    # Start worker
     worker = worker_class(queues, connection=redis_conn)
     worker.work(with_scheduler=True)

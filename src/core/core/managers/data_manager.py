@@ -1,8 +1,11 @@
 import base64
 import hashlib
 import json
+import os
 from pathlib import Path
 from shutil import copy
+
+from werkzeug.utils import secure_filename
 
 from core.config import Config
 from core.log import logger
@@ -38,27 +41,19 @@ def validate_presenter_template_name(template_id: str) -> str:
 
 
 def _resolve_presenter_template_path(presenter_template: str, *, must_exist: bool = False) -> Path:
-    templates_dir = _get_presenter_templates_dir().resolve()
-    candidate = Path(presenter_template)
+    templates_dir = os.path.realpath(_get_presenter_templates_dir())
+    template_name = validate_presenter_template_name(presenter_template)
 
-    try:
-        if candidate.is_absolute():
-            resolved_candidate = candidate.resolve(strict=must_exist)
-        else:
-            resolved_candidate = (templates_dir / validate_presenter_template_name(presenter_template)).resolve(strict=must_exist)
-    except FileNotFoundError as exc:
-        raise InvalidPresenterTemplatePathError from exc
+    resolved_candidate = os.path.realpath(os.path.join(templates_dir, template_name))
 
-    if resolved_candidate.parent != templates_dir:
+    if not resolved_candidate.startswith(templates_dir + os.sep):
         raise InvalidPresenterTemplatePathError
 
-    if candidate.is_absolute() and not is_valid_presenter_template_id(resolved_candidate.name):
+    candidate_path = Path(resolved_candidate)
+    if must_exist and not candidate_path.is_file():
         raise InvalidPresenterTemplatePathError
 
-    if must_exist and not resolved_candidate.is_file():
-        raise InvalidPresenterTemplatePathError
-
-    return resolved_candidate
+    return candidate_path
 
 
 def sync_presenter_templates_to_data() -> None:
@@ -115,10 +110,8 @@ def list_templates() -> list[str]:
 def save_template_content(template_id: str, content: str) -> None:
     """Save the template content to a file."""
     try:
-        template_id = validate_presenter_template_name(template_id)
-        path = _get_presenter_templates_dir()
-        path.mkdir(parents=True, exist_ok=True)
-        file_path = path / template_id
+        file_path = _resolve_presenter_template_path(template_id)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content, encoding="utf-8")
     except Exception as e:
         logger.error(f"Error saving template {template_id}: {e}")
@@ -139,11 +132,11 @@ def delete_template(template_id: str) -> bool:
 
 
 def get_presenter_template_path(presenter_template: str) -> str:
-    """Return an absolute presenter template path if it stays within the trusted template directory."""
+    """Return an absolute presenter template path for a valid template ID."""
     try:
         return _resolve_presenter_template_path(presenter_template).as_posix()
     except InvalidPresenterTemplatePathError:
-        logger.warning(f"Rejected presenter template path outside allowed directory: {presenter_template}")
+        logger.warning(f"Rejected invalid presenter template path: {presenter_template}")
         return ""
 
 
@@ -176,8 +169,10 @@ def is_valid_presenter_template_id(template_id: str) -> bool:
         return False
 
     candidate = Path(template_id)
+    secure_template_id = secure_filename(template_id)
     return (
-        not candidate.is_absolute()
+        secure_template_id == template_id
+        and not candidate.is_absolute()
         and candidate.name == template_id
         and template_id not in {".", ".."}
         and not template_id.startswith(".")

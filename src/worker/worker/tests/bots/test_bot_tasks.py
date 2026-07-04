@@ -5,7 +5,7 @@ import pytest
 import worker.bots
 from worker.bots.bot_tasks import bot_task
 from worker.config import Config
-from worker.core_api import CoreApi
+from worker.core_api import CoreApi, build_success_task_result
 
 
 BOT_CLASS_NAMES = [
@@ -47,7 +47,7 @@ def bot_config():
 @pytest.fixture
 def stub_bots(monkeypatch):
     class DummyBot:
-        _execute_impl = staticmethod(lambda params: {"result": "ok"})
+        _execute_impl = staticmethod(lambda params: {"message": "ok"})
 
         def execute(self, params):
             return type(self)._execute_impl(params)
@@ -75,7 +75,7 @@ class TestBotTask:
         stub_bots._execute_impl = staticmethod(lambda params: bot_execution_result)
 
         # Execute
-        result = bot_task("bot-456", filter={"story_id": "123"})
+        result = bot_task("bot-456", {"story_id": "123"})
 
         # Verify result dict (not message string) is saved
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
@@ -86,9 +86,13 @@ class TestBotTask:
         assert task_data["status"] == "SUCCESS"
         assert task_data["worker_id"] == "bot-456"
         assert task_data["worker_type"] == "WORDLIST_BOT"
-        # Verify the full result dict is passed, not just a message string
         assert isinstance(task_data["result"], dict)
-        assert task_data["result"] == bot_execution_result
+        assert task_data["result"] == {
+            "message": "Bot bot-456 executed successfully",
+            "reason": None,
+            "retryable": False,
+            "data": {"bot_id": "bot-456", "result": bot_execution_result},
+        }
 
         # Verify return value includes worker metadata
         assert result["worker_id"] == "bot-456"
@@ -113,8 +117,9 @@ class TestBotTask:
         assert task_data["worker_id"] == "bot-999"
         assert task_data["worker_type"] == "BOT_TASK"
         assert isinstance(task_data["result"], dict)
-        assert "error" in task_data["result"]
-        assert task_data["result"]["error"] == "Bot with id bot-999 not found"
+        assert task_data["result"]["message"] == "Bot with id bot-999 not found"
+        assert task_data["result"]["reason"] == "bot_not_found"
+        assert task_data["result"]["data"] == {"bot_id": "bot-999"}
 
     def test_bot_task_exception_wraps_error_in_dict(self, current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task wraps exception messages in dict."""
@@ -138,14 +143,35 @@ class TestBotTask:
         assert task_data["worker_id"] == "bot-456"
         assert task_data["worker_type"] == "WORDLIST_BOT"
         assert isinstance(task_data["result"], dict)
-        assert "error" in task_data["result"]
-        assert "Bot execution failed: Bot execution crashed" in task_data["result"]["error"]
+        assert "Bot execution failed: Bot execution crashed" in task_data["result"]["message"]
+        assert task_data["result"]["reason"] == "bot_execution_failed"
+
+    def test_bot_task_none_result_is_reported_as_failure(self, current_job, requests_mock, bot_config, stub_bots):
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+        stub_bots._execute_impl = staticmethod(lambda params: None)
+
+        with pytest.raises(RuntimeError, match="Bot bot-456 returned no result"):
+            bot_task("bot-456")
+
+        put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+        assert len(put_calls) == 1
+        task_data = put_calls[0].json()
+        assert task_data["status"] == "FAILURE"
+        assert task_data["worker_id"] == "bot-456"
+        assert task_data["worker_type"] == "WORDLIST_BOT"
+        assert task_data["result"] == {
+            "message": "Bot execution failed: Bot bot-456 returned no result",
+            "reason": "bot_empty_result",
+            "retryable": False,
+            "data": {"bot_id": "bot-456"},
+        }
 
     def test_bot_task_without_job_uses_fallback_id(self, no_current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task uses fallback task_id when no RQ job exists."""
         requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-789", json=bot_config)
         requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
-        stub_bots._execute_impl = staticmethod(lambda params: {"result": "success"})
+        stub_bots._execute_impl = staticmethod(lambda params: {"message": "success"})
 
         # Execute
         bot_task("bot-789")
@@ -162,13 +188,10 @@ class TestSaveTaskResult:
 
     def test_save_task_result_accepts_dict(self, requests_mock):
         """Test that save_task_result accepts a dict parameter."""
-        result_dict = {
-            "iocs_found": 10,
-            "news_items": [{"id": "item1"}],
-        }
+        result_dict = {"message": "IOC scan complete", "reason": None, "retryable": False, "data": {"iocs_found": 10}}
 
         requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
-        CoreApi().save_task_result("job-123", "bot_ioc", result_dict, "SUCCESS", worker_id="bot-123", worker_type="IOC_BOT")
+        CoreApi().save_task_result("job-123", "bot_ioc", "SUCCESS", worker_id="bot-123", worker_type="IOC_BOT", **result_dict)
 
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
         assert len(put_calls) == 1
@@ -183,10 +206,10 @@ class TestSaveTaskResult:
 
     def test_save_task_result_formats_payload_correctly(self, requests_mock):
         """Test that save_task_result formats the API payload correctly."""
-        result = {"error": "Something went wrong"}
+        result = {"message": "Something went wrong", "reason": "bot_failure", "retryable": False, "data": None}
 
         requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
-        CoreApi().save_task_result("job-456", "bot_test", result, "FAILURE")
+        CoreApi().save_task_result("job-456", "bot_test", "FAILURE", **result)
 
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
         assert len(put_calls) == 1
@@ -196,12 +219,28 @@ class TestSaveTaskResult:
         assert task_data["result"] == result
         assert task_data["status"] == "FAILURE"
 
+    @pytest.mark.parametrize(
+        "result_payload",
+        [
+            {"message": "", "reason": None, "retryable": False, "data": []},
+            {"message": "done", "reason": None, "retryable": False, "data": False},
+        ],
+    )
+    def test_save_task_result_preserves_direct_result_payloads(self, requests_mock, result_payload):
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+        CoreApi().save_task_result("job-direct", "collector_preview", "SUCCESS", result=result_payload)
+
+        put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+        assert len(put_calls) == 1
+        assert put_calls[0].json()["result"] == result_payload
+
     def test_save_task_result_handles_api_failure_gracefully(self, requests_mock, caplog):
         """Test that save_task_result handles API call failures without raising."""
         requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", exc=Exception("API connection failed"))
 
         # Should not raise, just log
-        CoreApi().save_task_result("job-789", "bot_error", {"result": "data"}, "SUCCESS")
+        CoreApi().save_task_result("job-789", "bot_error", "SUCCESS", message="data")
 
         # Verify error was logged
         assert any("Failed to save task result" in record.message for record in caplog.records)
@@ -211,8 +250,59 @@ class TestSaveTaskResult:
         requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", status_code=500, json={"error": "nope"})
 
         # Should not raise, API returned False meaning failure
-        CoreApi().save_task_result("job-999", "bot_fail", {"result": "data"}, "SUCCESS")
+        CoreApi().save_task_result("job-999", "bot_fail", "SUCCESS", message="data")
 
         # Verify API was called
         put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
         assert len(put_calls) == 1
+
+    def test_build_success_task_result_merges_dict_output(self):
+        task_result = build_success_task_result(
+            default_message="Published product",
+            output={"message": "Published", "url": "https://example.com"},
+            base_data={"product_id": "product-1"},
+        )
+
+        assert task_result == {
+            "message": "Published",
+            "reason": None,
+            "retryable": False,
+            "data": {
+                "product_id": "product-1",
+                "message": "Published",
+                "url": "https://example.com",
+            },
+        }
+
+    def test_build_success_task_result_keeps_nested_result_when_requested(self):
+        task_result = build_success_task_result(
+            default_message="Bot finished",
+            output={"tagged_items": 5},
+            base_data={"bot_id": "bot-1"},
+            merge_dict_data=False,
+        )
+
+        assert task_result == {
+            "message": "Bot finished",
+            "reason": None,
+            "retryable": False,
+            "data": {
+                "bot_id": "bot-1",
+                "result": {"tagged_items": 5},
+            },
+        }
+
+    def test_build_success_task_result_handles_none_output(self):
+        task_result = build_success_task_result(
+            default_message="Done",
+            output=None,
+            base_data={"bot_id": "bot-1"},
+            none_message="Bot finished without details",
+        )
+
+        assert task_result == {
+            "message": "Bot finished without details",
+            "reason": None,
+            "retryable": False,
+            "data": {"bot_id": "bot-1"},
+        }

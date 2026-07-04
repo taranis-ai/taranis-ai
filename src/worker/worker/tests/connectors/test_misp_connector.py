@@ -121,7 +121,8 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, cap
     caplog.set_level(logging.ERROR, logger="root")
 
     result = connector_tasks.connector_task(
-        connector_id="74981521-4ba7-4216-b9ca-ebc00ffec29c", story_ids=["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"]
+        "74981521-4ba7-4216-b9ca-ebc00ffec29c",
+        ["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"],
     )
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
@@ -137,6 +138,68 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, cap
     assert sync_result["story_id"] == "ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"
     assert isinstance(sync_result["misp_event_uuid"], str) and sync_result["misp_event_uuid"]
     assert sync_result["news_item_ids_to_mark_external"] == ["06cc6fd0-a775-4923-bdef-8cd5381164ce"]
+
+
+def test_connector_task_unknown_type_persists_failure(requests_mock, mock_job, monkeypatch):
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        json={"id": "connector-1", "type": "unknown_connector"},
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
+
+    with pytest.raises(RuntimeError, match="Failed to get connector with id: connector-1"):
+        connector_tasks.connector_task("connector-1", ["story-1"])
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    assert post_calls[0].json() == {
+        "id": "test-job-123",
+        "task": "connector_task",
+        "worker_id": "connector-1",
+        "worker_type": "unknown_connector",
+        "result": {
+            "message": "Connector type 'unknown_connector' not implemented",
+            "reason": "connector_not_implemented",
+            "retryable": False,
+            "data": {"connector_id": "connector-1", "story_ids": ["story-1"]},
+        },
+        "status": "FAILURE",
+    }
+
+
+def test_connector_task_story_load_failure_persists_failure(requests_mock, mock_job, monkeypatch):
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        json={"id": "connector-1", "type": "misp_connector"},
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
+    monkeypatch.setattr(connector_tasks, "_get_connector", lambda connector_type: object())
+
+    def fail_load(*args, **kwargs):
+        raise RuntimeError("Failed to get stories with id: ['story-1']")
+
+    monkeypatch.setattr(connector_tasks, "_get_connector_data", fail_load)
+
+    with pytest.raises(RuntimeError, match="Failed to get stories with id: \\['story-1'\\]"):
+        connector_tasks.connector_task("connector-1", ["story-1"])
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    assert post_calls[0].json() == {
+        "id": "test-job-123",
+        "task": "connector_task",
+        "worker_id": "connector-1",
+        "worker_type": "misp_connector",
+        "result": {
+            "message": "Failed to get stories with id: ['story-1']",
+            "reason": "connector_data_load_failed",
+            "retryable": False,
+            "data": {"connector_id": "connector-1", "story_ids": ["story-1"]},
+        },
+        "status": "FAILURE",
+    }
 
 
 def test_misp_sender_returns_sync_payload_after_successful_event(monkeypatch):

@@ -22,6 +22,23 @@ class DashboardHealth(BaseModel):
     services: DashboardHealthServices
 
 
+class CoreHealth(TaranisBaseModel):
+    _core_endpoint = "/health"
+    _model_name = "core_health"
+    _pretty_name = "Core Health"
+    _cache_timeout = 5
+
+    healthy: bool
+    services: DashboardHealthServices
+
+
+class TaskStatusTotals(BaseModel):
+    successes: int = 0
+    failures: int = 0
+    total: int = 0
+    success_pct: int = 0
+
+
 class Dashboard(TaranisBaseModel):
     _core_endpoint = "/dashboard"
     _model_name = "dashboard"
@@ -36,7 +53,7 @@ class Dashboard(TaranisBaseModel):
     schedule_length: int | None = None
     conflict_count: int | None = None
     health_status: DashboardHealth | None = None
-    worker_status: dict[str, dict[str, int]] | None = None
+    task_status_totals: TaskStatusTotals | None = None
 
 
 class TrendingCluster(TaranisBaseModel):

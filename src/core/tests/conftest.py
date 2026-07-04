@@ -24,6 +24,7 @@ def app():
 
     with contextlib.suppress(Exception):
         parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
+        print(f"Cleaning up database file at {parsed_uri.path} before tests")
         os.remove(f"{parsed_uri.path}")
 
     app = create_app()
@@ -226,6 +227,7 @@ def mixed_timezone_story_payload():
 
     return {
         "expected_created": datetime.fromisoformat("2023-12-31T22:30:00"),
+        "expected_updated": datetime.fromisoformat("2024-01-01T00:00:00"),
         "payload": {
             "title": f"Story {uuid.uuid4()}",
             "news_items": [

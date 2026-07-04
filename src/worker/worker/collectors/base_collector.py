@@ -69,7 +69,7 @@ class BaseCollector:
     def preview(self, news_items: list[NewsItem], source: dict) -> list[dict]:
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Previewing {len(news_items)} news items")
-        return [n.model_dump() for n in news_items]
+        return [n.model_dump(mode="json") for n in news_items]
 
     def process_news_items(self, news_items: list[NewsItem], source: dict) -> list[NewsItem]:
         if word_lists := source.get("word_lists"):

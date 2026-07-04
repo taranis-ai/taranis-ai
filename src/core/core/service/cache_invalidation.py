@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import cast
 
 from models.cache_contract import (
@@ -15,8 +15,19 @@ from core.config import Config
 from core.log import logger
 
 
+SCOPE_SCHEDULE = "schedule"
+SCOPE_SCHEDULE_STATUS = "schedule_status"
+SCOPE_TRENDING_CLUSTERS = "trending_clusters"
+SCOPE_ASSESS_VIEWS = "assess_views"
+SCOPE_STORY_VIEWS = "story_views"
+SCOPE_STORY_REPORT_VIEWS = "story_report_views"
+SCOPE_REPORT_VIEWS = "report_views"
+SCOPE_PUBLISH_VIEWS = "publish_views"
+SCOPE_USER_VIEWS = "user_views"
+
+
 SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
-    "schedule": (
+    SCOPE_SCHEDULE: (
         "job",
         "active_job",
         "failed_job",
@@ -25,7 +36,31 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
         "scheduler_dashboard",
         "task_history_response",
     ),
-    "trending_clusters": ("trending_clusters",),
+    SCOPE_SCHEDULE_STATUS: (
+        "job",
+        "scheduler_dashboard",
+        "task_history_response",
+    ),
+    SCOPE_TRENDING_CLUSTERS: ("trending_clusters",),
+    SCOPE_ASSESS_VIEWS: ("story", "news_item", "filter_lists", "story_bookmark"),
+    SCOPE_STORY_VIEWS: ("story", "news_item", "report_item", "story_bookmark"),
+    SCOPE_STORY_REPORT_VIEWS: ("story", "report_item"),
+    SCOPE_REPORT_VIEWS: ("report", "story", "product"),
+    SCOPE_PUBLISH_VIEWS: ("product",),
+    SCOPE_USER_VIEWS: (
+        "dashboard",
+        "trending_clusters",
+        "clusters",
+        "story_conflicts",
+        "news_item_conflict",
+        "story",
+        "story_bookmark",
+        "news_item",
+        "report_item",
+        "filter_lists",
+        "report",
+        "product",
+    ),
 }
 
 
@@ -78,7 +113,7 @@ class FrontendCacheInvalidationService:
     def invalidate_all(self) -> int:
         return self._delete_matching_patterns([build_namespace_pattern(Config.CACHE_KEY_PREFIX)])
 
-    def invalidate_model(self, model_name: str, object_id: str | int | None = None) -> int:
+    def invalidate_model(self, model_name: str, object_id: str | None = None) -> int:
         if object_id is None:
             patterns = [build_model_pattern(Config.CACHE_KEY_PREFIX, model_name)]
         else:
@@ -88,12 +123,16 @@ class FrontendCacheInvalidationService:
             ]
         return self._delete_matching_patterns(patterns)
 
-    def invalidate_scope(self, scope_name: str) -> int:
+    def get_scope_model_names(self, scope_name: str) -> tuple[str, ...]:
         model_names = SCOPE_MODEL_NAMES.get(scope_name)
         if model_names is None:
             logger.warning(f"Unknown frontend cache invalidation scope: {scope_name}")
-            return 0
-        return sum(self.invalidate_model(model_name) for model_name in model_names)
+            return ()
+        return model_names
+
+    def invalidate_scope(self, scope_name: str, object_ids: Mapping[str, str] | None = None) -> int:
+        object_ids = object_ids or {}
+        return sum(self.invalidate_model(model_name, object_ids.get(model_name)) for model_name in self.get_scope_model_names(scope_name))
 
     def invalidate_user_profile(self, username: str) -> int:
         return self._delete_matching_patterns([build_user_profile_pattern(Config.CACHE_KEY_PREFIX, username)])
@@ -109,23 +148,25 @@ def invalidate_frontend_cache_on_success(
     models: Iterable[str] = (),
     scopes: Iterable[str] = (),
     user_profiles: Iterable[str] = (),
-    object_ids: dict[str, str | int] | None = None,
+    object_ids: dict[str, str] | None = None,
 ) -> int:
     if not 200 <= status_code < 300:
         return 0
 
     deleted = 0
+    object_ids = object_ids or {}
     if full:
         deleted += cache_invalidation_service.invalidate_all()
 
     for username in user_profiles:
         deleted += cache_invalidation_service.invalidate_user_profile(username)
 
+    model_names: list[str] = []
     for scope_name in scopes:
-        deleted += cache_invalidation_service.invalidate_scope(scope_name)
+        model_names.extend(cache_invalidation_service.get_scope_model_names(scope_name))
+    model_names.extend(models)
 
-    object_ids = object_ids or {}
-    for model_name in models:
+    for model_name in dict.fromkeys(model_names):
         deleted += cache_invalidation_service.invalidate_model(model_name, object_ids.get(model_name))
 
     return deleted

@@ -8,12 +8,11 @@ maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Framework :: Flask",
     "Topic :: Security",
 ]
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.14"
 dependencies = [
     "Flask",
     "Flask-Cors",
@@ -45,7 +44,7 @@ include-package-data = true
 [build-system]
 requires = [
     "setuptools>=45",
-    "setuptools_scm[toml]>=6.2",
+    "setuptools-scm>=6.2",
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
@@ -64,12 +63,13 @@ dev = [
     "pytest-flask",
     "pytest-docker",
     "fakeredis",
-    "schemathesis < 4",
+    "schemathesis >=4,<5",
     "build",
     "wheel",
-    "setuptools_scm",
+    "setuptools-scm",
     "pytest-playwright",
     "playwright",
+    "pyright",
 ]
 
 [project.urls]
@@ -130,6 +130,7 @@ reportIncompatibleMethodOverride = "none"
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
+exclude-newer = "1 week"
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
   "sys_platform == 'linux' and platform_machine == 'aarch64'",

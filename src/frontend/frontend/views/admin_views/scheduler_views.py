@@ -1,17 +1,21 @@
+from typing import Any
+
 from flask import render_template, request
+from flask.typing import ResponseReturnValue
 from flask.views import MethodView
 from models.admin import ActiveJob, FailedJob, Job, QueueStatus, SchedulerDashboardData, WorkerStats
 from models.task import TaskHistoryResponse
+from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.utils.router_helpers import is_htmx_request
-from frontend.views.admin_views.admin_mixin import AdminMixin
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 from frontend.views.base_view import BaseView
 
 
-class SchedulerView(AdminMixin, BaseView):
+class SchedulerView(AdminBaseView):
     model = Job
     icon = "calendar-days"
     htmx_list_template = "schedule/dashboard.html"
@@ -35,7 +39,7 @@ class SchedulerView(AdminMixin, BaseView):
             case _:
                 return "scheduled"
 
-    def get(self, initial_tab: str | None = None, **kwargs) -> tuple[str, int]:
+    def get(self, initial_tab: str | None = None, **kwargs: Any) -> ResponseReturnValue:
         """Render the main scheduler dashboard"""
         try:
             selected_tab = self._resolve_tab(initial_tab)
@@ -68,6 +72,8 @@ class SchedulerView(AdminMixin, BaseView):
 
             return render_template("schedule/dashboard.html", **context), 200
 
+        except HTTPException:
+            raise
         except Exception as e:
             from frontend.log import logger
 
@@ -86,6 +92,8 @@ class ScheduleJobsAPI(MethodView):
             jobs = DataPersistenceLayer().get_objects(Job)
             jobs.sort(key=lambda job: (job.next_run_time is None, job.next_run_time or ""))
             return render_template("schedule/jobs_table.html", jobs=jobs)
+        except HTTPException:
+            raise
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return BaseView.render_response_notification({"error": f"Failed to load jobs: {exc}"}), 500
 
@@ -102,6 +110,8 @@ class ScheduleQueuesAPI(MethodView):
             queues = persistence.get_objects(QueueStatus)
             worker_stats = persistence.get_object(WorkerStats)
             return render_template("schedule/queue_cards.html", queues=queues, worker_stats=worker_stats)
+        except HTTPException:
+            raise
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return BaseView.render_response_notification({"error": f"Failed to load queues: {exc}"}), 500
 
@@ -117,6 +127,8 @@ class ScheduleActiveJobsAPI(MethodView):
             active_jobs = DataPersistenceLayer().get_objects(ActiveJob)
             active_jobs.sort(key=lambda job: job.started_at or "")
             return render_template("schedule/active_jobs.html", active_jobs=active_jobs)
+        except HTTPException:
+            raise
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return BaseView.render_response_notification({"error": f"Failed to load active jobs: {exc}"}), 500
 
@@ -132,6 +144,8 @@ class ScheduleFailedJobsAPI(MethodView):
             failed_jobs = DataPersistenceLayer().get_objects(FailedJob)
             failed_jobs.sort(key=lambda job: job.failed_at or "", reverse=True)
             return render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
+        except HTTPException:
+            raise
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return BaseView.render_response_notification({"error": f"Failed to load failed jobs: {exc}"}), 500
 
@@ -164,6 +178,8 @@ class ScheduleHistoryAPI(MethodView):
                 total_failures=task_history.totals.failures,
                 overall_success_rate=task_history.totals.overall_success_rate,
             )
+        except HTTPException:
+            raise
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return BaseView.render_response_notification({"error": f"Failed to load history: {exc}"}), 500
 

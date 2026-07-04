@@ -33,6 +33,7 @@ spec:
                 configMapKeyRef:
                   name: taranis-config
                   key: TARANIS_BASE_PATH
+                  optional: true
             - name: JWT_SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -43,6 +44,12 @@ spec:
                 secretKeyRef:
                   name: taranis-secrets
                   key: API_KEY
+            - name: BOT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: BOT_API_KEY
+                  optional: true
             - name: PRE_SEED_PASSWORD_ADMIN
               valueFrom:
                 secretKeyRef:
@@ -113,10 +120,7 @@ spec:
             - name: TARANIS_CORE_URL
               value: http://core:8080/api
             - name: APPLICATION_ROOT
-              valueFrom:
-                configMapKeyRef:
-                  name: taranis-config
-                  key: TARANIS_BASE_PATH
+              value: "$(TARANIS_BASE_PATH)frontend"
             - name: JWT_SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -243,9 +247,26 @@ spec:
                 configMapKeyRef:
                   name: taranis-config
                   key: TARANIS_BASE_PATH
+                  optional: true
           ports:
             - containerPort: 8080
               name: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 90
+            timeoutSeconds: 30
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 90
+            timeoutSeconds: 30
+            failureThreshold: 5
           resources:
             limits:
               cpu: "2"
@@ -293,21 +314,23 @@ spec:
           readinessProbe:
             exec:
               command:
-                - /bin/sh
-                - -c
-                - python -c "import os, redis; redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None).ping()"
-            initialDelaySeconds: 30
-            periodSeconds: 15
+                - taranis-worker-healthcheck
+                - --mode
+                - worker
+            initialDelaySeconds: 20
+            periodSeconds: 30
             timeoutSeconds: 10
+            failureThreshold: 3
           livenessProbe:
             exec:
               command:
-                - /bin/sh
-                - -c
-                - python -c "import os, redis; redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None).ping()"
-            initialDelaySeconds: 60
+                - taranis-worker-healthcheck
+                - --mode
+                - worker
+            initialDelaySeconds: 20
             periodSeconds: 30
             timeoutSeconds: 10
+            failureThreshold: 3
           resources:
             limits:
               cpu: "2"
@@ -352,21 +375,23 @@ spec:
           readinessProbe:
             exec:
               command:
-                - /bin/sh
-                - -c
-                - python -c "import os, redis; redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None).ping()"
-            initialDelaySeconds: 30
-            periodSeconds: 15
+                - taranis-worker-healthcheck
+                - --mode
+                - worker
+            initialDelaySeconds: 20
+            periodSeconds: 30
             timeoutSeconds: 10
+            failureThreshold: 3
           livenessProbe:
             exec:
               command:
-                - /bin/sh
-                - -c
-                - python -c "import os, redis; redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None).ping()"
-            initialDelaySeconds: 60
+                - taranis-worker-healthcheck
+                - --mode
+                - worker
+            initialDelaySeconds: 20
             periodSeconds: 30
             timeoutSeconds: 10
+            failureThreshold: 3
           resources:
             limits:
               cpu: "4"
@@ -414,21 +439,23 @@ spec:
           readinessProbe:
             exec:
               command:
-                - /bin/sh
-                - -c
-                - python -c "import os, redis; r = redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None); r.get('rq:cron:leader') is not None or exit(1)"
+                - taranis-worker-healthcheck
+                - --mode
+                - cron
             initialDelaySeconds: 30
-            periodSeconds: 15
+            periodSeconds: 30
             timeoutSeconds: 10
+            failureThreshold: 3
           livenessProbe:
             exec:
               command:
-                - /bin/sh
-                - -c
-                - python -c "import os, redis; r = redis.from_url(os.getenv('REDIS_URL', 'redis://redis:6379/0'), password=os.getenv('REDIS_PASSWORD') or None); r.get('rq:cron:leader') is not None or exit(1)"
-            initialDelaySeconds: 60
+                - taranis-worker-healthcheck
+                - --mode
+                - cron
+            initialDelaySeconds: 30
             periodSeconds: 30
             timeoutSeconds: 10
+            failureThreshold: 3
           resources:
             limits:
               cpu: "1"

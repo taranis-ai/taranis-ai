@@ -1,0 +1,14 @@
+{% from "assess/sidebar/filter_token_select.html" import filter_token_select %}
+{% set filter_select = language_filter_select | default({"options": [], "selected_items": []}) %}
+
+{# djlint:off #}
+{{ filter_token_select(
+  id="language-filter",
+  placeholder="Select languages",
+  selected_items=filter_select.selected_items,
+  options=filter_select.options,
+  input_name="language",
+  icon="language",
+  no_results_text="No languages found."
+) }}
+{# djlint:on #}

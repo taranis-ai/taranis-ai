@@ -24,14 +24,13 @@ def templates_dir(monkeypatch, tmp_path):
     [
         pytest.param("report_template.html", "report_template.html", id="relative-in-dir"),
         pytest.param("../secrets.txt", "", id="parent-traversal"),
-        pytest.param("inside.html", "inside.html", id="absolute-in-dir"),
+        pytest.param("inside.html", "", id="absolute-in-dir"),
         pytest.param("outside.txt", "", id="absolute-outside-dir"),
     ],
 )
 def test_get_presenter_template_path(templates_dir, tmp_path, template_ref, expected):
     if template_ref == "inside.html":
         template_ref = str(templates_dir / template_ref)
-        expected = (templates_dir / expected).resolve().as_posix()
     elif template_ref == "outside.txt":
         template_ref = str(tmp_path / template_ref)
     elif expected:

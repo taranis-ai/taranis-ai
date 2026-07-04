@@ -1,4 +1,4 @@
-from flask import Blueprint, Flask, jsonify, request
+from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
@@ -44,7 +44,7 @@ class StoryClusters(MethodView):
     def get(self):
         days = int(request.args.get("days", 7))
         limit = int(request.args.get("limit", 12))
-        return jsonify(StoryService.get_story_clusters(days, limit))
+        return StoryService.get_story_clusters(days, limit)
 
 
 class ClusterByType(MethodView):
@@ -63,7 +63,7 @@ class DeleteTag(MethodView):
     @auth_required()
     def delete(self, tag_name: str):
         NewsItemTagService.delete_tags_by_name(tag_name)
-        return {"message": f"Cluster {tag_name} deleted"}, 200
+        return {"message": "Cluster deleted"}, 200
 
 
 class BuildInfo(MethodView):

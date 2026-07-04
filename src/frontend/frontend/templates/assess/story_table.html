@@ -1,11 +1,12 @@
 {% from "assess/story_card.html" import story_card with context %}
-<div id="assess" data-testid="assess">
+<div id="assess" data-testid="assess" data-tour-target="assess-page">
   {% set actions = actions | default([]) %}
   {% set pagination = pagination | default({}) %}
 
   <div
     id="assess-container"
     class="p-4"
+    data-selection-key="{{ assess_selection_key | default('') }}"
     @keyup.escape.window="clearSelection()"
     {# djlint:off #}
     x-data='{
@@ -13,9 +14,13 @@
       storyIds: [],
       storyImportantMap: {},
       storyReadMap: {},
+      pruneToVisibleOnNextInit: false,
       showHints: false,
       init() {
+        this.restoreSelection();
         this.refreshStoryMeta();
+        this.pruneSelectionToVisible();
+        this.$nextTick(() => this.syncSelectedCardState());
         const storyList = this.$refs.storyList || document.querySelector("#story-list");
         if (storyList) {
           const observer = new MutationObserver(() => {
@@ -23,8 +28,53 @@
           });
           observer.observe(storyList, { childList: true, subtree: true });
         }
-        this.$watch("storyIds", ids => {
-          this.selectedItems = this.selectedItems.filter(id => ids.includes(id));
+        this.$watch("selectedItems", () => {
+          this.persistSelection();
+          this.syncSelectedCardState();
+        });
+      },
+      selectionKey() {
+        return this.$root.dataset.selectionKey || "";
+      },
+      restoreSelection() {
+        const state = window.assessSelectionState || {};
+        if (state.key !== this.selectionKey()) {
+          window.assessSelectionState = { key: this.selectionKey(), selectedItems: [], storyImportantMap: {}, storyReadMap: {} };
+          return;
+        }
+        this.selectedItems = Array.isArray(state.selectedItems) ? [...new Set(state.selectedItems)] : [];
+        this.storyImportantMap = state.storyImportantMap || {};
+        this.storyReadMap = state.storyReadMap || {};
+        this.pruneToVisibleOnNextInit = state.pruneToVisibleOnNextInit === true;
+      },
+      persistSelection() {
+        window.assessSelectionState = {
+          key: this.selectionKey(),
+          selectedItems: [...new Set(this.selectedItems)],
+          storyImportantMap: this.storyImportantMap,
+          storyReadMap: this.storyReadMap,
+          pruneToVisibleOnNextInit: this.pruneToVisibleOnNextInit,
+        };
+      },
+      pruneSelectionToVisible() {
+        if (!this.pruneToVisibleOnNextInit) return;
+        const visibleIds = new Set(this.storyIds);
+        this.selectedItems = this.selectedItems.filter(id => visibleIds.has(id));
+        this.pruneToVisibleOnNextInit = false;
+        this.persistSelection();
+      },
+      syncSelectedCardState() {
+        const storyList = this.$refs.storyList || document.querySelector("#story-list");
+        if (!storyList) return;
+        const selectedIds = new Set(this.selectedItems);
+        storyList.querySelectorAll("article[data-story-id]").forEach(node => {
+          const selected = selectedIds.has(node.dataset.storyId);
+          const read = node.dataset.storyRead === "true";
+          node.classList.toggle("bg-primary/5", selected);
+          node.classList.toggle("border-primary", selected || !read);
+          node.classList.toggle("border-base-200", !selected && read);
+          node.classList.toggle("shadow-md", selected);
+          node.setAttribute("aria-selected", selected.toString());
         });
       },
       toggleSelection(id) {
@@ -61,8 +111,10 @@
           readMap[id] = node.dataset.storyRead === "true";
         });
         this.storyIds = Array.from(new Set(ids));
-        this.storyImportantMap = importantMap;
-        this.storyReadMap = readMap;
+        this.storyImportantMap = { ...this.storyImportantMap, ...importantMap };
+        this.storyReadMap = { ...this.storyReadMap, ...readMap };
+        this.persistSelection();
+        this.syncSelectedCardState();
       },
       selectAll() {
         this.refreshStoryMeta();
@@ -94,10 +146,9 @@
     >
 
     {% if stories %}
+      {% include "assess/bookmarks_bar.html" %}
       {% include "assess/assess_top_bar.html" %}
-      <div id="story-list" x-ref="storyList">
-        {% for story in stories %}{{ story_card(story) }}{% endfor %}
-      </div>
+      <div id="story-list" x-ref="storyList">{% for story in stories %}{{ story_card(story) }}{% endfor %}</div>
       {% if pagination %}
         {% set hx_target = request.headers.get("HX-Target") %}
         <div id="story-pagination" {% if pagination.infinite_scroll and hx_target == 'story-list' %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>

@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import AliasChoices, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel as PydanticBaseModel
 
 from models.base import TaranisBaseModel
 
@@ -43,6 +44,13 @@ class CronTaskSpec(TaranisBaseModel):
         return self
 
 
+class TaskResultEnvelope(TaranisBaseModel):
+    message: str
+    reason: str | None = None
+    retryable: bool = False
+    data: Any = None
+
+
 class Task(TaranisBaseModel):
     """Task execution result model"""
 
@@ -52,10 +60,11 @@ class Task(TaranisBaseModel):
     _cache_timeout = 1
 
     id: str
+    job_id: str | None = None
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: Any | None = None
+    result: TaskResultEnvelope
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None
@@ -66,13 +75,13 @@ class TaskSubmission(TaranisBaseModel):
     _model_name = "task_submission"
     _pretty_name = "Task Submission"
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, coerce_numbers_to_str=False)
 
     id: str = Field(min_length=1, validation_alias=AliasChoices("id", "task_id"), serialization_alias="id")
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: Any | None = None
+    result: TaskResultEnvelope
     status: str = Field(min_length=1)
 
     @field_validator("id", "status", mode="after")
@@ -91,9 +100,11 @@ class TaskSubmission(TaranisBaseModel):
         stripped = value.strip()
         return stripped or None
 
-    @field_validator("result")
+    @field_validator("result", mode="before")
     @classmethod
     def ensure_json_serializable_result(cls, value: Any) -> Any:
+        if isinstance(value, PydanticBaseModel):
+            value = value.model_dump(mode="json", exclude_none=False)
         try:
             json.dumps(value)
         except (TypeError, ValueError) as exc:
@@ -103,10 +114,11 @@ class TaskSubmission(TaranisBaseModel):
 
 class TaskHistoryEntry(TaranisBaseModel):
     id: str
+    job_id: str | None = None
     task: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: Any | None = None
+    result: TaskResultEnvelope
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None

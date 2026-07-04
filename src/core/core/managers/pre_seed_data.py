@@ -178,11 +178,12 @@ workers = [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
             {"parameter": "BOT_API_KEY"},
-            {"parameter": "BOT_ENDPOINT", "value": "http://summary_bot:8000"},
+            {"parameter": "SUMMARY_ENDPOINT", "value": "http://summary_bot:8000"},
+            {"parameter": "TITLE_ENDPOINT"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
-        "description": "Bot for summarizing stories",
+        "description": "Bot for summarizing stories & generating titles",
     },
     {
         "type": "WORDLIST_BOT",
@@ -332,6 +333,22 @@ workers = [
         ],
     },
     {
+        "type": "KAFKA_PUBLISHER",
+        "name": "KAFKA Publisher",
+        "description": "Publisher for publishing products to a Kafka topic",
+        "parameters": [
+            {"parameter": "KAFKA_TOPIC", "rules": "required"},
+            {"parameter": "KAFKA_BOOTSTRAP_SERVERS", "rules": "required"},
+            {"parameter": "KAFKA_SECURITY_PROTOCOL", "rules": "optional"},
+            {"parameter": "KAFKA_SASL_MECHANISM", "rules": "optional"},
+            {"parameter": "KAFKA_SASL_USERNAME", "rules": "optional"},
+            {"parameter": "KAFKA_SASL_PASSWORD", "rules": "optional"},
+            {"parameter": "KAFKA_ACKS", "rules": "optional"},
+            {"parameter": "KAFKA_RETRIES", "rules": "optional"},
+            {"parameter": "KAFKA_SEND_TIMEOUT", "rules": "optional"},
+        ],
+    },
+    {
         "type": "MISP_CONNECTOR",
         "name": "MISP Connector",
         "description": "Connetor for MISP",
@@ -404,7 +421,7 @@ bots = [
     },
     {
         "name": "Summary Bot",
-        "description": "Bot for summarizing stories",
+        "description": "Bot for summarizing stories & generating titles",
         "type": "SUMMARY_BOT",
     },
     {
@@ -625,7 +642,7 @@ product_types = [
             {"parameter": "CONVERT_FROM", "type": "text", "value": "md", "rules": "one_of:html|md"},
             {"parameter": "CONVERT_TO", "type": "text", "value": "odt", "rules": "one_of:docx|odt"},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "Default .html -> .docx Presenter",
@@ -636,7 +653,7 @@ product_types = [
             {"parameter": "CONVERT_FROM", "type": "text", "value": "html", "rules": "one_of:html|md"},
             {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "Default html tailwindcss Presenter",
@@ -648,7 +665,7 @@ product_types = [
             {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
             {"parameter": "render_options", "type": "text", "value": ""},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "Default html chartjs Presenter",
@@ -660,7 +677,7 @@ product_types = [
             {"parameter": "CONVERT_TO", "type": "text", "value": "docx", "rules": "one_of:docx|odt"},
             {"parameter": "render_options", "type": "text", "value": ""},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "Default PDF Presenter",
@@ -669,7 +686,7 @@ product_types = [
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "pdf_template.html"},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "Default TEXT Presenter",
@@ -678,7 +695,7 @@ product_types = [
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "text_template.txt"},
         ],
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
     {
         "title": "CERT Daily Report",
@@ -688,13 +705,13 @@ product_types = [
             {"parameter": "TEMPLATE_PATH", "type": "text", "value": "cert_at_daily_report.html"},
             {"parameter": "render_options", "type": "text", "value": ""},
         ],
-        "report_types": [4],
+        "report_types": ["CERT Report"],
     },
     {
         "title": "STIXv2.1 Report Exporter",
         "description": "STIXv2.1 Report Exporter",
         "type": "STIX_PRESENTER",
-        "report_types": [1, 2, 3, 4],
+        "report_types": ["OSINT Report", "Disinformation", "Vulnerability Report", "CERT Report"],
     },
 ]
 

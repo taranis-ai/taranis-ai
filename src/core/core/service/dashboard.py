@@ -11,16 +11,21 @@ from core.service.health import get_health_response
 
 class DashboardService:
     @staticmethod
-    def _format_worker_status(worker_status: dict[str, dict[str, int | str | None]]) -> dict[str, dict[str, int]]:
-        return {
-            worker: {
-                "successes": int(stats.get("successes") or 0),
-                "failures": int(stats.get("failures") or 0),
-                "success_pct": int(stats.get("success_pct") or 0),
-                "total": int(stats.get("total") or 0),
-            }
-            for worker, stats in worker_status.items()
+    def _count_user_scheduled_jobs(schedules: dict) -> int:
+        if not isinstance(schedules, dict):
+            return 0
+
+        if "items" not in schedules:
+            return int(schedules.get("total_count", 0) or 0)
+
+        items = schedules.get("items", [])
+        if not isinstance(items, list):
+            return int(schedules.get("total_count", 0) or 0)
+
+        housekeeping_job_ids = {
+            queue_manager.TOKEN_CLEANUP_JOB_ID,
         }
+        return sum(1 for item in items if isinstance(item, dict) and item.get("id") not in housekeeping_job_ids)
 
     @classmethod
     def get_dashboard_data(cls) -> dict:
@@ -31,10 +36,10 @@ class DashboardService:
         report_items_in_progress = ReportItem.count_all(False)
         latest_collected = NewsItem.latest_collected()
         schedules, _ = queue_manager.queue_manager.get_scheduled_jobs()
-        schedule_length = schedules.get("total_count", 0) if isinstance(schedules, dict) else 0
+        schedule_length = cls._count_user_scheduled_jobs(schedules)
         conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         health_status, _ = get_health_response()
-        worker_status = cls._format_worker_status(Task.get_status_counts_by_task())
+        task_status_totals = Task.get_status_totals()
         return {
             "items": [
                 {
@@ -47,7 +52,7 @@ class DashboardService:
                     "schedule_length": schedule_length,
                     "conflict_count": conflict_count,
                     "health_status": health_status,
-                    "worker_status": worker_status,
+                    "task_status_totals": task_status_totals,
                 }
             ]
         }

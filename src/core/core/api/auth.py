@@ -57,7 +57,7 @@ class AuthMethod(MethodView):
 class UserChangePassword(MethodView):
     @jwt_required()
     def post(self):
-        logger.debug(f"Received request to change password. - {request.json}")
+        logger.debug("Received request to change password")
         if not (json_data := request.json):
             return {"error": "No input data provided"}, 400
         return auth_manager.change_password(

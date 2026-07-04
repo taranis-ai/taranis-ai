@@ -3,7 +3,7 @@ import datetime
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
-import requests
+import niquests as requests
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
@@ -188,7 +188,7 @@ class RTCollector(BaseWebCollector):
 
     def update_rt_favicon(self, osint_source_id: str):
         icon_url = f"{urlparse(self.base_url).scheme}://{urlparse(self.base_url).netloc}/static/images/favicon.png"
-        r = requests.get(icon_url, headers=self.headers, proxies=self.proxies)
+        r = self._fetch_icon(icon_url)
         if not r.ok:
             return None
 

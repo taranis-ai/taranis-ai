@@ -12,9 +12,10 @@ HealthStatus = Literal["up", "down", "n/a"]
 
 def get_health_response() -> tuple[dict[str, bool | dict[str, HealthStatus]], int]:
     database_status = check_database()
-    services: dict[str, HealthStatus] = {"database": database_status}
-    services["seed_data"] = check_seed_data() if database_status == "up" else "down"
-
+    services: dict[str, HealthStatus] = {
+        "database": database_status,
+        "seed_data": check_seed_data() if database_status == "up" else "n/a",
+    }
     if broker_health_applicable():
         broker_status = check_broker()
         services["broker"] = broker_status
@@ -45,11 +46,9 @@ def check_seed_data() -> HealthStatus:
         from core.model.osint_source import OSINTSource
         from core.model.product_type import ProductType
 
-        manual_source_exists = OSINTSource.get("manual") is not None
+        manual_source_exists = OSINTSource.get_by_key("manual") is not None
         product_type_exists = ProductType.get_first(db.select(ProductType)) is not None
         return "up" if manual_source_exists and product_type_exists else "down"
-    except SQLAlchemyError:
-        return "down"
     except Exception:
         return "down"
 

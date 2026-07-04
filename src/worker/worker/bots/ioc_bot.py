@@ -4,6 +4,7 @@ from ioc_finder import find_iocs
 from worker.log import logger
 
 from .base_bot import BaseBot
+from .tagging_content import _news_item_content_for_tagging
 
 
 class IOCBot(BaseBot):
@@ -35,9 +36,10 @@ class IOCBot(BaseBot):
         for i, story in enumerate(data):
             if i % max(len(data) // 10, 1) == 0:
                 logger.debug(f"Extracting IOCs from {story['id']}: {i}/{len(data)}")
-            story_content = " ".join(news_item["content"] for news_item in story["news_items"])
-            iocs = self.extract_ioc(story_content)
-            extracted_keywords[story["id"]] = iocs
+            for news_item in story["news_items"]:
+                news_item_content = _news_item_content_for_tagging(news_item)
+                iocs = self.extract_ioc(news_item_content)
+                extracted_keywords[news_item["id"]] = iocs
         logger.info({"message": f"Extracted {len(extracted_keywords)} IOCs"})
         return extracted_keywords
 

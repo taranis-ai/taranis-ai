@@ -26,10 +26,10 @@ email_publisher_admin_input_no_smtp_address = {
 
 
 product_text = {
-    "id": 1,
+    "id": "0a428364-3af6-7a35-95fe-9c6f1f9df204",
     "title": "Test_Text_Product",
     "type": "text_presenter",
-    "type_id": 3,
+    "type_id": "0a428364-3af6-7a35-95fe-9c6f1f9df205",
     "mime_type": "text/plain",
     "report_items": [{"title": "test title"}],
 }

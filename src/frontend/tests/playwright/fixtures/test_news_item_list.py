@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import pytest
 
@@ -751,6 +751,8 @@ def news_items_list(app, fake_source):
     ]
 
     for index, item in enumerate(items):
+        if legacy_id := item.get("id"):
+            item["id"] = str(uuid5(NAMESPACE_URL, f"taranis-e2e-news-item:{legacy_id}:{seed}-{index}"))
         item["title"] = f"{item['title']} [{seed}-{index}]"
         if link := item.get("link"):
             separator = "&" if "?" in link else "?"

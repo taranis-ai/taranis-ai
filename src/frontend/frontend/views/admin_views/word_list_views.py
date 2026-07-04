@@ -7,42 +7,42 @@ from models.admin import WordList
 from frontend.auth import admin_required
 from frontend.config import Config
 from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_count
 from frontend.log import logger
-from frontend.views.admin_views.admin_mixin import AdminMixin
-from frontend.views.base_view import BaseView
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 
 
-class WordListView(AdminMixin, BaseView):
+class WordListView(AdminBaseView):
     model = WordList
     icon = "chat-bubble-bottom-center-text"
     _index = 170
 
     @classmethod
-    def import_view(cls, error=None):
+    def import_view(cls, error: str | None = None):
         return render_template(f"{cls.model_name().lower()}/{cls.model_name().lower()}_import.html", error=error)
 
     @classmethod
     def import_post_view(cls):
         word_lists = request.files.get("file")
         if not word_lists:
-            notification = render_template("notification/index.html", notification={"message": "No file provided", "error": True}, oob=True)
+            notification = render_template("notification/index.html", notification={"message": "No file provided", "error": True}, oob=False)
             return Response(notification, status=200)
         data = word_lists.read()
         try:
             data = json.loads(data)
         except ValueError as exc:
-            notification = render_template("notification/index.html", notification={"message": str(exc), "error": True}, oob=True)
+            notification = render_template("notification/index.html", notification={"message": str(exc), "error": True}, oob=False)
             return Response(notification, status=200)
 
         response = CoreApi().import_word_lists(data)
 
         if not response or not response.ok:
             if response:
-                notification = cls.get_notification_from_response(response, oob=True)
+                notification = cls.get_notification_from_response(response, oob=False)
             else:
                 notification = render_template(
-                    "notification/index.html", notification={"message": "Failed to import word lists", "error": True}, oob=True
+                    "notification/index.html", notification={"message": "Failed to import word lists", "error": True}, oob=False
                 )
 
             return Response(notification, status=200)
@@ -64,6 +64,7 @@ class WordListView(AdminMixin, BaseView):
     @classmethod
     @admin_required()
     def load_default_word_lists(cls):
+        dpl = DataPersistenceLayer()
         response = CoreApi().load_default_word_lists()
         if not response:
             logger.error("Failed to load default word lists")
@@ -71,7 +72,13 @@ class WordListView(AdminMixin, BaseView):
 
         core_response = CoreApi().import_word_lists(response)
 
+        if not core_response.ok:
+            return cls.get_notification_from_response(core_response), core_response.status_code
+
         response = cls.get_notification_from_response(core_response)
+
+        dpl.invalidate_cache_by_object(cls.model)
+        dpl.invalidate_model_cache_locally(cls.model)
 
         table, table_response = cls.render_list()
         if table_response == 200:
@@ -80,9 +87,17 @@ class WordListView(AdminMixin, BaseView):
 
     @classmethod
     @admin_required()
-    def update_word_lists(cls, word_list_id: int | None = None):
+    def update_word_lists(cls, word_list_id: str | None = None):
+        dpl = DataPersistenceLayer()
         core_response = CoreApi().update_word_lists(word_list_id)
-        response = cls.get_notification_from_response(core_response)
+        if core_response is None or not core_response.ok:
+            response = cls.render_worker_task_notification(core_response)
+            return response, core_response.status_code if core_response is not None else 500
+
+        response = cls.render_worker_task_notification(core_response)
+
+        dpl.invalidate_cache_by_object(cls.model)
+        dpl.invalidate_model_cache_locally(cls.model)
 
         table, table_response = cls.render_list()
         if table_response == 200:

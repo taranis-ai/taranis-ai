@@ -106,6 +106,48 @@ class TestBotsApi(BaseTest):
 
         assert attributes == expected_attributes
 
+    def test_news_item_language_update_rejects_invalid_language(self, client, stories, auth_header, api_header):
+        response = client.get(f"/api/assess/story/{stories[0]}", headers=auth_header)
+        self.assert_json_ok(response)
+        news_item_id = response.get_json()["news_items"][0]["id"]
+
+        response = client.put(f"{self.base_uri}/news-item/{news_item_id}", json={"language": "invalid_language"}, headers=api_header)
+
+        assert response.status_code == 400
+        error = response.get_json()["error"]
+        assert "Invalid BCP 47 language tag" in error
+        assert "invalid_language" not in error
+
+    def test_news_item_attribute_update_invalidates_story_report_views(self, client, stories, auth_header, api_header, monkeypatch):
+        response = client.get(f"/api/assess/story/{stories[0]}", headers=auth_header)
+        self.assert_json_ok(response)
+        news_item_id = response.get_json()["news_items"][0]["id"]
+
+        invalidation_calls = []
+
+        def capture_invalidation(status_code, **kwargs):
+            invalidation_calls.append((status_code, kwargs))
+            return 0
+
+        monkeypatch.setattr("core.api.bots.invalidate_frontend_cache_on_success", capture_invalidation)
+
+        response = client.put(
+            f"{self.base_uri}/news-item/{news_item_id}/attributes",
+            json={"attributes": [{"key": "sentiment_category", "value": "neutral"}]},
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        assert invalidation_calls == [
+            (
+                200,
+                {
+                    "scopes": ("assess_views", "story_report_views"),
+                    "object_ids": {"news_item": news_item_id},
+                },
+            )
+        ]
+
 
 class TestTaggingBotsResults(BaseTest):
     base_uri = "/api/tasks"
@@ -117,7 +159,9 @@ class TestTaggingBotsResults(BaseTest):
 
             structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
 
-            expected_tags = wordlist_bot_result["result"].get(story_id, {})
+            expected_tags = {}
+            for news_item in response.get_json().get("news_items", []):
+                expected_tags |= wordlist_bot_result["result"]["data"]["result"].get(news_item["id"], {})
             assert structured_tags == expected_tags
 
             attr_by_key = {a.get("key"): a.get("value") for a in response.get_json().get("attributes", [])}
@@ -141,8 +185,9 @@ class TestTaggingBotsResults(BaseTest):
             structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
 
             expected = {}
-            expected |= wordlist_bot_result["result"].get(story_id, {})
-            expected |= ioc_bot_result["result"].get(story_id, {})
+            for news_item in response.get_json().get("news_items", []):
+                expected |= wordlist_bot_result["result"]["data"]["result"].get(news_item["id"], {})
+                expected |= ioc_bot_result["result"]["data"]["result"].get(news_item["id"], {})
 
             assert structured_tags == expected
 
@@ -165,9 +210,10 @@ class TestTaggingBotsResults(BaseTest):
             structured_tags = {tag["name"]: tag["tag_type"] for tag in response.get_json().get("tags", [])}
 
             expected = {}
-            expected |= wordlist_bot_result["result"].get(story_id, {})
-            expected |= ioc_bot_result["result"].get(story_id, {})
-            expected |= nlp_bot_result["result"].get(story_id, {})
+            for news_item in response.get_json().get("news_items", []):
+                expected |= wordlist_bot_result["result"]["data"]["result"].get(news_item["id"], {})
+                expected |= ioc_bot_result["result"]["data"]["result"].get(news_item["id"], {})
+                expected |= nlp_bot_result["result"]["data"]["result"].get(news_item["id"], {})
 
             assert structured_tags == expected
 
@@ -186,19 +232,22 @@ class TestConnectorTaskResults(BaseTest):
             "task_id": "connector_task_320d4589-cd71-4722-aa28-ea5530e99830",
             "status": "SUCCESS",
             "result": {
-                "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
-                "connector_type": "MISP_CONNECTOR",
-                "action": "synced",
                 "message": "Story synced to MISP",
-                "sync_results": [
-                    {
-                        "type": "misp_sync_story",
-                        "version": 1,
-                        "story_id": story_id,
-                        "misp_event_uuid": misp_event_uuid,
-                        "news_item_ids_to_mark_external": news_item_ids,
-                    }
-                ],
+                "retryable": False,
+                "data": {
+                    "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
+                    "connector_type": "MISP_CONNECTOR",
+                    "action": "synced",
+                    "sync_results": [
+                        {
+                            "type": "misp_sync_story",
+                            "version": 1,
+                            "story_id": story_id,
+                            "misp_event_uuid": misp_event_uuid,
+                            "news_item_ids_to_mark_external": news_item_ids,
+                        }
+                    ],
+                },
             },
             "task": "connector_task",
         }
@@ -208,11 +257,14 @@ class TestConnectorTaskResults(BaseTest):
             "task_id": "connector_task_proposal_320d4589-cd71-4722-aa28-ea5530e99830",
             "status": "SUCCESS",
             "result": {
-                "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
-                "connector_type": "MISP_CONNECTOR",
-                "action": "proposed",
                 "message": "1 proposals submitted to MISP",
-                "sync_results": [],
+                "retryable": False,
+                "data": {
+                    "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
+                    "connector_type": "MISP_CONNECTOR",
+                    "action": "proposed",
+                    "sync_results": [],
+                },
             },
             "task": "connector_task",
         }
@@ -243,8 +295,8 @@ class TestConnectorTaskResults(BaseTest):
 
         attr_by_key = {attr["key"]: attr["value"] for attr in updated_story["attributes"]}
         assert attr_by_key["misp_event_uuid"] == misp_event_uuid
-        assert updated_story["last_change"] == "external"
-        assert updated_story["news_items"][0]["last_change"] == "external"
+        assert updated_story["last_change"] == "connector_74981521-4ba7-4216-b9ca-ebc00ffec29c"
+        assert updated_story["news_items"][0]["last_change"] == "connector_74981521-4ba7-4216-b9ca-ebc00ffec29c"
         assert updated_story["revision_count"] == original_story["revision_count"] + 1
 
     def test_misp_connector_result_is_idempotent(self, client, stories, auth_header, api_header):
@@ -295,9 +347,9 @@ class TestConnectorTaskResults(BaseTest):
         self.assert_json_ok(response)
         task_result = response.get_json()["result"]
 
-        assert task_result["action"] == "proposed"
         assert task_result["message"] == "1 proposals submitted to MISP"
-        assert task_result["sync_results"] == []
+        assert task_result["data"]["action"] == "proposed"
+        assert task_result["data"]["sync_results"] == []
 
         response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
         self.assert_json_ok(response)
@@ -320,11 +372,14 @@ class TestConnectorTaskResults(BaseTest):
                 "task_id": "connector_task_unknown",
                 "status": "SUCCESS",
                 "result": {
-                    "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
-                    "connector_type": "MISP_CONNECTOR",
-                    "action": "mixed",
                     "message": "Connector finished with mixed results",
-                    "sync_results": [{"type": "unknown_connector_result"}],
+                    "retryable": False,
+                    "data": {
+                        "connector_id": "74981521-4ba7-4216-b9ca-ebc00ffec29c",
+                        "connector_type": "MISP_CONNECTOR",
+                        "action": "mixed",
+                        "sync_results": [{"type": "unknown_connector_result"}],
+                    },
                 },
                 "task": "connector_task",
             },

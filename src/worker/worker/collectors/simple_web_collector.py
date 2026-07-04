@@ -1,7 +1,7 @@
 import datetime
 import logging
 
-import requests
+import niquests as requests
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector

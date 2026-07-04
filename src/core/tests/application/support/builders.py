@@ -76,7 +76,7 @@ def create_story(
 
 
 def build_report_payload(
-    report_item_type_id: int,
+    report_item_type_id: str,
     *,
     title: str | None = None,
     title_prefix: str = "Report",
@@ -99,6 +99,7 @@ def create_report(payload: dict[str, Any]):
     report_payload = deepcopy(payload)
     report, status = ReportItem.add(report_payload)
     assert status == 200
+    assert isinstance(report, ReportItem)
     persisted_report = ReportItem.get(report.id)
     assert persisted_report is not None
     return persisted_report
@@ -117,7 +118,7 @@ def create_osint_source(
     from core.model.osint_source import OSINTSource
 
     source = OSINTSource(
-        id=source_id or f"source-{uuid.uuid4()}",
+        id=source_id or str(uuid.uuid7()),
         name=name or f"Relevance Source {rank}",
         description=description,
         rank=rank,
@@ -127,3 +128,28 @@ def create_osint_source(
     db.session.add(source)
     db.session.commit()
     return source
+
+
+def build_import_user_payload(app, username: str, name: str | None = None) -> dict:
+    with app.app_context():
+        from core.model.organization import Organization
+        from core.model.role import Role
+
+        organization = Organization.find_by_name("The Earth")
+        role = Role.filter_by_name("User")
+        assert organization is not None
+        assert role is not None
+        return {
+            "username": username,
+            "name": name or username,
+            "organization": organization.id,
+            "roles": [role.id],
+        }
+
+
+def delete_user_by_username(app, username: str) -> None:
+    with app.app_context():
+        from core.model.user import User
+
+        if user := User.find_by_name(username):
+            User.delete(user.id)
