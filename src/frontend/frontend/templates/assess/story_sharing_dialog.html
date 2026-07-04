@@ -14,9 +14,11 @@
         <label class="select w-full mb-5">
           <span class="label">Connector</span>
           <select id="connector" name="connector" required class="validator select w-full">
-            <option selected disabled>Select a connector</option>
+            {% if connectors | length != 1 %}
+              <option selected disabled>Select a connector</option>
+            {% endif %}
             {% for option in connectors -%}
-              <option value="{{ option.id }}">{{ option.name }}</option>
+              <option value="{{ option.id }}" {% if connectors | length == 1 %}selected{% endif %}>{{ option.name }}</option>
             {% endfor -%}
           </select>
         </label>
@@ -43,3 +45,4 @@
     </form>
   </div>
 </dialog>
+
