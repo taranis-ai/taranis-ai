@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 from flask import abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
@@ -66,7 +66,7 @@ class StoryBookmarkView(BaseView):
         try:
             paging_data = PagingData(limit=1, order="position_asc", query_params={"limit": "1", "order": "position_asc"})
             bookmarks = DataPersistenceLayer().get_objects(StoryBookmark, paging_data)
-            return (bookmarks[0] if bookmarks else None), None
+            return (cast(StoryBookmark, bookmarks[0]) if bookmarks else None), None
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
@@ -77,10 +77,10 @@ class StoryBookmarkView(BaseView):
             return None, str(exc)
 
     @staticmethod
-    def _response_json(response) -> dict[str, Any]:
+    def _response_json(response: Any) -> dict[str, Any]:
         try:
             payload = response.json()
-        except (AttributeError, ValueError):
+        except AttributeError, ValueError:
             return {}
         return payload if isinstance(payload, dict) else {}
 

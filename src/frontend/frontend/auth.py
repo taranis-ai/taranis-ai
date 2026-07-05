@@ -54,9 +54,9 @@ def is_safe_redirect_target(next_target: str | None) -> bool:
         redirected_path = urlsplit(exc.new_url).path
         try:
             rule, _ = adapter.match(redirected_path, method="GET", return_rule=True)
-        except (RequestRedirect, NotFound, MethodNotAllowed):
+        except RequestRedirect, NotFound, MethodNotAllowed:
             return False
-    except (NotFound, MethodNotAllowed):
+    except NotFound, MethodNotAllowed:
         return False
 
     return rule.endpoint != "base.login"
