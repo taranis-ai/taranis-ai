@@ -898,15 +898,27 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             group_container.get_by_role("button", name="+ Add New Attribute").click()
             attribute_container = page.locator("#attribute-items-container-0")
-            expect(attribute_container.locator("input[name$='[title]']").first).to_be_visible()
-            expect(attribute_container.locator("input[name$='[title]']").first).to_have_attribute("required", "")
-            attribute_container.locator("input[name$='[title]']").first.fill(attribute_title)
+            first_attribute_title = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][0][title]']")
+            first_attribute_index = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][0][index]']")
+            expect(first_attribute_title).to_be_visible()
+            expect(first_attribute_title).to_have_attribute("required", "")
+            expect(first_attribute_index).to_have_value("0")
+            first_attribute_title.fill(attribute_title)
+
+            group_container.get_by_role("button", name="+ Add New Attribute").click()
+            second_attribute_title_input = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][1][title]']")
+            second_attribute_index = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][1][index]']")
+            expect(second_attribute_index).to_have_value("1")
+            second_attribute_title_input.fill("Secondary Attribute")
 
             attribute_select = attribute_container.locator("select[name$='[attribute_id]']").first
             expect(attribute_select).to_have_attribute("required", "")
             first_option_value = attribute_select.locator("option:not([disabled])").first.get_attribute("value")
             assert first_option_value, "Expected at least one attribute option"
             attribute_select.select_option(first_option_value)
+            attribute_container.locator("select[name='attribute_groups[0][attribute_group_items][1][attribute_id]']").select_option(
+                first_option_value
+            )
 
             attribute_container.locator("input[name$='[description]']").first.fill("Attribute description")
             attribute_required = attribute_container.locator("input[type='checkbox'][name$='[required]']").first

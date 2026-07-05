@@ -23,7 +23,7 @@
         <button type="button"
                 class="btn btn-primary"
                 hx-post="{{ url_for('admin.add_report_item_types_group_item') }}"
-                hx-vals='js:{"attribute_group_index": {{ group.index }}, "attribute_index": Math.max(-1, ...Array.from(document.querySelectorAll("#attribute-items-container-{{ group.index }} input[name$=\"[index]\"]")).map((input) => Number(input.value) || -1)) + 1}'
+                hx-vals='js:{"attribute_group_index": {{ group.index }}, "attribute_index": Math.max(-1, ...Array.from(document.querySelectorAll("#attribute-items-container-{{ group.index }} input[name$=\"[index]\"]")).map((input) => Number(input.value || -1))) + 1}'
                 hx-target="#attribute-items-container-{{ group.index }}"
                 hx-swap="beforeend">+ Add New Attribute</button>
 
