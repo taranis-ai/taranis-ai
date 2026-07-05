@@ -40,6 +40,27 @@ Release/container builds still use the packaged `taranis-models` from the lockfi
 taranis-ai
 ```
 
+## Operational CLI
+
+The core image also includes `taranis-cli` for direct administrative fixes from the core container.
+
+Set a local database-auth password for an existing user:
+
+```bash
+docker exec -it core taranis-cli set-password admin
+printf '%s\n' 'new-password' | docker exec -i core taranis-cli set-password admin --password-stdin
+kubectl exec -it deploy/core -- taranis-cli set-password admin
+```
+
+Replace an existing user's roles. Role arguments are exact role names or role IDs:
+
+```bash
+docker exec -it core taranis-cli set-roles user Admin
+kubectl exec -it deploy/core -- taranis-cli set-roles user Admin User
+```
+
+`set-roles` replaces the user's full role list. Prefer the interactive prompt or `--password-stdin` for passwords so secrets do not land in shell history.
+
 ## Frontend Cache Invalidation
 
 Core owns frontend cache invalidation for write operations.
