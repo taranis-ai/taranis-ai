@@ -34,6 +34,8 @@ TARANIS_TAG="${TARANIS_TAG:-latest}"
 PROJECT_NAME="${COMPOSE_PROJECT_NAME:-taranis-core-tls-test-$$}"
 PROBES="${TARANIS_TLS_PROBES:-30}"
 
+source "$ROOT_DIR/docker/compose_command.sh"
+
 export DOCKER_IMAGE_NAMESPACE
 export TARANIS_TAG
 export DB_DATABASE="${DB_DATABASE:-taranis}"
@@ -47,17 +49,7 @@ export PRE_SEED_PASSWORD_USER="${PRE_SEED_PASSWORD_USER:-user}"
 export REDIS_PASSWORD="${REDIS_PASSWORD:-}"
 export DEBUG="${DEBUG:-False}"
 
-if [[ -n "${COMPOSE_CMD:-}" ]]; then
-  # shellcheck disable=SC2206
-  COMPOSE=($COMPOSE_CMD)
-elif "$CONTAINER_CLI" compose version >/dev/null 2>&1; then
-  COMPOSE=("$CONTAINER_CLI" compose)
-elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE=(docker-compose)
-else
-  echo "Could not find docker compose. Set COMPOSE_CMD if your compose command is custom." >&2
-  exit 1
-fi
+resolve_compose_cmd
 
 TMP_DIR="$(mktemp -d)"
 export TARANIS_POSTGRES_TLS_DIR="$TMP_DIR"

@@ -24,21 +24,13 @@ RUN_ID="${LOAD_RUN_ID:-${GITHUB_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}}"
 PROJECT_NAME="${COMPOSE_PROJECT_NAME:-taranis-release-gate-load-$$}"
 LOAD_ARTIFACT_DIR="${LOAD_ARTIFACT_DIR:-${RUNNER_TEMP:-/tmp}/taranis-release-gate/load-${RUN_ID}}"
 
+source "$ROOT_DIR/docker/compose_command.sh"
+
 export DOCKER_IMAGE_NAMESPACE
 export TARANIS_TAG
 export LOAD_ARTIFACT_DIR
 
-if [[ -n "${COMPOSE_CMD:-}" ]]; then
-  # shellcheck disable=SC2206
-  COMPOSE=($COMPOSE_CMD)
-elif "$CONTAINER_CLI" compose version >/dev/null 2>&1; then
-  COMPOSE=("$CONTAINER_CLI" compose)
-elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE=(docker-compose)
-else
-  echo "Could not find docker compose. Set COMPOSE_CMD if your compose command is custom." >&2
-  exit 1
-fi
+resolve_compose_cmd
 
 compose_load() {
   "${COMPOSE[@]}" \
