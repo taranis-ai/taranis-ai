@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import pytest
 from base_e2e_test import BaseE2ETest
 from flask import url_for
+from htmx_helpers import with_htmx_wait
 from playwright.sync_api import Page, expect
 
 from tests.playwright.notification_helpers import dismiss_notifications
@@ -550,22 +551,22 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def load_word_list():
             page.goto(url_for("admin.word_lists", _external=True))
-            expect(page.locator("#word_list-table-container")).to_be_visible()
+            expect(page.get_by_test_id("word_list-table-container")).to_be_visible()
             page.screenshot(path="./tests/playwright/screenshots/docs_word_lists.png")
 
         def load_default_word_list():
-            load_default_button = page.get_by_role("button", name="Load default Word List")
+            load_default_button = page.get_by_test_id("load-default-word_list-button")
             expect(load_default_button).to_be_visible()
-            load_default_button.click()
+            with_htmx_wait(page, lambda: load_default_button.click())
             page.get_by_role("row", name="Name Description Words Actions").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-word_list-button")
             expect(delete_button).to_contain_text("Delete 9 Word List")
             self.highlight_element(delete_button).click()
-            page.get_by_role("button", name="Delete").click()
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Delete").click())
             dismiss_notifications(page)
 
         def add_word_list():
-            page.get_by_test_id("new-word_list-button").click()
+            with_htmx_wait(page, lambda: page.get_by_test_id("new-word_list-button").click())
             expect(page.locator("#word_list-form")).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
@@ -596,9 +597,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             # expect(page.get_by_test_id("word_list-table").get_by_role("link", name=word_list_name)).not_to_be_visible() # TODO: Wordlist table not rendered afer last element is deleted
 
         def import_export_word_lists():
-            page.get_by_role("button", name="Import").click()
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Import").click())
             page.get_by_role("button", name="Choose File").set_input_files(test_wordlist)
-            page.get_by_role("button", name="Submit").click()
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Submit").click())
+            expect(page.get_by_test_id("word_list-table-container")).to_be_visible()
+            expect(page.get_by_test_id("word_list-table_name").filter(has_text="Test wordlist")).to_be_visible()
             with page.expect_download() as download_info:
                 page.get_by_role("link", name="Export").click()
             assert download_info.value is not None
@@ -895,15 +898,27 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             group_container.get_by_role("button", name="+ Add New Attribute").click()
             attribute_container = page.locator("#attribute-items-container-0")
-            expect(attribute_container.locator("input[name$='[title]']").first).to_be_visible()
-            expect(attribute_container.locator("input[name$='[title]']").first).to_have_attribute("required", "")
-            attribute_container.locator("input[name$='[title]']").first.fill(attribute_title)
+            first_attribute_title = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][0][title]']")
+            first_attribute_index = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][0][index]']")
+            expect(first_attribute_title).to_be_visible()
+            expect(first_attribute_title).to_have_attribute("required", "")
+            expect(first_attribute_index).to_have_value("0")
+            first_attribute_title.fill(attribute_title)
+
+            group_container.get_by_role("button", name="+ Add New Attribute").click()
+            second_attribute_title_input = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][1][title]']")
+            second_attribute_index = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][1][index]']")
+            expect(second_attribute_index).to_have_value("1")
+            second_attribute_title_input.fill("Secondary Attribute")
 
             attribute_select = attribute_container.locator("select[name$='[attribute_id]']").first
             expect(attribute_select).to_have_attribute("required", "")
             first_option_value = attribute_select.locator("option:not([disabled])").first.get_attribute("value")
             assert first_option_value, "Expected at least one attribute option"
             attribute_select.select_option(first_option_value)
+            attribute_container.locator("select[name='attribute_groups[0][attribute_group_items][1][attribute_id]']").select_option(
+                first_option_value
+            )
 
             attribute_container.locator("input[name$='[description]']").first.fill("Attribute description")
             attribute_required = attribute_container.locator("input[type='checkbox'][name$='[required]']").first

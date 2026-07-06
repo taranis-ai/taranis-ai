@@ -1,12 +1,33 @@
+import json
 import logging
 import logging.handlers
 import socket
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 from flask import request
 
 from core.config import Config
+
+
+_SENSITIVE_JSON_FIELDS = {
+    "password",
+    "old_password",
+    "new_password",
+    "token",
+    "access_token",
+    "refresh_token",
+    "api_key",
+    "secret",
+}
+
+
+def _redact_sensitive_json(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: "***" if str(key).lower() in _SENSITIVE_JSON_FIELDS else _redact_sensitive_json(child) for key, child in value.items()}
+    if isinstance(value, list):
+        return [_redact_sensitive_json(item) for item in value]
+    return value
 
 
 class TaranisLogger:
@@ -95,6 +116,11 @@ class Logger(TaranisLogger):
             return ""
         if request.data is None:
             return ""
+
+        if isinstance(json_data := request.get_json(silent=True), (dict, list)):
+            if Config.DEBUG:
+                return json.dumps(json_data, separators=(",", ":"), sort_keys=True)[:4096]
+            return json.dumps(_redact_sensitive_json(json_data), separators=(",", ":"), sort_keys=True)[:4096]
 
         return str(request.data)[:4096].replace("\\r", "").replace("\\n", "").replace(" ", "")[2:-1]
 

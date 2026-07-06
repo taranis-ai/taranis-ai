@@ -7,6 +7,7 @@ from models.admin import AdminMenuBadges, OSINTSource
 from models.task import Task
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
+from requests import Response as RequestsResponse
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import admin_required
@@ -47,7 +48,7 @@ class SourceView(AdminBaseView):
         return 0
 
     @classmethod
-    def get_extra_context(cls, base_context: dict) -> dict[str, Any]:
+    def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         parameters = {}
         parameter_values = {}
 
@@ -120,7 +121,7 @@ class SourceView(AdminBaseView):
         return render_template("partials/worker_parameters.html", parameters=parameters)
 
     @classmethod
-    def import_view(cls, error=None):
+    def import_view(cls, error: str | None = None):
         return render_template(f"{cls.model_name().lower()}/{cls.model_name().lower()}_import.html", error=error)
 
     @classmethod
@@ -219,27 +220,11 @@ class SourceView(AdminBaseView):
         return render_template(cls.get_list_template(), **cls.get_view_context(items))
 
     @classmethod
-    def _collect_source_view(cls, response):
-        if not response:
+    def _collect_source_view(cls, response: RequestsResponse | None):
+        if response is None:
             logger.error("Failed to start OSINT source collection")
-            notification, status = (
-                render_template(
-                    "notification/index.html", notification={"message": "Failed to start OSINT source collection", "error": True}
-                ),
-                500,
-            )
-        else:
-            notification, status = (
-                render_template(
-                    "notification/index.html",
-                    notification={
-                        "message": "OSINT source collection started successfully",
-                        "icon": "check-circle",
-                        "class": "alert-success",
-                    },
-                ),
-                200,
-            )
+        status = response.status_code if response is not None else 500
+        notification = cls.render_worker_task_notification(response)
 
         table, table_response = cls.render_list()
         status = table_response if table_response != 200 else status

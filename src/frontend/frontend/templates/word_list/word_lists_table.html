@@ -6,7 +6,10 @@
 {% set data = word_lists %}
 {% set table_container = "word_list-table-container" %}
 
-<div id="{{ table_container }}" class="table-container" x-data='{ selectedItems: [], exportUrl: "{{ url_for("admin.export_word_lists") }}" }'>
+<div id="{{ table_container }}"
+     class="table-container"
+     data-testid="{{ table_container }}"
+     x-data='{ selectedItems: [], exportUrl: "{{ url_for("admin.export_word_lists") }}" }'>
   {% call table_decoration(name, model_name, table_container, routes=routes) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
@@ -29,9 +32,11 @@
   {% else %}
     <div class="text-center p-4">
       <p class="text-gray-500">No {{ name }} available.</p>
-      <button class="mt-2 btn btn-primary" hx-post="{{ url_for('admin.load_default_word_lists') }}" hx-target="#{{ table_container }}">
-        Load default {{ name }}
-      </button>
+      <button class="mt-2 btn btn-primary"
+              data-testid="load-default-word_list-button"
+              hx-post="{{ url_for('admin.load_default_word_lists') }}"
+              hx-target="#{{ table_container }}"
+              hx-swap="outerHTML">Load default {{ name }}</button>
     </div>
   {% endif %}
 </div>
