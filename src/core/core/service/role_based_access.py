@@ -13,9 +13,15 @@ from core.model.user import User
 @dataclass
 class RBACQuery:
     user: User
-    resource_type: str | ItemType
+    resource_type: ItemType
     resource_id: str | None = None
     require_write_access: bool = False
+
+    def __init__(self, user: User, resource_type: str | ItemType, resource_id: str | None = None, require_write_access: bool = False) -> None:
+        self.user = user
+        self.resource_type = resource_type if isinstance(resource_type, ItemType) else ItemType(resource_type)
+        self.resource_id = resource_id
+        self.require_write_access = require_write_access
 
 
 class RoleBasedAccessService:
@@ -27,8 +33,7 @@ class RoleBasedAccessService:
         if cls._user_bypasses_acl(rbac_query.user):
             return True
 
-        resource_type = cls._item_type(rbac_query.resource_type)
-        if not cls._is_enabled_for_resource_type(resource_type):
+        if not cls._is_enabled_for_resource_type(rbac_query.resource_type):
             return True
         return any(cls._is_authorized(acl_entry, rbac_query) for role in rbac_query.user.roles for acl_entry in role.acls)
 
@@ -39,8 +44,8 @@ class RoleBasedAccessService:
         if rbac_query.require_write_access and acl_entry.read_only:
             return False
 
-        resource_type = cls._item_type(rbac_query.resource_type)
-        acl_item_type = cls._item_type(acl_entry.item_type)
+        resource_type = rbac_query.resource_type
+        acl_item_type = acl_entry.item_type
 
         if acl_item_type == resource_type:
             return acl_entry.item_id in [rbac_query.resource_id, "*"]
@@ -56,10 +61,6 @@ class RoleBasedAccessService:
             return "ADMIN_OPERATIONS" in (user.get_permissions() or [])
         except (AttributeError, TypeError):
             return False
-
-    @staticmethod
-    def _item_type(item_type: str | ItemType) -> ItemType:
-        return item_type if isinstance(item_type, ItemType) else ItemType(item_type)
 
     @classmethod
     def _is_enabled_for_resource_type(cls, resource_type: ItemType) -> bool:
@@ -130,7 +131,7 @@ class RoleBasedAccessService:
     @classmethod
     def filter_query_with_acl(cls, query: Select, rbac_query: RBACQuery) -> Select:
         role_ids = [role.id for role in rbac_query.user.roles]
-        item_type = cls._item_type(rbac_query.resource_type)
+        item_type = rbac_query.resource_type
         if cls._user_bypasses_acl(rbac_query.user) or not cls._is_enabled_for_resource_type(item_type):
             return query
 
@@ -193,7 +194,7 @@ class RoleBasedAccessService:
         return bool(db.session.execute(select(db.exists().where(access_subquery.c.item_id == "*"))).scalar())
 
     @classmethod
-    def get_model_class(cls, resource_type: str):
+    def get_model_class(cls, resource_type: ItemType):
         """
         Get the SQLAlchemy model class for a given resource type.
         """
@@ -203,19 +204,11 @@ class RoleBasedAccessService:
         from core.model.report_item import ReportItemType
         from core.model.word_list import WordList
 
-        if resource_type == "osint_source":
-            return OSINTSource
-
-        if resource_type == "osint_source_group":
-            return OSINTSourceGroup
-
-        if resource_type == "word_list":
-            return WordList
-
-        if resource_type == "report_item_type":
-            return ReportItemType
-
-        if resource_type == "product_type":
-            return ProductType
-
-        raise ValueError(f"Unknown resource type: {resource_type}")
+        model_classes = {
+            ItemType.OSINT_SOURCE: OSINTSource,
+            ItemType.OSINT_SOURCE_GROUP: OSINTSourceGroup,
+            ItemType.WORD_LIST: WordList,
+            ItemType.REPORT_ITEM_TYPE: ReportItemType,
+            ItemType.PRODUCT_TYPE: ProductType,
+        }
+        return model_classes[resource_type]
