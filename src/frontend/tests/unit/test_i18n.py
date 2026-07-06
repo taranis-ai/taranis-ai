@@ -5,7 +5,8 @@ from flask_babel import get_locale
 from flask_jwt_extended import create_access_token
 from models.user import ProfileSettings, UserProfile
 
-from frontend.auth import render_login_page
+import frontend.i18n as i18n_module
+from frontend.auth import auth_required, render_login_page
 from frontend.cache import add_user_to_cache
 from frontend.filters import format_datetime
 
@@ -37,11 +38,11 @@ def _authenticated_client_for_user(app, user: UserProfile):
     return client
 
 
-def _request_context(app, headers: dict[str, str] | None = None, user: UserProfile | None = None):
+def _request_context(app, headers: dict[str, str] | None = None, user: UserProfile | None = None, path: str = "/frontend/login"):
     request_headers = dict(headers or {})
     if user:
         request_headers["Cookie"] = f"access_token_cookie={_access_token_for_user(app, user)}"
-    return app.test_request_context("/frontend/login", headers=request_headers)
+    return app.test_request_context(path, headers=request_headers)
 
 
 @pytest.mark.parametrize(
@@ -70,20 +71,36 @@ def test_settings_page_selects_profile_or_accepted_language(app, test_cache_back
         ({}, "en", "Username"),
     ],
 )
-def test_login_page_selects_locale(app, headers, expected_language, expected_text):
+def test_login_page_selects_locale(app, headers, expected_language, expected_text, monkeypatch):
+    error_messages: list[str] = []
+    monkeypatch.setattr(i18n_module.logger, "error", error_messages.append)
+
     with _request_context(app, headers):
         html = render_login_page()
 
     assert str(get_locale()) == expected_language
     assert f'lang="{expected_language}"' in html
     assert expected_text in html
+    assert error_messages == []
 
 
 def test_authenticated_timezone_formats_naive_utc_datetime_as_local_time(app, test_cache_backend):
     user = _user_with_language("de", timezone="Europe/Vienna")
+    protected_view = auth_required()(lambda: format_datetime(LOCAL_TIME))
 
-    with _request_context(app, {"Accept-Language": "de"}, user):
-        assert format_datetime(LOCAL_TIME) == "11. Juni 2026 12:30"
+    with _request_context(app, {"Accept-Language": "de"}, user, path="/frontend/settings"):
+        assert protected_view() == "11. Juni 2026 12:30"
+
+
+def test_unexpected_unauthenticated_i18n_logs_once_and_falls_back(app, monkeypatch):
+    error_messages: list[str] = []
+    monkeypatch.setattr(i18n_module.logger, "error", error_messages.append)
+
+    with app.test_request_context("/frontend/settings", headers={"Accept-Language": "de"}):
+        assert i18n_module.select_locale() == "de"
+        assert i18n_module.select_timezone() == app.config["BABEL_DEFAULT_TIMEZONE"]
+
+    assert error_messages == ["i18n requested without authenticated user; route should verify JWT before rendering"]
 
 
 def test_timezone_cookie_does_not_affect_datetime_formatting(app):
