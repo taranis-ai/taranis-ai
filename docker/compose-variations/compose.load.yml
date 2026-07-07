@@ -25,9 +25,8 @@ services:
       start_period: 2s
 
   core:
-    build:
-      context: .
-      dockerfile: docker/Containerfile.core
+    image: "${DOCKER_IMAGE_NAMESPACE:-ghcr.io/taranis-ai}/taranis-core:${TARANIS_TAG:-latest}"
+    pull_policy: always
     environment:
       DB_URL: database
       DB_DATABASE: taranis
@@ -61,9 +60,8 @@ services:
       start_period: 10s
 
   frontend:
-    build:
-      context: .
-      dockerfile: docker/Containerfile.frontend
+    image: "${DOCKER_IMAGE_NAMESPACE:-ghcr.io/taranis-ai}/taranis-frontend:${TARANIS_TAG:-latest}"
+    pull_policy: always
     environment:
       TARANIS_CORE_URL: http://core:8080/api
       APPLICATION_ROOT: /frontend
@@ -84,9 +82,8 @@ services:
       start_period: 10s
 
   ingress:
-    build:
-      context: .
-      dockerfile: docker/Containerfile.ingress
+    image: "${DOCKER_IMAGE_NAMESPACE:-ghcr.io/taranis-ai}/taranis-ingress:${TARANIS_TAG:-latest}"
+    pull_policy: always
     environment:
       NGINX_WORKERS: "2"
       NGINX_CONNECTIONS: "32"

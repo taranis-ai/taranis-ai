@@ -36,7 +36,7 @@ Start-up application
 docker compose up -d
 ```
 
-Worker-related services (`collector`, `workers`, `cron`) use the packaged `taranis-worker-healthcheck` command for container health probes.
+The `core` healthcheck runs every 5 minutes because it performs non-trivial service checks. Worker-related services (`collector`, `workers`, `cron`) use the packaged `taranis-worker-healthcheck` command for container health probes.
 
 **Note:** If you have development environment variables set (e.g., from sourcing `dev/env.dev`), unset `TARANIS_CORE_URL` for the Docker command to avoid configuration conflicts:
 
@@ -53,6 +53,48 @@ http://<url>:<TARANIS_PORT>/login
 ## Development
 
 See [dev Readme](/dev/README.md) for a quick way to get a development environment running.
+
+## Release gate tests
+
+Before tagging or publishing a release, run the release gate against the already published `:latest` images from `ghcr.io/taranis-ai`:
+
+```bash
+./docker/run_release_gate_tests.sh
+```
+
+The default gate runs the PostgreSQL TLS multiprocess smoke test and then the load test. To rerun one gate:
+
+```bash
+./docker/run_release_gate_tests.sh postgres-tls
+./docker/run_release_gate_tests.sh load
+```
+
+The same gate is available as the manual GitHub Actions workflow `Release gate tests`. It does not build application images. It pulls `ghcr.io/taranis-ai/taranis-core:latest`, `ghcr.io/taranis-ai/taranis-frontend:latest`, `ghcr.io/taranis-ai/taranis-ingress:latest`, and `ghcr.io/taranis-ai/load-test:latest`.
+
+Useful overrides:
+
+```bash
+DOCKER_IMAGE_NAMESPACE=ghcr.io/taranis-ai TARANIS_TAG=latest ./docker/run_release_gate_tests.sh
+LOCUST_USERS=10 LOCUST_SPAWN_RATE=2 LOCUST_RUN_TIME=10m ./docker/run_release_gate_tests.sh load
+```
+
+Load-test artifacts are written to `$LOAD_ARTIFACT_DIR` when set, otherwise to a temporary directory.
+
+## PostgreSQL TLS multiprocess smoke test
+
+To verify that the `core` service works with PostgreSQL TLS and multiple Granian workers:
+
+```bash
+./docker/test_core_postgres_tls_multiprocess.sh
+```
+
+The script pulls the configured `taranis-core` image, starts only `database`, `redis`, and `core`, requires PostgreSQL TLS, probes `/api/health`, checks for SSL worker failures, and cleans up its containers and volumes.
+
+For Podman-compatible environments, use an existing image and pass the compose command explicitly if needed:
+
+```bash
+CONTAINER_CLI=podman COMPOSE_CMD="podman compose" ./docker/test_core_postgres_tls_multiprocess.sh
+```
 
 ## Initial Setup 👤
 
@@ -116,6 +158,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
 | `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
+| `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
 
 ### `worker`
 
@@ -136,6 +179,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `JWT_SECRET_KEY`        | JWT token secret key.                      | `supersecret`               |
 | `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
 | `DEBUG`                 | Debug logging                              | `False`                     |
+| `GRANIAN_WORKERS_MAX_RSS` | Per-worker Granian RSS recycle limit in MiB | `1024`       |
 
 
 > [!NOTE]

@@ -115,7 +115,7 @@ class SourceIcon(MethodView):
                 try:
                     source.update_icon(file.read())
                 except InvalidOSINTSourceIconError as exc:
-                    logger.error(f"Error updating icon for source {source_id}: {exc}")
+                    logger.warning(f"Invalid icon upload for source {source_id}: {exc}")
                     return {"error": exc.public_message}, 400
                 return {"message": "Icon uploaded"}, 200
             return {"error": "Source not found"}, 404
@@ -241,10 +241,9 @@ class BotInfo(MethodView):
 
     @api_key_required
     def put(self, bot_id):
-        updated = Bot.update(bot_id, request.json)
-        if updated is None:
-            return {"error": "Bot not found"}, 404
-        return updated.to_dict(), 200
+        if bot := Bot.update(bot_id, request.json or {}):
+            return bot.to_dict(), 200
+        return {"error": "Bot not found"}, 404
 
 
 class PostCollectionBots(MethodView):

@@ -68,14 +68,14 @@ spec:
               command:
                 - taranis-core-healthcheck
             initialDelaySeconds: 15
-            periodSeconds: 900
+            periodSeconds: 300
             timeoutSeconds: 10
           livenessProbe:
             exec:
               command:
                 - taranis-core-healthcheck
             initialDelaySeconds: 15
-            periodSeconds: 900
+            periodSeconds: 300
             timeoutSeconds: 10
           volumeMounts:
             - name: core
@@ -83,7 +83,7 @@ spec:
           resources:
             limits:
               cpu: "2"
-              memory: 2Gi
+              memory: 4Gi
             requests:
               cpu: "2"
               memory: 1Gi

@@ -123,12 +123,16 @@ def inject_current_user() -> dict[str, Any]:
         return {"current_user": None, "authenticated_user": None, "is_admin": False}
 
     try:
-        verify_jwt_in_request(optional=True)
-    except JWTExtendedException:
-        return {"current_user": None, "authenticated_user": None, "is_admin": False}
+        user = current_user if current_user else None
+    except RuntimeError:
+        try:
+            verify_jwt_in_request(optional=True)
+        except JWTExtendedException:
+            return {"current_user": None, "authenticated_user": None, "is_admin": False}
+        user = current_user if current_user else None
 
-    if current_user:
-        return {"current_user": current_user, "authenticated_user": current_user, "is_admin": is_user_admin(current_user)}
+    if user:
+        return {"current_user": user, "authenticated_user": user, "is_admin": is_user_admin(user)}
 
     return {"current_user": None, "authenticated_user": None, "is_admin": False}
 
