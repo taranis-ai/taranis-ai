@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 import importlib.util
 import sys
 import uuid
@@ -523,6 +524,34 @@ class TestWorkerTaskResults:
             response = client.post(self.base_uri, json=payload, headers=api_header)
             assert response.status_code == 200
             assert response.get_json()["job_id"] == task_id
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_task_submission_persists_user_id(self, client, api_header, app):
+        from core.model.task import Task
+
+        task_id = f"user-task-{uuid.uuid4().hex}"
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "user_id": "user-123",
+            "worker_id": "source-1",
+            "worker_type": "rss_collector",
+            "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+            assert response.status_code == 200
+            assert response.get_json()["user_id"] == "user-123"
+
+            with app.app_context():
+                stored = Task.get(task_id)
+                assert stored is not None
+                assert stored.user_id == "user-123"
         finally:
             with app.app_context():
                 if Task.get(task_id):

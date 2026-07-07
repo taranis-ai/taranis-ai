@@ -1,5 +1,6 @@
 """Tests for bot task execution and result handling."""
 
+# pyright: reportMissingParameterType=false
 import pytest
 
 import worker.bots
@@ -218,6 +219,19 @@ class TestSaveTaskResult:
         assert task_data["task"] == "bot_test"
         assert task_data["result"] == result
         assert task_data["status"] == "FAILURE"
+
+    def test_save_task_result_uses_current_job_user_id_when_missing(self, requests_mock, monkeypatch):
+        class DummyJob:
+            meta = {"user_id": "user-123"}
+
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+        monkeypatch.setattr("worker.core_api.get_current_job", lambda: DummyJob())
+
+        CoreApi().save_task_result("job-user", "collector_task", "SUCCESS", message="ok")
+
+        post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+        assert len(post_calls) == 1
+        assert post_calls[0].json()["user_id"] == "user-123"
 
     @pytest.mark.parametrize(
         "result_payload",

@@ -521,7 +521,12 @@ class OSINTSource(BaseModel):
     def get_cron_spec(self) -> CronSpec:
         """Get the cron specification for this OSINT source"""
         return CronSpec(
-            meta={"name": f"Collector: {self.name}"},
+            meta={
+                "name": f"Collector: {self.name}",
+                "task": "collector_task",
+                "worker_id": self.id,
+                "worker_type": self.type.value,
+            },
             job_id=self.cron_job_id,
             cron=self.get_schedule_with_default(),
             func_path="collector_task",

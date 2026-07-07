@@ -104,7 +104,7 @@ class ReportItem(MethodView):
         updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
         if status == 200:
             sse_manager.report_item_updated(report_item_id)
-            ProductService.autopublish_product(report_item_id)
+            ProductService.autopublish_product(report_item_id, user_id=current_user.id)
             invalidate_frontend_cache_on_success(
                 status,
                 scopes=(SCOPE_REPORT_VIEWS, SCOPE_PUBLISH_VIEWS),

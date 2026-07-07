@@ -1,3 +1,4 @@
+# pyright: reportMissingParameterType=false, reportMissingTypeArgument=false
 from typing import Any
 from urllib.parse import urlencode
 
@@ -5,6 +6,7 @@ import niquests as requests
 from models.product import WorkerProduct as Product
 from models.task import TaskResultEnvelope, TaskSubmission
 from pydantic import ValidationError
+from rq import get_current_job
 
 from worker.config import Config
 from worker.log import logger
@@ -160,6 +162,7 @@ class CoreApi:
         task_name: str,
         status: str,
         *,
+        user_id: str | None = None,
         worker_id: str | None = None,
         worker_type: str | None = None,
         result: Any = _MISSING_RESULT,
@@ -181,9 +184,13 @@ class CoreApi:
             )
             task_result = TaskResultEnvelope.model_validate(task_result_payload)
 
+            if user_id is None:
+                user_id = self._get_current_job_user_id()
+
             submission = TaskSubmission(
                 id=job_id,
                 task=task_name,
+                user_id=user_id,
                 worker_id=worker_id,
                 worker_type=worker_type,
                 result=task_result,
@@ -202,6 +209,18 @@ class CoreApi:
         except Exception as exc:
             logger.error(f"Failed to save task result for {job_id}: {exc}")
             return False
+
+    @staticmethod
+    def _get_current_job_user_id() -> str | None:
+        job = get_current_job()
+        meta = getattr(job, "meta", None)
+        if not isinstance(meta, dict):
+            return None
+        value = meta.get("user_id")
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        return normalized or None
 
     def get_all_osint_sources(self) -> list[dict] | None:
         """Get all OSINT sources from the Core API.

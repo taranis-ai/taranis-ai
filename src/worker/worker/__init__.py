@@ -19,6 +19,7 @@ from rq import Queue, SpawnWorker, Worker
 from worker.config import Config
 from worker.core_api import CoreApi
 from worker.log import logger
+from worker.rq_failure_bridge import rq_failure_exception_handler, rq_work_horse_killed_handler
 
 
 def get_redis_connection(*, spawn_safe: bool = False):
@@ -98,5 +99,10 @@ def start_worker():
     logger.info(f"Starting RQ worker for queues: {', '.join(queue_names)}")
     logger.info(f"Using RQ worker class: {worker_class.__name__} (RQ_WORKER_CLASS={Config.RQ_WORKER_CLASS}, platform={sys.platform})")
 
-    worker = worker_class(queues, connection=redis_conn)
+    worker = worker_class(
+        queues,
+        connection=redis_conn,
+        exception_handlers=[rq_failure_exception_handler],
+        work_horse_killed_handler=rq_work_horse_killed_handler,
+    )
     worker.work(with_scheduler=True)

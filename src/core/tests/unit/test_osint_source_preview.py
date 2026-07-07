@@ -30,3 +30,22 @@ def test_preview_response_uses_live_rq_status_without_requeue(monkeypatch):
 
     assert status == 201
     assert response == scheduled_response
+
+
+def test_preview_response_uses_persisted_failure_without_requeue(monkeypatch):
+    persisted_failure = {
+        "id": "source_preview_123",
+        "status": "FAILURE",
+        "result": {"message": "worker died", "reason": "work_horse_killed", "retryable": True, "data": {"retpid": 123, "ret_val": 9}},
+    }
+
+    class FakeTaskResult:
+        def to_dict(self):
+            return persisted_failure
+
+    monkeypatch.setattr("core.api.config.task.Task.get", lambda preview_task_id: FakeTaskResult())
+
+    response, status = OSINTSourcePreview.get_osint_source_preview_response("123")
+
+    assert status == 200
+    assert response == persisted_failure

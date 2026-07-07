@@ -51,6 +51,8 @@ class TaskService:
         }
         if submission.task is not None:
             payload["task"] = submission.task
+        if submission.user_id is not None:
+            payload["user_id"] = submission.user_id
         if submission.worker_id is not None:
             payload["worker_id"] = submission.worker_id
         if submission.worker_type is not None:

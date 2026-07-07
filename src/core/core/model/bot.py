@@ -161,7 +161,12 @@ class Bot(BaseModel):
 
     def get_cron_spec(self) -> CronSpec:
         return CronSpec(
-            meta={"name": f"Bot: {self.name}"},
+            meta={
+                "name": f"Bot: {self.name}",
+                "task": self.task_id,
+                "worker_id": self.id,
+                "worker_type": self.type.value.upper(),
+            },
             job_id=self.cron_job_id,
             cron=self.get_schedule(),
             func_path="bot_task",

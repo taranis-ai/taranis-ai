@@ -16,7 +16,7 @@ from worker.misc.wordlist_update import update_wordlist
 TOKEN_CLEANUP_TASK_ID = "cleanup_token_blacklist"
 
 
-def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
+def cleanup_token_blacklist(*_args: object, reschedule: bool = False, **_kwargs: object):
     """Clean up expired tokens from the blacklist.
 
     When executed by the RQ cron scheduler this task reports completion to
@@ -78,7 +78,15 @@ def _reschedule_cleanup():
         next_run = cron.get_next(datetime)
 
         # Schedule the job
-        queue.enqueue_at(next_run, cleanup_token_blacklist)
+        queue.enqueue_at(
+            next_run,
+            cleanup_token_blacklist,
+            meta={
+                "task": TOKEN_CLEANUP_TASK_ID,
+                "worker_id": TOKEN_CLEANUP_TASK_ID,
+                "worker_type": TOKEN_CLEANUP_TASK_ID,
+            },
+        )
         logger.info(f"Re-scheduled token cleanup for {next_run.isoformat()}")
 
     except Exception as e:  # pragma: no cover - logging only

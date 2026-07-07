@@ -381,7 +381,10 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
         "queue_name": "presenters",
         "task_name": "presenter_task",
         "args": ("product-1",),
-        "kwargs": {"job_id": "presenter_task_product-1_101"},
+        "kwargs": {
+            "job_id": "presenter_task_product-1_101",
+            "meta": {"task": "presenter_task", "user_id": None, "worker_id": "product-1", "worker_type": "presenter_task"},
+        },
     }
     assert calls[1] == {
         "queue_name": "publishers",
@@ -390,8 +393,40 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
         "kwargs": {
             "job_id": "publisher_task_product-1_202",
             "depends_on": presenter_job,
+            "meta": {"task": "publisher_task", "user_id": None, "worker_id": "publisher-1", "worker_type": "publisher_task"},
         },
     }
+
+
+def test_enqueue_task_passes_meta_to_rq_queue(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue(self, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append({"task_func": task_func, "args": args, "job_id": job_id, "kwargs": kwargs})
+            return True
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+
+    result = qm.enqueue_task(
+        "collectors",
+        "collector_task",
+        "source-1",
+        True,
+        job_id="collect_rss_collector_source-1",
+        meta={"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"},
+    )
+
+    assert result is True
+    assert queue_calls == [
+        {
+            "task_func": "worker.collectors.collector_tasks.collector_task",
+            "args": ("source-1", True),
+            "job_id": "collect_rss_collector_source-1",
+            "kwargs": {"meta": {"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"}},
+        }
+    ]
 
 
 def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypatch):
