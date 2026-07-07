@@ -550,8 +550,8 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
         schedules, status = qm.get_scheduled_jobs()
 
     assert status == 200
-    # 120 OSINT cron jobs + cleanup housekeeping cron
-    assert schedules["total_count"] == 121
+    # 120 OSINT cron jobs + two housekeeping crons
+    assert schedules["total_count"] == 122
 
 
 def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):

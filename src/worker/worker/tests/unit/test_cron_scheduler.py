@@ -110,7 +110,7 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
             "args": ["source-1", False],
             "meta": {"name": "Collector: Source 1"},
         },
-        now_ts=1000.0,
+        due_ts=1000.0,
     )
 
     assert rq_job_id == "cron_osint_source_source-1_1000"

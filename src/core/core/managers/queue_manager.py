@@ -56,6 +56,9 @@ CRON_NEXT_KEY = "rq:cron:next"
 TOKEN_CLEANUP_JOB_ID = "cleanup_token_blacklist"
 TOKEN_CLEANUP_CRON = "0 2 * * *"
 TOKEN_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Token Blacklist"
+TASK_RECONCILIATION_JOB_ID = "reconcile_task_failures"
+TASK_RECONCILIATION_CRON = "*/5 * * * *"
+TASK_RECONCILIATION_DISPLAY_NAME = "Maintenance: Reconcile Task Failures"
 
 
 def _decode_redis_value(value: bytes | str) -> str:
@@ -93,6 +96,20 @@ def _as_naive_utc(value: datetime | None) -> datetime | None:
     if value.tzinfo is None or value.utcoffset() is None:
         return value
     return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _task_result_reason(task_result: Any) -> str | None:
+    if task_result is None:
+        return None
+    to_dict = getattr(task_result, "to_dict", None)
+    if callable(to_dict):
+        payload = to_dict() or {}
+        if isinstance(payload, dict):
+            result = payload.get("result")
+            if isinstance(result, dict):
+                reason = result.get("reason")
+                return reason if isinstance(reason, str) else None
+    return None
 
 
 def _format_utc_timestamp(value: datetime | None) -> str | None:
@@ -134,12 +151,21 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         variant = "ghost"
         label = "Queued" if job.get("type") == "scheduled" else "Pending"
         is_overdue = False
+        last_reason = job.get("last_reason")
+        failure_label = FAILURE_REASON_LABELS.get(last_reason) if isinstance(last_reason, str) else None
 
         if job.get("type") == "cron":
             if not last_run_dt:
                 label = "Pending first run"
                 job["status_badge"] = {"variant": variant, "label": label}
                 job["is_overdue"] = False
+                continue
+            elif job.get("last_status") == "FAILURE" and failure_label:
+                label = failure_label["label"]
+                variant = failure_label["variant"]
+                is_overdue = True
+                job["status_badge"] = {"variant": variant, "label": label}
+                job["is_overdue"] = is_overdue
                 continue
             elif _cron_run_missed_since_last_run(job, now, last_run_dt):
                 label = "Missed"
@@ -159,6 +185,10 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     label = "On schedule"
                     variant = "success"
 
+        elif job.get("last_status") == "FAILURE" and failure_label:
+            label = failure_label["label"]
+            variant = failure_label["variant"]
+            is_overdue = True
         elif next_run_dt and now > (next_run_dt + OVERDUE_GRACE_PERIOD):
             label = "Missed"
             variant = "warning"
@@ -191,7 +221,15 @@ TASK_MAP = {
     "connector_task": "worker.connectors.connector_tasks.connector_task",
     "gather_word_list": "worker.misc.misc_tasks.gather_word_list",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
+    "reconcile_task_failures": "worker.misc.misc_tasks.reconcile_task_failures",
     "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
+}
+
+FAILURE_REASON_LABELS = {
+    "cron_missed": {"label": "Missed", "variant": "error"},
+    "job_stalled_in_scheduled": {"label": "Stalled", "variant": "error"},
+    "job_stalled_in_queue": {"label": "Queued too long", "variant": "error"},
+    "job_abandoned_after_start": {"label": "Abandoned", "variant": "error"},
 }
 
 
@@ -323,6 +361,16 @@ class QueueManager:
                 job_id=TOKEN_CLEANUP_JOB_ID,
                 cron=TOKEN_CLEANUP_CRON,
                 func_path="cleanup_token_blacklist",
+                queue_name="misc",
+            ),
+            CronSpec(
+                meta={
+                    "name": TASK_RECONCILIATION_DISPLAY_NAME,
+                    **QueueManager._task_meta(TASK_RECONCILIATION_JOB_ID, TASK_RECONCILIATION_JOB_ID, TASK_RECONCILIATION_JOB_ID),
+                },
+                job_id=TASK_RECONCILIATION_JOB_ID,
+                cron=TASK_RECONCILIATION_CRON,
+                func_path="reconcile_task_failures",
                 queue_name="misc",
             ),
         )
@@ -968,6 +1016,25 @@ class QueueManager:
                     last_run=cleanup_result.last_run if cleanup_result else None,
                     last_success=cleanup_result.last_success if cleanup_result else None,
                     last_status=cleanup_result.status if cleanup_result else None,
+                    last_reason=_task_result_reason(cleanup_result),
+                )
+            )
+            reconciliation_result = self._get_latest_task_result(
+                exact_ids={TASK_RECONCILIATION_JOB_ID},
+                prefixes=[f"cron_{TASK_RECONCILIATION_JOB_ID}_"],
+                task_name=TASK_RECONCILIATION_JOB_ID,
+            )
+            all_jobs.append(
+                self.build_cron_schedule_entry(
+                    job_id=TASK_RECONCILIATION_JOB_ID,
+                    name=TASK_RECONCILIATION_DISPLAY_NAME,
+                    queue="misc",
+                    cron_schedule=TASK_RECONCILIATION_CRON,
+                    task_id=TASK_RECONCILIATION_JOB_ID,
+                    last_run=reconciliation_result.last_run if reconciliation_result else None,
+                    last_success=reconciliation_result.last_success if reconciliation_result else None,
+                    last_status=reconciliation_result.status if reconciliation_result else None,
+                    last_reason=_task_result_reason(reconciliation_result),
                 )
             )
 
@@ -1042,9 +1109,20 @@ class QueueManager:
 
                         # Get human-readable name from job args
                         job_name = self._get_job_display_name(job)
+                        task_result = self._get_latest_task_result(exact_ids={job.id})
 
                         all_jobs.append(
-                            {"id": job.id, "name": job_name, "queue": queue_name, "next_run_time": scheduled_for, "type": "scheduled"}
+                            {
+                                "id": job.id,
+                                "name": job_name,
+                                "queue": queue_name,
+                                "next_run_time": scheduled_for,
+                                "type": "scheduled",
+                                "last_run": task_result.last_run if task_result else None,
+                                "last_success": task_result.last_success if task_result else None,
+                                "last_status": task_result.status if task_result else None,
+                                "last_reason": _task_result_reason(task_result),
+                            }
                         )
                     except Exception as e:
                         logger.error(f"Failed to fetch job {job_id} from queue {queue_name}: {e}")
@@ -1153,6 +1231,16 @@ class QueueManager:
                     "cron": TOKEN_CLEANUP_CRON,
                     "task_id": TOKEN_CLEANUP_JOB_ID,
                     "name": "Cleanup Token Blacklist",
+                }
+            )
+            cron_jobs.append(
+                {
+                    "task": TASK_RECONCILIATION_JOB_ID,
+                    "queue": "misc",
+                    "args": [],
+                    "cron": TASK_RECONCILIATION_CRON,
+                    "task_id": TASK_RECONCILIATION_JOB_ID,
+                    "name": "Reconcile Task Failures",
                 }
             )
             return {"cron_jobs": cron_jobs}, 200

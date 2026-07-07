@@ -370,6 +370,11 @@ class OSINTSource(BaseModel):
                         last_run=task_result.last_run if task_result else None,
                         last_success=task_result.last_success if task_result else None,
                         last_status=task_result.status if task_result else None,
+                        last_reason=(
+                            (task_result.to_dict().get("result") or {}).get("reason")
+                            if task_result and hasattr(task_result, "to_dict")
+                            else None
+                        ),
                     )
                 )
             except Exception as exc:
