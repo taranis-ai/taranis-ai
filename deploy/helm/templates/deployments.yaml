@@ -63,14 +63,14 @@ spec:
               command:
                 - taranis-core-healthcheck
             initialDelaySeconds: 15
-            periodSeconds: 900
+            periodSeconds: 300
             timeoutSeconds: 10
           livenessProbe:
             exec:
               command:
                 - taranis-core-healthcheck
             initialDelaySeconds: 15
-            periodSeconds: 900
+            periodSeconds: 300
             timeoutSeconds: 10
           volumeMounts:
             - name: core
