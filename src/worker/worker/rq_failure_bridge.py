@@ -10,17 +10,6 @@ from worker.log import logger
 
 
 TERMINAL_TASK_STATUSES = {"SUCCESS", "FAILURE", "NOT_MODIFIED", "PREVIEW"}
-FUNC_NAME_TO_TASK = {
-    "collector_task": "collector_task",
-    "collector_preview": "collector_preview",
-    "bot_task": "bot_task",
-    "presenter_task": "presenter_task",
-    "publisher_task": "publisher_task",
-    "connector_task": "connector_task",
-    "gather_word_list": "gather_word_list",
-    "cleanup_token_blacklist": "cleanup_token_blacklist",
-    "fetch_single_news_item": "collector_task",
-}
 
 
 def rq_failure_exception_handler(job: Job, exc_type: type[BaseException], exc_value: BaseException, _traceback: Any) -> bool:
@@ -93,7 +82,12 @@ def _get_task_name(job: Job, meta: dict[str, Any]) -> str | None:
         return task_name
 
     func_name = getattr(job, "func_name", "") or ""
-    return FUNC_NAME_TO_TASK.get(func_name.rsplit(".", 1)[-1])
+    short_name = func_name.rsplit(".", 1)[-1]
+    if not short_name:
+        return None
+    if short_name == "fetch_single_news_item":
+        return "collector_task"
+    return short_name
 
 
 def _get_meta_string(meta: dict[str, Any], key: str) -> str | None:
