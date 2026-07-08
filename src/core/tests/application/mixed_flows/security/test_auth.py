@@ -122,7 +122,7 @@ class TestAuth:
             '{"items":[{"api_key":"***"}],"password":"***","profile":{"token":"***"},"username":"admin"}'
         )
 
-    def test_auth_error_activity_keeps_json_password_in_debug(self, app, monkeypatch):
+    def test_auth_error_activity_redacts_json_password_in_debug(self, app, monkeypatch):
         log_records: list[dict[str, str]] = []
 
         monkeypatch.setattr("core.log.Config.DEBUG", True)
@@ -136,4 +136,4 @@ class TestAuth:
         ):
             core_logger.store_auth_error_activity("Authentication failed for username: admin")
 
-        assert log_records[0]["activity_data"] == ('{"password":"debug-value","profile":{"token":"debug-token"},"username":"admin"}')
+        assert log_records[0]["activity_data"] == ('{"password":"***","profile":{"token":"***"},"username":"admin"}')

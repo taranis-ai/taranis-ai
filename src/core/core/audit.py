@@ -28,16 +28,23 @@ def after_request(response: Response) -> Response:
 def should_audit() -> bool:
     if not Config.AUDIT_LOG_ENABLED:
         return False
-    if request.method not in AUDIT_METHODS:
+    if not is_auditable_method():
         return False
     if not is_api_path(request.path):
         return False
-    return request.endpoint == "auth.login" or current_user() is not None
+    return is_auditable_endpoint()
 
 
 def build_event(response: Response) -> dict[str, Any]:
-    user = None if request.endpoint == "auth.login" else current_user()
-    event = {
+    user = None if request.endpoint == "auth.login" else get_authenticated_user()
+    event = base_event(response, user)
+    if request.endpoint == "auth.login":
+        enrich_login_event(event)
+    return event
+
+
+def base_event(response: Response, user: Any) -> dict[str, Any]:
+    return {
         "event": "audit",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "method": request.method,
@@ -50,8 +57,10 @@ def build_event(response: Response) -> dict[str, Any]:
         "client_ip": client_ip(),
         "route_ids": route_ids(),
     }
-    if user is None and request.endpoint == "auth.login":
-        event["username"] = login_username()
+
+
+def enrich_login_event(event: dict[str, Any]) -> dict[str, Any]:
+    event["username"] = login_username()
     return event
 
 
@@ -64,7 +73,15 @@ def is_api_path(path: str) -> bool:
     return path == api_root or path.startswith(f"{api_root}/")
 
 
-def current_user():
+def is_auditable_method() -> bool:
+    return request.method in AUDIT_METHODS
+
+
+def is_auditable_endpoint() -> bool:
+    return request.endpoint == "auth.login" or get_authenticated_user() is not None
+
+
+def get_authenticated_user() -> Any | None:
     if hasattr(g, "authenticated_user"):
         return g.authenticated_user
     try:
@@ -77,12 +94,11 @@ def organization_id(user) -> str | None:
     if user is None:
         return None
     organization = getattr(user, "organization", None)
-    return getattr(organization, "id", None)
+    value = getattr(organization, "id", None)
+    return str(value) if value is not None else None
 
 
 def client_ip() -> str | None:
-    if forwarded := request.headers.get("X-Forwarded-For"):
-        return forwarded.split(",", 1)[0].strip()
     return request.remote_addr
 
 
@@ -91,6 +107,11 @@ def route_ids() -> dict[str, str]:
 
 
 def login_username() -> str | None:
-    payload = request.get_json(silent=True) if request.is_json else None
-    username = payload.get("username") if isinstance(payload, dict) else request.form.get("username")
+    username: Any = None
+    if request.is_json:
+        payload = request.get_json(silent=True)
+        if isinstance(payload, dict):
+            username = payload.get("username")
+    else:
+        username = request.form.get("username")
     return username[:256] if isinstance(username, str) else None

@@ -8,7 +8,7 @@ Load this memory for tasks mentioning audit logs, audit events, security logging
 
 Core audit logging is a small v1 feature. It emits one JSON line to stdout for human JWT-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` API requests, plus `/api/auth/login`.
 
-Audit records are metadata only: timestamp, method, path, endpoint, status, user id, username, organization id, client IP, and route ids. Do not log request bodies, credentials, tokens, connector secrets, story content, or before/after values.
+Audit records are metadata only: timestamp, method, path, endpoint, status, user id, username, organization id, client IP, and route ids. Client IP comes from Flask's trusted `request.remote_addr`; raw `X-Forwarded-For` values are not parsed by the audit layer. Do not log request bodies, credentials, tokens, connector secrets, story content, or before/after values.
 
 ## Code Paths
 
@@ -36,3 +36,4 @@ Primary validation:
 - Do not add per-route policy config until an operator has a concrete requirement.
 - API-key-only worker and bot routes are intentionally not audited as human activity.
 - `GET` exports are intentionally not audited in v1.
+- Proxy handling must normalize `request.remote_addr` before the audit hook runs; do not trust raw forwarded headers in audit code.

@@ -63,6 +63,7 @@ Core writes v1 audit events as JSON lines to stdout.
 - audit events are emitted for human JWT-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` API requests
 - `/api/auth/login` is audited without a JWT actor and records only the attempted username and response status
 - audit records include timestamp, method, path, endpoint, status, user id, username, organization id, client IP, and route ids
+- client IP is read from Flask's trusted `request.remote_addr`; proxy middleware must normalize it before audit logging runs
 - request bodies, passwords, tokens, connector secrets, story content, and before/after values are not logged
 - API-key-only worker and bot routes, ordinary `GET` reads, and `GET` export endpoints are not audited in v1
 - audit retention, search, and forwarding belong to the deployment log collector
