@@ -10,6 +10,7 @@ from sqlalchemy.exc import OperationalError
 
 from core import create_app
 from core.config import Config
+from core.managers.db_manager import db
 
 
 def wait_for_db(max_retries=5):
@@ -44,7 +45,9 @@ def app_loader(target):
 def main():
     print("Starting Taranis AI")
     wait_for_db()
-    create_app(initial_setup=True, db_setup=True)
+    app = create_app(initial_setup=True, db_setup=True)
+    with app.app_context():
+        db.engine.dispose()
     os.environ["GRANIAN_WORKERS"] = str(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
     cli(["--interface", "wsgi", "--factory", "core:granian_app"], auto_envvar_prefix="GRANIAN")
 

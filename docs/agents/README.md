@@ -10,6 +10,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Admin User Import/Export](admin-user-import-export.md) - admin user export/import JSON format, duplicate handling, passwordless external users, and UI notification behavior.
 - [Bot Run Order DAG](bot-run-order-dag.md) - post-collection bot DAG configuration, admin run-order UI, and dependent bot scheduling.
 - [IntelOwl Enrichment](intelowl-enrichment.md) - IntelOwl enrichment bot behavior, summary-only persistence, email analyzer setup, and story/report task flow.
+- [Release Gate Tests](release-gate-tests.md) - Docker/Compose release gates that run expensive checks against already published GHCR images.
 - [Story Bookmarks](story-bookmarks.md) - bookmark collections, the Assess bookmark bar, instant single-story bookmarking, and bookmark cache invalidation.
 - [Worker Task Notifications](worker-task-notifications.md) - frontend notifications for worker-backed actions when tasks are queued but no workers are connected.
 
