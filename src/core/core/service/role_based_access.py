@@ -75,17 +75,12 @@ class RoleBasedAccessService:
         if not source_id or not group_id:
             return False
 
-        from core.model.osint_source import OSINTSource, OSINTSourceGroup, OSINTSourceGroupOSINTSource
-
-        source = OSINTSource.get(source_id)
-        group = OSINTSourceGroup.get(group_id)
-        if not source or not group:
-            return False
+        from core.model.osint_source import OSINTSourceGroupOSINTSource
 
         query = select(
             db.exists().where(
-                OSINTSourceGroupOSINTSource.osint_source_id == source.id,
-                OSINTSourceGroupOSINTSource.osint_source_group_id == group.id,
+                OSINTSourceGroupOSINTSource.osint_source_id == source_id,
+                OSINTSourceGroupOSINTSource.osint_source_group_id == group_id,
             )
         )
         return bool(db.session.execute(query).scalar())
