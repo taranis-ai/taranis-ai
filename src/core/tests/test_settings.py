@@ -1,3 +1,7 @@
+import contextlib
+from pathlib import Path
+from urllib.parse import urlparse
+
 import pytest
 from pydantic import SecretStr
 
@@ -136,9 +140,11 @@ def test_pool_options_applied_to_actual_engine(app):
 
 def test_pool_options_with_custom_values_applied_to_engine(monkeypatch, clear_pool_env_vars):
     """Integration test: verify custom pool timeout and recycle values are applied to the engine via app context."""
-    import os
+    db_uri = "sqlite:////tmp/taranis_ai_test.db"
+    with contextlib.suppress(FileNotFoundError):
+        Path(urlparse(db_uri).path).unlink()
 
-    monkeypatch.setenv("SQLALCHEMY_DATABASE_URI", os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:////tmp/taranis_ai_test.db"))
+    monkeypatch.setenv("SQLALCHEMY_DATABASE_URI", db_uri)
     monkeypatch.setenv("SQLALCHEMY_POOL_TIMEOUT", "25")
     monkeypatch.setenv("SQLALCHEMY_POOL_RECYCLE", "7200")
 
