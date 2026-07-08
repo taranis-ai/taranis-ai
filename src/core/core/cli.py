@@ -1,5 +1,6 @@
 import sys
 from collections.abc import Sequence
+from typing import cast
 
 import click
 
@@ -54,13 +55,15 @@ def main() -> None:
 @click.option("--password", help="New password. Prefer the prompt or --password-stdin.")
 @click.option("--password-stdin", is_flag=True, help="Read the new password from stdin.")
 def set_password_command(username: str, password: str | None, password_stdin: bool) -> None:
-    if password and password_stdin:
+    if password is not None and password_stdin:
         raise click.UsageError("Use either --password or --password-stdin, not both")
     if password_stdin:
         password = sys.stdin.readline().rstrip("\r\n")
+        if not password:
+            raise click.UsageError("No password read from stdin")
     if password is None:
         password = click.prompt("New password", hide_input=True, confirmation_prompt=True)
-    assert password is not None
+    password = cast(str, password)
 
     app = create_app(initial_setup=False)
     with app.app_context():
@@ -76,8 +79,9 @@ def set_roles_command(username: str, roles: tuple[str, ...]) -> None:
     app = create_app(initial_setup=False)
     with app.app_context():
         assigned_roles = set_user_roles(username, roles)
+        assigned_role_names = ", ".join(role.name for role in assigned_roles)
 
-    click.echo(f"Updated roles for user '{username}': {', '.join(role.name for role in assigned_roles)}")
+    click.echo(f"Updated roles for user '{username}': {assigned_role_names}")
 
 
 if __name__ == "__main__":

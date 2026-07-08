@@ -1,7 +1,9 @@
 import click
+import pytest
+from click.testing import CliRunner
 from werkzeug.security import check_password_hash
 
-from core.cli import set_user_password, set_user_roles
+from core.cli import main, set_user_password, set_user_roles
 from core.model.role import Role
 from core.model.user import User
 
@@ -31,9 +33,12 @@ def test_set_user_roles_replaces_existing_roles(app, session):
 
 def test_set_user_roles_rejects_missing_role(app, session):
     with app.app_context():
-        try:
+        with pytest.raises(click.ClickException, match=r"Role 'missing-role' not found"):
             set_user_roles("user", ("missing-role",))
-        except click.ClickException as exc:
-            assert "Role 'missing-role' not found" == exc.message
-        else:
-            raise AssertionError("missing role should fail")
+
+
+def test_set_password_stdin_rejects_empty_input():
+    result = CliRunner().invoke(main, ("set-password", "user", "--password-stdin"), input="")
+
+    assert result.exit_code != 0
+    assert "No password read from stdin" in result.output

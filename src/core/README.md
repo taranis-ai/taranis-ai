@@ -48,7 +48,10 @@ Set a local database-auth password for an existing user:
 
 ```bash
 docker exec -it core taranis-cli set-password admin
-printf '%s\n' 'new-password' | docker exec -i core taranis-cli set-password admin --password-stdin
+read -rsp "New password: " PASSWORD
+printf '\n'
+printf '%s\n' "$PASSWORD" | docker exec -i core taranis-cli set-password admin --password-stdin
+unset PASSWORD
 kubectl exec -it deploy/core -- taranis-cli set-password admin
 ```
 

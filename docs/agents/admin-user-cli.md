@@ -30,7 +30,14 @@ Run from `src/core`:
 
 ```bash
 uv run pytest tests/unit/test_cli.py
+uv run ruff format core/cli.py tests/unit/test_cli.py
 uv run ruff check core/cli.py tests/unit/test_cli.py
+```
+
+Run from the repository root after Python edits:
+
+```bash
+./dev/check_touched_pyright.sh
 ```
 
 ## Pitfalls
