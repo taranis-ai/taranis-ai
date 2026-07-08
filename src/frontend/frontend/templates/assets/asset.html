@@ -16,15 +16,12 @@
       <h2 class="card-title">{{ submit_text }}</h2>
       <div class="flex-1"></div>
       {% if asset.id and asset.id != '0' %}
-        <button type="button"
-                class="btn btn-outline btn-sm gap-2"
-                hx-get="{{ url_for('assets.asset_cti', asset_id=asset.id) }}"
-                hx-target="body"
-                hx-swap="beforeend"
-                data-testid="asset-cti-button">
+        <a class="btn btn-outline btn-sm gap-2"
+           href="{{ url_for('assets.asset_cti', asset_id=asset.id) }}"
+           data-testid="asset-cti-button">
           {{ heroicon_mini("document-magnifying-glass", class="h-4 w-4") }}
           <span>CTI information</span>
-        </button>
+        </a>
       {% endif %}
     </div>
 

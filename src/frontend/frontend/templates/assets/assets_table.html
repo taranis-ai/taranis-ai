@@ -8,15 +8,10 @@
   <div id="{{ table_container }}" class="table-container p-4" x-data="{ selectedItems: [] }">
     {% call table_decoration(name, model_name, table_container, routes=routes, new_item_target="#assets") %}
       <div class="grow-0">
-        <button type="button"
-                class="btn btn-outline gap-2"
-                hx-get="{{ url_for('assets.assets_cti') }}"
-                hx-target="body"
-                hx-swap="beforeend"
-                data-testid="assets-cti-button">
+        <a class="btn btn-outline gap-2" href="{{ url_for('assets.assets_cti') }}" data-testid="assets-cti-button">
           {{ heroicon_mini("document-magnifying-glass", class="h-4 w-4") }}
           <span>CTI</span>
-        </button>
+        </a>
       </div>
     {% endcall %}
     {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, routes=routes) }}

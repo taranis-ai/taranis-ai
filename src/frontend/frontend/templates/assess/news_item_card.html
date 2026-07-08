@@ -27,15 +27,12 @@
               <span>Manage tags</span>
             </button>
           {% endif %}
-          <button type="button"
-                  class="btn btn-sm btn-outline"
-                  data-testid="newsitem-cti-{{ news_item.id }}"
-                  hx-get="{{ url_for('assess.news_item_cti', news_item_id=news_item.id) }}"
-                  hx-target="body"
-                  hx-swap="beforeend">
+          <a class="btn btn-sm btn-outline"
+             data-testid="newsitem-cti-{{ news_item.id }}"
+             href="{{ url_for('assess.news_item_cti', news_item_id=news_item.id) }}">
             {{ heroicon_mini("document-magnifying-glass", class="h-4 w-4") }}
             <span>CTI</span>
-          </button>
+          </a>
           {% if news_item.source == 'manual' %}
             <a class="btn btn-sm btn-outline"
                data-testid="edit-newsitem-{{ news_item.id }}"
