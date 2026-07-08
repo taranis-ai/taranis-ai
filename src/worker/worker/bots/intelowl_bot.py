@@ -2,37 +2,23 @@
 
 import ipaddress
 import re
+import time
+from datetime import datetime, timezone
 from typing import Any, Literal, cast
 
 import ioc_fanger
-from ioc_finder import find_iocs
+from models.cti import CanonicalIOCType, normalize_ioc_type, normalize_ioc_value
 from pyintelowl import IntelOwl
 
-from worker.log import logger
-
 from .base_bot import BaseBot
-from .tagging_content import _news_item_content_for_tagging
 
 
 IntelOwlTLP = Literal["WHITE", "GREEN", "AMBER", "RED", "CLEAR"]
 StoryPayload = dict[str, Any]
-ObservablePayload = dict[str, str]
+ObservablePayload = dict[str, Any]
 
 
 class IntelOwlBot(BaseBot):
-    ioc_types: list[str] = [
-        "cves",
-        "email_addresses",
-        "ipv4s",
-        "ipv4_cidrs",
-        "ipv6s",
-        "domains",
-        "urls",
-        "md5s",
-        "sha1s",
-        "sha256s",
-        "sha512s",
-    ]
     analyzer_map: dict[str, list[str]] = {
         "cve": ["NIST_CVE_DB", "Vulners"],
         "email": ["EmailRep", "HaveIBeenPwned"],
@@ -49,6 +35,9 @@ class IntelOwlBot(BaseBot):
         "url": "url",
         "hash": "hash",
     }
+    final_statuses = {"reported_without_fails", "reported_with_fails", "failed", "killed", "success", "completed"}
+    poll_attempts = 3
+    poll_delay_seconds = 1.0
 
     def __init__(self):
         super().__init__()
@@ -63,127 +52,70 @@ class IntelOwlBot(BaseBot):
         if not instance_url or not api_key:
             raise ValueError("IntelOwl bot requires INTEL_OWL_URL and INTEL_OWL_API_KEY")
 
-        selected_stories, report_stories = self._load_stories(parameters)
-        if not selected_stories and not report_stories:
-            return {"message": "No stories found", "stories": {}, "reports": {}, "observables": {}, "skipped": [], "errors": []}
+        selected_stories = self._load_stories(parameters)
+        if not selected_stories:
+            return self._empty_result("No stories found")
 
         allow_email = self._is_enabled(parameters.get("INTEL_OWL_EMAIL_ENRICHMENT"))
-        observables, targets, skipped = self._extract_observables(selected_stories, report_stories, allow_email)
-        submitted: dict[str, ObservablePayload] = {}
-        errors: list[dict[str, str]] = []
-        if observables:
-            client = self._create_client(
-                instance_url,
-                api_key,
-                parameters.get("INTEL_OWL_TLS_VERIFY", "true"),
-            )
-            submitted, errors = self._submit_observables(
-                client, observables, instance_url, api_key, str(parameters.get("INTEL_OWL_TLP") or "CLEAR")
-            )
+        observables, skipped = self._extract_observables(selected_stories, allow_email)
+        if not observables:
+            return self._empty_result("No IntelOwl observables found", skipped=skipped)
 
-        story_results = {
-            story_id: {
-                "attribute": {
-                    "key": "intelowl_enrichment",
-                    "value": self._summary(
-                        [key for key, target_set in targets.items() if f"story:{story_id}" in target_set], submitted, errors
-                    ),
-                }
-            }
-            for story_id in selected_stories
-        }
-        report_attribute_title = str(parameters.get("REPORT_ATTRIBUTE_TITLE") or "IntelOwl Enrichment")
-        report_results = {
-            report_id: {
-                "attribute_title": report_attribute_title,
-                "value": self._summary(
-                    [key for key, target_set in targets.items() if f"report:{report_id}" in target_set], submitted, errors
-                ),
-            }
-            for report_id in report_stories
-        }
+        client = self._create_client(instance_url, api_key, parameters.get("INTEL_OWL_TLS_VERIFY", "true"))
+        existing = self._load_existing_enrichments(observables)
+        enrichments, errors = self._process_observables(
+            client,
+            observables,
+            existing,
+            instance_url,
+            api_key,
+            str(parameters.get("INTEL_OWL_TLP") or "CLEAR"),
+        )
 
         return {
-            "message": f"Submitted {len(submitted)} IntelOwl observables" if observables else "No IntelOwl observables found",
-            "stories": story_results,
-            "reports": report_results,
-            "observables": submitted,
+            "message": f"Processed {len(enrichments)} IntelOwl observables",
+            "enrichments": enrichments,
+            "observables": {f"{item['type']}:{item['value']}": item for item in enrichments},
             "skipped": skipped,
             "errors": errors,
         }
+
+    @staticmethod
+    def _empty_result(message: str, skipped: list[dict[str, str]] | None = None) -> dict[str, Any]:
+        return {"message": message, "enrichments": [], "observables": {}, "skipped": skipped or [], "errors": []}
 
     def _create_client(self, instance_url: str, api_key: str, tls_verify: Any) -> IntelOwl:
         certificate: bool | str = self._is_enabled(tls_verify)
         return IntelOwl(token=api_key, instance_url=instance_url.rstrip("/"), certificate=cast(Any, certificate))
 
-    def _load_stories(self, parameters: dict[str, Any]) -> tuple[dict[str, StoryPayload], dict[str, list[StoryPayload]]]:
+    def _load_stories(self, parameters: dict[str, Any]) -> dict[str, StoryPayload]:
         filter_data: dict[str, Any] = dict(parameters.get("filter") or {})
-        has_story_filter = any(key.lower() in {"story_id", "story_ids"} for key in filter_data)
-        has_report_filter = any(key.lower() in {"report_id", "report_ids"} for key in filter_data)
-        selected_stories = (
-            {story["id"]: story for story in self.get_stories(parameters) if story.get("id")} if has_story_filter or not filter_data else {}
-        )
-
-        report_stories: dict[str, list[StoryPayload]] = {}
-        for report_id in self._id_list(filter_data.get("report_ids") or filter_data.get("report_id")):
-            report = self.core_api.get_report_item(report_id)
-            if not isinstance(report, dict) or report.get("error"):
-                logger.warning(f"IntelOwl report lookup failed for report {report_id}")
-                continue
-            report_stories[report_id] = [story for story in report.get("stories", []) if isinstance(story, dict) and story.get("id")]
-
-        if filter_data and not has_story_filter and not has_report_filter:
-            selected_stories = {story["id"]: story for story in self.get_stories(parameters) if story.get("id")}
-
-        return selected_stories, report_stories
+        if any(key.lower() in {"report_id", "report_ids"} for key in filter_data):
+            raise ValueError("IntelOwl bot no longer supports report filters")
+        return {story["id"]: story for story in self.get_stories(parameters) if isinstance(story, dict) and story.get("id")}
 
     def _extract_observables(
         self,
         selected_stories: dict[str, StoryPayload],
-        report_stories: dict[str, list[StoryPayload]],
         allow_email: bool,
-    ) -> tuple[dict[str, ObservablePayload], dict[str, set[str]], list[dict[str, str]]]:
+    ) -> tuple[dict[str, ObservablePayload], list[dict[str, str]]]:
         observables: dict[str, ObservablePayload] = {}
-        targets: dict[str, set[str]] = {}
         skipped: list[dict[str, str]] = []
 
-        for story_id, story in selected_stories.items():
-            self._collect_story_observables(story, observables, targets, f"story:{story_id}", skipped, allow_email)
+        for story in selected_stories.values():
+            for news_item in story.get("news_items", []):
+                if not isinstance(news_item, dict) or not news_item.get("id"):
+                    continue
+                for tag in self._tags(news_item):
+                    self._add_observable(tag.get("name", ""), tag.get("tag_type", ""), observables, skipped, allow_email)
 
-        for report_id, stories in report_stories.items():
-            for story in stories:
-                self._collect_story_observables(story, observables, targets, f"report:{report_id}", skipped, allow_email)
-
-        return observables, targets, skipped
-
-    def _collect_story_observables(
-        self,
-        story: StoryPayload,
-        observables: dict[str, ObservablePayload],
-        targets: dict[str, set[str]],
-        target: str,
-        skipped: list[dict[str, str]],
-        allow_email: bool,
-    ) -> None:
-        for tag in self._story_tags(story):
-            self._add_observable(tag.get("name", ""), tag.get("tag_type", ""), observables, targets, target, skipped, allow_email)
-
-        for news_item in story.get("news_items", []):
-            if not isinstance(news_item, dict):
-                continue
-            for tag in self._story_tags(news_item):
-                self._add_observable(tag.get("name", ""), tag.get("tag_type", ""), observables, targets, target, skipped, allow_email)
-            for key, values in find_iocs(text=_news_item_content_for_tagging(news_item), included_ioc_types=self.ioc_types).items():
-                for value in values:
-                    self._add_observable(str(value), key, observables, targets, target, skipped, allow_email)
+        return observables, skipped
 
     def _add_observable(
         self,
         raw_value: str,
         raw_type: str,
         observables: dict[str, ObservablePayload],
-        targets: dict[str, set[str]],
-        target: str,
         skipped: list[dict[str, str]],
         allow_email: bool,
     ) -> None:
@@ -195,33 +127,29 @@ class IntelOwlBot(BaseBot):
             skipped.append({"type": "email", "value": value, "reason": "email_enrichment_disabled"})
             return
         observables.setdefault(key, {"type": observable_type, "value": value})
-        targets.setdefault(key, set()).add(target)
 
-    def _normalize_observable(self, raw_value: str, raw_type: str) -> tuple[str, str, str] | None:
+    def _normalize_observable(self, raw_value: str, raw_type: str) -> tuple[str, CanonicalIOCType, str] | None:
         value = ioc_fanger.fang(str(raw_value or "")).strip().strip(".,;:()[]{}<>\"'")
         if not value:
             return None
 
-        raw_type = str(raw_type or "").lower()
-        observable_type = self._observable_type(value, raw_type)
+        observable_type = normalize_ioc_type(raw_type) or self._observable_type(value)
         if observable_type is None:
             return None
 
-        normalized = value.upper() if observable_type == "cve" else value.lower()
+        normalized = normalize_ioc_value(value, observable_type)
         return f"{observable_type}:{normalized}", observable_type, normalized
 
-    def _observable_type(self, value: str, raw_type: str) -> str | None:
-        if raw_type in {"cves", "cve"} or re.fullmatch(r"CVE-\d{4}-\d{4,}", value, re.IGNORECASE):
+    def _observable_type(self, value: str) -> CanonicalIOCType | None:
+        if re.fullmatch(r"CVE-\d{4}-\d{4,}", value, re.IGNORECASE):
             return "cve"
-        if raw_type in {"email_addresses", "email"} or ("@" in value and "." in value.rsplit("@", 1)[-1]):
+        if "@" in value and "." in value.rsplit("@", 1)[-1]:
             return "email"
-        if raw_type in {"ipv4s", "ipv4_cidrs", "ipv6s", "ip"} or self._is_ip(value):
+        if self._is_ip(value):
             return "ip"
-        if raw_type in {"urls", "url"} or value.lower().startswith(("http://", "https://")):
+        if value.lower().startswith(("http://", "https://")):
             return "url"
-        if raw_type in {"domains", "domain"}:
-            return "domain"
-        if raw_type in {"md5s", "sha1s", "sha256s", "sha512s", "hash"} or re.fullmatch(r"[a-fA-F0-9]{32,128}", value):
+        if re.fullmatch(r"[a-fA-F0-9]{32,128}", value):
             return "hash"
         return None
 
@@ -235,72 +163,217 @@ class IntelOwlBot(BaseBot):
         return True
 
     @staticmethod
-    def _story_tags(story: StoryPayload) -> list[dict[str, str]]:
-        tags = story.get("tags") or []
+    def _tags(item: StoryPayload) -> list[dict[str, str]]:
+        tags = item.get("tags") or []
         if isinstance(tags, dict):
-            result = []
-            for name, value in tags.items():
-                if isinstance(value, dict):
-                    result.append({"name": value.get("name", name), "tag_type": value.get("tag_type", "")})
-                else:
-                    result.append({"name": name, "tag_type": str(value)})
-            return result
+            return [
+                {"name": value.get("name", name), "tag_type": value.get("tag_type", "")}
+                if isinstance(value, dict)
+                else {"name": name, "tag_type": str(value)}
+                for name, value in tags.items()
+            ]
         if isinstance(tags, list):
             return [tag for tag in tags if isinstance(tag, dict)]
         return []
 
-    def _submit_observables(
+    def _load_existing_enrichments(self, observables: dict[str, ObservablePayload]) -> dict[str, dict[str, Any]]:
+        payload = [{"type": observable["type"], "value": observable["value"]} for observable in observables.values()]
+        response = self.core_api.get_intelowl_enrichments(payload) or {}
+        items = response.get("items", []) if isinstance(response, dict) else []
+        existing: dict[str, dict[str, Any]] = {}
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            if not (ioc_type := normalize_ioc_type(item.get("ioc_type") or item.get("type"))):
+                continue
+            value = normalize_ioc_value(str(item.get("value") or ""), ioc_type)
+            if value:
+                existing[f"{ioc_type}:{value}"] = item
+        return existing
+
+    def _process_observables(
         self,
         client: IntelOwl,
         observables: dict[str, ObservablePayload],
+        existing: dict[str, dict[str, Any]],
         instance_url: str,
         api_key: str,
         tlp: str,
-    ) -> tuple[dict[str, ObservablePayload], list[dict[str, str]]]:
-        submitted: dict[str, ObservablePayload] = {}
+    ) -> tuple[list[ObservablePayload], list[dict[str, str]]]:
+        results: dict[str, ObservablePayload] = {}
+        pending: dict[str, ObservablePayload] = {}
         errors: list[dict[str, str]] = []
 
         for key, observable in observables.items():
-            observable_type = observable["type"]
-            try:
-                response = client.send_observable_analysis_request(
-                    observable["value"],
-                    tlp=self._tlp(tlp),
-                    analyzers_requested=self.analyzer_map[observable_type],
-                    observable_classification=self.intelowl_classification[observable_type],
-                    tags_labels=["taranis-ai"],
-                )
-            except Exception as exc:
-                errors.append({"observable": key, "error": self._sanitize_error(str(exc), api_key)})
+            current = existing.get(key)
+            if current and self._is_final_status(str(current.get("status") or "")):
+                continue
+            if current and current.get("job_id"):
+                pending[key] = {"type": observable["type"], "value": observable["value"], **current}
                 continue
 
-            job_id = str(response.get("job_id") or response.get("id") or "")
-            submitted[key] = {
+            submitted = self._submit_observable(client, observable, instance_url, api_key, tlp)
+            results[key] = submitted
+            if submitted.get("job_id") and not self._is_final_status(str(submitted.get("status") or "")):
+                pending[key] = submitted
+            if submitted.get("errors"):
+                errors.extend({"observable": key, "error": error.get("message", str(error))} for error in submitted["errors"])
+
+        polled, poll_errors = self._poll_pending_jobs(client, pending, instance_url, api_key)
+        results.update(polled)
+        errors.extend(poll_errors)
+        return list(results.values()), errors
+
+    def _submit_observable(
+        self,
+        client: IntelOwl,
+        observable: ObservablePayload,
+        instance_url: str,
+        api_key: str,
+        tlp: str,
+    ) -> ObservablePayload:
+        observable_type = observable["type"]
+        submitted_at = self._now()
+        try:
+            response = client.send_observable_analysis_request(
+                observable["value"],
+                tlp=self._tlp(tlp),
+                analyzers_requested=self.analyzer_map[observable_type],
+                observable_classification=self.intelowl_classification[observable_type],
+                tags_labels=["taranis-ai"],
+            )
+        except Exception as exc:
+            return {
                 "type": observable_type,
                 "value": observable["value"],
-                "status": str(response.get("status") or "submitted"),
-                "job_id": job_id,
-                "url": self._job_url(instance_url, job_id),
+                "status": "failed",
+                "analyzers": [],
+                "errors": [{"message": self._sanitize_error(str(exc), api_key)}],
+                "submitted_at": submitted_at,
             }
 
-        return submitted, errors
+        job_id = str(response.get("job_id") or response.get("id") or "")
+        return {
+            "type": observable_type,
+            "value": observable["value"],
+            "status": str(response.get("status") or "submitted"),
+            "job_id": job_id,
+            "job_url": self._job_url(instance_url, job_id),
+            "analyzers": [],
+            "errors": [],
+            "submitted_at": submitted_at,
+        }
+
+    def _poll_pending_jobs(
+        self,
+        client: IntelOwl,
+        pending: dict[str, ObservablePayload],
+        instance_url: str,
+        api_key: str,
+    ) -> tuple[dict[str, ObservablePayload], list[dict[str, str]]]:
+        results: dict[str, ObservablePayload] = {}
+        errors: list[dict[str, str]] = []
+        pending = dict(pending)
+
+        for attempt in range(self.poll_attempts):
+            for key, enrichment in list(pending.items()):
+                job_id = enrichment.get("job_id")
+                if not job_id:
+                    pending.pop(key, None)
+                    continue
+                try:
+                    job = client.get_job_by_id(job_id)
+                except Exception as exc:
+                    message = self._sanitize_error(str(exc), api_key)
+                    enrichment["errors"] = [{"message": message}]
+                    results[key] = enrichment
+                    errors.append({"observable": key, "error": message})
+                    pending.pop(key, None)
+                    continue
+
+                updated = self._compact_job_result(enrichment, job, instance_url)
+                results[key] = updated
+                if self._is_final_status(str(updated.get("status") or "")):
+                    pending.pop(key, None)
+
+            if not pending or attempt == self.poll_attempts - 1:
+                break
+            time.sleep(self.poll_delay_seconds)
+
+        return results, errors
+
+    def _compact_job_result(self, enrichment: ObservablePayload, job: dict[str, Any], instance_url: str) -> ObservablePayload:
+        status = str(job.get("status") or enrichment.get("status") or "")
+        job_id = str(job.get("id") or job.get("job_id") or enrichment.get("job_id") or "")
+        return {
+            **enrichment,
+            "status": status,
+            "job_id": job_id,
+            "job_url": self._job_url(instance_url, job_id) or str(enrichment.get("job_url") or ""),
+            "analyzers": self._compact_analyzers(job),
+            "errors": self._compact_errors(job) or enrichment.get("errors") or [],
+            "completed_at": self._now() if self._is_final_status(status) else None,
+        }
+
+    def _compact_analyzers(self, job: dict[str, Any]) -> list[dict[str, Any]]:
+        reports = job.get("analyzer_reports") or job.get("reports") or job.get("analyzers") or []
+        if isinstance(reports, dict):
+            reports = [
+                dict(value, name=name) if isinstance(value, dict) else {"name": name, "report": value} for name, value in reports.items()
+            ]
+        if not isinstance(reports, list):
+            return []
+
+        compact = []
+        for report in reports:
+            if not isinstance(report, dict):
+                continue
+            item = {
+                key: self._compact_value(report[value_key])
+                for key, value_key in {
+                    "name": "name",
+                    "analyzer_name": "analyzer_name",
+                    "status": "status",
+                    "report": "report",
+                    "result": "result",
+                    "data": "data",
+                    "errors": "errors",
+                    "error": "error",
+                }.items()
+                if value_key in report and report[value_key] not in (None, "")
+            }
+            if item:
+                compact.append(item)
+        return compact
+
+    @classmethod
+    def _compact_errors(cls, job: dict[str, Any]) -> list[dict[str, Any]]:
+        raw_errors = job.get("errors") or job.get("error") or []
+        if isinstance(raw_errors, str):
+            return [{"message": raw_errors}]
+        if isinstance(raw_errors, dict):
+            return [raw_errors]
+        if isinstance(raw_errors, list):
+            return [error if isinstance(error, dict) else {"message": str(error)} for error in raw_errors]
+        return []
+
+    @classmethod
+    def _compact_value(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return value[:4000]
+        if isinstance(value, list):
+            return [cls._compact_value(item) for item in value[:20]]
+        if isinstance(value, dict):
+            return {str(key): cls._compact_value(item) for key, item in list(value.items())[:40]}
+        return value
 
     @staticmethod
     def _job_url(instance_url: str, job_id: str) -> str:
         return f"{instance_url.rstrip('/')}/jobs/{job_id}" if job_id else ""
 
-    @staticmethod
-    def _summary(keys: list[str], submitted: dict[str, ObservablePayload], errors: list[dict[str, str]]) -> str:
-        parts: list[str] = []
-        for key in keys:
-            if result := submitted.get(key):
-                label = f"{result['type']} {result['value']}"
-                job = f" job {result['job_id']}" if result.get("job_id") else ""
-                url = f" {result['url']}" if result.get("url") else ""
-                parts.append(f"{label}: {result['status']}{job}{url}")
-        error_by_observable = {error["observable"]: error["error"] for error in errors}
-        parts.extend(f"{key}: failed ({error_by_observable[key]})" for key in keys if key in error_by_observable)
-        return "IntelOwl enrichment: " + "; ".join(parts) if parts else "IntelOwl enrichment: no submitted observables"
+    @classmethod
+    def _is_final_status(cls, status: str) -> bool:
+        return status.strip().lower() in cls.final_statuses
 
     @staticmethod
     def _sanitize_error(message: str, api_key: str) -> str:
@@ -314,12 +387,11 @@ class IntelOwlBot(BaseBot):
         return "CLEAR"
 
     @staticmethod
-    def _id_list(value: Any) -> list[str]:
-        values = value if isinstance(value, list) else [value]
-        return [str(item).strip() for item in values if str(item or "").strip()]
-
-    @staticmethod
     def _is_enabled(value: Any) -> bool:
         if isinstance(value, bool):
             return value
         return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+    @staticmethod
+    def _now() -> str:
+        return datetime.now(timezone.utc).replace(tzinfo=None).isoformat()

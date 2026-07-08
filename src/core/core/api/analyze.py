@@ -10,6 +10,7 @@ from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
 from core.model.revision import ReportRevision
 from core.service.cache_invalidation import SCOPE_PUBLISH_VIEWS, SCOPE_REPORT_VIEWS, invalidate_frontend_cache_on_success
+from core.service.cti import CTIService
 from core.service.product import ProductService
 from core.service.report_publish_workflow import ReportPublishWorkflowService
 
@@ -143,6 +144,12 @@ class ReportItem(MethodView):
         json_response = jsonify(result)
         json_response.status_code = code
         return json_response
+
+
+class ReportItemCTI(MethodView):
+    @auth_required("ANALYZE_ACCESS")
+    def get(self, report_item_id: str):
+        return CTIService.get_report_cti(report_item_id, current_user)
 
 
 class ReportItemPublishProduct(MethodView):
@@ -307,6 +314,7 @@ def initialize(app: Flask):
         view_func=ReportItem.as_view("report_item"),
         methods=["GET", "PUT", "DELETE"],
     )
+    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/cti", view_func=ReportItemCTI.as_view("report_item_cti"))
     analyze_bp.add_url_rule(
         "/report/<string:report_item_id>",
         view_func=ReportItem.as_view("report"),

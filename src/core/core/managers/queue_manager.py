@@ -34,7 +34,7 @@ import json
 import time
 from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Sequence
 
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from flask import Flask
@@ -755,8 +755,8 @@ class QueueManager:
             return {"message": "Gathering for WordList scheduled"}, 200
         return {"error": "Could not reach Redis"}, 500
 
-    def execute_bot_task(self, bot_id: str, filter: dict | None = None):
-        bot_args: dict[str, str | dict] = {"bot_id": bot_id}
+    def execute_bot_task(self, bot_id: str, filter: dict | None = None, trigger_dependents: bool = True):
+        bot_args: dict[str, str | dict | bool] = {"bot_id": bot_id, "trigger_dependents": trigger_dependents}
         if filter:
             bot_args["filter"] = filter
 
@@ -792,25 +792,66 @@ class QueueManager:
         """Run post-collection bots"""
         from core.model.bot import Bot
 
-        post_collection_bots = list(Bot.get_post_collection())
+        post_collection_bots, dependencies_by_id = Bot.get_collector_run_graph()
         if not post_collection_bots:
             return {"message": "No post collection bots found"}, 200
 
-        previous_job = None
-        for bot_id in post_collection_bots:
-            bot_args = {"bot_id": bot_id, "filter": {"SOURCE": source_id}}
+        if not self._enqueue_bot_graph(
+            post_collection_bots,
+            dependencies_by_id,
+            filter={"SOURCE": source_id},
+            job_suffix=source_id,
+            trigger_dependents=False,
+        ):
+            return {"error": "Could not schedule post collection bot"}, 500
+
+        return {"message": "Post collection bots scheduled"}, 200
+
+    def schedule_bot_dependents(self, bot_type: str, filter: dict | None = None):
+        """Schedule bots that depend on a completed bot type."""
+        from core.model.bot import Bot
+
+        dependent_bots, dependencies_by_id = Bot.get_dependent_run_graph(bot_type)
+        if not dependent_bots:
+            return {"message": "No dependent bots found"}, 200
+
+        if not self._enqueue_bot_graph(
+            dependent_bots,
+            dependencies_by_id,
+            filter=filter,
+            job_suffix=bot_type.lower(),
+            trigger_dependents=False,
+        ):
+            return {"error": "Could not schedule dependent bot"}, 500
+        return {"message": "Dependent bots scheduled"}, 200
+
+    def _enqueue_bot_graph(
+        self,
+        bots: Sequence[Any],
+        dependencies_by_id: dict[str, list[str]],
+        *,
+        filter: dict | None,
+        job_suffix: str,
+        trigger_dependents: bool,
+    ) -> bool:
+        jobs_by_bot_id: dict[str, Any] = {}
+        for bot in bots:
+            dependency_ids = dependencies_by_id.get(bot.id, [])
+            bot_args: dict[str, str | dict | bool] = {"bot_id": bot.id, "trigger_dependents": trigger_dependents}
+            if filter:
+                bot_args["filter"] = filter
+            parent_jobs = [jobs_by_bot_id[dependency_id] for dependency_id in dependency_ids if dependency_id in jobs_by_bot_id]
             job = self.enqueue_task(
                 "bots",
                 "bot_task",
-                job_id=f"bot_{bot_id}_{source_id}",
-                depends_on=previous_job,
+                job_id=self._build_unique_job_id("bot", f"{bot.id}_{job_suffix}"),
+                depends_on=parent_jobs or None,
                 **bot_args,
             )
             if not job:
-                return {"error": "Could not schedule post collection bot"}, 500
-            previous_job = job
-
-        return {"message": "Post collection bots scheduled"}, 200
+                return False
+            jobs_by_bot_id[bot.id] = job
+        return True
 
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""

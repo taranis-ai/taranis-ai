@@ -444,18 +444,18 @@ def bots(app):
         highest_index = Bot.get_highest_index()
 
         bot1 = Bot(
-            name="Test IOC Bot",
-            description="IOC bot fixture for cron job tests",
-            type="ioc_bot",
+            name="Test Analyst Bot",
+            description="Analyst bot fixture for cron job tests",
+            type="analyst_bot",
             index=highest_index + 1,
             parameters={"REFRESH_INTERVAL": "0 2 * * *"},  # Daily at 2am
         )
         bot1.enabled = True
 
         bot2 = Bot(
-            name="Test NLP Bot",
-            description="NLP bot fixture for cron job tests",
-            type="nlp_bot",
+            name="Test Grouping Bot",
+            description="Grouping bot fixture for cron job tests",
+            type="grouping_bot",
             index=highest_index + 2,
             parameters={"REFRESH_INTERVAL": "0 */6 * * *"},  # Every 6 hours
         )
@@ -480,18 +480,14 @@ def disabled_bot(app):
         from core.managers.db_manager import db
         from core.model.bot import Bot
 
-        bot = Bot(
-            name="Disabled Bot",
-            description="Disabled bot fixture",
-            type="ioc_bot",
-            parameters={"REFRESH_INTERVAL": "0 * * * *"},
-        )
+        bot = Bot.filter_by_type("ioc_bot")
+        assert bot is not None
+        was_enabled = bot.enabled
         bot.enabled = False
-        db.session.add(bot)
         db.session.commit()
         yield bot
         try:
-            db.session.delete(bot)
+            bot.enabled = was_enabled
             db.session.commit()
         except Exception:
             db.session.rollback()

@@ -3,6 +3,7 @@ from typing import Any
 from flask import Response, abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.assess import Story
+from models.cti import CTIResponse
 from models.product import Product, ProductType
 from models.report import ReportItem, ReportTypes
 from models.revision_diff import build_report_revision_diff_payload
@@ -234,6 +235,12 @@ class ReportItemView(BaseView):
             return abort(400, description="No report ID provided for cloning.")
         CoreApi().clone_report(report_id)
         return ReportItemView.list_view()
+
+    @staticmethod
+    @auth_required()
+    def cti_dialog(report_id: str) -> tuple[str, int]:
+        payload = CoreApi().api_get(f"/analyze/report-items/{report_id}/cti") or {"item_type": "report", "item_id": report_id, "iocs": []}
+        return render_template("shared/cti_dialog.html", cti=CTIResponse.model_validate(payload)), 200
 
     @staticmethod
     @auth_required()

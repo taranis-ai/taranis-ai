@@ -1,0 +1,85 @@
+<dialog id="cti_dialog"
+        class="modal"
+        x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
+        x-on:close="$el.remove()"
+        data-testid="cti-dialog">
+  <div class="modal-box max-w-5xl">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+    </form>
+    <h3 class="font-bold text-lg mt-1 mb-4">CTI information</h3>
+    {% if cti.iocs %}
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>IOC</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>IntelOwl</th>
+              <th>News items</th>
+              <th>Analyzers</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ioc in cti.iocs %}
+              {% set enrichment = ioc.enrichment %}
+              <tr data-testid="cti-ioc-row">
+                <td class="font-mono break-all">{{ ioc.value }}</td>
+                <td><span class="badge badge-outline badge-sm">{{ ioc.ioc_type }}</span></td>
+                <td>
+                  {% if enrichment and enrichment.status %}
+                    <span class="badge badge-info badge-sm">{{ enrichment.status }}</span>
+                  {% else %}
+                    <span class="badge badge-ghost badge-sm">not enriched</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if enrichment and enrichment.job_url %}
+                    <a class="link link-primary" href="{{ enrichment.job_url }}" target="_blank" rel="noopener">{{ enrichment.job_id or "job" }}</a>
+                  {% elif enrichment and enrichment.job_id %}
+                    <span class="font-mono text-xs">{{ enrichment.job_id }}</span>
+                  {% else %}
+                    <span class="text-base-content/50">—</span>
+                  {% endif %}
+                </td>
+                <td>{{ ioc.news_item_ids | length }}</td>
+                <td class="min-w-72">
+                  {% if enrichment and enrichment.analyzers %}
+                    <details>
+                      <summary class="cursor-pointer">{{ enrichment.analyzers | length }}</summary>
+                      <div class="mt-2 space-y-2">
+                        {% for analyzer in enrichment.analyzers %}
+                          <div class="rounded border border-base-200 p-2">
+                            <div class="flex flex-wrap gap-2 text-xs">
+                              <span class="font-semibold">{{ analyzer.name or analyzer.analyzer_name or "Analyzer" }}</span>
+                              {% if analyzer.status %}<span class="badge badge-ghost badge-xs">{{ analyzer.status }}</span>{% endif %}
+                            </div>
+                            {% set analyzer_data = analyzer.report or analyzer.result or analyzer.data %}
+                            {% if analyzer_data %}
+                              <pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words text-xs">{{ analyzer_data | tojson }}</pre>
+                            {% endif %}
+                            {% if analyzer.errors or analyzer.error %}
+                              <pre class="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words text-xs text-error">{{ (analyzer.errors or analyzer.error) | tojson }}</pre>
+                            {% endif %}
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </details>
+                  {% else %}
+                    <span class="text-base-content/50">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert">No CTI information available.</div>
+    {% endif %}
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

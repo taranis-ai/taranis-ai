@@ -31,13 +31,12 @@
             Version History ({{ report.revision_count }})
           </a>
         {% endif %}
-        <form class="inline-flex"
-              hx-post="{{ url_for('analyze.report_trigger_bot', report_id=report.id) }}"
-              hx-target="#notification-bar"
-              hx-swap="innerHTML">
-          <input type="hidden" name="bot_id" value="intel_owl_bot">
-          <button type="submit" class="btn btn-outline btn-sm">IntelOwl</button>
-        </form>
+        <button type="button"
+                class="btn btn-outline btn-sm"
+                hx-get="{{ url_for('analyze.report_cti', report_id=report.id) }}"
+                hx-target="body"
+                hx-swap="beforeend"
+                data-testid="report-cti-button">CTI information</button>
         <div data-testid="report-new-product" class="inline-flex">
           <button type="button"
                   class="btn btn-outline btn-sm"

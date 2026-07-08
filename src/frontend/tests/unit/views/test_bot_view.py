@@ -110,3 +110,48 @@ def test_bot_form_renders_enabled_switch(app):
     assert len(enabled_fields) == 2
     assert tree.xpath('//input[@name="enabled"][@type="hidden"][@value="false"]')
     assert tree.xpath('//input[@name="enabled"][@type="checkbox"][@value="true"]')
+
+
+def test_run_after_options_exclude_current_bot_type(monkeypatch):
+    fake_bots = SimpleNamespace(
+        items=[
+            SimpleNamespace(type=BOT_TYPES.IOC_BOT, name="IOC Bot", enabled=True),
+            SimpleNamespace(type=BOT_TYPES.NLP_BOT, name="NLP Bot", enabled=True),
+        ]
+    )
+    monkeypatch.setattr(
+        "frontend.views.admin_views.bot_views.DataPersistenceLayer",
+        lambda: SimpleNamespace(get_objects=lambda model: fake_bots),
+    )
+
+    options = BotView.get_run_after_options("ioc_bot")
+
+    assert options == [{"id": "NLP_BOT", "name": "NLP Bot (NLP_BOT)", "enabled": "true"}]
+
+
+def test_bot_run_order_controls_render_selected_dependencies(app):
+    with app.test_request_context("/"):
+        rendered = render_template(
+            "bot/bot_run_order.html",
+            bot_id="bot-1",
+            parameter_values={"RUN_AFTER_COLLECTOR": "true", "RUN_AFTER_BOTS": "IOC_BOT"},
+            selected_run_after=["IOC_BOT"],
+            run_after_options=[{"id": "IOC_BOT", "name": "IOC Bot (IOC_BOT)", "enabled": "true"}],
+            dag_preview={"order": [], "edges": [], "warnings": []},
+        )
+
+    tree = html.fromstring(rendered)
+    assert tree.xpath('//input[@name="parameters[RUN_AFTER_COLLECTOR]"][@type="checkbox"][@checked]')
+    selected_options = tree.xpath('//select[@id="run-after-bots-select"]/option[@value="IOC_BOT"][@selected]')
+    assert len(selected_options) == 1
+
+
+def test_bot_dag_preview_renders_warnings(app):
+    with app.test_request_context("/"):
+        rendered = render_template(
+            "bot/bot_dag_preview.html",
+            bot_id="bot-1",
+            dag_preview={"order": [], "edges": [], "warnings": ["Bot run order contains a cycle"]},
+        )
+
+    assert "Bot run order contains a cycle" in rendered

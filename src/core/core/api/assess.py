@@ -22,6 +22,7 @@ from core.service.cache_invalidation import (
     SCOPE_STORY_VIEWS,
     invalidate_frontend_cache_on_success,
 )
+from core.service.cti import CTIService
 from core.service.news_item import NewsItemService
 from core.service.simple_web_collector import get_simple_web_collector_url
 from core.service.story import StoryService
@@ -133,6 +134,12 @@ class NewsItem(MethodView):
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
+
+
+class NewsItemCTI(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, item_id: str):
+        return CTIService.get_news_item_cti(item_id, current_user)
 
 
 class UpdateNewsItemAttributes(MethodView):
@@ -272,6 +279,12 @@ class Story(MethodView):
         response, code = story.Story.update(story_id, request.json, current_user)
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return response, code
+
+
+class StoryCTI(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, story_id: str):
+        return CTIService.get_story_cti(story_id, current_user)
 
 
 class UnGroupNewsItem(MethodView):
@@ -514,6 +527,7 @@ def initialize(app: Flask):
         "/bookmarks/<string:bookmark_id>/stories/remove", view_func=StoryBookmarkStoryRemoval.as_view("bookmark_story_removal")
     )
     assess_bp.add_url_rule("/stories/<string:story_id>", view_func=Story.as_view("story_"))
+    assess_bp.add_url_rule("/stories/<string:story_id>/cti", view_func=StoryCTI.as_view("story_cti"))
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=Story.as_view("story"))
     assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
     assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
@@ -524,6 +538,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
     assess_bp.add_url_rule("/news-items/fetch", view_func=NewsItemFetch.as_view("news_item_fetch"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
+    assess_bp.add_url_rule("/news-items/<string:item_id>/cti", view_func=NewsItemCTI.as_view("news_item_cti"))
     assess_bp.add_url_rule(
         "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")
     )

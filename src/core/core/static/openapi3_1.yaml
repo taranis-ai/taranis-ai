@@ -805,6 +805,33 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /analyze/report-items/{report_item_id}/cti:
+    parameters:
+    - name: report_item_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - analyze
+      description: get CTI information for all IOC tags in stories attached to the report item
+      operationId: analyze.report_item_cti.get
+      responses:
+        '200':
+          description: CTI information for the report item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /analyze/report-items/{report_item_id}/locks:
     parameters:
     - name: report_item_id
@@ -1467,7 +1494,32 @@ paths:
                 type: object
         "404":
           $ref: "#/components/responses/404NotFound"
-
+  /assess/news-items/{item_id}/cti:
+    parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get CTI information for IOC tags on the specified news item
+      operationId: assess.news_item_cti.get
+      responses:
+        "200":
+          description: CTI information for the news item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/cti_response"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: read access denied
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/news-items/{item_id}/tags:
     parameters:
       - name: item_id
@@ -6020,6 +6072,33 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assess/stories/{story_id}/cti:
+    parameters:
+    - name: story_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: get CTI information for IOC tags on news items in the story
+      operationId: assess.story_cti.get
+      responses:
+        '200':
+          description: CTI information for the story
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /assess/stories/{story_id}/revisions:
     parameters:
     - name: story_id
@@ -9325,6 +9404,77 @@ components:
       properties:
         access_token:
           type: string
+    cti_enrichment:
+      type: object
+      properties:
+        ioc_type:
+          type: string
+          enum: [cve, email, ip, domain, url, hash]
+        value:
+          type: string
+        status:
+          type:
+          - string
+          - 'null'
+        job_id:
+          type:
+          - string
+          - 'null'
+        job_url:
+          type:
+          - string
+          - 'null'
+        analyzers:
+          type: array
+          items:
+            type: object
+        errors:
+          type: array
+          items:
+            type: object
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    cti_item:
+      type: object
+      properties:
+        ioc_type:
+          type: string
+          enum: [cve, email, ip, domain, url, hash]
+        value:
+          type: string
+        news_item_ids:
+          type: array
+          items:
+            type: string
+        enrichment:
+          oneOf:
+          - $ref: '#/components/schemas/cti_enrichment'
+          - type: 'null'
+    cti_response:
+      type: object
+      properties:
+        item_type:
+          type: string
+          enum: [news_item, story, report]
+        item_id:
+          type: string
+        iocs:
+          type: array
+          items:
+            $ref: '#/components/schemas/cti_item'
     presentation:
       type: object
       properties:

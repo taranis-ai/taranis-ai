@@ -1,5 +1,6 @@
 # pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any, cast
 
 import rq.registry as rq_registry
@@ -403,6 +404,65 @@ def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypa
 
     assert status == 500
     assert payload == {"error": "Could not schedule presenter job for product"}
+
+
+def test_post_collection_bots_schedules_rq_dependency_graph(monkeypatch):
+    qm = _make_queue_manager()
+    calls: list[dict[str, Any]] = []
+    jobs: dict[str, Any] = {}
+    wordlist = SimpleNamespace(id="wordlist", type="WORDLIST_BOT")
+    ioc = SimpleNamespace(id="ioc", type="IOC_BOT")
+    summary = SimpleNamespace(id="summary", type="SUMMARY_BOT")
+
+    monkeypatch.setattr(
+        Bot,
+        "get_collector_run_graph",
+        classmethod(lambda cls: ([wordlist, ioc, summary], {"wordlist": [], "ioc": ["wordlist"], "summary": ["ioc"]})),
+    )
+    monkeypatch.setattr(qm, "_build_unique_job_id", lambda task_name, worker_id: f"{task_name}_{worker_id}")
+
+    def fake_enqueue_task(queue_name: str, task_name: str, **kwargs):
+        calls.append({"queue_name": queue_name, "task_name": task_name, "kwargs": kwargs})
+        job = SimpleNamespace(id=kwargs["bot_id"])
+        jobs[kwargs["bot_id"]] = job
+        return job
+
+    monkeypatch.setattr(qm, "enqueue_task", fake_enqueue_task)
+
+    payload, status = qm.post_collection_bots("source-1")
+
+    assert status == 200
+    assert payload == {"message": "Post collection bots scheduled"}
+    assert [call["kwargs"]["bot_id"] for call in calls] == ["wordlist", "ioc", "summary"]
+    assert calls[0]["kwargs"]["depends_on"] is None
+    assert calls[1]["kwargs"]["depends_on"] == [jobs["wordlist"]]
+    assert calls[2]["kwargs"]["depends_on"] == [jobs["ioc"]]
+    assert all(call["kwargs"]["trigger_dependents"] is False for call in calls)
+    assert all(call["kwargs"]["filter"] == {"SOURCE": "source-1"} for call in calls)
+
+
+def test_schedule_bot_dependents_enqueues_intelowl_like_any_other_bot(monkeypatch):
+    from models.types import BOT_TYPES
+
+    qm = _make_queue_manager()
+    intelowl = SimpleNamespace(id="intelowl", type=BOT_TYPES.INTEL_OWL_BOT)
+    calls: list[dict[str, Any]] = []
+
+    monkeypatch.setattr(
+        Bot,
+        "get_dependent_run_graph",
+        classmethod(lambda cls, bot_type: ([intelowl], {"intelowl": []})),
+    )
+    monkeypatch.setattr(qm, "enqueue_task", lambda *args, **kwargs: calls.append(kwargs) or SimpleNamespace(id="job"))
+
+    payload, status = qm.schedule_bot_dependents("IOC_BOT", {"report_ids": ["report-1"]})
+
+    assert status == 200
+    assert payload == {"message": "Dependent bots scheduled"}
+    assert len(calls) == 1
+    assert calls[0]["bot_id"] == "intelowl"
+    assert calls[0]["filter"] == {"report_ids": ["report-1"]}
+    assert calls[0]["trigger_dependents"] is False
 
 
 def test_osint_schedule_entries_include_metadata(monkeypatch):
