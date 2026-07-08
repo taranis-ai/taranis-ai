@@ -82,6 +82,8 @@ def pre_seed_update(db_engine: Engine):
     if db_engine.dialect.name == "postgresql":
         rebuild_story_search_vectors()
 
+    pre_seed_attributes()
+
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):
             worker.update(w)
