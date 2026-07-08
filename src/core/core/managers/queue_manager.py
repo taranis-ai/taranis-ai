@@ -32,7 +32,7 @@ import contextlib
 import hashlib
 import json
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -358,7 +358,10 @@ class QueueManager:
             CronSpec(
                 meta={
                     "name": TOKEN_CLEANUP_DISPLAY_NAME,
-                    **QueueManager._task_meta(TOKEN_CLEANUP_JOB_ID, TOKEN_CLEANUP_JOB_ID, TOKEN_CLEANUP_JOB_ID),
+                    "task": TOKEN_CLEANUP_JOB_ID,
+                    "user_id": None,
+                    "worker_id": TOKEN_CLEANUP_JOB_ID,
+                    "worker_type": TOKEN_CLEANUP_JOB_ID,
                 },
                 job_id=TOKEN_CLEANUP_JOB_ID,
                 cron=TOKEN_CLEANUP_CRON,
@@ -368,7 +371,10 @@ class QueueManager:
             CronSpec(
                 meta={
                     "name": TASK_RECONCILIATION_DISPLAY_NAME,
-                    **QueueManager._task_meta(TASK_RECONCILIATION_JOB_ID, TASK_RECONCILIATION_JOB_ID, TASK_RECONCILIATION_JOB_ID),
+                    "task": TASK_RECONCILIATION_JOB_ID,
+                    "user_id": None,
+                    "worker_id": TASK_RECONCILIATION_JOB_ID,
+                    "worker_type": TASK_RECONCILIATION_JOB_ID,
                 },
                 job_id=TASK_RECONCILIATION_JOB_ID,
                 cron=TASK_RECONCILIATION_CRON,
@@ -519,7 +525,7 @@ class QueueManager:
                 "gather_word_list",
                 word_list.id,
                 job_id=f"gather_word_list_{word_list.id}",
-                meta=self._task_meta("gather_word_list", word_list.id, "gather_word_list"),
+                meta={"task": "gather_word_list", "user_id": None, "worker_id": word_list.id, "worker_type": "gather_word_list"},
             )
         logger.info(f"Gathering for {len(word_lists)} empty WordLists scheduled")
 
@@ -537,7 +543,7 @@ class QueueManager:
                 "gather_word_list",
                 word_list.id,
                 job_id=f"gather_word_list_{word_list.id}",
-                meta=self._task_meta("gather_word_list", word_list.id, "gather_word_list", user_id=user_id),
+                meta={"task": "gather_word_list", "user_id": user_id, "worker_id": word_list.id, "worker_type": "gather_word_list"},
             )
         return {"message": "Gathering for all WordLists scheduled"}, 200
 
@@ -577,7 +583,15 @@ class QueueManager:
             self.error = "Could not reach Redis"
             return {"error": "Could not reach Redis"}, 500
 
-    def enqueue_task(self, queue_name: str, task_name: str, *args, job_id: str | None = None, **kwargs):
+    def enqueue_task(
+        self,
+        queue_name: str,
+        task_name: str,
+        *args,
+        job_id: str | None = None,
+        meta: dict[str, Any] | None = None,
+        **kwargs,
+    ):
         """Enqueue a task immediately"""
         if self.error:
             return False
@@ -593,7 +607,6 @@ class QueueManager:
                 logger.error(f"Unknown task: {task_name}")
                 return False
 
-            meta = kwargs.pop("meta", None)
             if meta:
                 kwargs["meta"] = dict(meta)
 
@@ -614,7 +627,16 @@ class QueueManager:
                 raise TimeoutError("Job result timed out")
             time.sleep(poll_interval)
 
-    def enqueue_at(self, queue_name: str, task_name: str, scheduled_time: datetime, *args, job_id: str | None = None, **kwargs):
+    def enqueue_at(
+        self,
+        queue_name: str,
+        task_name: str,
+        scheduled_time: datetime,
+        *args,
+        job_id: str | None = None,
+        meta: dict[str, Any] | None = None,
+        **kwargs,
+    ):
         """Enqueue a task to run at a specific time"""
         if self.error:
             return False
@@ -630,7 +652,6 @@ class QueueManager:
                 logger.error(f"Unknown task: {task_name}")
                 return False
 
-            meta = kwargs.pop("meta", None)
             if meta:
                 kwargs["meta"] = dict(meta)
 
@@ -726,13 +747,24 @@ class QueueManager:
 
     def collect_osint_source(self, source_id: str, task_id: str, user_id: str | None = None):
         """Trigger OSINT source collection"""
+        from core.model.osint_source import OSINTSource
+
         if self.enqueue_task(
             "collectors",
             "collector_task",
             source_id,
             True,
             job_id=task_id,
-            meta=self._task_meta("collector_task", source_id, self._collector_worker_type(source_id), user_id=user_id),
+            meta={
+                "task": "collector_task",
+                "user_id": user_id,
+                "worker_id": source_id,
+                "worker_type": self._resolve_worker_type(
+                    OSINTSource.get,
+                    source_id,
+                    fallback="collector_task",
+                ),
+            },
         ):
             logger.info(f"Collect for source {source_id} scheduled")
             return {"message": "Refresh for source scheduled"}, 200
@@ -741,6 +773,8 @@ class QueueManager:
 
     def preview_osint_source(self, source_id: str, user_id: str | None = None):
         """Preview OSINT source collection"""
+        from core.model.osint_source import OSINTSource
+
         task_id = f"source_preview_{source_id}"
         self.purge_job_artifacts(exact_ids={task_id})
         if job := self.enqueue_task(
@@ -748,7 +782,16 @@ class QueueManager:
             "collector_preview",
             source_id,
             job_id=task_id,
-            meta=self._task_meta("collector_preview", source_id, self._collector_worker_type(source_id), user_id=user_id),
+            meta={
+                "task": "collector_preview",
+                "user_id": user_id,
+                "worker_id": source_id,
+                "worker_type": self._resolve_worker_type(
+                    OSINTSource.get,
+                    source_id,
+                    fallback="collector_task",
+                ),
+            },
         ):
             logger.info(f"Preview for source {source_id} scheduled")
             return {"message": "Preview for source scheduled", "id": job.id, "status": "STARTED"}, 201
@@ -793,7 +836,12 @@ class QueueManager:
             "fetch_single_news_item",
             parameters,
             job_id=self._get_single_fetch_job_id(parameters),
-            meta=self._task_meta("collector_task", self._get_single_fetch_url(parameters), "simple_web_collector"),
+            meta={
+                "task": "collector_task",
+                "user_id": None,
+                "worker_id": self._get_single_fetch_url(parameters),
+                "worker_type": "simple_web_collector",
+            },
         )
         if not job:
             logger.error("Could not schedule fetch_single_news_item task")
@@ -823,19 +871,30 @@ class QueueManager:
                 source.id,
                 True,
                 job_id=source.task_id,
-                meta=self._task_meta("collector_task", source.id, source.type.value, user_id=user_id),
+                meta={"task": "collector_task", "user_id": user_id, "worker_id": source.id, "worker_type": source.type.value},
             )
             logger.info(f"Collect for source {source.id} scheduled")
         return {"message": f"Refresh for {len(sources)} sources scheduled"}, 200
 
     def push_to_connector(self, connector_id: str, story_ids: list, user_id: str | None = None):
         """Push stories to connector"""
+        from core.model.connector import Connector
+
         if self.enqueue_task(
             "connectors",
             "connector_task",
             connector_id,
             story_ids,
-            meta=self._task_meta("connector_task", connector_id, self._connector_worker_type(connector_id), user_id=user_id),
+            meta={
+                "task": "connector_task",
+                "user_id": user_id,
+                "worker_id": connector_id,
+                "worker_type": self._resolve_worker_type(
+                    Connector.get,
+                    connector_id,
+                    fallback="connector_task",
+                ),
+            },
         ):
             logger.info(f"Connector with id: {connector_id} scheduled")
             return {"message": "Connector scheduled"}, 200
@@ -843,12 +902,23 @@ class QueueManager:
 
     def pull_from_connector(self, connector_id: str, user_id: str | None = None):
         """Pull from connector"""
+        from core.model.connector import Connector
+
         if self.enqueue_task(
             "connectors",
             "connector_task",
             connector_id,
             None,
-            meta=self._task_meta("connector_task", connector_id, self._connector_worker_type(connector_id), user_id=user_id),
+            meta={
+                "task": "connector_task",
+                "user_id": user_id,
+                "worker_id": connector_id,
+                "worker_type": self._resolve_worker_type(
+                    Connector.get,
+                    connector_id,
+                    fallback="connector_task",
+                ),
+            },
         ):
             logger.info(f"Connector with id: {connector_id} scheduled")
             return {"message": "Connector scheduled"}, 200
@@ -861,13 +931,15 @@ class QueueManager:
             "gather_word_list",
             word_list_id,
             job_id=f"gather_word_list_{word_list_id}",
-            meta=self._task_meta("gather_word_list", word_list_id, "gather_word_list", user_id=user_id),
+            meta={"task": "gather_word_list", "user_id": user_id, "worker_id": word_list_id, "worker_type": "gather_word_list"},
         ):
             logger.info(f"Gathering for WordList {word_list_id} scheduled")
             return {"message": "Gathering for WordList scheduled"}, 200
         return {"error": "Could not reach Redis"}, 500
 
     def execute_bot_task(self, bot_id: str, filter: dict | None = None, user_id: str | None = None):
+        from core.model.bot import Bot
+
         bot_args: dict[str, str | dict] = {"bot_id": bot_id}
         if filter:
             bot_args["filter"] = filter
@@ -876,7 +948,17 @@ class QueueManager:
             "bots",
             "bot_task",
             job_id=f"bot_{bot_id}",
-            meta=self._task_meta(f"bot_{bot_id}", bot_id, self._bot_worker_type(bot_id), user_id=user_id),
+            meta={
+                "task": f"bot_{bot_id}",
+                "user_id": user_id,
+                "worker_id": bot_id,
+                "worker_type": self._resolve_worker_type(
+                    Bot.get,
+                    bot_id,
+                    fallback="BOT_TASK",
+                    transform=lambda value: value.upper(),
+                ),
+            },
             **bot_args,
         ):
             logger.info(f"Executing Bot {bot_id} scheduled")
@@ -895,7 +977,7 @@ class QueueManager:
                 scheduled_time,
                 product_id,
                 job_id=f"presenter_task_{product_id}",
-                meta=self._task_meta("presenter_task", product_id, "presenter_task", user_id=user_id),
+                meta={"task": "presenter_task", "user_id": user_id, "worker_id": product_id, "worker_type": "presenter_task"},
             )
         else:
             job = self.enqueue_task(
@@ -903,7 +985,7 @@ class QueueManager:
                 "presenter_task",
                 product_id,
                 job_id=f"presenter_task_{product_id}",
-                meta=self._task_meta("presenter_task", product_id, "presenter_task", user_id=user_id),
+                meta={"task": "presenter_task", "user_id": user_id, "worker_id": product_id, "worker_type": "presenter_task"},
             )
 
         if job:
@@ -913,13 +995,24 @@ class QueueManager:
 
     def publish_product(self, product_id: str, publisher_id: str, user_id: str | None = None):
         """Publish product"""
+        from core.model.publisher_preset import PublisherPreset
+
         if self.enqueue_task(
             "publishers",
             "publisher_task",
             product_id,
             publisher_id,
             job_id=f"publisher_task_{product_id}",
-            meta=self._task_meta("publisher_task", publisher_id, self._publisher_worker_type(publisher_id), user_id=user_id),
+            meta={
+                "task": "publisher_task",
+                "user_id": user_id,
+                "worker_id": publisher_id,
+                "worker_type": self._resolve_worker_type(
+                    PublisherPreset.get,
+                    publisher_id,
+                    fallback="publisher_task",
+                ),
+            },
         ):
             logger.info(f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled")
             return {"message": "Publishing Product scheduled"}, 200
@@ -942,7 +1035,17 @@ class QueueManager:
                 "bot_task",
                 job_id=f"bot_{bot_id}_{source_id}",
                 depends_on=previous_job,
-                meta=self._task_meta(f"bot_{bot_id}", bot_id, self._bot_worker_type(bot_id), user_id=user_id),
+                meta={
+                    "task": f"bot_{bot_id}",
+                    "user_id": user_id,
+                    "worker_id": bot_id,
+                    "worker_type": self._resolve_worker_type(
+                        Bot.get,
+                        bot_id,
+                        fallback="BOT_TASK",
+                        transform=lambda value: value.upper(),
+                    ),
+                },
                 **bot_args,
             )
             if not job:
@@ -1003,40 +1106,18 @@ class QueueManager:
             all_jobs.extend(OSINTSource.get_enabled_schedule_entries())
             all_jobs.extend(Bot.get_enabled_schedule_entries())
 
-            cleanup_result = self._get_latest_task_result(
-                exact_ids={TOKEN_CLEANUP_JOB_ID},
-                prefixes=[f"cron_{TOKEN_CLEANUP_JOB_ID}_"],
-                task_name=TOKEN_CLEANUP_JOB_ID,
-            )
             all_jobs.append(
-                self.build_cron_schedule_entry(
+                self._build_housekeeping_schedule_entry(
                     job_id=TOKEN_CLEANUP_JOB_ID,
                     name=TOKEN_CLEANUP_DISPLAY_NAME,
-                    queue="misc",
                     cron_schedule=TOKEN_CLEANUP_CRON,
-                    task_id=TOKEN_CLEANUP_JOB_ID,
-                    last_run=cleanup_result.last_run if cleanup_result else None,
-                    last_success=cleanup_result.last_success if cleanup_result else None,
-                    last_status=cleanup_result.status if cleanup_result else None,
-                    last_reason=_task_result_reason(cleanup_result),
                 )
             )
-            reconciliation_result = self._get_latest_task_result(
-                exact_ids={TASK_RECONCILIATION_JOB_ID},
-                prefixes=[f"cron_{TASK_RECONCILIATION_JOB_ID}_"],
-                task_name=TASK_RECONCILIATION_JOB_ID,
-            )
             all_jobs.append(
-                self.build_cron_schedule_entry(
+                self._build_housekeeping_schedule_entry(
                     job_id=TASK_RECONCILIATION_JOB_ID,
                     name=TASK_RECONCILIATION_DISPLAY_NAME,
-                    queue="misc",
                     cron_schedule=TASK_RECONCILIATION_CRON,
-                    task_id=TASK_RECONCILIATION_JOB_ID,
-                    last_run=reconciliation_result.last_run if reconciliation_result else None,
-                    last_success=reconciliation_result.last_success if reconciliation_result else None,
-                    last_status=reconciliation_result.status if reconciliation_result else None,
-                    last_reason=_task_result_reason(reconciliation_result),
                 )
             )
 
@@ -1051,6 +1132,24 @@ class QueueManager:
         from core.model.task import Task as TaskModel
 
         return TaskModel.get_latest_matching(exact_ids=exact_ids, prefixes=prefixes, task_name=task_name)
+
+    def _build_housekeeping_schedule_entry(self, *, job_id: str, name: str, cron_schedule: str) -> dict[str, Any]:
+        result = self._get_latest_task_result(
+            exact_ids={job_id},
+            prefixes=[f"cron_{job_id}_"],
+            task_name=job_id,
+        )
+        return self.build_cron_schedule_entry(
+            job_id=job_id,
+            name=name,
+            queue="misc",
+            cron_schedule=cron_schedule,
+            task_id=job_id,
+            last_run=result.last_run if result else None,
+            last_success=result.last_success if result else None,
+            last_status=result.status if result else None,
+            last_reason=_task_result_reason(result),
+        )
 
     def get_scheduled_job(self, task_id: str) -> tuple[dict, int]:
         try:
@@ -1375,60 +1474,26 @@ class QueueManager:
         return f"{task_name}_{product_id}_{time.time_ns()}"
 
     @staticmethod
-    def _task_meta(
-        task: str,
-        worker_id: str | None = None,
-        worker_type: str | None = None,
-        user_id: str | None = None,
-    ) -> dict[str, str | None]:
-        return {"task": task, "user_id": user_id, "worker_id": worker_id, "worker_type": worker_type}
-
-    def _collector_worker_type(self, source_id: str) -> str:
-        from core.model.osint_source import OSINTSource
-
+    def _resolve_worker_type(
+        getter: Callable[[str], Any],
+        item_id: str,
+        *,
+        fallback: str,
+        transform: Callable[[str], str] | None = None,
+    ) -> str:
         try:
-            source = OSINTSource.get(source_id)
+            item = getter(item_id)
         except Exception:
-            return "collector_task"
-        if source and getattr(source, "type", None):
-            return source.type.value
-        return "collector_task"
-
-    def _bot_worker_type(self, bot_id: str) -> str:
-        from core.model.bot import Bot
-
-        try:
-            bot = Bot.get(bot_id)
-        except Exception:
-            return "BOT_TASK"
-        if bot and getattr(bot, "type", None):
-            return bot.type.value.upper()
-        return "BOT_TASK"
-
-    def _publisher_worker_type(self, publisher_id: str) -> str:
-        from core.model.publisher_preset import PublisherPreset
-
-        try:
-            publisher = PublisherPreset.get(publisher_id)
-        except Exception:
-            return "publisher_task"
-        if publisher and getattr(publisher, "type", None):
-            return publisher.type.value
-        return "publisher_task"
-
-    def _connector_worker_type(self, connector_id: str) -> str:
-        from core.model.connector import Connector
-
-        try:
-            connector = Connector.get(connector_id)
-        except Exception:
-            return "connector_task"
-        if connector and getattr(connector, "type", None):
-            return connector.type.value
-        return "connector_task"
+            return fallback
+        if item and getattr(item, "type", None):
+            value = item.type.value
+            return transform(value) if transform else value
+        return fallback
 
     def autopublish_product(self, product_id: str, auto_publisher_id: str, user_id: str | None = None) -> tuple[dict[str, Any], int]:
         """Render a product and publish it once rendering finishes."""
+        from core.model.publisher_preset import PublisherPreset
+
         if self.error or not self._redis:
             logger.error("QueueManager not initialized, cannot autopublish product %s", product_id)
             return {"error": "QueueManager not initialized"}, 500
@@ -1439,7 +1504,7 @@ class QueueManager:
             "presenter_task",
             product_id,
             job_id=presenter_job_id,
-            meta=self._task_meta("presenter_task", product_id, "presenter_task", user_id=user_id),
+            meta={"task": "presenter_task", "user_id": user_id, "worker_id": product_id, "worker_type": "presenter_task"},
         )
 
         if not presenter_job:
@@ -1454,7 +1519,16 @@ class QueueManager:
             auto_publisher_id,
             job_id=publisher_job_id,
             depends_on=presenter_job,
-            meta=self._task_meta("publisher_task", auto_publisher_id, self._publisher_worker_type(auto_publisher_id), user_id=user_id),
+            meta={
+                "task": "publisher_task",
+                "user_id": user_id,
+                "worker_id": auto_publisher_id,
+                "worker_type": self._resolve_worker_type(
+                    PublisherPreset.get,
+                    auto_publisher_id,
+                    fallback="publisher_task",
+                ),
+            },
         )
 
         if not publisher_job:
