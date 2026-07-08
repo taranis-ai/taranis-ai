@@ -77,10 +77,10 @@ class StoryBookmarkView(BaseView):
             return None, str(exc)
 
     @staticmethod
-    def _response_json(response) -> dict[str, Any]:
+    def _response_json(response: Any) -> dict[str, Any]:
         try:
             payload = response.json()
-        except (AttributeError, ValueError):
+        except AttributeError, ValueError:
             return {}
         return payload if isinstance(payload, dict) else {}
 

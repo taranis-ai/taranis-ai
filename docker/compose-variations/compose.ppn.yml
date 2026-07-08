@@ -57,7 +57,7 @@ services:
       - "core_data:/app/data"
     healthcheck:
       test: ["CMD", "taranis-core-healthcheck"]
-      interval: 30s
+      interval: 5m
       timeout: 10s
       retries: 3
       start_period: 3s

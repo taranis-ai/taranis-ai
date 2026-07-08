@@ -8,6 +8,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 
 - [Assess Filters](assess-filters.md) - assess sidebar filters, filter-list loading, default filters, omnisearch filter handling, and related cache behavior.
 - [Admin User Import/Export](admin-user-import-export.md) - admin user export/import JSON format, duplicate handling, passwordless external users, and UI notification behavior.
+- [Release Gate Tests](release-gate-tests.md) - Docker/Compose release gates that run expensive checks against already published GHCR images.
 - [Story Bookmarks](story-bookmarks.md) - bookmark collections, the Assess bookmark bar, instant single-story bookmarking, and bookmark cache invalidation.
 - [Worker Task Notifications](worker-task-notifications.md) - frontend notifications for worker-backed actions when tasks are queued but no workers are connected.
 
