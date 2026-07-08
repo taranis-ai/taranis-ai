@@ -34,10 +34,14 @@ import json
 import time
 from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from flask import Flask
+
+
+if TYPE_CHECKING:
+    from core.model.task import Task
 from models.admin import CronSpec
 from redis import Redis
 from rq import Queue
@@ -98,17 +102,15 @@ def _as_naive_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
-def _task_result_reason(task_result: Any) -> str | None:
+def _task_result_reason(task_result: "Task | None") -> str | None:
     if task_result is None:
         return None
-    to_dict = getattr(task_result, "to_dict", None)
-    if callable(to_dict):
-        payload = to_dict() or {}
-        if isinstance(payload, dict):
-            result = payload.get("result")
-            if isinstance(result, dict):
-                reason = result.get("reason")
-                return reason if isinstance(reason, str) else None
+    if not task_result.result:
+        return None
+    result = json.loads(task_result.result)
+    if isinstance(result, dict):
+        reason = result.get("reason")
+        return reason if isinstance(reason, str) else None
     return None
 
 
