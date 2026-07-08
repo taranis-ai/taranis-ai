@@ -10,7 +10,7 @@ from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 from core.model.connector import Connector
-from core.model.intelowl_enrichment import IntelOwlEnrichment
+from core.model.ioc import IOC
 from core.model.news_item import NewsItem
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import InvalidOSINTSourceIconError, OSINTSource
@@ -221,7 +221,7 @@ class DropTags(MethodView):
         return NewsItemTag.delete_all()
 
 
-class IntelOwlEnrichments(MethodView):
+class IOCs(MethodView):
     @api_key_required
     def post(self):
         payload = request.json or {}
@@ -232,9 +232,8 @@ class IntelOwlEnrichments(MethodView):
         for ioc in iocs:
             if not isinstance(ioc, dict):
                 continue
-            if row := IntelOwlEnrichment.get_by_ioc(str(ioc.get("type") or ioc.get("ioc_type") or ""), str(ioc.get("value") or "")):
-                keys.add((row.ioc_type, row.value))
-        rows = IntelOwlEnrichment.get_for_iocs(keys)
+            keys.add((str(ioc.get("type") or ioc.get("ioc_type") or ""), str(ioc.get("value") or "")))
+        rows = IOC.get_for_iocs(keys)
         return {"items": [row.to_cti_model().model_dump(mode="json", exclude_none=False) for row in rows.values()]}, 200
 
 
@@ -322,7 +321,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
     worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))
     worker_bp.add_url_rule("/tags", view_func=Tags.as_view("tags_worker"))
-    worker_bp.add_url_rule("/intelowl-enrichments", view_func=IntelOwlEnrichments.as_view("intelowl_enrichments_worker"))
+    worker_bp.add_url_rule("/iocs", view_func=IOCs.as_view("iocs_worker"))
     worker_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
     worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))

@@ -139,7 +139,16 @@ class BotView(AdminBaseView):
     @admin_required()
     def preview_bot_dag(cls, bot_id: str):
         payload = cls._get_normalized_form_data()
-        return render_template("bot/bot_dag_preview.html", bot_id=bot_id, dag_preview=cls.get_dag_preview(bot_id, payload)), 200
+        parameters = payload.get("parameters") or {}
+        return (
+            render_template(
+                "bot/bot_dag_preview.html",
+                bot_id=bot_id,
+                dag_preview=cls.get_dag_preview(bot_id, payload),
+                run_after_collector=parameters.get("RUN_AFTER_COLLECTOR") == "true",
+            ),
+            200,
+        )
 
     @classmethod
     def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:

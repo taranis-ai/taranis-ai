@@ -352,11 +352,11 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_intelowl_enrichments(self, iocs: list[dict[str, str]]) -> dict[str, Any] | None:
+    def get_iocs(self, iocs: list[dict[str, str]]) -> dict[str, Any] | None:
         try:
-            return self.api_post(url="/worker/intelowl-enrichments", json_data={"iocs": iocs})
+            return self.api_post(url="/worker/iocs", json_data={"iocs": iocs})
         except Exception:
-            logger.exception("Can't get IntelOwl enrichments")
+            logger.exception("Can't get IOCs")
             return None
 
     def update_news_item(self, news_id: str, data) -> dict | None:

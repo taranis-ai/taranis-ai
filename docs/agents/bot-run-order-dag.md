@@ -6,6 +6,8 @@ Bot configuration, post-collection bots, `RUN_AFTER_COLLECTOR`, `RUN_AFTER_BOTS`
 ## Expected Behavior
 Bot type is the canonical DAG node; Taranis allows one configured bot per `BOT_TYPES` value. `RUN_AFTER_COLLECTOR=true` marks collector roots. `RUN_AFTER_BOTS` stores comma-separated parent bot type names, edited through the admin run-order UI rather than raw text.
 
+The admin DAG preview shows the Collector Chain section only while the edited bot has `RUN_AFTER_COLLECTOR=true`; dependency badges and warnings can still render without that root toggle.
+
 Collector-triggered runs enqueue the reachable enabled DAG once. Manual and cron bot runs enqueue their reachable downstream DAG only after a successful result. Dependent jobs inherit the original filter and run with dependent triggering suppressed, so downstream completions do not schedule duplicate chains.
 
 For multiple parents, a bot waits only for parents that are part of the current scheduled chain. Disabled or missing parents do not block a chain, but the preview should warn admins.

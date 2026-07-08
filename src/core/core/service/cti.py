@@ -1,9 +1,9 @@
 from collections import defaultdict
-from typing import Iterable, Literal
+from typing import Any, Iterable, Literal
 
 from models.cti import CanonicalIOCType, CTIItem, CTIResponse, normalize_ioc_type, normalize_ioc_value
 
-from core.model.intelowl_enrichment import IntelOwlEnrichment
+from core.model.ioc import IOC
 from core.model.news_item import NewsItem
 from core.model.report_item import ReportItem
 from core.model.story import Story
@@ -42,7 +42,49 @@ class CTIService:
         return cls._response("report", report_id, news_items), 200
 
     @classmethod
-    def _response(cls, item_type: Literal["news_item", "story", "report"], item_id: str, news_items: Iterable[NewsItem]) -> dict:
+    def get_asset_cti(cls, asset_id: str, user: User | None) -> tuple[dict, int]:
+        from core.model.asset import Asset
+
+        if not user or Asset.get_for_api(asset_id, user.organization)[1] != 200:
+            return {"error": "Asset not found"}, 404
+        asset = Asset.get(asset_id)
+        if not asset:
+            return {"error": "Asset not found"}, 404
+
+        return cls._asset_response(asset_id, [asset], user), 200
+
+    @classmethod
+    def get_assets_cti(cls, user: User | None) -> tuple[dict, int]:
+        from core.model.asset import Asset
+
+        if not user:
+            return {"error": "Asset not found"}, 404
+        assets = Asset.get_by_filter({"organization": user.organization}) or []
+        return cls._asset_response("all", assets, user), 200
+
+    @classmethod
+    def _asset_response(cls, item_id: str, assets: Iterable[Any], user: User) -> dict:
+        news_items_by_id: dict[str, NewsItem] = {}
+        extra_iocs: set[tuple[CanonicalIOCType, str]] = set()
+        for asset in assets:
+            for observable in asset.asset_observables:
+                if ioc_type := normalize_ioc_type(observable.ioc_type):
+                    extra_iocs.add((ioc_type, normalize_ioc_value(observable.value, ioc_type)))
+            for vulnerability in asset.vulnerabilities:
+                report = vulnerability.report_item
+                if not report or not report.access_allowed(user, False):
+                    continue
+                news_items_by_id.update({news_item.id: news_item for story in report.stories for news_item in story.news_items})
+        return cls._response("asset", item_id, news_items_by_id.values(), extra_iocs=extra_iocs)
+
+    @classmethod
+    def _response(
+        cls,
+        item_type: Literal["news_item", "story", "report", "asset"],
+        item_id: str,
+        news_items: Iterable[NewsItem],
+        extra_iocs: Iterable[tuple[CanonicalIOCType, str]] = (),
+    ) -> dict:
         news_item_ids_by_ioc: dict[tuple[CanonicalIOCType, str], set[str]] = defaultdict(set)
         for news_item in news_items:
             for tag in news_item.tags:
@@ -51,8 +93,11 @@ class CTIService:
                 value = normalize_ioc_value(tag.name, ioc_type)
                 if value:
                     news_item_ids_by_ioc[(ioc_type, value)].add(news_item.id)
+        for ioc_type, value in extra_iocs:
+            if value:
+                news_item_ids_by_ioc.setdefault((ioc_type, value), set())
 
-        enrichments = IntelOwlEnrichment.get_for_iocs(set(news_item_ids_by_ioc))
+        enrichments = IOC.get_for_iocs(set(news_item_ids_by_ioc))
         response = CTIResponse(
             item_type=item_type,
             item_id=item_id,
@@ -61,7 +106,7 @@ class CTIService:
                     ioc_type=ioc_type,
                     value=value,
                     news_item_ids=sorted(news_item_ids),
-                    enrichment=enrichments[(ioc_type, value)].to_cti_model() if (ioc_type, value) in enrichments else None,
+                    enrichment=enrichments[value].to_cti_model() if value in enrichments else None,
                 )
                 for (ioc_type, value), news_item_ids in sorted(news_item_ids_by_ioc.items())
             ],

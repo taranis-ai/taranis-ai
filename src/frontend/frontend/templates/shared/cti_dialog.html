@@ -16,7 +16,6 @@
               <th>IOC</th>
               <th>Type</th>
               <th>Status</th>
-              <th>IntelOwl</th>
               <th>News items</th>
               <th>Analyzers</th>
             </tr>
@@ -32,15 +31,6 @@
                     <span class="badge badge-info badge-sm">{{ enrichment.status }}</span>
                   {% else %}
                     <span class="badge badge-ghost badge-sm">not enriched</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if enrichment and enrichment.job_url %}
-                    <a class="link link-primary" href="{{ enrichment.job_url }}" target="_blank" rel="noopener">{{ enrichment.job_id or "job" }}</a>
-                  {% elif enrichment and enrichment.job_id %}
-                    <span class="font-mono text-xs">{{ enrichment.job_id }}</span>
-                  {% else %}
-                    <span class="text-base-content/50">—</span>
                   {% endif %}
                 </td>
                 <td>{{ ioc.news_item_ids | length }}</td>

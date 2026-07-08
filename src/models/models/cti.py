@@ -56,8 +56,6 @@ class CTIEnrichment(TaranisBaseModel):
     ioc_type: CanonicalIOCType
     value: str
     status: str | None = None
-    job_id: str | None = None
-    job_url: str | None = None
     analyzers: list[dict[str, Any]] = Field(default_factory=list)
     errors: list[dict[str, Any]] = Field(default_factory=list)
     submitted_at: datetime | None = None
@@ -73,6 +71,6 @@ class CTIItem(TaranisBaseModel):
 
 
 class CTIResponse(TaranisBaseModel):
-    item_type: Literal["news_item", "story", "report"]
+    item_type: Literal["news_item", "story", "report", "asset"]
     item_id: str
     iocs: list[CTIItem] = Field(default_factory=list)

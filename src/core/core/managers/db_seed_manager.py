@@ -79,6 +79,7 @@ def pre_seed_update(db_engine: Engine):
     migrate_user_profiles()
     cleanup_empty_stories()
     migrate_missing_initial_revisions()
+    cleanup_intelowl_email_enrichment_parameter()
     if db_engine.dialect.name == "postgresql":
         rebuild_story_search_vectors()
 
@@ -129,6 +130,22 @@ def cleanup_invalid_source_icons():
     if removed_icons:
         db.session.commit()
         logger.info(f"Removed invalid icons from {removed_icons} OSINT sources")
+
+
+def cleanup_intelowl_email_enrichment_parameter():
+    from models.types import BOT_TYPES
+
+    from core.managers.db_manager import db
+    from core.model.bot import Bot
+
+    bot = Bot.filter_by_type(BOT_TYPES.INTEL_OWL_BOT)
+    if not bot:
+        return
+
+    current_count = len(bot.parameters)
+    bot.parameters = [parameter for parameter in bot.parameters if parameter.parameter != "INTEL_OWL_EMAIL_ENRICHMENT"]
+    if len(bot.parameters) != current_count:
+        db.session.commit()
 
 
 def sync_presenter_templates():

@@ -169,13 +169,13 @@ class TaskService:
 
     @staticmethod
     def _handle_intelowl_bot_result(bot_result: dict[str, Any], worker_id: str) -> None:
-        from core.model.intelowl_enrichment import IntelOwlEnrichment
+        from core.model.ioc import IOC
 
         enrichments = bot_result.get("enrichments") or []
         if not isinstance(enrichments, list):
             logger.error("Invalid IntelOwl enrichment payload from worker %s", worker_id)
             return
-        IntelOwlEnrichment.upsert_many([item for item in enrichments if isinstance(item, dict)])
+        IOC.upsert_many([item for item in enrichments if isinstance(item, dict)])
 
     @staticmethod
     def _get_result_dict_data(result: TaskResultEnvelope) -> dict[str, Any] | None:

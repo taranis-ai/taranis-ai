@@ -6345,6 +6345,27 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assets/cti:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      description: get CTI information for all readable assets
+      operationId: assets_cti.get
+      responses:
+        '200':
+          description: CTI information for all readable assets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /assets/{asset_id}:
     parameters:
     - name: asset_id
@@ -6414,6 +6435,33 @@ paths:
             application/json:
               schema:
                 type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /assets/{asset_id}/cti:
+    parameters:
+    - name: asset_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      description: get CTI information for readable vulnerability reports linked to the asset
+      operationId: asset_cti.get
+      responses:
+        '200':
+          description: CTI information for the asset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -9416,14 +9464,6 @@ components:
           type:
           - string
           - 'null'
-        job_id:
-          type:
-          - string
-          - 'null'
-        job_url:
-          type:
-          - string
-          - 'null'
         analyzers:
           type: array
           items:
@@ -9468,7 +9508,7 @@ components:
       properties:
         item_type:
           type: string
-          enum: [news_item, story, report]
+          enum: [news_item, story, report, asset]
         item_id:
           type: string
         iocs:
@@ -10502,6 +10542,20 @@ components:
           type: array
           items:
             type: string
+        asset_observables:
+          type: array
+          items:
+            $ref: '#/components/schemas/asset_observable'
+    asset_observable:
+      type: object
+      properties:
+        id:
+          type: string
+        ioc_type:
+          type: string
+          enum: [cve, email, ip, domain, url, hash]
+        value:
+          type: string
     report_item_vulnerability:
       allOf:
       - $ref: '#/components/schemas/report_item.base'

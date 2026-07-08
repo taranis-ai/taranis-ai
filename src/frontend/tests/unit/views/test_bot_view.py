@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from flask import render_template, url_for
@@ -144,6 +145,7 @@ def test_bot_run_order_controls_render_selected_dependencies(app):
     assert tree.xpath('//input[@name="parameters[RUN_AFTER_COLLECTOR]"][@type="checkbox"][@checked]')
     selected_options = tree.xpath('//select[@id="run-after-bots-select"]/option[@value="IOC_BOT"][@selected]')
     assert len(selected_options) == 1
+    assert "DOMContentLoaded" in rendered
 
 
 def test_bot_dag_preview_renders_warnings(app):
@@ -155,3 +157,49 @@ def test_bot_dag_preview_renders_warnings(app):
         )
 
     assert "Bot run order contains a cycle" in rendered
+
+
+def test_bot_dag_preview_uses_submitted_collector_toggle(
+    authenticated_client: Any, htmx_header: dict[str, str], monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        BotView,
+        "get_dag_preview",
+        classmethod(lambda cls, bot_id, payload: {"order": [{"name": "Wordlist Bot"}], "edges": [], "warnings": []}),
+    )
+
+    response = authenticated_client.post(
+        url_for("admin.bot_dag_preview", bot_id="0"),
+        data={"parameters[RUN_AFTER_COLLECTOR]": "true"},
+        headers=htmx_header,
+    )
+
+    assert response.status_code == 200
+    assert "Collector Chain" in response.text
+    assert "Wordlist Bot" in response.text
+
+
+def test_bot_dag_preview_hides_collector_chain_without_collector_root(app: Any):
+    with app.test_request_context("/"):
+        rendered = render_template(
+            "bot/bot_dag_preview.html",
+            bot_id="bot-1",
+            run_after_collector=False,
+            dag_preview={"order": [{"name": "Wordlist Bot"}], "edges": [], "warnings": []},
+        )
+
+    assert "Collector Chain" not in rendered
+    assert "Wordlist Bot" not in rendered
+
+
+def test_bot_dag_preview_shows_collector_chain_for_collector_root(app: Any):
+    with app.test_request_context("/"):
+        rendered = render_template(
+            "bot/bot_dag_preview.html",
+            bot_id="bot-1",
+            run_after_collector=True,
+            dag_preview={"order": [{"name": "Wordlist Bot"}], "edges": [], "warnings": []},
+        )
+
+    assert "Collector Chain" in rendered
+    assert "Wordlist Bot" in rendered

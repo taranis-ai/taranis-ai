@@ -125,17 +125,6 @@
                   <kbd class="kbd kbd-xs">Shift+I</kbd>
                 </span>
               </button>
-
-              <button type="button"
-                      class="btn btn-outline btn-sm tooltip"
-                      hx-trigger="click"
-                      hx-post="{{ url_for('assess.stories_trigger_bot') }}"
-                      hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"
-                      :hx-vals="JSON.stringify({ story_ids: selectedItems, bot_id: 'intel_owl_bot' })"
-                      data-tip="Run IntelOwl enrichment">
-                {{ heroicon_mini("document-magnifying-glass") }}
-                <span class="text-sm sr-only 2xl:not-sr-only">IntelOwl</span>
-              </button>
             </div>
           </div>
         </div>

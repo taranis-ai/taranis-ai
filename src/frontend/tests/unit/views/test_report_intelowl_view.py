@@ -1,9 +1,12 @@
 from typing import Any
 
 from flask import render_template, url_for
+from models.asset import Asset, AssetObservable
 from models.report import ReportItem
 
+from frontend.cache_models import CacheObject
 from frontend.config import Config
+from frontend.views.asset_views import AssetView
 
 
 CTI_PAYLOAD = {
@@ -18,9 +21,7 @@ CTI_PAYLOAD = {
                 "ioc_type": "cve",
                 "value": "CVE-2024-1234",
                 "status": "reported_without_fails",
-                "job_id": "1",
-                "job_url": "https://intelowl.example/jobs/1",
-                "analyzers": [{"name": "NIST_CVE_DB", "status": "success", "report": {"score": 9.8}}],
+                "analyzers": [{"name": "NVD_CVE", "status": "success", "report": {"score": 9.8}}],
                 "errors": [],
                 "submitted_at": "2026-07-06T10:00:00",
                 "completed_at": "2026-07-06T10:01:00",
@@ -50,7 +51,7 @@ def test_report_cti_dialog_loads(authenticated_client_basic: Any, responses_mock
     assert "CTI information" in response.text
     assert "CVE-2024-1234" in response.text
     assert "reported_without_fails" in response.text
-    assert "NIST_CVE_DB" in response.text
+    assert "NVD_CVE" in response.text
 
 
 def test_story_cti_dialog_loads(authenticated_client_basic: Any, responses_mock: Any) -> None:
@@ -71,6 +72,75 @@ def test_news_item_cti_dialog_loads(authenticated_client_basic: Any, responses_m
     assert response.status_code == 200
     assert "CTI information" in response.text
     assert "CVE-2024-1234" in response.text
+
+
+def test_asset_cti_dialog_loads(authenticated_client_basic: Any, responses_mock: Any) -> None:
+    _mock_cti(responses_mock, "/assets/asset-1/cti", "asset", "asset-1")
+
+    response = authenticated_client_basic.get(url_for("assets.asset_cti", asset_id="asset-1"))
+
+    assert response.status_code == 200
+    assert "CTI information" in response.text
+    assert "CVE-2024-1234" in response.text
+
+
+def test_assets_cti_dialog_loads(authenticated_client_basic: Any, responses_mock: Any) -> None:
+    _mock_cti(responses_mock, "/assets/cti", "asset", "all")
+
+    response = authenticated_client_basic.get(url_for("assets.assets_cti"))
+
+    assert response.status_code == 200
+    assert "CTI information" in response.text
+    assert "CVE-2024-1234" in response.text
+
+
+def test_asset_template_shows_cti_button(app: Any) -> None:
+    asset = Asset.model_construct(id="asset-1", name="Asset", asset_observables=[AssetObservable(ioc_type="domain", value="example.com")])
+
+    with app.test_request_context("/assets/asset-1"):
+        html = render_template(
+            "assets/asset.html",
+            asset=asset,
+            asset_observables=[observable.model_dump(mode="json") for observable in asset.asset_observables],
+            asset_observable_types=AssetView.observable_types,
+            submit_text="Update asset",
+            form_action="",
+        )
+
+    assert 'data-testid="asset-cti-button"' in html
+    assert url_for("assets.asset_cti", asset_id="asset-1") in html
+    assert 'name="asset_observables[][ioc_type]"' in html
+    assert 'name="asset_observables[][value]"' in html
+    assert "example.com" in html
+
+
+def test_assets_table_shows_cti_button(app: Any) -> None:
+    with app.test_request_context("/assets"):
+        html = render_template(
+            "assets/assets_table.html",
+            assets=CacheObject([Asset.model_construct(id="asset-1", name="Asset", description="")]),
+            model_plural_name="assets",
+            model_name="asset",
+            name="Assets",
+            columns=AssetView.get_columns(),
+            actions=[],
+            routes={"base_route": "/assets", "edit_route": "/assets/"},
+        )
+
+    assert 'data-testid="assets-cti-button"' in html
+    assert url_for("assets.assets_cti") in html
+
+
+def test_asset_observable_form_data_is_normalized() -> None:
+    assert AssetView._normalize_form_data(
+        {
+            "name": "Asset",
+            "asset_observables": [
+                {"ioc_type": " domain ", "value": " example.com "},
+                {"ioc_type": "", "value": ""},
+            ],
+        }
+    ) == {"name": "Asset", "asset_observables": [{"ioc_type": "domain", "value": "example.com"}]}
 
 
 def test_report_template_shows_cti_button_not_intelowl_run(app: Any) -> None:

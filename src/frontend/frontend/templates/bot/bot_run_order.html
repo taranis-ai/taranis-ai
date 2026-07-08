@@ -30,10 +30,19 @@
 
 <script>
   (() => {
-    const select = document.getElementById("run-after-bots-select");
-    if (select && !select.dataset.choicesInitialized && typeof initChoices === "function") {
+    function initRunAfterBotsSelect() {
+      const select = document.getElementById("run-after-bots-select");
+      if (!select || select.dataset.choicesInitialized === "true" || typeof initChoices !== "function") {
+        return;
+      }
       initChoices("run-after-bots-select", { itemSelectText: "" });
       select.dataset.choicesInitialized = "true";
+    }
+
+    if (document.readyState === "loading" && typeof initChoices !== "function") {
+      document.addEventListener("DOMContentLoaded", initRunAfterBotsSelect, { once: true });
+    } else {
+      initRunAfterBotsSelect();
     }
   })();
 </script>
