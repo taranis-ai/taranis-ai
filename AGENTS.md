@@ -136,6 +136,7 @@ Use narrower `pytest` targets only after the full pipeline reproduces or if you 
 - don't commit how many tests passed (statistics in commit messages are not useful)
 - do not use `pip` for any package installations or management, always use `uv`
 - do not manually merge generated lockfiles such as `uv.lock` or `deno.lock`; regenerate them locally from the manifests/tools and commit the regenerated result
+- do not add `from __future__ import annotations` by default. Use it only in Python files that must run on Python 3.13 and need postponed annotation evaluation for forward references, circular type imports, or annotations guarded by `TYPE_CHECKING`; do not use it in Python 3.14-only code
 - do not create comments in code that say what was removed, added, changed and why it was done like this. this should be summarized in commit messages and/or PRs
 - run tests before committing code
 - write tests for new features and bug fixes

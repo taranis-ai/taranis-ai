@@ -12,11 +12,13 @@ class Login(MethodView):
     def post(self):
         if Config.TARANIS_AUTHENTICATOR == "external":
             return auth_manager.authenticate(ExternalAuthenticator.get_credentials(request.headers))
-        if not request.json and not request.form:
+        json_data = request.get_json(silent=True) if request.is_json else None
+        form_data = request.form
+        if not json_data and not form_data:
             return {"error": "No data provided"}, 400
 
-        username = request.json.get("username") if request.json else request.form.get("username")
-        password = request.json.get("password") if request.json else request.form.get("password")
+        username = json_data.get("username") if isinstance(json_data, dict) else form_data.get("username")
+        password = json_data.get("password") if isinstance(json_data, dict) else form_data.get("password")
 
         if not username or not password:
             return {"error": "Missing username or password"}, 400
