@@ -2171,6 +2171,40 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/iocs:
+    post:
+      security:
+      - APIKey: []
+      description: get IOC enrichment rows for observable keys
+      operationId: worker.iocs_worker.post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                iocs:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      ioc_type:
+                        type: string
+                      value:
+                        type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /tasks:
     post:
       tags:
@@ -3987,6 +4021,64 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /config/bots/dag-preview:
+    post:
+      tags:
+      - config
+      description: preview bot run-order DAG
+      operationId: config.config_bot_dag_preview.post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+  /config/bots/{bot_id}/dag-preview:
+    parameters:
+    - name: bot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      tags:
+      - config
+      description: preview bot run-order DAG for a bot
+      operationId: config.config_bot_dag_preview_for_bot.post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
   /config/bots/{bot_id}/execute:
     parameters:
     - name: bot_id

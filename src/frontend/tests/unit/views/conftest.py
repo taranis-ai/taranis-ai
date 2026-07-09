@@ -1,5 +1,5 @@
 import uuid
-from typing import get_origin
+from typing import Any, get_origin
 
 import pytest
 import responses
@@ -87,8 +87,8 @@ def core_payloads():
     yield payloads
 
 
-@pytest.fixture(scope="class")
-def form_formats_from_models():
+@pytest.fixture
+def form_formats_from_models(worker_parameter_data: dict[str, Any]):
     """
     Returns mapping:
        view_name -> {
@@ -144,6 +144,15 @@ def form_formats_from_models():
         if view_name == "OSINT Source":
             allowed_keys.add("delete_icon")
             allowed_keys.add("rank")
+        if view_name == "Bot":
+            allowed_keys.add("parameters[RUN_AFTER_BOTS][]")
+            allowed_keys.update(
+                f"parameters[{parameter['name']}]"
+                for worker in worker_parameter_data["items"]
+                for parameter in worker["parameters"]
+                if parameter.get("parent") == "parameters"
+                and parameter.get("type") in {"text", "number", "textarea", "switch", "cron_interval"}
+            )
 
         payloads[view_name] = {
             "allowed": allowed_keys,

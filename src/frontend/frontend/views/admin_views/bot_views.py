@@ -36,6 +36,11 @@ def _split_run_after_bots(value: Any) -> list[str]:
     return [str(item).strip() for item in values if str(item).strip()]
 
 
+def _bot_type_name(item: Bot | None) -> str:
+    bot_type = getattr(item, "type", None)
+    return bot_type.name if bot_type else ""
+
+
 class BotView(AdminBaseView):
     model = Bot
     icon = "calculator"
@@ -89,9 +94,9 @@ class BotView(AdminBaseView):
 
         bot = base_context.get(cls.model_name())
         bot_type_name = request.args.get("type", "")
-        if bot and (hasattr(bot, "type") and (bot_type := bot.type)):
+        if bot and (bot_type := _bot_type_name(bot)):
             parameter_values = bot.parameters
-            bot_type_name = bot_type.name.lower()
+            bot_type_name = bot_type.lower()
             parameters = cls._filter_run_order_parameters(cls.get_worker_parameters(bot_type_name))
 
         base_context |= {
@@ -164,7 +169,7 @@ class BotView(AdminBaseView):
 
     @classmethod
     def get_bot_type_options(cls, current_bot: Bot | None = None) -> list[dict[str, str]]:
-        current_type = current_bot.type.name.lower() if current_bot and current_bot.type else ""
+        current_type = _bot_type_name(current_bot).lower()
         used_types = cls._used_bot_type_names(exclude_type=current_type)
         return [option for option in cls.bot_types.values() if option["id"] == current_type or option["id"] not in used_types]
 
@@ -173,17 +178,19 @@ class BotView(AdminBaseView):
         current_type = current_type.lower()
         try:
             bots = DataPersistenceLayer().get_objects(Bot).items
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Failed to load bot run order options")
             bots = []
         return [
             {
-                "id": bot.type.name,
-                "name": f"{bot.name} ({bot.type.name})",
+                "id": bot_type_name,
+                "name": f"{bot.name} ({bot_type_name})",
                 "enabled": "true" if bot.enabled else "false",
             }
             for bot in bots
-            if bot.type.name.lower() != current_type
+            if (bot_type_name := _bot_type_name(bot)) and bot_type_name.lower() != current_type
         ]
 
     @classmethod
@@ -197,6 +204,8 @@ class BotView(AdminBaseView):
     def _used_bot_type_names(cls, exclude_type: str = "") -> set[str]:
         try:
             bots = DataPersistenceLayer().get_objects(Bot).items
+        except HTTPException:
+            raise
         except Exception:
             return set()
-        return {bot.type.name.lower() for bot in bots if bot.type.name.lower() != exclude_type}
+        return {bot_type_name.lower() for bot in bots if (bot_type_name := _bot_type_name(bot)) and bot_type_name.lower() != exclude_type}

@@ -41,3 +41,14 @@ def test_queue_manager_initializes_queues_with_default_timeout(monkeypatch):
 
 def test_core_settings_default_rq_timeout_is_180():
     assert Settings.model_fields["RQ_DEFAULT_JOB_TIMEOUT"].default == 180
+
+
+def test_execute_bot_task_rejects_invalid_job_id_component(monkeypatch):
+    queue_manager = QueueManager.__new__(QueueManager)
+
+    def fail_enqueue(*args, **kwargs):
+        raise AssertionError("should not enqueue")
+
+    monkeypatch.setattr(queue_manager, "enqueue_task", fail_enqueue)
+
+    assert queue_manager.execute_bot_task("bad id!") == ({"error": "Invalid bot_id"}, 400)

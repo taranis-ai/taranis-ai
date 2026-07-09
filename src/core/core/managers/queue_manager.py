@@ -31,6 +31,7 @@ When a source/bot schedule is updated:
 import contextlib
 import hashlib
 import json
+import re
 import time
 from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
@@ -56,6 +57,7 @@ CRON_NEXT_KEY = "rq:cron:next"
 TOKEN_CLEANUP_JOB_ID = "cleanup_token_blacklist"
 TOKEN_CLEANUP_CRON = "0 2 * * *"
 TOKEN_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Token Blacklist"
+RQ_JOB_ID_COMPONENT_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def _decode_redis_value(value: bytes | str) -> str:
@@ -756,6 +758,9 @@ class QueueManager:
         return {"error": "Could not reach Redis"}, 500
 
     def execute_bot_task(self, bot_id: str, filter: dict | None = None, trigger_dependents: bool = True):
+        if not RQ_JOB_ID_COMPONENT_RE.fullmatch(str(bot_id)):
+            return {"error": "Invalid bot_id"}, 400
+
         bot_args: dict[str, str | dict | bool] = {"bot_id": bot_id, "trigger_dependents": trigger_dependents}
         if filter:
             bot_args["filter"] = filter
