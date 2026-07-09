@@ -7,7 +7,10 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 ## Memories
 
 - [Assess Filters](assess-filters.md) - assess sidebar filters, filter-list loading, default filters, omnisearch filter handling, and related cache behavior.
+- [RBAC ACL Behavior](rbac-acl.md) - RoleBasedAccess ACL boundaries, ADMIN_OPERATIONS bypass, OSINT source-group inheritance, and config/admin ACL isolation.
+- [Audit Logging](audit-logging.md) - core audit logging scope, JSONL fields, security limits, and tests.
 - [Admin User Import/Export](admin-user-import-export.md) - admin user export/import JSON format, duplicate handling, passwordless external users, and UI notification behavior.
+- [Admin User CLI](admin-user-cli.md) - operational password reset and role repair through `taranis-cli` inside the core container.
 - [Release Gate Tests](release-gate-tests.md) - Docker/Compose release gates that run expensive checks against already published GHCR images.
 - [Story Bookmarks](story-bookmarks.md) - bookmark collections, the Assess bookmark bar, instant single-story bookmarking, and bookmark cache invalidation.
 - [Worker Task Notifications](worker-task-notifications.md) - frontend notifications for worker-backed actions when tasks are queued but no workers are connected.

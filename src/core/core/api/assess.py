@@ -6,7 +6,6 @@ from flask_jwt_extended import current_user
 from models.assess import StoryBookmarkCreatePayload, StoryBookmarkOrderPayload, StoryBookmarkStoryPayload, StoryBookmarkUpdatePayload
 from pydantic import ValidationError
 
-from core.audit import audit_logger
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
@@ -53,7 +52,7 @@ class NewsItems(MethodView):
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 1000)
         page = int(request.args.get("page", 0))
         filter_args["offset"] = min(int(request.args.get("offset", page * filter_args["limit"])), (2**31) - 1)
-        return news_item.NewsItem.get_all_for_api(filter_args, current_user)
+        return news_item.NewsItem.get_all_for_api(filter_args, user=current_user)
 
     @auth_required("ASSESS_CREATE")
     @validate_json
@@ -520,5 +519,4 @@ def initialize(app: Flask):
         view_func=StoryRevisionData.as_view("story_revision_data"),
     )
 
-    assess_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(assess_bp)

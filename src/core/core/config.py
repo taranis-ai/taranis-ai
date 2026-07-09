@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     APPLICATION_ROOT: str = "/"
     MODULE_ID: str = "Core"
     DEBUG: bool = False
+    AUDIT_LOG_ENABLED: bool = True
 
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
