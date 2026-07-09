@@ -185,6 +185,22 @@ def test_cti_view_renders_virustotal_summary(authenticated_client_basic: Any, re
     assert "ExampleEngine" in response.text
 
 
+def test_cti_view_skips_non_http_external_links(authenticated_client_basic: Any, responses_mock: Any) -> None:
+    analyzer = {
+        "name": "VirusTotal_v3_Get_Observable",
+        "status": "SUCCESS",
+        "report": {"data": {"id": "example.com", "type": "domain", "attributes": {}}, "link": "javascript:alert(1)"},
+        "errors": [],
+    }
+    _mock_cti(responses_mock, "/analyze/report-items/report-1/cti", "report", "report-1", [analyzer])
+
+    response = authenticated_client_basic.get(url_for("analyze.report_cti", report_id="report-1"))
+
+    assert response.status_code == 200
+    assert "javascript:alert" not in response.text
+    assert "Open in VirusTotal" not in response.text
+
+
 def test_cti_view_renders_urlhaus_no_result(authenticated_client_basic: Any, responses_mock: Any) -> None:
     _mock_cti(responses_mock, "/analyze/report-items/report-1/cti", "report", "report-1", [URLHAUS_ANALYZER])
 
@@ -212,7 +228,7 @@ def test_asset_template_shows_cti_button(app: Any) -> None:
     assert f'href="{cti_url}"' in html
     assert 'name="asset_observables[][ioc_type]"' in html
     assert 'name="asset_observables[][value]"' in html
-    assert "example.com" in html
+    assert '"value": "example.com"' in html
 
 
 def test_assets_table_shows_cti_button(app: Any) -> None:

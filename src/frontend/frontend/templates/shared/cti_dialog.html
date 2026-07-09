@@ -17,8 +17,10 @@
 {% endmacro %}
 
 {% macro external_link(url, label='Open source result') %}
-  {% if url %}
-    <a href="{{ url }}" target="_blank" rel="noopener" class="link link-primary break-all">{{ label }}</a>
+  {% set external_url = url | string | trim %}
+  {% set normalized_url = external_url | lower %}
+  {% if normalized_url.startswith("http://") or normalized_url.startswith("https://") %}
+    <a href="{{ external_url }}" target="_blank" rel="noopener" class="link link-primary break-all">{{ label }}</a>
   {% endif %}
 {% endmacro %}
 

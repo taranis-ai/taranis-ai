@@ -105,13 +105,15 @@ def test_bot_type_must_be_unique(app, session):
 
 
 def test_successful_bot_result_schedules_dependents(monkeypatch):
+    from core.managers import queue_manager
     from core.service.task import TaskService
 
     calls = []
     monkeypatch.setattr("core.service.task.NewsItemTagService.set_worker_execution_attribute", lambda **_: None)
     monkeypatch.setattr(
-        "core.managers.queue_manager.queue_manager.schedule_bot_dependents",
-        lambda bot_type, filter_data=None: calls.append((bot_type, filter_data)),
+        queue_manager.queue_manager,
+        "schedule_bot_dependents",
+        lambda bot_type, filter_data=None, user_id=None: calls.append((bot_type, filter_data, user_id)),
     )
 
     TaskService._handle_bot_result(
@@ -119,17 +121,19 @@ def test_successful_bot_result_schedules_dependents(monkeypatch):
         {"result": {}, "filter": {"story_id": "story-1"}, "trigger_dependents": True},
     )
 
-    assert calls == [("SUMMARY_BOT", {"story_id": "story-1"})]
+    assert calls == [("SUMMARY_BOT", {"story_id": "story-1"}, None)]
 
 
 def test_suppressed_bot_result_does_not_schedule_dependents(monkeypatch):
+    from core.managers import queue_manager
     from core.service.task import TaskService
 
     calls = []
     monkeypatch.setattr("core.service.task.NewsItemTagService.set_worker_execution_attribute", lambda **_: None)
     monkeypatch.setattr(
-        "core.managers.queue_manager.queue_manager.schedule_bot_dependents",
-        lambda bot_type, filter_data=None: calls.append((bot_type, filter_data)),
+        queue_manager.queue_manager,
+        "schedule_bot_dependents",
+        lambda bot_type, filter_data=None, user_id=None: calls.append((bot_type, filter_data, user_id)),
     )
 
     TaskService._handle_bot_result(
