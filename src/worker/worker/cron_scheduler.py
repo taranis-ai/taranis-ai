@@ -113,11 +113,15 @@ def _enqueue_due_job(
     job_id: str,
     spec: dict[str, Any],
     due_ts: float,
-) -> str:
+) -> str | None:
     queue_name = spec["queue_name"]
     queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
     task = TASK_FUNCTION_MAP.get(spec["func_path"], spec["func_path"])
-    assert task is not None
+    if not task:
+        logger.warning(f"Skipping cron job {job_id} because func_path is missing")
+        next_ts = compute_next(spec, due_ts)
+        redis.zadd(NEXT_KEY, {job_id: next_ts})
+        return None
     job_options = dict(spec.get("job_options") or {})
     kwargs = dict(spec.get("kwargs") or {})
 

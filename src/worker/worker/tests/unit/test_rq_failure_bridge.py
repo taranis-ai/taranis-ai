@@ -123,6 +123,27 @@ def test_bridge_skips_when_terminal_task_result_exists(monkeypatch):
     assert rq_failure_bridge.rq_failure_exception_handler(job, RuntimeError, RuntimeError("boom"), None) is True
 
 
+def test_bridge_persists_failure_when_terminal_probe_raises(monkeypatch):
+    captured = {}
+
+    class FakeCoreApi:
+        def api_get(self, url):
+            raise RuntimeError("probe failed")
+
+        def save_task_result(self, *args, **kwargs):
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            return True
+
+    monkeypatch.setattr(rq_failure_bridge, "CoreApi", FakeCoreApi)
+
+    job = cast(Job, DummyJob(meta={"task": "collector_task"}))
+
+    assert rq_failure_bridge.rq_failure_exception_handler(job, RuntimeError, RuntimeError("boom"), None) is True
+    assert captured["args"] == ("job-1", "collector_task", "FAILURE")
+    assert captured["kwargs"]["result"]["reason"] == "job_failed"
+
+
 def test_bridge_uses_func_name_fallback_when_meta_task_missing(monkeypatch):
     captured = {}
 

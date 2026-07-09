@@ -451,7 +451,8 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
         def __init__(self):
             self.last_run = datetime(2025, 1, 1, 0, 0, 0)
             self.last_success = datetime(2025, 1, 1, 0, 0, 0)
-            self.status = "ok"
+            self.status = "FAILURE"
+            self.result = '{"reason":"job_timeout"}'
 
     class FakeSource:
         def __init__(self):
@@ -480,6 +481,7 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
     entry = entries[0]
     assert entry["id"] == "osint_source_source-1"
     assert entry["queue"] == "collectors"
+    assert entry["last_reason"] == "job_timeout"
     assert entry["previous_run_time"]
 
 
@@ -526,6 +528,38 @@ def test_bot_schedule_entries_skip_invalid_cron(monkeypatch):
     entries = Bot.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
 
     assert entries == []
+
+
+def test_bot_schedule_entries_include_last_reason(monkeypatch):
+    class FakeTask:
+        def __init__(self):
+            self.last_run = datetime(2025, 1, 1, 0, 0, 0)
+            self.last_success = datetime(2025, 1, 1, 0, 0, 0)
+            self.status = "FAILURE"
+            self.result = '{"reason":"job_failed"}'
+
+    class FakeBot:
+        def __init__(self):
+            self.id = "bot-1"
+            self.name = "Bot One"
+            self.task_id = "task-1"
+            self.cron_run_prefix = "cron_bot_bot-1_"
+            self.cron_job_id = "bot_bot-1"
+
+        def get_schedule(self):
+            return "0 * * * *"
+
+    monkeypatch.setattr(Bot, "get_all_for_collector", classmethod(lambda cls: [FakeBot()]))
+    monkeypatch.setattr(
+        TaskModel,
+        "get_latest_matching",
+        classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: FakeTask()),
+    )
+
+    entries = Bot.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
+
+    assert entries
+    assert entries[0]["last_reason"] == "job_failed"
 
 
 def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
