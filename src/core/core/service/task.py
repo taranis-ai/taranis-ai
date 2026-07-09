@@ -40,6 +40,12 @@ class TaskService:
     def delete_task(task_id: str) -> tuple[dict[str, Any], int]:
         return TaskModel.delete(task_id)
 
+    @staticmethod
+    def reconcile_failures() -> tuple[dict[str, Any], int]:
+        from core.service.task_reconciliation import task_reconciliation_service
+
+        return task_reconciliation_service.reconcile(), 200
+
     @classmethod
     def save_task_result(cls, submission: TaskSubmission) -> tuple[dict[str, Any], int]:
         task_kind = cls._resolve_task_kind(submission.id, submission.task)
@@ -51,6 +57,8 @@ class TaskService:
         }
         if submission.task is not None:
             payload["task"] = submission.task
+        if submission.user_id is not None:
+            payload["user_id"] = submission.user_id
         if submission.worker_id is not None:
             payload["worker_id"] = submission.worker_id
         if submission.worker_type is not None:
@@ -59,9 +67,10 @@ class TaskService:
         result, _ = TaskModel.add_or_update(payload)
         if submission.status == "SUCCESS" and submission.result is not None:
             cls._handle_success_result(submission)
-        elif task_kind == "collector_task":
+        elif task_kind in {"collector_task", "bot_task"}:
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
-            cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
+            if task_kind == "collector_task":
+                cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
         validated = TaskResponseModel.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), 200
 

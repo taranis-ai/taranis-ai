@@ -24,6 +24,7 @@ class DashboardService:
 
         housekeeping_job_ids = {
             queue_manager.TOKEN_CLEANUP_JOB_ID,
+            queue_manager.TASK_RECONCILIATION_JOB_ID,
         }
         return sum(1 for item in items if isinstance(item, dict) and item.get("id") not in housekeeping_job_ids)
 

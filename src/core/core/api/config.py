@@ -5,6 +5,7 @@ from typing import Any
 
 from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
+from flask_jwt_extended import current_user
 from models.admin import OSINTSource as OSINTSourceModel
 from psycopg.errors import NotNullViolation, UniqueViolation  # noqa: F401
 from pydantic import ValidationError
@@ -548,7 +549,7 @@ class Bots(MethodView):
 class BotExecute(MethodView):
     @auth_required("BOT_EXECUTE")
     def post(self, bot_id: str):
-        return queue_manager.queue_manager.execute_bot_task(bot_id)
+        return queue_manager.queue_manager.execute_bot_task(bot_id, user_id=current_user.id)
 
 
 class QueueStatus(MethodView):
@@ -708,7 +709,7 @@ class ConnectorsPull(MethodView):
     def post(self, connector_id: str):
         """Trigger collection of stories from the external system."""
         try:
-            collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id)
+            collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id, user_id=current_user.id)
 
             return {"message": "Stories successfully collected.", "data": collected_stories}, 200
         except Exception:
@@ -796,18 +797,18 @@ class OSINTSourceCollect(MethodView):
     def post(self, source_id: str | None = None):
         if source_id:
             if source := osint_source.OSINTSource.get(source_id):
-                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id)
+                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id, user_id=current_user.id)
             return {"error": "OSINT Source not found"}, 404
-        return queue_manager.queue_manager.collect_all_osint_sources()
+        return queue_manager.queue_manager.collect_all_osint_sources(user_id=current_user.id)
 
 
 class OSINTSourcePreview(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def get(self, source_id: str):
-        return self.get_osint_source_preview_response(source_id)
+        return self.get_osint_source_preview_response(source_id, user_id=current_user.id)
 
     @classmethod
-    def get_osint_source_preview_response(cls, source_id: str):
+    def get_osint_source_preview_response(cls, source_id: str, user_id: str | None = None):
         task_id = f"source_preview_{source_id}"
 
         if result := task.Task.get(task_id):
@@ -815,11 +816,13 @@ class OSINTSourcePreview(MethodView):
         preview_result, status = queue_manager.queue_manager.get_task(task_id)
         if status == 202:
             return preview_result, status
-        return queue_manager.queue_manager.preview_osint_source(source_id)
+        if user_id is None:
+            return queue_manager.queue_manager.preview_osint_source(source_id)
+        return queue_manager.queue_manager.preview_osint_source(source_id, user_id=user_id)
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id: str):
-        return queue_manager.queue_manager.preview_osint_source(source_id)
+        return queue_manager.queue_manager.preview_osint_source(source_id, user_id=current_user.id)
 
 
 class OSINTSourcesExport(MethodView):
@@ -993,7 +996,7 @@ class WordListImport(MethodView):
                 return {"error": "Unable to import Word Lists"}, 400
 
             for wl in wls:
-                queue_manager.queue_manager.gather_word_list(wl.id)
+                queue_manager.queue_manager.gather_word_list(wl.id, user_id=current_user.id)
 
             _invalidate_admin_cache(200)
             return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
@@ -1024,8 +1027,8 @@ class WordListGather(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self, word_list_id: str | None = None):
         if not word_list_id:
-            return queue_manager.queue_manager.gather_all_word_lists()
-        return queue_manager.queue_manager.gather_word_list(word_list_id)
+            return queue_manager.queue_manager.gather_all_word_lists(user_id=current_user.id)
+        return queue_manager.queue_manager.gather_word_list(word_list_id, user_id=current_user.id)
 
 
 class WorkerInstances(MethodView):

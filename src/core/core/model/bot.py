@@ -161,7 +161,12 @@ class Bot(BaseModel):
 
     def get_cron_spec(self) -> CronSpec:
         return CronSpec(
-            meta={"name": f"Bot: {self.name}"},
+            meta={
+                "name": f"Bot: {self.name}",
+                "task": self.task_id,
+                "worker_id": self.id,
+                "worker_type": self.type.value.upper(),
+            },
             job_id=self.cron_job_id,
             cron=self.get_schedule(),
             func_path="bot_task",
@@ -191,6 +196,7 @@ class Bot(BaseModel):
         """
         from datetime import timezone
 
+        from core.managers import queue_manager as queue_manager_module
         from core.managers.queue_manager import QueueManager
 
         now = now or datetime.now(timezone.utc).replace(tzinfo=None)
@@ -220,6 +226,7 @@ class Bot(BaseModel):
                         last_run=task_result.last_run if task_result else None,
                         last_success=task_result.last_success if task_result else None,
                         last_status=task_result.status if task_result else None,
+                        last_reason=queue_manager_module._task_result_reason(task_result),
                     )
                 )
             except Exception as exc:

@@ -129,6 +129,12 @@ def test_annotate_jobs_marks_first_cron_run_pending(monkeypatch):
     assert annotated["is_overdue"] is False
 
 
+def test_task_result_reason_ignores_invalid_json():
+    task = cast(Any, type("FakeTask", (), {"result": "{not json"})())
+
+    assert qm_module._task_result_reason(task) is None
+
+
 def test_cancel_job_cancels_instance_and_cron(monkeypatch):
     class FakeJob:
         def __init__(self, job_id):
@@ -381,7 +387,10 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
         "queue_name": "presenters",
         "task_name": "presenter_task",
         "args": ("product-1",),
-        "kwargs": {"job_id": "presenter_task_product-1_101"},
+        "kwargs": {
+            "job_id": "presenter_task_product-1_101",
+            "meta": {"task": "presenter_task", "user_id": None, "worker_id": "product-1", "worker_type": "presenter_task"},
+        },
     }
     assert calls[1] == {
         "queue_name": "publishers",
@@ -390,8 +399,40 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
         "kwargs": {
             "job_id": "publisher_task_product-1_202",
             "depends_on": presenter_job,
+            "meta": {"task": "publisher_task", "user_id": None, "worker_id": "publisher-1", "worker_type": "publisher_task"},
         },
     }
+
+
+def test_enqueue_task_passes_meta_to_rq_queue(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue(self, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append({"task_func": task_func, "args": args, "job_id": job_id, "kwargs": kwargs})
+            return True
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+
+    result = qm.enqueue_task(
+        "collectors",
+        "collector_task",
+        "source-1",
+        True,
+        job_id="collect_rss_collector_source-1",
+        meta={"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"},
+    )
+
+    assert result is True
+    assert queue_calls == [
+        {
+            "task_func": "worker.collectors.collector_tasks.collector_task",
+            "args": ("source-1", True),
+            "job_id": "collect_rss_collector_source-1",
+            "kwargs": {"meta": {"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"}},
+        }
+    ]
 
 
 def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypatch):
@@ -410,7 +451,8 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
         def __init__(self):
             self.last_run = datetime(2025, 1, 1, 0, 0, 0)
             self.last_success = datetime(2025, 1, 1, 0, 0, 0)
-            self.status = "ok"
+            self.status = "FAILURE"
+            self.result = '{"reason":"job_timeout"}'
 
     class FakeSource:
         def __init__(self):
@@ -439,6 +481,7 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
     entry = entries[0]
     assert entry["id"] == "osint_source_source-1"
     assert entry["queue"] == "collectors"
+    assert entry["last_reason"] == "job_timeout"
     assert entry["previous_run_time"]
 
 
@@ -487,6 +530,38 @@ def test_bot_schedule_entries_skip_invalid_cron(monkeypatch):
     assert entries == []
 
 
+def test_bot_schedule_entries_include_last_reason(monkeypatch):
+    class FakeTask:
+        def __init__(self):
+            self.last_run = datetime(2025, 1, 1, 0, 0, 0)
+            self.last_success = datetime(2025, 1, 1, 0, 0, 0)
+            self.status = "FAILURE"
+            self.result = '{"reason":"job_failed"}'
+
+    class FakeBot:
+        def __init__(self):
+            self.id = "bot-1"
+            self.name = "Bot One"
+            self.task_id = "task-1"
+            self.cron_run_prefix = "cron_bot_bot-1_"
+            self.cron_job_id = "bot_bot-1"
+
+        def get_schedule(self):
+            return "0 * * * *"
+
+    monkeypatch.setattr(Bot, "get_all_for_collector", classmethod(lambda cls: [FakeBot()]))
+    monkeypatch.setattr(
+        TaskModel,
+        "get_latest_matching",
+        classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: FakeTask()),
+    )
+
+    entries = Bot.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
+
+    assert entries
+    assert entries[0]["last_reason"] == "job_failed"
+
+
 def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
     def fake_osint_entries():
         return [
@@ -515,8 +590,8 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
         schedules, status = qm.get_scheduled_jobs()
 
     assert status == 200
-    # 120 OSINT cron jobs + cleanup housekeeping cron
-    assert schedules["total_count"] == 121
+    # 120 OSINT cron jobs + two housekeeping crons
+    assert schedules["total_count"] == 122
 
 
 def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):

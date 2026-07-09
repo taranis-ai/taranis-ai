@@ -78,6 +78,7 @@ class TestAnalyzeApi(BaseTest):
             for payload in payloads:
                 report_item, status = ReportItem.add(payload)
                 assert status == 200
+                assert not isinstance(report_item, dict)
                 assert report_item.id == payload["id"]
 
         try:
@@ -124,6 +125,7 @@ class TestAnalyzeApi(BaseTest):
             for payload in payloads:
                 report_item, status = ReportItem.add(payload)
                 assert status == 200
+                assert not isinstance(report_item, dict)
                 assert report_item.id == payload["id"]
 
         try:
@@ -154,7 +156,7 @@ class TestAnalyzeApi(BaseTest):
         secondary_id = str(uuid7())
 
         with app.app_context():
-            report_types = ReportItemType.get_all_for_collector()
+            report_types = ReportItemType.get_all_for_collector() or []
             assert len(report_types) >= 2, "Expected at least two report types for filter testing"
             primary_type_id = report_types[0].id
             secondary_type_id = report_types[1].id
@@ -186,6 +188,7 @@ class TestAnalyzeApi(BaseTest):
             for payload in payloads:
                 report_item, status = ReportItem.add(payload)
                 assert status == 200
+                assert not isinstance(report_item, dict)
                 created_report_ids.append(report_item.id)
 
         try:
@@ -216,7 +219,7 @@ class TestAnalyzeApi(BaseTest):
         incomplete_secondary_id = str(uuid7())
 
         with app.app_context():
-            report_types = ReportItemType.get_all_for_collector()
+            report_types = ReportItemType.get_all_for_collector() or []
             assert len(report_types) >= 2, "Expected at least two report types for combined filter testing"
             primary_type_id = report_types[0].id
             secondary_type_id = report_types[1].id
@@ -248,6 +251,7 @@ class TestAnalyzeApi(BaseTest):
             for payload in payloads:
                 report_item, status = ReportItem.add(payload)
                 assert status == 200
+                assert not isinstance(report_item, dict)
                 created_report_ids.append(report_item.id)
 
         try:
@@ -340,6 +344,7 @@ class TestAnalyzeApi(BaseTest):
         with app.app_context():
             report, status = ReportItem.add(report_payload)
             assert status == 200
+            assert not isinstance(report, dict)
             assert report.id == report_payload["id"]
 
             for story_id in stories[:2]:
@@ -361,6 +366,7 @@ class TestAnalyzeApi(BaseTest):
         with app.app_context():
             report, status = ReportItem.add(report_payload)
             assert status == 200
+            assert not isinstance(report, dict)
             assert report.id == report_payload["id"]
 
             story_before_delete = Story.get(stories[0])
@@ -389,6 +395,7 @@ class TestAnalyzeApi(BaseTest):
         with app.app_context():
             report, status = ReportItem.add(report_payload)
             assert status == 200
+            assert not isinstance(report, dict)
             assert report.id == report_payload["id"]
 
             result, delete_status = ReportItem.delete(report.id)
@@ -406,7 +413,7 @@ class TestAnalyzeApi(BaseTest):
 
         scheduled_calls = []
 
-        def fake_autopublish(product_id: str, publisher_id: str):
+        def fake_autopublish(product_id: str, publisher_id: str, **_kwargs):
             scheduled_calls.append((product_id, publisher_id))
             return {"message": "Autopublish scheduled"}, 200
 
@@ -447,7 +454,7 @@ class TestAnalyzeApi(BaseTest):
     def test_workflow_applies_attribute_overrides(self, client, auth_header, stories, workflow_publish_resources, monkeypatch):
         monkeypatch.setattr(
             "core.service.report_publish_workflow.queue_manager.queue_manager.autopublish_product",
-            lambda _product_id, _publisher_id: ({"message": "Autopublish scheduled"}, 200),
+            lambda _product_id, _publisher_id, **_kwargs: ({"message": "Autopublish scheduled"}, 200),
         )
 
         override_value = "Analyst supplied summary"
@@ -593,7 +600,7 @@ class TestAnalyzeApi(BaseTest):
 
         monkeypatch.setattr(
             "core.service.report_publish_workflow.queue_manager.queue_manager.autopublish_product",
-            lambda _product_id, _publisher_id: ({"error": "Could not schedule autopublish jobs"}, 500),
+            lambda _product_id, _publisher_id, **_kwargs: ({"error": "Could not schedule autopublish jobs"}, 500),
         )
 
         payload = build_publish_product_payload(workflow_publish_resources, stories[:1])
@@ -608,6 +615,33 @@ class TestAnalyzeApi(BaseTest):
         with app.app_context():
             assert ReportItem.get(response_data["report"]["id"]) is not None
             assert Product.get(response_data["product"]["id"]) is not None
+
+    def test_workflow_returns_500_when_created_product_loses_default_publisher(
+        self, app, client, auth_header, stories, workflow_publish_resources, monkeypatch
+    ):
+        from core.model.product import Product
+        from core.model.report_item import ReportItem
+        from core.service.report_publish_workflow import ReportPublishWorkflowService
+
+        original_create_product = ReportPublishWorkflowService._create_product.__func__
+
+        def fake_create_product(cls, data, report_item):
+            result, status = original_create_product(cls, data, report_item)
+            if status == 200:
+                result.default_publisher = None
+            return result, status
+
+        monkeypatch.setattr(ReportPublishWorkflowService, "_create_product", classmethod(fake_create_product))
+
+        payload = build_publish_product_payload(workflow_publish_resources, stories[:1])
+        response = client.post(self.concat_url("report-items/publish-product"), json=payload, headers=auth_header)
+
+        assert response.status_code == 500
+        assert response.get_json()["error"] == "Product is missing a default publisher"
+
+        with app.app_context():
+            assert ReportItem.get_all_for_collector()
+            assert Product.get_all_for_collector()
 
     def test_workflow_requires_all_permissions(self, app, client, auth_header, stories, workflow_publish_resources, monkeypatch):
         from core.model.product import Product

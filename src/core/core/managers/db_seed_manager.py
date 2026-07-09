@@ -83,6 +83,8 @@ def pre_seed_update(db_engine: Engine):
     if db_engine.dialect.name == "postgresql":
         rebuild_story_search_vectors()
 
+    pre_seed_attributes()
+
     for w in workers:
         w = cast(dict[str, Any], w)
         worker_type = str(w["type"])

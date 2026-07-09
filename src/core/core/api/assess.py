@@ -322,7 +322,7 @@ class BotActions(MethodView):
         story_id = request.json.get("story_id")
         if not story_id:
             return {"error": "No story_id provided"}, 400
-        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter={"story_id": story_id})
+        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter={"story_id": story_id}, user_id=current_user.id)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story",), object_ids={"story": story_id})
         return response, code
@@ -350,7 +350,9 @@ class Connectors(MethodView):
             return {"error": "No story_id provided"}, 400
 
         try:
-            response, code = queue_manager.queue_manager.push_to_connector(connector_id=connector_id, story_ids=story_ids)
+            response, code = queue_manager.queue_manager.push_to_connector(
+                connector_id=connector_id, story_ids=story_ids, user_id=current_user.id
+            )
             return response, code
         except Exception:
             logger.exception("Failed to push stories to connector %s", connector_id)

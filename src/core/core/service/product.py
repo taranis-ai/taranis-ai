@@ -33,13 +33,13 @@ class ProductService:
         return {"error": "Product not found"}, 404
 
     @classmethod
-    def autopublish_product(cls, report_item_id: str):
+    def autopublish_product(cls, report_item_id: str, user_id: str | None = None):
         products = ProductService.get_products_for_auto_render(report_item_id)
         for product in products:
             if not product.default_publisher:
                 logger.warning(f"Product {product.id} is set to auto publish but has no default publisher")
                 continue
-            result, status = queue_manager.queue_manager.autopublish_product(product.id, product.default_publisher)
+            result, status = queue_manager.queue_manager.autopublish_product(product.id, product.default_publisher, user_id=user_id)
             if status != 200:
                 logger.error(
                     "Failed to schedule autopublish jobs for product %s: %s",
