@@ -12,6 +12,9 @@ from core.service import task_reconciliation
 from core.service.task_reconciliation import task_reconciliation_service
 
 
+pytestmark = pytest.mark.usefixtures("_clean_registries")
+
+
 class FakeRedis:
     def __init__(self, *, cron_defs: dict[str, dict[str, Any]] | None = None, cron_next: dict[str, float] | None = None):
         self.cron_defs = {job_id: json.dumps(spec).encode() for job_id, spec in (cron_defs or {}).items()}
@@ -105,7 +108,8 @@ def _install_fake_job_fetch(monkeypatch, jobs: dict[str, FakeJob]) -> None:
     monkeypatch.setattr(task_reconciliation.Job, "fetch", staticmethod(lambda job_id, connection=None: jobs[job_id]))
 
 
-@pytest.fixture(autouse=True)
+# pyright: ignore[reportUnusedFunction] - pytest resolves this fixture via module-level pytestmark.usefixtures(...)
+@pytest.fixture
 def _clean_registries():
     FakeScheduledRegistry.jobs_by_queue = {}
     FakeScheduledRegistry.times_by_job_id = {}

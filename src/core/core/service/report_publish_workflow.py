@@ -49,7 +49,9 @@ class ReportPublishWorkflowService:
         sse_manager.report_item_updated(report_item.id)
 
         publisher_id = product.default_publisher
-        assert publisher_id is not None
+        if not publisher_id:
+            logger.error("Product %s is missing a default publisher after creation", product.id)
+            return {"error": "Product is missing a default publisher"}, 500
         publish_result, publish_status = queue_manager.queue_manager.autopublish_product(
             product.id,
             publisher_id,

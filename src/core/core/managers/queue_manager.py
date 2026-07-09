@@ -107,7 +107,10 @@ def _task_result_reason(task_result: "Task | None") -> str | None:
         return None
     if not task_result.result:
         return None
-    result = json.loads(task_result.result)
+    try:
+        result = json.loads(task_result.result)
+    except (TypeError, ValueError):
+        return None
     if isinstance(result, dict):
         reason = result.get("reason")
         return reason if isinstance(reason, str) else None
@@ -357,11 +360,13 @@ class QueueManager:
         specs = (
             CronSpec(
                 meta={
+                    **QueueManager._build_task_meta(
+                        TOKEN_CLEANUP_JOB_ID,
+                        user_id=None,
+                        worker_id=TOKEN_CLEANUP_JOB_ID,
+                        worker_type=TOKEN_CLEANUP_JOB_ID,
+                    ),
                     "name": TOKEN_CLEANUP_DISPLAY_NAME,
-                    "task": TOKEN_CLEANUP_JOB_ID,
-                    "user_id": None,
-                    "worker_id": TOKEN_CLEANUP_JOB_ID,
-                    "worker_type": TOKEN_CLEANUP_JOB_ID,
                 },
                 job_id=TOKEN_CLEANUP_JOB_ID,
                 cron=TOKEN_CLEANUP_CRON,
@@ -370,11 +375,13 @@ class QueueManager:
             ),
             CronSpec(
                 meta={
+                    **QueueManager._build_task_meta(
+                        TASK_RECONCILIATION_JOB_ID,
+                        user_id=None,
+                        worker_id=TASK_RECONCILIATION_JOB_ID,
+                        worker_type=TASK_RECONCILIATION_JOB_ID,
+                    ),
                     "name": TASK_RECONCILIATION_DISPLAY_NAME,
-                    "task": TASK_RECONCILIATION_JOB_ID,
-                    "user_id": None,
-                    "worker_id": TASK_RECONCILIATION_JOB_ID,
-                    "worker_type": TASK_RECONCILIATION_JOB_ID,
                 },
                 job_id=TASK_RECONCILIATION_JOB_ID,
                 cron=TASK_RECONCILIATION_CRON,
@@ -510,6 +517,21 @@ class QueueManager:
         """Get a queue by name"""
         return self._queues.get(queue_name)
 
+    @staticmethod
+    def _build_task_meta(
+        task: str,
+        *,
+        user_id: str | None,
+        worker_id: str,
+        worker_type: str,
+    ) -> dict[str, str | None]:
+        return {
+            "task": task,
+            "user_id": user_id,
+            "worker_id": worker_id,
+            "worker_type": worker_type,
+        }
+
     def update_empty_word_lists(self):
         """Gather word lists that have no entries"""
         from core.model.word_list import WordList
@@ -525,7 +547,12 @@ class QueueManager:
                 "gather_word_list",
                 word_list.id,
                 job_id=f"gather_word_list_{word_list.id}",
-                meta={"task": "gather_word_list", "user_id": None, "worker_id": word_list.id, "worker_type": "gather_word_list"},
+                meta=self._build_task_meta(
+                    "gather_word_list",
+                    user_id=None,
+                    worker_id=word_list.id,
+                    worker_type="gather_word_list",
+                ),
             )
         logger.info(f"Gathering for {len(word_lists)} empty WordLists scheduled")
 
@@ -543,7 +570,12 @@ class QueueManager:
                 "gather_word_list",
                 word_list.id,
                 job_id=f"gather_word_list_{word_list.id}",
-                meta={"task": "gather_word_list", "user_id": user_id, "worker_id": word_list.id, "worker_type": "gather_word_list"},
+                meta=self._build_task_meta(
+                    "gather_word_list",
+                    user_id=user_id,
+                    worker_id=word_list.id,
+                    worker_type="gather_word_list",
+                ),
             )
         return {"message": "Gathering for all WordLists scheduled"}, 200
 
@@ -755,16 +787,16 @@ class QueueManager:
             source_id,
             True,
             job_id=task_id,
-            meta={
-                "task": "collector_task",
-                "user_id": user_id,
-                "worker_id": source_id,
-                "worker_type": self._resolve_worker_type(
+            meta=self._build_task_meta(
+                "collector_task",
+                user_id=user_id,
+                worker_id=source_id,
+                worker_type=self._resolve_worker_type(
                     OSINTSource.get,
                     source_id,
                     fallback="collector_task",
                 ),
-            },
+            ),
         ):
             logger.info(f"Collect for source {source_id} scheduled")
             return {"message": "Refresh for source scheduled"}, 200
@@ -782,16 +814,16 @@ class QueueManager:
             "collector_preview",
             source_id,
             job_id=task_id,
-            meta={
-                "task": "collector_preview",
-                "user_id": user_id,
-                "worker_id": source_id,
-                "worker_type": self._resolve_worker_type(
+            meta=self._build_task_meta(
+                "collector_preview",
+                user_id=user_id,
+                worker_id=source_id,
+                worker_type=self._resolve_worker_type(
                     OSINTSource.get,
                     source_id,
                     fallback="collector_task",
                 ),
-            },
+            ),
         ):
             logger.info(f"Preview for source {source_id} scheduled")
             return {"message": "Preview for source scheduled", "id": job.id, "status": "STARTED"}, 201
@@ -836,12 +868,12 @@ class QueueManager:
             "fetch_single_news_item",
             parameters,
             job_id=self._get_single_fetch_job_id(parameters),
-            meta={
-                "task": "collector_task",
-                "user_id": None,
-                "worker_id": self._get_single_fetch_url(parameters),
-                "worker_type": "simple_web_collector",
-            },
+            meta=self._build_task_meta(
+                "collector_task",
+                user_id=None,
+                worker_id=self._get_single_fetch_url(parameters),
+                worker_type="simple_web_collector",
+            ),
         )
         if not job:
             logger.error("Could not schedule fetch_single_news_item task")
@@ -871,7 +903,12 @@ class QueueManager:
                 source.id,
                 True,
                 job_id=source.task_id,
-                meta={"task": "collector_task", "user_id": user_id, "worker_id": source.id, "worker_type": source.type.value},
+                meta=self._build_task_meta(
+                    "collector_task",
+                    user_id=user_id,
+                    worker_id=source.id,
+                    worker_type=source.type.value,
+                ),
             )
             logger.info(f"Collect for source {source.id} scheduled")
         return {"message": f"Refresh for {len(sources)} sources scheduled"}, 200
@@ -885,16 +922,16 @@ class QueueManager:
             "connector_task",
             connector_id,
             story_ids,
-            meta={
-                "task": "connector_task",
-                "user_id": user_id,
-                "worker_id": connector_id,
-                "worker_type": self._resolve_worker_type(
+            meta=self._build_task_meta(
+                "connector_task",
+                user_id=user_id,
+                worker_id=connector_id,
+                worker_type=self._resolve_worker_type(
                     Connector.get,
                     connector_id,
                     fallback="connector_task",
                 ),
-            },
+            ),
         ):
             logger.info(f"Connector with id: {connector_id} scheduled")
             return {"message": "Connector scheduled"}, 200
@@ -909,16 +946,16 @@ class QueueManager:
             "connector_task",
             connector_id,
             None,
-            meta={
-                "task": "connector_task",
-                "user_id": user_id,
-                "worker_id": connector_id,
-                "worker_type": self._resolve_worker_type(
+            meta=self._build_task_meta(
+                "connector_task",
+                user_id=user_id,
+                worker_id=connector_id,
+                worker_type=self._resolve_worker_type(
                     Connector.get,
                     connector_id,
                     fallback="connector_task",
                 ),
-            },
+            ),
         ):
             logger.info(f"Connector with id: {connector_id} scheduled")
             return {"message": "Connector scheduled"}, 200
@@ -931,7 +968,12 @@ class QueueManager:
             "gather_word_list",
             word_list_id,
             job_id=f"gather_word_list_{word_list_id}",
-            meta={"task": "gather_word_list", "user_id": user_id, "worker_id": word_list_id, "worker_type": "gather_word_list"},
+            meta=self._build_task_meta(
+                "gather_word_list",
+                user_id=user_id,
+                worker_id=word_list_id,
+                worker_type="gather_word_list",
+            ),
         ):
             logger.info(f"Gathering for WordList {word_list_id} scheduled")
             return {"message": "Gathering for WordList scheduled"}, 200
@@ -948,17 +990,17 @@ class QueueManager:
             "bots",
             "bot_task",
             job_id=f"bot_{bot_id}",
-            meta={
-                "task": f"bot_{bot_id}",
-                "user_id": user_id,
-                "worker_id": bot_id,
-                "worker_type": self._resolve_worker_type(
+            meta=self._build_task_meta(
+                f"bot_{bot_id}",
+                user_id=user_id,
+                worker_id=bot_id,
+                worker_type=self._resolve_worker_type(
                     Bot.get,
                     bot_id,
                     fallback="BOT_TASK",
                     transform=lambda value: value.upper(),
                 ),
-            },
+            ),
             **bot_args,
         ):
             logger.info(f"Executing Bot {bot_id} scheduled")
@@ -977,7 +1019,12 @@ class QueueManager:
                 scheduled_time,
                 product_id,
                 job_id=f"presenter_task_{product_id}",
-                meta={"task": "presenter_task", "user_id": user_id, "worker_id": product_id, "worker_type": "presenter_task"},
+                meta=self._build_task_meta(
+                    "presenter_task",
+                    user_id=user_id,
+                    worker_id=product_id,
+                    worker_type="presenter_task",
+                ),
             )
         else:
             job = self.enqueue_task(
@@ -985,7 +1032,12 @@ class QueueManager:
                 "presenter_task",
                 product_id,
                 job_id=f"presenter_task_{product_id}",
-                meta={"task": "presenter_task", "user_id": user_id, "worker_id": product_id, "worker_type": "presenter_task"},
+                meta=self._build_task_meta(
+                    "presenter_task",
+                    user_id=user_id,
+                    worker_id=product_id,
+                    worker_type="presenter_task",
+                ),
             )
 
         if job:
@@ -1003,16 +1055,16 @@ class QueueManager:
             product_id,
             publisher_id,
             job_id=f"publisher_task_{product_id}",
-            meta={
-                "task": "publisher_task",
-                "user_id": user_id,
-                "worker_id": publisher_id,
-                "worker_type": self._resolve_worker_type(
+            meta=self._build_task_meta(
+                "publisher_task",
+                user_id=user_id,
+                worker_id=publisher_id,
+                worker_type=self._resolve_worker_type(
                     PublisherPreset.get,
                     publisher_id,
                     fallback="publisher_task",
                 ),
-            },
+            ),
         ):
             logger.info(f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled")
             return {"message": "Publishing Product scheduled"}, 200
@@ -1035,17 +1087,17 @@ class QueueManager:
                 "bot_task",
                 job_id=f"bot_{bot_id}_{source_id}",
                 depends_on=previous_job,
-                meta={
-                    "task": f"bot_{bot_id}",
-                    "user_id": user_id,
-                    "worker_id": bot_id,
-                    "worker_type": self._resolve_worker_type(
+                meta=self._build_task_meta(
+                    f"bot_{bot_id}",
+                    user_id=user_id,
+                    worker_id=bot_id,
+                    worker_type=self._resolve_worker_type(
                         Bot.get,
                         bot_id,
                         fallback="BOT_TASK",
                         transform=lambda value: value.upper(),
                     ),
-                },
+                ),
                 **bot_args,
             )
             if not job:
@@ -1504,7 +1556,12 @@ class QueueManager:
             "presenter_task",
             product_id,
             job_id=presenter_job_id,
-            meta={"task": "presenter_task", "user_id": user_id, "worker_id": product_id, "worker_type": "presenter_task"},
+            meta=self._build_task_meta(
+                "presenter_task",
+                user_id=user_id,
+                worker_id=product_id,
+                worker_type="presenter_task",
+            ),
         )
 
         if not presenter_job:
@@ -1519,16 +1576,16 @@ class QueueManager:
             auto_publisher_id,
             job_id=publisher_job_id,
             depends_on=presenter_job,
-            meta={
-                "task": "publisher_task",
-                "user_id": user_id,
-                "worker_id": auto_publisher_id,
-                "worker_type": self._resolve_worker_type(
+            meta=self._build_task_meta(
+                "publisher_task",
+                user_id=user_id,
+                worker_id=auto_publisher_id,
+                worker_type=self._resolve_worker_type(
                     PublisherPreset.get,
                     auto_publisher_id,
                     fallback="publisher_task",
                 ),
-            },
+            ),
         )
 
         if not publisher_job:

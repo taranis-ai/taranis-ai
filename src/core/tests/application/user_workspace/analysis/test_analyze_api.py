@@ -616,6 +616,33 @@ class TestAnalyzeApi(BaseTest):
             assert ReportItem.get(response_data["report"]["id"]) is not None
             assert Product.get(response_data["product"]["id"]) is not None
 
+    def test_workflow_returns_500_when_created_product_loses_default_publisher(
+        self, app, client, auth_header, stories, workflow_publish_resources, monkeypatch
+    ):
+        from core.model.product import Product
+        from core.model.report_item import ReportItem
+        from core.service.report_publish_workflow import ReportPublishWorkflowService
+
+        original_create_product = ReportPublishWorkflowService._create_product.__func__
+
+        def fake_create_product(cls, data, report_item):
+            result, status = original_create_product(cls, data, report_item)
+            if status == 200:
+                result.default_publisher = None
+            return result, status
+
+        monkeypatch.setattr(ReportPublishWorkflowService, "_create_product", classmethod(fake_create_product))
+
+        payload = build_publish_product_payload(workflow_publish_resources, stories[:1])
+        response = client.post(self.concat_url("report-items/publish-product"), json=payload, headers=auth_header)
+
+        assert response.status_code == 500
+        assert response.get_json()["error"] == "Product is missing a default publisher"
+
+        with app.app_context():
+            assert ReportItem.get_all_for_collector()
+            assert Product.get_all_for_collector()
+
     def test_workflow_requires_all_permissions(self, app, client, auth_header, stories, workflow_publish_resources, monkeypatch):
         from core.model.product import Product
         from core.model.report_item import ReportItem

@@ -87,26 +87,29 @@ class TaskReconciliationService:
             if due_ts is None:
                 continue
 
-            due_at = datetime.fromtimestamp(float(due_ts), tz=timezone.utc).replace(tzinfo=None)
-            missed_job_id = f"cron_{job_id}_{int(due_ts)}"
-            if due_at + self._grace > now or missed_job_id in live_ids or self._has_terminal_result(missed_job_id):
-                continue
+            try:
+                due_at = datetime.fromtimestamp(float(due_ts), tz=timezone.utc).replace(tzinfo=None)
+                missed_job_id = f"cron_{job_id}_{int(due_ts)}"
+                if due_at + self._grace > now or missed_job_id in live_ids or self._has_terminal_result(missed_job_id):
+                    continue
 
-            persisted += int(
-                self._persist_failure(
-                    job_id=missed_job_id,
-                    task_name=(
-                        str(meta.get("task")).strip()
-                        if isinstance((meta := spec.get("meta")), dict) and meta.get("task") is not None
-                        else None
+                persisted += int(
+                    self._persist_failure(
+                        job_id=missed_job_id,
+                        task_name=(
+                            str(meta.get("task")).strip()
+                            if isinstance((meta := spec.get("meta")), dict) and meta.get("task") is not None
+                            else None
+                        )
+                        or str(spec.get("func_path") or ""),
+                        meta=meta,
+                        message=f"Cron slot for {job_id} was missed",
+                        reason="cron_missed",
+                        data={"cron_job_id": job_id, "due_at": due_at.isoformat(), "queue_name": spec.get("queue_name")},
                     )
-                    or str(spec.get("func_path") or ""),
-                    meta=meta,
-                    message=f"Cron slot for {job_id} was missed",
-                    reason="cron_missed",
-                    data={"cron_job_id": job_id, "due_at": due_at.isoformat(), "queue_name": spec.get("queue_name")},
                 )
-            )
+            except Exception:
+                logger.exception(f"Failed reconciling missed cron job {job_id}")
 
         return persisted
 
@@ -121,36 +124,32 @@ class TaskReconciliationService:
                 continue
 
             for job_id in job_ids:
-                if self._has_terminal_result(job_id):
-                    continue
-
                 try:
+                    if self._has_terminal_result(job_id):
+                        continue
+
                     scheduled_for = self._utc_naive(registry.get_scheduled_time(job_id))
                     if scheduled_for is None or scheduled_for + self._grace > now:
                         continue
                     job = Job.fetch(job_id, connection=redis_conn)
-                except Exception:
-                    logger.exception("Failed reconciling scheduled job %s", job_id)
-                    continue
+                    meta = job.meta if isinstance(job.meta, dict) else {}
+                    task_name = self._resolve_task_name_from_job(job)
+                    if not task_name:
+                        continue
 
-                meta = job.meta if isinstance(job.meta, dict) else {}
-                task_name = str(meta.get("task")).strip() if meta.get("task") is not None and str(meta.get("task")).strip() else None
-                if not task_name:
-                    short_name = (getattr(job, "func_name", "") or "").rsplit(".", 1)[-1]
-                    task_name = "collector_task" if short_name == "fetch_single_news_item" else short_name or None
-                if not task_name:
-                    continue
-
-                persisted += int(
-                    self._persist_failure(
-                        job_id=job_id,
-                        task_name=task_name,
-                        meta=meta,
-                        message=f"Scheduled job {job_id} remained delayed past its release time",
-                        reason="job_stalled_in_scheduled",
-                        data={"queue_name": queue_name, "scheduled_for": scheduled_for.isoformat()},
+                    persisted += int(
+                        self._persist_failure(
+                            job_id=job_id,
+                            task_name=task_name,
+                            meta=meta,
+                            message=f"Scheduled job {job_id} remained delayed past its release time",
+                            reason="job_stalled_in_scheduled",
+                            data={"queue_name": queue_name, "scheduled_for": scheduled_for.isoformat()},
+                        )
                     )
-                )
+                except Exception:
+                    logger.exception(f"Failed reconciling scheduled job {job_id}")
+                    continue
 
         return persisted
 
@@ -168,37 +167,33 @@ class TaskReconciliationService:
                 continue
 
             for job_id in job_ids:
-                if job_id in blocked_ids or self._has_terminal_result(job_id):
-                    continue
-
                 try:
+                    if job_id in blocked_ids or self._has_terminal_result(job_id):
+                        continue
+
                     job = Job.fetch(job_id, connection=redis_conn)
-                except Exception:
-                    logger.exception("Failed reconciling queued job %s", job_id)
-                    continue
+                    meta = job.meta if isinstance(job.meta, dict) else {}
+                    task_name = self._resolve_task_name_from_job(job)
+                    if not task_name:
+                        continue
 
-                meta = job.meta if isinstance(job.meta, dict) else {}
-                task_name = str(meta.get("task")).strip() if meta.get("task") is not None and str(meta.get("task")).strip() else None
-                if not task_name:
-                    short_name = (getattr(job, "func_name", "") or "").rsplit(".", 1)[-1]
-                    task_name = "collector_task" if short_name == "fetch_single_news_item" else short_name or None
-                if not task_name:
-                    continue
+                    enqueued_at = self._utc_naive(getattr(job, "enqueued_at", None) or getattr(job, "created_at", None))
+                    if enqueued_at is None or enqueued_at + self._grace > now:
+                        continue
 
-                enqueued_at = self._utc_naive(getattr(job, "enqueued_at", None) or getattr(job, "created_at", None))
-                if enqueued_at is None or enqueued_at + self._grace > now:
-                    continue
-
-                persisted += int(
-                    self._persist_failure(
-                        job_id=job_id,
-                        task_name=task_name,
-                        meta=meta,
-                        message=f"Queued job {job_id} waited too long without being claimed",
-                        reason="job_stalled_in_queue",
-                        data={"queue_name": queue_name, "enqueued_at": enqueued_at.isoformat()},
+                    persisted += int(
+                        self._persist_failure(
+                            job_id=job_id,
+                            task_name=task_name,
+                            meta=meta,
+                            message=f"Queued job {job_id} waited too long without being claimed",
+                            reason="job_stalled_in_queue",
+                            data={"queue_name": queue_name, "enqueued_at": enqueued_at.isoformat()},
+                        )
                     )
-                )
+                except Exception:
+                    logger.exception(f"Failed reconciling queued job {job_id}")
+                    continue
 
         return persisted
 
@@ -215,37 +210,33 @@ class TaskReconciliationService:
                 continue
 
             for job_id in job_ids:
-                if job_id in failed_ids or self._has_terminal_result(job_id):
-                    continue
-
                 try:
+                    if job_id in failed_ids or self._has_terminal_result(job_id):
+                        continue
+
                     job = Job.fetch(job_id, connection=redis_conn)
-                except Exception:
-                    logger.exception("Failed reconciling started job %s", job_id)
-                    continue
+                    meta = job.meta if isinstance(job.meta, dict) else {}
+                    task_name = self._resolve_task_name_from_job(job)
+                    if not task_name:
+                        continue
 
-                meta = job.meta if isinstance(job.meta, dict) else {}
-                task_name = str(meta.get("task")).strip() if meta.get("task") is not None and str(meta.get("task")).strip() else None
-                if not task_name:
-                    short_name = (getattr(job, "func_name", "") or "").rsplit(".", 1)[-1]
-                    task_name = "collector_task" if short_name == "fetch_single_news_item" else short_name or None
-                if not task_name:
-                    continue
+                    started_at = self._utc_naive(getattr(job, "started_at", None))
+                    if started_at is None or started_at + self._started_grace > now:
+                        continue
 
-                started_at = self._utc_naive(getattr(job, "started_at", None))
-                if started_at is None or started_at + self._started_grace > now:
-                    continue
-
-                persisted += int(
-                    self._persist_failure(
-                        job_id=job_id,
-                        task_name=task_name,
-                        meta=meta,
-                        message=f"Started job {job_id} disappeared without a terminal task result",
-                        reason="job_abandoned_after_start",
-                        data={"queue_name": queue_name, "started_at": started_at.isoformat()},
+                    persisted += int(
+                        self._persist_failure(
+                            job_id=job_id,
+                            task_name=task_name,
+                            meta=meta,
+                            message=f"Started job {job_id} disappeared without a terminal task result",
+                            reason="job_abandoned_after_start",
+                            data={"queue_name": queue_name, "started_at": started_at.isoformat()},
+                        )
                     )
-                )
+                except Exception:
+                    logger.exception(f"Failed reconciling started job {job_id}")
+                    continue
 
         return persisted
 
@@ -259,6 +250,7 @@ class TaskReconciliationService:
         reason: str,
         data: dict[str, Any],
     ) -> bool:
+        meta = meta if isinstance(meta, dict) else None
         existing = TaskModel.get_by_job_id(job_id)
         existing_reason = (existing.to_dict().get("result") or {}).get("reason") if existing and existing.result else None
         if existing and existing.status == "FAILURE" and existing_reason == reason:
@@ -286,6 +278,18 @@ class TaskReconciliationService:
             )
         )
         return True
+
+    @staticmethod
+    def _resolve_task_name_from_job(job: Job) -> str | None:
+        meta = job.meta if isinstance(job.meta, dict) else {}
+        task_name = str(meta.get("task")).strip() if meta.get("task") is not None and str(meta.get("task")).strip() else None
+        if task_name:
+            return task_name
+
+        short_name = (getattr(job, "func_name", "") or "").rsplit(".", 1)[-1]
+        if not short_name:
+            return None
+        return "collector_task" if short_name == "fetch_single_news_item" else short_name
 
     @staticmethod
     def _registry_ids(queues: dict[str, Any], registry_cls: Any) -> set[str]:

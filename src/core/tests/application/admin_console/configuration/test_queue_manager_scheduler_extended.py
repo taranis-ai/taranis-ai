@@ -129,6 +129,12 @@ def test_annotate_jobs_marks_first_cron_run_pending(monkeypatch):
     assert annotated["is_overdue"] is False
 
 
+def test_task_result_reason_ignores_invalid_json():
+    task = cast(Any, type("FakeTask", (), {"result": "{not json"})())
+
+    assert qm_module._task_result_reason(task) is None
+
+
 def test_cancel_job_cancels_instance_and_cron(monkeypatch):
     class FakeJob:
         def __init__(self, job_id):
