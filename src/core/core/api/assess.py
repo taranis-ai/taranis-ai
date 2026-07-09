@@ -357,7 +357,7 @@ class BotActions(MethodView):
         if report_ids:
             filter_data["report_ids"] = report_ids
 
-        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data)
+        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, models=("story", "report_item"))
         return response, code
@@ -385,7 +385,9 @@ class Connectors(MethodView):
             return {"error": "No story_id provided"}, 400
 
         try:
-            response, code = queue_manager.queue_manager.push_to_connector(connector_id=connector_id, story_ids=story_ids)
+            response, code = queue_manager.queue_manager.push_to_connector(
+                connector_id=connector_id, story_ids=story_ids, user_id=current_user.id
+            )
             return response, code
         except Exception:
             logger.exception("Failed to push stories to connector %s", connector_id)

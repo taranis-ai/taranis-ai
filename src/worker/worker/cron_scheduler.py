@@ -26,6 +26,7 @@ TASK_FUNCTION_MAP = {
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "bot_task": "worker.bots.bot_tasks.bot_task",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
+    "reconcile_task_failures": "worker.misc.misc_tasks.reconcile_task_failures",
 }
 
 T = TypeVar("T")
@@ -111,11 +112,16 @@ def _enqueue_due_job(
     queues: dict[str, Queue],
     job_id: str,
     spec: dict[str, Any],
-    now_ts: float,
-) -> str:
+    due_ts: float,
+) -> str | None:
     queue_name = spec["queue_name"]
     queue = queues.setdefault(queue_name, Queue(queue_name, connection=redis))
     task = TASK_FUNCTION_MAP.get(spec["func_path"], spec["func_path"])
+    if not task:
+        logger.warning(f"Skipping cron job {job_id} because func_path is missing")
+        next_ts = compute_next(spec, due_ts)
+        redis.zadd(NEXT_KEY, {job_id: next_ts})
+        return None
     job_options = dict(spec.get("job_options") or {})
     kwargs = dict(spec.get("kwargs") or {})
 
@@ -124,7 +130,7 @@ def _enqueue_due_job(
         job_options["meta"] = spec["meta"]
 
     # Deterministic enough for queue dedupe while still carrying the logical cron job id.
-    due_slot = int(now_ts)
+    due_slot = int(due_ts)
     rq_job_id = f"cron_{job_id}_{due_slot}"
 
     queue.enqueue(
@@ -135,7 +141,7 @@ def _enqueue_due_job(
         **job_options,
     )
 
-    next_ts = compute_next(spec, now_ts)
+    next_ts = compute_next(spec, due_ts)
     with redis.pipeline() as pipeline:
         pipeline.zadd(NEXT_KEY, {job_id: next_ts})
         pipeline.rpush(_enqueue_key(job_id), rq_job_id)
@@ -190,7 +196,8 @@ def run_scheduler(
                 continue
 
             try:
-                _enqueue_due_job(redis, queues, job_id, spec, now_ts)
+                due_ts = float(redis.zscore(NEXT_KEY, job_id) or now_ts)
+                _enqueue_due_job(redis, queues, job_id, spec, due_ts)
             except Exception:
                 # Keep the job alive and retry on next poll cycle.
                 redis.zadd(NEXT_KEY, {job_id: now_ts + poll_interval_seconds})

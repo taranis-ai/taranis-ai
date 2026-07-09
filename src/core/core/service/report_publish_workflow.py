@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from core.log import logger
 from core.managers import asset_manager, queue_manager
@@ -17,7 +17,7 @@ from core.service.report_story_sync import ReportStorySyncService
 
 class ReportPublishWorkflowService:
     @classmethod
-    def create_and_publish(cls, data: dict, user: User | None):
+    def create_and_publish(cls, data: Any, user: User | None):
         if not isinstance(data, dict):
             return {"error": "Invalid request payload"}, 400
 
@@ -27,15 +27,17 @@ class ReportPublishWorkflowService:
             return {"error": "report and product objects are required"}, 400
 
         try:
-            report_item, status = cls._create_report(report_data, user)
+            report_result, status = cls._create_report(report_data, user)
             if status != 200:
                 db.session.rollback()
-                return report_item, status
+                return report_result, status
+            report_item = cast(ReportItem, report_result)
 
-            product, status = cls._create_product(product_data, report_item)
+            product_result, status = cls._create_product(product_data, report_item)
             if status != 200:
                 db.session.rollback()
-                return product, status
+                return product_result, status
+            product = cast(Product, product_result)
 
             db.session.commit()
         except Exception:
@@ -46,7 +48,15 @@ class ReportPublishWorkflowService:
         asset_manager.report_item_changed(report_item)
         sse_manager.report_item_updated(report_item.id)
 
-        publish_result, publish_status = queue_manager.queue_manager.autopublish_product(product.id, product.default_publisher)
+        publisher_id = product.default_publisher
+        if not publisher_id:
+            logger.error("Product %s is missing a default publisher after creation", product.id)
+            return {"error": "Product is missing a default publisher"}, 500
+        publish_result, publish_status = queue_manager.queue_manager.autopublish_product(
+            product.id,
+            publisher_id,
+            user_id=user.id if user else None,
+        )
         response = cls._build_response(report_item, product, publish_result, publish_status)
         if publish_status != 200:
             return response, 500
@@ -93,7 +103,7 @@ class ReportPublishWorkflowService:
         return report_item, 200
 
     @classmethod
-    def _create_product(cls, data: dict[str, Any], report_item: ReportItem):
+    def _create_product(cls, data: Any, report_item: ReportItem):
         if not isinstance(data, dict):
             return {"error": "Invalid product payload"}, 400
 
@@ -147,7 +157,7 @@ class ReportPublishWorkflowService:
         return stories, missing_story_ids
 
     @classmethod
-    def _apply_attribute_overrides(cls, report_item: ReportItem, overrides: list[dict]):
+    def _apply_attribute_overrides(cls, report_item: ReportItem, overrides: Any):
         if overrides is None:
             return None
         if not isinstance(overrides, list):

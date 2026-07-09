@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import fakeredis
 import pytest
@@ -95,7 +96,7 @@ def test_decode_rejects_awaitable_values():
         coroutine.close()
 
 
-def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fake_queue):
+def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch: pytest.MonkeyPatch, fake_queue: Any):
     redis_conn = fakeredis.FakeRedis(decode_responses=False)
     monkeypatch.setattr(cron_scheduler, "Queue", fake_queue)
 
@@ -110,7 +111,7 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
             "args": ["source-1", False],
             "meta": {"name": "Collector: Source 1"},
         },
-        now_ts=1000.0,
+        due_ts=1000.0,
     )
 
     assert rq_job_id == "cron_osint_source_source-1_1000"
@@ -127,3 +128,25 @@ def test_enqueue_due_job_updates_next_run_and_notifies_wait_key(monkeypatch, fak
     wait_key_result = redis_conn.blpop(_enqueue_key("osint_source_source-1"), timeout=1)
     assert wait_key_result is not None
     assert wait_key_result[1] == b"cron_osint_source_source-1_1000"  # type: ignore[comparison-with-callable]
+
+
+def test_enqueue_due_job_skips_missing_func_path_without_crashing(monkeypatch: pytest.MonkeyPatch, fake_queue: Any):
+    redis_conn = fakeredis.FakeRedis(decode_responses=False)
+    monkeypatch.setattr(cron_scheduler, "Queue", fake_queue)
+
+    rq_job_id = _enqueue_due_job(
+        redis_conn,
+        {},
+        "job-invalid",
+        {
+            "queue_name": "collectors",
+            "func_path": "",
+            "cron": "*/5 * * * *",
+            "args": ["source-1", False],
+        },
+        due_ts=1000.0,
+    )
+
+    assert rq_job_id is None
+    assert fake_queue.enqueued_calls == []
+    assert redis_conn.zscore(NEXT_KEY, "job-invalid") is not None

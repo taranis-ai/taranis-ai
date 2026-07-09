@@ -18,6 +18,7 @@ class Task(BaseModel):
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     job_id: Mapped[str] = db.Column(db.String, unique=True, nullable=False)
     task: Mapped[str] = db.Column(db.String, nullable=True)
+    user_id: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), nullable=True)
     worker_id: Mapped[str] = db.Column(db.String, nullable=True)
     worker_type: Mapped[str] = db.Column(db.String, nullable=True)
     result: Mapped[str] = db.Column(db.String, nullable=True)
@@ -25,7 +26,7 @@ class Task(BaseModel):
     last_run: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     last_success: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, result=None, status=None, id=None, task=None, worker_id=None, worker_type=None):
+    def __init__(self, result=None, status=None, id=None, task=None, user_id=None, worker_id=None, worker_type=None):
         if id:
             try:
                 self.id = self.normalize_uuid_id(id)
@@ -40,6 +41,8 @@ class Task(BaseModel):
             self.status = status
         if task:
             self.task = task
+        if user_id is not None:
+            self.user_id = user_id
         if worker_id is not None:
             self.worker_id = worker_id
         if worker_type is not None:
@@ -55,6 +58,7 @@ class Task(BaseModel):
             entry.result = json.dumps(entry_data["result"]) if entry_data["result"] is not None else ""
             entry.status = entry_data.get("status")
             entry.task = entry_data.get("task", entry.task)
+            entry.user_id = entry_data.get("user_id", entry.user_id)
             entry.worker_id = entry_data.get("worker_id", entry.worker_id)
             entry.worker_type = entry_data.get("worker_type", entry.worker_type)
             if entry.status in cls.SUCCESS_STATUSES:
@@ -72,6 +76,7 @@ class Task(BaseModel):
             "job_id": self.job_id,
             "result": result,
             "task": self.task,
+            "user_id": self.user_id,
             "worker_id": self.worker_id,
             "worker_type": self.worker_type,
             "status": self.status,
@@ -88,7 +93,7 @@ class Task(BaseModel):
         return db.session.execute(db.select(cls).where(cls.job_id == task_id).where(cls.status.in_(cls.SUCCESS_STATUSES))).scalar()
 
     @classmethod
-    def get(cls, item_id: str) -> "Task | None":
+    def get(cls, item_id: str | None) -> "Task | None":
         if item_id is None:
             return None
         lookup_id = str(item_id)

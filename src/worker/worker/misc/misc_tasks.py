@@ -8,15 +8,16 @@ from datetime import datetime, timezone
 from croniter import croniter
 from rq import get_current_job
 
-from worker.core_api import CoreApi, build_success_task_result
+from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import logger
 from worker.misc.wordlist_update import update_wordlist
 
 
 TOKEN_CLEANUP_TASK_ID = "cleanup_token_blacklist"
+TASK_RECONCILIATION_TASK_ID = "reconcile_task_failures"
 
 
-def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
+def cleanup_token_blacklist(*_args: object, reschedule: bool = False, **_kwargs: object):
     """Clean up expired tokens from the blacklist.
 
     When executed by the RQ cron scheduler this task reports completion to
@@ -78,7 +79,15 @@ def _reschedule_cleanup():
         next_run = cron.get_next(datetime)
 
         # Schedule the job
-        queue.enqueue_at(next_run, cleanup_token_blacklist)
+        queue.enqueue_at(
+            next_run,
+            cleanup_token_blacklist,
+            meta={
+                "task": TOKEN_CLEANUP_TASK_ID,
+                "worker_id": TOKEN_CLEANUP_TASK_ID,
+                "worker_type": TOKEN_CLEANUP_TASK_ID,
+            },
+        )
         logger.info(f"Re-scheduled token cleanup for {next_run.isoformat()}")
 
     except Exception as e:  # pragma: no cover - logging only
@@ -117,3 +126,40 @@ def gather_word_list(word_list_id: str):
             ),
         )
     return result
+
+
+def reconcile_task_failures():
+    logger.info("Reconciling task failures")
+    job = get_current_job()
+    core_api = CoreApi()
+    payload = core_api.reconcile_task_failures()
+    if payload is None:
+        if job:
+            core_api.save_task_result(
+                job.id,
+                TASK_RECONCILIATION_TASK_ID,
+                "FAILURE",
+                worker_id=TASK_RECONCILIATION_TASK_ID,
+                worker_type=TASK_RECONCILIATION_TASK_ID,
+                result=build_failure_task_result(
+                    "Task reconciliation failed",
+                    reason="job_failed",
+                    retryable=True,
+                ),
+            )
+        raise RuntimeError("Task reconciliation failed")
+
+    if job:
+        core_api.save_task_result(
+            job.id,
+            TASK_RECONCILIATION_TASK_ID,
+            "SUCCESS",
+            worker_id=TASK_RECONCILIATION_TASK_ID,
+            worker_type=TASK_RECONCILIATION_TASK_ID,
+            result=build_success_task_result(
+                default_message=str(payload.get("message") or "Task reconciliation completed"),
+                data=payload,
+            ),
+        )
+
+    return payload

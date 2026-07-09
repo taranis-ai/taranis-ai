@@ -341,6 +341,7 @@ class OSINTSource(BaseModel):
         """
         from datetime import timezone
 
+        from core.managers import queue_manager as queue_manager_module
         from core.managers.queue_manager import QueueManager
 
         now = now or datetime.now(timezone.utc).replace(tzinfo=None)
@@ -370,6 +371,7 @@ class OSINTSource(BaseModel):
                         last_run=task_result.last_run if task_result else None,
                         last_success=task_result.last_success if task_result else None,
                         last_status=task_result.status if task_result else None,
+                        last_reason=queue_manager_module._task_result_reason(task_result),
                     )
                 )
             except Exception as exc:
@@ -521,7 +523,12 @@ class OSINTSource(BaseModel):
     def get_cron_spec(self) -> CronSpec:
         """Get the cron specification for this OSINT source"""
         return CronSpec(
-            meta={"name": f"Collector: {self.name}"},
+            meta={
+                "name": f"Collector: {self.name}",
+                "task": "collector_task",
+                "worker_id": self.id,
+                "worker_type": self.type.value,
+            },
             job_id=self.cron_job_id,
             cron=self.get_schedule_with_default(),
             func_path="collector_task",

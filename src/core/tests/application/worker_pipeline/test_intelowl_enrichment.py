@@ -18,7 +18,7 @@ def test_assess_botactions_accepts_multiple_stories_and_reports_for_non_intelowl
 ) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_execute_bot_task(bot_id: str, filter: dict[str, Any]) -> tuple[dict[str, str], int]:
+    def fake_execute_bot_task(bot_id: str, filter: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, str], int]:
         captured["bot_id"] = bot_id
         captured["filter"] = filter
         return {"message": "queued"}, 200
@@ -41,7 +41,7 @@ def test_assess_botactions_accepts_multiple_stories_and_reports_for_non_intelowl
 def test_assess_botactions_queues_intelowl_like_any_other_bot(client: Any, auth_header: dict[str, str], monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_execute_bot_task(bot_id: str, filter: dict[str, Any]) -> tuple[dict[str, str], int]:
+    def fake_execute_bot_task(bot_id: str, filter: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, str], int]:
         captured["bot_id"] = bot_id
         captured["filter"] = filter
         return {"message": "queued"}, 200
@@ -66,7 +66,7 @@ def test_analyze_report_botactions_accepts_multiple_reports_for_non_intelowl(
 ) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_execute_bot_task(bot_id: str, filter: dict[str, Any]) -> tuple[dict[str, str], int]:
+    def fake_execute_bot_task(bot_id: str, filter: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, str], int]:
         captured["bot_id"] = bot_id
         captured["filter"] = filter
         return {"message": "queued"}, 200
@@ -86,7 +86,7 @@ def test_analyze_report_botactions_accepts_multiple_reports_for_non_intelowl(
 def test_analyze_report_botactions_queues_intelowl_like_any_other_bot(client: Any, auth_header: dict[str, str], monkeypatch: Any) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_execute_bot_task(bot_id: str, filter: dict[str, Any]) -> tuple[dict[str, str], int]:
+    def fake_execute_bot_task(bot_id: str, filter: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, str], int]:
         captured["bot_id"] = bot_id
         captured["filter"] = filter
         return {"message": "queued"}, 200
