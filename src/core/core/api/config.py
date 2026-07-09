@@ -531,7 +531,7 @@ class Bots(MethodView):
                 return jsonify({"message": "Bot updated", "id": f"{updated_bot.id}"}), 200
         except ValueError as e:
             logger.warning("Invalid bot update payload: %s", e)
-            return {"error": str(e)}, 400
+            return {"error": "Invalid bot update payload"}, 400
         return {"error": "Bot not found"}, 404
 
     @auth_required("CONFIG_BOT_CREATE")
@@ -542,7 +542,7 @@ class Bots(MethodView):
             return jsonify({"message": "Bot created", "id": new_bot.id}), 201
         except ValueError as e:
             logger.warning("Invalid bot create payload: %s", e)
-            return {"error": str(e)}, 400
+            return {"error": "Invalid bot create payload"}, 400
 
     @auth_required("CONFIG_BOT_DELETE")
     def delete(self, bot_id: str | None = None):

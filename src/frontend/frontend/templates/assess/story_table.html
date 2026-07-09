@@ -2,13 +2,12 @@
 <div id="assess" data-testid="assess" data-tour-target="assess-page">
   {% set actions = actions | default([]) %}
   {% set pagination = pagination | default({}) %}
-
+  {# djlint:off #}
   <div
     id="assess-container"
     class="p-4"
     data-selection-key="{{ assess_selection_key | default('') }}"
     @keyup.escape.window="clearSelection()"
-    {# djlint:off #}
     x-data='{
       selectedItems: [],
       storyIds: [],
@@ -142,29 +141,29 @@
         window.location.href = url;
       }
     }'
-    {# djlint:on #}
     >
+  {# djlint:on #}
 
-    {% if stories %}
-      {% include "assess/bookmarks_bar.html" %}
-      {% include "assess/assess_top_bar.html" %}
-      <div id="story-list" x-ref="storyList">{% for story in stories %}{{ story_card(story) }}{% endfor %}</div>
-      {% if pagination %}
-        {% set hx_target = request.headers.get("HX-Target") %}
-        <div id="story-pagination" {% if pagination.infinite_scroll and hx_target == 'story-list' %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>
-          {% if pagination.infinite_scroll %}
-            {% include "assess/story_table_infinite_scroll.html" %}
-          {% else %}
-            {% include "assess/story_table_paging.html" %}
-          {% endif %}
-        </div>
-      {% endif %}
-    {% else %}
-      <h2 class="text-center text-base-content/60 text-xl mb-4">No stories found.</h2>
-      <a href="{{ routes.base_route }}" class="btn btn-primary w-full">
-        {{ heroicon_outline('arrow-path', class='h-6 w-6') }}
-        Reset filters
-      </a>
+  {% if stories %}
+    {% include "assess/bookmarks_bar.html" %}
+    {% include "assess/assess_top_bar.html" %}
+    <div id="story-list" x-ref="storyList">{% for story in stories %}{{ story_card(story) }}{% endfor %}</div>
+    {% if pagination %}
+      {% set hx_target = request.headers.get("HX-Target") %}
+      <div id="story-pagination" {% if pagination.infinite_scroll and hx_target == 'story-list' %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>
+        {% if pagination.infinite_scroll %}
+          {% include "assess/story_table_infinite_scroll.html" %}
+        {% else %}
+          {% include "assess/story_table_paging.html" %}
+        {% endif %}
+      </div>
     {% endif %}
-  </div>
+  {% else %}
+    <h2 class="text-center text-base-content/60 text-xl mb-4">No stories found.</h2>
+    <a href="{{ routes.base_route }}" class="btn btn-primary w-full">
+      {{ heroicon_outline('arrow-path', class='h-6 w-6') }}
+      Reset filters
+    </a>
+  {% endif %}
+</div>
 </div>
