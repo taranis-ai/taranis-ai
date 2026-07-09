@@ -5,6 +5,7 @@ from typing import Any
 
 from flask import Blueprint, Flask, jsonify, request, send_file
 from flask.views import MethodView
+from flask_jwt_extended import current_user
 from models.admin import OSINTSource as OSINTSourceModel
 from psycopg.errors import NotNullViolation, UniqueViolation  # noqa: F401
 from pydantic import ValidationError
