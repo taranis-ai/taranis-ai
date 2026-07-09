@@ -163,3 +163,33 @@ def test_bridge_uses_func_name_fallback_when_meta_task_missing(monkeypatch):
     rq_failure_bridge.rq_failure_exception_handler(job, RuntimeError, RuntimeError("boom"), None)
 
     assert captured["args"] == ("job-1", "collector_task", "FAILURE")
+
+
+def test_bridge_normalizes_meta_strings_and_fetch_single_news_item_fallback(monkeypatch):
+    captured = {}
+
+    class FakeCoreApi:
+        def api_get(self, url):
+            return None
+
+        def save_task_result(self, *args, **kwargs):
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            return True
+
+    monkeypatch.setattr(rq_failure_bridge, "CoreApi", FakeCoreApi)
+
+    job = cast(
+        Job,
+        DummyJob(
+            meta={"task": "   ", "user_id": " user-1 ", "worker_id": " source-1 ", "worker_type": "   "},
+            func_name="worker.collectors.collector_tasks.fetch_single_news_item",
+        ),
+    )
+
+    rq_failure_bridge.rq_failure_exception_handler(job, RuntimeError, RuntimeError("boom"), None)
+
+    assert captured["args"] == ("job-1", "collector_task", "FAILURE")
+    assert captured["kwargs"]["user_id"] == "user-1"
+    assert captured["kwargs"]["worker_id"] == "source-1"
+    assert captured["kwargs"]["worker_type"] is None

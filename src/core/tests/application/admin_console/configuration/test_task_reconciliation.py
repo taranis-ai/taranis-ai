@@ -16,8 +16,15 @@ pytestmark = pytest.mark.usefixtures("_clean_registries")
 
 
 class FakeRedis:
-    def __init__(self, *, cron_defs: dict[str, dict[str, Any]] | None = None, cron_next: dict[str, float] | None = None):
-        self.cron_defs = {job_id: json.dumps(spec).encode() for job_id, spec in (cron_defs or {}).items()}
+    def __init__(self, *, cron_defs: dict[str, Any] | None = None, cron_next: dict[str, float] | None = None):
+        self.cron_defs = {}
+        for job_id, spec in (cron_defs or {}).items():
+            if isinstance(spec, bytes):
+                self.cron_defs[job_id] = spec
+            elif isinstance(spec, str):
+                self.cron_defs[job_id] = spec.encode()
+            else:
+                self.cron_defs[job_id] = json.dumps(spec).encode()
         self.cron_next = dict(cron_next or {})
 
     def hgetall(self, key: str):
@@ -195,6 +202,45 @@ def test_reconcile_skips_cron_slot_when_real_run_exists(app, monkeypatch):
                 TaskModel.delete(missed_job_id)
 
 
+def test_reconcile_cron_specs_ignore_invalid_entries_and_use_func_path_fallback(app, monkeypatch):
+    now = datetime(2026, 7, 7, 12, 0, tzinfo=timezone.utc)
+    due_at = now - timedelta(minutes=10)
+    cron_job_id = f"osint_source_{uuid.uuid4().hex}"
+    missed_job_id = f"cron_{cron_job_id}_{int(due_at.timestamp())}"
+    redis_conn = FakeRedis(
+        cron_defs={
+            "broken-json": b"{not-json",
+            "not-a-dict": "[]",
+            "not-cron": {"queue_name": "collectors", "func_path": "worker.collectors.collector_tasks.collector_task"},
+            cron_job_id: {
+                "queue_name": "collectors",
+                "func_path": "worker.collectors.collector_tasks.fetch_single_news_item",
+                "cron": "*/5 * * * *",
+                "meta": {"task": "   ", "worker_id": " source-1 ", "worker_type": "   ", "user_id": " user-1 "},
+            },
+        },
+        cron_next={cron_job_id: due_at.timestamp()},
+    )
+    _install_fake_queue_manager(monkeypatch, redis_conn=redis_conn, queues={"collectors": FakeQueue("collectors")})
+    _install_fake_registries(monkeypatch)
+    _install_fake_job_fetch(monkeypatch, {})
+
+    with app.app_context():
+        try:
+            result = task_reconciliation_service.reconcile(now)
+            task = TaskModel.get(missed_job_id)
+
+            assert result["details"]["cron_missed"] == 1
+            assert task is not None
+            assert task.task == "collector_task"
+            assert task.user_id == "user-1"
+            assert task.worker_id == "source-1"
+            assert task.worker_type is None
+        finally:
+            if TaskModel.get(missed_job_id):
+                TaskModel.delete(missed_job_id)
+
+
 def test_reconcile_scheduled_queue_and_started_failures_show_up_in_tasks_api(client, api_header, app, monkeypatch):
     now = datetime(2026, 7, 7, 12, 0, tzinfo=timezone.utc)
     scheduled_job_id = f"presenter_task_{uuid.uuid4().hex}"
@@ -258,6 +304,64 @@ def test_reconcile_scheduled_queue_and_started_failures_show_up_in_tasks_api(cli
             for task_id in (scheduled_job_id, queued_job_id, started_job_id):
                 if TaskModel.get(task_id):
                     TaskModel.delete(task_id)
+
+
+@pytest.mark.parametrize(
+    ("meta", "func_name", "expected_task", "expected_user_id", "expected_worker_id"),
+    [
+        (
+            {"task": " presenter_task ", "user_id": " user-1 ", "worker_id": " product-1 ", "worker_type": " presenter_task "},
+            "worker.presenters.presenter_tasks.presenter_task",
+            "presenter_task",
+            "user-1",
+            "product-1",
+        ),
+        (
+            {"task": "   ", "user_id": "   ", "worker_id": "source-2", "worker_type": "rss_collector"},
+            "worker.presenters.presenter_tasks.presenter_task",
+            "presenter_task",
+            None,
+            "source-2",
+        ),
+        (
+            {"worker_id": "source-3", "worker_type": "rss_collector"},
+            "worker.collectors.collector_tasks.fetch_single_news_item",
+            "collector_task",
+            None,
+            "source-3",
+        ),
+    ],
+)
+def test_reconcile_queued_normalizes_task_identity_and_meta(
+    app, monkeypatch, meta, func_name, expected_task, expected_user_id, expected_worker_id
+):
+    now = datetime(2026, 7, 7, 12, 0, tzinfo=timezone.utc)
+    job_id = f"queued_{uuid.uuid4().hex}"
+    jobs = {
+        job_id: FakeJob(
+            job_id,
+            meta=meta,
+            func_name=func_name,
+            enqueued_at=now - timedelta(minutes=10),
+        )
+    }
+    _install_fake_queue_manager(monkeypatch, redis_conn=FakeRedis(), queues={"collectors": FakeQueue("collectors", [job_id])})
+    _install_fake_registries(monkeypatch)
+    _install_fake_job_fetch(monkeypatch, jobs)
+
+    with app.app_context():
+        try:
+            result = task_reconciliation_service.reconcile(now)
+            task = TaskModel.get(job_id)
+
+            assert result["details"]["job_stalled_in_queue"] == 1
+            assert task is not None
+            assert task.task == expected_task
+            assert task.user_id == expected_user_id
+            assert task.worker_id == expected_worker_id
+        finally:
+            if TaskModel.get(job_id):
+                TaskModel.delete(job_id)
 
 
 def test_annotate_jobs_uses_reason_labels_from_persisted_failures(monkeypatch):

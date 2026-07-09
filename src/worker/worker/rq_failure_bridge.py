@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from models.task_identity import get_meta_string, get_task_name_from_job
 from rq.job import Job
 from rq.timeouts import JobTimeoutException
 
@@ -56,10 +57,10 @@ def _has_terminal_task_result(job_id: str) -> bool:
 
 def _persist_failure(job: Job, *, message: str, reason: str, retryable: bool, data: dict[str, Any]) -> None:
     meta = job.meta if isinstance(job.meta, dict) else {}
-    task_name = _get_task_name(job, meta)
-    worker_id = _get_meta_string(meta, "worker_id")
-    worker_type = _get_meta_string(meta, "worker_type")
-    user_id = _get_meta_string(meta, "user_id")
+    task_name = get_task_name_from_job(job, meta)
+    worker_id = get_meta_string(meta, "worker_id")
+    worker_type = get_meta_string(meta, "worker_type")
+    user_id = get_meta_string(meta, "user_id")
 
     if not task_name:
         logger.warning(f"Skipping synthetic failure persistence for {job.id} because task identity is missing")
@@ -74,25 +75,3 @@ def _persist_failure(job: Job, *, message: str, reason: str, retryable: bool, da
         worker_type=worker_type,
         result=build_failure_task_result(message, reason=reason, retryable=retryable, data=data),
     )
-
-
-def _get_task_name(job: Job, meta: dict[str, Any]) -> str | None:
-    task_name = _get_meta_string(meta, "task")
-    if task_name:
-        return task_name
-
-    func_name = getattr(job, "func_name", "") or ""
-    short_name = func_name.rsplit(".", 1)[-1]
-    if not short_name:
-        return None
-    if short_name == "fetch_single_news_item":
-        return "collector_task"
-    return short_name
-
-
-def _get_meta_string(meta: dict[str, Any], key: str) -> str | None:
-    value = meta.get(key)
-    if value is None:
-        return None
-    normalized = str(value).strip()
-    return normalized or None
