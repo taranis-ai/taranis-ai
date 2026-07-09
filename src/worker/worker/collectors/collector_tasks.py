@@ -290,4 +290,16 @@ def fetch_single_news_item(parameters: dict[str, Any]):
             return result_message
         except Exception as e:
             raise RuntimeError(e) from e
+    if job:
+        core_api.save_task_result(
+            job.id,
+            "collector_task",
+            "SUCCESS",
+            worker_id=worker_id,
+            worker_type=worker_type,
+            result=build_success_task_result(
+                default_message=f"Fetched news item from {worker_id}",
+                data=preview_result,
+            ),
+        )
     return preview_result

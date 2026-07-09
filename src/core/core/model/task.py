@@ -343,3 +343,11 @@ class Task(BaseModel):
                 "overall_success_rate": totals["success_pct"],
             },
         }
+
+    @classmethod
+    def delete_older_than_last_run(cls, cutoff: datetime) -> int:
+        deleted = db.session.execute(db.select(func.count()).select_from(cls).where(cls.last_run < cutoff)).scalar_one()
+        if deleted:
+            db.session.execute(db.delete(cls).where(cls.last_run < cutoff))
+        db.session.commit()
+        return int(deleted)

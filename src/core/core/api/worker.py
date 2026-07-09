@@ -106,6 +106,12 @@ class TaskReconciliation(MethodView):
         return TaskService.reconcile_failures()
 
 
+class TaskHistoryCleanup(MethodView):
+    @api_key_required
+    def post(self):
+        return TaskService.cleanup_history()
+
+
 class SourceIcon(MethodView):
     @api_key_required
     def put(self, source_id: str):
@@ -303,6 +309,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/cron-jobs", view_func=CronJobs.as_view("cron_jobs_worker"))
     worker_bp.add_url_rule("/tasks/reconcile", view_func=TaskReconciliation.as_view("task_reconciliation_worker"))
+    worker_bp.add_url_rule("/tasks/history/cleanup", view_func=TaskHistoryCleanup.as_view("task_history_cleanup_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
     worker_bp.add_url_rule("/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))

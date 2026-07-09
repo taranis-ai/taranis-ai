@@ -5,6 +5,7 @@ Worker-backed frontend actions, task queue notifications, OSINT source collect, 
 
 ## Expected Behavior
 Worker-backed actions still report queue success when core accepts the job. If core health reports `workers: down`, the frontend shows a warning that the task was queued but may not be processed until a worker starts. Final task failures are not pushed into that enqueue notification, but persisted task/status views now also reflect RQ-level failures such as timeouts and killed workhorses. A background reconciliation task also persists operational gaps that never reach worker hooks: `cron_missed`, `job_stalled_in_scheduled`, `job_stalled_in_queue`, and `job_abandoned_after_start`. For user-triggered runs, the persisted task row also carries the authenticated `user_id`; scheduler-driven runs leave it empty.
+Task history is retained globally by the daily `cleanup_task_history` housekeeping job. The retention window comes from the core `TASK_HISTORY_RETENTION_DAYS` environment variable and does not vary by task type or worker family.
 
 ## Code Paths
 Frontend notification handling lives in `frontend.views.base_view.BaseView.render_worker_task_notification`. Core health is read through `frontend.data_persistence.DataPersistenceLayer.get_core_health`.

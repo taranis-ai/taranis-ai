@@ -63,6 +63,9 @@ TOKEN_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Token Blacklist"
 TASK_RECONCILIATION_JOB_ID = "reconcile_task_failures"
 TASK_RECONCILIATION_CRON = "*/5 * * * *"
 TASK_RECONCILIATION_DISPLAY_NAME = "Maintenance: Reconcile Task Failures"
+TASK_HISTORY_CLEANUP_JOB_ID = "cleanup_task_history"
+TASK_HISTORY_CLEANUP_CRON = "0 3 * * *"
+TASK_HISTORY_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Task History"
 
 
 def _decode_redis_value(value: bytes | str) -> str:
@@ -227,6 +230,7 @@ TASK_MAP = {
     "gather_word_list": "worker.misc.misc_tasks.gather_word_list",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
     "reconcile_task_failures": "worker.misc.misc_tasks.reconcile_task_failures",
+    "cleanup_task_history": "worker.misc.misc_tasks.cleanup_task_history",
     "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
 }
 
@@ -386,6 +390,21 @@ class QueueManager:
                 job_id=TASK_RECONCILIATION_JOB_ID,
                 cron=TASK_RECONCILIATION_CRON,
                 func_path="reconcile_task_failures",
+                queue_name="misc",
+            ),
+            CronSpec(
+                meta={
+                    **QueueManager._build_task_meta(
+                        TASK_HISTORY_CLEANUP_JOB_ID,
+                        user_id=None,
+                        worker_id=TASK_HISTORY_CLEANUP_JOB_ID,
+                        worker_type=TASK_HISTORY_CLEANUP_JOB_ID,
+                    ),
+                    "name": TASK_HISTORY_CLEANUP_DISPLAY_NAME,
+                },
+                job_id=TASK_HISTORY_CLEANUP_JOB_ID,
+                cron=TASK_HISTORY_CLEANUP_CRON,
+                func_path="cleanup_task_history",
                 queue_name="misc",
             ),
         )
@@ -1172,6 +1191,13 @@ class QueueManager:
                     cron_schedule=TASK_RECONCILIATION_CRON,
                 )
             )
+            all_jobs.append(
+                self._build_housekeeping_schedule_entry(
+                    job_id=TASK_HISTORY_CLEANUP_JOB_ID,
+                    name=TASK_HISTORY_CLEANUP_DISPLAY_NAME,
+                    cron_schedule=TASK_HISTORY_CLEANUP_CRON,
+                )
+            )
 
         except Exception as e:
             logger.warning(f"Failed to fetch cron schedules: {e}")
@@ -1394,6 +1420,16 @@ class QueueManager:
                     "cron": TASK_RECONCILIATION_CRON,
                     "task_id": TASK_RECONCILIATION_JOB_ID,
                     "name": "Reconcile Task Failures",
+                }
+            )
+            cron_jobs.append(
+                {
+                    "task": TASK_HISTORY_CLEANUP_JOB_ID,
+                    "queue": "misc",
+                    "args": [],
+                    "cron": TASK_HISTORY_CLEANUP_CRON,
+                    "task_id": TASK_HISTORY_CLEANUP_JOB_ID,
+                    "name": "Cleanup Task History",
                 }
             )
             return {"cron_jobs": cron_jobs}, 200

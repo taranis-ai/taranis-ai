@@ -67,17 +67,19 @@ class TestCronJobsAPI:
         assert response.status_code == 200
 
         data = response.get_json()
-        housekeeping_jobs = [job for job in data["cron_jobs"] if job["task"] == "cleanup_token_blacklist"]
-
-        # Should have exactly one cleanup job
-        assert len(housekeeping_jobs) == 1
-
-        cleanup_job = housekeeping_jobs[0]
+        cleanup_job = next(job for job in data["cron_jobs"] if job["task"] == "cleanup_token_blacklist")
         assert cleanup_job["queue"] == "misc"
         assert cleanup_job["args"] == []
         assert cleanup_job["cron"] == "0 2 * * *"
         assert cleanup_job["task_id"] == "cleanup_token_blacklist"
         assert cleanup_job["name"] == "Cleanup Token Blacklist"
+
+        task_history_job = next(job for job in data["cron_jobs"] if job["task"] == "cleanup_task_history")
+        assert task_history_job["queue"] == "misc"
+        assert task_history_job["args"] == []
+        assert task_history_job["cron"] == "0 3 * * *"
+        assert task_history_job["task_id"] == "cleanup_task_history"
+        assert task_history_job["name"] == "Cleanup Task History"
 
     def test_get_cron_jobs_excludes_disabled_sources(self, client, auth_header, disabled_osint_source):
         """Test that disabled OSINT sources are not included"""
@@ -129,9 +131,8 @@ class TestCronJobsAPI:
 
         data = response.get_json()
         assert "cron_jobs" in data
-        # Should at least have the cleanup housekeeping task even if no sources/bots
-        housekeeping_jobs = [job for job in data["cron_jobs"] if job["task"] == "cleanup_token_blacklist"]
-        assert len(housekeeping_jobs) == 1
+        housekeeping_tasks = {job["task"] for job in data["cron_jobs"] if job["task"] in {"cleanup_token_blacklist", "cleanup_task_history"}}
+        assert housekeeping_tasks == {"cleanup_token_blacklist", "cleanup_task_history"}
 
 
 class TestWorkerCronJobsAPI:

@@ -279,6 +279,13 @@ class CoreApi:
             logger.exception("Can't reconcile task failures")
             return None
 
+    def cleanup_task_history(self) -> dict | None:
+        try:
+            return self.api_post("/worker/tasks/history/cleanup")
+        except Exception:
+            logger.exception("Can't cleanup task history")
+            return None
+
     def get_bot_config(self, bot_id: str) -> dict | None:
         try:
             return self.api_get(f"/worker/bots/{bot_id}")
