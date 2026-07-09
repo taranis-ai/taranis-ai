@@ -27,6 +27,7 @@ When a source/bot schedule is updated:
 2. Core upserts/deletes the job definition in `rq:cron:def`
 3. The scheduler process picks up changes on its next poll cycle
 """
+# test commit
 
 import contextlib
 import hashlib
