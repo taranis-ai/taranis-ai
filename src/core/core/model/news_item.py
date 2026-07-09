@@ -184,6 +184,8 @@ class NewsItem(BaseModel):
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
         if item := cls.get(item_id):
+            if user and not item.allowed_with_acl(user, require_write_access=False):
+                return {"error": "User does not have access to this news item"}, 403
             return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} not found"}, 404
 

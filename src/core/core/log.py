@@ -118,8 +118,6 @@ class Logger(TaranisLogger):
             return ""
 
         if isinstance(json_data := request.get_json(silent=True), (dict, list)):
-            if Config.DEBUG:
-                return json.dumps(json_data, separators=(",", ":"), sort_keys=True)[:4096]
             return json.dumps(_redact_sensitive_json(json_data), separators=(",", ":"), sort_keys=True)[:4096]
 
         return str(request.data)[:4096].replace("\\r", "").replace("\\n", "").replace(" ", "")[2:-1]

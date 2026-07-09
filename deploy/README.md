@@ -98,6 +98,24 @@ kubectl logs deploy/collector --tail=200
 kubectl logs deploy/cron --tail=200
 ```
 
+## Operational CLI
+
+Run `taranis-cli` inside the core container for emergency user administration.
+
+```bash
+kubectl exec -it deploy/core -- taranis-cli set-password admin
+kubectl exec -it deploy/core -- taranis-cli set-roles user Admin
+```
+
+For Docker Compose-style deployments:
+
+```bash
+docker exec -it core taranis-cli set-password admin
+docker exec -it core taranis-cli set-roles user Admin
+```
+
+`set-password` updates an existing user's database-auth password. `set-roles` replaces an existing user's full role list; role arguments are exact role names or role IDs. Prefer the password prompt or `--password-stdin` instead of passing passwords as command arguments.
+
 ## Notes
 
 - These manifests expect a reachable PostgreSQL service and a reachable Redis service, but they do not create those workloads.
