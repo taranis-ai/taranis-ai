@@ -228,6 +228,7 @@ def test_asset_template_shows_cti_button(app: Any) -> None:
     assert f'href="{cti_url}"' in html
     assert 'name="asset_observables[][ioc_type]"' in html
     assert 'name="asset_observables[][value]"' in html
+    assert 'aria-label="Remove observable"' in html
     assert '"value": "example.com"' in html
 
 

@@ -95,7 +95,7 @@ class BotView(AdminBaseView):
         bot = base_context.get(cls.model_name())
         bot_type_name = request.args.get("type", "")
         if bot and (bot_type := _bot_type_name(bot)):
-            parameter_values = bot.parameters
+            parameter_values = bot.parameters or {}
             bot_type_name = bot_type.lower()
             parameters = cls._filter_run_order_parameters(cls.get_worker_parameters(bot_type_name))
 

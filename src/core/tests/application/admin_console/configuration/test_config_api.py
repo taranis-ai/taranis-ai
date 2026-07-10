@@ -925,6 +925,17 @@ class TestBotConfigApi(BaseTest):
         assert response.json["error"] == "Invalid bot create payload"
         assert "SECRET_BOT_TYPE" not in response.text
 
+    def test_bot_dag_preview_rejects_invalid_payload_without_leaking_details(self, client, auth_header):
+        response = client.post(
+            self.concat_url("bots/dag-preview"),
+            json={"type": "SECRET_BOT_TYPE", "index": "not-an-index"},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid bot DAG preview payload"
+        assert "SECRET_BOT_TYPE" not in response.text
+
     def test_modify_bot(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot
 

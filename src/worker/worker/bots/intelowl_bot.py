@@ -181,6 +181,12 @@ class IntelOwlBot(BaseBot):
     ) -> tuple[list[ObservablePayload], list[dict[str, str]]]:
         results: dict[str, ObservablePayload] = {}
         errors: list[dict[str, str]] = []
+        pending: dict[str, tuple[ObservablePayload, str]] = {}
+
+        def store_result(key: str, result: ObservablePayload) -> None:
+            results[key] = result
+            if result.get("errors"):
+                errors.extend({"observable": key, "error": error.get("message", str(error))} for error in result["errors"])
 
         for key, observable in observables.items():
             current = existing.get(key)
@@ -188,11 +194,37 @@ class IntelOwlBot(BaseBot):
                 continue
 
             submitted, job_id = self._submit_observable(client, observable, api_key, tlp)
-            final = self._wait_for_job(client, submitted, job_id, api_key, poll_timeout_seconds) if job_id else submitted
-            results[key] = final
-            if final.get("errors"):
-                errors.extend({"observable": key, "error": error.get("message", str(error))} for error in final["errors"])
-        return list(results.values()), errors
+            if job_id:
+                pending[key] = (submitted, job_id)
+            else:
+                store_result(key, submitted)
+
+        deadline = time.monotonic() + poll_timeout_seconds
+        while pending:
+            for key, (enrichment, job_id) in list(pending.items()):
+                enrichment, complete = self._poll_job(client, enrichment, job_id, api_key)
+                if complete:
+                    store_result(key, enrichment)
+                    del pending[key]
+                else:
+                    pending[key] = (enrichment, job_id)
+            if not pending:
+                break
+            if time.monotonic() >= deadline:
+                for key, (enrichment, _) in pending.items():
+                    store_result(
+                        key,
+                        {
+                            **enrichment,
+                            "status": "failed",
+                            "errors": [{"message": f"IntelOwl job timed out after {poll_timeout_seconds} seconds"}],
+                            "completed_at": self._now(),
+                        },
+                    )
+                break
+            time.sleep(min(self.poll_delay_seconds, max(0, deadline - time.monotonic())))
+
+        return [results[key] for key in observables if key in results], errors
 
     def _submit_observable(
         self,
@@ -251,38 +283,26 @@ class IntelOwlBot(BaseBot):
             job_id,
         )
 
-    def _wait_for_job(
+    def _poll_job(
         self,
         client: IntelOwl,
         enrichment: ObservablePayload,
         job_id: str,
         api_key: str,
-        poll_timeout_seconds: int,
-    ) -> ObservablePayload:
-        deadline = time.monotonic() + poll_timeout_seconds
-        while True:
-            try:
-                job = client.get_job_by_id(job_id)
-            except Exception as exc:
-                message = self._sanitize_error(str(exc), api_key)
-                return {
-                    **enrichment,
-                    "status": "failed",
-                    "errors": [{"message": message}],
-                    "completed_at": self._now(),
-                }
+    ) -> tuple[ObservablePayload, bool]:
+        try:
+            job = client.get_job_by_id(job_id)
+        except Exception as exc:
+            message = self._sanitize_error(str(exc), api_key)
+            return {
+                **enrichment,
+                "status": "failed",
+                "errors": [{"message": message}],
+                "completed_at": self._now(),
+            }, True
 
-            enrichment = self._compact_job_result(enrichment, job)
-            if self._is_final_status(str(enrichment.get("status") or "")):
-                return enrichment
-            if time.monotonic() >= deadline:
-                return {
-                    **enrichment,
-                    "status": "failed",
-                    "errors": [{"message": f"IntelOwl job timed out after {poll_timeout_seconds} seconds"}],
-                    "completed_at": self._now(),
-                }
-            time.sleep(min(self.poll_delay_seconds, max(0, deadline - time.monotonic())))
+        enrichment = self._compact_job_result(enrichment, job)
+        return enrichment, self._is_final_status(str(enrichment.get("status") or ""))
 
     def _compact_job_result(self, enrichment: ObservablePayload, job: dict[str, Any]) -> ObservablePayload:
         status = str(job.get("status") or enrichment.get("status") or "")

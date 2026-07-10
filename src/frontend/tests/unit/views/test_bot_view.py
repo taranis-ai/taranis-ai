@@ -113,6 +113,33 @@ def test_bot_form_renders_enabled_switch(app):
     assert tree.xpath('//input[@name="enabled"][@type="checkbox"][@value="true"]')
 
 
+def test_bot_context_handles_missing_parameters(app: Any, monkeypatch: pytest.MonkeyPatch):
+    bot = Bot.model_construct(
+        id="42",
+        name="Test bot",
+        description="",
+        type=BOT_TYPES.NLP_BOT,
+        index=1,
+        enabled=True,
+        parameters=None,
+        status=None,
+    )
+    monkeypatch.setattr(BotView, "get_worker_parameters", classmethod(lambda cls, worker_type: []))
+    monkeypatch.setattr(BotView, "get_bot_type_options", classmethod(lambda cls, current_bot=None: []))
+    monkeypatch.setattr(BotView, "get_run_after_options", classmethod(lambda cls, current_type="": []))
+    monkeypatch.setattr(
+        BotView,
+        "get_dag_preview",
+        classmethod(lambda cls, bot_id, payload: {"order": [], "edges": [], "nodes": [], "warnings": []}),
+    )
+
+    with app.test_request_context("/"):
+        context = BotView.get_extra_context({"bot": bot, "bot_id": bot.id})
+
+    assert context["parameter_values"] == {}
+    assert context["selected_run_after"] == []
+
+
 def test_run_after_options_exclude_current_bot_type(monkeypatch):
     fake_bots = SimpleNamespace(
         items=[

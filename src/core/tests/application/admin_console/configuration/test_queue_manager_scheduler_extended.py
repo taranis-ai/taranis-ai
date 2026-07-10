@@ -504,6 +504,7 @@ def test_schedule_bot_dependents_enqueues_intelowl_like_any_other_bot(monkeypatc
     assert calls[0]["bot_id"] == "intelowl"
     assert calls[0]["filter"] == {"report_ids": ["report-1"]}
     assert calls[0]["trigger_dependents"] is False
+    assert calls[0]["meta"]["worker_type"] == "INTEL_OWL_BOT"
 
 
 def test_osint_schedule_entries_include_metadata(monkeypatch):

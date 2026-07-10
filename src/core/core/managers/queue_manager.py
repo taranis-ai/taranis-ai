@@ -990,7 +990,7 @@ class QueueManager:
     ):
         from core.model.bot import Bot
 
-        if not RQ_JOB_ID_COMPONENT_RE.fullmatch(str(bot_id)):
+        if not isinstance(bot_id, str) or not RQ_JOB_ID_COMPONENT_RE.fullmatch(bot_id):
             return {"error": "Invalid bot_id"}, 400
 
         bot_args: dict[str, str | dict | bool] = {"bot_id": bot_id, "trigger_dependents": trigger_dependents}
@@ -1131,11 +1131,11 @@ class QueueManager:
         user_id: str | None,
         trigger_dependents: bool,
     ) -> bool:
-        from core.model.bot import Bot
-
         jobs_by_bot_id: dict[str, Any] = {}
         for bot in bots:
             dependency_ids = dependencies_by_id.get(bot.id, [])
+            bot_type = getattr(bot, "type", None)
+            worker_type = getattr(bot_type, "value", bot_type)
             bot_args: dict[str, str | dict | bool] = {"bot_id": bot.id, "trigger_dependents": trigger_dependents}
             if filter:
                 bot_args["filter"] = filter
@@ -1149,12 +1149,7 @@ class QueueManager:
                     f"bot_{bot.id}",
                     user_id=user_id,
                     worker_id=bot.id,
-                    worker_type=self._resolve_worker_type(
-                        Bot.get,
-                        bot.id,
-                        fallback="BOT_TASK",
-                        transform=lambda value: value.upper(),
-                    ),
+                    worker_type=str(worker_type).upper() if worker_type else "BOT_TASK",
                 ),
                 **bot_args,
             )

@@ -15,7 +15,7 @@ Read-only CTI endpoints aggregate IOC tags and asset observables, then join matc
 - asset: typed `asset_observables` plus tags across readable vulnerability reports linked to the asset
 - assets overview: typed `asset_observables` plus tags across readable vulnerability reports linked to all readable assets
 
-Analyzer selection is intentionally hardcoded by observable type in v1.
+Analyzer selection is intentionally hardcoded by observable type in v1. Batch executions submit all missing observables before polling outstanding IntelOwl jobs in shared rounds, so the configured poll timeout bounds the batch rather than applying serially to every observable.
 
 ## Code Paths
 - Worker bot: `src/worker/worker/bots/intelowl_bot.py`
@@ -36,7 +36,7 @@ Analyzer selection is intentionally hardcoded by observable type in v1.
 - Seeded bot/type config: `src/core/core/managers/pre_seed_data.py`, `src/models/models/types.py`
 
 ## Data Flow
-Automatic runs use the bot run-order DAG when the disabled-by-default IntelOwl bot is enabled and configured. The seeded dependency is `IOC_BOT -> INTEL_OWL_BOT`, so enrichment runs only after IOC tags have been created. The DAG scheduler does not treat IntelOwl specially. Manual story and report runs queue `bot_task` with `story_id`, `story_ids`, or `report_ids`. The worker deduplicates normalized IOC tags within one execution, fetches existing final IOC rows, submits only missing IOCs, waits for IntelOwl jobs to finish up to `INTEL_OWL_POLL_TIMEOUT_SECONDS` (default `1800`), and returns compact final enrichment payloads. Core task handling persists those payloads in `ioc`.
+Automatic runs use the bot run-order DAG when the disabled-by-default IntelOwl bot is enabled and configured. The seeded dependency is `IOC_BOT -> INTEL_OWL_BOT`, so enrichment runs only after IOC tags have been created. The DAG scheduler does not treat IntelOwl specially. Manual story and report runs queue `bot_task` with `story_id`, `story_ids`, or `report_ids` after core verifies item-level write access. The worker deduplicates normalized IOC tags within one execution, fetches existing final IOC rows, submits all missing IOCs, polls the outstanding jobs in shared rounds for up to `INTEL_OWL_POLL_TIMEOUT_SECONDS` (default `1800`), and returns compact final enrichment payloads. Core task handling batch-fetches existing rows and retries once if concurrent IOC insertion races with the unique value constraint.
 
 Frontend CTI routes render normal full-page views and CTI entry points should use plain `<a href="...">` links, not modal-targeted HTMX requests. The shared template has compact analyzer-specific rendering for NVD CVE, VirusTotal observable, and URLhaus no-result payloads, with raw JSON as the fallback for unknown analyzers.
 Analyzer-provided CTI links are rendered only for `http` and `https` URLs.
@@ -49,4 +49,4 @@ Analyzer-provided CTI links are rendered only for `http` and `https` URLs.
 - Recommended checks after Python changes: relevant `uv run pytest ...`, `uv run ruff check`, `uv run ruff format --check`, and `./dev/check_touched_pyright.sh`.
 
 ## Pitfalls
-Do not log or persist IntelOwl API tokens. Do not store raw analyzer responses. Do not add report-level IntelOwl-specific UI controls without an explicit product decision. Do not make analyzer/playbook selection admin-configurable without a product decision. Use `docs/intelowl.md` and `taranis-intelowl-setup` for operator-side IntelOwl setup instead of changing Taranis analyzer selection; the setup helper trims supplied string config values before writing them to IntelOwl. Do not validate external analyzer links with domain substring checks; keep them scheme-gated or use URL parsing. Enable IntelOwl email analyzers only on instances approved to receive email address IOCs.
+Do not log or persist IntelOwl API tokens. Do not store raw analyzer responses. Do not add report-level IntelOwl-specific UI controls without an explicit product decision. Do not make analyzer/playbook selection admin-configurable without a product decision. Use `docs/intelowl.md` and `taranis-intelowl-setup` for operator-side IntelOwl setup instead of changing Taranis analyzer selection; the setup helper trims supplied string config values before writing them to IntelOwl and rejects cross-origin pagination URLs before reusing the API token. Do not validate external analyzer links with domain substring checks; keep them scheme-gated or use URL parsing. Enable IntelOwl email analyzers only on instances approved to receive email address IOCs.

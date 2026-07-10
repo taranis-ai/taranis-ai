@@ -38,6 +38,12 @@ class NoJobIntelOwlClient(FakeIntelOwlClient):
         return {"status": "accepted"}
 
 
+class SubmitBeforePollingIntelOwlClient(FakeIntelOwlClient):
+    def get_job_by_id(self, job_id: str) -> dict[str, Any]:
+        assert len(self.calls) == 2
+        return super().get_job_by_id(job_id)
+
+
 def _patch_common(monkeypatch: Any, bot: bots.IntelOwlBot, client: FakeIntelOwlClient, stories: list[dict[str, Any]]) -> dict[str, Any]:
     captured_filter: dict[str, Any] = {}
 
@@ -111,6 +117,32 @@ def test_intelowl_bot_submits_email_without_extra_parameter(monkeypatch: Any) ->
     )
 
     assert [call[0] for call in client.calls] == ["analyst@example.com"]
+
+
+def test_intelowl_bot_submits_all_observables_before_polling(monkeypatch: Any) -> None:
+    stories = [
+        {
+            "id": "story-1",
+            "news_items": [
+                {
+                    "id": "news-1",
+                    "tags": [
+                        {"name": "CVE-2024-1234", "tag_type": "cves"},
+                        {"name": "analyst@example.com", "tag_type": "email"},
+                    ],
+                }
+            ],
+        }
+    ]
+    client = SubmitBeforePollingIntelOwlClient()
+    bot = bots.IntelOwlBot()
+    _patch_common(monkeypatch, bot, client, stories)
+
+    result = bot.execute({"INTEL_OWL_URL": "https://intelowl.example", "INTEL_OWL_API_KEY": "secret-token"})
+
+    assert [call[0] for call in client.calls] == ["CVE-2024-1234", "analyst@example.com"]
+    assert client.job_calls == ["1", "2"]
+    assert len(result["enrichments"]) == 2
 
 
 def test_intelowl_bot_returns_without_observables_when_no_ioc_tags(monkeypatch: Any) -> None:

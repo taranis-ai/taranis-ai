@@ -8,6 +8,8 @@ RoleBasedAccess ACLs restrict user-facing content and reference data, not admin/
 
 OSINT source visibility can be granted by a direct OSINT Source ACL or inherited from an OSINT Source Group ACL. A source-group ACL grants access to the group's current member sources; an OSINT Source Group `*` ACL grants all sources, including ungrouped sources. Read-only ACLs grant read access only; writable ACLs grant write access where a user-facing workflow already enforces ACL write checks.
 
+Manual story and report bot-action endpoints enforce item-level write ACLs and TLP access before queueing work. The worker API key must not be used as a way for a user request to trigger processing of inaccessible content.
+
 ## Code Paths
 Core ACL evaluation lives in `src/core/core/service/role_based_access.py`. OSINT source, source-group, news-item, story, report, product, and word-list models call it through `get_filter_query_with_acl` or per-item access checks. Admin/config routes in `src/core/core/api/config.py` should rely on `CONFIG_*` permissions and should not pass `current_user` into ACL-aware model calls.
 

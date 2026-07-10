@@ -4,6 +4,7 @@ from typing import Any, get_origin
 import pytest
 import responses
 from faker import Faker
+from models.types import BOT_TYPES
 from polyfactory.exceptions import ParameterException
 from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel
@@ -146,9 +147,11 @@ def form_formats_from_models(worker_parameter_data: dict[str, Any]):
             allowed_keys.add("rank")
         if view_name == "Bot":
             allowed_keys.add("parameters[RUN_AFTER_BOTS][]")
+            bot_type_ids = {member.value for member in BOT_TYPES}
             allowed_keys.update(
                 f"parameters[{parameter['name']}]"
                 for worker in worker_parameter_data["items"]
+                if worker["id"] in bot_type_ids
                 for parameter in worker["parameters"]
                 if parameter.get("parent") == "parameters"
                 and parameter.get("type") in {"text", "number", "textarea", "switch", "cron_interval"}

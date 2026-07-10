@@ -3,6 +3,7 @@ from typing import Any
 
 from models.cti import CTIEnrichment, normalize_ioc_type, normalize_ioc_value
 from sqlalchemy import UniqueConstraint
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
@@ -51,28 +52,39 @@ class IOC(BaseModel):
 
     @classmethod
     def upsert_many(cls, enrichments: list[dict[str, Any]]) -> None:
-        changed = False
+        normalized: dict[str, tuple[str, dict[str, Any]]] = {}
         for payload in enrichments:
             if not (ioc_type := normalize_ioc_type(payload.get("type") or payload.get("ioc_type"))):
                 continue
             value = normalize_ioc_value(str(payload.get("value") or ""), ioc_type)
-            if not value:
-                continue
-            row = cls.get_by_ioc(ioc_type, value)
-            if row is None:
-                row = cls()
-                row.value = value
-                db.session.add(row)
-            row.ioc_type = ioc_type
-            row.status = str(payload.get("status") or row.status or "")
-            row.analyzers = cls._dict_list(payload.get("analyzers")) or []
-            row.errors = cls._dict_list(payload.get("errors")) or []
-            row.submitted_at = cls._parse_datetime(payload.get("submitted_at")) or row.submitted_at
-            row.completed_at = cls._parse_datetime(payload.get("completed_at")) or row.completed_at
-            row.updated_at = BaseModel.utcnow()
-            changed = True
-        if changed:
-            db.session.commit()
+            if value:
+                normalized[value] = (ioc_type, payload)
+        if not normalized:
+            return
+
+        keys = {(ioc_type, value) for value, (ioc_type, _) in normalized.items()}
+        for attempt in range(2):
+            existing = cls.get_for_iocs(keys)
+            for value, (ioc_type, payload) in normalized.items():
+                row = existing.get(value)
+                if row is None:
+                    row = cls()
+                    row.value = value
+                    db.session.add(row)
+                row.ioc_type = ioc_type
+                row.status = str(payload.get("status") or row.status or "")
+                row.analyzers = cls._dict_list(payload.get("analyzers")) or []
+                row.errors = cls._dict_list(payload.get("errors")) or []
+                row.submitted_at = cls._parse_datetime(payload.get("submitted_at")) or row.submitted_at
+                row.completed_at = cls._parse_datetime(payload.get("completed_at")) or row.completed_at
+                row.updated_at = BaseModel.utcnow()
+            try:
+                db.session.commit()
+                return
+            except IntegrityError:
+                db.session.rollback()
+                if attempt:
+                    raise
 
     def to_cti_model(self) -> CTIEnrichment:
         if not (ioc_type := normalize_ioc_type(self.ioc_type)):

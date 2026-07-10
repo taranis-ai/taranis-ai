@@ -563,7 +563,11 @@ class BotExecute(MethodView):
 class BotDagPreview(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
     def post(self, bot_id: str | None = None):
-        return bot.Bot.get_dag_preview(request.json or {}, bot_id), 200
+        try:
+            return bot.Bot.get_dag_preview(request.json or {}, bot_id), 200
+        except ValueError as exc:
+            logger.warning("Invalid bot DAG preview payload: %s", exc)
+            return {"error": "Invalid bot DAG preview payload"}, 400
 
 
 class QueueStatus(MethodView):

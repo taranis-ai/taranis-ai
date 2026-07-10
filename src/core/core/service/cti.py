@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Any, Iterable, Literal
 
 from models.cti import CanonicalIOCType, CTIItem, CTIResponse, normalize_ioc_type, normalize_ioc_value
+from sqlalchemy.orm import selectinload
 
 from core.model.ioc import IOC
 from core.model.news_item import NewsItem
@@ -55,11 +56,17 @@ class CTIService:
 
     @classmethod
     def get_assets_cti(cls, user: User | None) -> tuple[dict, int]:
-        from core.model.asset import Asset
+        from core.model.asset import Asset, AssetVulnerability
 
         if not user:
             return {"error": "Asset not found"}, 404
-        assets = Asset.get_by_filter({"organization": user.organization}) or []
+        asset_reports = selectinload(Asset.vulnerabilities).selectinload(AssetVulnerability.report_item)
+        query = Asset.get_filter_query({"organization": user.organization}).options(
+            selectinload(Asset.asset_observables),
+            asset_reports.selectinload(ReportItem.attributes),
+            asset_reports.selectinload(ReportItem.stories).selectinload(Story.news_items).selectinload(NewsItem.tags),
+        )
+        assets = Asset.get_filtered(query) or []
         return cls._asset_response("all", assets, user), 200
 
     @classmethod

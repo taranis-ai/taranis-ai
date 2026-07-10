@@ -11,6 +11,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Iterable
 from typing import Any
+from urllib.parse import urlsplit
 
 
 REQUIRED_ANALYZERS: dict[str, list[str]] = {
@@ -295,10 +296,7 @@ def cast_value(value: Any, param_type: str) -> Any:
         return value.strip().lower() in {"1", "true", "yes", "on"}
     if param_type == "int":
         return int(value)
-    try:
-        return json.loads(value)
-    except json.JSONDecodeError:
-        return value
+    return value
 
 
 def fetch_analyzer_configs(
@@ -530,9 +528,20 @@ def short_error(exc: IntelOwlRequestError) -> str:
 
 
 def build_url(base_url: str, path: str) -> str:
-    if path.startswith(("http://", "https://")):
-        return path
-    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+    candidate = path if path.startswith(("http://", "https://")) else f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+    base = urlsplit(base_url)
+    target = urlsplit(candidate)
+    if base.scheme not in {"http", "https"} or not base.hostname:
+        raise IntelOwlRequestError("IntelOwl base URL must use http or https")
+    base_origin = (base.scheme.lower(), base.hostname.lower(), base.port or (443 if base.scheme.lower() == "https" else 80))
+    target_origin = (
+        target.scheme.lower(),
+        target.hostname.lower() if target.hostname else "",
+        target.port or (443 if target.scheme.lower() == "https" else 80),
+    )
+    if target_origin != base_origin:
+        raise IntelOwlRequestError("Refusing URL outside the configured IntelOwl origin")
+    return candidate
 
 
 def self_test() -> None:
@@ -552,8 +561,18 @@ def self_test() -> None:
     assert "INTELOWL_VIRUSTOTAL_V3_GET_OBSERVABLE_API_KEY_NAME" in env_candidates("VirusTotal_v3_Get_Observable", "api_key_name")
     assert read_api_key(argparse.Namespace(api_key=" token\n", api_key_file="")) == "token"
     assert cast_value(" 00000000-0000-4000-8000-000000000000\n", "") == "00000000-0000-4000-8000-000000000000"
+    assert cast_value("false", "") == "false"
+    assert cast_value("null", "") == "null"
     assert cast_value("true", "bool") is True
     assert cast_value("7", "int") == 7
+    assert build_url("https://intelowl.example", "/api/analyzer") == "https://intelowl.example/api/analyzer"
+    assert build_url("https://intelowl.example", "https://intelowl.example/api/analyzer?page=2").endswith("?page=2")
+    try:
+        build_url("https://intelowl.example", "https://attacker.example/api/analyzer?page=2")
+    except IntelOwlRequestError:
+        pass
+    else:
+        raise AssertionError("Cross-origin IntelOwl pagination URL was accepted")
     ambiguous_detail = {"name": "NVD_CVE", "disabled": True, "_taranis_config_source": "detail"}
     list_disabled = {"name": "NVD_CVE", "disabled": True, "_taranis_config_source": "list"}
     assert analyzer_config_status(ambiguous_detail) == (

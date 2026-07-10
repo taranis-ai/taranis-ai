@@ -271,3 +271,55 @@ class TestRBACAclBehavior:
         acl.read_only = False
         db.session.commit()
         assert item.allowed_with_acl(user, require_write_access=True)
+
+    def test_story_bot_action_rejects_read_only_source_access(self, client, session, auth_header_user_permissions, monkeypatch):
+        from core.model.permission import Permission
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+
+        source, story, _ = create_rbac_source_story("bot-action-read-only")
+        user_role = Role.filter_by_name("User")
+        assert user_role is not None
+        grant_acl(user_role, ItemType.OSINT_SOURCE, source.id, read_only=True)
+        for permission in Permission.get_bulk(["ASSESS_UPDATE"]):
+            if permission not in user_role.permissions:
+                user_role.permissions.append(permission)
+        db.session.flush()
+        blocked_enqueue = Mock(side_effect=AssertionError("should not enqueue"))
+        monkeypatch.setattr("core.api.assess.queue_manager.queue_manager.execute_bot_task", blocked_enqueue)
+
+        response = client.post(
+            "/api/assess/stories/botactions",
+            headers=auth_header_user_permissions,
+            json={"bot_id": "summary_bot", "story_ids": [story.id]},
+        )
+
+        assert response.status_code == 403
+        assert response.json == {"error": "User does not have write access to all requested stories"}
+        blocked_enqueue.assert_not_called()
+
+    def test_report_bot_action_rejects_read_only_report_access(self, client, session, auth_header_user_permissions, monkeypatch):
+        from core.model.permission import Permission
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType
+
+        report = create_rbac_report_item("bot-action-read-only")
+        user_role = Role.filter_by_name("User")
+        assert user_role is not None
+        grant_acl(user_role, ItemType.REPORT_ITEM_TYPE, report.report_item_type_id, read_only=True)
+        for permission in Permission.get_bulk(["ANALYZE_UPDATE"]):
+            if permission not in user_role.permissions:
+                user_role.permissions.append(permission)
+        db.session.flush()
+        blocked_enqueue = Mock(side_effect=AssertionError("should not enqueue"))
+        monkeypatch.setattr("core.api.analyze.queue_manager.queue_manager.execute_bot_task", blocked_enqueue)
+
+        response = client.post(
+            "/api/analyze/report-items/botactions",
+            headers=auth_header_user_permissions,
+            json={"bot_id": "summary_bot", "report_ids": [report.id]},
+        )
+
+        assert response.status_code == 403
+        assert response.json == {"error": "User does not have write access to all requested reports"}
+        blocked_enqueue.assert_not_called()

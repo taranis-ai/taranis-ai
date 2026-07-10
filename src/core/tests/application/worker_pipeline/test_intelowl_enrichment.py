@@ -1,6 +1,8 @@
 import uuid
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
+
 
 def test_worker_stories_accept_story_ids_filter(client: Any, stories: list[str], api_header: dict[str, str]) -> None:
     response = client.get(
@@ -14,9 +16,11 @@ def test_worker_stories_accept_story_ids_filter(client: Any, stories: list[str],
 
 
 def test_assess_botactions_accepts_multiple_stories_and_reports_for_non_intelowl(
-    client: Any, auth_header: dict[str, str], monkeypatch: Any
+    client: Any, auth_header: dict[str, str], monkeypatch: Any, stories: list[str], report_items: tuple[Any, ...]
 ) -> None:
     captured: dict[str, Any] = {}
+    story_ids = stories[:2]
+    report_id = report_items[0].id
 
     def fake_execute_bot_task(bot_id: str, filter: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, str], int]:
         captured["bot_id"] = bot_id
@@ -27,19 +31,23 @@ def test_assess_botactions_accepts_multiple_stories_and_reports_for_non_intelowl
 
     response = client.post(
         "/api/assess/stories/botactions",
-        json={"bot_id": "summary_bot", "story_ids": ["story-1", "story-2"], "report_ids": ["report-1"]},
+        json={"bot_id": "summary_bot", "story_ids": story_ids, "report_ids": [report_id]},
         headers=auth_header,
     )
 
     assert response.status_code == 200
     assert captured == {
         "bot_id": "summary_bot",
-        "filter": {"story_ids": ["story-1", "story-2"], "report_ids": ["report-1"]},
+        "filter": {"story_ids": story_ids, "report_ids": [report_id]},
     }
 
 
-def test_assess_botactions_queues_intelowl_like_any_other_bot(client: Any, auth_header: dict[str, str], monkeypatch: Any) -> None:
+def test_assess_botactions_queues_intelowl_like_any_other_bot(
+    client: Any, auth_header: dict[str, str], monkeypatch: Any, stories: list[str], report_items: tuple[Any, ...]
+) -> None:
     captured: dict[str, Any] = {}
+    story_id = stories[0]
+    report_id = report_items[0].id
 
     def fake_execute_bot_task(bot_id: str, filter: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, str], int]:
         captured["bot_id"] = bot_id
@@ -50,21 +58,22 @@ def test_assess_botactions_queues_intelowl_like_any_other_bot(client: Any, auth_
 
     response = client.post(
         "/api/assess/stories/botactions",
-        json={"bot_id": "intel_owl_bot", "story_ids": ["story-1"], "report_ids": ["report-1"]},
+        json={"bot_id": "intel_owl_bot", "story_ids": [story_id], "report_ids": [report_id]},
         headers=auth_header,
     )
 
     assert response.status_code == 200
     assert captured == {
         "bot_id": "intel_owl_bot",
-        "filter": {"story_id": "story-1", "report_ids": ["report-1"]},
+        "filter": {"story_id": story_id, "report_ids": [report_id]},
     }
 
 
 def test_analyze_report_botactions_accepts_multiple_reports_for_non_intelowl(
-    client: Any, auth_header: dict[str, str], monkeypatch: Any
+    client: Any, auth_header: dict[str, str], monkeypatch: Any, report_items: tuple[Any, ...]
 ) -> None:
     captured: dict[str, Any] = {}
+    report_ids = [item.id for item in report_items[:2]]
 
     def fake_execute_bot_task(bot_id: str, filter: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, str], int]:
         captured["bot_id"] = bot_id
@@ -75,16 +84,19 @@ def test_analyze_report_botactions_accepts_multiple_reports_for_non_intelowl(
 
     response = client.post(
         "/api/analyze/report-items/botactions",
-        json={"bot_id": "summary_bot", "report_ids": ["report-1", "report-2"]},
+        json={"bot_id": "summary_bot", "report_ids": report_ids},
         headers=auth_header,
     )
 
     assert response.status_code == 200
-    assert captured == {"bot_id": "summary_bot", "filter": {"report_ids": ["report-1", "report-2"]}}
+    assert captured == {"bot_id": "summary_bot", "filter": {"report_ids": report_ids}}
 
 
-def test_analyze_report_botactions_queues_intelowl_like_any_other_bot(client: Any, auth_header: dict[str, str], monkeypatch: Any) -> None:
+def test_analyze_report_botactions_queues_intelowl_like_any_other_bot(
+    client: Any, auth_header: dict[str, str], monkeypatch: Any, report_items: tuple[Any, ...]
+) -> None:
     captured: dict[str, Any] = {}
+    report_ids = [item.id for item in report_items[:2]]
 
     def fake_execute_bot_task(bot_id: str, filter: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, str], int]:
         captured["bot_id"] = bot_id
@@ -95,12 +107,58 @@ def test_analyze_report_botactions_queues_intelowl_like_any_other_bot(client: An
 
     response = client.post(
         "/api/analyze/report-items/botactions",
-        json={"bot_id": "intel_owl_bot", "report_ids": ["report-1", "report-2"]},
+        json={"bot_id": "intel_owl_bot", "report_ids": report_ids},
         headers=auth_header,
     )
 
     assert response.status_code == 200
-    assert captured == {"bot_id": "intel_owl_bot", "filter": {"report_ids": ["report-1", "report-2"]}}
+    assert captured == {"bot_id": "intel_owl_bot", "filter": {"report_ids": report_ids}}
+
+
+def test_assess_botactions_only_notifies_after_queueing_succeeds(
+    client: Any, auth_header: dict[str, str], monkeypatch: Any, stories: list[str]
+) -> None:
+    notifications: list[bool] = []
+    monkeypatch.setattr(
+        "core.api.assess.queue_manager.queue_manager.execute_bot_task",
+        lambda **kwargs: ({"error": "Could not reach Redis"}, 500),
+    )
+    monkeypatch.setattr("core.api.assess.sse_manager.news_items_updated", lambda: notifications.append(True))
+
+    response = client.post(
+        "/api/assess/stories/botactions",
+        json={"bot_id": "summary_bot", "story_ids": [stories[0]]},
+        headers=auth_header,
+    )
+
+    assert response.status_code == 500
+    assert notifications == []
+
+
+def test_ioc_upsert_many_retries_after_integrity_error(app: Any, session: Any, monkeypatch: Any) -> None:
+    from core.managers.db_manager import db
+    from core.model.ioc import IOC
+
+    value = f"race-{uuid.uuid4().hex}.example"
+    attempts = 0
+
+    with app.app_context():
+        commit = db.session.commit
+
+        def fail_first_commit() -> None:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise IntegrityError("INSERT INTO ioc", {}, RuntimeError("duplicate value"))
+            commit()
+
+        monkeypatch.setattr(db.session, "commit", fail_first_commit)
+        IOC.upsert_many([{"type": "domain", "value": value, "status": "completed", "analyzers": [], "errors": []}])
+
+        enrichment = IOC.get_by_ioc("domain", value)
+        assert attempts == 2
+        assert enrichment is not None
+        assert enrichment.status == "completed"
 
 
 def test_worker_task_results_upsert_intelowl_enrichment_and_cti_endpoints(
