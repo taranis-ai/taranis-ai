@@ -39,11 +39,19 @@ class TestPublishApi(BaseTest):
         assert response.headers.get("Content-Disposition") == f'attachment; filename="{expected_filename}"'
 
     def test_taranis_publish_stores_and_serves_report_without_authentication(
-        self, app, client, api_header, monkeypatch, pdf_product, tmp_path
+        self, app, client, auth_header, api_header, monkeypatch, pdf_product, tmp_path
     ):
+        invalidations = []
+
+        def capture_invalidation(status, **kwargs):
+            invalidations.append((status, kwargs))
+
         file_bytes = b"Public report"
+        pdf_product.last_published_url = "https://previous.example/report.pdf"
         pdf_product.update_render(base64.b64encode(file_bytes).decode())
-        monkeypatch.setitem(app.config, "DATA_FOLDER", str(tmp_path))
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setitem(app.config, "DATA_FOLDER", "taranis_data")
+        monkeypatch.setattr("core.api.worker.invalidate_frontend_cache_on_success", capture_invalidation)
 
         unauthorized_response = client.post(f"/api/worker/products/{pdf_product.id}/publish")
         assert unauthorized_response.status_code == 401
@@ -51,7 +59,24 @@ class TestPublishApi(BaseTest):
         publish_response = client.post(f"/api/worker/products/{pdf_product.id}/publish", headers=api_header)
         assert publish_response.status_code == 200
         assert publish_response.get_json()["url"] == f"/reports/{pdf_product.id}"
-        assert (tmp_path / "published-reports" / pdf_product.id).read_bytes() == file_bytes
+        assert (tmp_path / "taranis_data" / "published-reports" / pdf_product.id).read_bytes() == file_bytes
+        assert pdf_product.last_published_url == f"/reports/{pdf_product.id}"
+        assert invalidations == [
+            (
+                200,
+                {
+                    "scopes": ("publish_views",),
+                    "object_ids": {"product": pdf_product.id},
+                },
+            )
+        ]
+
+        from core.managers.db_manager import db
+
+        db.session.expire_all()
+        detail_response = client.get(self.concat_url(f"products/{pdf_product.id}"), headers=auth_header)
+        assert detail_response.status_code == 200
+        assert detail_response.get_json()["last_published_url"] == f"/reports/{pdf_product.id}"
 
         public_response = client.get(f"/reports/{pdf_product.id}")
         assert public_response.status_code == 200
@@ -59,6 +84,26 @@ class TestPublishApi(BaseTest):
         assert public_response.mimetype == "application/pdf"
         assert public_response.headers["Content-Security-Policy"] == "sandbox allow-scripts allow-downloads"
         assert public_response.headers["X-Content-Type-Options"] == "nosniff"
+
+    def test_failed_taranis_publish_keeps_previous_url(self, app, monkeypatch, pdf_product, tmp_path):
+        from core.managers.db_manager import db
+        from core.service.product import ProductService
+
+        previous_url = "https://previous.example/report.pdf"
+        pdf_product.last_published_url = previous_url
+        pdf_product.update_render(base64.b64encode(b"Public report").decode())
+        monkeypatch.setitem(app.config, "DATA_FOLDER", str(tmp_path))
+
+        def fail_replace(self, target):
+            raise OSError("storage unavailable")
+
+        monkeypatch.setattr("core.service.product.Path.replace", fail_replace)
+
+        with pytest.raises(OSError, match="storage unavailable"):
+            ProductService.publish_to_taranis(pdf_product.id)
+
+        db.session.refresh(pdf_product)
+        assert pdf_product.last_published_url == previous_url
 
     def test_unknown_public_report_returns_not_found(self, client):
         response = client.get("/reports/00000000-0000-0000-0000-000000000000")

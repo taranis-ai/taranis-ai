@@ -619,6 +619,7 @@ paths:
                       description: Daily delivery for the ACME VPN advisory
                       created: '2026-03-30T16:00:00'
                       last_rendered: null
+                      last_published_url: null
                       auto_publish: true
                       product_type_id: 7
                       default_publisher: publisher-preset-42
@@ -9844,6 +9845,11 @@ components:
           - string
           - 'null'
           format: date-time
+        last_published_url:
+          type:
+          - string
+          - 'null'
+          description: Safe URL of the product's most recent successful publication
         auto_publish:
           type: boolean
         product_type_id:
@@ -10436,6 +10442,11 @@ components:
           type: array
           items:
             type: string
+        last_published_url:
+          type:
+          - string
+          - 'null'
+          description: Safe URL of the product's most recent successful publication
       required:
       - title
       - product_type_id

@@ -19,7 +19,12 @@ from core.model.publisher_preset import PublisherPreset
 from core.model.report_item import ReportItem
 from core.model.story import Story
 from core.model.word_list import WordList
-from core.service.cache_invalidation import SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS, invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import (
+    SCOPE_ASSESS_VIEWS,
+    SCOPE_PUBLISH_VIEWS,
+    SCOPE_STORY_REPORT_VIEWS,
+    invalidate_frontend_cache_on_success,
+)
 from core.service.product import ProductService
 from core.service.task import TaskService
 
@@ -57,7 +62,9 @@ class ProductsRender(MethodView):
 class ProductsPublish(MethodView):
     @api_key_required
     def post(self, product_id: str):
-        return ProductService.publish_to_taranis(product_id)
+        response, status = ProductService.publish_to_taranis(product_id)
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
+        return response, status
 
 
 class Presenters(MethodView):

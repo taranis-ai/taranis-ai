@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from flask import Response, current_app, send_file
+from models.product import validate_linkable_url
 from sqlalchemy import select
 
 from core.log import logger
@@ -15,6 +16,10 @@ from core.model.task import Task
 
 class ProductService:
     PUBLISHED_REPORTS_FOLDER = "published-reports"
+
+    @classmethod
+    def _published_reports_directory(cls) -> Path:
+        return Path(current_app.config["DATA_FOLDER"]).resolve() / cls.PUBLISHED_REPORTS_FOLDER
 
     @classmethod
     def get_render(cls, product_id: str):
@@ -42,7 +47,7 @@ class ProductService:
         if not product or not product.render_result:
             return {"error": "Rendered product not found"}, 404
 
-        report_directory = Path(current_app.config["DATA_FOLDER"]) / cls.PUBLISHED_REPORTS_FOLDER
+        report_directory = cls._published_reports_directory()
         report_directory.mkdir(parents=True, exist_ok=True)
         report_path = report_directory / product.id
 
@@ -57,7 +62,9 @@ class ProductService:
                 temporary_path.unlink(missing_ok=True)
 
         application_root = current_app.config["APPLICATION_ROOT"].rstrip("/")
-        public_url = f"{application_root}/reports/{product.id}"
+        public_url = validate_linkable_url(f"{application_root}/reports/{product.id}")
+        product.last_published_url = public_url
+        db.session.commit()
         return {"message": f"Product published at {public_url}", "url": public_url}, 200
 
     @classmethod
@@ -65,7 +72,7 @@ class ProductService:
         if not (product := Product.get(product_id)):
             return {"error": "Published report not found"}, 404
 
-        report_path = Path(current_app.config["DATA_FOLDER"]) / cls.PUBLISHED_REPORTS_FOLDER / product.id
+        report_path = cls._published_reports_directory() / product.id
         if not report_path.is_file():
             return {"error": "Published report not found"}, 404
 
