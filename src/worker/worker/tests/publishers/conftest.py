@@ -57,6 +57,13 @@ class RecordingCoreApi:
         self.put_calls.append({"url": url, "json": json_data})
         return self.put_response
 
+    def api_post(self, url: str, json_data=None):
+        self.put_calls.append({"url": url, "json": json_data})
+        return self.put_response
+
+    def publish_product_to_taranis(self, product_id: str):
+        return self.api_post(f"/worker/products/{product_id}/publish")
+
     def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, result=None, **task_kwargs):
         self.put_calls.append(
             {

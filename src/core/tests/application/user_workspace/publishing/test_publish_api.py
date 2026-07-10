@@ -35,6 +35,32 @@ class TestPublishApi(BaseTest):
         assert response.mimetype == "application/pdf"
         assert response.headers.get("Content-Disposition") == f'attachment; filename="{expected_filename}"'
 
+    def test_taranis_publish_stores_and_serves_report_without_authentication(
+        self, app, client, api_header, monkeypatch, pdf_product, tmp_path
+    ):
+        file_bytes = b"Public report"
+        pdf_product.update_render(base64.b64encode(file_bytes).decode())
+        monkeypatch.setitem(app.config, "DATA_FOLDER", str(tmp_path))
+
+        unauthorized_response = client.post(f"/api/worker/products/{pdf_product.id}/publish")
+        assert unauthorized_response.status_code == 401
+
+        publish_response = client.post(f"/api/worker/products/{pdf_product.id}/publish", headers=api_header)
+        assert publish_response.status_code == 200
+        assert publish_response.get_json()["url"] == f"/reports/{pdf_product.id}"
+        assert (tmp_path / "published-reports" / pdf_product.id).read_bytes() == file_bytes
+
+        public_response = client.get(f"/reports/{pdf_product.id}")
+        assert public_response.status_code == 200
+        assert public_response.data == file_bytes
+        assert public_response.mimetype == "application/pdf"
+        assert public_response.headers["Content-Security-Policy"] == "sandbox allow-scripts allow-downloads"
+        assert public_response.headers["X-Content-Type-Options"] == "nosniff"
+
+    def test_unknown_public_report_returns_not_found(self, client):
+        response = client.get("/reports/00000000-0000-0000-0000-000000000000")
+        assert response.status_code == 404
+
     def test_get_publisher_presets(self, client, auth_header, publish_publisher_preset):
         response = self.assert_get_ok(client, f"publisher-presets?search={publish_publisher_preset['name']}", auth_header)
 

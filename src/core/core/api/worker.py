@@ -20,6 +20,7 @@ from core.model.report_item import ReportItem
 from core.model.story import Story
 from core.model.word_list import WordList
 from core.service.cache_invalidation import SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS, invalidate_frontend_cache_on_success
+from core.service.product import ProductService
 from core.service.task import TaskService
 
 
@@ -51,6 +52,12 @@ class ProductsRender(MethodView):
         if product_data := Product.get_render(product_id):
             return Response(product_data["blob"], headers={"Content-Type": product_data["mime_type"]}, status=200)
         return {"error": "Product not found"}, 404
+
+
+class ProductsPublish(MethodView):
+    @api_key_required
+    def post(self, product_id: str):
+        return ProductService.publish_to_taranis(product_id)
 
 
 class Presenters(MethodView):
@@ -305,6 +312,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/tasks/reconcile", view_func=TaskReconciliation.as_view("task_reconciliation_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
+    worker_bp.add_url_rule("/products/<string:product_id>/publish", view_func=ProductsPublish.as_view("products_publish_worker"))
     worker_bp.add_url_rule("/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
     worker_bp.add_url_rule("/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
     worker_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connectors_worker"))

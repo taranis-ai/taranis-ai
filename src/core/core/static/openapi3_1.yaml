@@ -9109,6 +9109,34 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/products/{product_id}/publish:
+    parameters:
+    - name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - APIKey: []
+      description: store a rendered product as a public Taranis report
+      operationId: worker.products_publish_worker.post
+      responses:
+        '200':
+          description: product published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  url:
+                    type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /worker/publishers/{publisher}:
     parameters:
     - name: publisher
