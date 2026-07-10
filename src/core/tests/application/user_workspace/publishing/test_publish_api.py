@@ -87,6 +87,28 @@ class TestPublishApi(BaseTest):
         assert response.get_json()["items"][0]["description"] == publish_publisher_preset["description"]
         assert "parameters" not in response.get_json()["items"][0]
 
+    def test_default_taranis_publisher_is_always_available(self, client, auth_header):
+        from core.model.publisher_preset import PublisherPreset
+
+        response = self.assert_get_ok(client, "publisher-presets?search=Taranis+Publisher", auth_header)
+
+        assert response.get_json()["items"] == [
+            {
+                "id": PublisherPreset.DEFAULT_TARANIS_ID,
+                "name": "Taranis Publisher",
+                "description": "Publisher for making products publicly available in Taranis",
+                "type": "taranis_publisher",
+            }
+        ]
+
+    def test_default_taranis_publisher_cannot_be_deleted(self, client, auth_header):
+        from core.model.publisher_preset import PublisherPreset
+
+        response = client.delete(f"/api/config/publishers-presets/{PublisherPreset.DEFAULT_TARANIS_ID}", headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "The default Taranis publisher cannot be deleted"}
+
     def test_get_publisher_preset_detail(self, client, auth_header, publish_publisher_preset):
         response = self.assert_get_ok(client, f"publisher-presets/{publish_publisher_preset['id']}", auth_header)
 
@@ -95,3 +117,23 @@ class TestPublishApi(BaseTest):
         assert response.get_json()["type"] == publish_publisher_preset["type"]
         assert response.get_json()["description"] == publish_publisher_preset["description"]
         assert "parameters" not in response.get_json()
+
+
+def test_default_taranis_publisher_is_restored_when_missing(session):
+    from core.managers.db_manager import db
+    from core.managers.db_seed_manager import pre_seed_update
+    from core.model.publisher_preset import PublisherPreset
+
+    db.session.execute(db.delete(PublisherPreset).where(PublisherPreset.id == PublisherPreset.DEFAULT_TARANIS_ID))
+    db.session.commit()
+
+    pre_seed_update(db.engine)
+    pre_seed_update(db.engine)
+
+    restored = PublisherPreset.get(PublisherPreset.DEFAULT_TARANIS_ID)
+    count = db.session.scalar(
+        db.select(db.func.count()).select_from(PublisherPreset).where(PublisherPreset.id == PublisherPreset.DEFAULT_TARANIS_ID)
+    )
+    assert restored is not None
+    assert restored.id == PublisherPreset.DEFAULT_TARANIS_ID
+    assert count == 1
