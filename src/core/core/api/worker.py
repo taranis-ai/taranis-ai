@@ -239,7 +239,7 @@ class IOCs(MethodView):
         for ioc in iocs:
             if not isinstance(ioc, dict):
                 continue
-            keys.add((str(ioc.get("type") or ioc.get("ioc_type") or ""), str(ioc.get("value") or "")))
+            keys.add((str(ioc.get("ioc_type") or ""), str(ioc.get("value") or "")))
         rows = IOC.get_for_iocs(keys)
         return {"items": [row.to_cti_model().model_dump(mode="json", exclude_none=False) for row in rows.values()]}, 200
 

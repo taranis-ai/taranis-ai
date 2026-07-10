@@ -295,9 +295,6 @@ class CoreApi:
     def get_product(self, product_id: str) -> dict | None:
         return self.api_get(f"/worker/products/{product_id}")
 
-    def get_report_item(self, report_id: str) -> dict | None:
-        return self.api_get(f"/worker/report-items/{report_id}")
-
     def get_product_render(self, product_id: str) -> Product | None:
         try:
             url = f"{self.api_url}/worker/products/{product_id}/render"

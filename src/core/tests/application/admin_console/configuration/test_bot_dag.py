@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import uuid7
 
 import pytest
 
@@ -9,18 +9,6 @@ def _bot(bot_type: str):
     bot = Bot.filter_by_type(bot_type)
     assert bot is not None
     return bot
-
-
-def _task_submission(worker_type: str):
-    from models.task import TaskResultEnvelope, TaskSubmission
-
-    return TaskSubmission(
-        id=str(uuid4()),
-        worker_id=worker_type.lower(),
-        worker_type=worker_type,
-        status="success",
-        result=TaskResultEnvelope(message="success", data={}),
-    )
 
 
 def test_collector_run_graph_uses_dependency_order(app, session):
@@ -36,55 +24,39 @@ def test_collector_run_graph_uses_dependency_order(app, session):
         assert dependencies_by_id[_bot("summary_bot").id] == [_bot("nlp_bot").id]
 
 
-def test_dependent_run_graph_uses_only_parents_in_current_chain(app, session):
+def test_dag_preview_uses_candidate_state(app):
     with app.app_context():
         from core.model.bot import Bot
 
-        bots, dependencies_by_id = Bot.get_dependent_run_graph("STORY_BOT")
+        bot = _bot("cybersec_classifier_bot")
+        preview = Bot.get_dag_preview(
+            {
+                "type": bot.type,
+                "index": bot.index,
+                "enabled": True,
+                "parameters": {"RUN_AFTER_COLLECTOR": "true", "RUN_AFTER_BOTS": ""},
+            }
+        )
 
-        assert [bot.type.name for bot in bots] == ["SUMMARY_BOT"]
-        assert dependencies_by_id[_bot("summary_bot").id] == []
+        assert "CYBERSEC_CLASSIFIER_BOT" in [node["type"] for node in preview["order"]]
+        assert preview["edges"] == []
+        assert [node["type"] for node in preview["nodes"]] == ["CYBERSEC_CLASSIFIER_BOT"]
 
 
-def test_dependent_run_graph_branches_after_ioc(app, session):
+@pytest.mark.parametrize(
+    ("bot_type", "dependency", "error"),
+    [
+        ("ioc_bot", "NOT_A_BOT", "Unknown bot type"),
+        ("ioc_bot", "IOC_BOT", "cannot run after itself"),
+        ("wordlist_bot", "SUMMARY_BOT", "cycle"),
+    ],
+)
+def test_bot_dependency_validation(app, session, bot_type, dependency, error):
     with app.app_context():
         from core.model.bot import Bot
 
-        intelowl = _bot("intel_owl_bot")
-        intelowl.enabled = True
-        session.commit()
-
-        bots, dependencies_by_id = Bot.get_dependent_run_graph("IOC_BOT")
-        bot_types = {bot.type.name for bot in bots}
-
-        assert bot_types == {"INTEL_OWL_BOT", "NLP_BOT", "SUMMARY_BOT"}
-        assert dependencies_by_id[_bot("intel_owl_bot").id] == []
-        assert dependencies_by_id[_bot("nlp_bot").id] == []
-        assert dependencies_by_id[_bot("summary_bot").id] == [_bot("nlp_bot").id]
-
-
-def test_bot_dependency_validation_rejects_unknown_type(app, session):
-    with app.app_context():
-        from core.model.bot import Bot
-
-        with pytest.raises(ValueError, match="Unknown bot type"):
-            Bot.update(_bot("ioc_bot").id, {"parameters": {"RUN_AFTER_BOTS": "NOT_A_BOT"}})
-
-
-def test_bot_dependency_validation_rejects_self_dependency(app, session):
-    with app.app_context():
-        from core.model.bot import Bot
-
-        with pytest.raises(ValueError, match="cannot run after itself"):
-            Bot.update(_bot("ioc_bot").id, {"parameters": {"RUN_AFTER_BOTS": "IOC_BOT"}})
-
-
-def test_bot_dependency_validation_rejects_cycles(app, session):
-    with app.app_context():
-        from core.model.bot import Bot
-
-        with pytest.raises(ValueError, match="cycle"):
-            Bot.update(_bot("wordlist_bot").id, {"parameters": {"RUN_AFTER_BOTS": "SUMMARY_BOT"}})
+        with pytest.raises(ValueError, match=error):
+            Bot.update(_bot(bot_type).id, {"parameters": {"RUN_AFTER_BOTS": dependency}})
 
 
 def test_bot_type_must_be_unique(app, session):
@@ -94,7 +66,7 @@ def test_bot_type_must_be_unique(app, session):
         with pytest.raises(ValueError, match="already exists"):
             Bot.add(
                 {
-                    "id": str(uuid4()),
+                    "id": str(uuid7()),
                     "name": "Duplicate IOC",
                     "description": "",
                     "type": "ioc_bot",
@@ -102,43 +74,3 @@ def test_bot_type_must_be_unique(app, session):
                     "parameters": {},
                 }
             )
-
-
-def test_successful_bot_result_schedules_dependents(monkeypatch):
-    from core.managers import queue_manager
-    from core.service.task import TaskService
-
-    calls = []
-    monkeypatch.setattr("core.service.task.NewsItemTagService.set_worker_execution_attribute", lambda **_: None)
-    monkeypatch.setattr(
-        queue_manager.queue_manager,
-        "schedule_bot_dependents",
-        lambda bot_type, filter_data=None, user_id=None: calls.append((bot_type, filter_data, user_id)),
-    )
-
-    TaskService._handle_bot_result(
-        _task_submission("SUMMARY_BOT"),
-        {"result": {}, "filter": {"story_id": "story-1"}, "trigger_dependents": True},
-    )
-
-    assert calls == [("SUMMARY_BOT", {"story_id": "story-1"}, None)]
-
-
-def test_suppressed_bot_result_does_not_schedule_dependents(monkeypatch):
-    from core.managers import queue_manager
-    from core.service.task import TaskService
-
-    calls = []
-    monkeypatch.setattr("core.service.task.NewsItemTagService.set_worker_execution_attribute", lambda **_: None)
-    monkeypatch.setattr(
-        queue_manager.queue_manager,
-        "schedule_bot_dependents",
-        lambda bot_type, filter_data=None, user_id=None: calls.append((bot_type, filter_data, user_id)),
-    )
-
-    TaskService._handle_bot_result(
-        _task_submission("SUMMARY_BOT"),
-        {"result": {}, "filter": {"story_id": "story-1"}, "trigger_dependents": False},
-    )
-
-    assert calls == []

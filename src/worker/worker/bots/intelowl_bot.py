@@ -1,7 +1,5 @@
 # pyright: reportMissingTypeStubs=false
 
-import ipaddress
-import re
 import time
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
@@ -37,7 +35,7 @@ class IntelOwlBot(BaseBot):
         "url": "url",
         "hash": "hash",
     }
-    final_statuses = {"reported_without_fails", "reported_with_fails", "failed", "killed", "success", "completed"}
+    final_statuses = {"reported_without_fails", "reported_with_fails", "failed", "killed"}
     poll_delay_seconds = 1.0
     poll_timeout_seconds = 30 * 60
 
@@ -112,41 +110,15 @@ class IntelOwlBot(BaseBot):
         if observable is None:
             return
         key, observable_type, value = observable
-        observables.setdefault(key, {"type": observable_type, "value": value})
+        observables.setdefault(key, {"ioc_type": observable_type, "value": value})
 
     def _normalize_observable(self, raw_value: str, raw_type: str) -> tuple[str, CanonicalIOCType, str] | None:
-        value = ioc_fanger.fang(str(raw_value or "")).strip().strip(".,;:()[]{}<>\"'")
+        if not (observable_type := normalize_ioc_type(raw_type)):
+            return None
+        value = normalize_ioc_value(ioc_fanger.fang(raw_value), observable_type)
         if not value:
             return None
-
-        observable_type = normalize_ioc_type(raw_type) or self._observable_type(value)
-        if observable_type is None:
-            return None
-
-        normalized = normalize_ioc_value(value, observable_type)
-        return f"{observable_type}:{normalized}", observable_type, normalized
-
-    def _observable_type(self, value: str) -> CanonicalIOCType | None:
-        if re.fullmatch(r"CVE-\d{4}-\d{4,}", value, re.IGNORECASE):
-            return "cve"
-        if "@" in value and "." in value.rsplit("@", 1)[-1]:
-            return "email"
-        if self._is_ip(value):
-            return "ip"
-        if value.lower().startswith(("http://", "https://")):
-            return "url"
-        if re.fullmatch(r"[a-fA-F0-9]{32,128}", value):
-            return "hash"
-        return None
-
-    @staticmethod
-    def _is_ip(value: str) -> bool:
-        with_value = value.split("/", 1)[0]
-        try:
-            ipaddress.ip_address(with_value)
-        except ValueError:
-            return False
-        return True
+        return f"{observable_type}:{value}", observable_type, value
 
     @staticmethod
     def _tags(item: StoryPayload) -> list[dict[str, str]]:
@@ -156,14 +128,14 @@ class IntelOwlBot(BaseBot):
         return []
 
     def _load_existing_enrichments(self, observables: dict[str, ObservablePayload]) -> dict[str, dict[str, Any]]:
-        payload = [{"type": observable["type"], "value": observable["value"]} for observable in observables.values()]
+        payload = [{"ioc_type": observable["ioc_type"], "value": observable["value"]} for observable in observables.values()]
         response = self.core_api.get_iocs(payload) or {}
         items = response.get("items", []) if isinstance(response, dict) else []
         existing: dict[str, dict[str, Any]] = {}
         for item in items:
             if not isinstance(item, dict):
                 continue
-            if not (ioc_type := normalize_ioc_type(item.get("ioc_type") or item.get("type"))):
+            if not (ioc_type := normalize_ioc_type(item.get("ioc_type"))):
                 continue
             value = normalize_ioc_value(str(item.get("value") or ""), ioc_type)
             if value:
@@ -233,7 +205,7 @@ class IntelOwlBot(BaseBot):
         api_key: str,
         tlp: IntelOwlTLP,
     ) -> tuple[ObservablePayload, str]:
-        observable_type = observable["type"]
+        observable_type = observable["ioc_type"]
         submitted_at = self._now()
         try:
             response = client.send_observable_analysis_request(
@@ -245,7 +217,7 @@ class IntelOwlBot(BaseBot):
             )
         except Exception as exc:
             return {
-                "type": observable_type,
+                "ioc_type": observable_type,
                 "value": observable["value"],
                 "status": "failed",
                 "analyzers": [],
@@ -254,13 +226,13 @@ class IntelOwlBot(BaseBot):
                 "completed_at": submitted_at,
             }, ""
 
-        job_id = str(response.get("job_id") or response.get("id") or "")
+        job_id = str(response.get("job_id") or "")
         status = str(response.get("status") or "submitted")
         is_final = self._is_final_status(status)
         if not job_id and not is_final:
             return (
                 {
-                    "type": observable_type,
+                    "ioc_type": observable_type,
                     "value": observable["value"],
                     "status": "failed",
                     "analyzers": [],
@@ -272,7 +244,7 @@ class IntelOwlBot(BaseBot):
             )
         return (
             {
-                "type": observable_type,
+                "ioc_type": observable_type,
                 "value": observable["value"],
                 "status": status,
                 "analyzers": [],
@@ -315,11 +287,7 @@ class IntelOwlBot(BaseBot):
         }
 
     def _compact_analyzers(self, job: dict[str, Any]) -> list[dict[str, Any]]:
-        reports = job.get("analyzer_reports") or job.get("reports") or job.get("analyzers") or []
-        if isinstance(reports, dict):
-            reports = [
-                dict(value, name=name) if isinstance(value, dict) else {"name": name, "report": value} for name, value in reports.items()
-            ]
+        reports = job.get("analyzer_reports") or []
         if not isinstance(reports, list):
             return []
 
@@ -328,18 +296,9 @@ class IntelOwlBot(BaseBot):
             if not isinstance(report, dict):
                 continue
             item = {
-                key: self._compact_value(report[value_key])
-                for key, value_key in {
-                    "name": "name",
-                    "analyzer_name": "analyzer_name",
-                    "status": "status",
-                    "report": "report",
-                    "result": "result",
-                    "data": "data",
-                    "errors": "errors",
-                    "error": "error",
-                }.items()
-                if value_key in report and report[value_key] not in (None, "")
+                key: self._compact_value(report[key])
+                for key in ("name", "status", "report", "errors")
+                if key in report and report[key] not in (None, "")
             }
             if item:
                 compact.append(item)

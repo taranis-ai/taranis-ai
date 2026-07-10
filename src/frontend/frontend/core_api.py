@@ -183,10 +183,9 @@ class CoreApi:
             logger.error(f"Execute bot failed: {e}")
             return None
 
-    def preview_bot_dag(self, bot_id: str, payload: dict[str, Any]):
-        endpoint = "/config/bots/dag-preview" if bot_id in {"0", "", None} else f"/config/bots/{bot_id}/dag-preview"
+    def preview_bot_dag(self, payload: dict[str, Any]):
         try:
-            return self.api_post(endpoint, json_data=payload)
+            return self.api_post("/config/bots/dag-preview", json_data=payload)
         except Exception as e:
             logger.error(f"Bot DAG preview failed: {e}")
             return None

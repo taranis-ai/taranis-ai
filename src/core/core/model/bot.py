@@ -294,20 +294,41 @@ class Bot(BaseModel):
         return self.parse_run_after_bots(self.parameter_map.get(RUN_AFTER_BOTS, ""))
 
     @classmethod
-    def get_dag_preview(cls, candidate: dict[str, Any] | None = None, candidate_id: str | None = None) -> dict[str, Any]:
+    def get_dag_preview(cls, candidate: dict[str, Any]) -> dict[str, Any]:
         bots = cls._get_all_ordered()
-        if candidate and candidate.get("type"):
-            candidate_data = cls._normalize_candidate_data(candidate, candidate_id)
-            candidate_bot = cls.from_dict(candidate_data)
-            bots = [bot for bot in bots if bot.id != candidate_bot.id and bot.type != candidate_bot.type]
-            bots.append(candidate_bot)
-            bots.sort(key=lambda bot: bot.index)
+        allowed_fields = {"type", "index", "enabled", "parameters"}
+        if unexpected_fields := set(candidate) - allowed_fields:
+            raise ValueError(f"Unexpected bot DAG preview fields: {', '.join(sorted(unexpected_fields))}")
 
-        warnings: list[str] = []
+        parameters = candidate.get("parameters", {})
+        if not isinstance(parameters, dict):
+            raise ValueError("Bot DAG preview parameters must be an object")
+        if unexpected_parameters := set(parameters) - {RUN_AFTER_COLLECTOR, RUN_AFTER_BOTS}:
+            raise ValueError(f"Unexpected bot DAG preview parameters: {', '.join(sorted(unexpected_parameters))}")
+
+        bot_type = cls.normalize_bot_type(candidate.get("type", ""))
+        stored_bot = next((bot for bot in bots if bot.type == bot_type), None)
+        index = candidate.get("index")
+        candidate_bot = cls.from_dict(
+            {
+                "id": stored_bot.id if stored_bot else None,
+                "name": stored_bot.name if stored_bot else "Unsaved bot",
+                "description": stored_bot.description if stored_bot else "",
+                "type": bot_type.value,
+                "index": int(index) if index not in ("", None) else stored_bot.index if stored_bot else cls.get_highest_index() + 1,
+                "enabled": str(candidate.get("enabled", stored_bot.enabled if stored_bot else True)).lower() == "true",
+                "parameters": parameters,
+            }
+        )
+        bots = [bot for bot in bots if bot.id != candidate_bot.id and bot.type != candidate_bot.type]
+        bots.append(candidate_bot)
+        bots.sort(key=lambda bot: bot.index)
+
+        warnings_by_type: list[tuple[str, str]] = []
         bots_by_type: dict[BOT_TYPES, Bot] = {}
         for bot in bots:
             if bot.type in bots_by_type:
-                warnings.append(f"Duplicate bot type configured: {bot.type.name}")
+                warnings_by_type.append((bot.type.name, f"Duplicate bot type configured: {bot.type.name}"))
             bots_by_type[bot.type] = bot
 
         edges = []
@@ -315,18 +336,18 @@ class Bot(BaseModel):
             try:
                 parent_types = bot.run_after_bot_types
             except ValueError as exc:
-                warnings.append(str(exc))
+                warnings_by_type.append((bot_type.name, str(exc)))
                 continue
             for parent_type in parent_types:
                 if parent_type == bot_type:
-                    warnings.append(f"{bot_type.name} cannot run after itself")
+                    warnings_by_type.append((bot_type.name, f"{bot_type.name} cannot run after itself"))
                     continue
                 parent_bot = bots_by_type.get(parent_type)
                 if not parent_bot:
-                    warnings.append(f"{bot_type.name} waits for missing bot type {parent_type.name}")
+                    warnings_by_type.append((bot_type.name, f"{bot_type.name} waits for missing bot type {parent_type.name}"))
                     continue
                 if not parent_bot.enabled:
-                    warnings.append(f"{bot_type.name} waits for disabled bot {parent_bot.name}")
+                    warnings_by_type.append((bot_type.name, f"{bot_type.name} waits for disabled bot {parent_bot.name}"))
                 edges.append(
                     {
                         "from_type": parent_type.name,
@@ -337,17 +358,35 @@ class Bot(BaseModel):
                     }
                 )
 
+        related_types = {candidate_bot.type.name}
+        changed = True
+        while changed:
+            changed = False
+            for edge in edges:
+                edge_types = {edge["from_type"], edge["to_type"]}
+                if related_types & edge_types and not edge_types <= related_types:
+                    related_types.update(edge_types)
+                    changed = True
+
+        edges = [edge for edge in edges if edge["from_type"] in related_types and edge["to_type"] in related_types]
+        warnings = [warning for bot_type, warning in warnings_by_type if bot_type in related_types]
         enabled_by_type = {bot_type: bot for bot_type, bot in bots_by_type.items() if bot.enabled}
         try:
             dependencies = cls._dependency_map(enabled_by_type)
             order, _ = cls._build_run_graph(enabled_by_type, dependencies)
+            if candidate_bot.type not in order:
+                order = []
         except ValueError as exc:
             warnings.append(str(exc))
             order = []
 
         return {
             "order": [
-                {"type": bot_type.name, "name": enabled_by_type[bot_type].name, "enabled": enabled_by_type[bot_type].enabled}
+                {
+                    "type": bot_type.name,
+                    "name": enabled_by_type[bot_type].name,
+                    "enabled": enabled_by_type[bot_type].enabled,
+                }
                 for bot_type in order
             ],
             "edges": edges,
@@ -355,30 +394,9 @@ class Bot(BaseModel):
             "nodes": [
                 {"type": bot.type.name, "name": bot.name, "enabled": bot.enabled}
                 for bot in sorted(bots_by_type.values(), key=lambda item: item.index)
+                if bot.type.name in related_types
             ],
         }
-
-    @classmethod
-    def _normalize_candidate_data(cls, candidate: dict[str, Any], candidate_id: str | None) -> dict[str, Any]:
-        data = dict(candidate)
-        if candidate_id and candidate_id != "0":
-            data["id"] = candidate_id
-        elif data.get("id") == "0":
-            data.pop("id")
-        data["name"] = data.get("name") or "Unsaved bot"
-        data["description"] = data.get("description") or ""
-        data["type"] = cls.normalize_bot_type(data["type"]).value
-        if data.get("index") in ("", None):
-            data["index"] = cls.get_highest_index() + 1
-        else:
-            data["index"] = int(data["index"])
-        data["enabled"] = str(data.get("enabled", "true")).lower() == "true"
-        parameters = dict(data.get("parameters") or {})
-        run_after_bots = parameters.get(RUN_AFTER_BOTS, "")
-        if isinstance(run_after_bots, list):
-            parameters[RUN_AFTER_BOTS] = ",".join(str(item) for item in run_after_bots if item)
-        data["parameters"] = parameters
-        return data
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

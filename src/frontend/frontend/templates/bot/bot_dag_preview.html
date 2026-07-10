@@ -1,11 +1,9 @@
 {% set dag_preview = dag_preview | default({"order": [], "edges": [], "warnings": []}) %}
-{% set parameter_values = parameter_values | default({}) %}
-{% set run_after_collector = run_after_collector | default(parameter_values.get("RUN_AFTER_COLLECTOR") == "true") %}
 
 <div id="bot-dag-preview"
-     hx-post="{{ url_for('admin.bot_dag_preview', bot_id=bot_id | default('0', true) ) }}"
+     hx-post="{{ url_for('admin.bot_dag_preview') }}"
      hx-trigger="change from:#bot-form delay:300ms"
-     hx-include="#bot-form"
+     hx-include="#bot-form [name='type'], #bot-form [name='index'], #bot-form [name='enabled'], #bot-form [name='parameters[RUN_AFTER_COLLECTOR]'], #bot-form [name='parameters[RUN_AFTER_BOTS][]']"
      hx-target="this"
      hx-swap="outerHTML"
      class="space-y-3">
@@ -17,18 +15,14 @@
     </div>
   {% endif %}
 
-  {% if run_after_collector %}
+  {% if dag_preview.order %}
     <div>
       <div class="text-sm font-semibold mb-2">Collector Chain</div>
       <div class="flex flex-wrap items-center gap-2">
-        {% if dag_preview.order %}
-          {% for bot in dag_preview.order %}
-            <span class="badge badge-primary badge-outline">{{ bot.name }}</span>
-            {% if not loop.last %}<span class="text-base-content/50">&rarr;</span>{% endif %}
-          {% endfor %}
-        {% else %}
-          <span class="text-sm text-base-content/50">No collector chain</span>
-        {% endif %}
+        {% for bot in dag_preview.order %}
+          <span class="badge badge-primary badge-outline">{{ bot.name }}</span>
+          {% if not loop.last %}<span class="text-base-content/50">&rarr;</span>{% endif %}
+        {% endfor %}
       </div>
     </div>
   {% endif %}

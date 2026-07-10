@@ -4025,45 +4025,35 @@ paths:
     post:
       tags:
       - config
-      description: preview bot run-order DAG
+      description: preview a bot run-order DAG
       operationId: config.config_bot_dag_preview.post
       requestBody:
         content:
           application/json:
             schema:
               type: object
-      security:
-      - UserAuth: []
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-  /config/bots/{bot_id}/dag-preview:
-    parameters:
-    - name: bot_id
-      in: path
-      required: true
-      schema:
-        type: string
-    post:
-      tags:
-      - config
-      description: preview bot run-order DAG for a bot
-      operationId: config.config_bot_dag_preview_for_bot.post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
+              additionalProperties: false
+              required:
+              - type
+              properties:
+                type:
+                  type: string
+                index:
+                  oneOf:
+                  - type: integer
+                  - type: string
+                enabled:
+                  oneOf:
+                  - type: boolean
+                  - type: string
+                parameters:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    RUN_AFTER_COLLECTOR:
+                      type: string
+                    RUN_AFTER_BOTS:
+                      type: string
       security:
       - UserAuth: []
       responses:

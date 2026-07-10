@@ -80,6 +80,7 @@ class BotView(AdminBaseView):
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         parameters = {}
         parameter_values = {}
+        dag_preview = {"order": [], "edges": [], "nodes": [], "warnings": []}
 
         bot_actions = [
             {
@@ -98,6 +99,14 @@ class BotView(AdminBaseView):
             parameter_values = bot.parameters or {}
             bot_type_name = bot_type.lower()
             parameters = cls._filter_run_order_parameters(cls.get_worker_parameters(bot_type_name))
+            dag_preview = cls.get_dag_preview(
+                {
+                    "type": bot_type,
+                    "index": bot.index,
+                    "enabled": bot.enabled,
+                    "parameters": {key: parameter_values.get(key, "") for key in RUN_ORDER_PARAMETERS},
+                }
+            )
 
         base_context |= {
             "bot_types": cls.get_bot_type_options(bot),
@@ -105,7 +114,7 @@ class BotView(AdminBaseView):
             "parameters": parameters,
             "run_after_options": cls.get_run_after_options(bot_type_name),
             "selected_run_after": _split_run_after_bots(parameter_values.get("RUN_AFTER_BOTS", "")),
-            "dag_preview": cls.get_dag_preview(base_context.get("bot_id", "0"), bot.model_dump(mode="json") if bot else {}),
+            "dag_preview": dag_preview,
             "optional_parameters": OPTIONAL_BOT_PARAMETERS,
             "actions": bot_actions + cls.get_default_actions(),
         }
@@ -127,7 +136,7 @@ class BotView(AdminBaseView):
             run_after_options=cls.get_run_after_options(bot_type),
             selected_run_after=[],
             bot_id=bot_id,
-            dag_preview=cls.get_dag_preview(bot_id, {"type": bot_type} if bot_type else {}),
+            dag_preview=cls.get_dag_preview({"type": bot_type}) if bot_type else {"order": [], "edges": [], "nodes": [], "warnings": []},
             optional_parameters=OPTIONAL_BOT_PARAMETERS,
         )
 
@@ -142,15 +151,15 @@ class BotView(AdminBaseView):
 
     @classmethod
     @admin_required()
-    def preview_bot_dag(cls, bot_id: str):
-        payload = cls._get_normalized_form_data()
-        parameters = payload.get("parameters") or {}
+    def preview_bot_dag(cls):
+        form_data = cls._get_normalized_form_data()
+        parameters = form_data.get("parameters") or {}
+        payload = {key: form_data[key] for key in ("type", "index", "enabled") if key in form_data}
+        payload["parameters"] = {key: parameters[key] for key in RUN_ORDER_PARAMETERS if key in parameters}
         return (
             render_template(
                 "bot/bot_dag_preview.html",
-                bot_id=bot_id,
-                dag_preview=cls.get_dag_preview(bot_id, payload),
-                run_after_collector=parameters.get("RUN_AFTER_COLLECTOR") == "true",
+                dag_preview=cls.get_dag_preview(payload),
             ),
             200,
         )
@@ -194,8 +203,8 @@ class BotView(AdminBaseView):
         ]
 
     @classmethod
-    def get_dag_preview(cls, bot_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        response = CoreApi().preview_bot_dag(bot_id, payload)
+    def get_dag_preview(cls, payload: dict[str, Any]) -> dict[str, Any]:
+        response = CoreApi().preview_bot_dag(payload)
         if response is not None and response.ok:
             return response.json()
         return {"order": [], "edges": [], "nodes": [], "warnings": ["Run order preview is unavailable"]}

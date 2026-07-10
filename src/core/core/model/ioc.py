@@ -54,7 +54,7 @@ class IOC(BaseModel):
     def upsert_many(cls, enrichments: list[dict[str, Any]]) -> None:
         normalized: dict[str, tuple[str, dict[str, Any]]] = {}
         for payload in enrichments:
-            if not (ioc_type := normalize_ioc_type(payload.get("type") or payload.get("ioc_type"))):
+            if not (ioc_type := normalize_ioc_type(payload.get("ioc_type"))):
                 continue
             value = normalize_ioc_value(str(payload.get("value") or ""), ioc_type)
             if value:

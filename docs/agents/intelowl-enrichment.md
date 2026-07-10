@@ -6,7 +6,7 @@ IntelOwl, enrichment bots, IOC enrichment, observable analysis, `INTEL_OWL_BOT`,
 ## Expected Behavior
 IntelOwl enrichment is opt-in through bot configuration. The IOC bot extracts IOC tags for CVEs, emails, IPs, domains, URLs, and hashes. IntelOwl consumes those stored news item tags instead of re-extracting observables from story or report text. Email tags are submitted like other IOC tags; email enrichment succeeds only when IntelOwl has at least one requested email analyzer enabled and configured. Taranis stores only compact final analyzer summaries, errors, status, and timestamps in `ioc`, never IntelOwl job references, raw analyzer JSON, or secrets.
 
-Direct story and report runs remain supported. Report-level UI controls should stay generic rather than IntelOwl-specific. IntelOwl task results upsert one enrichment row per normalized IOC `value` instead of writing story or report attributes; `ioc_type` is metadata.
+Direct story and report runs remain supported. Report-level UI controls should stay generic rather than IntelOwl-specific. IntelOwl task results use `ioc_type` as their canonical type field and upsert one enrichment row per normalized IOC `value` instead of writing story or report attributes; `ioc_type` is metadata.
 
 Read-only CTI endpoints aggregate IOC tags and asset observables, then join matching enrichment rows:
 - news item: tags on that news item

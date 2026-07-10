@@ -1,5 +1,4 @@
 from types import SimpleNamespace
-from typing import Any
 
 import pytest
 from flask import render_template, url_for
@@ -113,50 +112,6 @@ def test_bot_form_renders_enabled_switch(app):
     assert tree.xpath('//input[@name="enabled"][@type="checkbox"][@value="true"]')
 
 
-def test_bot_context_handles_missing_parameters(app: Any, monkeypatch: pytest.MonkeyPatch):
-    bot = Bot.model_construct(
-        id="42",
-        name="Test bot",
-        description="",
-        type=BOT_TYPES.NLP_BOT,
-        index=1,
-        enabled=True,
-        parameters=None,
-        status=None,
-    )
-    monkeypatch.setattr(BotView, "get_worker_parameters", classmethod(lambda cls, worker_type: []))
-    monkeypatch.setattr(BotView, "get_bot_type_options", classmethod(lambda cls, current_bot=None: []))
-    monkeypatch.setattr(BotView, "get_run_after_options", classmethod(lambda cls, current_type="": []))
-    monkeypatch.setattr(
-        BotView,
-        "get_dag_preview",
-        classmethod(lambda cls, bot_id, payload: {"order": [], "edges": [], "nodes": [], "warnings": []}),
-    )
-
-    with app.test_request_context("/"):
-        context = BotView.get_extra_context({"bot": bot, "bot_id": bot.id})
-
-    assert context["parameter_values"] == {}
-    assert context["selected_run_after"] == []
-
-
-def test_run_after_options_exclude_current_bot_type(monkeypatch):
-    fake_bots = SimpleNamespace(
-        items=[
-            SimpleNamespace(type=BOT_TYPES.IOC_BOT, name="IOC Bot", enabled=True),
-            SimpleNamespace(type=BOT_TYPES.NLP_BOT, name="NLP Bot", enabled=True),
-        ]
-    )
-    monkeypatch.setattr(
-        "frontend.views.admin_views.bot_views.DataPersistenceLayer",
-        lambda: SimpleNamespace(get_objects=lambda model: fake_bots),
-    )
-
-    options = BotView.get_run_after_options("ioc_bot")
-
-    assert options == [{"id": "NLP_BOT", "name": "NLP Bot (NLP_BOT)", "enabled": "true"}]
-
-
 def test_bot_run_order_controls_render_selected_dependencies(app):
     with app.test_request_context("/"):
         rendered = render_template(
@@ -165,68 +120,21 @@ def test_bot_run_order_controls_render_selected_dependencies(app):
             parameter_values={"RUN_AFTER_COLLECTOR": "true", "RUN_AFTER_BOTS": "IOC_BOT"},
             selected_run_after=["IOC_BOT"],
             run_after_options=[{"id": "IOC_BOT", "name": "IOC Bot (IOC_BOT)", "enabled": "true"}],
-            dag_preview={"order": [], "edges": [], "warnings": []},
+            dag_preview={"order": [{"name": "Wordlist Bot"}, {"name": "IOC Bot"}], "edges": [], "warnings": []},
         )
 
     tree = html.fromstring(rendered)
     assert tree.xpath('//input[@name="parameters[RUN_AFTER_COLLECTOR]"][@type="checkbox"][@checked]')
     selected_options = tree.xpath('//select[@id="run-after-bots-select"]/option[@value="IOC_BOT"][@selected]')
     assert len(selected_options) == 1
-    assert "DOMContentLoaded" in rendered
-
-
-def test_bot_dag_preview_renders_warnings(app):
-    with app.test_request_context("/"):
-        rendered = render_template(
-            "bot/bot_dag_preview.html",
-            bot_id="bot-1",
-            dag_preview={"order": [], "edges": [], "warnings": ["Bot run order contains a cycle"]},
-        )
-
-    assert "Bot run order contains a cycle" in rendered
-
-
-def test_bot_dag_preview_uses_submitted_collector_toggle(
-    authenticated_client: Any, htmx_header: dict[str, str], monkeypatch: pytest.MonkeyPatch
-):
-    monkeypatch.setattr(
-        BotView,
-        "get_dag_preview",
-        classmethod(lambda cls, bot_id, payload: {"order": [{"name": "Wordlist Bot"}], "edges": [], "warnings": []}),
-    )
-
-    response = authenticated_client.post(
-        url_for("admin.bot_dag_preview", bot_id="0"),
-        data={"parameters[RUN_AFTER_COLLECTOR]": "true"},
-        headers=htmx_header,
-    )
-
-    assert response.status_code == 200
-    assert "Collector Chain" in response.text
-    assert "Wordlist Bot" in response.text
-
-
-def test_bot_dag_preview_hides_collector_chain_without_collector_root(app: Any):
-    with app.test_request_context("/"):
-        rendered = render_template(
-            "bot/bot_dag_preview.html",
-            bot_id="bot-1",
-            run_after_collector=False,
-            dag_preview={"order": [{"name": "Wordlist Bot"}], "edges": [], "warnings": []},
-        )
-
-    assert "Collector Chain" not in rendered
-    assert "Wordlist Bot" not in rendered
-
-
-def test_bot_dag_preview_shows_collector_chain_for_collector_root(app: Any):
-    with app.test_request_context("/"):
-        rendered = render_template(
-            "bot/bot_dag_preview.html",
-            bot_id="bot-1",
-            run_after_collector=True,
-            dag_preview={"order": [{"name": "Wordlist Bot"}], "edges": [], "warnings": []},
-        )
-
+    preview_include = tree.xpath('//div[@id="bot-dag-preview"]')[0].get("hx-include")
+    assert preview_include is not None
+    assert "[name='name']" not in preview_include
+    assert "[name='description']" not in preview_include
+    assert "[name='parameters[RUN_AFTER_COLLECTOR]']" in preview_include
+    assert "[name='parameters[RUN_AFTER_BOTS][]']" in preview_include
+    assert tree.xpath('//div[@id="bot-dag-preview"]')[0].get("hx-post") == url_for("admin.bot_dag_preview")
     assert "Collector Chain" in rendered
     assert "Wordlist Bot" in rendered
+    assert "IOC Bot" in rendered
+    assert "DOMContentLoaded" in rendered

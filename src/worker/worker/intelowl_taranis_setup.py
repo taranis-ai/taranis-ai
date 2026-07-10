@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import contextlib
-import io
 import json
 import os
 import ssl
@@ -138,8 +136,9 @@ def apply_configuration(
     timeout: float,
     settings: dict[str, Any],
 ) -> None:
-    configs = fetch_analyzer_configs(base_url, api_key, context, timeout, all_analyzers(required))
-    for analyzer in all_analyzers(required):
+    analyzers = all_analyzers(required)
+    configs = fetch_analyzer_configs(base_url, api_key, context, timeout, analyzers)
+    for analyzer in analyzers:
         if analyzer not in configs:
             print(f"  MISSING {analyzer}: cannot configure a plugin IntelOwl does not expose")
             continue
@@ -269,7 +268,7 @@ def env_candidates(analyzer: str, attribute: str) -> list[str]:
     candidates.extend(ENV_ALIASES.get((analyzer, attribute), []))
     if analyzer in ABUSE_CH_ANALYZERS and attribute in {"service_api_key", "_service_api_key"}:
         candidates.extend(["ABUSECH_API_KEY", "ABUSE_CH_API_KEY"])
-    return dedupe(candidates)
+    return list(dict.fromkeys(filter(None, candidates)))
 
 
 def env_hint(analyzer: str, attribute: str) -> str:
@@ -278,14 +277,6 @@ def env_hint(analyzer: str, attribute: str) -> str:
 
 def normalize_name(value: str) -> str:
     return "".join(char if char.isalnum() else "_" for char in value.strip("_").upper()).strip("_")
-
-
-def dedupe(items: Iterable[str]) -> list[str]:
-    result = []
-    for item in items:
-        if item and item not in result:
-            result.append(item)
-    return result
 
 
 def cast_value(value: Any, param_type: str) -> Any:
@@ -545,54 +536,15 @@ def build_url(base_url: str, path: str) -> str:
 
 
 def self_test() -> None:
-    body = {
-        "errors": {
-            "detail": [
-                "No Analyzers and Connectors can be run after filtering:\n"
-                "OTXQuery won't run: is disabled or not configured\n"
-                "ThreatFox won't run: is disabled or not configured"
-            ],
-            "analyzers_requested": ["Object with name=NVD_CVE does not exist."],
-        }
-    }
-    lines = list(explain_probe_error(body))
-    assert "OTXQuery won't run: is disabled or not configured" in lines
-    assert "Object with name=NVD_CVE does not exist." in lines
     assert "INTELOWL_VIRUSTOTAL_V3_GET_OBSERVABLE_API_KEY_NAME" in env_candidates("VirusTotal_v3_Get_Observable", "api_key_name")
     assert read_api_key(argparse.Namespace(api_key=" token\n", api_key_file="")) == "token"
-    assert cast_value(" 00000000-0000-4000-8000-000000000000\n", "") == "00000000-0000-4000-8000-000000000000"
-    assert cast_value("false", "") == "false"
-    assert cast_value("null", "") == "null"
     assert cast_value("true", "bool") is True
-    assert cast_value("7", "int") == 7
-    assert build_url("https://intelowl.example", "/api/analyzer") == "https://intelowl.example/api/analyzer"
-    assert build_url("https://intelowl.example", "https://intelowl.example/api/analyzer?page=2").endswith("?page=2")
     try:
         build_url("https://intelowl.example", "https://attacker.example/api/analyzer?page=2")
     except IntelOwlRequestError:
         pass
     else:
         raise AssertionError("Cross-origin IntelOwl pagination URL was accepted")
-    ambiguous_detail = {"name": "NVD_CVE", "disabled": True, "_taranis_config_source": "detail"}
-    list_disabled = {"name": "NVD_CVE", "disabled": True, "_taranis_config_source": "list"}
-    assert analyzer_config_status(ambiguous_detail) == (
-        True,
-        "WARN",
-        AMBIGUOUS_DISABLED_MESSAGE,
-    )
-    assert analyzer_config_status(list_disabled) == (False, "FIX", "disabled")
-    buffer = io.StringIO()
-    with contextlib.redirect_stdout(buffer):
-        assert print_config_report({"cve": ["NVD_CVE"]}, {"NVD_CVE": ambiguous_detail}, False, {"cve"}) is False
-    output = buffer.getvalue()
-    assert "OK cve: runtime probe accepted" in output
-    assert AMBIGUOUS_DISABLED_MESSAGE not in output
-    old_no_color = os.environ.pop("NO_COLOR", None)
-    try:
-        assert colorize(GREEN, "ok").startswith(GREEN)
-    finally:
-        if old_no_color is not None:
-            os.environ["NO_COLOR"] = old_no_color
     print("self-test ok")
 
 

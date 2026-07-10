@@ -562,9 +562,9 @@ class BotExecute(MethodView):
 
 class BotDagPreview(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
-    def post(self, bot_id: str | None = None):
+    def post(self):
         try:
-            return bot.Bot.get_dag_preview(request.json or {}, bot_id), 200
+            return bot.Bot.get_dag_preview(request.json or {}), 200
         except ValueError as exc:
             logger.warning("Invalid bot DAG preview payload: %s", exc)
             return {"error": "Invalid bot DAG preview payload"}, 400
@@ -1091,7 +1091,6 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/bots", view_func=Bots.as_view(f"{name}_bots_config"))
     config_bp.add_url_rule("/bots/<string:bot_id>", view_func=Bots.as_view(f"{name}_bot_config"), methods=crud_methods)
     config_bp.add_url_rule("/bots/dag-preview", view_func=BotDagPreview.as_view(f"{name}_bot_dag_preview"))
-    config_bp.add_url_rule("/bots/<string:bot_id>/dag-preview", view_func=BotDagPreview.as_view(f"{name}_bot_dag_preview_for_bot"))
     config_bp.add_url_rule("/bots/<string:bot_id>/execute", view_func=BotExecute.as_view(f"{name}_bot_execute"))
     config_bp.add_url_rule(
         "/dictionaries-reload/<string:dictionary_type>", view_func=DictionariesReload.as_view(f"{name}_dictionaries_reload")
