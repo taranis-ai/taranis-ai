@@ -1,5 +1,8 @@
 import base64
 from datetime import datetime
+from urllib.parse import quote
+
+import pytest
 
 from tests.application.support.api_test_base import BaseTest
 
@@ -60,6 +63,20 @@ class TestPublishApi(BaseTest):
     def test_unknown_public_report_returns_not_found(self, client):
         response = client.get("/reports/00000000-0000-0000-0000-000000000000")
         assert response.status_code == 404
+
+    @pytest.mark.parametrize("product_id", ["..", "<script>alert(1)</script>"])
+    def test_untrusted_product_ids_are_not_used_in_paths_or_responses(self, app, client, api_header, monkeypatch, product_id, tmp_path):
+        monkeypatch.setitem(app.config, "DATA_FOLDER", str(tmp_path))
+        encoded_product_id = quote(product_id, safe="")
+
+        publish_response = client.post(f"/api/worker/products/{encoded_product_id}/publish", headers=api_header)
+        public_response = client.get(f"/reports/{encoded_product_id}")
+
+        assert publish_response.status_code == 404
+        assert public_response.status_code == 404
+        assert product_id not in publish_response.get_data(as_text=True)
+        assert product_id not in public_response.get_data(as_text=True)
+        assert not (tmp_path / "published-reports").exists()
 
     def test_get_publisher_presets(self, client, auth_header, publish_publisher_preset):
         response = self.assert_get_ok(client, f"publisher-presets?search={publish_publisher_preset['name']}", auth_header)

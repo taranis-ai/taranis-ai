@@ -16,4 +16,4 @@ The publisher worker validates that a rendered product exists, then calls the AP
 Run `cd src/core && uv run pytest tests/application/user_workspace/publishing/test_publish_api.py` and `cd src/worker && uv run pytest worker/tests/publishers/test_taranis_publisher.py`.
 
 ## Pitfalls
-Treat every published report as public data. The URL uses the product UUID instead of its title to avoid collisions and path traversal. Product type changes are unsupported, so the MIME type remains stable. Republishing the same product atomically replaces the existing file and preserves its URL.
+Treat every published report as public data. Filesystem paths and public URLs use the product UUID reloaded from the database, never the request path value, to avoid reflected XSS and path traversal. Product type changes are unsupported, so the MIME type remains stable. Republishing the same product atomically replaces the existing file and preserves its URL.

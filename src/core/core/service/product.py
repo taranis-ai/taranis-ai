@@ -38,17 +38,18 @@ class ProductService:
 
     @classmethod
     def publish_to_taranis(cls, product_id: str):
-        if not (product_data := Product.get_render(product_id)):
+        product = Product.get(product_id)
+        if not product or not product.render_result:
             return {"error": "Rendered product not found"}, 404
 
         report_directory = Path(current_app.config["DATA_FOLDER"]) / cls.PUBLISHED_REPORTS_FOLDER
         report_directory.mkdir(parents=True, exist_ok=True)
-        report_path = report_directory / product_id
+        report_path = report_directory / product.id
 
         temporary_path = None
         try:
             with NamedTemporaryFile(dir=report_directory, delete=False) as temporary_file:
-                temporary_file.write(b64decode(product_data["blob"]))
+                temporary_file.write(b64decode(product.render_result))
                 temporary_path = Path(temporary_file.name)
             temporary_path.replace(report_path)
         finally:
@@ -56,14 +57,16 @@ class ProductService:
                 temporary_path.unlink(missing_ok=True)
 
         application_root = current_app.config["APPLICATION_ROOT"].rstrip("/")
-        public_url = f"{application_root}/reports/{product_id}"
+        public_url = f"{application_root}/reports/{product.id}"
         return {"message": f"Product published at {public_url}", "url": public_url}, 200
 
     @classmethod
     def get_published_report(cls, product_id: str):
-        product = Product.get(product_id)
-        report_path = Path(current_app.config["DATA_FOLDER"]) / cls.PUBLISHED_REPORTS_FOLDER / product_id
-        if not product or not report_path.is_file():
+        if not (product := Product.get(product_id)):
+            return {"error": "Published report not found"}, 404
+
+        report_path = Path(current_app.config["DATA_FOLDER"]) / cls.PUBLISHED_REPORTS_FOLDER / product.id
+        if not report_path.is_file():
             return {"error": "Published report not found"}, 404
 
         response = send_file(report_path, mimetype=product.product_type.get_mimetype(), conditional=True)
