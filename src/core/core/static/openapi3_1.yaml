@@ -4036,6 +4036,9 @@ paths:
               required:
               - type
               properties:
+                id:
+                  type: string
+                  format: uuid
                 type:
                   type: string
                 index:
@@ -4054,6 +4057,7 @@ paths:
                       type: string
                     RUN_AFTER_BOTS:
                       type: string
+                      description: comma-separated bot instance IDs
       security:
       - UserAuth: []
       responses:

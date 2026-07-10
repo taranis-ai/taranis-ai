@@ -146,6 +146,7 @@ def form_formats_from_models(worker_parameter_data: dict[str, Any]):
             allowed_keys.add("delete_icon")
             allowed_keys.add("rank")
         if view_name == "Bot":
+            allowed_keys.add("id")
             allowed_keys.add("parameters[RUN_AFTER_BOTS][]")
             bot_type_ids = {member.value for member in BOT_TYPES}
             allowed_keys.update(

@@ -175,7 +175,7 @@ class TaskService:
 
             filter_data = result_data.get("filter")
             queue_manager.queue_manager.schedule_bot_dependents(
-                worker_type,
+                worker_id,
                 filter_data if isinstance(filter_data, dict) else None,
                 user_id=submission.user_id,
             )

@@ -26,7 +26,7 @@ class Bot(BaseModel):
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
-    type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES), unique=True, nullable=False)
+    type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES), nullable=False)
     index: Mapped[int] = db.Column(db.Integer, unique=True, nullable=False)
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
@@ -75,7 +75,6 @@ class Bot(BaseModel):
     def add(cls, data):
         try:
             bot = cls.from_dict(data)
-            cls._validate_unique_type(bot.type, bot.id)
             db.session.add(bot)
             cls.validate_dependency_config()
             db.session.commit()
@@ -97,7 +96,6 @@ class Bot(BaseModel):
             bot.description = data.get("description", "")
             if "type" in data:
                 bot.type = cls.normalize_bot_type(data["type"])
-                cls._validate_unique_type(bot.type, bot.id)
             if "enabled" in data:
                 bot.enabled = data.get("enabled", True)
             if parameters := data.get("parameters"):
@@ -127,20 +125,24 @@ class Bot(BaseModel):
         return db.session.execute(query).scalar_one()
 
     @classmethod
-    def filter_by_type(cls, filter_type: str) -> "Bot | None":
+    def filter_by_type(cls, filter_type: str | BOT_TYPES) -> "Bot | None":
         try:
             bot_type = cls.normalize_bot_type(filter_type)
         except ValueError:
             return None
         try:
-            return db.session.execute(db.select(cls).where(cls.type == bot_type)).scalar_one_or_none()
+            return db.session.execute(db.select(cls).where(cls.type == bot_type).order_by(cls.index)).scalars().first()
         except Exception:
             logger.exception(f"Error filtering bots by type: {filter_type}")
             return None
 
     @classmethod
-    def get_all_by_type(cls, filter_type: str):
-        return cls.get_filtered(db.select(cls).where(cls.type == filter_type))
+    def get_all_by_type(cls, filter_type: str | BOT_TYPES) -> Sequence["Bot"]:
+        try:
+            bot_type = cls.normalize_bot_type(filter_type)
+        except ValueError:
+            return []
+        return cls.get_filtered(db.select(cls).where(cls.type == bot_type).order_by(cls.index)) or []
 
     @classmethod
     def get_post_collection(cls) -> Sequence[str]:
@@ -152,64 +154,63 @@ class Bot(BaseModel):
         return cls._get_run_graph()
 
     @classmethod
-    def get_dependent_run_graph(cls, completed_bot_type: str | BOT_TYPES) -> tuple[list["Bot"], dict[str, list[str]]]:
-        return cls._get_run_graph(after_bot_type=completed_bot_type)
+    def get_dependent_run_graph(cls, completed_bot_id: str) -> tuple[list["Bot"], dict[str, list[str]]]:
+        return cls._get_run_graph(after_bot_id=completed_bot_id)
 
     @classmethod
-    def _get_run_graph(cls, after_bot_type: str | BOT_TYPES | None = None) -> tuple[list["Bot"], dict[str, list[str]]]:
-        bots_by_type = cls._bot_type_map(cls.get_all_for_collector())
-        dependencies = cls._dependency_map(bots_by_type)
-        order, dependency_types = cls._build_run_graph(bots_by_type, dependencies, after_bot_type=after_bot_type)
-        bots = [bots_by_type[bot_type] for bot_type in order]
-        dependencies_by_id = {
-            bots_by_type[bot_type].id: [bots_by_type[parent_type].id for parent_type in dependency_types[bot_type]] for bot_type in order
-        }
-        return bots, dependencies_by_id
+    def _get_run_graph(cls, after_bot_id: str | None = None) -> tuple[list["Bot"], dict[str, list[str]]]:
+        bots_by_id = {bot.id: bot for bot in cls._get_all_ordered()}
+        enabled_bots_by_id = {bot_id: bot for bot_id, bot in bots_by_id.items() if bot.enabled}
+        dependencies = cls._dependency_map(bots_by_id)
+        order, scheduled_dependencies = cls._build_run_graph(
+            enabled_bots_by_id,
+            dependencies,
+            after_bot_id=after_bot_id,
+        )
+        return [enabled_bots_by_id[bot_id] for bot_id in order], {bot_id: list(scheduled_dependencies[bot_id]) for bot_id in order}
 
     @classmethod
     def _build_run_graph(
         cls,
-        bots_by_type: dict[BOT_TYPES, "Bot"],
-        dependencies: dict[BOT_TYPES, set[BOT_TYPES]],
-        after_bot_type: str | BOT_TYPES | None = None,
-    ) -> tuple[list[BOT_TYPES], dict[BOT_TYPES, tuple[BOT_TYPES, ...]]]:
-        if after_bot_type is None:
-            scheduled = {bot_type for bot_type, bot in bots_by_type.items() if bot.run_after_collector}
+        bots_by_id: dict[str, "Bot"],
+        dependencies: dict[str, set[str]],
+        after_bot_id: str | None = None,
+    ) -> tuple[list[str], dict[str, tuple[str, ...]]]:
+        if after_bot_id is None:
+            scheduled = {bot_id for bot_id, bot in bots_by_id.items() if bot.run_after_collector}
         else:
-            completed_type = cls.normalize_bot_type(after_bot_type)
-            scheduled = {bot_type for bot_type, parents in dependencies.items() if completed_type in parents}
+            scheduled = {bot_id for bot_id, parents in dependencies.items() if bot_id in bots_by_id and after_bot_id in parents}
 
-        scheduled = cls._reachable_types(scheduled, dependencies)
+        scheduled = cls._reachable_bot_ids(scheduled, dependencies, set(bots_by_id))
         if not scheduled:
             return [], {}
 
-        def sort_key(bot_type: BOT_TYPES) -> int:
-            return bots_by_type[bot_type].index
+        def sort_key(bot_id: str) -> int:
+            return bots_by_id[bot_id].index
 
         graph = {
-            bot_type: tuple(sorted(dependencies.get(bot_type, set()) & scheduled, key=sort_key))
-            for bot_type in sorted(scheduled, key=sort_key)
+            bot_id: tuple(sorted(dependencies.get(bot_id, set()) & scheduled, key=sort_key)) for bot_id in sorted(scheduled, key=sort_key)
         }
         return cls._topological_order(graph), graph
 
     @staticmethod
-    def _reachable_types(start_types: set[BOT_TYPES], dependencies: dict[BOT_TYPES, set[BOT_TYPES]]) -> set[BOT_TYPES]:
-        scheduled = set(start_types)
-        pending = list(start_types)
+    def _reachable_bot_ids(start_ids: set[str], dependencies: dict[str, set[str]], enabled_ids: set[str]) -> set[str]:
+        scheduled = set(start_ids)
+        pending = list(start_ids)
         while pending:
-            parent_type = pending.pop()
-            for bot_type, parents in dependencies.items():
-                if parent_type in parents and bot_type not in scheduled:
-                    scheduled.add(bot_type)
-                    pending.append(bot_type)
+            parent_id = pending.pop()
+            for bot_id, parents in dependencies.items():
+                if bot_id in enabled_ids and parent_id in parents and bot_id not in scheduled:
+                    scheduled.add(bot_id)
+                    pending.append(bot_id)
         return scheduled
 
     @staticmethod
-    def _topological_order(graph: dict[BOT_TYPES, tuple[BOT_TYPES, ...]]) -> list[BOT_TYPES]:
+    def _topological_order(graph: dict[str, tuple[str, ...]]) -> list[str]:
         try:
             return list(TopologicalSorter(graph).static_order())
         except CycleError as exc:
-            cycle = " -> ".join(item.name if isinstance(item, BOT_TYPES) else str(item) for item in exc.args[1])
+            cycle = " -> ".join(str(item) for item in exc.args[1])
             raise ValueError(f"Bot run order contains a cycle: {cycle}") from exc
 
     @classmethod
@@ -217,45 +218,28 @@ class Bot(BaseModel):
         return list(db.session.execute(db.select(cls).order_by(cls.index)).scalars().all())
 
     @classmethod
-    def _bot_type_map(cls, bots: Sequence["Bot"]) -> dict[BOT_TYPES, "Bot"]:
-        bots_by_type: dict[BOT_TYPES, Bot] = {}
-        for bot in bots:
-            if bot.type in bots_by_type:
-                raise ValueError(f"Only one bot per type is allowed: {bot.type.name}")
-            bots_by_type[bot.type] = bot
-        return bots_by_type
-
-    @classmethod
-    def _dependency_map(cls, bots_by_type: dict[BOT_TYPES, "Bot"]) -> dict[BOT_TYPES, set[BOT_TYPES]]:
-        dependencies: dict[BOT_TYPES, set[BOT_TYPES]] = {bot_type: set() for bot_type in bots_by_type}
-        for bot_type, bot in bots_by_type.items():
-            for parent_type in bot.run_after_bot_types:
-                if parent_type == bot_type:
-                    raise ValueError(f"{bot_type.name} cannot run after itself")
-                if parent_type in bots_by_type:
-                    dependencies[bot_type].add(parent_type)
+    def _dependency_map(cls, bots_by_id: dict[str, "Bot"]) -> dict[str, set[str]]:
+        dependencies: dict[str, set[str]] = {bot_id: set() for bot_id in bots_by_id}
+        for bot_id, bot in bots_by_id.items():
+            for parent_id in bot.run_after_bot_ids:
+                if parent_id == bot_id:
+                    raise ValueError(f"{bot.name} cannot run after itself")
+                dependencies[bot_id].add(parent_id)
         return dependencies
 
     @classmethod
     def validate_dependency_config(cls) -> None:
-        bots_by_type = cls._bot_type_map(cls._get_all_ordered())
-        dependencies = cls._dependency_map(bots_by_type)
+        bots_by_id = {bot.id: bot for bot in cls._get_all_ordered()}
+        dependencies = cls._dependency_map(bots_by_id)
 
-        def sort_key(bot_type: BOT_TYPES) -> int:
-            return bots_by_type[bot_type].index
+        def sort_key(bot_id: str) -> int:
+            return bots_by_id[bot_id].index
 
         graph = {
-            bot_type: tuple(sorted(parents, key=sort_key))
-            for bot_type, parents in sorted(dependencies.items(), key=lambda item: sort_key(item[0]))
+            bot_id: tuple(sorted(parents & set(bots_by_id), key=sort_key))
+            for bot_id, parents in sorted(dependencies.items(), key=lambda item: sort_key(item[0]))
         }
         cls._topological_order(graph)
-
-    @classmethod
-    def _validate_unique_type(cls, bot_type: BOT_TYPES, bot_id: str | None = None) -> None:
-        with db.session.no_autoflush:
-            existing = cls.filter_by_type(bot_type.value)
-        if existing and existing.id != bot_id:
-            raise ValueError(f"Bot type {bot_type.name} already exists")
 
     @staticmethod
     def normalize_bot_type(value: str | BOT_TYPES) -> BOT_TYPES:
@@ -267,18 +251,21 @@ class Bot(BaseModel):
             raise ValueError(f"Unknown bot type: {value}") from exc
 
     @staticmethod
-    def parse_run_after_bots(value: Any) -> tuple[BOT_TYPES, ...]:
+    def parse_run_after_bots(value: Any) -> tuple[str, ...]:
         if isinstance(value, list):
             raw_values = value
         else:
             raw_values = str(value or "").split(",")
-        result: list[BOT_TYPES] = []
+        result: list[str] = []
         for raw_value in raw_values:
             if not (value_text := str(raw_value).strip()):
                 continue
-            bot_type = Bot.normalize_bot_type(value_text)
-            if bot_type not in result:
-                result.append(bot_type)
+            try:
+                bot_id = Bot.normalize_uuid_id(value_text)
+            except ValueError as exc:
+                raise ValueError(f"Invalid bot ID: {value_text}") from exc
+            if bot_id not in result:
+                result.append(bot_id)
         return tuple(result)
 
     @property
@@ -290,13 +277,13 @@ class Bot(BaseModel):
         return self.parameter_map.get(RUN_AFTER_COLLECTOR, "").lower() == "true"
 
     @property
-    def run_after_bot_types(self) -> tuple[BOT_TYPES, ...]:
+    def run_after_bot_ids(self) -> tuple[str, ...]:
         return self.parse_run_after_bots(self.parameter_map.get(RUN_AFTER_BOTS, ""))
 
     @classmethod
     def get_dag_preview(cls, candidate: dict[str, Any]) -> dict[str, Any]:
         bots = cls._get_all_ordered()
-        allowed_fields = {"type", "index", "enabled", "parameters"}
+        allowed_fields = {"id", "type", "index", "enabled", "parameters"}
         if unexpected_fields := set(candidate) - allowed_fields:
             raise ValueError(f"Unexpected bot DAG preview fields: {', '.join(sorted(unexpected_fields))}")
 
@@ -307,11 +294,12 @@ class Bot(BaseModel):
             raise ValueError(f"Unexpected bot DAG preview parameters: {', '.join(sorted(unexpected_parameters))}")
 
         bot_type = cls.normalize_bot_type(candidate.get("type", ""))
-        stored_bot = next((bot for bot in bots if bot.type == bot_type), None)
+        candidate_id = candidate.get("id") or None
+        stored_bot = next((bot for bot in bots if bot.id == candidate_id), None)
         index = candidate.get("index")
         candidate_bot = cls.from_dict(
             {
-                "id": stored_bot.id if stored_bot else None,
+                "id": stored_bot.id if stored_bot else candidate_id,
                 "name": stored_bot.name if stored_bot else "Unsaved bot",
                 "description": stored_bot.description if stored_bot else "",
                 "type": bot_type.value,
@@ -320,61 +308,62 @@ class Bot(BaseModel):
                 "parameters": parameters,
             }
         )
-        bots = [bot for bot in bots if bot.id != candidate_bot.id and bot.type != candidate_bot.type]
+        bots = [bot for bot in bots if bot.id != candidate_bot.id]
         bots.append(candidate_bot)
         bots.sort(key=lambda bot: bot.index)
 
-        warnings_by_type: list[tuple[str, str]] = []
-        bots_by_type: dict[BOT_TYPES, Bot] = {}
-        for bot in bots:
-            if bot.type in bots_by_type:
-                warnings_by_type.append((bot.type.name, f"Duplicate bot type configured: {bot.type.name}"))
-            bots_by_type[bot.type] = bot
-
+        warnings_by_id: list[tuple[str, str]] = []
+        bots_by_id = {bot.id: bot for bot in bots}
+        dependencies: dict[str, set[str]] = {bot.id: set() for bot in bots}
         edges = []
-        for bot_type, bot in bots_by_type.items():
+        for bot_id, bot in bots_by_id.items():
             try:
-                parent_types = bot.run_after_bot_types
+                parent_ids = bot.run_after_bot_ids
             except ValueError as exc:
-                warnings_by_type.append((bot_type.name, str(exc)))
+                warnings_by_id.append((bot_id, str(exc)))
                 continue
-            for parent_type in parent_types:
-                if parent_type == bot_type:
-                    warnings_by_type.append((bot_type.name, f"{bot_type.name} cannot run after itself"))
+            for parent_id in parent_ids:
+                if parent_id == bot_id:
+                    warnings_by_id.append((bot_id, f"{bot.name} cannot run after itself"))
                     continue
-                parent_bot = bots_by_type.get(parent_type)
+                dependencies[bot_id].add(parent_id)
+                parent_bot = bots_by_id.get(parent_id)
                 if not parent_bot:
-                    warnings_by_type.append((bot_type.name, f"{bot_type.name} waits for missing bot type {parent_type.name}"))
+                    warnings_by_id.append((bot_id, f"{bot.name} waits for missing bot {parent_id}"))
                     continue
                 if not parent_bot.enabled:
-                    warnings_by_type.append((bot_type.name, f"{bot_type.name} waits for disabled bot {parent_bot.name}"))
+                    warnings_by_id.append((bot_id, f"{bot.name} waits for disabled bot {parent_bot.name}"))
                 edges.append(
                     {
-                        "from_type": parent_type.name,
+                        "from_id": parent_id,
+                        "from_type": parent_bot.type.name,
                         "from_name": parent_bot.name,
-                        "to_type": bot_type.name,
+                        "to_id": bot_id,
+                        "to_type": bot.type.name,
                         "to_name": bot.name,
                         "disabled": not parent_bot.enabled or not bot.enabled,
                     }
                 )
 
-        related_types = {candidate_bot.type.name}
+        related_ids = {candidate_bot.id}
         changed = True
         while changed:
             changed = False
             for edge in edges:
-                edge_types = {edge["from_type"], edge["to_type"]}
-                if related_types & edge_types and not edge_types <= related_types:
-                    related_types.update(edge_types)
+                edge_ids = {edge["from_id"], edge["to_id"]}
+                if related_ids & edge_ids and not edge_ids <= related_ids:
+                    related_ids.update(edge_ids)
                     changed = True
 
-        edges = [edge for edge in edges if edge["from_type"] in related_types and edge["to_type"] in related_types]
-        warnings = [warning for bot_type, warning in warnings_by_type if bot_type in related_types]
-        enabled_by_type = {bot_type: bot for bot_type, bot in bots_by_type.items() if bot.enabled}
+        edges = [edge for edge in edges if edge["from_id"] in related_ids and edge["to_id"] in related_ids]
+        warnings = [warning for bot_id, warning in warnings_by_id if bot_id in related_ids]
+        enabled_by_id = {bot_id: bot for bot_id, bot in bots_by_id.items() if bot.enabled}
         try:
-            dependencies = cls._dependency_map(enabled_by_type)
-            order, _ = cls._build_run_graph(enabled_by_type, dependencies)
-            if candidate_bot.type not in order:
+            cls._topological_order(
+                {bot_id: tuple(parent_ids & related_ids) for bot_id, parent_ids in dependencies.items() if bot_id in related_ids}
+            )
+            order, _ = cls._build_run_graph(enabled_by_id, dependencies)
+            if candidate_bot.id not in order:
                 order = []
         except ValueError as exc:
             warnings.append(str(exc))
@@ -383,18 +372,19 @@ class Bot(BaseModel):
         return {
             "order": [
                 {
-                    "type": bot_type.name,
-                    "name": enabled_by_type[bot_type].name,
-                    "enabled": enabled_by_type[bot_type].enabled,
+                    "id": bot_id,
+                    "type": enabled_by_id[bot_id].type.name,
+                    "name": enabled_by_id[bot_id].name,
+                    "enabled": enabled_by_id[bot_id].enabled,
                 }
-                for bot_type in order
+                for bot_id in order
             ],
             "edges": edges,
             "warnings": list(dict.fromkeys(warnings)),
             "nodes": [
-                {"type": bot.type.name, "name": bot.name, "enabled": bot.enabled}
-                for bot in sorted(bots_by_type.values(), key=lambda item: item.index)
-                if bot.type.name in related_types
+                {"id": bot.id, "type": bot.type.name, "name": bot.name, "enabled": bot.enabled}
+                for bot in sorted(bots_by_id.values(), key=lambda item: item.index)
+                if bot.id in related_ids
             ],
         }
 

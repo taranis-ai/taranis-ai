@@ -3,7 +3,7 @@
 <div id="bot-dag-preview"
      hx-post="{{ url_for('admin.bot_dag_preview') }}"
      hx-trigger="change from:#bot-form delay:300ms"
-     hx-include="#bot-form [name='type'], #bot-form [name='index'], #bot-form [name='enabled'], #bot-form [name='parameters[RUN_AFTER_COLLECTOR]'], #bot-form [name='parameters[RUN_AFTER_BOTS][]']"
+     hx-include="#bot-form [name='id'], #bot-form [name='type'], #bot-form [name='index'], #bot-form [name='enabled'], #bot-form [name='parameters[RUN_AFTER_COLLECTOR]'], #bot-form [name='parameters[RUN_AFTER_BOTS][]']"
      hx-target="this"
      hx-swap="outerHTML"
      class="space-y-3">

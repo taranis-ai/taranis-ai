@@ -18,13 +18,13 @@ OPTIONAL_BOT_PARAMETERS = {"REFRESH_INTERVAL"}
 RUN_ORDER_PARAMETERS = {"RUN_AFTER_COLLECTOR", "RUN_AFTER_BOTS"}
 
 
-def render_bot_run_order(item: Bot) -> Markup:
+def render_bot_run_order(item: Bot, bot_names: dict[str, str]) -> Markup:
     parameters = item.parameters or {}
     parts = []
     if parameters.get("RUN_AFTER_COLLECTOR") == "true":
         parts.append('<span class="badge badge-primary badge-sm">Collector</span>')
-    for bot_type in _split_run_after_bots(parameters.get("RUN_AFTER_BOTS", "")):
-        parts.append(f'<span class="badge badge-outline badge-sm">{escape(bot_type)}</span>')
+    for bot_id in _split_run_after_bots(parameters.get("RUN_AFTER_BOTS", "")):
+        parts.append(f'<span class="badge badge-outline badge-sm">{escape(bot_names.get(bot_id, bot_id))}</span>')
     return Markup('<div class="flex flex-wrap gap-1">' + "".join(parts or ['<span class="text-base-content/50">Manual</span>']) + "</div>")
 
 
@@ -41,6 +41,16 @@ def _bot_type_name(item: Bot | None) -> str:
     return bot_type.name if bot_type else ""
 
 
+def _bot_names_by_id() -> dict[str, str]:
+    try:
+        return {bot.id: bot.name for bot in DataPersistenceLayer().get_objects(Bot).items if bot.id}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to load bot instance names")
+        return {}
+
+
 class BotView(AdminBaseView):
     model = Bot
     icon = "calculator"
@@ -53,12 +63,19 @@ class BotView(AdminBaseView):
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
+        bot_names = _bot_names_by_id()
         return [
             {"title": "Status", "field": "status", "sortable": True, "renderer": render_worker_status},
             {"title": "Name", "field": "name", "sortable": True, "renderer": None},
             {"title": "Description", "field": "description", "sortable": True, "renderer": None},
             {"title": "Type", "field": "type", "sortable": True, "renderer": render_item_type},
-            {"title": "Run Order", "field": "parameters", "sortable": False, "renderer": render_bot_run_order},
+            {
+                "title": "Run Order",
+                "field": "parameters",
+                "sortable": False,
+                "renderer": render_bot_run_order,
+                "render_args": {"bot_names": bot_names},
+            },
         ]
 
     @classmethod
@@ -101,6 +118,7 @@ class BotView(AdminBaseView):
             parameters = cls._filter_run_order_parameters(cls.get_worker_parameters(bot_type_name))
             dag_preview = cls.get_dag_preview(
                 {
+                    "id": bot.id,
                     "type": bot_type,
                     "index": bot.index,
                     "enabled": bot.enabled,
@@ -109,10 +127,10 @@ class BotView(AdminBaseView):
             )
 
         base_context |= {
-            "bot_types": cls.get_bot_type_options(bot),
+            "bot_types": cls.bot_types.values(),
             "parameter_values": parameter_values,
             "parameters": parameters,
-            "run_after_options": cls.get_run_after_options(bot_type_name),
+            "run_after_options": cls.get_run_after_options(bot.id if bot else ""),
             "selected_run_after": _split_run_after_bots(parameter_values.get("RUN_AFTER_BOTS", "")),
             "dag_preview": dag_preview,
             "optional_parameters": OPTIONAL_BOT_PARAMETERS,
@@ -133,7 +151,7 @@ class BotView(AdminBaseView):
             "bot/bot_config_fields.html",
             parameters=parameters,
             parameter_values={},
-            run_after_options=cls.get_run_after_options(bot_type),
+            run_after_options=cls.get_run_after_options("" if bot_id == "0" else bot_id),
             selected_run_after=[],
             bot_id=bot_id,
             dag_preview=cls.get_dag_preview({"type": bot_type}) if bot_type else {"order": [], "edges": [], "nodes": [], "warnings": []},
@@ -154,7 +172,7 @@ class BotView(AdminBaseView):
     def preview_bot_dag(cls):
         form_data = cls._get_normalized_form_data()
         parameters = form_data.get("parameters") or {}
-        payload = {key: form_data[key] for key in ("type", "index", "enabled") if key in form_data}
+        payload = {key: form_data[key] for key in ("id", "type", "index", "enabled") if key in form_data}
         payload["parameters"] = {key: parameters[key] for key in RUN_ORDER_PARAMETERS if key in parameters}
         return (
             render_template(
@@ -177,14 +195,7 @@ class BotView(AdminBaseView):
         return [parameter for parameter in parameters if parameter.name not in RUN_ORDER_PARAMETERS]
 
     @classmethod
-    def get_bot_type_options(cls, current_bot: Bot | None = None) -> list[dict[str, str]]:
-        current_type = _bot_type_name(current_bot).lower()
-        used_types = cls._used_bot_type_names(exclude_type=current_type)
-        return [option for option in cls.bot_types.values() if option["id"] == current_type or option["id"] not in used_types]
-
-    @classmethod
-    def get_run_after_options(cls, current_type: str = "") -> list[dict[str, str]]:
-        current_type = current_type.lower()
+    def get_run_after_options(cls, current_bot_id: str = "") -> list[dict[str, str]]:
         try:
             bots = DataPersistenceLayer().get_objects(Bot).items
         except HTTPException:
@@ -194,12 +205,12 @@ class BotView(AdminBaseView):
             bots = []
         return [
             {
-                "id": bot_type_name,
-                "name": f"{bot.name} ({bot_type_name})",
+                "id": bot.id,
+                "name": f"{bot.name} ({_bot_type_name(bot)})",
                 "enabled": "true" if bot.enabled else "false",
             }
             for bot in bots
-            if (bot_type_name := _bot_type_name(bot)) and bot_type_name.lower() != current_type
+            if bot.id and bot.id != current_bot_id
         ]
 
     @classmethod
@@ -208,13 +219,3 @@ class BotView(AdminBaseView):
         if response is not None and response.ok:
             return response.json()
         return {"order": [], "edges": [], "nodes": [], "warnings": ["Run order preview is unavailable"]}
-
-    @classmethod
-    def _used_bot_type_names(cls, exclude_type: str = "") -> set[str]:
-        try:
-            bots = DataPersistenceLayer().get_objects(Bot).items
-        except HTTPException:
-            raise
-        except Exception:
-            return set()
-        return {bot_type_name.lower() for bot in bots if (bot_type_name := _bot_type_name(bot)) and bot_type_name.lower() != exclude_type}

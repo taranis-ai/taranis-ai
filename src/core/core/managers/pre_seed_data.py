@@ -415,7 +415,7 @@ bots = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "RUN_AFTER_BOTS", "value": "WORDLIST_BOT"},
+            {"parameter": "RUN_AFTER_BOTS"},
             {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
     },
@@ -426,7 +426,7 @@ bots = [
         "enabled": False,
         "parameters": [
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "RUN_AFTER_BOTS", "value": "IOC_BOT"},
+            {"parameter": "RUN_AFTER_BOTS"},
             {"parameter": "INTEL_OWL_TLS_VERIFY", "type": "switch", "value": "true"},
             {"parameter": "INTEL_OWL_TLP", "value": "CLEAR"},
             {"parameter": "INTEL_OWL_POLL_TIMEOUT_SECONDS", "type": "text", "value": "1800", "rules": "positive_int"},
@@ -439,7 +439,7 @@ bots = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "RUN_AFTER_BOTS", "value": "IOC_BOT"},
+            {"parameter": "RUN_AFTER_BOTS"},
             {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
         ],
     },
@@ -470,7 +470,7 @@ bots = [
         "type": "SUMMARY_BOT",
         "parameters": [
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "RUN_AFTER_BOTS", "value": "NLP_BOT,STORY_BOT"},
+            {"parameter": "RUN_AFTER_BOTS"},
         ],
     },
     {

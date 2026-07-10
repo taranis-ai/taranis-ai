@@ -1102,11 +1102,11 @@ class QueueManager:
 
         return {"message": "Post collection bots scheduled"}, 200
 
-    def schedule_bot_dependents(self, bot_type: str, filter: dict | None = None, user_id: str | None = None):
-        """Schedule bots that depend on a completed bot type."""
+    def schedule_bot_dependents(self, bot_id: str, filter: dict | None = None, user_id: str | None = None):
+        """Schedule bots that depend on a completed bot instance."""
         from core.model.bot import Bot
 
-        dependent_bots, dependencies_by_id = Bot.get_dependent_run_graph(bot_type)
+        dependent_bots, dependencies_by_id = Bot.get_dependent_run_graph(bot_id)
         if not dependent_bots:
             return {"message": "No dependent bots found"}, 200
 
@@ -1114,7 +1114,7 @@ class QueueManager:
             dependent_bots,
             dependencies_by_id,
             filter=filter,
-            job_suffix=bot_type.lower(),
+            job_suffix=bot_id,
             user_id=user_id,
             trigger_dependents=False,
         ):
