@@ -38,7 +38,7 @@ Analyzer selection is intentionally hardcoded by observable type in v1. Batch ex
 ## Data Flow
 Automatic runs use the bot run-order DAG when the disabled-by-default IntelOwl bot is enabled and configured. The seeded dependency is `IOC_BOT -> INTEL_OWL_BOT`, so enrichment runs only after IOC tags have been created. The DAG scheduler does not treat IntelOwl specially. Manual story and report runs queue `bot_task` with `story_id`, `story_ids`, or `report_ids` after core verifies item-level write access. The worker deduplicates normalized IOC tags within one execution, fetches existing final IOC rows, submits all missing IOCs, polls the outstanding jobs in shared rounds for up to `INTEL_OWL_POLL_TIMEOUT_SECONDS` (default `1800`), and returns compact final enrichment payloads. Core task handling batch-fetches existing rows and retries once if concurrent IOC insertion races with the unique value constraint.
 
-Frontend CTI routes render normal full-page views and CTI entry points should use plain `<a href="...">` links, not modal-targeted HTMX requests. The shared template has compact analyzer-specific rendering for NVD CVE, VirusTotal observable, and URLhaus no-result payloads, with raw JSON as the fallback for unknown analyzers.
+Frontend CTI routes render normal full-page views and CTI entry points should use plain `<a href="...">` links, not modal-targeted HTMX requests. The CTI Back button uses browser history so users return to the page and state from which they opened CTI. The shared template has compact analyzer-specific rendering for NVD CVE, VirusTotal observable, and URLhaus no-result payloads, with raw JSON as the fallback for unknown analyzers.
 Analyzer-provided CTI links are rendered only for `http` and `https` URLs.
 
 ## Testing

@@ -480,14 +480,18 @@ def disabled_bot(app):
         from core.managers.db_manager import db
         from core.model.bot import Bot
 
-        bot = Bot.filter_by_type("ioc_bot")
-        assert bot is not None
-        was_enabled = bot.enabled
+        bot = Bot(
+            name="Disabled Bot",
+            description="Disabled bot fixture",
+            type="ioc_bot",
+            parameters={"REFRESH_INTERVAL": "0 * * * *"},
+        )
         bot.enabled = False
+        db.session.add(bot)
         db.session.commit()
         yield bot
         try:
-            bot.enabled = was_enabled
+            db.session.delete(bot)
             db.session.commit()
         except Exception:
             db.session.rollback()

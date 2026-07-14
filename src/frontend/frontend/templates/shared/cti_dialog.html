@@ -255,18 +255,6 @@
 {% endmacro %}
 
 {% block content %}
-  {% if cti.item_type == "report" %}
-    {% set back_url = url_for("analyze.report", report_id=cti.item_id) %}
-  {% elif cti.item_type == "story" %}
-    {% set back_url = url_for("assess.story", story_id=cti.item_id) %}
-  {% elif cti.item_type == "news_item" %}
-    {% set back_url = url_for("assess.get_news_item", news_item_id=cti.item_id) %}
-  {% elif cti.item_type == "asset" and cti.item_id != "all" %}
-    {% set back_url = url_for("assets.asset", asset_id=cti.item_id) %}
-  {% else %}
-    {% set back_url = url_for("assets.assets") %}
-  {% endif %}
-
   <section id="cti-view" class="p-4 space-y-4" data-testid="cti-view">
     <div class="flex flex-wrap items-start gap-3">
       <div class="min-w-0 flex-1">
@@ -276,7 +264,7 @@
           <span class="font-mono break-all">{{ cti.item_id }}</span>
         </p>
       </div>
-      <a href="{{ back_url }}" class="btn btn-outline btn-sm" data-testid="cti-back-link">Back</a>
+      <button type="button" onclick="window.history.back()" class="btn btn-outline btn-sm" data-testid="cti-back-link">Back</button>
     </div>
 
     {% if cti.iocs %}

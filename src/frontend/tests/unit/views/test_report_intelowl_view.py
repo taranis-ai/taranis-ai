@@ -1,6 +1,7 @@
 from typing import Any
 
 from flask import url_for
+from lxml import html
 
 from frontend.config import Config
 from frontend.views.asset_views import AssetView
@@ -50,6 +51,12 @@ def test_report_cti_view_renders_enrichment(authenticated_client_basic: Any, res
     assert 'data-testid="cti-view"' in response.text
     assert "CVE-2026-11405" in response.text
     assert "NVD_CVE" in response.text
+
+    back_button = html.fromstring(response.text).get_element_by_id("cti-view").xpath('.//*[@data-testid="cti-back-link"]')[0]
+    assert back_button.tag == "button"
+    assert back_button.get("type") == "button"
+    assert back_button.get("onclick") == "window.history.back()"
+    assert back_button.get("href") is None
 
 
 def test_cti_view_skips_non_http_external_links(authenticated_client_basic: Any, responses_mock: Any) -> None:
