@@ -144,6 +144,9 @@ def form_formats_from_models():
         if view_name == "OSINT Source":
             allowed_keys.add("delete_icon")
             allowed_keys.add("rank")
+        elif view_name == "Bot":
+            allowed_keys.discard("enabled")
+            required_keys.discard("enabled")
 
         payloads[view_name] = {
             "allowed": allowed_keys,
