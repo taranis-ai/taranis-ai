@@ -1,9 +1,8 @@
 import json
 from datetime import datetime, timezone
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy import func, or_
-from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
@@ -347,6 +346,6 @@ class Task(BaseModel):
 
     @classmethod
     def delete_older_than_last_run(cls, cutoff: datetime) -> int:
-        result = cast(CursorResult[Any], db.session.execute(db.delete(cls).where(cls.last_run < cutoff)))
+        result = db.session.execute(db.delete(cls).where(or_(cls.last_run < cutoff, cls.last_run.is_(None))))
         db.session.commit()
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
