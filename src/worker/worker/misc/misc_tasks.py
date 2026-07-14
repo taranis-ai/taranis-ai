@@ -171,33 +171,32 @@ def cleanup_task_history():
     job = get_current_job()
     core_api = CoreApi()
     payload = core_api.cleanup_task_history()
-    if payload is None:
+    if payload is not None:
         if job:
             core_api.save_task_result(
                 job.id,
                 TASK_HISTORY_CLEANUP_TASK_ID,
-                "FAILURE",
+                "SUCCESS",
                 worker_id=TASK_HISTORY_CLEANUP_TASK_ID,
                 worker_type=TASK_HISTORY_CLEANUP_TASK_ID,
-                result=build_failure_task_result(
-                    "Task history cleanup failed",
-                    reason="job_failed",
-                    retryable=True,
+                result=build_success_task_result(
+                    default_message=str(payload.get("message") or "Task history cleanup completed"),
+                    data=payload,
                 ),
             )
-        raise RuntimeError("Task history cleanup failed")
+        return payload
 
     if job:
         core_api.save_task_result(
             job.id,
             TASK_HISTORY_CLEANUP_TASK_ID,
-            "SUCCESS",
+            "FAILURE",
             worker_id=TASK_HISTORY_CLEANUP_TASK_ID,
             worker_type=TASK_HISTORY_CLEANUP_TASK_ID,
-            result=build_success_task_result(
-                default_message=str(payload.get("message") or "Task history cleanup completed"),
-                data=payload,
+            result=build_failure_task_result(
+                "Task history cleanup failed",
+                reason="job_failed",
+                retryable=True,
             ),
         )
-
-    return payload
+    raise RuntimeError("Task history cleanup failed")

@@ -79,7 +79,7 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
     }
 
 
-def test_fetch_single_news_item_accepts_simple_web_source_payload(current_job, monkeypatch):
+def test_fetch_single_news_item_accepts_simple_web_source_payload_and_persists_success_result(current_job, requests_mock, monkeypatch):
     captured_parameters = {}
 
     class FakeSimpleWebCollector:
@@ -87,31 +87,6 @@ def test_fetch_single_news_item_accepts_simple_web_source_payload(current_job, m
 
         def preview_collector(self, parameters):
             captured_parameters.update(parameters)
-            return [{"title": "Fetched item", "content": "Fetched content", "osint_source_id": "manual"}]
-
-    monkeypatch.setattr(collector_tasks.worker.collectors, "SimpleWebCollector", FakeSimpleWebCollector)
-
-    result = collector_tasks.fetch_single_news_item(
-        {
-            "id": "manual",
-            "type": "simple_web_collector",
-            "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
-        }
-    )
-
-    assert result == [{"title": "Fetched item", "content": "Fetched content", "osint_source_id": "manual"}]
-    assert captured_parameters == {
-        "id": "manual",
-        "type": "simple_web_collector",
-        "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
-    }
-
-
-def test_fetch_single_news_item_persists_success_result(current_job, requests_mock, monkeypatch):
-    class FakeSimpleWebCollector:
-        name = "Simple Web Collector"
-
-        def preview_collector(self, parameters):
             return [{"title": "Fetched item", "source": parameters["parameters"]["WEB_URL"]}]
 
     monkeypatch.setattr(collector_tasks.worker.collectors, "SimpleWebCollector", FakeSimpleWebCollector)
@@ -126,6 +101,11 @@ def test_fetch_single_news_item_persists_success_result(current_job, requests_mo
     )
 
     assert result == [{"title": "Fetched item", "source": "https://example.com/story"}]
+    assert captured_parameters == {
+        "id": "manual",
+        "type": "simple_web_collector",
+        "parameters": {"WEB_URL": "https://example.com/story", "XPATH": "//article"},
+    }
 
     post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
     assert len(post_calls) == 1
