@@ -182,3 +182,24 @@ def test_default_taranis_publisher_is_restored_when_missing(session):
     assert restored is not None
     assert restored.id == PublisherPreset.DEFAULT_TARANIS_ID
     assert count == 1
+
+
+def test_default_taranis_publisher_recovers_from_concurrent_insert(session, monkeypatch):
+    from sqlalchemy.exc import IntegrityError
+
+    from core.managers.db_manager import db
+    from core.model.publisher_preset import PublisherPreset
+
+    db.session.execute(db.delete(PublisherPreset).where(PublisherPreset.id == PublisherPreset.DEFAULT_TARANIS_ID))
+    db.session.commit()
+    add = PublisherPreset.add
+
+    def add_then_conflict(data):
+        add(data)
+        raise IntegrityError("insert", {}, Exception("duplicate key"))
+
+    monkeypatch.setattr(PublisherPreset, "add", staticmethod(add_then_conflict))
+
+    preset = PublisherPreset.ensure_default_taranis()
+
+    assert preset.id == PublisherPreset.DEFAULT_TARANIS_ID

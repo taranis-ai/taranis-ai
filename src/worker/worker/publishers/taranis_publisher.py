@@ -16,6 +16,6 @@ class TaranisPublisher(BasePublisher):
         product_id = product.get("id")
         if not product_id:
             raise ValueError("Product has no id")
-        if result := self.core_api.publish_product_to_taranis(product_id):
+        if (result := self.core_api.publish_product_to_taranis(product_id)) is not None:
             return result
         raise RuntimeError("Taranis failed to store the published product")

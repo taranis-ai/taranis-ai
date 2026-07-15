@@ -1,6 +1,7 @@
 from typing import Any
 
 from models.types import PUBLISHER_TYPES
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.expression import Select
 
@@ -76,14 +77,20 @@ class PublisherPreset(BaseModel):
     def ensure_default_taranis(cls) -> "PublisherPreset":
         if preset := cls.get(cls.DEFAULT_TARANIS_ID):
             return preset
-        return cls.add(
-            {
-                "id": cls.DEFAULT_TARANIS_ID,
-                "name": "Taranis Publisher",
-                "description": "Publisher for making products publicly available in Taranis",
-                "type": PUBLISHER_TYPES.TARANIS_PUBLISHER,
-            }
-        )
+        try:
+            return cls.add(
+                {
+                    "id": cls.DEFAULT_TARANIS_ID,
+                    "name": "Taranis Publisher",
+                    "description": "Publisher for making products publicly available in Taranis",
+                    "type": PUBLISHER_TYPES.TARANIS_PUBLISHER,
+                }
+            )
+        except IntegrityError:
+            db.session.rollback()
+            if preset := cls.get(cls.DEFAULT_TARANIS_ID):
+                return preset
+            raise
 
     @classmethod
     def delete(cls, preset_id: str) -> tuple[dict[str, Any], int]:
