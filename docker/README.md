@@ -159,6 +159,12 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
+| `CHAT_ENABLED`                | Enable the optional analyst Chat API       | `false`       |
+| `CHAT_LLM_BASE_URL`           | OpenAI-compatible provider API base URL    | `''`          |
+| `CHAT_LLM_MODEL`              | Optional provider model                    | `''`          |
+| `CHAT_LLM_API_KEY`            | Optional provider bearer credential (secret) | `''`       |
+| `CHAT_LLM_TIMEOUT`            | Provider request timeout in seconds        | `120`         |
+| `CHAT_MAX_STORIES`            | Maximum story summaries per answer call    | `5`           |
 
 ### `worker`
 
@@ -180,6 +186,8 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 | `GRANIAN_WORKERS_MAX_RSS` | Per-worker Granian RSS recycle limit in MiB | `1024`       |
+| `CHAT_ENABLED`            | Show the optional analyst Chat workspace    | `false`      |
+| `CHAT_REQUEST_TIMEOUT`    | Synchronous Chat request timeout in seconds | `300`        |
 
 
 > [!NOTE]

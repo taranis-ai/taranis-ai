@@ -1,0 +1,82 @@
+<div id="chat-workspace" class="flex h-[calc(100vh-5rem)] min-h-0 flex-col gap-3 p-3 lg:flex-row" data-testid="chat-workspace">
+  <aside class="flex max-h-56 shrink-0 flex-col rounded-box bg-base-200 p-3 lg:max-h-none lg:w-72" aria-label="{{ _('Chat history') }}">
+    <a href="{{ url_for('chat.index') }}" class="btn btn-primary btn-sm mb-3" data-testid="chat-new">{{ _("New Chat") }}</a>
+    <div class="min-h-0 space-y-1 overflow-y-auto">
+      {% for item in conversations %}
+        <div class="flex items-center gap-1 rounded-md {% if conversation and item.id == conversation.id %}bg-base-300{% endif %}">
+          <a href="{{ url_for('chat.conversation', conversation_id=item.id) }}"
+             class="min-w-0 flex-1 truncate px-2 py-2 text-sm"
+             title="{{ item.title }}"
+             data-testid="chat-history-item">{{ item.title }}</a>
+          <button class="btn btn-ghost btn-xs btn-square"
+                  aria-label="{{ _('Delete chat') }}"
+                  hx-delete="{{ url_for('chat.delete_conversation', conversation_id=item.id) }}"
+                  hx-target="#chat-workspace"
+                  hx-swap="outerHTML"
+                  hx-confirm="{{ _('Delete this chat conversation?') }}"
+                  data-testid="chat-delete">{{ heroicon_outline("trash") }}</button>
+        </div>
+      {% else %}
+        <p class="text-sm text-base-content/60">{{ _("No saved conversations yet.") }}</p>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <section class="flex min-h-0 min-w-0 flex-1 flex-col rounded-box bg-base-100 shadow" aria-label="{{ _('Analyst chat') }}">
+    {% if notification %}
+      {{ notification | safe }}
+    {% endif %}
+
+    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4" id="chat-messages" aria-live="polite">
+      {% if conversation %}
+        {% for message in message_views %}
+          <div class="chat {% if message.role == 'user' %}chat-end{% else %}chat-start{% endif %}" data-testid="chat-message-{{ message.role }}">
+            <div class="chat-header mb-1">{% if message.role == 'user' %}{{ _("You") }}{% else %}{{ _("Taranis Chat") }}{% endif %}</div>
+            <div class="chat-bubble whitespace-pre-wrap break-words {% if message.role == 'user' %}chat-bubble-primary{% endif %}">{{ message.content }}</div>
+            {% if message.search_result %}
+              <div class="chat-footer mt-2">
+                <a class="link link-primary text-sm" href="{{ message.assess_url }}" data-testid="chat-assess-link">{{ _("View %(count)s matching stories in Assess", count=message.search_result.total_count) }}</a>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="flex flex-1 items-center justify-center text-center text-base-content/60">
+          <div>
+            {{ heroicon_outline("chat-bubble-left-right", class="mx-auto mb-3 h-12 w-12") }}
+            <p>{{ _("Ask a question or search the stories available to you in Taranis.") }}</p>
+            <p class="mt-2 text-xs">{{ _("Messages and selected story summaries are sent to the configured LLM provider.") }}</p>
+          </div>
+        </div>
+      {% endif %}
+      <div id="chat-answer-loading" class="chat chat-start htmx-indicator shrink-0" data-testid="chat-answer-loading">
+        <div class="chat-header mb-1">{{ _("Taranis Chat") }}</div>
+        <div class="chat-bubble">
+          <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+        </div>
+      </div>
+    </div>
+
+    <form class="border-t border-base-300 p-3"
+          hx-post="{% if conversation %}{{ url_for('chat.conversation_message', conversation_id=conversation.id) }}{% else %}{{ url_for('chat.send_message') }}{% endif %}"
+          hx-target="#chat-workspace"
+          hx-swap="outerHTML"
+          hx-indicator="#chat-answer-loading"
+          hx-disabled-elt="#chat-message-input, #chat-send"
+          data-testid="chat-form">
+      <label class="sr-only" for="chat-message-input">{{ _("Message") }}</label>
+      <div class="flex items-end gap-2">
+        <textarea id="chat-message-input"
+                  name="content"
+                  class="textarea textarea-bordered min-h-12 flex-1 resize-y"
+                  maxlength="4000"
+                  rows="2"
+                  required
+                  placeholder="{{ _('Ask Taranis…') }}"
+                  onkeydown="if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); this.form.requestSubmit(); }"
+                  data-testid="chat-input">{{ draft }}</textarea>
+        <button id="chat-send" type="submit" class="btn btn-primary" data-testid="chat-send">{{ _("Send") }}</button>
+      </div>
+    </form>
+  </section>
+</div>

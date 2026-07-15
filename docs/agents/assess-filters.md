@@ -8,6 +8,8 @@ Load this memory for tasks mentioning assess filters, the assess sidebar, story 
 
 Assess filters let users narrow stories and news items from the assess workspace by search text, read/important/relevant/in-report states, source, group, language, tags, date range, and sorting.
 
+`AssessSearchFilters` defines the canonical Assess story filter fields, multi-value fields, validation, and query serialization used by the core Assess endpoint, frontend saved filters, and Analyst Chat. Paging and internal query controls remain separate. Core additionally validates model-proposed source, group, tag, language, and recent-story references against the current user's visible catalog before calling `Story.get_by_filter(filter_args, current_user)`. Chat search-result links reuse the canonical `/assess` query shape with doseq encoding for multi-value filters.
+
 Filter option lists must reflect current user-visible database state. `/api/assess/filter-lists` builds those options on request and returns tags, sources, groups, and languages. The frontend may cache the response per user, so core writes that affect assess views must invalidate the relevant frontend cache scope.
 
 Saved assess default filters belong to the user profile. Applying defaults should preserve the same canonical query parameter shape used by normal sidebar filtering. Saving with an existing saved filter name updates that filter, duplicate filter criteria under another name are rejected, and managed filters can be updated from the current sidebar filters.
@@ -20,6 +22,7 @@ Saved assess default filters belong to the user profile. Applying defaults shoul
 - Core filter data: `src/core/core/model/filter_data.py`
 - Core cache invalidation: `src/core/core/service/cache_invalidation.py`
 - Shared models: `src/models/models/assess.py`
+  - `AssessSearchFilters`
   - `FilterLists`
   - assess source/group/list models
 - Frontend API client: `src/frontend/frontend/core_api.py`
@@ -31,6 +34,8 @@ Saved assess default filters belong to the user profile. Applying defaults shoul
   - saved filter shortcut links
 - Frontend routes: `src/frontend/frontend/router/assess.py`
 - Omnisearch: `src/frontend/frontend/omnisearch.py`, `src/frontend/frontend/router/base.py`
+- Chat planner and validation: `src/core/core/service/chat.py`
+- Chat filter links: `src/frontend/frontend/views/chat_views.py`
 - Templates: `src/frontend/frontend/templates/assess/sidebar/`
   - `sidebar.html`
   - `source_select.html`
@@ -68,6 +73,7 @@ For broad validation or CI regressions, follow the project test instructions in 
 - Do not import admin-domain models from `models.admin` into user-facing frontend assess views.
 - Do not use admin/config endpoints for user-facing assess filter workflows.
 - Keep frontend and core query parameter names aligned; avoid adding compatibility aliases for new WIP filter fields.
+- Chat must execute story searches through `Story.get_by_filter` with the current user; a model-proposed filter must never become a raw SQL fragment or bypass server-side catalog validation.
 - Filter-list cache invalidation matters because stale sources, groups, tags, or languages can hide available filter options.
 - Treat persisted naive datetimes in core as UTC when date/range filtering changes touch stored timestamps.
 - Prefer `data-test-id` selectors when adding e2e coverage for new filter UI behavior.

@@ -15,6 +15,7 @@ db: SQLAlchemy = SQLAlchemy()
 
 
 def initial_database_setup(engine: Engine):
+    import_module("core.model.chat")
     import_module("core.model.ioc")
 
     is_empty = is_db_empty(engine)

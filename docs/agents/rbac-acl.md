@@ -10,6 +10,8 @@ OSINT source visibility can be granted by a direct OSINT Source ACL or inherited
 
 Manual story and report bot-action endpoints enforce item-level write ACLs and TLP access before queueing work. The worker API key must not be used as a way for a user request to trigger processing of inaccessible content.
 
+Analyst Chat requires `ASSESS_ACCESS`, scopes every conversation to its owner, and runs generated story filters through `Story.get_by_filter(..., current_user)`. Only ACL/TLP-visible source and group catalogs and accessible bounded story summaries may leave core for the configured provider. Recent story references must be rechecked through the same story path before reuse in a follow-up.
+
 ## Code Paths
 Core ACL evaluation lives in `src/core/core/service/role_based_access.py`. OSINT source, source-group, news-item, story, report, product, and word-list models call it through `get_filter_query_with_acl` or per-item access checks. Admin/config routes in `src/core/core/api/config.py` should rely on `CONFIG_*` permissions and should not pass `current_user` into ACL-aware model calls.
 

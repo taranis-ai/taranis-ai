@@ -26,24 +26,38 @@
         <span class="sr-only 2xl:not-sr-only">{{ _("Dashboard") }}</span>
       </a>
     </li>
-    <li>
-      <a href="{{ url_for('assess.assess') }}" data-tour-target="nav-assess" class="whitespace-nowrap">
-        {{ heroicon_outline("newspaper") }}
-        <span class="sr-only 2xl:not-sr-only">{{ _("Assess") }}</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('analyze.analyze') }}" data-tour-target="nav-analyze" class="whitespace-nowrap">
-        {{ heroicon_outline("presentation-chart-bar") }}
-        <span class="sr-only 2xl:not-sr-only">{{ _("Analyze") }}</span>
-      </a>
-    </li>
-    <li>
-      <a href="{{ url_for('publish.publish') }}" data-tour-target="nav-publish" class="whitespace-nowrap">
-        {{ heroicon_outline("paper-airplane") }}
-        <span class="sr-only 2xl:not-sr-only">{{ _("Publish") }}</span>
-      </a>
-    </li>
+    {% if current_user and 'ASSESS_ACCESS' in current_user.permissions %}
+      <li>
+        <a href="{{ url_for('assess.assess') }}" data-tour-target="nav-assess" class="whitespace-nowrap">
+          {{ heroicon_outline("newspaper") }}
+          <span class="sr-only 2xl:not-sr-only">{{ _("Assess") }}</span>
+        </a>
+      </li>
+      {% if chat_enabled %}
+        <li>
+          <a href="{{ url_for('chat.index') }}" data-tour-target="nav-chat" class="whitespace-nowrap" data-testid="nav-chat">
+            {{ heroicon_outline("chat-bubble-left-right") }}
+            <span class="sr-only 2xl:not-sr-only">{{ _("Chat") }}</span>
+          </a>
+        </li>
+      {% endif %}
+    {% endif %}
+    {% if current_user and 'ANALYZE_ACCESS' in current_user.permissions %}
+      <li>
+        <a href="{{ url_for('analyze.analyze') }}" data-tour-target="nav-analyze" class="whitespace-nowrap">
+          {{ heroicon_outline("presentation-chart-bar") }}
+          <span class="sr-only 2xl:not-sr-only">{{ _("Analyze") }}</span>
+        </a>
+      </li>
+    {% endif %}
+    {% if current_user and 'PUBLISH_ACCESS' in current_user.permissions %}
+      <li>
+        <a href="{{ url_for('publish.publish') }}" data-tour-target="nav-publish" class="whitespace-nowrap">
+          {{ heroicon_outline("paper-airplane") }}
+          <span class="sr-only 2xl:not-sr-only">{{ _("Publish") }}</span>
+        </a>
+      </li>
+    {% endif %}
     <li>
       <a href="{{ url_for('assets.assets') }}" class="whitespace-nowrap">
         {{ heroicon_outline("document-chart-bar") }}

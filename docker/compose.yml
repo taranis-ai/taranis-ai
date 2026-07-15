@@ -62,6 +62,12 @@ services:
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       API_KEY: "${API_KEY}"
+      CHAT_ENABLED: "${CHAT_ENABLED:-False}"
+      CHAT_LLM_BASE_URL: "${CHAT_LLM_BASE_URL:-}"
+      CHAT_LLM_API_KEY: "${CHAT_LLM_API_KEY:-}"
+      CHAT_LLM_MODEL: "${CHAT_LLM_MODEL:-}"
+      CHAT_LLM_TIMEOUT: "${CHAT_LLM_TIMEOUT:-120}"
+      CHAT_MAX_STORIES: "${CHAT_MAX_STORIES:-5}"
       DEBUG: "${DEBUG:-False}"
     volumes:
       - "core_data:/app/data"
@@ -121,6 +127,8 @@ services:
       SENTRY_ENABLE_LOGS: "${SENTRY_ENABLE_LOGS:-False}"
       SENTRY_SEND_DEFAULT_PII: "${SENTRY_SEND_DEFAULT_PII:-False}"
       DEBUG: "${DEBUG:-False}"
+      CHAT_ENABLED: "${CHAT_ENABLED:-False}"
+      CHAT_REQUEST_TIMEOUT: "${CHAT_REQUEST_TIMEOUT:-300}"
     healthcheck:
       test: ["CMD", "taranis-frontend-healthcheck"]
       interval: 1m30s

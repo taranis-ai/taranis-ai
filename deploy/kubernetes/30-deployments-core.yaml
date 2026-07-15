@@ -44,6 +44,12 @@ spec:
                 secretKeyRef:
                   name: taranis-secrets
                   key: API_KEY
+            - name: CHAT_LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: CHAT_LLM_API_KEY
+                  optional: true
             - name: BOT_API_KEY
               valueFrom:
                 secretKeyRef:

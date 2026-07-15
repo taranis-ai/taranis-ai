@@ -22,6 +22,13 @@ Optional `llm-bot` overlay:
 - In `kubernetes/01-secrets.yaml`, set `BOT_API_KEY`; optionally set `LLM_API_KEY` for providers that require one.
 - Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
 
+Optional analyst Chat:
+- Set `CHAT_ENABLED=true` in configuration for both core and frontend.
+- Set `CHAT_LLM_BASE_URL` to the provider's OpenAI-compatible API base URL. Core sends requests to `{CHAT_LLM_BASE_URL}/responses`.
+- Set `CHAT_LLM_MODEL` when required by the provider. `CHAT_LLM_TIMEOUT` defaults to 120 seconds and `CHAT_MAX_STORIES` defaults to 5.
+- Store `CHAT_LLM_API_KEY` only in the deployment secret. It may be empty when the provider does not require bearer authentication.
+- `CHAT_REQUEST_TIMEOUT` is frontend-only and defaults to 300 seconds to cover the synchronous planner and answer calls.
+
 ## Images
 
 Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `sse-broker`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`).
@@ -66,6 +73,16 @@ Use [`argocd/`](./argocd) if you want GitOps deployment through the Helm chart.
 ```bash
 kubectl apply -f deploy/argocd/application.yaml
 ```
+
+## Analyst Chat
+
+Chat is independent of `llm-bot`, Redis, and workers. Core calls the configured OpenAI-compatible Responses API directly. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
+
+Enabling Chat creates `chat_conversation` and `chat_message` tables at core startup. Conversations and answers remain in Taranis until their owner deletes them. The provider receives the analyst's prompt, up to the latest 10 saved chat messages, the analyst-visible filter catalog, and, for search answers, up to `CHAT_MAX_STORIES` bounded story summaries. Raw news-item content and provider credentials are not saved in chat metadata.
+
+This is a data-egress boundary: analyst prompts and selected story titles, dates, and summaries leave Taranis for the configured provider. Core requests `store: false`, but provider implementations and abuse-monitoring policies may apply their own retention. Select and contract with the provider accordingly, and configure transport security and provider-side retention controls before enabling the feature.
+
+Rollback is non-destructive. Set `CHAT_ENABLED=false` on core and frontend and restart the published application images; navigation disappears and core returns 503 for Chat calls, while the tables and conversation history remain untouched. Older images ignore the new tables.
 
 ## Validation
 

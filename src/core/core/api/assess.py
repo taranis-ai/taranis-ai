@@ -1,9 +1,18 @@
+from typing import Any
 from urllib.parse import unquote, urlparse
 
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.assess import StoryBookmarkCreatePayload, StoryBookmarkOrderPayload, StoryBookmarkStoryPayload, StoryBookmarkUpdatePayload
+from models.assess import (
+    ASSESS_FILTER_KEYS,
+    ASSESS_FILTER_MULTI_KEYS,
+    AssessSearchFilters,
+    StoryBookmarkCreatePayload,
+    StoryBookmarkOrderPayload,
+    StoryBookmarkStoryPayload,
+    StoryBookmarkUpdatePayload,
+)
 from pydantic import ValidationError
 
 from core.api.utils import request_id_list
@@ -161,35 +170,27 @@ class Stories(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
-            filter_keys = [
-                "search",
-                "read",
-                "unread",
-                "important",
-                "cybersecurity",
-                "relevant",
-                "in_report",
-                "changed_by",
-                "range",
-                "sort",
-                "timefrom",
-                "timeto",
-                "no_count",
-                "exclude_attr",
-            ]
-            filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
-            filter_list_keys = ["source", "group", "story_ids", "language"]
-            for key in filter_list_keys:
-                filter_args[key] = request.args.getlist(key)
+            raw_filters: dict[str, str | list[str]] = {}
+            for key in ASSESS_FILTER_KEYS:
+                if key not in request.args:
+                    continue
+                if key in ASSESS_FILTER_MULTI_KEYS:
+                    values = request.args.getlist(key)
+                    raw_filters[key] = [unquote(value) for value in values] if key == "tags" else values
+                elif value := request.args.get(key):
+                    raw_filters[key] = value
+
+            filter_args: dict[str, Any] = AssessSearchFilters.model_validate(raw_filters).to_query_params()
+            filter_args.update({key: request.args[key] for key in ("no_count", "exclude_attr") if key in request.args})
 
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 400)
-            tags = request.args.getlist("tags")
-            filter_args["tags"] = [unquote(t) for t in tags]
             page = int(request.args.get("page", 0))
             offset = int(request.args.get("offset", page * filter_args["limit"]))
             filter_args["offset"] = min(offset, (2**31) - 1)
 
             return story.Story.get_by_filter_json(filter_args, current_user)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
         except Exception:
             logger.exception("Failed to get Stories")
             return {"error": "Failed to get Stories"}, 400

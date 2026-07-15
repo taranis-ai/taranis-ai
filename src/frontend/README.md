@@ -45,6 +45,12 @@ Colon-containing terms that are not supported qualifiers, such as URLs or CVE-st
 
 Bookmarks are private story bookmarks organized into named collections. Assess shows the first six collections in the user's saved order and links to the full `/bookmarks` page, where users can drag collection cards to reorder them. Users can select stories in Assess, bookmark them into an existing or new collection with `Bookmark`, and later manage those collections from `/bookmarks`. A single story card's `Bookmark` action immediately adds the story to the first saved collection; if no collection exists yet, a default `Bookmarks` collection is created. Bookmarking a story does not hide it from Assess, and deleting a bookmark collection only removes the collection membership, not the stories.
 
+### Analyst Chat
+
+When `CHAT_ENABLED=true`, users with `ASSESS_ACCESS` see a persistent `/chat` workspace. Chat operations intentionally bypass the frontend model cache. Search answers contain escaped plain text, a match count, and one canonical `/assess` filter link; provider-generated HTML, Markdown, and links are not rendered.
+
+The frontend waits up to `CHAT_REQUEST_TIMEOUT` seconds (default 300) for the synchronous core workflow. Provider configuration and credentials belong to core deployment settings, not the frontend.
+
 ### Cache configuration
 
 Frontend caching now uses Redis directly and falls back to a no-op cache when disabled or when Redis is unavailable.

@@ -2,7 +2,7 @@ import contextlib
 import hashlib
 import re
 from datetime import datetime, timezone
-from typing import Annotated, Any, Literal, Self
+from typing import Annotated, Any, Literal, Self, get_origin
 from urllib.parse import quote, unquote
 
 import language_tags
@@ -92,6 +92,43 @@ def validate_bcp47(value: str | None) -> str | None:
 
 
 BCP47 = Annotated[str | None, BeforeValidator(validate_bcp47)]
+
+
+class AssessSearchFilters(TaranisBaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    search: str | None = Field(default=None, max_length=500)
+    source: list[str] = Field(default_factory=list)
+    group: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    language: list[str] = Field(default_factory=list)
+    story_ids: list[str] = Field(default_factory=list)
+    read: bool | None = None
+    important: bool | None = None
+    relevant: bool | None = None
+    in_report: bool | None = None
+    cybersecurity: Literal["yes", "no", "mixed", "incomplete"] | None = None
+    changed_by: Literal["me"] | None = None
+    range: str | None = Field(default=None, pattern=r"^(shift|24h|day|week|month|last[1-9][0-9]*)$")
+    timefrom: datetime | None = None
+    timeto: datetime | None = None
+    sort: Literal["date_desc", "date_asc", "relevance", "updated_desc", "updated_asc"] | None = None
+
+    @field_validator("cybersecurity", "changed_by", "range", "sort", mode="before")
+    @classmethod
+    def normalize_choices(cls, value: Any) -> Any:
+        return value.lower() if isinstance(value, str) else value
+
+    def to_query_params(self) -> dict[str, str | list[str]]:
+        return {
+            key: str(value).lower() if isinstance(value, bool) else value
+            for key, value in self.model_dump(mode="json", exclude_defaults=True, exclude_none=True).items()
+            if value not in ([], "")
+        }
+
+
+ASSESS_FILTER_KEYS = frozenset(AssessSearchFilters.model_fields)
+ASSESS_FILTER_MULTI_KEYS = frozenset(name for name, field in AssessSearchFilters.model_fields.items() if get_origin(field.annotation) is list)
 
 
 class SimpleWebCollectorFetchParameters(TaranisBaseModel):

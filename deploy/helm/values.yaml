@@ -16,11 +16,18 @@ config:
   nlpApiEndpoint: http://nlp-bot:8000
   storyApiEndpoint: http://story-bot:8000
   cacheDefaultTimeout: "1"
+  chatEnabled: "false"
+  chatLlmBaseUrl: ""
+  chatLlmModel: ""
+  chatLlmTimeout: "120"
+  chatMaxStories: "5"
+  chatRequestTimeout: "300"
 
 secrets:
   jwtSecretKey: CHANGE_ME_LONG_RANDOM_JWT_SECRET
   apiKey: CHANGE_ME_CORE_API_KEY
   botApiKey: CHANGE_ME_BOT_API_KEY
+  chatLlmApiKey: ""
   preSeedPasswordAdmin: CHANGE_ME_ADMIN_PASSWORD
   preSeedPasswordUser: CHANGE_ME_DEFAULT_USER_PASSWORD
 

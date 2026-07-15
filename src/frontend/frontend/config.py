@@ -1,6 +1,6 @@
 from datetime import datetime
 from secrets import token_urlsafe
-from typing import Any
+from typing import Annotated, Any
 
 from models.cache_contract import (
     CACHE_DEFAULT_TIMEOUT_DEFAULT,
@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     TARANIS_BASE_PATH: str = "/"
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
+    CHAT_ENABLED: bool = False
+    CHAT_REQUEST_TIMEOUT: Annotated[int, Field(gt=0)] = 300
     REQUESTS_TRUST_ENV: bool = True
     CORE_API_KEY: SecretStr = SecretStr("supersecret")
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024

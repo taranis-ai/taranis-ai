@@ -100,6 +100,7 @@ def jinja_setup(app: Flask):
             "admin_views": admin_views,
             "get_html5_pattern_from_rule": get_html5_pattern_from_rule,
             "pending_onboarding_tasks_for_template": pending_onboarding_tasks_for_template,
+            "chat_enabled": app.config["CHAT_ENABLED"],
         }
     )
 
