@@ -107,7 +107,11 @@ def test_bot_form_renders_state_buttons_and_run_action(app):
     tree = html.fromstring(rendered)
 
     assert not tree.xpath('//input[@name="enabled"]')
-    assert tree.xpath('//button[@hx-post="/frontend/admin/toggle_bot_state/42/enabled"][normalize-space()="Enabled"]')
-    assert tree.xpath('//button[@hx-post="/frontend/admin/toggle_bot_state/42/disabled"][normalize-space()="Disabled"]')
+    enabled_buttons = tree.xpath('//button[@hx-post="/frontend/admin/toggle_bot_state/42/enabled"][normalize-space()="Enabled"]')
+    disabled_buttons = tree.xpath('//button[@hx-post="/frontend/admin/toggle_bot_state/42/disabled"][normalize-space()="Disabled"]')
+    assert enabled_buttons
+    assert disabled_buttons
+    assert enabled_buttons[0].get("hx-swap") == "outerHTML"
+    assert disabled_buttons[0].get("hx-swap") == "outerHTML"
     run_buttons = tree.xpath('//button[contains(@hx-post, "/bot_execute/42")][normalize-space()="Run"]')
     assert len(run_buttons) == 1
