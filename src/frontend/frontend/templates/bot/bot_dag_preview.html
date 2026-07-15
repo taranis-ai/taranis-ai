@@ -1,0 +1,40 @@
+{% set dag_preview = dag_preview | default({"order": [], "edges": [], "warnings": []}) %}
+
+<div id="bot-dag-preview"
+     hx-post="{{ url_for('admin.bot_dag_preview') }}"
+     hx-trigger="change from:#bot-form delay:300ms"
+     hx-include="#bot-form [name='id'], #bot-form [name='type'], #bot-form [name='index'], #bot-form [name='enabled'], #bot-form [name='parameters[RUN_AFTER_COLLECTOR]'], #bot-form [name='parameters[RUN_AFTER_BOTS][]']"
+     hx-target="this"
+     hx-swap="outerHTML"
+     class="space-y-3">
+  {% if dag_preview.warnings %}
+    <div class="alert alert-warning alert-soft">
+      <div>
+        {% for warning in dag_preview.warnings %}<div>{{ warning }}</div>{% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if dag_preview.order %}
+    <div>
+      <div class="text-sm font-semibold mb-2">Collector Chain</div>
+      <div class="flex flex-wrap items-center gap-2">
+        {% for bot in dag_preview.order %}
+          <span class="badge badge-primary badge-outline">{{ bot.name }}</span>
+          {% if not loop.last %}<span class="text-base-content/50">&rarr;</span>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if dag_preview.edges %}
+    <div>
+      <div class="text-sm font-semibold mb-2">Bot Dependencies</div>
+      <div class="flex flex-wrap gap-2">
+        {% for edge in dag_preview.edges %}
+          <span class="badge badge-outline {% if edge.disabled %}opacity-50{% endif %}">{{ edge.from_name }} &rarr; {{ edge.to_name }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>

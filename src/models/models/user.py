@@ -43,7 +43,7 @@ class ProfileSettings(TaranisBaseModel):
     compact_view: bool = False
     show_charts: bool = False
     infinite_scroll: bool = True
-    advanced_story_options: bool = False
+    advanced_story_options: bool = True
     language: str = "en"
     timezone: str | None = None
     hotkeys: dict[str, Any] = Field(default_factory=dict)

@@ -1,0 +1,48 @@
+{% from "macros/forms.html" import form_switch %}
+
+{% set parameter_values = parameter_values | default({}) %}
+{% set selected_run_after = selected_run_after | default([]) %}
+{% set dag_preview = dag_preview | default({"order": [], "edges": [], "warnings": []}) %}
+
+<section class="mb-5 border border-base-300 p-4">
+  <h2 class="text-lg font-semibold mb-4">Run Order</h2>
+  {{ form_switch('After Collector', 'parameters[RUN_AFTER_COLLECTOR]', parameter_values.get('RUN_AFTER_COLLECTOR', 'false') , yes_val='true', no_val='false', required=false, width='w-full') }}
+
+  <div class="mb-5">
+    <label class="label" for="run-after-bots-select">After Bots</label>
+    <select id="run-after-bots-select"
+            name="parameters[RUN_AFTER_BOTS][]"
+            multiple
+            data-choices-placeholder-value="Select parent bots"
+            data-choices-no-results-text="No bots found"
+            data-choices-no-choices-text="No bots to choose from">
+      {% for option in run_after_options | default([]) %}
+        <option value="{{ option.id }}" {% if option.id in selected_run_after %}selected{% endif %}>
+          {{ option.name }}
+          {% if option.enabled == "false" %}(disabled){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {% include "bot/bot_dag_preview.html" %}
+</section>
+
+<script>
+  (() => {
+    function initRunAfterBotsSelect() {
+      const select = document.getElementById("run-after-bots-select");
+      if (!select || select.dataset.choicesInitialized === "true" || typeof initChoices !== "function") {
+        return;
+      }
+      initChoices("run-after-bots-select", { itemSelectText: "" });
+      select.dataset.choicesInitialized = "true";
+    }
+
+    if (document.readyState === "loading" && typeof initChoices !== "function") {
+      document.addEventListener("DOMContentLoaded", initRunAfterBotsSelect, { once: true });
+    } else {
+      initRunAfterBotsSelect();
+    }
+  })();
+</script>

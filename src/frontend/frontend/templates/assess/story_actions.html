@@ -58,6 +58,12 @@
     {{ heroicon_mini("share") }}
     <span>Share</span>
   </button>
+  <a class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+     href="{{ url_for('assess.story_cti', story_id=story_id) }}"
+     data-testid="story-cti">
+    {{ heroicon_mini("document-magnifying-glass") }}
+    <span>CTI information</span>
+  </a>
   <button type="button"
           class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
           hx-post="{{ url_for('assess.ungroup', story_id=story_id) }}"

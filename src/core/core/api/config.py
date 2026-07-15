@@ -537,9 +537,13 @@ class Bots(MethodView):
 
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):
-        new_bot = bot.Bot.add(request.json)
-        _invalidate_admin_cache(201)
-        return jsonify({"message": "Bot created", "id": new_bot.id}), 201
+        try:
+            new_bot = bot.Bot.add(request.json)
+            _invalidate_admin_cache(201)
+            return jsonify({"message": "Bot created", "id": new_bot.id}), 201
+        except ValueError as e:
+            logger.warning("Invalid bot create payload: %s", e)
+            return {"error": "Invalid bot create payload"}, 400
 
     @auth_required("CONFIG_BOT_DELETE")
     def delete(self, bot_id: str | None = None):
@@ -554,6 +558,16 @@ class BotExecute(MethodView):
     @auth_required("BOT_EXECUTE")
     def post(self, bot_id: str):
         return queue_manager.queue_manager.execute_bot_task(bot_id, user_id=current_user.id)
+
+
+class BotDagPreview(MethodView):
+    @auth_required("CONFIG_BOT_ACCESS")
+    def post(self):
+        try:
+            return bot.Bot.get_dag_preview(request.json or {}), 200
+        except ValueError as exc:
+            logger.warning("Invalid bot DAG preview payload: %s", exc)
+            return {"error": "Invalid bot DAG preview payload"}, 400
 
 
 class QueueStatus(MethodView):
@@ -1076,6 +1090,7 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/attributes/<string:attribute_id>", view_func=Attributes.as_view(f"{name}_attribute"), methods=crud_methods)
     config_bp.add_url_rule("/bots", view_func=Bots.as_view(f"{name}_bots_config"))
     config_bp.add_url_rule("/bots/<string:bot_id>", view_func=Bots.as_view(f"{name}_bot_config"), methods=crud_methods)
+    config_bp.add_url_rule("/bots/dag-preview", view_func=BotDagPreview.as_view(f"{name}_bot_dag_preview"))
     config_bp.add_url_rule("/bots/<string:bot_id>/execute", view_func=BotExecute.as_view(f"{name}_bot_execute"))
     config_bp.add_url_rule(
         "/dictionaries-reload/<string:dictionary_type>", view_func=DictionariesReload.as_view(f"{name}_dictionaries_reload")

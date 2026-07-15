@@ -477,6 +477,46 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /analyze/report-items/botactions:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - analyze
+      description: queue a bot action for one or more report items
+      operationId: analyze.report_bot_actions.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bot_id
+              properties:
+                bot_id:
+                  type: string
+                report_id:
+                  type: string
+                report_ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /analyze/report-items/publish-product:
     post:
       security:
@@ -763,6 +803,33 @@ paths:
           description: invalid request
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /analyze/report-items/{report_item_id}/cti:
+    parameters:
+    - name: report_item_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - analyze
+      description: get CTI information for all IOC tags in stories attached to the report item
+      operationId: analyze.report_item_cti.get
+      responses:
+        '200':
+          description: CTI information for the report item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
   /analyze/report-items/{report_item_id}/locks:
@@ -1427,7 +1494,32 @@ paths:
                 type: object
         "404":
           $ref: "#/components/responses/404NotFound"
-
+  /assess/news-items/{item_id}/cti:
+    parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get CTI information for IOC tags on the specified news item
+      operationId: assess.news_item_cti.get
+      responses:
+        "200":
+          description: CTI information for the news item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/cti_response"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: read access denied
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/news-items/{item_id}/tags:
     parameters:
       - name: item_id
@@ -1995,6 +2087,16 @@ paths:
       - APIKey: []
       description: Get stories
       operationId: worker.stories_worker.get
+      parameters:
+      - name: story_ids
+        in: query
+        description: Filter to one or more story IDs. Repeat the query parameter for multiple stories.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
       responses:
         '200':
           description: OK
@@ -2069,6 +2171,40 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/iocs:
+    post:
+      security:
+      - APIKey: []
+      description: get IOC enrichment rows for observable keys
+      operationId: worker.iocs_worker.post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                iocs:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      ioc_type:
+                        type: string
+                      value:
+                        type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /tasks:
     post:
       tags:
@@ -3885,6 +4021,58 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /config/bots/dag-preview:
+    post:
+      tags:
+      - config
+      description: preview a bot run-order DAG
+      operationId: config.config_bot_dag_preview.post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - type
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                type:
+                  type: string
+                index:
+                  oneOf:
+                  - type: integer
+                  - type: string
+                enabled:
+                  oneOf:
+                  - type: boolean
+                  - type: string
+                parameters:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    RUN_AFTER_COLLECTOR:
+                      type: string
+                    RUN_AFTER_BOTS:
+                      type: string
+                      description: comma-separated bot instance IDs
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
   /config/bots/{bot_id}/execute:
     parameters:
     - name: bot_id
@@ -5766,7 +5954,7 @@ paths:
       - UserAuth: []
       tags:
       - assess
-      description: run bot actions
+      description: queue a bot action for one or more stories or reports
       operationId: assess.bot_actions.post
       requestBody:
         required: true
@@ -5774,6 +5962,23 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+              - bot_id
+              properties:
+                bot_id:
+                  type: string
+                story_id:
+                  type: string
+                story_ids:
+                  type: array
+                  items:
+                    type: string
+                report_id:
+                  type: string
+                report_ids:
+                  type: array
+                  items:
+                    type: string
       responses:
         '200':
           description: success
@@ -5947,6 +6152,33 @@ paths:
             application/json:
               schema:
                 type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /assess/stories/{story_id}/cti:
+    parameters:
+    - name: story_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: get CTI information for IOC tags on news items in the story
+      operationId: assess.story_cti.get
+      responses:
+        '200':
+          description: CTI information for the story
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -6199,6 +6431,27 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assets/cti:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      description: get CTI information for all readable assets
+      operationId: assets_cti.get
+      responses:
+        '200':
+          description: CTI information for all readable assets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /assets/{asset_id}:
     parameters:
     - name: asset_id
@@ -6268,6 +6521,33 @@ paths:
             application/json:
               schema:
                 type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /assets/{asset_id}/cti:
+    parameters:
+    - name: asset_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      description: get CTI information for readable vulnerability reports linked to the asset
+      operationId: asset_cti.get
+      responses:
+        '200':
+          description: CTI information for the asset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -9277,6 +9557,69 @@ components:
       properties:
         access_token:
           type: string
+    cti_enrichment:
+      type: object
+      properties:
+        ioc_type:
+          type: string
+          enum: [cve, email, ip, domain, url, hash]
+        value:
+          type: string
+        status:
+          type:
+          - string
+          - 'null'
+        analyzers:
+          type: array
+          items:
+            type: object
+        errors:
+          type: array
+          items:
+            type: object
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    cti_item:
+      type: object
+      properties:
+        ioc_type:
+          type: string
+          enum: [cve, email, ip, domain, url, hash]
+        value:
+          type: string
+        news_item_ids:
+          type: array
+          items:
+            type: string
+        enrichment:
+          oneOf:
+          - $ref: '#/components/schemas/cti_enrichment'
+          - type: 'null'
+    cti_response:
+      type: object
+      properties:
+        item_type:
+          type: string
+          enum: [news_item, story, report, asset]
+        item_id:
+          type: string
+        iocs:
+          type: array
+          items:
+            $ref: '#/components/schemas/cti_item'
     presentation:
       type: object
       properties:
@@ -10304,6 +10647,20 @@ components:
           type: array
           items:
             type: string
+        asset_observables:
+          type: array
+          items:
+            $ref: '#/components/schemas/asset_observable'
+    asset_observable:
+      type: object
+      properties:
+        id:
+          type: string
+        ioc_type:
+          type: string
+          enum: [cve, email, ip, domain, url, hash]
+        value:
+          type: string
     report_item_vulnerability:
       allOf:
       - $ref: '#/components/schemas/report_item.base'

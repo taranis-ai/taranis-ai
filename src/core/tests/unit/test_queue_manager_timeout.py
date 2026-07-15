@@ -1,3 +1,4 @@
+import pytest
 from flask import Flask
 
 from core.config import Config, Settings
@@ -41,3 +42,10 @@ def test_queue_manager_initializes_queues_with_default_timeout(monkeypatch):
 
 def test_core_settings_default_rq_timeout_is_180():
     assert Settings.model_fields["RQ_DEFAULT_JOB_TIMEOUT"].default == 180
+
+
+@pytest.mark.parametrize("bot_id", [None, 7, "bad id!"])
+def test_execute_bot_task_rejects_invalid_job_id_component(bot_id):
+    queue_manager = QueueManager.__new__(QueueManager)
+
+    assert queue_manager.execute_bot_task(bot_id) == ({"error": "Invalid bot_id"}, 400)
