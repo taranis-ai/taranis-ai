@@ -444,18 +444,18 @@ def bots(app):
         highest_index = Bot.get_highest_index()
 
         bot1 = Bot(
-            name="Test IOC Bot",
-            description="IOC bot fixture for cron job tests",
-            type="ioc_bot",
+            name="Test Analyst Bot",
+            description="Analyst bot fixture for cron job tests",
+            type="analyst_bot",
             index=highest_index + 1,
             parameters={"REFRESH_INTERVAL": "0 2 * * *"},  # Daily at 2am
         )
         bot1.enabled = True
 
         bot2 = Bot(
-            name="Test NLP Bot",
-            description="NLP bot fixture for cron job tests",
-            type="nlp_bot",
+            name="Test Grouping Bot",
+            description="Grouping bot fixture for cron job tests",
+            type="grouping_bot",
             index=highest_index + 2,
             parameters={"REFRESH_INTERVAL": "0 */6 * * *"},  # Every 6 hours
         )

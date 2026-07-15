@@ -914,6 +914,28 @@ class TestBotConfigApi(BaseTest):
         assert response.json["message"] == "Bot created"
         assert response.json["id"] == cleanup_bot["id"]
 
+    def test_create_bot_rejects_invalid_payload_without_leaking_details(self, client, auth_header, cleanup_bot):
+        payload = copy.deepcopy(cleanup_bot)
+        payload["id"] = str(uuid.uuid7())
+        payload["type"] = "SECRET_BOT_TYPE"
+
+        response = client.post(self.concat_url("bots"), json=payload, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid bot create payload"
+        assert "SECRET_BOT_TYPE" not in response.text
+
+    def test_bot_dag_preview_rejects_invalid_payload_without_leaking_details(self, client, auth_header):
+        response = client.post(
+            self.concat_url("bots/dag-preview"),
+            json={"type": "SECRET_BOT_TYPE", "index": "not-an-index"},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid bot DAG preview payload"
+        assert "SECRET_BOT_TYPE" not in response.text
+
     def test_modify_bot(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot
 
@@ -932,6 +954,27 @@ class TestBotConfigApi(BaseTest):
         bot_id = cleanup_bot["id"]
         response = self.assert_put_ok(client, uri=f"bots/{bot_id}", json_data=bot_data, auth_header=auth_header)
         assert response.json["id"] == f"{bot_id}"
+
+    def test_modify_bot_rejects_invalid_payload_without_leaking_details(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+        bot_data = {
+            "name": cleanup_bot["name"],
+            "type": "SECRET_BOT_TYPE",
+            "description": "Boty McBotFace",
+        }
+
+        response = client.put(self.concat_url(f"bots/{bot_id}"), json=bot_data, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid bot update payload"
+        assert "SECRET_BOT_TYPE" not in response.text
 
     def test_modify_bot_can_disable_and_clear_schedule(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot

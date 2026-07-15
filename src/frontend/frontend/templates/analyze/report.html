@@ -31,6 +31,7 @@
             Version History ({{ report.revision_count }})
           </a>
         {% endif %}
+        <a class="btn btn-outline btn-sm" href="{{ url_for('analyze.report_cti', report_id=report.id) }}" data-testid="report-cti-button">CTI information</a>
         <div data-testid="report-new-product" class="inline-flex">
           <button type="button"
                   class="btn btn-outline btn-sm"

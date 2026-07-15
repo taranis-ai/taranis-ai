@@ -25,6 +25,8 @@ See [taranis.ai/media](https://taranis.ai/media/) for a presentations about the 
 
 See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and deployment guides.
 
+For IntelOwl enrichment setup, see [docs/intelowl.md](docs/intelowl.md).
+
 ## Services
 
 | Type       | Name      | Description                           |

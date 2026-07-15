@@ -183,6 +183,13 @@ class CoreApi:
             logger.error(f"Execute bot failed: {e}")
             return None
 
+    def preview_bot_dag(self, payload: dict[str, Any]):
+        try:
+            return self.api_post("/config/bots/dag-preview", json_data=payload)
+        except Exception as e:
+            logger.error(f"Bot DAG preview failed: {e}")
+            return None
+
     def collect_all_osint_sources(self):
         try:
             return self.api_post("/config/osint-sources/collect")

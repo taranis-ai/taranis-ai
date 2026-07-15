@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
-from flask import render_template, url_for
+from flask import Flask, render_template, url_for
 from lxml import html
 from models.admin import Bot
 from models.types import BOT_TYPES
@@ -110,3 +110,66 @@ def test_bot_form_renders_enabled_switch(app):
     assert len(enabled_fields) == 2
     assert tree.xpath('//input[@name="enabled"][@type="hidden"][@value="false"]')
     assert tree.xpath('//input[@name="enabled"][@type="checkbox"][@value="true"]')
+    assert tree.xpath('//input[@name="id"][@type="hidden"][@value="42"]')
+
+
+def test_bot_create_form_omits_sentinel_id(app: Flask):
+    bot = Bot.model_construct(id="0", name="", description="", type=None, index=None, enabled=True, parameters={}, status=None)
+
+    with app.test_request_context("/"):
+        rendered = render_template(
+            "bot/bot_form.html",
+            bot=bot,
+            submit_text="Create Bot",
+            form_action="/frontend/admin/bots",
+            bot_types=BotView.bot_types.values(),
+            parameters=[],
+            parameter_values={},
+        )
+
+    assert not html.fromstring(rendered).xpath('//input[@name="id"]')
+
+
+def test_run_after_options_use_bot_instance_ids_and_allow_duplicate_types(monkeypatch: pytest.MonkeyPatch):
+    first_id = "019f4bc8-a467-7216-a2d8-731869323507"
+    second_id = "019f4bc8-a467-7216-a2d8-7319fae631e2"
+    bots = [
+        Bot.model_construct(id=first_id, name="IOC Europe", type=BOT_TYPES.IOC_BOT, enabled=True),
+        Bot.model_construct(id=second_id, name="IOC Americas", type=BOT_TYPES.IOC_BOT, enabled=True),
+    ]
+    monkeypatch.setattr(
+        "frontend.views.admin_views.bot_views.DataPersistenceLayer",
+        lambda: SimpleNamespace(get_objects=lambda model: SimpleNamespace(items=bots)),
+    )
+
+    assert BotView.get_run_after_options(first_id) == [{"id": second_id, "name": "IOC Americas (IOC_BOT)", "enabled": "true"}]
+
+
+def test_bot_run_order_controls_render_selected_dependencies(app):
+    ioc_bot_id = "019f4bc8-a467-7216-a2d8-7319fae631e2"
+    with app.test_request_context("/"):
+        rendered = render_template(
+            "bot/bot_run_order.html",
+            bot_id="bot-1",
+            parameter_values={"RUN_AFTER_COLLECTOR": "true", "RUN_AFTER_BOTS": ioc_bot_id},
+            selected_run_after=[ioc_bot_id],
+            run_after_options=[{"id": ioc_bot_id, "name": "IOC Bot (IOC_BOT)", "enabled": "true"}],
+            dag_preview={"order": [{"name": "Wordlist Bot"}, {"name": "IOC Bot"}], "edges": [], "warnings": []},
+        )
+
+    tree = html.fromstring(rendered)
+    assert tree.xpath('//input[@name="parameters[RUN_AFTER_COLLECTOR]"][@type="checkbox"][@checked]')
+    selected_options = tree.xpath(f'//select[@id="run-after-bots-select"]/option[@value="{ioc_bot_id}"][@selected]')
+    assert len(selected_options) == 1
+    preview_include = tree.xpath('//div[@id="bot-dag-preview"]')[0].get("hx-include")
+    assert preview_include is not None
+    assert "[name='name']" not in preview_include
+    assert "[name='description']" not in preview_include
+    assert "[name='id']" in preview_include
+    assert "[name='parameters[RUN_AFTER_COLLECTOR]']" in preview_include
+    assert "[name='parameters[RUN_AFTER_BOTS][]']" in preview_include
+    assert tree.xpath('//div[@id="bot-dag-preview"]')[0].get("hx-post") == url_for("admin.bot_dag_preview")
+    assert "Collector Chain" in rendered
+    assert "Wordlist Bot" in rendered
+    assert "IOC Bot" in rendered
+    assert "DOMContentLoaded" in rendered

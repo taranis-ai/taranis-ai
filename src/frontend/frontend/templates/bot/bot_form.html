@@ -10,6 +10,7 @@
   {% endif %}
   <form id="bot-form" class="w-3/4 ml-[10%]" method="post" action="{{ form_action }}">
     <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+    {% if bot_id != "0" %}<input type="hidden" name="id" value="{{ bot_id }}">{% endif %}
     {% include "partials/admin_form_error.html" %}
     {{ form_input('Name', 'name', bot.name, width="w-3/4") }}
     {{ form_input('Description', 'description', bot.description, width="w-3/4") }}
@@ -25,7 +26,7 @@
               hx-get="{{ url_for('admin.bot_parameters', bot_id=bot_id) }}"
               hx-trigger="change"
               hx-include="this"
-              hx-target="#parameters"
+              hx-target="#bot-config"
               hx-swap="innerHTML"
               {% if bot.type %}disabled{% endif %}>
         {% if not bot.type %}<option value="" selected disabled>Select a bot type</option>{% endif %}
@@ -35,7 +36,7 @@
       </select>
       {% if bot.type %}<input type="hidden" name="type" value="{{ bot.type }}">{% endif %}
     </label>
-    <div id="parameters" class="w-3/4">{% include "partials/worker_parameters.html" %}</div>
+    <div id="bot-config" class="w-3/4">{% include "bot/bot_config_fields.html" %}</div>
 
     <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
   </form>

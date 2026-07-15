@@ -2,14 +2,16 @@ from flask import Blueprint, Flask, abort, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
+from core.api.utils import request_id_list
 from core.config import Config
 from core.log import logger
-from core.managers import asset_manager
+from core.managers import asset_manager, queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.sse_manager import sse_manager
 from core.model import report_item, report_item_type
 from core.model.revision import ReportRevision
 from core.service.cache_invalidation import SCOPE_PUBLISH_VIEWS, SCOPE_REPORT_VIEWS, invalidate_frontend_cache_on_success
+from core.service.cti import CTIService
 from core.service.product import ProductService
 from core.service.report_publish_workflow import ReportPublishWorkflowService
 
@@ -132,6 +134,12 @@ class ReportItem(MethodView):
         return json_response
 
 
+class ReportItemCTI(MethodView):
+    @auth_required("ANALYZE_ACCESS")
+    def get(self, report_item_id: str):
+        return CTIService.get_report_cti(report_item_id, current_user)
+
+
 class ReportItemPublishProduct(MethodView):
     @auth_required(["ANALYZE_CREATE", "PUBLISH_CREATE", "PUBLISH_PRODUCT"])
     def post(self):
@@ -143,6 +151,30 @@ class ReportItemPublishProduct(MethodView):
         json_response = jsonify(response)
         json_response.status_code = status
         return json_response
+
+
+class ReportBotActions(MethodView):
+    @auth_required("ANALYZE_UPDATE")
+    def post(self):
+        payload = request.get_json(silent=True) or {}
+        bot_id = payload.get("bot_id")
+        if not bot_id:
+            return {"error": "No bot_id provided"}, 400
+        report_ids = request_id_list(payload, "report_id", "report_ids")
+        if not report_ids:
+            return {"error": "No report_id provided"}, 400
+        for report_id in report_ids:
+            report = report_item.ReportItem.get(report_id)
+            if not report or not report.access_allowed(current_user, require_write_access=True):
+                return {"error": "User does not have write access to all requested reports"}, 403
+
+        response, code = queue_manager.queue_manager.execute_bot_task(
+            bot_id=bot_id,
+            filter={"report_ids": report_ids},
+            user_id=current_user.id,
+        )
+        invalidate_frontend_cache_on_success(code, scopes=(SCOPE_REPORT_VIEWS,))
+        return response, code
 
 
 class CloneReportItem(MethodView):
@@ -271,12 +303,14 @@ def initialize(app: Flask):
         "/report-items/publish-product",
         view_func=ReportItemPublishProduct.as_view("report_items_publish_product"),
     )
+    analyze_bp.add_url_rule("/report-items/botactions", view_func=ReportBotActions.as_view("report_bot_actions"))
     analyze_bp.add_url_rule("/reports", view_func=ReportItem.as_view("reports"))
     analyze_bp.add_url_rule(
         "/report-items/<string:report_item_id>",
         view_func=ReportItem.as_view("report_item"),
         methods=["GET", "PUT", "DELETE"],
     )
+    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/cti", view_func=ReportItemCTI.as_view("report_item_cti"))
     analyze_bp.add_url_rule(
         "/report/<string:report_item_id>",
         view_func=ReportItem.as_view("report"),
