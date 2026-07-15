@@ -105,11 +105,6 @@ def test_bot_form_renders_state_buttons_and_run_action(app):
         )
 
     tree = html.fromstring(rendered)
-    enabled_fields = tree.xpath('//input[@name="enabled"]')
-
-    assert len(enabled_fields) == 2
-    assert tree.xpath('//input[@name="enabled"][@type="hidden"][@value="false"]')
-    assert tree.xpath('//input[@name="enabled"][@type="checkbox"][@value="true"]')
     assert tree.xpath('//input[@name="id"][@type="hidden"][@value="42"]')
     assert not tree.xpath('//input[@name="enabled"]')
     enabled_buttons = tree.xpath('//button[@hx-post="/frontend/admin/toggle_bot_state/42/enabled"][normalize-space()="Enabled"]')
