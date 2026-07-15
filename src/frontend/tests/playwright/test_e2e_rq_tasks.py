@@ -384,15 +384,20 @@ def test_rq_scheduled_wordlist_bot_cron(
     assert (payload.get("entry_count") or 0) > 0
 
     cron_expression = "*/1 * * * *"
+    bots_payload = rq_harness.core_client.json_request("GET", "/config/bots")
+    assert isinstance(bots_payload, dict), "Expected bot list response to be a dict"
+    wordlist_bot = next((item for item in bots_payload.get("items", []) if str(item.get("type", "")).upper() == "WORDLIST_BOT"), None)
+    assert isinstance(wordlist_bot, dict), "Expected preseeded WORDLIST_BOT"
+    bot_id = str(wordlist_bot["id"])
     bot_payload = {
-        "name": "E2E Wordlist Bot",
-        "description": "E2E wordlist bot",
-        "type": "WORDLIST_BOT",
+        "name": wordlist_bot["name"],
+        "description": wordlist_bot.get("description", ""),
+        "type": wordlist_bot["type"],
         "parameters": {
+            **wordlist_bot.get("parameters", {}),
             "REFRESH_INTERVAL": cron_expression,
         },
     }
-    bot_id = rq_harness.create_bot(bot_payload)
     rq_harness.update_bot(bot_id, bot_payload)
     cron_job_id = f"bot_{bot_id}"
     rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)

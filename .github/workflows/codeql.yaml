@@ -33,6 +33,9 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
+          config: |
+            paths-ignore:
+              - '**/tests/**'
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4

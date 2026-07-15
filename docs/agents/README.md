@@ -10,6 +10,8 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [RBAC ACL Behavior](rbac-acl.md) - RoleBasedAccess ACL boundaries, ADMIN_OPERATIONS bypass, OSINT source-group inheritance, and config/admin ACL isolation.
 - [Audit Logging](audit-logging.md) - core audit logging scope, JSONL fields, security limits, and tests.
 - [Admin User Import/Export](admin-user-import-export.md) - admin user export/import JSON format, duplicate handling, passwordless external users, and UI notification behavior.
+- [Bot Run Order DAG](bot-run-order-dag.md) - post-collection bot DAG configuration, admin run-order UI, and dependent bot scheduling.
+- [IntelOwl Enrichment](intelowl-enrichment.md) - IntelOwl enrichment bot behavior, summary-only persistence, email analyzer setup, and story/report task flow.
 - [Admin User CLI](admin-user-cli.md) - operational password reset and role repair through `taranis-cli` inside the core container.
 - [Release Gate Tests](release-gate-tests.md) - Docker/Compose release gates that run expensive checks against already published GHCR images.
 - [Story Bookmarks](story-bookmarks.md) - bookmark collections, the Assess bookmark bar, instant single-story bookmarking, and bookmark cache invalidation.

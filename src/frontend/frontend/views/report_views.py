@@ -1,8 +1,9 @@
 from typing import Any
 
-from flask import Response, abort, render_template, request, url_for
+from flask import Response, abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.assess import Story
+from models.cti import CTIResponse
 from models.product import Product, ProductType
 from models.report import ReportItem, ReportTypes
 from models.revision_diff import build_report_revision_diff_payload
@@ -235,13 +236,36 @@ class ReportItemView(BaseView):
         CoreApi().clone_report(report_id)
         return ReportItemView.list_view()
 
-    def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
+    @staticmethod
+    @auth_required()
+    def cti_dialog(report_id: str) -> tuple[str, int]:
+        payload = CoreApi().api_get(f"/analyze/report-items/{report_id}/cti") or {"item_type": "report", "item_id": report_id, "iocs": []}
+        return render_template("shared/cti_dialog.html", cti=CTIResponse.model_validate(payload)), 200
+
+    @staticmethod
+    @auth_required()
+    def trigger_bot_action(report_id: str | None = None) -> ResponseReturnValue:
+        bot_id = request.form.get("bot_id")
+        if not bot_id:
+            return make_response(ReportItemView.render_response_notification({"error": "Bot identifier is required."}), 400)
+        if report_id:
+            payload = {"report_id": report_id, "bot_id": bot_id}
+        elif report_ids := request.form.getlist("report_ids"):
+            payload = {"report_ids": report_ids, "bot_id": bot_id}
+        else:
+            return make_response(ReportItemView.render_response_notification({"error": "No reports selected for bot action."}), 400)
+
+        response = CoreApi().api_post("/analyze/report-items/botactions", json_data=payload)
+        status = 200 if getattr(response, "ok", False) else 400
+        return make_response(ReportItemView.get_notification_from_response(response), status)
+
+    def post(self, *args: Any, **kwargs: Any) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs) or "0"
         if request.form.get("layout_switch"):
             return self._render_layout_switch_view(object_id)
         return self.update_view_table(object_id=object_id)
 
-    def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
+    def put(self, **kwargs: Any) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)
         if object_id is None:
             return abort(405)

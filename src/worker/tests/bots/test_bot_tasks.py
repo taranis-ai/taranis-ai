@@ -92,7 +92,12 @@ class TestBotTask:
             "message": "Bot bot-456 executed successfully",
             "reason": None,
             "retryable": False,
-            "data": {"bot_id": "bot-456", "result": bot_execution_result},
+            "data": {
+                "bot_id": "bot-456",
+                "filter": {"story_id": "123"},
+                "trigger_dependents": True,
+                "result": bot_execution_result,
+            },
         }
 
         # Verify return value includes worker metadata
@@ -120,7 +125,7 @@ class TestBotTask:
         assert isinstance(task_data["result"], dict)
         assert task_data["result"]["message"] == "Bot with id bot-999 not found"
         assert task_data["result"]["reason"] == "bot_not_found"
-        assert task_data["result"]["data"] == {"bot_id": "bot-999"}
+        assert task_data["result"]["data"] == {"bot_id": "bot-999", "filter": None, "trigger_dependents": True}
 
     def test_bot_task_exception_wraps_error_in_dict(self, current_job, requests_mock, bot_config, stub_bots):
         """Test that bot_task wraps exception messages in dict."""
@@ -165,7 +170,23 @@ class TestBotTask:
             "message": "Bot execution failed: Bot bot-456 returned no result",
             "reason": "bot_empty_result",
             "retryable": False,
-            "data": {"bot_id": "bot-456"},
+            "data": {"bot_id": "bot-456", "filter": None, "trigger_dependents": True},
+        }
+
+    def test_bot_task_can_suppress_dependent_triggers(self, current_job, requests_mock, bot_config, stub_bots):
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "ok"})
+        stub_bots._execute_impl = staticmethod(lambda params: {"tagged_items": 1})
+
+        bot_task("bot-456", {"SOURCE": "source-1"}, trigger_dependents=False)
+
+        put_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+        task_data = put_calls[0].json()
+        assert task_data["result"]["data"] == {
+            "bot_id": "bot-456",
+            "filter": {"SOURCE": "source-1"},
+            "trigger_dependents": False,
+            "result": {"tagged_items": 1},
         }
 
     def test_bot_task_without_job_uses_fallback_id(self, no_current_job, requests_mock, bot_config, stub_bots):

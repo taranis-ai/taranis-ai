@@ -139,7 +139,7 @@ class CoreApi:
     def api_get(self, url: str, params=None):
         url = f"{self.api_url}{url}"
         if params:
-            url += f"?{urlencode(params)}"
+            url += f"?{urlencode(params, doseq=True)}"
         response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
@@ -373,6 +373,13 @@ class CoreApi:
         try:
             return self.api_get(url="/worker/word-lists?usage=4&with_entries=true")
         except Exception:
+            return None
+
+    def get_iocs(self, iocs: list[dict[str, str]]) -> dict[str, Any] | None:
+        try:
+            return self.api_post(url="/worker/iocs", json_data={"iocs": iocs})
+        except Exception:
+            logger.exception("Can't get IOCs")
             return None
 
     def update_news_item(self, news_id: str, data) -> dict | None:

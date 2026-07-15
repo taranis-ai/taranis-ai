@@ -1,3 +1,4 @@
+from importlib import import_module
 from sqlite3 import Connection as SQLite3Connection
 
 from flask import Flask
@@ -14,6 +15,8 @@ db: SQLAlchemy = SQLAlchemy()
 
 
 def initial_database_setup(engine: Engine):
+    import_module("core.model.ioc")
+
     is_empty = is_db_empty(engine)
     db.metadata.create_all(bind=engine)
     setup_fts(engine)

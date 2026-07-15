@@ -3,6 +3,8 @@
 
 {% set form_error = form_error | default({}) %}
 {% set asset = asset | default({}) %}
+{% set asset_observables = asset_observables | default([]) %}
+{% set asset_observable_types = asset_observable_types | default(['cve', 'email', 'ip', 'domain', 'url', 'hash']) %}
 
 {# djlint:off #}
 <div class="p-4"
@@ -12,6 +14,15 @@
   <div class="card-body gap-3">
     <div class="flex items-center gap-3">
       <h2 class="card-title">{{ submit_text }}</h2>
+      <div class="flex-1"></div>
+      {% if asset.id and asset.id != '0' %}
+        <a class="btn btn-outline btn-sm gap-2"
+           href="{{ url_for('assets.asset_cti', asset_id=asset.id) }}"
+           data-testid="asset-cti-button">
+          {{ heroicon_mini("document-magnifying-glass", class="h-4 w-4") }}
+          <span>CTI information</span>
+        </a>
+      {% endif %}
     </div>
 
     <div class="grid grid-cols-12 gap-4">
@@ -21,11 +32,45 @@
               hx-target="#asset"
               hx-target-error="#asset"
               class="col-span-6"
+              x-data='{ observables: {{ asset_observables | tojson }}, init() { if (!this.observables.length) this.addObservable(); }, addObservable() { this.observables.push({ "ioc_type": "", "value": "" }); }, removeObservable(index) { this.observables.splice(index, 1); } }'
               data-testid="asset-form">
           {% include "partials/admin_form_error.html" %}
           {{ form_input('Name', 'name', asset.name, form_error.name, width="w-full") }}
           {{ form_textarea('Description', 'description', asset.description, form_error.description, width="w-full", required=false) }}
           {{ form_input('Serial Number', 'serial', asset.serial, form_error.serial, width="w-full", required=false) }}
+          <div class="mb-5">
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <span class="font-semibold text-sm">Observables</span>
+              <button type="button" class="btn btn-outline btn-xs" @click="addObservable()" data-testid="add-asset-observable">
+                {{ heroicon_mini("plus", class="h-4 w-4") }}
+                <span>Add</span>
+              </button>
+            </div>
+            <template x-for="(observable, index) in observables" :key="index">
+              <div class="grid grid-cols-12 gap-2 mb-2">
+                <select class="select select-bordered col-span-4"
+                        x-model="observable.ioc_type"
+                        name="asset_observables[][ioc_type]"
+                        data-testid="asset-observable-type">
+                  <option value="">Type</option>
+                  {% for observable_type in asset_observable_types %}<option value="{{ observable_type }}">{{ observable_type | upper }}</option>{% endfor %}
+                </select>
+                <input class="input input-bordered col-span-7"
+                       type="text"
+                       x-model="observable.value"
+                       name="asset_observables[][value]"
+                       placeholder="Value"
+                       data-testid="asset-observable-value">
+                <button type="button"
+                        class="btn btn-ghost text-error col-span-1"
+                        @click="removeObservable(index)"
+                        aria-label="Remove observable"
+                        data-testid="remove-asset-observable">
+                  {{ heroicon_mini("trash", class="h-4 w-4") }}
+                </button>
+              </div>
+            </template>
+          </div>
           <input type="submit" class="btn btn-primary w-3/4 mt-8" value="{{ submit_text }}" />
 
         </form>

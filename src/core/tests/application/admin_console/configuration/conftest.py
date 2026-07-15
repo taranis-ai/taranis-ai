@@ -167,7 +167,7 @@ def cleanup_bot(app):
             "id": str(uuid.uuid7()),
             "name": "testBot",
             "description": "test Bot",
-            "type": "nlp_bot",
+            "type": "tagging_bot",
             "parameters": {"SOURCE_GROUP": "default", "RUN_AFTER_COLLECTOR": "true"},
         }
 
