@@ -7,6 +7,7 @@ from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args
 from core.model import asset
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.cti import CTIService
 
 
 class AssetGroups(MethodView):
@@ -82,11 +83,23 @@ class Assets(MethodView):
         return response, status
 
 
+class AssetCTI(MethodView):
+    @auth_required("ASSETS_ACCESS")
+    def get(self, asset_id: str):
+        return CTIService.get_asset_cti(asset_id, current_user)
+
+
+class AssetsCTI(MethodView):
+    @auth_required("ASSETS_ACCESS")
+    def get(self):
+        return CTIService.get_assets_cti(current_user)
+
+
 class AssetVulnerability(MethodView):
     @auth_required("ASSETS_CREATE")
     def put(self, asset_id, vulnerability_id):
-        data = request.json
-        if not data or "solved" not in data:
+        data = request.json or {}
+        if "solved" not in data:
             return {"message": "Missing solved field"}, 400
         response, status = asset.Asset.solve_vulnerability(current_user.organization, asset_id, vulnerability_id, data["solved"])
         invalidate_frontend_cache_on_success(status, models=("asset",), object_ids={"asset": asset_id})
@@ -96,7 +109,9 @@ class AssetVulnerability(MethodView):
 def initialize(app: Flask):
     base_route = f"{Config.APPLICATION_ROOT}api"
     app.add_url_rule(f"{base_route}/assets", view_func=Assets.as_view("assets"))
+    app.add_url_rule(f"{base_route}/assets/cti", view_func=AssetsCTI.as_view("assets_cti"))
     app.add_url_rule(f"{base_route}/assets/<string:asset_id>", view_func=Assets.as_view("asset"), methods=["GET", "PUT", "DELETE"])
+    app.add_url_rule(f"{base_route}/assets/<string:asset_id>/cti", view_func=AssetCTI.as_view("asset_cti"))
     app.add_url_rule(
         f"{base_route}/assets/<string:asset_id>/vulnerabilities/<string:vulnerability_id>",
         view_func=AssetVulnerability.as_view("asset_vulnerability"),

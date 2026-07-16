@@ -1004,12 +1004,18 @@ class TestEndToEndAdmin(BaseE2ETest):
         update_product_type()
         remove_product_type()
 
-    def test_admin_bot(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_bot(self, logged_in_page: Page, forward_console_and_page_errors: None):
         page = logged_in_page
+        bot_count = 0
+        bot_name = f"test bot {uuid.uuid4().hex[:6]}"
+        updated_bot_name = f"{bot_name} updated"
 
         def test_load_bots():
+            nonlocal bot_count
             page.goto(url_for("admin.bots", _external=True))
-            expect(page.get_by_test_id("bot-table")).to_be_visible()
+            bot_table = page.get_by_test_id("bot-table")
+            expect(bot_table).to_be_visible()
+            bot_count = bot_table.locator("tbody tr").count()
             page.screenshot(path="./tests/playwright/screenshots/docs_bots.png")
 
         def test_bot_create():
@@ -1018,32 +1024,31 @@ class TestEndToEndAdmin(BaseE2ETest):
             refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="Name").fill("test bot")
+            page.get_by_role("textbox", name="Name").fill(bot_name)
             expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").fill("test bot description")
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("21")
-            self.select_dynamic_type_and_wait(page, "nlp_bot", refresh_interval_input)
+            self.select_dynamic_type_and_wait(page, "analyst_bot", refresh_interval_input)
 
             page.get_by_role("textbox", name="ITEM_FILTER").fill("1")
-            page.get_by_role("textbox", name="BOT_API_KEY").fill("2")
-            page.get_by_role("textbox", name="REQUESTS_TIMEOUT").fill("30")
-            page.get_by_role("textbox", name="BOT_ENDPOINT").fill("http://test.url")
+            page.get_by_role("textbox", name="REGULAR_EXPRESSION").fill(".*")
+            page.get_by_role("textbox", name="ATTRIBUTE_NAME").fill("test_attribute")
 
             page.get_by_role("checkbox", name="run_after_collector").check()
             page.get_by_role("button", name="Create Bot").click()
 
         def test_bot_update():
-            page.get_by_role("link", name="test bot", exact=True).click()
+            page.get_by_role("link", name=bot_name, exact=True).click()
             expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
-            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="Name").fill("test bot updated")
+            expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
+            page.get_by_role("textbox", name="Name", exact=True).fill(updated_bot_name)
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("12")
             page.get_by_role("button", name="Update Bot").click()
 
-            page.get_by_role("link", name="test bot updated").click()
+            page.get_by_role("link", name=updated_bot_name).click()
             expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
             page.get_by_role("button", name="Update Bot").click()
@@ -1051,8 +1056,8 @@ class TestEndToEndAdmin(BaseE2ETest):
         def test_remove_bot():
             bot_table = page.get_by_test_id("bot-table")
             all_rows = bot_table.locator("tbody tr")
-            expect(all_rows).to_have_count(8)
-            item_id = self.get_table_row_id_by_link_text(page, "bot-table", "test bot updated")
+            expect(all_rows).to_have_count(bot_count + 1)
+            item_id = self.get_table_row_id_by_link_text(page, "bot-table", updated_bot_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             dismiss_notifications(page)

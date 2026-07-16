@@ -25,6 +25,7 @@ def init(app: Flask):
         endpoint="bookmark_remove_stories",
     )
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=StoryView.story_view, methods=["GET"], endpoint="story")
+    assess_bp.add_url_rule("/story/<string:story_id>/cti", view_func=StoryView.story_cti_dialog, methods=["GET"], endpoint="story_cti")
     assess_bp.add_url_rule(
         "/story/<string:story_id>", view_func=StoryView.patch_story, methods=["POST", "PUT", "PATCH"], endpoint="story_update"
     )
@@ -33,6 +34,7 @@ def init(app: Flask):
     assess_bp.add_url_rule(
         "/story/<string:story_id>/bots", view_func=StoryView.trigger_bot_action, methods=["POST"], endpoint="story_trigger_bot"
     )
+    assess_bp.add_url_rule("/stories/bots", view_func=StoryView.trigger_stories_bot_action, methods=["POST"], endpoint="stories_trigger_bot")
     assess_bp.add_url_rule(
         "/news-item/<string:news_item_id>", view_func=StoryView.update_news_item, methods=["POST"], endpoint="update_news_item"
     )
@@ -44,6 +46,9 @@ def init(app: Flask):
     )
     assess_bp.add_url_rule("/news-item", view_func=StoryView.create_news_item, methods=["POST"], endpoint="create_news_item")
     assess_bp.add_url_rule("/news-item/<string:news_item_id>", view_func=StoryView.news_item_view, methods=["GET"], endpoint="get_news_item")
+    assess_bp.add_url_rule(
+        "/news-item/<string:news_item_id>/cti", view_func=StoryView.news_item_cti_dialog, methods=["GET"], endpoint="news_item_cti"
+    )
     assess_bp.add_url_rule(
         "/news-item/<string:news_item_id>", view_func=StoryView.delete_news_item, methods=["DELETE"], endpoint="delete_news_item"
     )

@@ -27,6 +27,12 @@
               <span>Manage tags</span>
             </button>
           {% endif %}
+          <a class="btn btn-sm btn-outline"
+             data-testid="newsitem-cti-{{ news_item.id }}"
+             href="{{ url_for('assess.news_item_cti', news_item_id=news_item.id) }}">
+            {{ heroicon_mini("document-magnifying-glass", class="h-4 w-4") }}
+            <span>CTI</span>
+          </a>
           {% if news_item.source == 'manual' %}
             <a class="btn btn-sm btn-outline"
                data-testid="edit-newsitem-{{ news_item.id }}"

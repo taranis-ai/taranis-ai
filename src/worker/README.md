@@ -36,6 +36,12 @@ Run the worker container healthcheck command:
 uv run --no-sync --frozen taranis-worker-healthcheck --mode worker
 ```
 
+Check or configure IntelOwl from a worker install/container:
+
+```bash
+uv run --no-sync --frozen taranis-intelowl-setup --url http://127.0.0.1:18080
+```
+
 ## Architecture
 
 see [docs](https://github.com/taranis-ai/taranis-ai/tree/master/doc)

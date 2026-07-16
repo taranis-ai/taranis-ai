@@ -19,6 +19,7 @@ from models.assess import (
     StoryBookmark,
     StoryUpdatePayload,
 )
+from models.cti import CTIResponse
 from models.report import ReportItem
 from models.revision_diff import build_story_revision_diff_payload
 from pydantic import ValidationError
@@ -938,6 +939,12 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
+    def story_cti_dialog(cls, story_id: str):
+        payload = CoreApi().api_get(f"/assess/stories/{story_id}/cti") or {"item_type": "story", "item_id": story_id, "iocs": []}
+        return render_template("shared/cti_dialog.html", cti=CTIResponse.model_validate(payload)), 200
+
+    @classmethod
+    @auth_required()
     def trigger_bot_action(cls, story_id: str):
         bot_id = request.form.get("bot_id")
         if not bot_id:
@@ -963,6 +970,19 @@ class StoryView(BaseView):
         content = StoryView._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 
+    @classmethod
+    @auth_required()
+    def trigger_stories_bot_action(cls):
+        story_ids = request.form.getlist("story_ids")
+        bot_id = request.form.get("bot_id")
+        if not story_ids:
+            return cls.rerender_list(notification=cls.render_response_notification({"error": "No stories selected for bot action."}))
+        if not bot_id:
+            return cls.rerender_list(notification=cls.render_response_notification({"error": "Bot identifier is required."}))
+
+        response = CoreApi().api_post("/assess/stories/botactions", json_data={"story_ids": story_ids, "bot_id": bot_id})
+        return cls.rerender_list(notification=cls.get_notification_from_response(response))
+
     @staticmethod
     @auth_required()
     def get_tags():
@@ -982,6 +1002,16 @@ class StoryView(BaseView):
     def news_item_view(cls, news_item_id: str = "0"):
         news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="")
         return render_template("assess/news_item_create.html", news_item=news_item), 200
+
+    @classmethod
+    @auth_required()
+    def news_item_cti_dialog(cls, news_item_id: str):
+        payload = CoreApi().api_get(f"/assess/news-items/{news_item_id}/cti") or {
+            "item_type": "news_item",
+            "item_id": news_item_id,
+            "iocs": [],
+        }
+        return render_template("shared/cti_dialog.html", cti=CTIResponse.model_validate(payload)), 200
 
     @classmethod
     def _handle_news_item_response(

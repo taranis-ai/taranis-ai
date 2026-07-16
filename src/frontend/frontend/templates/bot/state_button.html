@@ -1,0 +1,4 @@
+{% if bot.id != '0' %}
+  {% from "macros/worker.html" import worker_state %}
+  {{ worker_state(bot.id, "bot", bot.enabled) }}
+{% endif %}

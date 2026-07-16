@@ -535,6 +535,9 @@ def test_osint_source_form_shows_current_icon_and_delete_option(app):
     assert "Preview" in html
     assert "Collect" in html
     assert "checked" in html
+    assert 'hx-post="/frontend/admin/toggle_source_state/source-with-icon/enabled"' in html
+    assert 'hx-post="/frontend/admin/toggle_source_state/source-with-icon/disabled"' in html
+    assert html.count('hx-swap="outerHTML"') >= 3
 
 
 def test_osint_source_form_disables_rank_for_manual_source(app):
