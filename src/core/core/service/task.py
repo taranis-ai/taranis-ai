@@ -40,12 +40,6 @@ class TaskService:
     def delete_task(task_id: str) -> tuple[dict[str, Any], int]:
         return TaskModel.delete(task_id)
 
-    @staticmethod
-    def reconcile_failures() -> tuple[dict[str, Any], int]:
-        from core.service.task_reconciliation import task_reconciliation_service
-
-        return task_reconciliation_service.reconcile(), 200
-
     @classmethod
     def save_task_result(cls, submission: TaskSubmission) -> tuple[dict[str, Any], int]:
         task_kind = cls._resolve_task_kind(submission.id, submission.task)
