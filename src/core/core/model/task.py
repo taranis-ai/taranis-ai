@@ -14,6 +14,7 @@ class Task(BaseModel):
 
     SUCCESS_STATUSES = {"SUCCESS", "NOT_MODIFIED"}
     FAILURE_STATUSES = {"FAILURE"}
+    DEFAULT_RESULT = {"message": "No task result was recorded", "reason": "missing_result", "retryable": False, "data": None}
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     job_id: Mapped[str] = db.Column(db.String, unique=True, nullable=False)
@@ -47,7 +48,7 @@ class Task(BaseModel):
             self.worker_id = worker_id
         if worker_type is not None:
             self.worker_type = worker_type
-        self.result = json.dumps(result) if result is not None else ""
+        self.result = self._serialize_result(result)
         if status in self.SUCCESS_STATUSES:
             self.last_success = datetime.now(timezone.utc)
         self.last_run = datetime.now(timezone.utc)
@@ -55,7 +56,7 @@ class Task(BaseModel):
     @classmethod
     def add_or_update(cls, entry_data):
         if entry := cls.get_by_job_id(entry_data["id"]):
-            entry.result = json.dumps(entry_data["result"]) if entry_data["result"] is not None else ""
+            entry.result = cls._serialize_result(entry_data["result"])
             entry.status = entry_data.get("status")
             entry.task = entry_data.get("task", entry.task)
             entry.user_id = entry_data.get("user_id", entry.user_id)
@@ -70,7 +71,12 @@ class Task(BaseModel):
         return new_entry.to_dict(), 201
 
     def to_dict(self):
-        result = json.loads(self.result) if self.result else None
+        try:
+            result = json.loads(self.result) if self.result else None
+        except (TypeError, ValueError):
+            result = None
+        if not isinstance(result, dict):
+            result = self.DEFAULT_RESULT.copy()
         return {
             "id": self.id,
             "job_id": self.job_id,
@@ -83,6 +89,10 @@ class Task(BaseModel):
             "last_run": self.last_run.isoformat() if self.last_run else None,
             "last_success": self.last_success.isoformat() if self.last_success else None,
         }
+
+    @classmethod
+    def _serialize_result(cls, result: Any) -> str:
+        return json.dumps(result if isinstance(result, dict) else cls.DEFAULT_RESULT)
 
     @classmethod
     def get_failed(cls, task_id: str) -> "Task | None":

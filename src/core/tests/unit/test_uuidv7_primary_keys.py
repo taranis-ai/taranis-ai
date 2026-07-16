@@ -36,6 +36,17 @@ def test_new_model_defaults_generate_uuidv7():
     assert task.job_id == "legacy-job-reference"
 
 
+def test_task_without_result_uses_result_envelope():
+    task = Task(id="missing-result")
+
+    assert task.to_dict()["result"] == {
+        "message": "No task result was recorded",
+        "reason": "missing_result",
+        "retryable": False,
+        "data": None,
+    }
+
+
 def test_explicit_canonical_uuid_is_preserved():
     explicit_id = str(uuid.uuid7())
     story = Story(id=explicit_id, title="Explicit ID")
@@ -77,7 +88,7 @@ def test_seeded_semantic_records_keep_string_ids_and_lookup_aliases(app):
         assert settings is not None
         assert settings.singleton_key == "settings"
         assert_string_id(settings.id)
-        assert Settings.get(1) == settings
+        assert Settings.get(1) == settings  # type: ignore[arg-type]
         assert Settings.get("settings") == settings
 
 
