@@ -53,6 +53,14 @@ def test_flask_secret_key(app):
         assert secret_key == "test_key_for_tests_only_do_not_use"
 
 
+def test_skip_initial_user_onboarding_from_env(monkeypatch):
+    monkeypatch.setenv("SKIP_INITIAL_USER_ONBOARDING", "true")
+
+    settings = Settings()
+
+    assert settings.SKIP_INITIAL_USER_ONBOARDING is True
+
+
 def test_sqlalchemy_pool_timeout_from_env_var(monkeypatch, clear_pool_env_vars):
     """Test that SQLALCHEMY_POOL_TIMEOUT is correctly read from environment and added to engine options."""
     monkeypatch.setenv("SQLALCHEMY_POOL_TIMEOUT", "666")
