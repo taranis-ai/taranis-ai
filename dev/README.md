@@ -22,6 +22,8 @@ Workflow:
 
 ## Easy Mode
 
+The automated setup supports Ubuntu and Debian 13.
+
 Clone Repository
 
 ```bash
