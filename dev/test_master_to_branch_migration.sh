@@ -149,7 +149,7 @@ done
 
 "$CONTAINER_CLI" exec "$PG_CONTAINER" pg_isready -U "$PG_USER" -d postgres >/dev/null 2>&1 || fail "PostgreSQL did not become ready."
 
-PG_PORT="$("$CONTAINER_CLI" port "$PG_CONTAINER" 5432/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
+PG_PORT="$("$CONTAINER_CLI" port "$PG_CONTAINER" 5432/tcp | sed -E 's/.*:([0-9]+)$/\1/' | head -n 1)"
 [ -n "$PG_PORT" ] || fail "Could not determine PostgreSQL host port."
 
 "$CONTAINER_CLI" exec "$PG_CONTAINER" createdb -U "$PG_USER" "$MASTER_DB"
