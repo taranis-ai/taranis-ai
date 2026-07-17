@@ -85,6 +85,7 @@ Queue state is not persisted across local Redis restarts in this dev setup.
 
 Setup nginx.
 Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
+Existing installed nginx configurations are not updated automatically when `dev/nginx.conf` changes. Public product publishing requires the active server block to include the tracked `/reports` proxy; recopy or update the installed configuration before validating that route.
 
 ```bash
 # Debian based example

@@ -50,6 +50,10 @@ Use the application
 http://<url>:<TARANIS_PORT>/login
 ```
 
+## Public reports
+
+Products published with a `TARANIS_PUBLISHER` preset are stored in the `core_data` volume under `/app/data/published-reports`. Their stable URL is `http://<url>:<TARANIS_PORT>/reports/<product-id>` and intentionally requires no authentication. Republishing a product replaces the file at the same URL.
+
 ## Development
 
 See [dev Readme](/dev/README.md) for a quick way to get a development environment running.

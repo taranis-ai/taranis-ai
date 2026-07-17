@@ -1,12 +1,81 @@
 from unittest.mock import call, patch
 
+import pytest
 from flask import Response as FlaskResponse
+from flask import render_template
 from models.product import Product, ProductType, PublisherPreset
 from models.report import ReportItem
+from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
+from pydantic import ValidationError
 from requests import Response
 from requests.structures import CaseInsensitiveDict
 
 from frontend.views.product_views import ProductView
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "//evil.example/report",
+        "javascript:alert(1)",
+        "https://user:password@example.com/report",
+        "https://example.com\\@evil.example/report",
+        "/reports/good\njavascript:alert(1)",
+        "/reports/product-1 ",
+        " https://reports.example/product-1",
+    ],
+)
+def test_product_rejects_unsafe_last_published_urls(url):
+    with pytest.raises(ValidationError, match="URL is not safe to open"):
+        Product(title="Product", product_type_id="product-type-1", last_published_url=url)
+
+
+@pytest.mark.parametrize("url", ["/reports/product-1", "https://reports.example/product-1"])
+def test_product_accepts_safe_last_published_urls(url):
+    product = Product(title="Product", product_type_id="product-type-1", last_published_url=url)
+
+    assert product.last_published_url == url
+
+
+@pytest.mark.parametrize(
+    ("last_published_url", "expected_test_id"),
+    [
+        ("/reports/product-1", "last-published-product-link"),
+        (None, "last-published-product-empty"),
+    ],
+)
+def test_product_view_always_shows_last_publication_section(app, last_published_url, expected_test_id):
+    product = Product.model_construct(
+        id="product-1",
+        title="Existing product",
+        description="existing",
+        product_type_id="product-type-1",
+        report_items=[],
+        supported_reports=[],
+        last_published_url=last_published_url,
+        render_result=None,
+        mime_type=None,
+    )
+
+    with app.test_request_context("/publish/product-1"):
+        markup = render_template(
+            "publish/product.html",
+            product=product,
+            product_types=[],
+            publishers=[],
+            selected_report_items=[],
+            supported_reports=[],
+            submit_text="Update Product",
+            is_edit=True,
+            form_action='hx-put="/frontend/publish/product-1"',
+        )
+
+    assert 'data-testid="last-published-product"' in markup
+    assert f'data-testid="{expected_test_id}"' in markup
+    if last_published_url:
+        assert f'href="{last_published_url}"' in markup
+        assert 'target="_blank"' in markup
+        assert 'rel="noopener noreferrer"' in markup
 
 
 def test_product_download_streams_core_response(authenticated_client):
@@ -52,7 +121,7 @@ def test_product_view_uses_publish_product_types_endpoint():
             id="product-type-1",
             title="CERT Daily Report",
             description="cert.at Daily Report HTML",
-            type="HTML_PRESENTER",
+            type=PRESENTER_TYPES.HTML_PRESENTER,
         )
     ]
     publishers = [
@@ -60,7 +129,7 @@ def test_product_view_uses_publish_product_types_endpoint():
             id="publisher-1",
             name="FTP Publisher",
             description="Primary FTP publisher",
-            type="FTP_PUBLISHER",
+            type=PUBLISHER_TYPES.FTP_PUBLISHER,
         )
     ]
 

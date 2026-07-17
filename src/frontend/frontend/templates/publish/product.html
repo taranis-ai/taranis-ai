@@ -89,6 +89,21 @@
           {% endif %}
 
           {% if is_edit %}
+            <section class="mt-4 rounded-md border p-4" data-testid="last-published-product">
+              <h3 class="font-semibold">Last published product</h3>
+              {% if product.last_published_url %}
+                <a class="link link-primary break-all"
+                   href="{{ product.last_published_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   data-testid="last-published-product-link">{{ product.last_published_url }}</a>
+              {% else %}
+                <p class="text-sm text-base-content/70" data-testid="last-published-product-empty">This product has not been published yet.</p>
+              {% endif %}
+            </section>
+          {% endif %}
+
+          {% if is_edit %}
             {% if rendered_product %}
               <div class="mt-4 flex flex-wrap items-center gap-4">
                 <button type="button" class="btn btn-accent flex-1" @click="triggerAction('publish')">Publish (manually)</button>
