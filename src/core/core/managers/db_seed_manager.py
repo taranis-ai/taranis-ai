@@ -38,6 +38,9 @@ def pre_seed():
         pre_seed_workers()
         logger.debug("Workers seeded")
 
+        pre_seed_default_publisher()
+        logger.debug("Default publisher seeded")
+
         pre_seed_assets()
         logger.debug("Assets seeded")
 
@@ -94,6 +97,8 @@ def pre_seed_update(db_engine: Engine):
             worker.update(w)
         else:
             Worker.add(w)
+
+    pre_seed_default_publisher()
 
     for b in bots:
         b = cast(dict[str, Any], b)
@@ -258,12 +263,17 @@ def migrate_user_profile(user_profile: dict, template: dict) -> dict:
 
 
 def migrate_user_profiles():
+    from core.model.settings import Settings
     from core.model.user import PROFILE_TEMPLATE, User
 
+    profile_template = {
+        **PROFILE_TEMPLATE,
+        "onboarding_enabled": Settings.get_settings().get("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING),
+    }
     users = User.get_all_for_collector() or []
     for user in users:
         current = user.profile if isinstance(user.profile, dict) else {}
-        updated = migrate_user_profile(current, PROFILE_TEMPLATE)
+        updated = migrate_user_profile(current, profile_template)
         if current != updated:
             logger.debug(f"Migrating user profile for user {user.name}")
             User.update_profile(user=user, data=updated)
@@ -373,6 +383,12 @@ def pre_seed_workers():
 
     for p in product_types:
         ProductType.add(_resolve_seed_product_type_report_types(p))
+
+
+def pre_seed_default_publisher():
+    from core.model.publisher_preset import PublisherPreset
+
+    PublisherPreset.ensure_default_taranis()
 
 
 def pre_seed_permissions():

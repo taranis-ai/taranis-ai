@@ -57,6 +57,8 @@ class SettingsView(AdminBaseView):
 
         if method == "patch":
             payload = parse_formdata(request.form) if request.form else None
+            if payload and "onboarding_enabled" in payload.get("settings", {}):
+                payload["settings"]["onboarding_enabled"] = payload["settings"]["onboarding_enabled"].lower() == "true"
             response = CoreApi().api_patch(action_url, json_data=payload)
             notification = cls.get_notification_from_response(response)
             static_view, static_response = cls.static_view()

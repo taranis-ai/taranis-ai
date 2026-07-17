@@ -88,8 +88,14 @@ class AutoRenderProducts(MethodView):
         return {"products": product_list}, 200
 
 
+class PublishedReports(MethodView):
+    def get(self, product_id: str):
+        return ProductService.get_published_report(product_id)
+
+
 def initialize(app: Flask):
     publish_bp = Blueprint("publish", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/publish")
+    published_reports_bp = Blueprint("published_reports", __name__, url_prefix=f"{Config.APPLICATION_ROOT}reports")
 
     publish_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("render_product"))
     publish_bp.add_url_rule(
@@ -101,4 +107,6 @@ def initialize(app: Flask):
     publish_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
     publish_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
     publish_bp.add_url_rule("/products/auto-render/<string:report_item_id>", view_func=AutoRenderProducts.as_view("auto_render_products"))
+    published_reports_bp.add_url_rule("/<string:product_id>", view_func=PublishedReports.as_view("published_report"))
     app.register_blueprint(publish_bp)
+    app.register_blueprint(published_reports_bp)

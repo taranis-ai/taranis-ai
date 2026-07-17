@@ -1,38 +1,23 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@codemirror/commands@*": "6.10.4",
     "npm:@codemirror/commands@^6.10.4": "6.10.4",
-    "npm:@codemirror/language@*": "6.12.4",
     "npm:@codemirror/language@^6.12.4": "6.12.4",
-    "npm:@codemirror/legacy-modes@*": "6.5.3",
     "npm:@codemirror/legacy-modes@^6.5.3": "6.5.3",
     "npm:@codemirror/merge@^6.12.2": "6.12.2",
-    "npm:@codemirror/state@*": "6.7.1",
     "npm:@codemirror/state@^6.7.1": "6.7.1",
-    "npm:@codemirror/view@*": "6.43.6",
     "npm:@codemirror/view@^6.43.6": "6.43.6",
-    "npm:@tailwindcss/cli@*": "4.3.0",
     "npm:@tailwindcss/cli@4.3.0": "4.3.0",
-    "npm:alpinejs@*": "3.15.12",
     "npm:alpinejs@^3.15.12": "3.15.12",
-    "npm:choices.js@*": "11.2.3",
     "npm:choices.js@^11.2.3": "11.2.3",
     "npm:codemirror@^6.0.2": "6.0.2",
     "npm:daisyui@^5.6.18": "5.6.18",
-    "npm:driver.js@*": "1.7.0",
     "npm:driver.js@^1.7.0": "1.7.0",
-    "npm:fuse.js@*": "7.5.0",
     "npm:fuse.js@^7.5.0": "7.5.0",
-    "npm:highlight-search-term@*": "1.0.3",
     "npm:highlight-search-term@^1.0.3": "1.0.3",
-    "npm:htmx-ext-response-targets@*": "2.0.4",
     "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
-    "npm:htmx.org@*": "2.0.10",
     "npm:htmx.org@^2.0.10": "2.0.10",
-    "npm:sortablejs@*": "1.15.7",
     "npm:sortablejs@^1.15.7": "1.15.7",
-    "npm:sweetalert2@*": "11.26.25",
     "npm:sweetalert2@^11.26.25": "11.26.25",
     "npm:tailwindcss@4.3.0": "4.3.0"
   },
@@ -394,8 +379,8 @@
     "driver.js@1.7.0": {
       "integrity": "sha512-IWkESaVWaoxIWu3TqTpLRDgOFmDdjZsg/Oz7hrrr4ApBUapTFm9YCXYnptu3mKN8l4eAdtrxpU54l7kHLK96tw=="
     },
-    "enhanced-resolve@5.24.1": {
-      "integrity": "sha512-7DdUaTjmNwMcH2gLr1qycesKII3BK4RLy/mdAb7x10Lq7bR4aNKHt1BR1ZALSv0rPM/hF5wYF0PhGop/rJm8vw==",
+    "enhanced-resolve@5.24.2": {
+      "integrity": "sha512-rpsZEGT1jFuve6QlpyRp9ckQ+kN61hvF9BzCPyMdaKTm8UJce96KBn3sorXOFXlzjPrs3Vc4T1NsSroZ3PxlFw==",
       "dependencies": [
         "graceful-fs",
         "tapable"
@@ -521,8 +506,8 @@
     "picocolors@1.1.1": {
       "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="
     },
-    "picomatch@4.0.4": {
-      "integrity": "sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A=="
+    "picomatch@4.0.5": {
+      "integrity": "sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A=="
     },
     "sortablejs@1.15.7": {
       "integrity": "sha512-Kk8wLQPlS+yi1ZEf48a4+fzHa4yxjC30M/Sr2AnQu+f/MPwvvX9XjZ6OWejiz8crBsLwSq8GHqaxaET7u6ux0A=="

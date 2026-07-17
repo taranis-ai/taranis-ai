@@ -20,8 +20,13 @@ from core.model.publisher_preset import PublisherPreset
 from core.model.report_item import ReportItem
 from core.model.story import Story
 from core.model.word_list import WordList
-from core.service.cache_invalidation import SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS, invalidate_frontend_cache_on_success
-from core.service.task import TaskService
+from core.service.cache_invalidation import (
+    SCOPE_ASSESS_VIEWS,
+    SCOPE_PUBLISH_VIEWS,
+    SCOPE_STORY_REPORT_VIEWS,
+    invalidate_frontend_cache_on_success,
+)
+from core.service.product import ProductService
 
 
 class AddNewsItems(MethodView):
@@ -52,6 +57,14 @@ class ProductsRender(MethodView):
         if product_data := Product.get_render(product_id):
             return Response(product_data["blob"], headers={"Content-Type": product_data["mime_type"]}, status=200)
         return {"error": "Product not found"}, 404
+
+
+class ProductsPublish(MethodView):
+    @api_key_required
+    def post(self, product_id: str):
+        response, status = ProductService.publish_to_taranis(product_id)
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
+        return response, status
 
 
 class Presenters(MethodView):
@@ -99,12 +112,6 @@ class CronJobs(MethodView):
     @api_key_required
     def get(self):
         return queue_manager.queue_manager.get_cron_job_configs()
-
-
-class TaskReconciliation(MethodView):
-    @api_key_required
-    def post(self):
-        return TaskService.reconcile_failures()
 
 
 class SourceIcon(MethodView):
@@ -315,9 +322,9 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/cron-jobs", view_func=CronJobs.as_view("cron_jobs_worker"))
-    worker_bp.add_url_rule("/tasks/reconcile", view_func=TaskReconciliation.as_view("task_reconciliation_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
+    worker_bp.add_url_rule("/products/<string:product_id>/publish", view_func=ProductsPublish.as_view("products_publish_worker"))
     worker_bp.add_url_rule("/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
     worker_bp.add_url_rule("/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
     worker_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connectors_worker"))

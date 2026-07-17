@@ -22,6 +22,8 @@ Workflow:
 
 ## Easy Mode
 
+The automated setup supports Ubuntu and Debian 13.
+
 Clone Repository
 
 ```bash
@@ -85,6 +87,7 @@ Queue state is not persisted across local Redis restarts in this dev setup.
 
 Setup nginx.
 Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
+Existing installed nginx configurations are not updated automatically when `dev/nginx.conf` changes. Public product publishing requires the active server block to include the tracked `/reports` proxy; recopy or update the installed configuration before validating that route.
 
 ```bash
 # Debian based example
@@ -193,9 +196,9 @@ Use the migration harness to reproduce production-like upgrades from the current
 ./dev/test_master_to_branch_migration.sh
 ```
 
-This harness requires `podman`.
+This harness requires Podman, or Docker with `CONTAINER_CLI=docker`.
 
-The script creates a temporary git worktree from `origin/master`, starts a disposable PostgreSQL container with Podman, initializes and seeds a fresh master database, copies it, then starts the current branch against the copy so pending yoyo migrations are applied. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
+The script creates a temporary git worktree from `origin/master`, starts a disposable PostgreSQL container, initializes and seeds a fresh master database, copies it, then starts the current branch against the copy so pending yoyo migrations are applied. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
 
 Useful options:
 
@@ -204,9 +207,12 @@ BASE_REF=master ./dev/test_master_to_branch_migration.sh
 KEEP_MIGRATION_TEST_DB=1 ./dev/test_master_to_branch_migration.sh
 PG_IMAGE=postgres:16-alpine ./dev/test_master_to_branch_migration.sh
 PYTEST_TARGET=tests ./dev/test_master_to_branch_migration.sh
+CONTAINER_CLI=docker BASE_REF=1.4.1 ./dev/test_master_to_branch_migration.sh
 ```
 
 `KEEP_MIGRATION_TEST_DB=1` leaves the temporary worktree and PostgreSQL container running for inspection. Do not point this harness at shared or production databases.
+
+After a schema-related PR is approved, CI uses this harness with the latest stable Git release tag as `BASE_REF` and the approved PR checkout as the migration target.
 
 ### RQ Cron Scheduler
 
