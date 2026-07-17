@@ -19,8 +19,8 @@ case "$ID" in
     ubuntu)
         ;;
     debian)
-        if [ "$VERSION_ID" != "13" ]; then
-            echo "This script supports Debian 13, but Debian $VERSION_ID was detected."
+        if [ "${VERSION_ID:-}" != "13" ]; then
+            echo "This script supports Debian 13, but Debian ${VERSION_ID:-unknown} was detected."
             echo "See dev/README.md for manual installation instructions."
             exit 1
         fi
