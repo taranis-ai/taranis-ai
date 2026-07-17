@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 
 from core.model.asset import AssetGroup
 from core.model.base_model import BaseModel
@@ -45,6 +46,22 @@ def test_task_without_result_uses_result_envelope():
         "retryable": False,
         "data": None,
     }
+
+
+def test_task_preserves_non_dict_results_and_logs_corrupt_stored_results():
+    assert Task(id="string-result", result="done").to_dict()["result"]["data"] == "done"
+    assert Task(id="list-result", result=["done"]).to_dict()["result"]["data"] == ["done"]
+
+    task = Task(id="corrupt-result")
+    task.result = "not-json"
+    with patch("core.model.task.logger.warning") as warning:
+        assert task.to_dict()["result"] == Task.DEFAULT_RESULT
+    warning.assert_called_once_with("Task %s has malformed result JSON", "corrupt-result")
+
+    task.result = '["legacy"]'
+    with patch("core.model.task.logger.warning") as warning:
+        assert task.to_dict()["result"] == Task.DEFAULT_RESULT
+    warning.assert_called_once_with("Task %s has a non-object result payload", "corrupt-result")
 
 
 def test_explicit_canonical_uuid_is_preserved():

@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Mapped
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
@@ -74,9 +75,13 @@ class Task(BaseModel):
         try:
             result = json.loads(self.result) if self.result else None
         except (TypeError, ValueError):
-            result = None
-        if not isinstance(result, dict):
+            logger.warning("Task %s has malformed result JSON", self.job_id)
             result = self.DEFAULT_RESULT.copy()
+        else:
+            if not isinstance(result, dict):
+                if self.result:
+                    logger.warning("Task %s has a non-object result payload", self.job_id)
+                result = self.DEFAULT_RESULT.copy()
         return {
             "id": self.id,
             "job_id": self.job_id,
@@ -92,7 +97,11 @@ class Task(BaseModel):
 
     @classmethod
     def _serialize_result(cls, result: Any) -> str:
-        return json.dumps(result if isinstance(result, dict) else cls.DEFAULT_RESULT)
+        if result is None:
+            return json.dumps(cls.DEFAULT_RESULT)
+        if not isinstance(result, dict):
+            result = {"message": "Task result was recorded", "reason": None, "retryable": False, "data": result}
+        return json.dumps(result)
 
     @classmethod
     def get_failed(cls, task_id: str) -> "Task | None":
