@@ -239,6 +239,16 @@ class User(TaranisBaseModel):
             return v.get_secret_value()
         return v
 
+    @field_validator("profile", mode="after")
+    @classmethod
+    def normalize_onboarding_enabled(cls, profile: dict | None) -> dict | None:
+        if not profile or "onboarding_enabled" not in profile:
+            return profile
+        value = profile["onboarding_enabled"]
+        if isinstance(value, str) and value.lower() in {"true", "false"}:
+            return {**profile, "onboarding_enabled": value.lower() == "true"}
+        return profile
+
 
 class TaranisConfig(TaranisBaseModel):
     default_collector_proxy: AnyUrl | Literal[""] = ""
@@ -247,6 +257,7 @@ class TaranisConfig(TaranisBaseModel):
     default_story_conflict_retention: str = "200"
     default_news_item_conflict_retention: str = "200"
     default_timezone: str | None = None
+    onboarding_enabled: bool = True
 
     @field_validator("default_timezone", mode="after")
     @classmethod

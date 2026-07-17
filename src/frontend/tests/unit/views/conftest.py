@@ -159,6 +159,8 @@ def form_formats_from_models(worker_parameter_data: dict[str, Any]):
             )
             allowed_keys.discard("enabled")
             required_keys.discard("enabled")
+        if view_name == "User":
+            allowed_keys.add("profile[onboarding_enabled]")
 
         payloads[view_name] = {
             "allowed": allowed_keys,
@@ -428,7 +430,17 @@ def mock_core_update_endpoints(responses_mock, mock_core_get_item_endpoint_data)
 
 
 @pytest.fixture
-def users_get_mock(responses_mock, organizations_get_mock, roles_get_mock):
+def settings_get_mock(responses_mock):
+    mock_data = {
+        "items": [{"settings": {"default_collector_proxy": "", "onboarding_enabled": True}}],
+        "total_count": 1,
+    }
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/settings/settings", json=mock_data)
+    yield mock_data
+
+
+@pytest.fixture
+def users_get_mock(responses_mock, organizations_get_mock, roles_get_mock, settings_get_mock):
     mock_data = {
         "items": [
             {

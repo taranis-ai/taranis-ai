@@ -80,7 +80,7 @@ cleanup() {
 
   if [ "${KEEP_MIGRATION_TEST_DB:-0}" != "1" ]; then
     if [ -n "${PG_CONTAINER:-}" ]; then
-      podman rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
+      "$CONTAINER_CLI" rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
     fi
     if [ -n "${MASTER_WORKTREE:-}" ] && [ -d "$MASTER_WORKTREE" ]; then
       git worktree remove --force "$MASTER_WORKTREE" >/dev/null 2>&1 || true
@@ -103,7 +103,9 @@ cleanup() {
 
 require_command git
 require_command uv
-require_command podman
+
+CONTAINER_CLI="${CONTAINER_CLI:-podman}"
+require_command "$CONTAINER_CLI"
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "Run this command from inside the taranis-ai git worktree."
 cd "$ROOT_DIR"
@@ -127,8 +129,8 @@ trap cleanup EXIT
 run_step "Create temporary worktree from $BASE_REF"
 git worktree add --detach "$MASTER_WORKTREE" "$BASE_REF" >/dev/null
 
-run_step "Start disposable PostgreSQL with Podman"
-podman run \
+run_step "Start disposable PostgreSQL with $CONTAINER_CLI"
+"$CONTAINER_CLI" run \
   --detach \
   --rm \
   --name "$PG_CONTAINER" \
@@ -139,19 +141,19 @@ podman run \
   "$PG_IMAGE" >/dev/null
 
 for _ in {1..60}; do
-  if podman exec "$PG_CONTAINER" pg_isready -U "$PG_USER" -d postgres >/dev/null 2>&1; then
+  if "$CONTAINER_CLI" exec "$PG_CONTAINER" pg_isready -U "$PG_USER" -d postgres >/dev/null 2>&1; then
     break
   fi
   sleep 1
 done
 
-podman exec "$PG_CONTAINER" pg_isready -U "$PG_USER" -d postgres >/dev/null 2>&1 || fail "PostgreSQL did not become ready."
+"$CONTAINER_CLI" exec "$PG_CONTAINER" pg_isready -U "$PG_USER" -d postgres >/dev/null 2>&1 || fail "PostgreSQL did not become ready."
 
-PG_PORT="$(podman port "$PG_CONTAINER" 5432/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
+PG_PORT="$("$CONTAINER_CLI" port "$PG_CONTAINER" 5432/tcp | sed -E 's/.*:([0-9]+)$/\1/' | head -n 1)"
 [ -n "$PG_PORT" ] || fail "Could not determine PostgreSQL host port."
 
-podman exec "$PG_CONTAINER" createdb -U "$PG_USER" "$MASTER_DB"
-podman exec "$PG_CONTAINER" createdb -U "$PG_USER" "$BRANCH_DB"
+"$CONTAINER_CLI" exec "$PG_CONTAINER" createdb -U "$PG_USER" "$MASTER_DB"
+"$CONTAINER_CLI" exec "$PG_CONTAINER" createdb -U "$PG_USER" "$BRANCH_DB"
 
 MASTER_DATABASE_URL="postgresql+psycopg://$PG_USER:$PG_PASSWORD@127.0.0.1:$PG_PORT/$MASTER_DB"
 BRANCH_DATABASE_URL="postgresql+psycopg://$PG_USER:$PG_PASSWORD@127.0.0.1:$PG_PORT/$BRANCH_DB"
@@ -164,8 +166,8 @@ echo "Branch database: $(masked_url "$BRANCH_DATABASE_URL")"
 run_core_db_setup "$MASTER_WORKTREE/src/core" "$MASTER_DATABASE_URL" "Create and seed database using $BASE_REF"
 
 run_step "Copy master database into branch database"
-podman exec "$PG_CONTAINER" pg_dump --no-owner --no-privileges -U "$PG_USER" -d "$MASTER_DB" >"$DUMP_FILE"
-podman exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$PG_USER" -d "$BRANCH_DB" <"$DUMP_FILE" >/dev/null
+"$CONTAINER_CLI" exec "$PG_CONTAINER" pg_dump --no-owner --no-privileges -U "$PG_USER" -d "$MASTER_DB" >"$DUMP_FILE"
+"$CONTAINER_CLI" exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$PG_USER" -d "$BRANCH_DB" <"$DUMP_FILE" >/dev/null
 
 run_core_db_setup "$ROOT_DIR/src/core" "$BRANCH_DATABASE_URL" "Apply current branch migrations to copied master database"
 run_pytest_validation "$ROOT_DIR/src/core" "$BRANCH_DATABASE_URL" "$PYTEST_TARGET"

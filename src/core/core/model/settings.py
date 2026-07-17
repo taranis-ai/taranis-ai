@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.orm import Mapped
 
+from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
@@ -34,6 +35,7 @@ class Settings(BaseModel):
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
         merged.setdefault("default_timezone", None)
+        merged.setdefault("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING)
         return merged
 
     @classmethod
@@ -53,13 +55,25 @@ class Settings(BaseModel):
             update_data = cls._normalize_update_data(dict(raw_update_data))
         except ValueError:
             return {"error": "Invalid timezone"}, 400
+        if "onboarding_enabled" in update_data:
+            try:
+                update_data["onboarding_enabled"] = cls._validate_bool(update_data["onboarding_enabled"])
+            except ValueError:
+                return {"error": "Invalid onboarding setting"}, 400
 
         if update_data:
             logger.debug(f"Settings update data: {update_data}")
             logger.debug(f"Settings before update: {settings.settings}")
             current_settings = cls.with_defaults(settings.settings)
+            onboarding_changed = (
+                "onboarding_enabled" in update_data and update_data["onboarding_enabled"] != current_settings["onboarding_enabled"]
+            )
             current_settings.update(update_data)
             settings.settings = current_settings
+            if onboarding_changed:
+                from core.model.user import User
+
+                User.set_onboarding_enabled_for_all(current_settings["onboarding_enabled"])
         db.session.commit()
         logger.debug(f"Settings after update: {settings.settings}")
         return {"message": "Successfully updated settings", "settings": settings.settings}, 200
@@ -67,9 +81,17 @@ class Settings(BaseModel):
     @classmethod
     def initialize(cls):
         if settings := cls.get_settings_entry():
+            onboarding_missing = "onboarding_enabled" not in (settings.settings or {})
             settings.settings = cls.with_defaults(settings.settings)
         else:
-            db.session.add(Settings())
+            settings = cls()
+            onboarding_missing = True
+            db.session.add(settings)
+
+        if onboarding_missing:
+            from core.model.user import User
+
+            User.set_onboarding_enabled_for_all(settings.settings["onboarding_enabled"])
 
         db.session.commit()
 
@@ -102,6 +124,14 @@ class Settings(BaseModel):
         except ZoneInfoNotFoundError:
             raise ValueError(f"Invalid timezone: {timezone_name}") from None
         return timezone_name
+
+    @staticmethod
+    def _validate_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str) and value.strip().lower() in {"true", "false"}:
+            return value.strip().lower() == "true"
+        raise ValueError("Invalid boolean")
 
     @classmethod
     def get_settings_entry(cls) -> "Settings | None":

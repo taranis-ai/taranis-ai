@@ -139,6 +139,16 @@ def test_scheduler_history_displays_worker_type_and_hover_worker_id(
     assert 'title="Worker ID: bot-1"' in html
 
 
+def test_scheduler_failed_jobs_renders_rq_error(authenticated_client, mock_core_get_endpoints, htmx_header):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_failed_jobs")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    assert "Boom" in response.get_data(as_text=True)
+
+
 def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(
     authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header, auth_user
 ):

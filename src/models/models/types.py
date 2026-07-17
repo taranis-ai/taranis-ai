@@ -124,6 +124,7 @@ class PRESENTER_TYPES(StrEnum):
 
 
 class PUBLISHER_TYPES(StrEnum):
+    TARANIS_PUBLISHER = auto()
     FTP_PUBLISHER = auto()
     SFTP_PUBLISHER = auto()
     S3_PUBLISHER = auto()
@@ -167,6 +168,7 @@ class WORKER_TYPES(StrEnum):
     TEXT_PRESENTER = auto()
     JSON_PRESENTER = auto()
     STIX_PRESENTER = auto()
+    TARANIS_PUBLISHER = auto()
     FTP_PUBLISHER = auto()
     SFTP_PUBLISHER = auto()
     S3_PUBLISHER = auto()
