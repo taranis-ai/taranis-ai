@@ -21,6 +21,8 @@ from frontend.views.product_views import ProductView
         "https://user:password@example.com/report",
         "https://example.com\\@evil.example/report",
         "/reports/good\njavascript:alert(1)",
+        "/reports/product-1 ",
+        " https://reports.example/product-1",
     ],
 )
 def test_product_rejects_unsafe_last_published_urls(url):

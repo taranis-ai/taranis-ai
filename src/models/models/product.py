@@ -12,7 +12,7 @@ from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 def validate_linkable_url(value: str | None) -> str | None:
     if value is None:
         return None
-    if not value or "\\" in value or any(ord(character) < 32 or ord(character) == 127 for character in value):
+    if value != value.strip() or "\\" in value or any(ord(character) < 32 or ord(character) == 127 for character in value):
         raise ValueError("URL is not safe to open")
 
     if value.startswith("/"):
