@@ -150,11 +150,6 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
             elif prev_run_dt and last_run_dt >= prev_run_dt or not prev_run_dt:
                 label = "On schedule"
                 variant = "success"
-            if prev_run_dt:
-                ran_current_window = bool(last_run_dt and last_run_dt >= prev_run_dt)
-                if ran_current_window:
-                    label = "On schedule"
-                    variant = "success"
 
         job["status_badge"] = {"variant": variant, "label": label}
         job["is_overdue"] = is_overdue
