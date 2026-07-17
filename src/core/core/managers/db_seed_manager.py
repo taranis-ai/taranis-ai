@@ -1,11 +1,5 @@
 from copy import deepcopy
 
-from models.user import (
-    ADMIN_ADVANCED_TOUR_ID,
-    ADMIN_WELCOME_TOUR_ID,
-    ONBOARDING_COMPLETED_STATUS,
-    USER_PRODUCT_OVERVIEW_TASK_ID,
-)
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import selectinload
 
@@ -258,12 +252,17 @@ def migrate_user_profile(user_profile: dict, template: dict) -> dict:
 
 
 def migrate_user_profiles():
+    from core.model.settings import Settings
     from core.model.user import PROFILE_TEMPLATE, User
 
+    profile_template = {
+        **PROFILE_TEMPLATE,
+        "onboarding_enabled": Settings.get_settings().get("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING),
+    }
     users = User.get_all_for_collector() or []
     for user in users:
         current = user.profile if isinstance(user.profile, dict) else {}
-        updated = migrate_user_profile(current, PROFILE_TEMPLATE)
+        updated = migrate_user_profile(current, profile_template)
         if current != updated:
             logger.debug(f"Migrating user profile for user {user.name}")
             User.update_profile(user=user, data=updated)
@@ -491,7 +490,6 @@ def pre_seed_default_user():
     if user_count > 0:
         return
 
-    initial_user_profile = _initial_user_profile()
     admin_organization = Organization.find_by_name("The Earth")
     if not admin_organization:
         admin_organization = Organization.add(
@@ -511,7 +509,6 @@ def pre_seed_default_user():
                     "roles": [admin_role.id],
                     "organization": {"id": admin_organization.id},
                     "password": Config.PRE_SEED_PASSWORD_ADMIN,
-                    "profile": initial_user_profile,
                 }
             )
 
@@ -539,22 +536,8 @@ def pre_seed_default_user():
                 "roles": [user_role],
                 "organization": {"id": user_organization.id},
                 "password": Config.PRE_SEED_PASSWORD_USER,
-                "profile": initial_user_profile,
             }
         )
-
-
-def _initial_user_profile() -> dict | None:
-    if not Config.SKIP_INITIAL_USER_ONBOARDING:
-        return None
-
-    return {
-        "onboarding_tasks": {
-            ADMIN_WELCOME_TOUR_ID: ONBOARDING_COMPLETED_STATUS,
-            ADMIN_ADVANCED_TOUR_ID: ONBOARDING_COMPLETED_STATUS,
-            USER_PRODUCT_OVERVIEW_TASK_ID: ONBOARDING_COMPLETED_STATUS,
-        }
-    }
 
 
 def pre_seed_assets():

@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input, form_select %}
+{% from "macros/forms.html" import form_input, form_select, form_switch %}
 
 {% set create = (user_id | default("0")) == "0" %}
 
@@ -121,6 +121,9 @@
     </div>
 
     {{ form_select(label='Organization', name='organization', value=user_organization_id, options=organizations, width="w-3/4") }}
+
+    {% set onboarding_enabled = user.profile.onboarding_enabled if not create and user.profile else onboarding_enabled_default %}
+    {{ form_switch('Onboarding enabled', 'profile[onboarding_enabled]', onboarding_enabled, yes_val=true, no_val=false, required=False, preserve=False, width='w-3/4', input_id='user-onboarding-enabled') }}
 
     <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
   </form>

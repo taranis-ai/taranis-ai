@@ -6,31 +6,40 @@ Initial database setup, pre-seeded users, onboarding tasks, `pre_seed_default_us
 
 ## Expected Behavior
 
-`SKIP_INITIAL_USER_ONBOARDING` defaults to `false`. When it is `true` during the first core startup against an empty database, all known onboarding tasks are stored as completed in the profiles of the pre-seeded `admin` and `user` accounts.
+`SKIP_INITIAL_USER_ONBOARDING` defaults to `false` and presets the persistent global `onboarding_enabled` setting only while that setting is missing. A value of `true` presets onboarding to disabled; later changes in Admin Settings remain authoritative.
 
-The flag does not change existing users, users created later, or the pending-task calculation used by the API. Users can still reset onboarding from their profile settings.
+Changing the global setting updates every existing user's `profile.onboarding_enabled` value. An administrator can then override individual users in Admin Users, including enabling one user while the global setting remains disabled. New users inherit the current global value unless the create form explicitly overrides it.
+
+Disabling onboarding suppresses pending tasks without changing completed, dismissed, or pending task state. An actual global value change replaces all existing per-user enabled flags; submitting the unchanged global value preserves individual overrides.
 
 ## Code Paths
 
 - `src/core/core/config.py`
-- `src/core/core/managers/db_seed_manager.py`
+- `src/core/core/model/settings.py`
 - `src/core/core/model/user.py`
 - `src/models/models/user.py`
+- `src/frontend/frontend/templates/settings/settings.html`
+- `src/frontend/frontend/templates/user/user_form.html`
 - `src/core/tests/test_settings.py`
 
 ## Data Flow
 
-Core startup reads the environment flag into `Config`. Empty-database pre-seeding creates the initial accounts with completed onboarding task statuses. The normal user profile response then reports no pending onboarding tasks.
+Core startup initializes the missing global setting from the environment flag and copies it to existing profiles. Admin Settings performs the same bulk copy only when the global value changes. The user profile response suppresses pending tasks when that user's enabled flag is false.
 
 ## Testing
 
 Run from `src/core`:
 
-- `uv run pytest tests/test_settings.py`
-- `uv run ruff check core/config.py core/managers/db_seed_manager.py tests/test_settings.py`
+- `uv run pytest tests/test_settings.py tests/unit/test_onboarding_settings.py`
+- `uv run ruff check core/config.py core/model/settings.py core/model/user.py tests/test_settings.py tests/unit/test_onboarding_settings.py`
+
+Run from `src/frontend`:
+
+- `uv run pytest tests/test_settings.py tests/test_onboarding.py tests/unit/views/test_forms.py`
+- `uv run pytest --e2e-ci`
 
 ## Pitfalls
 
-- The flag is intentionally one-time: setting it after users already exist must not rewrite their profiles.
-- Keep the completed task IDs aligned with the onboarding constants in `models.user`.
-- Do not globally suppress pending onboarding tasks, because that would also affect later-created users.
+- The environment flag must not overwrite an already-persisted global value.
+- The global value is a bulk default, not a runtime gate; per-user overrides must remain effective until the global value actually changes.
+- Never rewrite `onboarding_tasks` when enabling or disabling onboarding.
