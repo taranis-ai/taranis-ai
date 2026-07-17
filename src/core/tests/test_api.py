@@ -33,6 +33,33 @@ def test_auth_login(client):
     assert response.status_code == 200
 
 
+def test_auth_login_sets_suffixed_path_scoped_cookies(client, app, monkeypatch):
+    from core.config import Settings
+
+    settings = Settings(APPLICATION_ROOT="/q/", JWT_COOKIE_SUFFIX="_q")
+    cookie_settings = (
+        "JWT_ACCESS_COOKIE_NAME",
+        "JWT_ACCESS_CSRF_COOKIE_NAME",
+        "JWT_ACCESS_COOKIE_PATH",
+        "JWT_ACCESS_CSRF_COOKIE_PATH",
+    )
+    for name in cookie_settings:
+        monkeypatch.setitem(app.config, name, getattr(settings, name))
+
+    response = client.post(
+        "/api/auth/login",
+        json={"username": "user", "password": os.getenv("PRE_SEED_PASSWORD_USER")},
+    )
+
+    assert response.status_code == 200
+    set_cookie_headers = response.headers.getlist("Set-Cookie")
+    for cookie_name in (
+        settings.JWT_ACCESS_COOKIE_NAME,
+        settings.JWT_ACCESS_CSRF_COOKIE_NAME,
+    ):
+        assert any(header.startswith(f"{cookie_name}=") and "Path=/q/" in header for header in set_cookie_headers)
+
+
 def test_auth_login_updates_last_login(client, app):
     from core.model.user import User
 

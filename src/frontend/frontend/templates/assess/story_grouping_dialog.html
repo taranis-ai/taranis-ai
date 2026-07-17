@@ -39,7 +39,7 @@
               }
             });
           ">
-      <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
     {# djlint: on#}
     <div class="sortable" id="sortable-container">
       {% for story in stories %}

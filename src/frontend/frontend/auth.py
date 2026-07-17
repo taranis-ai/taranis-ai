@@ -1,10 +1,21 @@
 import contextlib
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit
 
 from flask import Flask, Response, abort, current_app, g, make_response, redirect, render_template, request, url_for
-from flask_jwt_extended import JWTManager, current_user, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    current_user,
+    get_jwt,
+    get_jwt_identity,
+    get_jwt_request_location,
+    set_access_cookies,
+    unset_access_cookies,
+    verify_jwt_in_request,
+)
 from flask_jwt_extended.exceptions import JWTExtendedException
 from models.user import UserProfile
 from requests.models import Response as ReqResponse
@@ -23,6 +34,18 @@ jwt = JWTManager()
 
 def init(app: Flask) -> None:
     jwt.init_app(app)
+    app.after_request(refresh_expiring_jwts)
+
+
+def refresh_expiring_jwts(response: Response) -> Response:
+    try:
+        exp_timestamp = get_jwt()["exp"]
+        target_timestamp = datetime.timestamp(datetime.now(timezone.utc) + timedelta(minutes=30))
+        if get_jwt_request_location() == "cookies" and target_timestamp > exp_timestamp and current_user:
+            set_access_cookies(response, create_access_token(identity=current_user))
+    except RuntimeError, KeyError:
+        pass
+    return response
 
 
 def user_has_admin_permissions(permissions: Iterable[str] | None) -> bool:
@@ -92,7 +115,7 @@ def render_login_page(**context: Any) -> str:
 
 def _redirect_expired_session_to_login():
     response = make_response(redirect(_login_url_with_next(), code=302))
-    unset_jwt_cookies(response)
+    unset_access_cookies(response)
     return response
 
 
@@ -114,14 +137,6 @@ def _resolve_authenticated_user() -> tuple[str, UserProfile] | None:
         return None
 
     return user_name, user
-
-
-# def authenticate(credentials: dict[str, str]) -> Response:
-#     return current_authenticator.authenticate(credentials)
-
-
-# def refresh(user: "UserProfile"):
-#     return current_authenticator.refresh(user)
 
 
 def logout() -> tuple[str, int] | Response:
@@ -147,8 +162,7 @@ def logout() -> tuple[str, int] | Response:
         response.headers["Location"] = url_for("base.login")
         response.status_code = 302
 
-    response.delete_cookie("access_token")
-    unset_jwt_cookies(response)
+    unset_access_cookies(response)
     return response
 
 

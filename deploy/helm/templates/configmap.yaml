@@ -9,6 +9,7 @@ data:
   GRANIAN_HOST: {{ .Values.config.granianHost | quote }}
   GRANIAN_PORT: {{ .Values.config.granianPort | quote }}
   TARANIS_BASE_PATH: {{ .Values.config.taranisBasePath | quote }}
+  JWT_COOKIE_SUFFIX: {{ .Values.config.jwtCookieSuffix | quote }}
   SSE_PATH: {{ .Values.config.ssePath | quote }}
   TARANIS_PORT: {{ .Values.config.taranisPort | quote }}
   REQUESTS_TIMEOUT: {{ .Values.config.requestsTimeout | quote }}

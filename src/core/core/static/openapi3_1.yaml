@@ -80,25 +80,6 @@ paths:
           $ref: '#/components/responses/404NotFound'
         '500':
           description: Internal server error
-  /auth/refresh:
-    get:
-      tags:
-      - auth
-      operationId: auth.refresh.get
-      description: refresh an API token
-      responses:
-        '200':
-          description: refreshed API token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.JWT'
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '404':
-          $ref: '#/components/responses/404NotFound'
-        '500':
-          description: Internal server error
   /auth/logout:
     delete:
       tags:

@@ -15,6 +15,7 @@ Always required:
 - In `kubernetes/00-config.yaml` (or `helm/values.yaml`), set `GRANIAN_HOST`.
 - In `kubernetes/01-secrets.yaml` (or `helm/values.yaml`), set `JWT_SECRET_KEY`, `API_KEY`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `REDIS_URL`, `REDIS_PASSWORD`.
 - The raw manifest provides `TARANIS_BASE_PATH: /`; set it only when serving the application below a subpath.
+- When multiple deployments share a domain, set a unique `JWT_COOKIE_SUFFIX` such as `_q` for each deployment and keep it aligned between core and frontend. Helm exposes the same setting as `config.jwtCookieSuffix`.
 - The raw manifest provides `SSE_PATH: /sse`; keep it aligned with the ingress SSE route if you change it.
 
 Optional `llm-bot` overlay:

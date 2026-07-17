@@ -6,6 +6,7 @@ config:
   granianHost: CHANGE_ME_BIND_HOST
   granianPort: "8080"
   taranisBasePath: /
+  jwtCookieSuffix: ""
   ssePath: /sse
   taranisPort: "8080"
   requestsTimeout: "600"
