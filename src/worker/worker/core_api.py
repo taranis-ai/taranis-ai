@@ -272,13 +272,6 @@ class CoreApi:
             logger.exception("Can't get cron job configurations")
             return None
 
-    def reconcile_task_failures(self) -> dict | None:
-        try:
-            return self.api_post("/worker/tasks/reconcile")
-        except Exception:
-            logger.exception("Can't reconcile task failures")
-            return None
-
     def get_bot_config(self, bot_id: str) -> dict | None:
         try:
             return self.api_get(f"/worker/bots/{bot_id}")

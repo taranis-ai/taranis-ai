@@ -81,7 +81,7 @@ def test_bot_menu_badge_uses_task_failure_count(monkeypatch):
     assert BotView.get_admin_menu_badge() == 7
 
 
-def test_bot_form_renders_enabled_switch(app):
+def test_bot_form_renders_state_buttons_and_run_action(app):
     bot = Bot.model_construct(
         id="42",
         name="Test bot",
@@ -105,12 +105,16 @@ def test_bot_form_renders_enabled_switch(app):
         )
 
     tree = html.fromstring(rendered)
-    enabled_fields = tree.xpath('//input[@name="enabled"]')
-
-    assert len(enabled_fields) == 2
-    assert tree.xpath('//input[@name="enabled"][@type="hidden"][@value="false"]')
-    assert tree.xpath('//input[@name="enabled"][@type="checkbox"][@value="true"]')
     assert tree.xpath('//input[@name="id"][@type="hidden"][@value="42"]')
+    assert not tree.xpath('//input[@name="enabled"]')
+    enabled_buttons = tree.xpath('//button[@hx-post="/frontend/admin/toggle_bot_state/42/enabled"][normalize-space()="Enabled"]')
+    disabled_buttons = tree.xpath('//button[@hx-post="/frontend/admin/toggle_bot_state/42/disabled"][normalize-space()="Disabled"]')
+    assert enabled_buttons
+    assert disabled_buttons
+    assert enabled_buttons[0].get("hx-swap") == "outerHTML"
+    assert disabled_buttons[0].get("hx-swap") == "outerHTML"
+    run_buttons = tree.xpath('//button[contains(@hx-post, "/bot_execute/42")][normalize-space()="Run"]')
+    assert len(run_buttons) == 1
 
 
 def test_bot_create_form_omits_sentinel_id(app: Flask):

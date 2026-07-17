@@ -190,6 +190,13 @@ class CoreApi:
             logger.error(f"Bot DAG preview failed: {e}")
             return None
 
+    def toggle_bot(self, bot_id: str, new_state: str):
+        try:
+            return self.api_put(f"/config/bots/{bot_id}", json_data={"enabled": new_state == "enabled"})
+        except Exception as e:
+            logger.error(f"Toggle bot failed: {e}")
+            return None
+
     def collect_all_osint_sources(self):
         try:
             return self.api_post("/config/osint-sources/collect")

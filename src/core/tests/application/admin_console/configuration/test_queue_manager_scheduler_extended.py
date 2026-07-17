@@ -75,6 +75,23 @@ class _DummyQueue:
         self.connection = object()
 
 
+class _FailedResult:
+    exc_string = "Traceback (most recent call last):\nValueError: boom"
+
+
+class _FailedJob:
+    def __init__(self, job_id):
+        self.id = job_id
+        self.func_name = "other.task"
+        self.args = []
+        self.meta = {}
+        self.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+
+    @staticmethod
+    def latest_result():
+        return _FailedResult()
+
+
 def _make_queue_manager() -> QueueManager:
     qm = QueueManager.__new__(QueueManager)
     qm.error = ""
@@ -83,7 +100,7 @@ def _make_queue_manager() -> QueueManager:
     return qm
 
 
-def test_annotate_jobs_marks_overdue_scheduled(monkeypatch):
+def test_annotate_jobs_ignores_scheduled_lateness(monkeypatch):
     fixed_now = datetime(2025, 12, 12, 8, 10, tzinfo=timezone.utc)
 
     class _FixedDateTime(datetime):
@@ -101,8 +118,8 @@ def test_annotate_jobs_marks_overdue_scheduled(monkeypatch):
 
     annotated = qm_module._annotate_jobs([job])[0]
 
-    assert annotated["status_badge"]["variant"] == "warning"
-    assert annotated["is_overdue"] is True
+    assert annotated["status_badge"]["variant"] == "ghost"
+    assert annotated["is_overdue"] is False
     assert annotated["last_run_relative"].endswith("ago")
 
 
@@ -127,6 +144,18 @@ def test_annotate_jobs_marks_first_cron_run_pending(monkeypatch):
 
     assert annotated["status_badge"]["label"] == "Pending first run"
     assert annotated["is_overdue"] is False
+
+
+def test_annotate_jobs_marks_completed_cron_run_on_schedule():
+    job = {
+        "type": "cron",
+        "last_run": datetime(2025, 12, 12, 8, 0, 0),
+        "previous_run_time": datetime(2025, 12, 12, 7, 0, 0),
+    }
+
+    annotated = qm_module._annotate_jobs([job])[0]
+
+    assert annotated["status_badge"] == {"variant": "success", "label": "On schedule"}
 
 
 def test_task_result_reason_ignores_invalid_json():
@@ -292,15 +321,6 @@ def test_get_active_jobs_uses_registry(monkeypatch):
 
 
 def test_get_failed_jobs_uses_registry(monkeypatch):
-    class FakeJob:
-        def __init__(self, job_id):
-            self.id = job_id
-            self.func_name = "other.task"
-            self.args = []
-            self.meta = {}
-            self.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
-            self.exc_info = "boom"
-
     class FakeRegistry:
         def __init__(self, queue=None):
             self.queue = queue
@@ -309,7 +329,7 @@ def test_get_failed_jobs_uses_registry(monkeypatch):
             return ["job-9"]
 
     def fake_fetch(job_id, connection=None):
-        return FakeJob(job_id)
+        return _FailedJob(job_id)
 
     monkeypatch.setattr(rq_registry, "FailedJobRegistry", FakeRegistry)
     monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
@@ -322,6 +342,7 @@ def test_get_failed_jobs_uses_registry(monkeypatch):
     assert status == 200
     assert payload["items"][0]["id"] == "job-9"
     assert payload["items"][0]["status"] == "failed"
+    assert payload["items"][0]["error"] == "ValueError: boom"
 
 
 def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
@@ -590,8 +611,8 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
         schedules, status = qm.get_scheduled_jobs()
 
     assert status == 200
-    # 120 OSINT cron jobs + two housekeeping crons
-    assert schedules["total_count"] == 122
+    # 120 OSINT cron jobs + cleanup housekeeping cron
+    assert schedules["total_count"] == 121
 
 
 def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):

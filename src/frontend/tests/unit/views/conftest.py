@@ -157,6 +157,8 @@ def form_formats_from_models(worker_parameter_data: dict[str, Any]):
                 if parameter.get("parent") == "parameters"
                 and parameter.get("type") in {"text", "number", "textarea", "switch", "cron_interval"}
             )
+            allowed_keys.discard("enabled")
+            required_keys.discard("enabled")
 
         payloads[view_name] = {
             "allowed": allowed_keys,

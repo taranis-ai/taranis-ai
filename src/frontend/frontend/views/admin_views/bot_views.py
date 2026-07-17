@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from flask import render_template, request, url_for
 from markupsafe import Markup, escape
@@ -219,3 +219,28 @@ class BotView(AdminBaseView):
         if response is not None and response.ok:
             return response.json()
         return {"order": [], "edges": [], "nodes": [], "warnings": ["Run order preview is unavailable"]}
+
+    @classmethod
+    @admin_required()
+    def toggle_bot_state(cls, bot_id: str, new_state: Literal["enabled", "disabled"]) -> tuple[str, int]:
+        dpl = DataPersistenceLayer()
+
+        response = CoreApi().toggle_bot(bot_id, new_state)
+        if not response:
+            logger.error(f"Failed to toggle bot state for {bot_id}")
+            return render_template("notification/index.html", notification={"message": "Failed to toggle bot state", "error": True}), 500
+
+        dpl.invalidate_cache_by_object(Bot)
+        dpl.invalidate_model_cache_locally(Bot, bot_id)
+        bot = dpl.get_object(Bot, bot_id)
+        if bot is None:
+            logger.error(f"Bot {bot_id} not found after state toggle")
+            return render_template("notification/index.html", notification={"message": "Failed to refresh bot state", "error": True}), 500
+
+        notification = render_template(
+            "notification/index.html",
+            notification={"message": "Bot state updated successfully", "icon": "check-circle", "class": "alert-success"},
+        )
+        state_button = render_template("bot/state_button.html", bot=bot)
+
+        return notification + state_button, 200
