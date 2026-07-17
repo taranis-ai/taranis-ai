@@ -1,0 +1,38 @@
+name: Test schema migration
+
+on:
+  push:
+    paths:
+      - 'src/core/core/model/**'
+      - 'src/core/migrations/**'
+      - 'src/models/**'
+      - '.github/workflows/test_schema_migrate.yaml'
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  migration_upgrade:
+    name: migrate released database to master
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          prune-cache: false
+
+      - name: Migrate the latest released database
+        env:
+          CONTAINER_CLI: docker
+        run: |
+          BASE_REF="$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*')"
+          BASE_REF="$BASE_REF" ./dev/test_master_to_branch_migration.sh

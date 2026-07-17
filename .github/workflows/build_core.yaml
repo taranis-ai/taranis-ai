@@ -22,27 +22,6 @@ env:
   UV_FROZEN: true
 
 jobs:
-  schema_change:
-    name: detect schema changes
-    runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.changes.outputs.changed }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - id: changes
-        run: |
-          if git diff --quiet "${{ github.event.before }}" "${{ github.sha }}" -- \
-            src/core/core/model \
-            src/core/migrations \
-            src/models; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
   test:
     name: pytest
     defaults:
@@ -240,23 +219,3 @@ jobs:
           subject-name: ${{ env.GHCR_IMAGE }}
           subject-digest: ${{ env.MERGED_DIGEST }}
           push-to-registry: true
-
-
-  migration_upgrade:
-    name: migrate released database to master
-    needs: schema_change
-    if: needs.schema_change.outputs.changed == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Migrate the latest released database
-        env:
-          CONTAINER_CLI: docker
-        run: |
-          BASE_REF="$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*')"
-          BASE_REF="$BASE_REF" ./dev/test_master_to_branch_migration.sh
