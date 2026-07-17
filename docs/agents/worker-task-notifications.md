@@ -11,7 +11,7 @@ Task history is retained globally by the daily `cleanup_task_history` housekeepi
 Frontend notification handling lives in `frontend.views.base_view.BaseView.render_worker_task_notification`. Core health is read through `frontend.data_persistence.DataPersistenceLayer.get_core_health`.
 
 ## Data Flow
-The frontend posts the worker-backed action to core. On a successful response, it reads cached `/health`; only `services.workers == "down"` changes the notification from success to warning. Core includes the authenticated user in the queued job metadata for manual runs, and worker-side task persistence copies that onto the task row. Separately, core stores synthetic task failures from worker-level RQ hooks when a job dies before task code can call `save_task_result(...)`.
+The frontend posts the worker-backed action to core. On a successful response, it reads cached `/health`; only `services.workers == "down"` changes the notification from success to warning. Core includes the authenticated user in the queued job metadata for manual runs, and worker-side task persistence copies that onto the task row. The history-cleanup worker records core HTTP failures as `core_http_error`, including the status and response body; transport failures are recorded as `core_transport_error`. Separately, core stores synthetic task failures from worker-level RQ hooks when a job dies before task code can call `save_task_result(...)`.
 
 ## Testing
 Use `cd src/frontend && uv run pytest tests/unit/views/test_worker_task_notifications.py` for focused coverage.

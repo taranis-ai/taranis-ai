@@ -1,3 +1,5 @@
+import pytest
+
 from worker.misc import misc_tasks
 
 
@@ -111,3 +113,36 @@ def test_gather_word_list_persists_canonical_success_payload(monkeypatch):
         "status": "SUCCESS",
     }
     assert "message" not in recorded["payload"]["result"]["data"]
+
+
+def test_cleanup_task_history_records_core_http_error(monkeypatch):
+    recorded = {}
+
+    class DummyApi:
+        def cleanup_task_history(self):
+            return {
+                "error": "database unavailable",
+                "reason": "core_http_error",
+                "retryable": True,
+                "data": {"status_code": 503},
+            }
+
+        def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, result=None, **task_kwargs):
+            recorded.update(task_name=task_name, status=status, result=result)
+
+    monkeypatch.setattr(misc_tasks, "CoreApi", DummyApi)
+    monkeypatch.setattr(misc_tasks, "get_current_job", lambda: DummyJob())
+
+    with pytest.raises(RuntimeError, match="Task history cleanup failed"):
+        misc_tasks.cleanup_task_history()
+
+    assert recorded == {
+        "task_name": "cleanup_task_history",
+        "status": "FAILURE",
+        "result": {
+            "message": "database unavailable",
+            "reason": "core_http_error",
+            "retryable": True,
+            "data": {"status_code": 503},
+        },
+    }

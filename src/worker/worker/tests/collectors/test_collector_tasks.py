@@ -124,6 +124,32 @@ def test_fetch_single_news_item_accepts_simple_web_source_payload_and_persists_s
     }
 
 
+def test_fetch_single_news_item_persists_failure_result(current_job, requests_mock, monkeypatch):
+    class FakeSimpleWebCollector:
+        name = "Simple Web Collector"
+
+        def preview_collector(self, parameters):
+            raise ValueError("connection refused")
+
+    monkeypatch.setattr(collector_tasks.worker.collectors, "SimpleWebCollector", FakeSimpleWebCollector)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    with pytest.raises(RuntimeError, match="connection refused"):
+        collector_tasks.fetch_single_news_item(
+            {"id": "manual", "type": "simple_web_collector", "parameters": {"WEB_URL": "https://example.com/story"}}
+        )
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    assert post_calls[0].json()["status"] == "FAILURE"
+    assert post_calls[0].json()["result"] == {
+        "message": "connection refused",
+        "reason": "collection_failed",
+        "retryable": False,
+        "data": {"source_id": "https://example.com/story"},
+    }
+
+
 def test_collector_preview_persists_with_preview_status(current_job, requests_mock, monkeypatch):
     source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {}}
     preview_items = [{"title": "Item 1"}, {"title": "Item 2"}]
