@@ -84,7 +84,7 @@ class Settings(BaseModel):
             onboarding_missing = "onboarding_enabled" not in (settings.settings or {})
             settings.settings = cls.with_defaults(settings.settings)
         else:
-            settings = Settings()
+            settings = cls()
             onboarding_missing = True
             db.session.add(settings)
 

@@ -96,7 +96,7 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
     with app.test_request_context(
         "/admin/settings/settings",
         method="PATCH",
-        data={"settings[onboarding_enabled]": "false"},
+        data={"settings[default_collector_proxy]": "http://proxy.test", "settings[onboarding_enabled]": "false"},
     ):
         body, status = cast(tuple[str, int], settings_views.SettingsView.settings_action("/settings/settings", method="patch"))
 
@@ -104,7 +104,7 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
     assert calls == [
         (
             "/settings/settings",
-            {"settings": {"onboarding_enabled": False}},
+            {"settings": {"default_collector_proxy": "http://proxy.test", "onboarding_enabled": False}},
         )
     ]
     assert '<span id="notification-message">Successfully updated settings</span>' in body
