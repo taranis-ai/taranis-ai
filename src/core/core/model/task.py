@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, or_
@@ -51,8 +51,8 @@ class Task(BaseModel):
             self.worker_type = worker_type
         self.result = self._serialize_result(result)
         if status in self.SUCCESS_STATUSES:
-            self.last_success = datetime.now(timezone.utc)
-        self.last_run = datetime.now(timezone.utc)
+            self.last_success = self.utcnow()
+        self.last_run = self.utcnow()
 
     @classmethod
     def add_or_update(cls, entry_data):
@@ -64,8 +64,8 @@ class Task(BaseModel):
             entry.worker_id = entry_data.get("worker_id", entry.worker_id)
             entry.worker_type = entry_data.get("worker_type", entry.worker_type)
             if entry.status in cls.SUCCESS_STATUSES:
-                entry.last_success = datetime.now(timezone.utc)
-            entry.last_run = datetime.now(timezone.utc)
+                entry.last_success = cls.utcnow()
+            entry.last_run = cls.utcnow()
             db.session.commit()
             return entry.to_dict(), 200
         new_entry = cls.add(entry_data)

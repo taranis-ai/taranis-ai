@@ -1,6 +1,7 @@
 import uuid
 from unittest.mock import patch
 
+from core.managers.db_manager import db
 from core.model.asset import AssetGroup
 from core.model.base_model import BaseModel
 from core.model.osint_source import OSINTSource, OSINTSourceGroup
@@ -46,6 +47,20 @@ def test_task_without_result_uses_result_envelope():
         "retryable": False,
         "data": None,
     }
+
+
+def test_task_timestamps_are_naive_utc(app):
+    with app.app_context():
+        task = Task(id="naive-task-timestamps", status="SUCCESS")
+        db.session.add(task)
+        db.session.commit()
+        try:
+            Task.add_or_update({"id": task.job_id, "result": {}, "status": "SUCCESS"})
+
+            assert task.last_run.tzinfo is None
+            assert task.last_success.tzinfo is None
+        finally:
+            Task.delete(task.id)
 
 
 def test_task_preserves_non_dict_results_and_logs_corrupt_stored_results():
