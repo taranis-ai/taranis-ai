@@ -37,6 +37,9 @@ def pre_seed():
         pre_seed_workers()
         logger.debug("Workers seeded")
 
+        pre_seed_default_publisher()
+        logger.debug("Default publisher seeded")
+
         pre_seed_assets()
         logger.debug("Assets seeded")
 
@@ -90,6 +93,8 @@ def pre_seed_update(db_engine: Engine):
             worker.update(w)
         else:
             Worker.add(w)
+
+    pre_seed_default_publisher()
 
     for b in bots:
         bot = Bot.filter_by_type(b["type"])
@@ -367,6 +372,12 @@ def pre_seed_workers():
 
     for p in product_types:
         ProductType.add(_resolve_seed_product_type_report_types(p))
+
+
+def pre_seed_default_publisher():
+    from core.model.publisher_preset import PublisherPreset
+
+    PublisherPreset.ensure_default_taranis()
 
 
 def pre_seed_permissions():
