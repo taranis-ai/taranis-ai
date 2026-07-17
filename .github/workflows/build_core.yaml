@@ -258,6 +258,5 @@ jobs:
         env:
           CONTAINER_CLI: docker
         run: |
-          BASE_REF="$(git tag --merged HEAD --sort=-version:refname | grep -Ex '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)"
-          [ -n "$BASE_REF" ] || { echo "No stable release tag is reachable from master." >&2; exit 1; }
+          BASE_REF="$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*')"
           BASE_REF="$BASE_REF" ./dev/test_master_to_branch_migration.sh
