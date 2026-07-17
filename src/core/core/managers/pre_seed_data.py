@@ -289,6 +289,11 @@ workers = [
         "description": "Presenter for generating STIX reports",
     },
     {
+        "type": "TARANIS_PUBLISHER",
+        "name": "Taranis Publisher",
+        "description": "Publisher for making products publicly available in Taranis",
+    },
+    {
         "type": "FTP_PUBLISHER",
         "name": "FTP Publisher",
         "description": "Publisher for publishing to FTP server",

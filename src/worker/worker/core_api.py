@@ -303,6 +303,9 @@ class CoreApi:
             logger.exception("Can't get Product Render")
             return None
 
+    def publish_product_to_taranis(self, product_id: str) -> dict | None:
+        return self.api_post(f"/worker/products/{product_id}/publish")
+
     def get_publisher(self, publisher_id: str) -> dict | None:
         return self.api_get(f"/worker/publishers/{publisher_id}")
 

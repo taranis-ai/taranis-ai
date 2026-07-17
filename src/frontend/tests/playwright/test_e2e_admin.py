@@ -1165,11 +1165,13 @@ class TestEndToEndAdmin(BaseE2ETest):
         def publisher_presets_delete():
             publisher_table = page.get_by_test_id("publisher_preset-table")
             all_rows = publisher_table.locator("tbody tr")
-            expect(all_rows).to_have_count(1)
+            expect(all_rows).to_have_count(2)
             item_id = self.get_table_row_id_by_link_text(page, "publisher_preset-table", "publisher preset test updated")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(publisher_table.get_by_role("link", name="publisher preset test updated")).not_to_be_visible()
+            expect(publisher_table.get_by_role("link", name="Taranis Publisher")).to_be_visible()
+            expect(all_rows).to_have_count(1)
 
         load_publisher_presets()
         publisher_presets_create()
