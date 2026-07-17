@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% macro status_badge(status) %}
+  {% set normalized = status | default('', true) | lower %}
+  <span class="badge badge-sm {% if normalized in ['success', 'reported_without_fails', 'clean', 'harmless'] %}badge-success{% elif normalized in ['failure', 'failed', 'error', 'malicious', 'critical', 'high'] %}badge-error{% elif normalized in ['suspicious', 'warning', 'medium'] %}badge-warning{% else %}badge-outline{% endif %}">
+    {{ status | default('unknown', true) }}
+  </span>
+{% endmacro %}
+
+{% macro metric(label, value, extra_class='') %}
+  {% if value is not none and value != '' %}
+    <div class="rounded-lg border border-base-200 bg-base-100 p-3">
+      <div class="text-xs uppercase text-base-content/60">{{ label }}</div>
+      <div class="mt-1 font-semibold break-words {{ extra_class }}">{{ value }}</div>
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro external_link(url, label='Open source result') %}
+  {% set external_url = url | string | trim %}
+  {% set normalized_url = external_url | lower %}
+  {% if normalized_url.startswith("http://") or normalized_url.startswith("https://") %}
+    <a href="{{ external_url }}" target="_blank" rel="noopener" class="link link-primary break-all">{{ label }}</a>
+  {% endif %}
+{% endmacro %}
+
+{% macro raw_json(data) %}
+  <details class="mt-3">
+    <summary class="cursor-pointer text-sm font-medium">Raw analyzer data</summary>
+    <pre class="mt-2 max-h-96 overflow-auto rounded-lg bg-base-200 p-3 text-xs whitespace-pre-wrap break-words">{{ data | tojson(indent=2) }}</pre>
+  </details>
+{% endmacro %}
+
+{% macro render_nvd_cve(report) %}
+  {% set vulnerabilities = report.get("vulnerabilities", []) %}
+  {% if vulnerabilities %}
+    <div class="space-y-4">
+      {% for vulnerability in vulnerabilities %}
+        {% set cve = vulnerability.get("cve", {}) %}
+        {% set metrics = cve.get("metrics", {}) %}
+        {% set cvss_metrics = metrics.get("cvssMetricV31", []) or metrics.get("cvssMetricV40", []) or metrics.get("cvssMetricV30", []) or metrics.get("cvssMetricV2", []) %}
+        {% set cvss = cvss_metrics[0] if cvss_metrics else {} %}
+        {% set cvss_data = cvss.get("cvssData", {}) %}
+        {% set severity = cvss_data.get("baseSeverity") or cve.get("vulnStatus") %}
+        <section class="rounded-lg border border-base-200 bg-base-200/30 p-4">
+          <div class="flex flex-wrap items-start gap-3">
+            <div class="min-w-0 flex-1">
+              <h4 class="text-lg font-semibold break-all">{{ cve.get('id', 'CVE') }}</h4>
+              <div class="mt-1 flex flex-wrap gap-2">
+                {% if severity %}{{ status_badge(severity) }}{% endif %}
+                {% if cve.get("vulnStatus") %}<span class="badge badge-outline badge-sm">{{ cve.get("vulnStatus") }}</span>{% endif %}
+              </div>
+            </div>
+            {% if cvss_data.get("baseScore") is not none %}
+              <div class="rounded-lg bg-base-100 px-4 py-3 text-center">
+                <div class="text-xs uppercase text-base-content/60">CVSS</div>
+                <div class="text-2xl font-bold">{{ cvss_data.get("baseScore") }}</div>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="mt-4 grid gap-3 md:grid-cols-3">
+            {{ metric("Attack vector", cvss_data.get("attackVector") ) }}
+            {{ metric("Privileges", cvss_data.get("privilegesRequired") ) }}
+            {{ metric("User interaction", cvss_data.get("userInteraction") ) }}
+          </div>
+
+          {% if cvss_data.get("vectorString") %}<div class="mt-3 font-mono text-xs break-all">{{ cvss_data.get("vectorString") }}</div>{% endif %}
+
+          {% for description in cve.get("descriptions", []) if description.get("lang") == "en" %}
+            <p class="mt-4 whitespace-pre-line text-sm leading-relaxed">{{ description.get("value") }}</p>
+          {% endfor %}
+
+          {% set ssvc_items = metrics.get("ssvcV203", []) %}
+          {% if ssvc_items %}
+            <div class="mt-4">
+              <h5 class="font-semibold">CISA SSVC</h5>
+              <div class="mt-2 flex flex-wrap gap-2">
+                {% for ssvc in ssvc_items %}
+                  {% for option in ssvc.get("ssvcData", {}).get("options", []) %}
+                    {% for key, value in option.items() %}<span class="badge badge-outline">{{ key }}: {{ value }}</span>{% endfor %}
+                  {% endfor %}
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% if cve.get("affected") %}
+            <div class="mt-4 overflow-x-auto">
+              <h5 class="font-semibold">Affected products</h5>
+              <table class="table table-sm mt-2">
+                <thead>
+                  <tr>
+                    <th>Vendor</th>
+                    <th>Product</th>
+                    <th>Versions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for affected in cve.get("affected", []) %}
+                    {% for item in affected.get("affectedData", []) %}
+                      <tr>
+                        <td>{{ item.get('vendor', 'n/a') }}</td>
+                        <td>{{ item.get('product', 'n/a') }}</td>
+                        <td>
+                          {% for version in item.get("versions", []) %}
+                            <span class="badge badge-ghost badge-sm">{{ version.get('version', 'n/a') }}</span>
+                          {% endfor %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+
+          {% if cve.get("references") %}
+            <div class="mt-4">
+              <h5 class="font-semibold">References</h5>
+              <ul class="mt-2 space-y-1 text-sm">
+                {% for reference in cve.get("references", []) %}<li>{{ external_link(reference.get("url") , reference.get("url")) }}</li>{% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+        </section>
+      {% endfor %}
+    </div>
+  {% else %}
+    {{ raw_json(report) }}
+  {% endif %}
+{% endmacro %}
+
+{% macro render_virustotal(report) %}
+  {% set data = report.get("data", {}) %}
+  {% set attrs = data.get("attributes", {}) %}
+  {% set stats = attrs.get("last_analysis_stats", {}) %}
+  {% set data_links = data.get("links", {}) %}
+  {% set result_link = report.get("link") or data_links.get("self") %}
+  <div class="space-y-4">
+    <div class="grid gap-3 md:grid-cols-4">
+      {{ metric("Type", data.get("type") ) }}
+      {{ metric("Reputation", attrs.get("reputation") ) }}
+      {{ metric("Title", attrs.get("title") ) }}
+      {{ metric("Category", attrs.get("web_category") ) }}
+    </div>
+
+    {% if attrs.get("url") or attrs.get("last_final_url") %}
+      <div class="rounded-lg border border-base-200 bg-base-100 p-3">
+        <div class="text-xs uppercase text-base-content/60">Observable</div>
+        <div class="mt-1 break-all">{{ attrs.get("url") or attrs.get("last_final_url") }}</div>
+      </div>
+    {% elif data.get("id") %}
+      <div class="rounded-lg border border-base-200 bg-base-100 p-3">
+        <div class="text-xs uppercase text-base-content/60">Observable</div>
+        <div class="mt-1 break-all font-mono">{{ data.get("id") }}</div>
+      </div>
+    {% endif %}
+
+    {% if stats %}
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {{ metric("Malicious", stats.get("malicious", 0) , "text-error") }}
+        {{ metric("Suspicious", stats.get("suspicious", 0) , "text-warning") }}
+        {{ metric("Harmless", stats.get("harmless", 0) , "text-success") }}
+        {{ metric("Undetected", stats.get("undetected", 0) ) }}
+        {{ metric("Timeout", stats.get("timeout", 0) ) }}
+      </div>
+    {% endif %}
+
+    {{ external_link(result_link, "Open in VirusTotal") }}
+
+    {% set results = attrs.get("last_analysis_results", {}) %}
+    {% if results %}
+      <div class="overflow-x-auto">
+        <h5 class="font-semibold">Detections</h5>
+        <table class="table table-sm mt-2">
+          <thead>
+            <tr>
+              <th>Engine</th>
+              <th>Category</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for engine, result in results.items() if result.get("category") in ["malicious", "suspicious"] %}
+              <tr>
+                <td>{{ engine }}</td>
+                <td>{{ status_badge(result.get("category") ) }}</td>
+                <td>{{ result.get('result', 'n/a') }}</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="3" class="text-success">No malicious or suspicious detections reported.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% macro render_urlhaus(report) %}
+  {% set query_status = report.get("query_status") %}
+  {% if query_status in ["no_result", "no_results"] %}
+    <div class="alert alert-info">URLhaus returned no result for this observable.</div>
+  {% else %}
+    <div class="grid gap-3 md:grid-cols-3">
+      {{ metric("Query status", query_status) }}
+      {{ metric("URL status", report.get("url_status") ) }}
+      {{ metric("Threat", report.get("threat") ) }}
+    </div>
+    {{ raw_json(report) }}
+  {% endif %}
+{% endmacro %}
+
+{% macro render_analyzer(analyzer) %}
+  {% set analyzer_name = analyzer.name | default('', true) %}
+  {% if not analyzer_name %}
+    {% set analyzer_name = analyzer.analyzer_name | default('Analyzer', true) %}
+  {% endif %}
+  {% set report = analyzer.report | default(none, true) %}
+  {% if report is none %}
+    {% set report = analyzer.result | default(none, true) %}
+  {% endif %}
+  {% if report is none %}
+    {% set report = analyzer.data | default(none, true) %}
+  {% endif %}
+  {% set errors = analyzer.errors | default(analyzer.error | default([], true), true) %}
+
+  <section class="rounded-lg border border-base-200 bg-base-100 p-4" data-testid="cti-analyzer">
+    <div class="flex flex-wrap items-center gap-2">
+      <h4 class="font-semibold">{{ analyzer_name }}</h4>
+      {% if analyzer.status %}{{ status_badge(analyzer.status) }}{% endif %}
+    </div>
+
+    <div class="mt-3">
+      {% if report is mapping and (report.get("format") == "NVD_CVE" or analyzer_name == "NVD_CVE") %}
+        {{ render_nvd_cve(report) }}
+      {% elif report is mapping and "VirusTotal" in analyzer_name %}
+        {{ render_virustotal(report) }}
+      {% elif report is mapping and "URLhaus" in analyzer_name %}
+        {{ render_urlhaus(report) }}
+      {% elif report %}
+        {{ raw_json(report) }}
+      {% else %}
+        <div class="alert">No analyzer report returned.</div>
+      {% endif %}
+    </div>
+
+    {% if errors %}
+      <pre class="mt-3 max-h-48 overflow-auto rounded-lg bg-error/10 p-3 text-xs text-error whitespace-pre-wrap break-words">{{ errors | tojson(indent=2) }}</pre>
+    {% endif %}
+  </section>
+{% endmacro %}
+
+{% block content %}
+  <section id="cti-view" class="p-4 space-y-4" data-testid="cti-view">
+    <div class="flex flex-wrap items-start gap-3">
+      <div class="min-w-0 flex-1">
+        <h1 class="text-2xl font-bold">CTI information</h1>
+        <p class="mt-1 text-sm text-base-content/70">
+          {{ cti.item_type | replace('_', ' ') | title }}:
+          <span class="font-mono break-all">{{ cti.item_id }}</span>
+        </p>
+      </div>
+      <button type="button" onclick="window.history.back()" class="btn btn-outline btn-sm" data-testid="cti-back-link">Back</button>
+    </div>
+
+    {% if cti.iocs %}
+      <div class="space-y-4">
+        {% for ioc in cti.iocs %}
+          {% set enrichment = ioc.enrichment %}
+          <article class="rounded-lg border border-base-200 bg-base-100 p-4 shadow-sm" data-testid="cti-ioc-row">
+            <header class="flex flex-wrap items-start gap-3">
+              <div class="min-w-0 flex-1">
+                <h2 class="font-mono text-lg font-semibold break-all">{{ ioc.value }}</h2>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <span class="badge badge-outline badge-sm">{{ ioc.ioc_type }}</span>
+                  <span class="badge badge-ghost badge-sm">{{ ioc.news_item_ids | length }} news items</span>
+                  {% if enrichment and enrichment.status %}{{ status_badge(enrichment.status) }}{% endif %}
+                </div>
+              </div>
+            </header>
+
+            <div class="mt-4 space-y-3">
+              {% if enrichment and enrichment.analyzers %}
+                {% for analyzer in enrichment.analyzers %}{{ render_analyzer(analyzer) }}{% endfor %}
+              {% else %}
+                <div class="alert">No analyzer results available for this IOC.</div>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert">No CTI information available.</div>
+    {% endif %}
+  </section>
+{% endblock content %}

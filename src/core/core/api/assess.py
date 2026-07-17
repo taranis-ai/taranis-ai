@@ -6,13 +6,14 @@ from flask_jwt_extended import current_user
 from models.assess import StoryBookmarkCreatePayload, StoryBookmarkOrderPayload, StoryBookmarkStoryPayload, StoryBookmarkUpdatePayload
 from pydantic import ValidationError
 
+from core.api.utils import request_id_list
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args, validate_json
 from core.managers.sse_manager import sse_manager
-from core.model import connector, news_item, news_item_tag, osint_source, story
+from core.model import connector, news_item, news_item_tag, osint_source, report_item, story
 from core.model.filter_data import FilterData
 from core.model.story_conflict import StoryConflict
 from core.service.cache_invalidation import (
@@ -21,6 +22,7 @@ from core.service.cache_invalidation import (
     SCOPE_STORY_VIEWS,
     invalidate_frontend_cache_on_success,
 )
+from core.service.cti import CTIService
 from core.service.news_item import NewsItemService
 from core.service.simple_web_collector import get_simple_web_collector_url
 from core.service.story import StoryService
@@ -119,6 +121,12 @@ class NewsItem(MethodView):
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
+
+
+class NewsItemCTI(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, item_id: str):
+        return CTIService.get_news_item_cti(item_id, current_user)
 
 
 class UpdateNewsItemAttributes(MethodView):
@@ -260,6 +268,12 @@ class Story(MethodView):
         return response, code
 
 
+class StoryCTI(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, story_id: str):
+        return CTIService.get_story_cti(story_id, current_user)
+
+
 class UnGroupNewsItem(MethodView):
     @auth_required("ASSESS_UPDATE")
     @validate_json
@@ -314,16 +328,39 @@ class BotActions(MethodView):
     @validate_json
     def post(self):
         if not request.json:
-            return {"error": "Please provide story_id & bot_id"}, 400
+            return {"error": "Please provide bot_id and at least one story_id or report_id"}, 400
         bot_id = request.json.get("bot_id")
         if not bot_id:
             return {"error": "No bot_id provided"}, 400
-        story_id = request.json.get("story_id")
-        if not story_id:
-            return {"error": "No story_id provided"}, 400
-        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter={"story_id": story_id}, user_id=current_user.id)
-        sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story",), object_ids={"story": story_id})
+        story_ids = request_id_list(request.json, "story_id", "story_ids")
+        report_ids = request_id_list(request.json, "report_id", "report_ids")
+        if not story_ids and not report_ids:
+            return {"error": "No story_id or report_id provided"}, 400
+        accessible_tlps = current_user.get_highest_tlp().get_accessible_levels()
+        for story_id in story_ids:
+            selected_story = story.Story.get(story_id)
+            if not selected_story or any(
+                not item.allowed_with_acl(current_user, require_write_access=True) or item.tlp_level.value not in accessible_tlps
+                for item in selected_story.news_items
+            ):
+                return {"error": "User does not have write access to all requested stories"}, 403
+        for report_id in report_ids:
+            report = report_item.ReportItem.get(report_id)
+            if not report or not report.access_allowed(current_user, require_write_access=True):
+                return {"error": "User does not have write access to all requested reports"}, 403
+
+        filter_data = {}
+        if len(story_ids) == 1:
+            filter_data["story_id"] = story_ids[0]
+        elif story_ids:
+            filter_data["story_ids"] = story_ids
+        if report_ids:
+            filter_data["report_ids"] = report_ids
+
+        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
+        if code == 200:
+            sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "report_item"))
         return response, code
 
 
@@ -492,6 +529,7 @@ def initialize(app: Flask):
         "/bookmarks/<string:bookmark_id>/stories/remove", view_func=StoryBookmarkStoryRemoval.as_view("bookmark_story_removal")
     )
     assess_bp.add_url_rule("/stories/<string:story_id>", view_func=Story.as_view("story_"))
+    assess_bp.add_url_rule("/stories/<string:story_id>/cti", view_func=StoryCTI.as_view("story_cti"))
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=Story.as_view("story"))
     assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
     assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
@@ -502,6 +540,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
     assess_bp.add_url_rule("/news-items/fetch", view_func=NewsItemFetch.as_view("news_item_fetch"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
+    assess_bp.add_url_rule("/news-items/<string:item_id>/cti", view_func=NewsItemCTI.as_view("news_item_cti"))
     assess_bp.add_url_rule(
         "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")
     )

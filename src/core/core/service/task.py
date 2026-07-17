@@ -41,12 +41,6 @@ class TaskService:
         return TaskModel.delete(task_id)
 
     @staticmethod
-    def reconcile_failures() -> tuple[dict[str, Any], int]:
-        from core.service.task_reconciliation import task_reconciliation_service
-
-        return task_reconciliation_service.reconcile(), 200
-
-    @staticmethod
     def cleanup_history() -> tuple[dict[str, Any], int]:
         retention_days = Config.TASK_HISTORY_RETENTION_DAYS
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
@@ -179,7 +173,30 @@ class TaskService:
         if worker_type in TAGGING_BOTS:
             NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
 
-        NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
+        if worker_type == "INTEL_OWL_BOT":
+            TaskService._handle_intelowl_bot_result(bot_result, worker_id)
+        else:
+            NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
+
+        if result_data.get("trigger_dependents", True):
+            from core.managers import queue_manager
+
+            filter_data = result_data.get("filter")
+            queue_manager.queue_manager.schedule_bot_dependents(
+                worker_id,
+                filter_data if isinstance(filter_data, dict) else None,
+                user_id=submission.user_id,
+            )
+
+    @staticmethod
+    def _handle_intelowl_bot_result(bot_result: dict[str, Any], worker_id: str) -> None:
+        from core.model.ioc import IOC
+
+        enrichments = bot_result.get("enrichments") or []
+        if not isinstance(enrichments, list):
+            logger.error("Invalid IntelOwl enrichment payload from worker %s", worker_id)
+            return
+        IOC.upsert_many([item for item in enrichments if isinstance(item, dict)])
 
     @staticmethod
     def _get_result_dict_data(result: TaskResultEnvelope) -> dict[str, Any] | None:

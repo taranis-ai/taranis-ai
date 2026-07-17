@@ -41,6 +41,7 @@ dependencies = [
     # Bots
     "ioc-finder",
     "ioc-fanger",
+    "pyintelowl",
     "pypandoc-binary>=1.15",
     "niquests",
     "confluent-kafka>=2.14.2",
@@ -49,6 +50,7 @@ dynamic = ["version"]
 
 [project.scripts]
 taranis-cron = "worker.cron_scheduler_main:main"
+taranis-intelowl-setup = "worker.intelowl_taranis_setup:main"
 taranis-worker = "worker:start_worker"
 taranis-worker-healthcheck = "worker.healthcheck:main"
 

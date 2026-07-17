@@ -31,12 +31,13 @@ When a source/bot schedule is updated:
 import contextlib
 import hashlib
 import json
+import re
 import time
 from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
-from croniter import CroniterBadCronError, CroniterBadDateError, croniter
+from croniter import croniter
 from flask import Flask
 
 
@@ -53,19 +54,16 @@ from core.log import logger
 from core.service.simple_web_collector import get_simple_web_collector_url
 
 
-OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
 CRON_DEFS_KEY = "rq:cron:def"
 CRON_EVENTS_KEY = "rq:cron:events"
 CRON_NEXT_KEY = "rq:cron:next"
 TOKEN_CLEANUP_JOB_ID = "cleanup_token_blacklist"
 TOKEN_CLEANUP_CRON = "0 2 * * *"
 TOKEN_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Token Blacklist"
-TASK_RECONCILIATION_JOB_ID = "reconcile_task_failures"
-TASK_RECONCILIATION_CRON = "*/5 * * * *"
-TASK_RECONCILIATION_DISPLAY_NAME = "Maintenance: Reconcile Task Failures"
 TASK_HISTORY_CLEANUP_JOB_ID = "cleanup_task_history"
 TASK_HISTORY_CLEANUP_CRON = "0 3 * * *"
 TASK_HISTORY_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Task History"
+RQ_JOB_ID_COMPONENT_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def _decode_redis_value(value: bytes | str) -> str:
@@ -127,19 +125,6 @@ def _format_utc_timestamp(value: datetime | None) -> str | None:
         return None
 
 
-def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run_dt: datetime | None) -> bool:
-    schedule = job.get("schedule")
-    if not schedule or last_run_dt is None:
-        return False
-
-    try:
-        next_expected_run = croniter(schedule, last_run_dt).get_next(datetime)
-    except (CroniterBadCronError, CroniterBadDateError):
-        return False
-
-    return now > (next_expected_run + OVERDUE_GRACE_PERIOD)
-
-
 def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     for job in jobs:
@@ -159,48 +144,15 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         variant = "ghost"
         label = "Queued" if job.get("type") == "scheduled" else "Pending"
         is_overdue = False
-        last_reason = job.get("last_reason")
-        failure_label = FAILURE_REASON_LABELS.get(last_reason) if isinstance(last_reason, str) else None
-
         if job.get("type") == "cron":
             if not last_run_dt:
                 label = "Pending first run"
                 job["status_badge"] = {"variant": variant, "label": label}
                 job["is_overdue"] = False
                 continue
-            elif job.get("last_status") == "FAILURE" and failure_label:
-                label = failure_label["label"]
-                variant = failure_label["variant"]
-                is_overdue = True
-                job["status_badge"] = {"variant": variant, "label": label}
-                job["is_overdue"] = is_overdue
-                continue
-            elif _cron_run_missed_since_last_run(job, now, last_run_dt):
-                label = "Missed"
-                variant = "error"
-                is_overdue = True
             elif prev_run_dt and last_run_dt >= prev_run_dt or not prev_run_dt:
                 label = "On schedule"
                 variant = "success"
-            if prev_run_dt:
-                overdue_threshold = prev_run_dt + OVERDUE_GRACE_PERIOD
-                ran_current_window = bool(last_run_dt and last_run_dt >= prev_run_dt)
-                if now > overdue_threshold and not ran_current_window:
-                    label = "Missed"
-                    variant = "error"
-                    is_overdue = True
-                elif ran_current_window:
-                    label = "On schedule"
-                    variant = "success"
-
-        elif job.get("last_status") == "FAILURE" and failure_label:
-            label = failure_label["label"]
-            variant = failure_label["variant"]
-            is_overdue = True
-        elif next_run_dt and now > (next_run_dt + OVERDUE_GRACE_PERIOD):
-            label = "Missed"
-            variant = "warning"
-            is_overdue = True
 
         job["status_badge"] = {"variant": variant, "label": label}
         job["is_overdue"] = is_overdue
@@ -229,16 +181,8 @@ TASK_MAP = {
     "connector_task": "worker.connectors.connector_tasks.connector_task",
     "gather_word_list": "worker.misc.misc_tasks.gather_word_list",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
-    "reconcile_task_failures": "worker.misc.misc_tasks.reconcile_task_failures",
     "cleanup_task_history": "worker.misc.misc_tasks.cleanup_task_history",
     "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
-}
-
-FAILURE_REASON_LABELS = {
-    "cron_missed": {"label": "Missed", "variant": "error"},
-    "job_stalled_in_scheduled": {"label": "Stalled", "variant": "error"},
-    "job_stalled_in_queue": {"label": "Queued too long", "variant": "error"},
-    "job_abandoned_after_start": {"label": "Abandoned", "variant": "error"},
 }
 
 
@@ -375,21 +319,6 @@ class QueueManager:
                 job_id=TOKEN_CLEANUP_JOB_ID,
                 cron=TOKEN_CLEANUP_CRON,
                 func_path="cleanup_token_blacklist",
-                queue_name="misc",
-            ),
-            CronSpec(
-                meta={
-                    **QueueManager._build_task_meta(
-                        TASK_RECONCILIATION_JOB_ID,
-                        user_id=None,
-                        worker_id=TASK_RECONCILIATION_JOB_ID,
-                        worker_type=TASK_RECONCILIATION_JOB_ID,
-                    ),
-                    "name": TASK_RECONCILIATION_DISPLAY_NAME,
-                },
-                job_id=TASK_RECONCILIATION_JOB_ID,
-                cron=TASK_RECONCILIATION_CRON,
-                func_path="reconcile_task_failures",
                 queue_name="misc",
             ),
             CronSpec(
@@ -998,10 +927,19 @@ class QueueManager:
             return {"message": "Gathering for WordList scheduled"}, 200
         return {"error": "Could not reach Redis"}, 500
 
-    def execute_bot_task(self, bot_id: str, filter: dict | None = None, user_id: str | None = None):
+    def execute_bot_task(
+        self,
+        bot_id: str,
+        filter: dict | None = None,
+        user_id: str | None = None,
+        trigger_dependents: bool = True,
+    ):
         from core.model.bot import Bot
 
-        bot_args: dict[str, str | dict] = {"bot_id": bot_id}
+        if not isinstance(bot_id, str) or not RQ_JOB_ID_COMPONENT_RE.fullmatch(bot_id):
+            return {"error": "Invalid bot_id"}, 400
+
+        bot_args: dict[str, str | dict | bool] = {"bot_id": bot_id, "trigger_dependents": trigger_dependents}
         if filter:
             bot_args["filter"] = filter
 
@@ -1094,36 +1032,77 @@ class QueueManager:
         """Run post-collection bots"""
         from core.model.bot import Bot
 
-        post_collection_bots = list(Bot.get_post_collection())
+        post_collection_bots, dependencies_by_id = Bot.get_collector_run_graph()
         if not post_collection_bots:
             return {"message": "No post collection bots found"}, 200
 
-        previous_job = None
-        for bot_id in post_collection_bots:
-            bot_args = {"bot_id": bot_id, "filter": {"SOURCE": source_id}}
+        if not self._enqueue_bot_graph(
+            post_collection_bots,
+            dependencies_by_id,
+            filter={"SOURCE": source_id},
+            job_suffix=source_id,
+            user_id=user_id,
+            trigger_dependents=False,
+        ):
+            return {"error": "Could not schedule post collection bot"}, 500
+
+        return {"message": "Post collection bots scheduled"}, 200
+
+    def schedule_bot_dependents(self, bot_id: str, filter: dict | None = None, user_id: str | None = None):
+        """Schedule bots that depend on a completed bot instance."""
+        from core.model.bot import Bot
+
+        dependent_bots, dependencies_by_id = Bot.get_dependent_run_graph(bot_id)
+        if not dependent_bots:
+            return {"message": "No dependent bots found"}, 200
+
+        if not self._enqueue_bot_graph(
+            dependent_bots,
+            dependencies_by_id,
+            filter=filter,
+            job_suffix=bot_id,
+            user_id=user_id,
+            trigger_dependents=False,
+        ):
+            return {"error": "Could not schedule dependent bot"}, 500
+        return {"message": "Dependent bots scheduled"}, 200
+
+    def _enqueue_bot_graph(
+        self,
+        bots: Sequence[Any],
+        dependencies_by_id: dict[str, list[str]],
+        *,
+        filter: dict | None,
+        job_suffix: str,
+        user_id: str | None,
+        trigger_dependents: bool,
+    ) -> bool:
+        jobs_by_bot_id: dict[str, Any] = {}
+        for bot in bots:
+            dependency_ids = dependencies_by_id.get(bot.id, [])
+            bot_type = getattr(bot, "type", None)
+            worker_type = getattr(bot_type, "value", bot_type)
+            bot_args: dict[str, str | dict | bool] = {"bot_id": bot.id, "trigger_dependents": trigger_dependents}
+            if filter:
+                bot_args["filter"] = filter
+            parent_jobs = [jobs_by_bot_id[dependency_id] for dependency_id in dependency_ids if dependency_id in jobs_by_bot_id]
             job = self.enqueue_task(
                 "bots",
                 "bot_task",
-                job_id=f"bot_{bot_id}_{source_id}",
-                depends_on=previous_job,
+                job_id=self._build_unique_job_id("bot", f"{bot.id}_{job_suffix}"),
+                depends_on=parent_jobs or None,
                 meta=self._build_task_meta(
-                    f"bot_{bot_id}",
+                    f"bot_{bot.id}",
                     user_id=user_id,
-                    worker_id=bot_id,
-                    worker_type=self._resolve_worker_type(
-                        Bot.get,
-                        bot_id,
-                        fallback="BOT_TASK",
-                        transform=lambda value: value.upper(),
-                    ),
+                    worker_id=bot.id,
+                    worker_type=str(worker_type).upper() if worker_type else "BOT_TASK",
                 ),
                 **bot_args,
             )
             if not job:
-                return {"error": "Could not schedule post collection bot"}, 500
-            previous_job = job
-
-        return {"message": "Post collection bots scheduled"}, 200
+                return False
+            jobs_by_bot_id[bot.id] = job
+        return True
 
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""
@@ -1186,19 +1165,11 @@ class QueueManager:
             )
             all_jobs.append(
                 self._build_housekeeping_schedule_entry(
-                    job_id=TASK_RECONCILIATION_JOB_ID,
-                    name=TASK_RECONCILIATION_DISPLAY_NAME,
-                    cron_schedule=TASK_RECONCILIATION_CRON,
-                )
-            )
-            all_jobs.append(
-                self._build_housekeeping_schedule_entry(
                     job_id=TASK_HISTORY_CLEANUP_JOB_ID,
                     name=TASK_HISTORY_CLEANUP_DISPLAY_NAME,
                     cron_schedule=TASK_HISTORY_CLEANUP_CRON,
                 )
             )
-
         except Exception as e:
             logger.warning(f"Failed to fetch cron schedules: {e}")
             # Don't fail the whole request if cron scheduler is not available
@@ -1414,16 +1385,6 @@ class QueueManager:
             )
             cron_jobs.append(
                 {
-                    "task": TASK_RECONCILIATION_JOB_ID,
-                    "queue": "misc",
-                    "args": [],
-                    "cron": TASK_RECONCILIATION_CRON,
-                    "task_id": TASK_RECONCILIATION_JOB_ID,
-                    "name": "Reconcile Task Failures",
-                }
-            )
-            cron_jobs.append(
-                {
                     "task": TASK_HISTORY_CLEANUP_JOB_ID,
                     "queue": "misc",
                     "args": [],
@@ -1490,6 +1451,9 @@ class QueueManager:
                     try:
                         job = Job.fetch(job_id, connection=self._redis)
                         job_name = self._get_job_display_name(job)
+                        result = job.latest_result()
+                        error = getattr(result, "exc_string", "")
+                        error = error.strip().rsplit("\n", 1)[-1] if isinstance(error, str) else ""
 
                         failed_jobs.append(
                             {
@@ -1497,7 +1461,7 @@ class QueueManager:
                                 "name": job_name,
                                 "queue": queue_name,
                                 "failed_at": job.ended_at.isoformat() if job.ended_at else None,
-                                "error": "Task failed",
+                                "error": error or "Task failed",
                                 "status": "failed",
                             }
                         )

@@ -37,6 +37,9 @@ def pre_seed():
         pre_seed_workers()
         logger.debug("Workers seeded")
 
+        pre_seed_default_publisher()
+        logger.debug("Default publisher seeded")
+
         pre_seed_assets()
         logger.debug("Assets seeded")
 
@@ -79,6 +82,7 @@ def pre_seed_update(db_engine: Engine):
     migrate_user_profiles()
     cleanup_empty_stories()
     migrate_missing_initial_revisions()
+    cleanup_intelowl_email_enrichment_parameter()
     if db_engine.dialect.name == "postgresql":
         rebuild_story_search_vectors()
 
@@ -89,6 +93,8 @@ def pre_seed_update(db_engine: Engine):
             worker.update(w)
         else:
             Worker.add(w)
+
+    pre_seed_default_publisher()
 
     for b in bots:
         bot = Bot.filter_by_type(b["type"])
@@ -131,6 +137,21 @@ def cleanup_invalid_source_icons():
     if removed_icons:
         db.session.commit()
         logger.info(f"Removed invalid icons from {removed_icons} OSINT sources")
+
+
+def cleanup_intelowl_email_enrichment_parameter():
+    from models.types import BOT_TYPES
+
+    from core.managers.db_manager import db
+    from core.model.bot import Bot
+
+    changed = False
+    for bot in Bot.get_all_by_type(BOT_TYPES.INTEL_OWL_BOT):
+        current_count = len(bot.parameters)
+        bot.parameters = [parameter for parameter in bot.parameters if parameter.parameter != "INTEL_OWL_EMAIL_ENRICHMENT"]
+        changed |= len(bot.parameters) != current_count
+    if changed:
+        db.session.commit()
 
 
 def sync_presenter_templates():
@@ -326,19 +347,37 @@ def pre_seed_manual_source():
 
 
 def pre_seed_workers():
+    from core.managers.db_manager import db
     from core.managers.pre_seed_data import bots, product_types, workers
-    from core.model.bot import Bot
+    from core.model.bot import RUN_AFTER_BOTS, Bot
     from core.model.product_type import ProductType
     from core.model.worker import Worker
 
     for w in workers:
         Worker.add(w)
 
-    for b in bots:
-        Bot.add(b)
+    seeded_bots = {bot_data["type"]: Bot.add(bot_data) for bot_data in bots}
+    for bot_type, parent_types in {
+        "IOC_BOT": ("WORDLIST_BOT",),
+        "INTEL_OWL_BOT": ("IOC_BOT",),
+        "NLP_BOT": ("IOC_BOT",),
+        "SUMMARY_BOT": ("NLP_BOT", "STORY_BOT"),
+    }.items():
+        bot = seeded_bots[bot_type]
+        next(parameter for parameter in bot.parameters if parameter.parameter == RUN_AFTER_BOTS).value = ",".join(
+            seeded_bots[parent_type].id for parent_type in parent_types
+        )
+    Bot.validate_dependency_config()
+    db.session.commit()
 
     for p in product_types:
         ProductType.add(_resolve_seed_product_type_report_types(p))
+
+
+def pre_seed_default_publisher():
+    from core.model.publisher_preset import PublisherPreset
+
+    PublisherPreset.ensure_default_taranis()
 
 
 def pre_seed_permissions():

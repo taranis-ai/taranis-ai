@@ -28,7 +28,7 @@ class BaseBot:
         if param_filter := parameters.get("filter"):
             filter_dict |= {k.lower(): v for k, v in param_filter.items()}
 
-        if "story_id" in filter_dict:
+        if "story_id" in filter_dict or "story_ids" in filter_dict:
             return filter_dict
 
         if timefrom := parameters.get("timefrom"):

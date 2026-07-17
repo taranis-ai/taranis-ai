@@ -14,7 +14,6 @@ from worker.misc.wordlist_update import update_wordlist
 
 
 TOKEN_CLEANUP_TASK_ID = "cleanup_token_blacklist"
-TASK_RECONCILIATION_TASK_ID = "reconcile_task_failures"
 TASK_HISTORY_CLEANUP_TASK_ID = "cleanup_task_history"
 
 
@@ -127,43 +126,6 @@ def gather_word_list(word_list_id: str):
             ),
         )
     return result
-
-
-def reconcile_task_failures():
-    logger.info("Reconciling task failures")
-    job = get_current_job()
-    core_api = CoreApi()
-    payload = core_api.reconcile_task_failures()
-    if payload is None:
-        if job:
-            core_api.save_task_result(
-                job.id,
-                TASK_RECONCILIATION_TASK_ID,
-                "FAILURE",
-                worker_id=TASK_RECONCILIATION_TASK_ID,
-                worker_type=TASK_RECONCILIATION_TASK_ID,
-                result=build_failure_task_result(
-                    "Task reconciliation failed",
-                    reason="job_failed",
-                    retryable=True,
-                ),
-            )
-        raise RuntimeError("Task reconciliation failed")
-
-    if job:
-        core_api.save_task_result(
-            job.id,
-            TASK_RECONCILIATION_TASK_ID,
-            "SUCCESS",
-            worker_id=TASK_RECONCILIATION_TASK_ID,
-            worker_type=TASK_RECONCILIATION_TASK_ID,
-            result=build_success_task_result(
-                default_message=str(payload.get("message") or "Task reconciliation completed"),
-                data=payload,
-            ),
-        )
-
-    return payload
 
 
 def cleanup_task_history():

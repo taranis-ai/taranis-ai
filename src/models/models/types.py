@@ -89,6 +89,7 @@ class BOT_TYPES(StrEnum):
     GROUPING_BOT = auto()
     NLP_BOT = auto()
     IOC_BOT = auto()
+    INTEL_OWL_BOT = auto()
     TAGGING_BOT = auto()
     STORY_BOT = auto()
     SUMMARY_BOT = auto()
@@ -123,6 +124,7 @@ class PRESENTER_TYPES(StrEnum):
 
 
 class PUBLISHER_TYPES(StrEnum):
+    TARANIS_PUBLISHER = auto()
     FTP_PUBLISHER = auto()
     SFTP_PUBLISHER = auto()
     S3_PUBLISHER = auto()
@@ -153,6 +155,7 @@ class WORKER_TYPES(StrEnum):
     GROUPING_BOT = auto()
     NLP_BOT = auto()
     IOC_BOT = auto()
+    INTEL_OWL_BOT = auto()
     TAGGING_BOT = auto()
     STORY_BOT = auto()
     SUMMARY_BOT = auto()
@@ -165,6 +168,7 @@ class WORKER_TYPES(StrEnum):
     TEXT_PRESENTER = auto()
     JSON_PRESENTER = auto()
     STIX_PRESENTER = auto()
+    TARANIS_PUBLISHER = auto()
     FTP_PUBLISHER = auto()
     SFTP_PUBLISHER = auto()
     S3_PUBLISHER = auto()

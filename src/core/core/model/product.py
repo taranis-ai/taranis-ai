@@ -33,6 +33,7 @@ class Product(BaseModel):
     report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item")
     default_publisher: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("publisher_preset.id"), nullable=True)
     last_rendered: Mapped[datetime] = db.Column(db.DateTime)
+    last_published_url: Mapped[str | None] = db.Column(db.Text, nullable=True)
     render_result = deferred(db.Column(db.Text))
 
     def __init__(

@@ -1,11 +1,33 @@
 from datetime import datetime
 from typing import Self
+from urllib.parse import urlsplit
 
 from pydantic import Field, ValidationInfo, field_validator
 from requests import Response
 
 from models.base import TaranisBaseModel
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
+
+
+def validate_linkable_url(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if value != value.strip() or "\\" in value or any(ord(character) < 32 or ord(character) == 127 for character in value):
+        raise ValueError("URL is not safe to open")
+
+    if value.startswith("/"):
+        if value.startswith("//"):
+            raise ValueError("URL is not safe to open")
+        return value
+
+    try:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+    except ValueError as error:
+        raise ValueError("URL is not safe to open") from error
+    if parsed.scheme not in {"http", "https"} or not hostname or parsed.username is not None or parsed.password is not None:
+        raise ValueError("URL is not safe to open")
+    return value
 
 
 class WorkerProduct(TaranisBaseModel):
@@ -63,8 +85,14 @@ class Product(TaranisBaseModel):
     product_type_id: str
     report_items: list[str] = Field(default_factory=list)
     last_rendered: datetime | None = None
+    last_published_url: str | None = None
     render_result: str | None = None
     mime_type: str | None = None
+
+    @field_validator("last_published_url", mode="after")
+    @classmethod
+    def require_safe_last_published_url(cls, value: str | None) -> str | None:
+        return validate_linkable_url(value)
 
     @field_validator("default_publisher", mode="after")
     @classmethod

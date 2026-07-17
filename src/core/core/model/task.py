@@ -1,10 +1,11 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Mapped
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
@@ -14,6 +15,7 @@ class Task(BaseModel):
 
     SUCCESS_STATUSES = {"SUCCESS", "NOT_MODIFIED"}
     FAILURE_STATUSES = {"FAILURE"}
+    DEFAULT_RESULT = {"message": "No task result was recorded", "reason": "missing_result", "retryable": False, "data": None}
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     job_id: Mapped[str] = db.Column(db.String, unique=True, nullable=False)
@@ -47,30 +49,39 @@ class Task(BaseModel):
             self.worker_id = worker_id
         if worker_type is not None:
             self.worker_type = worker_type
-        self.result = json.dumps(result) if result is not None else ""
+        self.result = self._serialize_result(result)
         if status in self.SUCCESS_STATUSES:
-            self.last_success = datetime.now(timezone.utc)
-        self.last_run = datetime.now(timezone.utc)
+            self.last_success = self.utcnow()
+        self.last_run = self.utcnow()
 
     @classmethod
     def add_or_update(cls, entry_data):
         if entry := cls.get_by_job_id(entry_data["id"]):
-            entry.result = json.dumps(entry_data["result"]) if entry_data["result"] is not None else ""
+            entry.result = cls._serialize_result(entry_data["result"])
             entry.status = entry_data.get("status")
             entry.task = entry_data.get("task", entry.task)
             entry.user_id = entry_data.get("user_id", entry.user_id)
             entry.worker_id = entry_data.get("worker_id", entry.worker_id)
             entry.worker_type = entry_data.get("worker_type", entry.worker_type)
             if entry.status in cls.SUCCESS_STATUSES:
-                entry.last_success = datetime.now(timezone.utc)
-            entry.last_run = datetime.now(timezone.utc)
+                entry.last_success = cls.utcnow()
+            entry.last_run = cls.utcnow()
             db.session.commit()
             return entry.to_dict(), 200
         new_entry = cls.add(entry_data)
         return new_entry.to_dict(), 201
 
     def to_dict(self):
-        result = json.loads(self.result) if self.result else None
+        try:
+            result = json.loads(self.result) if self.result else None
+        except (TypeError, ValueError):
+            logger.warning("Task %s has malformed result JSON", self.job_id)
+            result = self.DEFAULT_RESULT.copy()
+        else:
+            if not isinstance(result, dict):
+                if self.result:
+                    logger.warning("Task %s has a non-object result payload", self.job_id)
+                result = self.DEFAULT_RESULT.copy()
         return {
             "id": self.id,
             "job_id": self.job_id,
@@ -83,6 +94,14 @@ class Task(BaseModel):
             "last_run": self.last_run.isoformat() if self.last_run else None,
             "last_success": self.last_success.isoformat() if self.last_success else None,
         }
+
+    @classmethod
+    def _serialize_result(cls, result: Any) -> str:
+        if result is None:
+            return json.dumps(cls.DEFAULT_RESULT)
+        if not isinstance(result, dict):
+            result = {"message": "Task result was recorded", "reason": None, "retryable": False, "data": result}
+        return json.dumps(result)
 
     @classmethod
     def get_failed(cls, task_id: str) -> "Task | None":
