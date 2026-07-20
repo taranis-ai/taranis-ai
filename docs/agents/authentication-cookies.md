@@ -12,6 +12,7 @@ Authentication, login, logout, implicit JWT refresh, JWT cookies, CSRF cookies, 
 - Deployments sharing a domain must use unique suffixes, for example `_q` and `_p`.
 - Authenticated frontend requests renew the access cookie through core when its token is within 30 minutes of expiry. No refresh token or refresh cookie is used.
 - `GET /api/auth/refresh` accepts bearer access tokens from the `Authorization` header for CLI and other non-browser clients.
+- Successful authentication updates `last_login` and emits a `LOGIN` activity; access-token renewal does neither.
 
 ## Code Paths
 
@@ -23,7 +24,7 @@ Authentication, login, logout, implicit JWT refresh, JWT cookies, CSRF cookies, 
 
 ## Data Flow
 
-Core creates the access JWT and its CSRF cookie. Frontend forwards the login `Set-Cookie` headers unchanged, reads the configured access cookie for core requests, and uses the configured CSRF cookie for forms and HTMX requests. On authenticated requests, a frontend `after_request` handler asks core to replace access tokens that expire within 30 minutes and forwards the returned `Set-Cookie` headers. Core rejects revoked tokens before issuing replacements. Flask-JWT-Extended clears the configured names and paths on logout, rejected renewal, or expiration.
+Core records successful authentication before creating the initial access JWT and its CSRF cookie. Frontend forwards the login `Set-Cookie` headers unchanged, reads the configured access cookie for core requests, and uses the configured CSRF cookie for forms and HTMX requests. On authenticated requests, a frontend `after_request` handler asks core to replace access tokens that expire within 30 minutes and forwards the returned `Set-Cookie` headers without recording another login. Core rejects revoked tokens before issuing replacements. Flask-JWT-Extended clears the configured names and paths on logout, rejected renewal, or expiration.
 
 ## Testing
 
@@ -31,6 +32,7 @@ Core creates the access JWT and its CSRF cookie. Frontend forwards the login `Se
 - Assert login and session clearing emit the configured names with the deployment path.
 - Assert only access tokens within the renewal window are replaced.
 - Assert refresh accepts bearer headers, rejects cookie-only requests, and rejects revoked tokens.
+- Assert refresh does not update `last_login` or emit a `LOGIN` activity.
 - Run the full core, frontend, and frontend E2E test suites after authentication-cookie changes.
 
 ## Pitfalls

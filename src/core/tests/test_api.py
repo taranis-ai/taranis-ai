@@ -33,19 +33,33 @@ def test_auth_login(client):
     assert response.status_code == 200
 
 
-def test_auth_refresh_is_header_only_and_rejects_revoked_tokens(client):
+def test_auth_refresh_is_header_only_and_rejects_revoked_tokens(client, app, monkeypatch):
+    from core.auth import base_authenticator
+    from core.model.user import User
+
     login_response = client.post(
         "/api/auth/login",
         json={"username": "user", "password": os.getenv("PRE_SEED_PASSWORD_USER")},
     )
     access_token = login_response.json["access_token"]
     headers = {"Authorization": f"Bearer {access_token}"}
+    with app.app_context():
+        user = User.find_by_name("user")
+        assert user is not None
+        last_login = user.last_login
+    login_activities = []
+    monkeypatch.setattr(base_authenticator.logger, "store_user_activity", lambda *args: login_activities.append(args))
 
     assert client.get("/api/auth/refresh").status_code == 401
 
     refresh_response = client.get("/api/auth/refresh", headers=headers)
     assert refresh_response.status_code == 200
     assert refresh_response.json["access_token"] != access_token
+    with app.app_context():
+        user = User.find_by_name("user")
+        assert user is not None
+        assert user.last_login == last_login
+    assert login_activities == []
 
     assert client.delete("/api/auth/logout", headers=headers).status_code == 200
     assert client.get("/api/auth/refresh", headers=headers).status_code == 401
@@ -78,13 +92,16 @@ def test_auth_login_sets_suffixed_path_scoped_cookies(client, app, monkeypatch):
         assert any(header.startswith(f"{cookie_name}=") and "Path=/q/" in header for header in set_cookie_headers)
 
 
-def test_auth_login_updates_last_login(client, app):
+def test_auth_login_updates_last_login(client, app, monkeypatch):
+    from core.auth import base_authenticator
     from core.model.user import User
 
     with app.app_context():
         user = User.find_by_name("user")
         assert user is not None
         previous_last_login = user.last_login
+    login_activities = []
+    monkeypatch.setattr(base_authenticator.logger, "store_user_activity", lambda *args: login_activities.append(args))
 
     body = {"username": "user", "password": os.getenv("PRE_SEED_PASSWORD_USER")}
     response = client.post("/api/auth/login", json=body)
@@ -96,6 +113,8 @@ def test_auth_login_updates_last_login(client, app):
         assert user.last_login is not None
         if previous_last_login is not None:
             assert user.last_login >= previous_last_login
+    assert len(login_activities) == 1
+    assert login_activities[0][1:] == ("LOGIN", "Successful")
 
 
 def test_auth_login_external_authenticator(tmp_path, monkeypatch):

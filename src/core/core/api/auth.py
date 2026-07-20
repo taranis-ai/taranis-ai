@@ -31,7 +31,7 @@ class Login(MethodView):
 class Refresh(MethodView):
     @jwt_required(locations=["headers"])
     def get(self):
-        return BaseAuthenticator.generate_jwt(current_user.username)
+        return BaseAuthenticator.issue_access_token(current_user)
 
 
 class Logout(MethodView):
