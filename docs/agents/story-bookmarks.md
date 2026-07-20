@@ -23,6 +23,8 @@ Selecting a Bookmark story card updates both the selection count and the card's 
 
 Per-card Ungroup requests carry the bookmark ID and re-render the current collection for both success and error responses. Core rejects ungrouping stories assigned to reports, so Bookmark must show that error without redirecting to Assess.
 
+Story editor actions that replace the editor in place, including Like and Dislike, carry the bookmark ID so the replacement keeps its Return to bookmark link and Bookmark-aware Save action.
+
 When an eligible bookmarked story is ungrouped, core replaces its bookmark relationship with relationships to the newly created standalone stories in the same transaction. If a partial ACL-limited ungroup leaves the source story non-empty, bookmarks retain it alongside the accessible new stories.
 
 ## Code Paths

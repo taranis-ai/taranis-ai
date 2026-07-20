@@ -8,7 +8,7 @@
 {% set card_id = 'story-' ~ story_id %}
 {% set toggled_read = (not (story.read | default(false))) | tojson %}
 {% set toggled_important = (not (story.important | default(false))) | tojson %}
-{% set vote_endpoint = url_for('assess.story_update', story_id=story.id) %}
+{% set vote_endpoint = url_for('assess.story_update', story_id=story.id, bookmark_id=bookmark_id or None) %}
 {% set user_vote = story.user_vote or '' %}
 {% set like_active = user_vote == 'like' %}
 {% set dislike_active = user_vote == 'dislike' %}
