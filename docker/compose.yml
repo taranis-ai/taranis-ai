@@ -151,6 +151,7 @@ services:
       REDIS_URL: "redis://redis:6379/0"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       WORKER_TYPES: '["Collectors"]'
+      DISABLE_HTTP3: "${DISABLE_HTTP3:-False}"
       DEBUG: "${DEBUG:-False}"
     healthcheck:
       test: ["CMD", "taranis-worker-healthcheck", "--mode", "worker"]

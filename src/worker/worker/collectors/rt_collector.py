@@ -189,11 +189,10 @@ class RTCollector(BaseWebCollector):
     def update_rt_favicon(self, osint_source_id: str):
         icon_url = f"{urlparse(self.base_url).scheme}://{urlparse(self.base_url).netloc}/static/images/favicon.png"
         r = self._fetch_icon(icon_url)
-        if not r.ok:
+        if not r.ok or not (content := r.content):
             return None
 
-        icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
-        self.core_api.update_osint_source_icon(osint_source_id, icon_content)
+        self.core_api.update_osint_source_icon(osint_source_id, {"file": (r.headers.get("content-disposition", "file"), content)})
         return None
 
     def rt_collector(self, source: dict) -> list[dict]:

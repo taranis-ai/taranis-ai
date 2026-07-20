@@ -12,6 +12,7 @@ from trafilatura import extract, extract_metadata
 
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
+from worker.config import Config
 from worker.log import logger
 
 
@@ -48,7 +49,8 @@ class BaseWebCollector(BaseCollector):
             request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         logger.debug(f"Sending GET request to {url}")
-        response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
+        with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
+            response = session.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
         if response.status_code == 200 and not response.content:
             logger.info(f"Request to {url} got Response 200 OK, but returned no content")
         if response.status_code == 304:
@@ -98,18 +100,17 @@ class BaseWebCollector(BaseCollector):
         return None
 
     def _fetch_icon(self, icon_url: str) -> requests.Response:
-        with requests.Session(disable_http3=True) as session:
+        with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
             return session.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=5)
 
     def update_favicon(self, web_url: str, osint_source_id: str):
         # TODO: Try getting apple-touch-icon first
         icon_url = f"{urlparse(web_url).scheme}://{urlparse(web_url).netloc}/favicon.ico"
         r = self._fetch_icon(icon_url)
-        if not r.ok:
+        if not r.ok or not (content := r.content):
             return None
 
-        icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
-        self.core_api.update_osint_source_icon(osint_source_id, icon_content)
+        self.core_api.update_osint_source_icon(osint_source_id, {"file": (r.headers.get("content-disposition", "file"), content)})
         return None
 
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:

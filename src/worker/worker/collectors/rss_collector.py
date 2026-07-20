@@ -226,12 +226,13 @@ class RSSCollector(BaseWebCollector):
             if not content_type.startswith("image/"):
                 logger.warning(f"URL {icon_url} did not return an image (content-type: {content_type})")
                 return None
+            if not (content := r.content):
+                logger.warning(f"URL {icon_url} returned no content")
+                return None
 
             parsed = urlparse(icon_url)
             filename = parsed.path.rsplit("/", 1)[-1] or "favicon.ico"
-            icon_content = {"file": (filename, r.content)}
-
-            self.core_api.update_osint_source_icon(source_id, icon_content)
+            self.core_api.update_osint_source_icon(source_id, {"file": (filename, content)})
 
         except Exception as e:
             logger.error(f"Exception while fetching icon from {icon_url}: {e}")

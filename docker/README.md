@@ -175,6 +175,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `TARANIS_CORE_HOST`*    | Hostname and Port of the Taranis AI core   | `core:8080`                 |
 | `API_KEY`               | API Key for communication with core        | `supersecret`               |
 | `REDIS_URL`             | Redis connection URL                       | `redis://redis:6379`        |
+| `DISABLE_HTTP3`         | Disable HTTP/3 for web-based collectors    | `False`                     |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 
 
