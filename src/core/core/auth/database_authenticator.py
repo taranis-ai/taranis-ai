@@ -18,7 +18,7 @@ class DatabaseAuthenticator(BaseAuthenticator):
 
         user = User.find_by_name(username)
         if user and user.password and check_password_hash(user.password, password):
-            return BaseAuthenticator.generate_jwt(username)
+            return BaseAuthenticator.complete_login(user)
 
         logger.store_auth_error_activity(f"Authentication failed for username: {username}")
         return BaseAuthenticator.generate_error()

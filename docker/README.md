@@ -161,6 +161,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `DB_USER`                     | PostgreSQL database user                   | `taranis`     |
 | `DB_PASSWORD`                 | PostgreSQL database password               | `supersecret` |
 | `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
+| `JWT_COOKIE_SUFFIX`           | Literal suffix for JWT and CSRF cookie names | `''`        |
 | `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
@@ -182,6 +183,8 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | Environment variable    | Description                                | Default                     |
 | ----------------------- | ------------------------------------------ | --------------------------- |
 | `JWT_SECRET_KEY`        | JWT token secret key.                      | `supersecret`               |
+| `JWT_COOKIE_SUFFIX`     | Literal suffix for JWT and CSRF cookie names | `''`                      |
+| `TARANIS_BASE_PATH`     | Deployment path used to scope authentication cookies | `/`              |
 | `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 | `GRANIAN_WORKERS_MAX_RSS` | Per-worker Granian RSS recycle limit in MiB | `1024`       |
@@ -190,7 +193,9 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 > [!NOTE]
 > ** If `TARANIS_CORE_URL` is not set it will be calculated as: `http://{TARANIS_CORE_HOST}/{TARANIS_BASE_PATH}/api`.
 >
-> If you set `TARANIS_CORE_URL`: `TARANIS_CORE_HOST` and `TARANIS_BASE_PATH` will be ignored.
+> If you set `TARANIS_CORE_URL`, `TARANIS_CORE_HOST` is ignored. `TARANIS_BASE_PATH` still scopes authentication cookies.
+
+When multiple deployments share a domain, give each deployment a unique `JWT_COOKIE_SUFFIX` including its separator, such as `_q` for `TARANIS_BASE_PATH=/q/`. Core and frontend must receive the same suffix and base path. The access-token and CSRF cookies are also scoped to that base path.
 
 ### `ingress`
 

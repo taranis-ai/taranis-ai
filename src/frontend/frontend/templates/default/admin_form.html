@@ -7,7 +7,7 @@
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>
 
   <form id="{{ model_name }}-form" class="w-1/2 ml-[10%]" method="post" action="{{ form_action }}">
-    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
     {% include "partials/admin_form_error.html" %}
     {% for field_name, field in form_fields.items() %}
       {% if field.type == 'text' or field.type == 'number' %}

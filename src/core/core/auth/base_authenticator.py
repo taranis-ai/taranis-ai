@@ -1,5 +1,5 @@
 from flask import Response, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
+from flask_jwt_extended import create_access_token, set_access_cookies
 
 from core.log import logger
 from core.model.token_blacklist import TokenBlacklist
@@ -16,9 +16,6 @@ class BaseAuthenticator:
     def authenticate(self, credentials):
         return BaseAuthenticator.generate_error()
 
-    def refresh(self, user):
-        return BaseAuthenticator.generate_jwt(user.username)
-
     @staticmethod
     def logout(jti):
         TokenBlacklist.add(jti)
@@ -30,20 +27,18 @@ class BaseAuthenticator:
         return error_message
 
     @staticmethod
-    def generate_jwt(username: str) -> Response:
-        if user := User.find_by_name(username):
-            user.mark_last_login()
-            logger.store_user_activity(user, "LOGIN", "Successful")
-            access_token = create_access_token(
-                identity=user,
-                additional_claims={"user_claims": {"id": user.id, "name": user.name, "roles": user.get_roles()}},
-            )
-            refresh_token = create_refresh_token(identity=user)
-            response = jsonify({"access_token": access_token})
-            response.status_code = 200
-            set_access_cookies(response, access_token)
-            set_refresh_cookies(response, refresh_token)
-            return response
+    def complete_login(user: User) -> Response:
+        user.mark_last_login()
+        logger.store_user_activity(user, "LOGIN", "Successful")
+        return BaseAuthenticator.issue_access_token(user)
 
-        logger.store_auth_error_activity(f"User doesn't exists: {username}")
-        return BaseAuthenticator.generate_error()
+    @staticmethod
+    def issue_access_token(user: User) -> Response:
+        access_token = create_access_token(
+            identity=user,
+            additional_claims={"user_claims": {"id": user.id, "name": user.name, "roles": user.get_roles()}},
+        )
+        response = jsonify({"access_token": access_token})
+        response.status_code = 200
+        set_access_cookies(response, access_token)
+        return response

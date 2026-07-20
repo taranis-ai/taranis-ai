@@ -25,7 +25,7 @@ class ExternalAuthenticator(BaseAuthenticator):
             return BaseAuthenticator.generate_error()
 
         user = self.create_user_if_not_exists(username, credentials)
-        return BaseAuthenticator.generate_jwt(user.username)
+        return BaseAuthenticator.complete_login(user)
 
     @staticmethod
     def get_credentials(headers: Headers) -> dict[str, str]:

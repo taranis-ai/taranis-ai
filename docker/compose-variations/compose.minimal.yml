@@ -59,6 +59,7 @@ services:
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
       SKIP_INITIAL_USER_ONBOARDING: "${SKIP_INITIAL_USER_ONBOARDING:-False}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
     volumes:
@@ -113,7 +114,9 @@ services:
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}frontend"
+      TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
       DEBUG: "${DEBUG:-False}"
     healthcheck:
       test: ["CMD", "taranis-frontend-healthcheck"]
