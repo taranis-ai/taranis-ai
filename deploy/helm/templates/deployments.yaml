@@ -108,6 +108,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: taranis-config
+            - secretRef:
+                name: taranis-redis-credentials
           env:
             - name: TARANIS_CORE_URL
               value: http://core:8080/api
