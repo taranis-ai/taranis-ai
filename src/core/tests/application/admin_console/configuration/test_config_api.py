@@ -1110,22 +1110,38 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
     base_uri = "/api/config"
 
     def test_get_admin_menu_badges(self, client, auth_header, app):
+        from core.model.osint_source import OSINTSource
         from core.model.task import Task
 
+        source_id = str(uuid.uuid7())
         task_ids = [
             f"admin-menu-badge-collector-{uuid.uuid4().hex}",
             f"admin-menu-badge-bot-{uuid.uuid4().hex}",
         ]
 
         with app.app_context():
+            OSINTSource.add(
+                {
+                    "id": source_id,
+                    "name": f"Admin menu badge source {source_id}",
+                    "description": "Source used to test the admin menu badge",
+                    "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
+                    "type": "rss_collector",
+                }
+            )
             Task.add(
                 {
                     "id": task_ids[0],
                     "task": "collector_task",
-                    "worker_id": "source-1",
+                    "worker_id": source_id,
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": "source-1"}},
+                    "result": {
+                        "message": "boom",
+                        "reason": "collection_failed",
+                        "retryable": False,
+                        "data": {"source_id": source_id},
+                    },
                 }
             )
             Task.add(
@@ -1150,6 +1166,8 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
                 for task_id in task_ids:
                     if Task.get(task_id):
                         Task.delete(task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
 
 
 class TestConnectorConfigApi(BaseTest):

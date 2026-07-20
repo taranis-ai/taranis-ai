@@ -189,18 +189,26 @@ class Task(BaseModel):
         """Return the failure counts needed for the admin sidebar badges."""
         task_stats = cls.get_status_counts_by_task()
 
-        def sum_failures(task_name_filter: str) -> int:
-            return sum(int(stats.get("failures", 0) or 0) for task_name, stats in task_stats.items() if task_name_filter in task_name.lower())
+        from core.model.osint_source import OSINTSource
+
+        source_ids = set(db.session.execute(db.select(OSINTSource.id)).scalars())
+        source_task_stats = cls.get_status_counts_by_task(worker_ids=source_ids)
+
+        def sum_failures(stats_by_task: dict[str, dict[str, Any]], task_name_filter: str) -> int:
+            return sum(
+                int(stats.get("failures", 0) or 0) for task_name, stats in stats_by_task.items() if task_name_filter in task_name.lower()
+            )
 
         return {
-            "osint_source": sum_failures("collector"),
-            "bot": sum_failures("bot"),
+            "osint_source": sum_failures(source_task_stats, "collector"),
+            "bot": sum_failures(task_stats, "bot"),
         }
 
     @classmethod
     def get_status_counts_by_task(
         cls,
         include_timestamps: bool = False,
+        worker_ids: set[str] | None = None,
     ) -> dict[str, dict[str, Any]]:
         """Return per-task execution stats grouped by worker type.
 
@@ -236,7 +244,10 @@ class Task(BaseModel):
                 ]
             )
 
-        latest_rows = db.select(*columns).where(group_filter).subquery()
+        latest_rows_query = db.select(*columns).where(group_filter)
+        if worker_ids is not None:
+            latest_rows_query = latest_rows_query.where(cls.worker_id.in_(worker_ids))
+        latest_rows = latest_rows_query.subquery()
 
         stmt_columns = [
             latest_rows.c.task_type,

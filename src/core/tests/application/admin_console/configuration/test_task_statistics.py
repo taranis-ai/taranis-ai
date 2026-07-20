@@ -196,21 +196,29 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     Task.delete(task_id)
 
 
-def test_get_admin_menu_badges_sums_failures_by_category(monkeypatch):
+def test_get_admin_menu_badges_sums_failures_by_category(monkeypatch, app):
     monkeypatch.setattr(
         Task,
         "get_status_counts_by_task",
         classmethod(
-            lambda cls: {
-                "rss_collector": {"failures": 4},
-                "manual_collector": {"failures": 2},
-                "WORDLIST_BOT": {"failures": 7},
-                "not_relevant": {"failures": 11},
-            }
+            lambda cls, include_timestamps=False, worker_ids=None: (
+                {
+                    "rss_collector": {"failures": 4},
+                    "manual_collector": {"failures": 2},
+                }
+                if worker_ids is not None
+                else {
+                    "rss_collector": {"failures": 4},
+                    "manual_collector": {"failures": 2},
+                    "WORDLIST_BOT": {"failures": 7},
+                    "not_relevant": {"failures": 11},
+                }
+            )
         ),
     )
 
-    assert Task.get_admin_menu_badges() == {
-        "osint_source": 6,
-        "bot": 7,
-    }
+    with app.app_context():
+        assert Task.get_admin_menu_badges() == {
+            "osint_source": 6,
+            "bot": 7,
+        }
