@@ -1,7 +1,7 @@
 # Release Gate Tests
 
 ## When To Load
-Release gate tests, load tests, PostgreSQL TLS smoke tests, Docker Compose release validation, GHCR `latest` images, `.github/workflows/load_testing.yml`, `docker/run_release_gate_tests.sh`, `docker/compose-variations/compose.load.yml`.
+Release gate tests, load tests, PostgreSQL TLS smoke tests, Docker Compose release validation, GHCR `latest` images, `.github/workflows/release_gate.yml`, `docker/run_release_gate_tests.sh`, `docker/compose-variations/compose.load.yml`.
 
 ## Expected Behavior
 Release gates run against already published images, defaulting to `ghcr.io/taranis-ai/*:latest`. They must not build application images. The default gate runs PostgreSQL TLS multiprocess validation and then the load test.
@@ -12,7 +12,7 @@ Release gates run against already published images, defaulting to `ghcr.io/taran
 - `docker/compose_command.sh`
 - `docker/postgres-tls/`
 - `docker/compose-variations/compose.load.yml`
-- `.github/workflows/load_testing.yml`
+- `.github/workflows/release_gate.yml`
 - `docker/README.md`
 
 ## Data Flow
