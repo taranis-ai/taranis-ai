@@ -12,7 +12,7 @@
     "npm:choices.js@^11.2.3": "11.2.3",
     "npm:codemirror@^6.0.2": "6.0.2",
     "npm:daisyui@^5.6.18": "5.6.18",
-    "npm:driver.js@^1.7.0": "1.7.0",
+    "npm:driver.js@^1.8.0": "1.8.0",
     "npm:fuse.js@^7.5.0": "7.5.0",
     "npm:highlight-search-term@^1.0.3": "1.0.3",
     "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
@@ -376,8 +376,8 @@
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
     },
-    "driver.js@1.7.0": {
-      "integrity": "sha512-IWkESaVWaoxIWu3TqTpLRDgOFmDdjZsg/Oz7hrrr4ApBUapTFm9YCXYnptu3mKN8l4eAdtrxpU54l7kHLK96tw=="
+    "driver.js@1.8.0": {
+      "integrity": "sha512-+8/IO7h1v14IzWh2GP60N7T3PFZweXwdn5e5POuxRSBoCYUojsBxzqawPeXh3YZIibRy7EehYNEyxe7slwwtdg=="
     },
     "enhanced-resolve@5.24.2": {
       "integrity": "sha512-rpsZEGT1jFuve6QlpyRp9ckQ+kN61hvF9BzCPyMdaKTm8UJce96KBn3sorXOFXlzjPrs3Vc4T1NsSroZ3PxlFw==",
@@ -544,7 +544,7 @@
       "npm:choices.js@^11.2.3",
       "npm:codemirror@^6.0.2",
       "npm:daisyui@^5.6.18",
-      "npm:driver.js@^1.7.0",
+      "npm:driver.js@^1.8.0",
       "npm:fuse.js@^7.5.0",
       "npm:highlight-search-term@^1.0.3",
       "npm:htmx-ext-response-targets@^2.0.4",
