@@ -1,7 +1,7 @@
 # Creating a Release
 
 1. Make sure the release commit is on `master` and its CI and `:latest` image builds have passed.
-2. Run [Release gate tests](https://github.com/taranis-ai/taranis-ai/actions/workflows/release_gate.yml) on `master` with `all`, then wait for it to pass. Do not tag a release if it fails.
+2. Run [Release gate tests](https://github.com/taranis-ai/taranis-ai/actions/workflows/release_gate.yml), then wait for it to pass. The workflow checks out the current `master` and runs all gates. Do not tag a release if it fails.
 3. Create and push the version tag (replace `1.X.X`):
 
    ```bash
