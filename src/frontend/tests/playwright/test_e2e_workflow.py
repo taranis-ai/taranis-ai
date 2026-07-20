@@ -24,6 +24,48 @@ class TestUserWorkflow(BaseE2ETest):
         assert page.get_by_role("link", name="Administration").count() == 0
         expect(page.get_by_role("searchbox", name="Select sources")).to_be_visible()
 
+    def test_assess_filter_token_select_reopens_after_selection(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin,
+        stories_session_wrapper,
+    ):
+        page = non_admin_logged_in_page
+        self.navigate_to_assess(page)
+
+        def assert_filter_reopens(filter_id: str, searchbox_name: str, option_label: str, selected_label: str):
+            section = page.locator(f'[data-filter-id="{filter_id}"]')
+            searchbox = page.get_by_role("searchbox", name=searchbox_name)
+            suggestion_list = section.get_by_role("listbox")
+
+            self.highlight_element(searchbox).click()
+            expect(suggestion_list).to_be_visible()
+            expect(section.get_by_role("button", name=option_label)).to_be_visible()
+            self.highlight_element(section.get_by_role("button", name=option_label)).click()
+            self.wait_for_htmx_settled(page)
+
+            expect(page.locator(f'[data-test-id="{filter_id}-selected"]')).to_contain_text(selected_label)
+            expect(suggestion_list).not_to_be_visible()
+
+            reopened_section = page.locator(f'[data-filter-id="{filter_id}"]')
+            reopened_searchbox = page.get_by_role("searchbox", name=searchbox_name)
+            reopened_suggestion_list = reopened_section.get_by_role("listbox")
+            self.highlight_element(reopened_searchbox).click()
+            expect(reopened_suggestion_list).to_be_visible()
+            reopened_searchbox.press("Escape")
+            expect(reopened_suggestion_list).not_to_be_visible()
+
+        assert_filter_reopens("source-filter", "Select sources", "Test Source", "Test Source")
+        assert_filter_reopens("language-filter", "Select languages", "EN", "EN")
+
+        tag_section = page.locator('[data-filter-id="tag-filter"]')
+        tag_searchbox = page.get_by_role("searchbox", name="Search tags")
+        tag_suggestion_list = tag_section.get_by_role("listbox")
+        self.highlight_element(tag_searchbox).click()
+        expect(tag_suggestion_list).not_to_be_visible()
+        tag_searchbox.fill("tag")
+        expect(tag_suggestion_list).to_be_visible()
+
     def test_story_bookmarks(
         self,
         non_admin_logged_in_page: Page,
