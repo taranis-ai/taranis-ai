@@ -26,7 +26,6 @@ TASK_FUNCTION_MAP = {
     "collector_task": "worker.collectors.collector_tasks.collector_task",
     "bot_task": "worker.bots.bot_tasks.bot_task",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
-    "reconcile_task_failures": "worker.misc.misc_tasks.reconcile_task_failures",
 }
 
 T = TypeVar("T")

@@ -13,9 +13,11 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Bot Run Order DAG](bot-run-order-dag.md) - post-collection bot DAG configuration, admin run-order UI, and dependent bot scheduling.
 - [IntelOwl Enrichment](intelowl-enrichment.md) - IntelOwl enrichment bot behavior, summary-only persistence, email analyzer setup, and story/report task flow.
 - [Admin User CLI](admin-user-cli.md) - operational password reset and role repair through `taranis-cli` inside the core container.
+- [Initial User Onboarding](initial-user-onboarding.md) - startup flag for completing onboarding on the pre-seeded `admin` and `user` accounts.
 - [Release Gate Tests](release-gate-tests.md) - Docker/Compose release gates that run expensive checks against already published GHCR images.
 - [Story Bookmarks](story-bookmarks.md) - bookmark collections, the Assess bookmark bar, instant single-story bookmarking, and bookmark cache invalidation.
 - [Worker Task Notifications](worker-task-notifications.md) - frontend notifications for worker-backed actions when tasks are queued but no workers are connected.
+- [Public Product Publishing](public-product-publishing.md) - Taranis publisher presets, persistent report files, and unauthenticated public report URLs.
 
 ## File Format
 

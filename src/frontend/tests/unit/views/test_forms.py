@@ -24,19 +24,31 @@ def _uploaded_users_file() -> BytesIO:
 def test_users_form_get(users_get_mock, organizations_get_mock, roles_get_mock, form_data, authenticated_client, htmx_header):
     response = authenticated_client.get(url_for("admin.edit_user", user_id="0"), headers=htmx_header)
     assert response.status_code == 200
-    assert form_data(response.text).get_cleaned_keys() == {"username", "name", "password", "roles[]", "organization"}
+    assert form_data(response.text).get_cleaned_keys() == {
+        "username",
+        "name",
+        "password",
+        "roles[]",
+        "organization",
+        "profile[onboarding_enabled]",
+    }
+    tree = html.fromstring(response.text)
+    assert tree.xpath('//input[@id="user-onboarding-enabled"][@checked]')
 
 
-def test_users_form_put(users_get_mock, users_put_mock, authenticated_client, htmx_header):
+def test_users_form_put(users_get_mock, users_put_mock, authenticated_client, htmx_header, responses_mock):
     user = {
         "name": "Test User",
         "organization": "organization-1",
         "roles[]": ["role-1"],
         "username": "test",
+        "profile[onboarding_enabled]": "false",
     }
     response = authenticated_client.post(url_for("admin.edit_user", user_id="user-1"), data=user)
     assert response.status_code == 302
     assert response.headers["Location"] == url_for("admin.users")
+    put_call = next(call for call in responses_mock.calls if call.request.method == "PUT")
+    assert _json_request_body(put_call)["profile"]["onboarding_enabled"] is False
 
 
 def test_users_form_delete(users_delete_mock, users_get_mock, organizations_get_mock, roles_get_mock, authenticated_client, htmx_header):
