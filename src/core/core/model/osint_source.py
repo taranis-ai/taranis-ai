@@ -236,13 +236,13 @@ class OSINTSource(BaseModel):
             items.sort(key=lambda item: (item.get("status") or {}).get("status", ""), reverse=True)
 
         if paginate_after_sorting:
-            limit = max(min(int(filter_args.get("limit", 20)), DB_INTEGER_MAX), 0)
+            limit = min(int(filter_args.get("limit", 20)), DB_INTEGER_MAX)
             offset = filter_args.get("offset")
             if offset is None:
-                offset = max((int(filter_args.get("page", 1)) - 1) * limit, 0) if limit else 0
+                offset = max((int(filter_args.get("page", 1)) - 1) * limit, 0)
             else:
                 offset = max(min(int(offset), DB_INTEGER_MAX), 0)
-            response["items"] = items[offset : offset + limit if limit else None]
+            response["items"] = items[offset : offset + limit]
 
         return response, status_code
 
