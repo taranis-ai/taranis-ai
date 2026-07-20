@@ -1,7 +1,7 @@
 import re
 from collections import Counter
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as StoryPayload
@@ -236,12 +236,12 @@ class Story(BaseModel):
         if not news_items:
             return []
         elif isinstance(news_items[0], dict):
-            return NewsItem.load_multiple(news_items)
+            return NewsItem.load_multiple(cast(list[dict[str, Any]], news_items))
         elif isinstance(news_items[0], str):
-            news_items = [NewsItem.get(item_id) for item_id in news_items]
-            return [news_item for news_item in news_items if news_item]
+            loaded_news_items = [NewsItem.get(item_id) for item_id in cast(list[str], news_items)]
+            return [news_item for news_item in loaded_news_items if news_item]
         elif isinstance(news_items[0], NewsItem):
-            return news_items
+            return cast(list[NewsItem], news_items)
         return []
 
     @property
@@ -1194,9 +1194,12 @@ class Story(BaseModel):
             story = cls.get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404
+            new_story_ids: list[str] = []
             for news_item in story.news_items[:]:
                 if user is None or news_item.allowed_with_acl(user, True):
-                    cls.create_from_item(news_item, commit=False, actor=actor)
+                    if new_story_id := cls.create_from_item(news_item, commit=False, actor=actor):
+                        new_story_ids.append(new_story_id)
+            StoryBookmark.replace_story_after_ungroup(story, new_story_ids)
             story.update_status(change=actor)
             story.record_revision(user, note="ungroup_story")
             db.session.commit()
@@ -1558,6 +1561,20 @@ class StoryBookmark(BaseModel):
         return list(dict.fromkeys(item_id for item_id in ids if isinstance(item_id, str) and item_id))
 
     @classmethod
+    def replace_story_after_ungroup(cls, source_story: Story, new_story_ids: list[str]) -> None:
+        bookmarks = db.session.execute(db.select(cls).where(cls.stories.any(Story.id == source_story.id))).scalars().all()
+        if not bookmarks:
+            return
+
+        new_stories = Story.get_bulk(new_story_ids)
+        source_remains = bool(source_story.news_items)
+        for bookmark in bookmarks:
+            retained_stories = [story for story in bookmark.stories if story.id != source_story.id or source_remains]
+            retained_story_ids = {story.id for story in retained_stories}
+            bookmark.stories = [*retained_stories, *(story for story in new_stories if story.id not in retained_story_ids)]
+            bookmark.touch()
+
+    @classmethod
     def _next_position(cls, user_id: str) -> int:
         max_position = db.session.execute(db.select(func.max(cls.position)).where(cls.user_id == user_id)).scalar()
         return int(max_position if max_position is not None else -1) + 1
@@ -1675,13 +1692,15 @@ class StoryBookmark(BaseModel):
 
     @classmethod
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
+        if user is None:
+            return {"error": "Bookmark collection not found"}, 404
         if bookmark := cls.get_for_user(item_id, user):
             story_ids = [story.id for story in bookmark.stories if story and story.id]
             accessible_query = db.select(Story).where(Story.id.in_(story_ids))
             accessible_query = Story._add_ACL_check(accessible_query, user)
             accessible_query = Story._add_TLP_check(accessible_query, user)
             stories_by_id = {story.id: story for story in db.session.execute(accessible_query).scalars().all() if story}
-            visible_stories = [stories_by_id.get(story_id) for story_id in story_ids if story_id in stories_by_id]
+            visible_stories = [stories_by_id[story_id] for story_id in story_ids if story_id in stories_by_id]
 
             return bookmark.to_detail_dict(stories=visible_stories), 200
         return {"error": "Bookmark collection not found"}, 404
