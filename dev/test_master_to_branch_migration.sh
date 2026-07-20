@@ -71,7 +71,7 @@ run_pytest_validation() {
       DEBUG=true \
       DISABLE_SCHEDULER=true \
       TARANIS_CORE_SENTRY_DSN= \
-      uv run --frozen pytest "$pytest_target"
+      uv run --frozen --extra dev pytest "$pytest_target"
   )
 }
 
