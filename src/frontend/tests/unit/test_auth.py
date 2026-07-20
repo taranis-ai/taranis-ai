@@ -182,6 +182,14 @@ def test_authenticated_requests_refresh_only_expiring_access_cookies(
 ) -> None:
     monkeypatch.setitem(app.config, "JWT_COOKIE_CSRF_PROTECT", True)
     monkeypatch.setattr(auth_module, "get_user_from_cache", lambda identity: auth_user)
+    core_response = Mock(ok=True)
+    core_response.raw.headers.getlist.return_value = [
+        f"{app.config['JWT_ACCESS_COOKIE_NAME']}=renewed; Path=/",
+        f"{app.config['JWT_ACCESS_CSRF_COOKIE_NAME']}=renewed; Path=/",
+    ]
+    core_api = Mock()
+    core_api.refresh.return_value = core_response
+    monkeypatch.setattr(auth_module, "CoreApi", lambda: core_api)
     with app.app_context():
         access_token = create_access_token(identity=auth_user, expires_delta=timedelta(minutes=minutes_until_expiry))
         protected_path = url_for("base.notification")
@@ -198,6 +206,27 @@ def test_authenticated_requests_refresh_only_expiring_access_cookies(
     set_cookie_headers = response.headers.getlist("Set-Cookie")
     assert any(header.startswith(f"{app.config['JWT_ACCESS_COOKIE_NAME']}=") for header in set_cookie_headers) is expect_refresh
     assert any(header.startswith(f"{app.config['JWT_ACCESS_CSRF_COOKIE_NAME']}=") for header in set_cookie_headers) is expect_refresh
+    assert core_api.refresh.call_count == int(expect_refresh)
+
+
+def test_revoked_access_cookie_is_cleared_instead_of_refreshed(app: Flask, auth_user: UserProfile, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(app.config, "JWT_COOKIE_CSRF_PROTECT", True)
+    monkeypatch.setattr(auth_module, "get_user_from_cache", lambda identity: auth_user)
+    core_response = Mock(ok=False, status_code=401)
+    core_api = Mock()
+    core_api.refresh.return_value = core_response
+    monkeypatch.setattr(auth_module, "CoreApi", lambda: core_api)
+    with app.app_context():
+        access_token = create_access_token(identity=auth_user, expires_delta=timedelta(minutes=10))
+        protected_path = url_for("base.notification")
+
+    client = app.test_client()
+    client.set_cookie(key=app.config["JWT_ACCESS_COOKIE_NAME"], value=access_token)
+    response = client.get(protected_path)
+
+    set_cookie_headers = response.headers.getlist("Set-Cookie")
+    assert any(header.startswith(f"{app.config['JWT_ACCESS_COOKIE_NAME']}=;") for header in set_cookie_headers)
+    assert any(header.startswith(f"{app.config['JWT_ACCESS_CSRF_COOKIE_NAME']}=;") for header in set_cookie_headers)
 
 
 def test_protected_route_with_expired_cookie_redirects_to_login_with_next(app, auth_user):

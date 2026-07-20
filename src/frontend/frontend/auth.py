@@ -7,17 +7,16 @@ from urllib.parse import unquote, urlsplit
 from flask import Flask, Response, abort, current_app, g, make_response, redirect, render_template, request, url_for
 from flask_jwt_extended import (
     JWTManager,
-    create_access_token,
     current_user,
     get_jwt,
     get_jwt_identity,
     get_jwt_request_location,
-    set_access_cookies,
     unset_access_cookies,
     verify_jwt_in_request,
 )
 from flask_jwt_extended.exceptions import JWTExtendedException
 from models.user import UserProfile
+from requests import RequestException
 from requests.models import Response as ReqResponse
 from werkzeug.exceptions import HTTPException, MethodNotAllowed, NotFound
 from werkzeug.routing import RequestRedirect
@@ -42,9 +41,16 @@ def refresh_expiring_jwts(response: Response) -> Response:
         exp_timestamp = get_jwt()["exp"]
         target_timestamp = datetime.timestamp(datetime.now(timezone.utc) + timedelta(minutes=30))
         if get_jwt_request_location() == "cookies" and target_timestamp > exp_timestamp and current_user:
-            set_access_cookies(response, create_access_token(identity=current_user))
+            core_response = CoreApi().refresh()
+            if core_response.ok:
+                for header in core_response.raw.headers.getlist("Set-Cookie"):
+                    response.headers.add("Set-Cookie", header)
+            elif core_response.status_code == 401:
+                unset_access_cookies(response)
     except RuntimeError, KeyError:
         pass
+    except RequestException:
+        logger.exception("Core token refresh failed")
     return response
 
 

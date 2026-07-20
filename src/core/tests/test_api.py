@@ -33,6 +33,24 @@ def test_auth_login(client):
     assert response.status_code == 200
 
 
+def test_auth_refresh_is_header_only_and_rejects_revoked_tokens(client):
+    login_response = client.post(
+        "/api/auth/login",
+        json={"username": "user", "password": os.getenv("PRE_SEED_PASSWORD_USER")},
+    )
+    access_token = login_response.json["access_token"]
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    assert client.get("/api/auth/refresh").status_code == 401
+
+    refresh_response = client.get("/api/auth/refresh", headers=headers)
+    assert refresh_response.status_code == 200
+    assert refresh_response.json["access_token"] != access_token
+
+    assert client.delete("/api/auth/logout", headers=headers).status_code == 200
+    assert client.get("/api/auth/refresh", headers=headers).status_code == 401
+
+
 def test_auth_login_sets_suffixed_path_scoped_cookies(client, app, monkeypatch):
     from core.config import Settings
 
