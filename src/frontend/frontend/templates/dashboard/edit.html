@@ -40,7 +40,7 @@
           </select>
         </div>
 
-        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
         <input type="submit" class="btn btn-primary w-2/4 mt-4" value="Update Dashboard Settings" />
       </div>
     </form>

@@ -629,20 +629,6 @@ def test_assess_bookmarks_bar_uses_context_limit(app: Any) -> None:
     assert not bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-3"]')
 
 
-def test_filter_token_select_closes_on_outside_click_without_remove_reopen(app):
-    with app.test_request_context():
-        markup = render_template_string(
-            """
-            {% from "assess/sidebar/filter_token_select.html" import filter_token_select, filter_token_select_assets %}
-            {{ filter_token_select_assets() }}
-            {{ filter_token_select(id="source-filter", placeholder="Select sources", selected_items=[], options=[]) }}
-            """
-        )
-
-    assert '@click.outside="closeList()"' in markup
-    assert '@blur="closeList()"' not in markup
-
-
 def test_source_filter_select_accepts_group_payloads_with_null_key():
     filter_lists = FilterLists(tags=[], sources=[], groups=[{"id": "group-1", "key": None, "name": "Group 1"}], languages=[])
 

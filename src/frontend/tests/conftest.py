@@ -6,7 +6,7 @@ from typing import cast
 
 import pytest
 from dotenv import load_dotenv
-from models.user import UserProfile
+from models.user import ProfileSettings, UserProfile
 
 from tests.core_requests import CoreRequestClient
 from tests.external_e2e import (
@@ -62,22 +62,20 @@ def _create_access_token(app, user):
 
 def _build_access_token_response(app, user):
     from flask import jsonify
-    from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
+    from flask_jwt_extended import create_access_token, set_access_cookies
 
     with app.app_context():
         access_token = create_access_token(identity=user)
-        refresh_token = create_refresh_token(identity=user)
         response = jsonify({"access_token": access_token})
         response.status_code = 200
         set_access_cookies(response, access_token)
-        set_refresh_cookies(response, refresh_token)
         return response
 
 
 def _build_authenticated_client(app, access_token):
     client = app.test_client()
     client.set_cookie(
-        key="access_token_cookie",
+        key=app.config["JWT_ACCESS_COOKIE_NAME"],
         value=access_token,
     )
     return client
@@ -118,7 +116,7 @@ def auth_user():
         name="Arthur Dent",
         organization={"id": "1", "name": "Galactic Government"},
         permissions=["ALL"],
-        profile={},
+        profile=ProfileSettings(),
         roles=[{"id": "1", "name": "Admin"}],
     )
 
@@ -131,7 +129,7 @@ def auth_user_basic():
         name="Ford Prefect",
         organization={"id": "1", "name": "Galactic Government"},
         permissions=["ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
-        profile={},
+        profile=ProfileSettings(),
         roles=[{"id": "2", "name": "User"}],
     )
 

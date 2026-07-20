@@ -1,12 +1,22 @@
 import contextlib
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit
 
 from flask import Flask, Response, abort, current_app, g, make_response, redirect, render_template, request, url_for
-from flask_jwt_extended import JWTManager, current_user, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
+from flask_jwt_extended import (
+    JWTManager,
+    current_user,
+    get_jwt,
+    get_jwt_identity,
+    get_jwt_request_location,
+    unset_access_cookies,
+    verify_jwt_in_request,
+)
 from flask_jwt_extended.exceptions import JWTExtendedException
 from models.user import UserProfile
+from requests import RequestException
 from requests.models import Response as ReqResponse
 from werkzeug.exceptions import HTTPException, MethodNotAllowed, NotFound
 from werkzeug.routing import RequestRedirect
@@ -23,6 +33,25 @@ jwt = JWTManager()
 
 def init(app: Flask) -> None:
     jwt.init_app(app)
+    app.after_request(refresh_expiring_jwts)
+
+
+def refresh_expiring_jwts(response: Response) -> Response:
+    try:
+        exp_timestamp = get_jwt()["exp"]
+        target_timestamp = datetime.timestamp(datetime.now(timezone.utc) + timedelta(minutes=30))
+        if get_jwt_request_location() == "cookies" and target_timestamp > exp_timestamp and current_user:
+            core_response = CoreApi().refresh()
+            if core_response.ok:
+                for header in core_response.raw.headers.getlist("Set-Cookie"):
+                    response.headers.add("Set-Cookie", header)
+            elif core_response.status_code == 401:
+                unset_access_cookies(response)
+    except RuntimeError, KeyError:
+        pass
+    except RequestException:
+        logger.exception("Core token refresh failed")
+    return response
 
 
 def user_has_admin_permissions(permissions: Iterable[str] | None) -> bool:
@@ -92,7 +121,7 @@ def render_login_page(**context: Any) -> str:
 
 def _redirect_expired_session_to_login():
     response = make_response(redirect(_login_url_with_next(), code=302))
-    unset_jwt_cookies(response)
+    unset_access_cookies(response)
     return response
 
 
@@ -114,14 +143,6 @@ def _resolve_authenticated_user() -> tuple[str, UserProfile] | None:
         return None
 
     return user_name, user
-
-
-# def authenticate(credentials: dict[str, str]) -> Response:
-#     return current_authenticator.authenticate(credentials)
-
-
-# def refresh(user: "UserProfile"):
-#     return current_authenticator.refresh(user)
 
 
 def logout() -> tuple[str, int] | Response:
@@ -147,8 +168,7 @@ def logout() -> tuple[str, int] | Response:
         response.headers["Location"] = url_for("base.login")
         response.status_code = 302
 
-    response.delete_cookie("access_token")
-    unset_jwt_cookies(response)
+    unset_access_cookies(response)
     return response
 
 

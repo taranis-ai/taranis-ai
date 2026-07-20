@@ -40,6 +40,7 @@ services:
       PRE_SEED_PASSWORD_USER: test
       SKIP_INITIAL_USER_ONBOARDING: "${SKIP_INITIAL_USER_ONBOARDING:-False}"
       JWT_SECRET_KEY: load_testing_secret_key
+      JWT_COOKIE_SUFFIX: ""
       API_KEY: load_testing_api_key
       DEBUG: "true"
       DISABLE_SSE: "true"
@@ -66,7 +67,9 @@ services:
     environment:
       TARANIS_CORE_URL: http://core:8080/api
       APPLICATION_ROOT: /frontend
+      TARANIS_BASE_PATH: /
       JWT_SECRET_KEY: load_testing_secret_key
+      JWT_COOKIE_SUFFIX: ""
       REDIS_URL: redis://redis:6379/0
       REDIS_PASSWORD: ""
       DEBUG: "true"
