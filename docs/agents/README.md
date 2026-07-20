@@ -1,10 +1,15 @@
 # Agent Memory
 
-This folder contains feature-level context for coding agents working on taranis.ai.
+This folder contains operational and feature context for coding agents working on taranis.ai.
 
 Use these files when a task mentions a related feature, workflow, route, model, template, or expected behavior. Read the matching memory before planning or editing code. Treat memory files as orientation and expected-behavior notes; code and tests remain the final source of truth.
 
-## Memories
+## Operational References
+
+- [Development Workflow](development-workflow.md) - environment setup, startup choices, validation commands, test conventions, and development rules. Read before application changes or validation.
+- [Architecture and Boundaries](architecture-and-boundaries.md) - component roles, RQ tasks, frontend/API boundaries, migrations, and UTC datetime handling. Read before component, API, persistence, queue, or datetime changes.
+
+## Feature Memories
 
 - [Assess Filters](assess-filters.md) - assess sidebar filters, filter-list loading, default filters, omnisearch filter handling, and related cache behavior.
 - [RBAC ACL Behavior](rbac-acl.md) - RoleBasedAccess ACL boundaries, ADMIN_OPERATIONS bypass, OSINT source-group inheritance, and config/admin ACL isolation.
