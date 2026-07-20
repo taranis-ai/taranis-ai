@@ -144,6 +144,79 @@ function omniSearch(searchUrl) {
   };
 }
 
+function bookmarkDetail(config) {
+  return {
+    selectedItems: [...config.selectedStoryIds],
+    storyIds: [...config.storyIds],
+    showHints: false,
+    init() {
+      this.$nextTick(() => this.syncSelectedCardState());
+    },
+    toggleSelection(id) {
+      this.selectedItems = this.selectedItems.includes(id)
+        ? this.selectedItems.filter((item) => item !== id)
+        : [...this.selectedItems, id];
+      this.$nextTick(() => this.syncSelectedCardState());
+    },
+    clearSelection() {
+      this.selectedItems = [];
+      this.syncSelectedCardState();
+    },
+    selectAll() {
+      this.selectedItems = [...this.storyIds];
+      this.syncSelectedCardState();
+    },
+    selectedItemsAreImportant() {
+      return this.selectedItems.length > 0 &&
+        this.selectedItems.every((id) => this.storyState(id, "important"));
+    },
+    selectedItemsAreRead() {
+      return this.selectedItems.length > 0 &&
+        this.selectedItems.every((id) => this.storyState(id, "read"));
+    },
+    storyState(id, state) {
+      return document.querySelector("#bookmark-detail-container")
+        ?.querySelector(`article[data-story-id="${id}"]`)
+        ?.dataset[`story${state.charAt(0).toUpperCase()}${state.slice(1)}`] ===
+        "true";
+    },
+    action_vals(action, value) {
+      const vals = {
+        story_ids: this.selectedItems,
+        bookmark_id: config.bookmarkId,
+      };
+      if (action) {
+        vals.action = action;
+        vals.value = value;
+      }
+      return JSON.stringify(vals);
+    },
+    openStoryEdit() {
+      if (this.selectedItems.length !== 1) return;
+      window.location.href = config.editUrlTemplate.replace(
+        "__ID__",
+        this.selectedItems[0],
+      );
+    },
+    syncSelectedCardState() {
+      const selectedIds = new Set(this.selectedItems);
+      document
+        .querySelectorAll(
+          "#bookmark-detail-container article[data-story-id]",
+        )
+        .forEach((node) => {
+          const selected = selectedIds.has(node.dataset.storyId);
+          const read = node.dataset.storyRead === "true";
+          node.classList.toggle("bg-primary/5", selected);
+          node.classList.toggle("border-primary", selected || !read);
+          node.classList.toggle("border-base-200", !selected && read);
+          node.classList.toggle("shadow-md", selected);
+          node.setAttribute("aria-selected", selected.toString());
+        });
+    },
+  };
+}
+
 function canUseAssessShortcut(event, key = null) {
   if (event?.defaultPrevented) {
     return false;
