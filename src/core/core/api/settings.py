@@ -108,7 +108,7 @@ class SettingsView(MethodView):
     def put(self):
         if data := request.json:
             response, status = Settings.update(data)
-            invalidate_frontend_cache_on_success(status, models=("settings",))
+            invalidate_frontend_cache_on_success(status, models=("settings",), user_profiles=("*",))
             return response, status
         return {"error": "No data provided"}, 400
 
@@ -116,7 +116,7 @@ class SettingsView(MethodView):
     def post(self):
         if data := request.json:
             response, status = Settings.update(data)
-            invalidate_frontend_cache_on_success(status, models=("settings",))
+            invalidate_frontend_cache_on_success(status, models=("settings",), user_profiles=("*",))
             return response, status
         return {"error": "No data provided"}, 400
 
@@ -124,7 +124,7 @@ class SettingsView(MethodView):
     def patch(self):
         if data := request.json:
             response, status = Settings.update(data)
-            invalidate_frontend_cache_on_success(status, models=("settings",))
+            invalidate_frontend_cache_on_success(status, models=("settings",), user_profiles=("*",))
             return response, status
         return {"error": "No data provided"}, 400
 

@@ -2,6 +2,7 @@ from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user, get_jwt, jwt_required
 
+from core.auth.base_authenticator import BaseAuthenticator
 from core.auth.external_authenticator import ExternalAuthenticator
 from core.config import Config
 from core.log import logger
@@ -30,7 +31,7 @@ class Login(MethodView):
 class Refresh(MethodView):
     @jwt_required(locations=["headers"])
     def get(self):
-        return auth_manager.refresh(current_user)
+        return BaseAuthenticator.generate_jwt(current_user.username)
 
 
 class Logout(MethodView):

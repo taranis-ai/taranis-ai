@@ -130,12 +130,11 @@ class Settings(BaseSettings):
     OPENID_METADATA_URL: str = "http://keycloak/realms/master/.well-known/openid-configuration"
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
+    SKIP_INITIAL_USER_ONBOARDING: bool = False
 
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: SecretStr | None = None
     RQ_DEFAULT_JOB_TIMEOUT: int = 180
-    RQ_RECONCILE_GRACE_SECONDS: int = 300
-    RQ_RECONCILE_STARTED_GRACE_SECONDS: int = 300
     CACHE_ENABLED: bool = CACHE_ENABLED_DEFAULT
     CACHE_DEFAULT_TIMEOUT: int = CACHE_DEFAULT_TIMEOUT_DEFAULT
     CACHE_KEY_PREFIX: str = CACHE_KEY_PREFIX_DEFAULT

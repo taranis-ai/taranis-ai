@@ -60,10 +60,6 @@ def change_password(old_password: str, new_password: str, confirm_password: str)
         return make_response({"error": "Internal server error"}, 500)
 
 
-def refresh(user: "User"):
-    return current_authenticator.refresh(user)
-
-
 def logout(jti):
     return current_authenticator.logout(jti)
 

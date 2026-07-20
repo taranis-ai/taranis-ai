@@ -34,6 +34,11 @@ server {
         proxy_redirect off;
     }
 
+    location ${TARANIS_BASE_PATH}reports {
+        proxy_pass http://coreupstream;
+        proxy_redirect off;
+    }
+
     location ${TARANIS_BASE_PATH}sse {
         proxy_pass http://sseupstream;
         proxy_read_timeout 24h;

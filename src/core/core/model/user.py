@@ -68,9 +68,11 @@ class User(BaseModel):
         if organization_id is not None and (org := Organization.get(organization_id)):
             self.organization = org
         self.roles = Role.get_bulk(roles)
+        global_settings = Settings.get_settings()
         profile_payload = dict(profile or {})
         if not profile_payload.get("timezone"):
-            profile_payload["timezone"] = Settings.get_settings().get("default_timezone") or "UTC"
+            profile_payload["timezone"] = global_settings.get("default_timezone") or "UTC"
+        profile_payload.setdefault("onboarding_enabled", global_settings.get("onboarding_enabled", True))
         self.profile = ProfileSettings.model_validate(profile_payload).model_dump(mode="json")
 
     @classmethod
@@ -128,6 +130,8 @@ class User(BaseModel):
 
     @classmethod
     def _pending_onboarding_tasks(cls, profile: ProfileSettings, permissions: Sequence[str]) -> list[OnboardingTask]:
+        if not profile.onboarding_enabled:
+            return []
         return [
             *cls._pending_global_onboarding_tasks(profile, permissions),
             *cls._pending_user_onboarding_tasks(profile, permissions),
@@ -176,6 +180,14 @@ class User(BaseModel):
         if not user:
             return {"error": "User not found"}, 404
         data.pop("id", None)
+        if (profile_update := data.pop("profile", None)) is not None:
+            if not isinstance(profile_update, dict):
+                return {"error": "Invalid profile settings"}, 400
+            try:
+                profile = ProfileSettings.model_validate({**cls._clean_profile_payload(user.profile), **profile_update})
+            except ValidationError as exc:
+                return ProfileSettings.validation_error_response(exc, prefix="Invalid profile settings"), 400
+            user.profile = profile.model_dump(mode="json")
         if organization := data.pop("organization", None):
             if isinstance(organization, dict):
                 organization = organization.get("id") or organization.get("name")
@@ -192,6 +204,12 @@ class User(BaseModel):
 
         db.session.commit()
         return {"message": "User updated", "id": user.id}, 200
+
+    @classmethod
+    def set_onboarding_enabled_for_all(cls, enabled: bool) -> None:
+        for user in cls.get_all_for_collector() or []:
+            profile = ProfileSettings.model_validate(cls._clean_profile_payload(user.profile))
+            user.profile = profile.model_copy(update={"onboarding_enabled": enabled}).model_dump(mode="json")
 
     def get_permissions(self) -> list[str]:
         permissions = {permission for role in self.roles if role for permission in role.get_permissions()}

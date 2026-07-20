@@ -4,6 +4,10 @@ set -euo pipefail
 
 # Check if the user can escalate privileges via sudo
 check_sudo_access() {
+    if sudo -n true 2>/dev/null; then
+        return
+    fi
+
     if ! sudo -v; then
         echo "This script requires sudo access to install packages."
         exit 1
@@ -23,7 +27,6 @@ install_basic_utils() {
         curl \
         ca-certificates \
         build-essential \
-        software-properties-common \
         libpq-dev \
         clang \
         nginx
@@ -36,11 +39,13 @@ install_astral() {
 
 # Install and setup Docker
 install_docker() {
-    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    . /etc/os-release
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL "https://download.docker.com/linux/$ID/gpg" -o /etc/apt/keyrings/docker.asc
     sudo chmod a+r /etc/apt/keyrings/docker.asc
     echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$ID \
+      $VERSION_CODENAME stable" | \
       sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     sudo apt-get update
     sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin

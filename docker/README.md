@@ -50,6 +50,10 @@ Use the application
 http://<url>:<TARANIS_PORT>/login
 ```
 
+## Public reports
+
+Products published with a `TARANIS_PUBLISHER` preset are stored in the `core_data` volume under `/app/data/published-reports`. Their stable URL is `http://<url>:<TARANIS_PORT>/reports/<product-id>` and intentionally requires no authentication. Republishing a product replaces the file at the same URL.
+
 ## Development
 
 See [dev Readme](/dev/README.md) for a quick way to get a development environment running.
@@ -149,6 +153,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `REDIS_URL`                   | Redis connection URL                       | `redis://redis:6379` |
 | `PRE_SEED_PASSWORD_ADMIN`     | Initial password for `admin`               | `admin`       |
 | `PRE_SEED_PASSWORD_USER`      | Initial password for `user`                | `user`        |
+| `SKIP_INITIAL_USER_ONBOARDING`| Initially disable onboarding for all users | `False`       |
 | `API_KEY`                     | API Key for communication with workers     | `supersecret` |
 | `DEBUG`                       | Debug logging                              | `False`       |
 | `DB_URL`                      | PostgreSQL database URL                    | `localhost`   |

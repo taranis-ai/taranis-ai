@@ -16,9 +16,6 @@ class BaseAuthenticator:
     def authenticate(self, credentials):
         return BaseAuthenticator.generate_error()
 
-    def refresh(self, user):
-        return BaseAuthenticator.generate_jwt(user.username)
-
     @staticmethod
     def logout(jti):
         TokenBlacklist.add(jti)
