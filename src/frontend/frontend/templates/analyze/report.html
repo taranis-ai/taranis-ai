@@ -73,7 +73,7 @@
 
     <form id="report_form" class="w-full" method="post" action="{{ form_action }}">
       <input type="hidden" name="layout" value="{{ layout }}">
-      <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
 
       {% include "partials/admin_form_error.html" %}
 

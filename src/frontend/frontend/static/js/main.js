@@ -6,7 +6,8 @@ function getCookieValue(name) {
 }
 
 function getCSRFToken() {
-  return getCookieValue("csrf_access_token");
+  const cookieName = document.body?.dataset.csrfCookieName;
+  return cookieName ? getCookieValue(cookieName) : undefined;
 }
 
 function getConfirmOptions(el, question) {
@@ -127,7 +128,9 @@ function omniSearch(searchUrl) {
     submitOmniSearch() {
       const query = this.$refs.omniInput.value.trim();
       if (query) {
-        window.location.href = `${this.searchUrl}?q=${encodeURIComponent(query)}`;
+        window.location.href = `${this.searchUrl}?q=${
+          encodeURIComponent(query)
+        }`;
       }
     },
     focusShortcut(event) {
@@ -150,7 +153,10 @@ function canUseAssessShortcut(event, key = null) {
   }
 
   const target = event?.target;
-  if (target instanceof Element && target.closest("input, textarea, select, [contenteditable], dialog")) {
+  if (
+    target instanceof Element &&
+    target.closest("input, textarea, select, [contenteditable], dialog")
+  ) {
     return false;
   }
 
@@ -158,7 +164,8 @@ function canUseAssessShortcut(event, key = null) {
     return false;
   }
 
-  return key === null || (event?.shiftKey && event?.key?.toLowerCase() === key.toLowerCase());
+  return key === null ||
+    (event?.shiftKey && event?.key?.toLowerCase() === key.toLowerCase());
 }
 
 if (document.readyState === "loading") {
@@ -185,7 +192,10 @@ document.body.addEventListener("htmx:confirm", function (evt) {
 
   evt.preventDefault();
   const opts = getConfirmOptions(triggerElement, evt.detail.question);
-  showConfirmDialog(opts, triggerElement.closest("dialog[open]") || document.body).then((r) => {
+  showConfirmDialog(
+    opts,
+    triggerElement.closest("dialog[open]") || document.body,
+  ).then((r) => {
     if (r.isConfirmed) {
       evt.detail.issueRequest(true);
     }
@@ -203,7 +213,10 @@ function replaceNotificationBarFromResponse(responseText) {
     return;
   }
 
-  const responseDoc = new DOMParser().parseFromString(responseText, "text/html");
+  const responseDoc = new DOMParser().parseFromString(
+    responseText,
+    "text/html",
+  );
   const message = responseDoc
     .querySelector("#notification-bar #notification-message")
     ?.textContent.trim();
