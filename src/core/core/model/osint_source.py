@@ -17,7 +17,7 @@ from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
 from core.managers.db_manager import db
-from core.model.base_model import UUID_STR_LENGTH, BaseModel
+from core.model.base_model import DB_INTEGER_MAX, UUID_STR_LENGTH, BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.role import TLPLevel
 from core.model.role_based_access import ItemType, RoleBasedAccess
@@ -224,13 +224,25 @@ class OSINTSource(BaseModel):
     def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
         filter_args = dict(filter_args or {})
         filter_args["filter_manual"] = cls._filter_manual_enabled(filter_args.get("filter_manual", True))
+        status_order = filter_args.get("order") in {"status_asc", "status_desc"}
+        paginate_after_sorting = status_order and not cls._should_fetch_all(filter_args)
+        query_args = {**filter_args, "fetch_all": "true"} if paginate_after_sorting else filter_args
 
-        response, status_code = super().get_all_for_api(filter_args=filter_args, with_count=with_count, user=user)
+        response, status_code = super().get_all_for_api(filter_args=query_args, with_count=with_count, user=user)
         items = response.get("items", [])
         if filter_args.get("order") == "status_asc":
             items.sort(key=lambda item: (item.get("status") or {}).get("status", ""))
         elif filter_args.get("order") == "status_desc":
             items.sort(key=lambda item: (item.get("status") or {}).get("status", ""), reverse=True)
+
+        if paginate_after_sorting:
+            limit = min(int(filter_args.get("limit", 20)), DB_INTEGER_MAX)
+            offset = filter_args.get("offset")
+            if offset is None:
+                offset = max((int(filter_args.get("page", 1)) - 1) * limit, 0)
+            else:
+                offset = max(min(int(offset), DB_INTEGER_MAX), 0)
+            response["items"] = items[offset : offset + limit]
 
         return response, status_code
 

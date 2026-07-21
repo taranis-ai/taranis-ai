@@ -1,5 +1,14 @@
 {% extends "base.html" %}
 
+{% block head %}
+  <style>
+    ::highlight(search) {
+      background-color: rgba(251, 191, 36, 0.45);
+      color: inherit;
+    }
+  </style>
+{% endblock head %}
+
 {% block content %}
   {% include "assess/story_table.html" %}
 {% endblock content %}

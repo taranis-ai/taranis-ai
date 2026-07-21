@@ -312,28 +312,22 @@ class TestSourcesConfigApi(BaseTest):
         from core.model.task import Task
 
         unique_suffix = uuid.uuid4().hex
-        failure_source_id = str(uuid.uuid7())
-        success_source_id = str(uuid.uuid7())
+        source_ids = [str(uuid.uuid7()) for _ in range(4)]
+        statuses = ["SUCCESS", "FAILURE", "SUCCESS", "FAILURE"]
 
         sources = [
             {
-                "id": failure_source_id,
+                "id": source_id,
                 "name": f"Status Ordered Source {unique_suffix}",
-                "description": "Failure source",
-                "parameters": {"FEED_URL": "https://example.invalid/failure.xml"},
+                "description": f"{status} source",
+                "parameters": {"FEED_URL": f"https://example.invalid/{source_id}.xml"},
                 "type": "rss_collector",
-            },
-            {
-                "id": success_source_id,
-                "name": f"Status Ordered Source {unique_suffix}",
-                "description": "Success source",
-                "parameters": {"FEED_URL": "https://example.invalid/success.xml"},
-                "type": "rss_collector",
-            },
+            }
+            for source_id, status in zip(source_ids, statuses, strict=True)
         ]
         tasks = [
-            {"id": f"collect_rss_collector_{failure_source_id}", "task": "collector_task", "status": "FAILURE"},
-            {"id": f"collect_rss_collector_{success_source_id}", "task": "collector_task", "status": "SUCCESS"},
+            {"id": f"collect_rss_collector_{source_id}", "task": "collector_task", "status": status}
+            for source_id, status in zip(source_ids, statuses, strict=True)
         ]
 
         with app.app_context():
@@ -343,23 +337,16 @@ class TestSourcesConfigApi(BaseTest):
                 Task.add(task)
 
         try:
-            asc_response = self.assert_get_ok(
-                client,
-                uri=f"osint-sources?search={unique_suffix}&order=status_asc&fetch_all=true",
-                auth_header=auth_header,
-            )
-            asc_payload = asc_response.get_json()
-            assert asc_payload["total_count"] == 2
-            assert [item["id"] for item in asc_payload["items"]] == [failure_source_id, success_source_id]
-
-            desc_response = self.assert_get_ok(
-                client,
-                uri=f"osint-sources?search={unique_suffix}&order=status_desc&fetch_all=true",
-                auth_header=auth_header,
-            )
-            desc_payload = desc_response.get_json()
-            assert desc_payload["total_count"] == 2
-            assert [item["id"] for item in desc_payload["items"]] == [success_source_id, failure_source_id]
+            for order, expected_statuses in (("status_asc", ["FAILURE", "SUCCESS"]), ("status_desc", ["SUCCESS", "FAILURE"])):
+                for page, expected_status in enumerate(expected_statuses, start=1):
+                    response = self.assert_get_ok(
+                        client,
+                        uri=f"osint-sources?search={unique_suffix}&order={order}&page={page}&limit=2",
+                        auth_header=auth_header,
+                    )
+                    payload = response.get_json()
+                    assert payload["total_count"] == 4
+                    assert [item["status"]["status"] for item in payload["items"]] == [expected_status] * 2
         finally:
             with app.app_context():
                 for task in tasks:
