@@ -19,7 +19,7 @@ Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark
 
 Bookmark detail views also reuse the Assess selection hotkey bar except for `Shift+B`. Bookmark actions re-render the bookmark detail instead of navigating back to Assess, Read/Important actions stay at the top level alongside Remove selected, and story cards expose Read, Important, and In Reports state even when the user's compact-card preference is enabled. The clustering dialog still offers `Cluster and Open`; choosing it intentionally navigates to the resulting primary story.
 
-Selecting a Bookmark story card updates both the selection count and the card's selected styling (`aria-selected`, primary background/border, and shadow). Keep the DOM lookup scoped to `#bookmark-detail-container`; Alpine magic properties such as `$root` are not available through `this` inside component methods.
+Selecting a Bookmark story card checks its native `story_ids` input and updates both the selection count and the card's selected styling (`aria-selected`, primary background/border, and shadow). Bookmark actions submit those checked inputs directly; JavaScript only adapts the HTML-backed selection to the shared Assess toolbar interface. Assess and Bookmark use the same card-state synchronizer so their selected cards cannot diverge visually.
 
 Per-card Ungroup requests carry the bookmark ID and re-render the current collection for both success and error responses. Core rejects ungrouping stories assigned to reports, so Bookmark must show that error without redirecting to Assess.
 
@@ -44,7 +44,7 @@ When an eligible bookmarked story is ungrouped, core replaces its bookmark relat
   - `StoryBookmarkStoryPayload`
   - `StoryBookmark`
 - Frontend views: `src/frontend/frontend/views/story_bookmark_views.py`, `src/frontend/frontend/views/story_views.py`
-- Frontend selection state: `src/frontend/frontend/static/js/main.js` (`bookmarkDetail`)
+- Frontend selection adapter: `src/frontend/frontend/templates/bookmarks/bookmark_detail.html`
 - Frontend routes: `src/frontend/frontend/router/assess.py`
 - Templates: `src/frontend/frontend/templates/bookmarks/`, `src/frontend/frontend/templates/assess/bookmarks_bar.html`, `src/frontend/frontend/templates/assess/story_actions.html`
 - Tests:
@@ -84,4 +84,5 @@ The instant bookmark path first looks up the earliest collection, then falls bac
 - The Assess bookmark bar is intentionally capped at six items; do not broaden it without an explicit UI change.
 - Keep the Assess `Shift+B` bookmark shortcut guarded by `canUseAssessShortcut`; typing uppercase letters in bookmark dialogs must not reopen toolbar modals.
 - Do not add `Shift+B` to the bookmark detail hotkey bar, and keep its Read and Important actions outside the overflow Actions menu.
+- Keep Bookmark selection HTML-backed: checked `story_ids` inputs are the request source of truth, not a separate JavaScript selection store.
 - Prefer `data-testid` selectors when adding e2e coverage for bookmark behavior.

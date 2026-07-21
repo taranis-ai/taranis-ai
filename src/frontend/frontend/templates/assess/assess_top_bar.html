@@ -3,7 +3,7 @@
           class="btn btn-outline btn-sm tooltip {{ 'w-full join-item' if in_dropdown else '' }}"
           hx-trigger="click, keyup[shiftKey && code == 'Space' && canUseAssessShortcut(event)] from:body"
           hx-post="{{ url_for('assess.bulk_action') }}"
-          {% if not bookmark_mode %}hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
+          {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
           :hx-vals='action_vals("read", !selectedItemsAreRead())'
           :data-tip="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"
           data-testid="bulk-toggle-read">
@@ -18,7 +18,7 @@
           class="btn btn-outline btn-sm tooltip {{ 'w-full join-item' if in_dropdown else '' }}"
           hx-trigger="click, keyup[shiftKey && key == 'I' && canUseAssessShortcut(event)] from:body"
           hx-post="{{ url_for('assess.bulk_action') }}"
-          {% if not bookmark_mode %}hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
+          {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
           :hx-vals='action_vals("important", !selectedItemsAreImportant())'
           :data-tip="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"
           data-testid="bulk-toggle-important">
@@ -82,6 +82,7 @@
                 hx-get="{{ url_for('assess.cluster_story') }}"
                 hx-target="body"
                 hx-swap="beforeend"
+                {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% endif %}
                 :hx-vals='action_vals()'>
           {{ heroicon_mini("rectangle-group") }}
           <span class="text-sm sr-only 2xl:not-sr-only">Cluster</span>
@@ -97,6 +98,7 @@
                 hx-target="body"
                 hx-swap="beforeend"
                 :data-tip="selectedItems.length > 1 ? 'Add selected stories to report' : 'Add selected story to report'"
+                {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% endif %}
                 :hx-vals='action_vals()'>
           {{ heroicon_mini("document-chart-bar") }}
           <span class="text-sm sr-only 2xl:not-sr-only">Add to Report</span>
@@ -107,11 +109,7 @@
 
         {% if bookmark_mode %}
           {{ story_status_actions(bookmark_mode=True) }}
-          <button type="submit"
-                  form="bookmark-remove-form"
-                  class="btn btn-outline btn-error btn-sm tooltip"
-                  data-tip="{{ _('Remove selected') }}"
-                  data-testid="bookmark-remove-selected">
+          <button type="submit" class="btn btn-outline btn-error btn-sm tooltip" data-tip="{{ _('Remove selected') }}" data-testid="bookmark-remove-selected">
             {{ heroicon_mini("x-mark") }}
             <span class="text-sm sr-only 2xl:not-sr-only">Remove selected</span>
           </button>
