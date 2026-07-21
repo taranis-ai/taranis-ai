@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 
 from flask import abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
@@ -66,7 +66,7 @@ class StoryBookmarkView(BaseView):
         try:
             paging_data = PagingData(limit=1, order="position_asc", query_params={"limit": "1", "order": "position_asc"})
             bookmarks = DataPersistenceLayer().get_objects(StoryBookmark, paging_data)
-            return (cast(StoryBookmark, bookmarks[0]) if bookmarks else None), None
+            return (bookmarks[0] if bookmarks else None), None
         except ValidationError as exc:
             logger.exception(format_pydantic_errors(exc, cls.model))
             return None, format_pydantic_errors(exc, cls.model)
@@ -144,6 +144,7 @@ class StoryBookmarkView(BaseView):
         bookmark = DataPersistenceLayer().get_object(StoryBookmark, bookmark_id)
         if bookmark is None:
             abort(404)
+            raise RuntimeError("abort did not raise")
         return bookmark
 
     @classmethod

@@ -1,3 +1,5 @@
+from typing import Any
+
 import sentry_sdk
 
 from core.config import Config
@@ -8,7 +10,7 @@ def initialize():
     if not dsn:
         return
 
-    sentry_options = {
+    sentry_options: dict[str, Any] = {
         "dsn": dsn,
         "traces_sample_rate": 1.0,
         "profiles_sample_rate": 1.0,

@@ -10,7 +10,7 @@ class PANDOCPresenter(BasePresenter):
     name = "pandoc Presenter"
     description = "Presenter for generating .odt & .docx documents"
 
-    def generate(self, product: dict, template: str, parameters: dict[str, str] | None = None) -> str | bytes:
+    def generate(self, product: dict, template: str | None, parameters: dict[str, str] | None = None) -> str | bytes | None:
         if parameters is None:
             parameters = {}
 
@@ -24,6 +24,8 @@ class PANDOCPresenter(BasePresenter):
 
         try:
             output_text = super().generate(product, template, parameters)
+            if output_text is None:
+                raise ValueError("No data returned")
             with tempfile.NamedTemporaryFile(suffix=f".{to_format}") as tmp:
                 pypandoc.convert_text(output_text, to_format, format=from_format, outputfile=tmp.name)
                 tmp.seek(0)

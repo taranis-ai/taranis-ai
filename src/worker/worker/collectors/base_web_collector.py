@@ -15,6 +15,13 @@ from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
 
 
+def parse_datetime(value: str) -> datetime.datetime | None:
+    parsed = dateparser.parse(value, ignoretz=True)
+    if isinstance(parsed, datetime.datetime):
+        return parsed
+    return None
+
+
 class BaseWebCollector(BaseCollector):
     def __init__(self):
         super().__init__()
@@ -86,13 +93,13 @@ class BaseWebCollector(BaseCollector):
 
     def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
         if last_modified := response.headers.get("Last-Modified", None):
-            return dateparser.parse(last_modified, ignoretz=True)
+            return parse_datetime(last_modified)
         return None
 
     def get_last_attempted(self, source: dict) -> datetime.datetime | None:
         if last_attempted := source.get("last_attempted"):
             try:
-                return dateparser.parse(last_attempted, ignoretz=True)
+                return parse_datetime(last_attempted)
             except Exception:
                 return None
         return None

@@ -18,7 +18,7 @@ class BasePublisher:
         self.file_name: str = f"Taranis_product_{datetime.now().strftime('%d-%m-%Y_%H-%M')}"
         self.core_api = CoreApi()
 
-    def publish(self, publisher: dict[str, Any], product: dict[str, Any], rendered_product: Product) -> str:
+    def publish(self, publisher: dict[str, Any], product: dict[str, Any], rendered_product: Product) -> Any:
         raise NotImplementedError
 
     def print_exception(self, error):
@@ -42,3 +42,9 @@ class BasePublisher:
             missing_params = ", ".join(missing)
             raise ValueError(f"Missing required parameters for {self.name}: {missing_params}")
         return parameters
+
+    @staticmethod
+    def _require_rendered_data(rendered_product: Product) -> bytes:
+        if rendered_product.data is None:
+            raise ValueError("Rendered product data is required")
+        return rendered_product.data

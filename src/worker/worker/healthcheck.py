@@ -1,3 +1,5 @@
+from typing import Any
+
 import click
 from redis import Redis
 
@@ -27,7 +29,7 @@ def _expected_worker_queues() -> set[str]:
     return {WORKER_QUEUE_NAMES[worker_type] for worker_type in Config.WORKER_TYPES if worker_type in WORKER_QUEUE_NAMES}
 
 
-def check_worker_health(redis_connection: Redis, hostname: str | None = None) -> None:
+def check_worker_health(redis_connection: Any, hostname: str | None = None) -> None:
     redis_connection.ping()
 
     del hostname
@@ -43,7 +45,7 @@ def check_worker_health(redis_connection: Redis, hostname: str | None = None) ->
     raise RuntimeError(f"no active worker found for queues: {', '.join(sorted(expected_queues))}")
 
 
-def check_cron_health(redis_connection: Redis) -> None:
+def check_cron_health(redis_connection: Any) -> None:
     redis_connection.ping()
 
     if redis_connection.get(CRON_LEADER_KEY) is None:

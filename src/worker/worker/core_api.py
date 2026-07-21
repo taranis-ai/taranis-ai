@@ -14,6 +14,7 @@ from worker.log import logger
 
 
 _MISSING_RESULT = object()
+IconFile = dict[str, tuple[str, bytes | None]]
 
 
 def build_task_result(
@@ -417,16 +418,21 @@ class CoreApi:
             logger.exception("Can't run Post Collection Bots")
             return None
 
-    def update_osint_source_icon(self, osint_source_id: str, icon: MultiPartFilesAltType) -> dict[str, Any] | None:
+    def update_osint_source_icon(self, osint_source_id: str, icon: IconFile) -> dict[str, Any] | None:
         try:
-            file_entry = icon.get("file") if isinstance(icon, dict) else None
-            if isinstance(file_entry, tuple) and len(file_entry) > 1 and not file_entry[1]:
+            file_entry = icon.get("file")
+            if file_entry is None:
+                logger.warning(f"Skipping empty icon upload for OSINT source {osint_source_id}")
+                return None
+            filename, content = file_entry
+            if not content:
                 logger.warning(f"Skipping empty icon upload for OSINT source {osint_source_id}")
                 return None
             url = f"{self.api_url}/worker/osint-sources/{osint_source_id}/icon"
             headers = self.headers.copy()
             headers.pop("Content-type", None)
-            return self.check_response(requests.put(url=url, files=icon, headers=headers, verify=self.verify, timeout=self.timeout), url)
+            files: MultiPartFilesAltType = {"file": (filename, content)}
+            return self.check_response(requests.put(url=url, files=files, headers=headers, verify=self.verify, timeout=self.timeout), url)
         except Exception:
             return None
 

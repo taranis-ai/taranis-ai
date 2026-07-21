@@ -3,7 +3,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 from flask import Flask, current_app, g, request
-from flask_babel import Babel, get_locale, get_timezone, gettext
+from flask_babel import Babel, gettext
 from flask_jwt_extended import current_user
 
 from frontend.log import logger
@@ -88,7 +88,7 @@ def select_locale() -> str:
     user = _current_request_user()
     if user:
         language = _profile_language(user)
-        if language in supported_locales:
+        if language is not None and language in supported_locales:
             return language
 
     return _accepted_locale() or _default_locale()
@@ -128,5 +128,3 @@ def init(app: Flask) -> None:
         locale_selector=select_locale,
         timezone_selector=select_timezone,
     )
-    app.jinja_env.globals["get_locale"] = get_locale
-    app.jinja_env.globals["get_timezone"] = get_timezone

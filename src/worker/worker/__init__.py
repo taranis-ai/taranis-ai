@@ -12,6 +12,7 @@ Usage:
 """
 
 import sys
+from typing import Any
 
 import redis
 from rq import Queue, SpawnWorker, Worker
@@ -24,7 +25,7 @@ from worker.rq_failure_bridge import rq_failure_exception_handler, rq_work_horse
 
 def get_redis_connection(*, spawn_safe: bool = False):
     """Get Redis connection from config."""
-    redis_kwargs = {
+    redis_kwargs: dict[str, Any] = {
         "password": Config.REDIS_PASSWORD,
         "decode_responses": False,
     }

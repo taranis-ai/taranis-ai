@@ -30,7 +30,7 @@ class BotApi:
 
     @staticmethod
     def _resolve_timeout(timeout_value: int | str | None) -> int:
-        if timeout_value in [None, ""]:
+        if timeout_value is None or timeout_value == "":
             return Config.REQUESTS_TIMEOUT
         try:
             timeout = int(timeout_value)
