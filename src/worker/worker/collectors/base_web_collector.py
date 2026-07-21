@@ -117,7 +117,7 @@ class BaseWebCollector(BaseCollector):
         if not r.ok or not (content := r.content):
             return None
 
-        self.core_api.update_osint_source_icon(osint_source_id, {"file": (r.headers.get("content-disposition", "file"), content)})
+        self.core_api.update_osint_source_icon(osint_source_id, {"file": ("favicon.ico", content)})
         return None
 
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:

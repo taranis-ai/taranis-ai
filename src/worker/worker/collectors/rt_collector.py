@@ -192,7 +192,7 @@ class RTCollector(BaseWebCollector):
         if not r.ok or not (content := r.content):
             return None
 
-        self.core_api.update_osint_source_icon(osint_source_id, {"file": (r.headers.get("content-disposition", "file"), content)})
+        self.core_api.update_osint_source_icon(osint_source_id, {"file": ("favicon.png", content)})
         return None
 
     def rt_collector(self, source: dict) -> list[dict]:
