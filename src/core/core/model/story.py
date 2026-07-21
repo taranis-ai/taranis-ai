@@ -1538,7 +1538,13 @@ class StoryBookmark(BaseModel):
     user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
     user: Mapped["User"] = relationship("User")
     stories: Mapped[list["Story"]] = relationship(
-        "Story", secondary="story_bookmark_story", cascade="save-update, merge", passive_deletes=True, single_parent=False, lazy="selectin"
+        "Story",
+        secondary="story_bookmark_story",
+        cascade="save-update, merge",
+        passive_deletes=True,
+        single_parent=False,
+        lazy="selectin",
+        order_by=lambda: (Story.created.desc(), Story.title.desc()),
     )
 
     def __init__(self, name: str, user_id: str, bookmark_id: str | None = None, stories: list[str] | None = None, position: int = 0):
@@ -1696,21 +1702,24 @@ class StoryBookmark(BaseModel):
             return {"error": "Bookmark collection not found"}, 404
         if bookmark := cls.get_for_user(item_id, user):
             story_ids = [story.id for story in bookmark.stories if story and story.id]
-            accessible_query = db.select(Story).where(Story.id.in_(story_ids))
-            accessible_query = Story._add_ACL_check(accessible_query, user)
-            accessible_query = Story._add_TLP_check(accessible_query, user)
-            stories_by_id = {story.id: story for story in db.session.execute(accessible_query).scalars().all() if story}
+            stories_by_id = cls._get_accessible_stories_by_id(story_ids, user)
             visible_stories = [stories_by_id[story_id] for story_id in story_ids if story_id in stories_by_id]
 
             return bookmark.to_detail_dict(stories=visible_stories), 200
         return {"error": "Bookmark collection not found"}, 404
 
     @classmethod
-    def _get_accessible_stories(cls, story_ids: list[str], user: User) -> list[Story] | None:
-        query = db.select(Story).where(Story.id.in_(story_ids))
+    def _get_accessible_stories_by_id(cls, story_ids: list[str], user: User) -> dict[str, Story]:
+        if not story_ids:
+            return {}
+        query = Story.get_filter_query({"story_ids": story_ids})
         query = Story._add_ACL_check(query, user)
         query = Story._add_TLP_check(query, user)
-        stories_by_id = {story.id: story for story in db.session.execute(query).scalars().all()}
+        return {story.id: story for story in db.session.execute(query).scalars().all()}
+
+    @classmethod
+    def _get_accessible_stories(cls, story_ids: list[str], user: User) -> list[Story] | None:
+        stories_by_id = cls._get_accessible_stories_by_id(story_ids, user)
         if set(story_ids) - set(stories_by_id):
             return None
         return [stories_by_id[story_id] for story_id in story_ids]
