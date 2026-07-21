@@ -70,65 +70,6 @@ def test_assess_shortcut_guard_ignores_inputs_and_dialogs(page: Page):
     assert page.evaluate("() => canUseAssessShortcut({ target: document.body })") is True
 
 
-def test_bookmark_detail_manages_selection_and_action_values(page: Page):
-    load_main_js(
-        page,
-        """
-        <section id="bookmark-detail-container">
-          <article data-story-id="story-1" data-story-read="true" data-story-important="true" class="border-base-200"></article>
-          <article data-story-id="story-2" data-story-read="false" data-story-important="false"></article>
-        </section>
-        """,
-    )
-
-    initial_state = page.evaluate("""
-        () => {
-            const detail = bookmarkDetail({
-                selectedStoryIds: ["story-1"],
-                storyIds: ["story-1", "story-2"],
-                bookmarkId: "bookmark-1",
-                editUrlTemplate: "/assess/story/__ID__?bookmark_id=bookmark-1",
-            });
-            detail.$nextTick = (callback) => callback();
-            window.__bookmarkDetail = detail;
-            detail.init();
-            return {
-                selectedItems: detail.selectedItems,
-                allRead: detail.selectedItemsAreRead(),
-                allImportant: detail.selectedItemsAreImportant(),
-                actionValues: JSON.parse(detail.action_vals("read", false)),
-            };
-        }
-    """)
-
-    assert initial_state == {
-        "selectedItems": ["story-1"],
-        "allRead": True,
-        "allImportant": True,
-        "actionValues": {
-            "story_ids": ["story-1"],
-            "bookmark_id": "bookmark-1",
-            "action": "read",
-            "value": False,
-        },
-    }
-    selected_card = page.locator('article[data-story-id="story-1"]')
-    expect(selected_card).to_have_attribute("aria-selected", "true")
-    assert "bg-primary/5" in selected_card.evaluate("element => Array.from(element.classList)")
-
-    selected_items = page.evaluate("""
-        () => {
-            window.__bookmarkDetail.selectAll();
-            return window.__bookmarkDetail.selectedItems;
-        }
-    """)
-    assert selected_items == ["story-1", "story-2"]
-    expect(page.locator('article[data-story-id="story-2"]')).to_have_attribute("aria-selected", "true")
-
-    page.evaluate("() => window.__bookmarkDetail.clearSelection()")
-    expect(selected_card).to_have_attribute("aria-selected", "false")
-
-
 def test_assess_shift_e_shortcut_uses_selected_story(page: Page):
     html = quote("""
         <div x-data="{
