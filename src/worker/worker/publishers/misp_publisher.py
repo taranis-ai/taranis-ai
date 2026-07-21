@@ -24,7 +24,7 @@ class MISPPublisher(BasePublisher):
         misp_key = parameters.get("MISP_API_KEY")
         misp_verifycert = False
 
-        event_json = json.loads(rendered_product.data.decode("utf-8"))
+        event_json = json.loads(self._require_rendered_data(rendered_product).decode("utf-8"))
 
         urllib3.disable_warnings()
 

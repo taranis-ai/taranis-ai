@@ -58,7 +58,7 @@ run_load() {
   echo "Writing load-test artifacts to $LOAD_ARTIFACT_DIR"
   echo "Pulling load-test images"
   set +e
-  compose_load pull database redis core frontend ingress locust
+  compose_load pull database redis core frontend ingress seed locust
   status=$?
   if [[ $status -eq 0 ]]; then
     echo "Starting load-test target stack"
@@ -66,8 +66,13 @@ run_load() {
     status=$?
   fi
   if [[ $status -eq 0 ]]; then
+    echo "Seeding load-test data"
+    compose_load run --rm --no-deps --pull=never seed
+    status=$?
+  fi
+  if [[ $status -eq 0 ]]; then
     echo "Running load test"
-    compose_load up locust --pull=never --exit-code-from locust
+    compose_load up locust --no-deps --pull=never --exit-code-from locust
     status=$?
   fi
   set -e

@@ -399,8 +399,8 @@ class MispConnector:
             return
 
         for h in hashes_to_remove:
-            found_obj = None
-            found_attr = None
+            found_obj: Any = None
+            found_attr: Any = None
 
             for misp_obj in existing_event.objects:
                 if misp_obj.name != "taranis-news-item":

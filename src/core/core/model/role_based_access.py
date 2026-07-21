@@ -88,7 +88,7 @@ class RoleBasedAccess(BaseModel):
             if not hasattr(acl, key) or key == "id":
                 continue
             if key == "roles":
-                acl.roles = Role.get_bulk(value)
+                acl.roles = Role.get_bulk(value if isinstance(value, list) else [])
             elif key == "item_id":
                 value = str(value)
             else:

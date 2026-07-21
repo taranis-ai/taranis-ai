@@ -174,7 +174,7 @@ class MispCollector(BaseCollector):
         Useful for unit testing.
         If you add or remove a key from here, do the same for the respective object definition file.
         """
-        story_properties = {
+        story_properties: dict[str, Any] = {
             "id": None,
             "title": "",
             "comments": "",

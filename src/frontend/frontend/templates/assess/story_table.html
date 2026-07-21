@@ -2,12 +2,9 @@
 <div id="assess" data-testid="assess" data-tour-target="assess-page">
   {% set actions = actions | default([]) %}
   {% set pagination = pagination | default({}) %}
+
   {# djlint:off #}
-  <div
-    id="assess-container"
-    class="p-4"
-    data-selection-key="{{ assess_selection_key | default('') }}"
-    @keyup.escape.window="clearSelection()"
+  <div id="assess-container" class="p-4" data-selection-key="{{ assess_selection_key | default('') }}" @keyup.escape.window="clearSelection()"
     x-data='{
       selectedItems: [],
       storyIds: [],
@@ -143,7 +140,6 @@
     }'
     >
   {# djlint:on #}
-
   {% if stories %}
     {% include "assess/bookmarks_bar.html" %}
     {% include "assess/assess_top_bar.html" %}

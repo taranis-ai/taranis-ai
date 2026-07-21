@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 from models.assess import NewsItem
 
@@ -43,12 +44,14 @@ class BaseCollector:
             for entry in word_list["entries"]
         }
         if include_patterns or exclude_patterns:
-            return [
-                item
-                for item in news_items
-                if (not include_patterns or any(pattern.search(item.title + item.content) for pattern in include_patterns))
-                and (not exclude_patterns or all(not pattern.search(item.title + item.content) for pattern in exclude_patterns))
-            ]
+
+            def matches_filters(item: NewsItem) -> bool:
+                searchable_text = f"{item.title or ''} {item.content or ''}"
+                return (not include_patterns or any(pattern.search(searchable_text) for pattern in include_patterns)) and (
+                    not exclude_patterns or all(not pattern.search(searchable_text) for pattern in exclude_patterns)
+                )
+
+            return [item for item in news_items if matches_filters(item)]
 
         return news_items
 
@@ -60,7 +63,7 @@ class BaseCollector:
                 item.attributes.append({"key": "TLP", "value": tlp_level})
         return news_items
 
-    def collect(self, source: dict, manual: bool = False):
+    def collect(self, source: dict, manual: bool = False) -> Any:
         raise NotImplementedError
 
     def preview_collector(self, source: dict) -> list[dict]:

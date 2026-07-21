@@ -76,7 +76,7 @@ class ProductService:
         if not report_path.is_file():
             return {"error": "Published report not found"}, 404
 
-        response = send_file(report_path, mimetype=product.product_type.get_mimetype(), conditional=True)
+        response = send_file(str(report_path), mimetype=product.product_type.get_mimetype(), conditional=True)
         response.headers["Content-Security-Policy"] = "sandbox allow-scripts allow-downloads"
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response

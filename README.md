@@ -27,6 +27,8 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 
 For IntelOwl enrichment setup, see [docs/intelowl.md](docs/intelowl.md).
 
+For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
+
 ## Services
 
 | Type       | Name      | Description                           |

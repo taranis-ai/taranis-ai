@@ -1,4 +1,4 @@
-from flask import Response, jsonify
+from flask import Response, jsonify, make_response
 from flask_jwt_extended import create_access_token, set_access_cookies
 
 from core.log import logger
@@ -22,9 +22,7 @@ class BaseAuthenticator:
 
     @staticmethod
     def generate_error() -> Response:
-        error_message = jsonify({"error": "Authentication failed"})
-        error_message.status_code = 401
-        return error_message
+        return make_response(jsonify({"error": "Authentication failed"}), 401)
 
     @staticmethod
     def complete_login(user: User) -> Response:
@@ -38,7 +36,6 @@ class BaseAuthenticator:
             identity=user,
             additional_claims={"user_claims": {"id": user.id, "name": user.name, "roles": user.get_roles()}},
         )
-        response = jsonify({"access_token": access_token})
-        response.status_code = 200
+        response = make_response(jsonify({"access_token": access_token}), 200)
         set_access_cookies(response, access_token)
         return response

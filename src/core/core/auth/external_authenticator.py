@@ -49,7 +49,8 @@ class ExternalAuthenticator(BaseAuthenticator):
             role_ids = []
 
         if org_name := credentials.get("organization"):
-            if not (organization := Organization.find_by_name(org_name)):
+            organization = Organization.find_by_name(org_name)
+            if organization is None:
                 organization = Organization.add({"name": org_name})
             organization_id = organization.id
         else:
