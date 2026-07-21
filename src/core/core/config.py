@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
-    TARANIS_SENTRY_DSN: str | None = None
+    TARANIS_CORE_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False
     SENTRY_SEND_DEFAULT_PII: bool = False
     SENTRY_ENABLE_DB_QUERY_SOURCE: bool = False

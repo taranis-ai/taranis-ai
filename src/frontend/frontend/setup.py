@@ -138,11 +138,12 @@ def inject_current_user() -> dict[str, Any]:
 
 
 def setup_sentry():
-    if not Config.TARANIS_SENTRY_DSN:
+    dsn = (Config.TARANIS_FRONTEND_SENTRY_DSN or "").strip()
+    if not dsn:
         return
 
     sentry_options = {
-        "dsn": Config.TARANIS_SENTRY_DSN,
+        "dsn": dsn,
         "traces_sample_rate": 1.0,
         "profiles_sample_rate": 1.0,
     }
