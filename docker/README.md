@@ -82,7 +82,7 @@ DOCKER_IMAGE_NAMESPACE=ghcr.io/taranis-ai TARANIS_TAG=latest ./docker/run_releas
 LOCUST_USERS=10 LOCUST_SPAWN_RATE=2 LOCUST_RUN_TIME=10m ./docker/run_release_gate_tests.sh load
 ```
 
-Load-test artifacts are written to `$LOAD_ARTIFACT_DIR` when set, otherwise to a temporary directory.
+The load gate seeds synthetic stories and reports before Locust starts. Failed Locust flows are reported but do not fail the release gate; setup and runner errors remain fatal. Load-test artifacts are written to `$LOAD_ARTIFACT_DIR` when set, otherwise to a temporary directory. The GitHub Actions workflow uploads those reports together with its captured release-gate output.
 
 ## PostgreSQL TLS multiprocess smoke test
 
