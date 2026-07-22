@@ -43,7 +43,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "wheel", "pyright"]
+dev = ["ruff", "pytest", "wheel", "pyrefly>=1.1.1"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -66,25 +66,6 @@ disable = """
     missing-function-docstring
 """
 
-[tool.pyright]
-typeCheckingMode = "standard"
-reportConstantRedefinition = "error"
-reportDuplicateImport = "error"
-reportMissingTypeStubs = "warning"
-reportMissingParameterType = "warning"
-reportMissingTypeArgument = "warning"
-
-reportDeprecated = "warning"
-reportMatchNotExhaustive = "warning"
-reportUnnecessaryCast = "warning"
-reportUnreachable = "warning"
-reportUnusedClass = "warning"
-reportUnusedFunction = "warning"
-reportUnusedImport = "warning"
-
-reportIncompatibleVariableOverride = "none"
-reportIncompatibleMethodOverride = "none"
-
 [tool.uv]
 exclude-newer = "1 week"
 required-environments = [
@@ -92,4 +73,10 @@ required-environments = [
   "sys_platform == 'linux' and platform_machine == 'aarch64'",
   "sys_platform == 'darwin' and platform_machine == 'x86_64'",
   "sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+
+[tool.pyrefly]
+infer-with-first-use = false
+project-excludes = [
+  "typings/**",
 ]

@@ -244,6 +244,9 @@ class CoreApi:
     def get_login_data(self):
         return self.api_get("/auth/method")
 
+    def refresh(self):
+        return self.session.get(url=f"{self.api_url}/auth/refresh", headers=self.headers, timeout=self.timeout)
+
     def logout(self):
         return self.api_delete("/auth/logout")
 

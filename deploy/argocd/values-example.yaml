@@ -2,6 +2,7 @@ config:
   debug: "false"
   granianHost: CHANGE_ME_BIND_HOST
   taranisBasePath: "/"
+  jwtCookieSuffix: ""
   ssePath: "/sse"
   authenticator: "database"
 

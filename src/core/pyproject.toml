@@ -71,6 +71,7 @@ dev = [
     "pytest-playwright",
     "playwright",
     "pyright",
+    "pyrefly>=1.1.1",
 ]
 
 [project.urls]
@@ -141,3 +142,13 @@ required-environments = [
 
 [tool.uv.sources]
 taranis-models = { path = "../models", editable = true }
+
+[tool.pyrefly]
+project-excludes = [
+    "**/__main__.py",
+    "**/tests/",
+]
+
+[tool.pyrefly.errors]
+bad-override = false
+bad-param-name-override = false

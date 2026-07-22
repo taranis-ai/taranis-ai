@@ -30,11 +30,12 @@ class SFTPPublisher(BasePublisher):
 
         self.set_file_name(product)
         server_config: ParseResult = urlparse(ftp_url)  # type: ignore
+        rendered_data = self._require_rendered_data(rendered_product)
 
         if rendered_product.mime_type in ["text/plain", "text/html"]:
-            data_to_upload = BytesIO(rendered_product.data)
+            data_to_upload = BytesIO(rendered_data)
         else:
-            data_to_upload = BytesIO(b64decode(rendered_product.data))
+            data_to_upload = BytesIO(b64decode(rendered_data))
 
         if not server_config:
             raise ValueError("Invalid SFTP URL")

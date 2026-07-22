@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import UniqueConstraint, func
 from sqlalchemy.orm import Mapped, relationship
@@ -19,10 +19,13 @@ if TYPE_CHECKING:
 def _increment_parent_revision(item: "Story | ReportItem") -> int:
     db.session.flush()
 
-    table = item.__table__
-    next_revision = db.session.execute(
-        table.update().where(table.c.id == item.id).values(revision=func.coalesce(table.c.revision, 0) + 1).returning(table.c.revision)
-    ).scalar_one()
+    table = getattr(item, "__table__")
+    next_revision = cast(
+        int,
+        db.session.execute(
+            table.update().where(table.c.id == item.id).values(revision=func.coalesce(table.c.revision, 0) + 1).returning(table.c.revision)
+        ).scalar_one(),
+    )
     item.revision = next_revision
     return next_revision
 
@@ -48,13 +51,12 @@ class StoryRevision(BaseModel):
     @classmethod
     def create_from_story(cls, story: "Story", created_by_id: str | None = None, note: str | None = None) -> "StoryRevision":
         next_revision = _increment_parent_revision(story)
-        revision = cls(
-            story_id=story.id,
-            revision=next_revision,
-            created_by_id=created_by_id,
-            note=note,
-            data=cls.snapshot_story(story),
-        )
+        revision = cls()
+        revision.story_id = story.id
+        revision.revision = next_revision
+        revision.created_by_id = created_by_id
+        revision.note = note
+        revision.data = cls.snapshot_story(story)
         db.session.add(revision)
         return revision
 
@@ -82,12 +84,11 @@ class ReportRevision(BaseModel):
     @classmethod
     def create_from_report(cls, report: "ReportItem", created_by_id: str | None = None, note: str | None = None) -> "ReportRevision":
         next_revision = _increment_parent_revision(report)
-        revision = cls(
-            report_item_id=report.id,
-            revision=next_revision,
-            created_by_id=created_by_id,
-            note=note,
-            data=cls.snapshot_report(report),
-        )
+        revision = cls()
+        revision.report_item_id = report.id
+        revision.revision = next_revision
+        revision.created_by_id = created_by_id
+        revision.note = note
+        revision.data = cls.snapshot_report(report)
         db.session.add(revision)
         return revision

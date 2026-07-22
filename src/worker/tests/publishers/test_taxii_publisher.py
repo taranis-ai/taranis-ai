@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from worker.tests.publishers.publishers_data import product_text
+from tests.publishers.publishers_data import product_text
 
 
 class MockProduct:

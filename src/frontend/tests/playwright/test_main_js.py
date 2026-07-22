@@ -139,3 +139,37 @@ def test_assess_htmx_shortcut_filter_ignores_dialog_typing(page: Page):
 
     expect(page.locator("#result")).to_have_text("opened")
     assert requests == ["https://example.test/bookmark-dialog"]
+
+
+def test_htmx_uses_configured_csrf_cookie(page: Page):
+    csrf_headers = []
+    page.context.add_cookies([{"name": "csrf_access_token_q", "value": "csrf-value", "url": "https://example.test"}])
+    page.route(
+        "https://example.test/",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/html",
+            body="""
+            <body data-csrf-cookie-name="csrf_access_token_q">
+              <button id="submit" hx-post="/submit" hx-target="#result">Submit</button>
+              <div id="result"></div>
+            </body>
+            """,
+        ),
+    )
+    page.route(
+        "https://example.test/submit",
+        lambda route: (
+            csrf_headers.append(route.request.headers.get("x-csrf-token")),
+            route.fulfill(status=200, body="saved"),
+        ),
+    )
+    page.goto("https://example.test/")
+    page.add_script_tag(path=str(VENDOR_JS_PATH))
+    page.add_script_tag(path=str(MAIN_JS_PATH))
+    page.evaluate("() => htmx.process(document.body)")
+
+    page.locator("#submit").click()
+
+    expect(page.locator("#result")).to_have_text("saved")
+    assert csrf_headers == ["csrf-value"]

@@ -315,7 +315,7 @@ class Bot(BaseModel):
         warnings_by_id: list[tuple[str, str]] = []
         bots_by_id = {bot.id: bot for bot in bots}
         dependencies: dict[str, set[str]] = {bot.id: set() for bot in bots}
-        edges = []
+        edges: list[dict[str, Any]] = []
         for bot_id, bot in bots_by_id.items():
             try:
                 parent_ids = bot.run_after_bot_ids

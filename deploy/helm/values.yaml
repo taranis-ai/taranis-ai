@@ -6,12 +6,14 @@ config:
   granianHost: CHANGE_ME_BIND_HOST
   granianPort: "8080"
   taranisBasePath: /
+  jwtCookieSuffix: ""
   ssePath: /sse
   taranisPort: "8080"
   requestsTimeout: "600"
   sqlalchemyPoolTimeout: "3600"
   sqlalchemyPoolRecycle: "3600"
   authenticator: database
+  skipInitialUserOnboarding: "false"
   summaryApiEndpoint: http://summary-bot:8000
   nlpApiEndpoint: http://nlp-bot:8000
   storyApiEndpoint: http://story-bot:8000

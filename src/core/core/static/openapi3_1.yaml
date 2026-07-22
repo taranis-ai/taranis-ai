@@ -87,10 +87,12 @@ paths:
       tags:
       - auth
       operationId: auth.refresh.get
-      description: refresh an API token
+      description: refresh an access token for CLI and other non-browser clients
+      security:
+      - UserAuth: []
       responses:
         '200':
-          description: refreshed API token
+          description: refreshed access token
           content:
             application/json:
               schema:
@@ -661,6 +663,7 @@ paths:
                       description: Daily delivery for the ACME VPN advisory
                       created: '2026-03-30T16:00:00'
                       last_rendered: null
+                      last_published_url: null
                       auto_publish: true
                       product_type_id: 7
                       default_publisher: publisher-preset-42
@@ -9218,25 +9221,6 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
-  /worker/tasks/reconcile:
-    post:
-      security:
-      - APIKey: []
-      description: reconcile persisted task failures for missed or stalled jobs
-      operationId: worker.task_reconciliation_worker.post
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /worker/misp/last-change:
     post:
       security:
@@ -9532,6 +9516,34 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /worker/products/{product_id}/publish:
+    parameters:
+    - name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - APIKey: []
+      description: store a rendered product as a public Taranis report
+      operationId: worker.products_publish_worker.post
+      responses:
+        '200':
+          description: product published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  url:
+                    type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
   /worker/publishers/{publisher}:
@@ -10402,6 +10414,11 @@ components:
           - string
           - 'null'
           format: date-time
+        last_published_url:
+          type:
+          - string
+          - 'null'
+          description: Safe URL of the product's most recent successful publication
         auto_publish:
           type: boolean
         product_type_id:
@@ -11008,6 +11025,11 @@ components:
           type: array
           items:
             type: string
+        last_published_url:
+          type:
+          - string
+          - 'null'
+          description: Safe URL of the product's most recent successful publication
       required:
       - title
       - product_type_id

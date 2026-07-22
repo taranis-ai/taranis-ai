@@ -49,6 +49,21 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRES: timedelta = timedelta(hours=4)
     JWT_DECODE_LEEWAY: int = 5
     JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
+    JWT_COOKIE_SUFFIX: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]*$")] = ""
+
+    @property
+    def JWT_ACCESS_COOKIE_NAME(self) -> str:
+        return f"access_token_cookie{self.JWT_COOKIE_SUFFIX}"
+
+    @property
+    def JWT_ACCESS_CSRF_COOKIE_NAME(self) -> str:
+        return f"csrf_access_token{self.JWT_COOKIE_SUFFIX}"
+
+    @property
+    def JWT_ACCESS_COOKIE_PATH(self) -> str:
+        return self.APPLICATION_ROOT
+
+    JWT_ACCESS_CSRF_COOKIE_PATH = JWT_ACCESS_COOKIE_PATH
 
     DB_URL: str = "localhost"
     DB_DATABASE: str = "taranis"
@@ -121,12 +136,11 @@ class Settings(BaseSettings):
     OPENID_METADATA_URL: str = "http://keycloak/realms/master/.well-known/openid-configuration"
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
+    SKIP_INITIAL_USER_ONBOARDING: bool = False
 
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: SecretStr | None = None
     RQ_DEFAULT_JOB_TIMEOUT: int = 180
-    RQ_RECONCILE_GRACE_SECONDS: int = 300
-    RQ_RECONCILE_STARTED_GRACE_SECONDS: int = 300
     CACHE_ENABLED: bool = CACHE_ENABLED_DEFAULT
     CACHE_DEFAULT_TIMEOUT: int = CACHE_DEFAULT_TIMEOUT_DEFAULT
     CACHE_KEY_PREFIX: str = CACHE_KEY_PREFIX_DEFAULT

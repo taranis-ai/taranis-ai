@@ -1,12 +1,22 @@
 import contextlib
+from datetime import datetime, timedelta, timezone
 from functools import wraps
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable, ParamSpec, TypeVar, cast
 from urllib.parse import unquote, urlsplit
 
 from flask import Flask, Response, abort, current_app, g, make_response, redirect, render_template, request, url_for
-from flask_jwt_extended import JWTManager, current_user, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
+from flask_jwt_extended import (
+    JWTManager,
+    current_user,
+    get_jwt,
+    get_jwt_identity,
+    get_jwt_request_location,
+    unset_access_cookies,
+    verify_jwt_in_request,
+)
 from flask_jwt_extended.exceptions import JWTExtendedException
 from models.user import UserProfile
+from requests import RequestException
 from requests.models import Response as ReqResponse
 from werkzeug.exceptions import HTTPException, MethodNotAllowed, NotFound
 from werkzeug.routing import RequestRedirect
@@ -19,10 +29,31 @@ from frontend.utils.router_helpers import is_htmx_request
 
 
 jwt = JWTManager()
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def init(app: Flask) -> None:
     jwt.init_app(app)
+    app.after_request(refresh_expiring_jwts)
+
+
+def refresh_expiring_jwts(response: Response) -> Response:
+    try:
+        exp_timestamp = get_jwt()["exp"]
+        target_timestamp = datetime.timestamp(datetime.now(timezone.utc) + timedelta(minutes=30))
+        if get_jwt_request_location() == "cookies" and target_timestamp > exp_timestamp and current_user:
+            core_response = CoreApi().refresh()
+            if core_response.ok:
+                for header in core_response.raw.headers.getlist("Set-Cookie"):
+                    response.headers.add("Set-Cookie", header)
+            elif core_response.status_code == 401:
+                unset_access_cookies(response)
+    except RuntimeError, KeyError:
+        pass
+    except RequestException:
+        logger.exception("Core token refresh failed")
+    return response
 
 
 def user_has_admin_permissions(permissions: Iterable[str] | None) -> bool:
@@ -92,7 +123,7 @@ def render_login_page(**context: Any) -> str:
 
 def _redirect_expired_session_to_login():
     response = make_response(redirect(_login_url_with_next(), code=302))
-    unset_jwt_cookies(response)
+    unset_access_cookies(response)
     return response
 
 
@@ -116,14 +147,6 @@ def _resolve_authenticated_user() -> tuple[str, UserProfile] | None:
     return user_name, user
 
 
-# def authenticate(credentials: dict[str, str]) -> Response:
-#     return current_authenticator.authenticate(credentials)
-
-
-# def refresh(user: "UserProfile"):
-#     return current_authenticator.refresh(user)
-
-
 def logout() -> tuple[str, int] | Response:
     error_msg = "Logout failed"
     try:
@@ -140,22 +163,20 @@ def logout() -> tuple[str, int] | Response:
             error_msg = core_response.json().get("error", error_msg)
         return render_login_page(login_error=error_msg), core_response.status_code
 
-    response = make_response("Session expired! Redirecting to Login Page")
+    response = make_response("Session expired! Redirecting to Login Page", 200 if is_htmx_request() else 302)
     if is_htmx_request():
         response.headers["HX-Redirect"] = url_for("base.login")
     else:
         response.headers["Location"] = url_for("base.login")
-        response.status_code = 302
 
-    response.delete_cookie("access_token")
-    unset_jwt_cookies(response)
+    unset_access_cookies(response)
     return response
 
 
-def auth_required(permissions: list[str] | str | None = None):
-    def auth_required_wrap(fn):
+def auth_required(permissions: list[str] | str | None = None) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def auth_required_wrap(fn: Callable[P, R]) -> Callable[P, R]:
         @wraps(fn)
-        def wrapper(*args, **kwargs: dict[str, Any]):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             if permissions is None:
                 permissions_set: set[str] = set()
             elif isinstance(permissions, list):
@@ -165,7 +186,7 @@ def auth_required(permissions: list[str] | str | None = None):
 
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _redirect_to_login_with_next()
+                return cast(R, _redirect_to_login_with_next())
 
             user_name, user = resolved_user
             permission_claims = set(user.permissions or [])
@@ -184,13 +205,13 @@ def auth_required(permissions: list[str] | str | None = None):
     return auth_required_wrap
 
 
-def admin_required():
-    def admin_required_wrap(fn):
+def admin_required() -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def admin_required_wrap(fn: Callable[P, R]) -> Callable[P, R]:
         @wraps(fn)
-        def wrapper(*args, **kwargs: dict[str, Any]):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             resolved_user = _resolve_authenticated_user()
             if not resolved_user:
-                return _redirect_to_login_with_next()
+                return cast(R, _redirect_to_login_with_next())
 
             user_name, user = resolved_user
             if not user_has_admin_permissions(user.permissions):

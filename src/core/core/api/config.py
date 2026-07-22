@@ -3,7 +3,7 @@ import binascii
 import io
 from typing import Any
 
-from flask import Blueprint, Flask, jsonify, request, send_file
+from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.admin import OSINTSource as OSINTSourceModel
@@ -338,9 +338,7 @@ class Templates(MethodView):
         base64_content = request.json.get("content")
         response, status = create_or_update_template(template_id, base64_content)
         _invalidate_admin_cache(status)
-        json_response = jsonify(response)
-        json_response.status_code = status
-        return json_response
+        return make_response(jsonify(response), status)
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def put(self, template_path: str | None = None):
@@ -352,9 +350,7 @@ class Templates(MethodView):
         base64_content = request.json.get("content")
         response, status = create_or_update_template(template_path, base64_content)
         _invalidate_admin_cache(status)
-        json_response = jsonify(response)
-        json_response.status_code = status
-        return json_response
+        return make_response(jsonify(response), status)
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str | None = None):

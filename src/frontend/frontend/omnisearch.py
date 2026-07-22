@@ -534,12 +534,13 @@ def _search_scope(scope_definition: OmniSearchScopeDefinition, term: str, limit:
 
 def _result_from_model(scope_definition: OmniSearchScopeDefinition, item: TaranisBaseModel) -> OmniSearchResult:
     object_id = str(getattr(item, "id", "") or "")
+    route_values: dict[str, Any] = {scope_definition.detail_route_id: object_id}
     return OmniSearchResult(
         scope=scope_definition.scope,
         label=scope_definition.label,
         title=_item_title(scope_definition.scope, item),
         description=_item_description(scope_definition.scope, item),
-        url=url_for(scope_definition.detail_route, **{scope_definition.detail_route_id: object_id}),
+        url=url_for(scope_definition.detail_route, **route_values),
     )
 
 

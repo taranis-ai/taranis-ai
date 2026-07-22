@@ -19,6 +19,7 @@
   </head>
 
   <body class="flex bg-base-300 min-h-screen"
+        data-csrf-cookie-name="{{ config['JWT_ACCESS_CSRF_COOKIE_NAME'] }}"
         data-confirm-ok="{{ _('OK') }}"
         data-confirm-delete="{{ _('Delete') }}"
         data-confirm-cancel="{{ _('Cancel') }}"

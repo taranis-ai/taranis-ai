@@ -109,11 +109,11 @@ class AdminDashboardView(AdminBaseView):
     def get(self, **kwargs: Any) -> ResponseReturnValue:
         return self.static_view()
 
-    def post(self):
+    def post(self, *args: Any, **kwargs: Any) -> tuple[str, int] | ResponseReturnValue:
         return abort(405)
 
-    def put(self, **kwargs):
+    def put(self, **kwargs: Any) -> tuple[str, int] | ResponseReturnValue:
         return abort(405)
 
-    def delete(self, **kwargs):
+    def delete(self, **kwargs: Any) -> tuple[str, int]:
         return abort(405)

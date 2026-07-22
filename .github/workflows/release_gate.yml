@@ -1,0 +1,36 @@
+name: Release gate tests
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  release_gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: master
+
+      - name: Run release gate tests
+        env:
+          DOCKER_IMAGE_NAMESPACE: ghcr.io/taranis-ai
+          TARANIS_TAG: latest
+          LOAD_RUN_ID: ${{ github.run_id }}
+          LOAD_ARTIFACT_DIR: ${{ github.workspace }}/release-gate-artifacts/load-${{ github.run_id }}
+        run: |
+          set -o pipefail
+          mkdir -p release-gate-artifacts
+          ./docker/run_release_gate_tests.sh 2>&1 | tee release-gate-artifacts/release-gate-results.log
+
+      - name: Upload release gate test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-gate-test-results-${{ github.run_id }}
+          path: release-gate-artifacts
+          if-no-files-found: warn

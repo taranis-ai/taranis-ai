@@ -18,13 +18,12 @@ tmux send-keys -t taranis:frontend "./install_and_run_dev.sh" C-m
 tmux new-window -t taranis:3 -n worker -c src/worker
 tmux send-keys -t taranis:worker "./install_and_run_dev.sh" C-m
 
-# Create Cron Scheduler tab
-tmux new-window -t taranis:4 -n cron -c src/worker
-tmux send-keys -t taranis:cron "./install_and_run_cron.sh" C-m
-
-# Create RQ Dashboard tab
-tmux new-window -t taranis:5 -n rq-dashboard -c src/worker
-tmux send-keys -t taranis:rq-dashboard "./install_and_run_rq_dashboard.sh" C-m
+if [ -n "${WITH_CRON_RQ:-}" ]; then
+    tmux new-window -t taranis:4 -n cron -c src/worker
+    tmux send-keys -t taranis:cron "./install_and_run_cron.sh" C-m
+    tmux new-window -t taranis:5 -n rq-dashboard -c src/worker
+    tmux send-keys -t taranis:rq-dashboard "./install_and_run_rq_dashboard.sh" C-m
+fi
 
 
 # Attach to the session

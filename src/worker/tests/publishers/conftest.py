@@ -57,6 +57,13 @@ class RecordingCoreApi:
         self.put_calls.append({"url": url, "json": json_data})
         return self.put_response
 
+    def api_post(self, url: str, json_data=None):
+        self.put_calls.append({"url": url, "json": json_data})
+        return self.put_response
+
+    def publish_product_to_taranis(self, product_id: str):
+        return self.api_post(f"/worker/products/{product_id}/publish")
+
     def save_task_result(self, job_id, task_name, status, *, worker_id=None, worker_type=None, result=None, **task_kwargs):
         self.put_calls.append(
             {
@@ -122,14 +129,14 @@ def kafka_publisher_testdata():
 
 @pytest.fixture
 def get_product_mock():
-    from worker.tests.publishers.publishers_data import product_render_data, product_render_mime
+    from tests.publishers.publishers_data import product_render_data, product_render_mime
 
     yield MockProduct(product_render_data, product_render_mime)
 
 
 @pytest.fixture
 def get_product_pdf_mock():
-    from worker.tests.publishers.publishers_data import product_render_data_pdf, product_render_mime_pdf
+    from tests.publishers.publishers_data import product_render_data_pdf, product_render_mime_pdf
 
     yield MockProduct(product_render_data_pdf, product_render_mime_pdf)
 
@@ -168,7 +175,7 @@ def sftp_mock(request):
     import glob
     import os
 
-    from worker.tests.publishers.publishers_data import product_text
+    from tests.publishers.publishers_data import product_text
 
     users = {
         "user": {"type": "password", "password": "password"},

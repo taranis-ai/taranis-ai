@@ -111,18 +111,15 @@ class ProductType(BaseModel):
             logger.error(f"User {user} does not have write access to product type {product_type_id}")
             return {"error": "User does not have write access to this product type"}, 403
 
-        parsed_parameters = None
         if type := data.get("type"):
-            parsed_parameters = cls._parse_parameters(type, data.get("parameters", product_type.parameters))
+            product_type.type = type
+            product_type.parameters = cls._parse_parameters(type, data.get("parameters", product_type.parameters))
 
         if title := data.get("title"):
             product_type.title = title
 
         product_type.description = data.get("description")
 
-        if type:
-            product_type.type = type
-            product_type.parameters = parsed_parameters
         report_types = data.get("report_types", None)
         if report_types is not None:
             product_type.report_types = ReportItemType.get_bulk(report_types)
