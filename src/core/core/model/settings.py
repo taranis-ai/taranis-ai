@@ -28,7 +28,7 @@ class Settings(BaseModel):
 
     @classmethod
     def with_defaults(cls, settings: Mapping[str, Any] | None = None) -> dict[str, Any]:
-        merged = dict(settings) if isinstance(settings, Mapping) else {}
+        merged: dict[str, Any] = dict(settings) if isinstance(settings, Mapping) else {}
         merged.setdefault("default_collector_proxy", "")
         merged.setdefault("default_collector_interval", "0 */8 * * *")
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)

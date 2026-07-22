@@ -28,7 +28,7 @@ See `.github/workflows` for CI behavior. Run commands from the relevant componen
 - Use narrower pytest targets only after the full pipeline reproduces a failure or while isolating one.
 - Run test and lint commands from the relevant component directory. Tests live in each component's `tests/` directory.
 - Lint each changed component with `uv run ruff check`; use `uv run ruff check --fix` and `uv run ruff format` where appropriate.
-- After touching Python files, run `./dev/check_touched_pyright.sh`.
+- After touching Python files, run `./dev/check_pyrefly.sh` to check changed files.
 - E2E tests start and stop a dedicated Docker/Podman Compose test stack automatically for the session; you mainly need Docker/Podman Compose available locally (see `src/frontend/tests/playwright/README.md`).
 - If VS Code supplies `DEBUG=release`, unset it or use a boolean value such as `DEBUG=true` before starting frontend or core tests.
 - Models has no unit tests. Worker browser-scraping tests install Playwright browsers.

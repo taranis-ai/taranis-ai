@@ -1,5 +1,5 @@
+from tests.publishers.publishers_data import product_text
 from worker.publishers.s3_publisher import S3Publisher
-from worker.tests.publishers.publishers_data import product_text
 
 
 class FakeMinio:

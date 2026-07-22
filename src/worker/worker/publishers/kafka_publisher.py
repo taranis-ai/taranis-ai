@@ -107,4 +107,8 @@ class KafkaPublisher(BasePublisher):
         rendered_product: Product,
         object_name: str,
     ) -> dict[str, Any]:
-        return {"object_name": object_name, "mime_type": rendered_product.mime_type, "data": rendered_product.data.decode("ascii")}
+        return {
+            "object_name": object_name,
+            "mime_type": rendered_product.mime_type,
+            "data": BasePublisher._require_rendered_data(rendered_product).decode("ascii"),
+        }

@@ -2,8 +2,8 @@ import json
 
 import pytest
 
+from tests.publishers.publishers_data import product_text
 from worker.publishers.kafka_publisher import KafkaPublisher
-from worker.tests.publishers.publishers_data import product_text
 
 
 class FakeKafkaProducer:

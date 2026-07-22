@@ -1,7 +1,8 @@
 import re
 from collections import Counter
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as StoryPayload
@@ -235,13 +236,13 @@ class Story(BaseModel):
     def load_news_items(self, news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None) -> list["NewsItem"]:
         if not news_items:
             return []
-        elif isinstance(news_items[0], dict):
-            return NewsItem.load_multiple(cast(list[dict[str, Any]], news_items))
-        elif isinstance(news_items[0], str):
-            loaded_news_items = [NewsItem.get(item_id) for item_id in cast(list[str], news_items)]
+        if isinstance(news_items[0], dict):
+            return NewsItem.load_multiple([item for item in news_items if isinstance(item, dict)])
+        if isinstance(news_items[0], str):
+            loaded_news_items = [NewsItem.get(item_id) for item_id in news_items if isinstance(item_id, str)]
             return [news_item for news_item in loaded_news_items if news_item]
-        elif isinstance(news_items[0], NewsItem):
-            return cast(list[NewsItem], news_items)
+        if isinstance(news_items[0], NewsItem):
+            return [item for item in news_items if isinstance(item, NewsItem)]
         return []
 
     @property
@@ -827,20 +828,20 @@ class Story(BaseModel):
     def add_news_items(cls, news_items_list: list[dict], user: User | None = None):
         story_ids = []
         news_item_ids = []
-        skipped_items = []
+        skipped_count = 0
         try:
             for news_item in news_items_list:
                 normalized_news_item, err = cls.check_news_item_data(news_item)
                 if err:
                     logger.warning(err)
-                    skipped_items.append(err)
+                    skipped_count += 1
                     continue
                 if normalized_news_item is None:
-                    skipped_items.append(news_item.get("title", "Unknown Title"))
+                    skipped_count += 1
                     continue
                 message, status = cls.add_from_news_item(normalized_news_item, user=user)
                 if status > 299:
-                    skipped_items.append(normalized_news_item.title or news_item.get("title", "Unknown Title"))
+                    skipped_count += 1
                     continue
                 story_ids.append(message["story_id"])
                 news_item_ids += message["news_item_ids"]
@@ -850,12 +851,12 @@ class Story(BaseModel):
             return {"error": "Failed to add news items"}, 400
 
         result = {"story_ids": story_ids, "news_item_ids": news_item_ids, "message": f"{len(news_item_ids)} News items added successfully"}
-        if len(skipped_items) == len(news_items_list):
+        if skipped_count == len(news_items_list):
             result["message"] = "All news items were skipped"
             logger.warning(result)
             return result, 200
-        if skipped_items:
-            result["warning"] = f"{len(skipped_items)} items were skipped"
+        if skipped_count:
+            result["warning"] = f"{skipped_count} items were skipped"
             logger.warning(result)
         logger.info(f"News items added successfully: {result}")
         return result, 200
@@ -1021,7 +1022,8 @@ class Story(BaseModel):
         return next((attribute for attribute in self.attributes if attribute.key == key), None)
 
     def vote(self, vote_data, user_id):
-        if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
+        vote = NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)
+        if vote is None:
             vote = self.create_new_vote(user_id)
 
         if vote.like and vote_data == "like":
@@ -1140,7 +1142,7 @@ class Story(BaseModel):
             return {"error": "grouping failed"}, 500
 
     @classmethod
-    def group_stories(cls, story_ids: list[str], user: User | None = None, actor: str | None = None):
+    def group_stories(cls, story_ids: Sequence[str], user: User | None = None, actor: str | None = None):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
             if not isinstance(story_ids, list):
@@ -1149,7 +1151,7 @@ class Story(BaseModel):
             if len(story_ids) < 2 or any(not isinstance(a_id, str) or len(a_id) == 0 for a_id in story_ids):
                 return {"error": "at least two valid Story ids needed"}, 404
 
-            ordered_story_ids = [story_id for story_id in story_ids]
+            ordered_story_ids = list(story_ids)
             first_story = cls.get(ordered_story_ids[0])
             if not first_story:
                 return {"error": "Story not found"}, 404
@@ -1398,7 +1400,7 @@ class Story(BaseModel):
         tlp_levels: list[TLPLevel] = []
         for news_item in self.news_items:
             if not news_item.tlp_level:
-                news_item.add_attribute(NewsItemAttribute("TLP", news_item.osint_source.tlp_level))
+                news_item.add_attribute(NewsItemAttribute("TLP", news_item.tlp_level))
             logger.debug(f"News item {news_item.id} has TLP level")
             tlp_levels.append(news_item.tlp_level)
         tlp_levels += [input_tlp] if input_tlp else []

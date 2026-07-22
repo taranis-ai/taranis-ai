@@ -5,6 +5,7 @@ from urllib.parse import urljoin, urlparse
 
 import niquests as requests
 from models.assess import NewsItem
+from niquests.typing import MultiPartFilesAltType
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
 from worker.log import logger
@@ -192,7 +193,13 @@ class RTCollector(BaseWebCollector):
         if not r.ok:
             return None
 
-        icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
+        content = r.content
+        if content is None:
+            return None
+        filename = r.headers.get("content-disposition")
+        if not isinstance(filename, str):
+            filename = "file"
+        icon_content: MultiPartFilesAltType = {"file": (filename, content)}
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 

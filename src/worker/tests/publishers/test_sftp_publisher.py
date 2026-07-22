@@ -1,5 +1,5 @@
 def test_sftp_publisher_publish(sftp_publisher, get_product_mock, sftp_mock):
-    from worker.tests.publishers.publishers_data import product_text
+    from tests.publishers.publishers_data import product_text
 
     sftp_publisher_data = {
         "parameters": {

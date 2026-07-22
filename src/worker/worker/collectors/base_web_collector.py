@@ -8,11 +8,19 @@ import lxml.html
 import niquests as requests
 from bs4 import BeautifulSoup, Tag
 from models.assess import NewsItem
+from niquests.typing import MultiPartFilesAltType
 from trafilatura import extract, extract_metadata
 
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
+
+
+def parse_datetime(value: str) -> datetime.datetime | None:
+    parsed = dateparser.parse(value, ignoretz=True)
+    if isinstance(parsed, datetime.datetime):
+        return parsed
+    return None
 
 
 class BaseWebCollector(BaseCollector):
@@ -86,13 +94,13 @@ class BaseWebCollector(BaseCollector):
 
     def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
         if last_modified := response.headers.get("Last-Modified", None):
-            return dateparser.parse(last_modified, ignoretz=True)
+            return parse_datetime(last_modified)
         return None
 
     def get_last_attempted(self, source: dict) -> datetime.datetime | None:
         if last_attempted := source.get("last_attempted"):
             try:
-                return dateparser.parse(last_attempted, ignoretz=True)
+                return parse_datetime(last_attempted)
             except Exception:
                 return None
         return None
@@ -108,7 +116,13 @@ class BaseWebCollector(BaseCollector):
         if not r.ok:
             return None
 
-        icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
+        content = r.content
+        if content is None:
+            return None
+        filename = r.headers.get("content-disposition")
+        if not isinstance(filename, str):
+            filename = "file"
+        icon_content: MultiPartFilesAltType = {"file": (filename, content)}
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
