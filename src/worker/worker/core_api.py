@@ -413,7 +413,10 @@ class CoreApi:
 
     def run_post_collection_bots(self, source_id) -> dict | None:
         try:
-            return self.api_put("/worker/post-collection-bots", json_data={"source_id": source_id})
+            return self.api_put(
+                "/worker/post-collection-bots",
+                json_data={"source_id": source_id, "user_id": self._get_current_job_user_id()},
+            )
         except Exception:
             logger.exception("Can't run Post Collection Bots")
             return None
