@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     COLORED_LOGS: bool = True
     DEBUG: bool = False
     SSL_VERIFICATION: bool = False
+    DISABLE_HTTP3: bool = False
     REQUESTS_TIMEOUT: int = 60
     # This defines the execution order of worker types. RQ will process queues in the order they are defined here.
     WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers", "Connectors", "Misc"]] = [

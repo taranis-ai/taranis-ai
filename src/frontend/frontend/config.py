@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     CACHE_REDIS_PASSWORD: SecretStr | None = None
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
-    TARANIS_SENTRY_DSN: str | None = None
+    TARANIS_FRONTEND_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False
     SENTRY_SEND_DEFAULT_PII: bool = False
 

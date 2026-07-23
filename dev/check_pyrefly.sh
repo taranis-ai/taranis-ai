@@ -75,6 +75,7 @@ for component in core frontend models worker; do
   echo "pyrefly: src/$component"
   (
     cd "src/$component"
+    unset VIRTUAL_ENV
     uv run pyrefly check --summarize-errors "${rel_files[@]}"
   ) || status=$?
 done

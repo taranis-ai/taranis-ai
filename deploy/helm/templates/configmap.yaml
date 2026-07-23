@@ -13,6 +13,7 @@ data:
   SSE_PATH: {{ .Values.config.ssePath | quote }}
   TARANIS_PORT: {{ .Values.config.taranisPort | quote }}
   REQUESTS_TIMEOUT: {{ .Values.config.requestsTimeout | quote }}
+  DISABLE_HTTP3: {{ .Values.config.disableHttp3 | quote }}
   SQLALCHEMY_POOL_TIMEOUT: {{ .Values.config.sqlalchemyPoolTimeout | quote }}
   SQLALCHEMY_POOL_RECYCLE: {{ .Values.config.sqlalchemyPoolRecycle | quote }}
   TARANIS_AUTHENTICATOR: {{ .Values.config.authenticator | quote }}

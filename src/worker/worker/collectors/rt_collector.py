@@ -5,9 +5,9 @@ from urllib.parse import urljoin, urlparse
 
 import niquests as requests
 from models.assess import NewsItem
-from niquests.typing import MultiPartFilesAltType
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
+from worker.core_api import IconFile
 from worker.log import logger
 
 
@@ -190,16 +190,13 @@ class RTCollector(BaseWebCollector):
     def update_rt_favicon(self, osint_source_id: str):
         icon_url = f"{urlparse(self.base_url).scheme}://{urlparse(self.base_url).netloc}/static/images/favicon.png"
         r = self._fetch_icon(icon_url)
-        if not r.ok:
+        if not r.ok or not (content := r.content):
             return None
 
-        content = r.content
-        if content is None:
-            return None
         filename = r.headers.get("content-disposition")
         if not isinstance(filename, str):
             filename = "file"
-        icon_content: MultiPartFilesAltType = {"file": (filename, content)}
+        icon_content: IconFile = {"file": (filename, content)}
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 

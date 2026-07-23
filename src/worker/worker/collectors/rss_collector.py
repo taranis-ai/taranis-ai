@@ -5,10 +5,10 @@ from urllib.parse import urljoin, urlparse
 import feedparser
 import niquests as requests
 from models.assess import NewsItem
-from niquests.typing import MultiPartFilesAltType
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError, parse_datetime
 from worker.collectors.playwright_manager import PlaywrightManager
+from worker.core_api import IconFile
 from worker.log import logger
 
 
@@ -226,14 +226,13 @@ class RSSCollector(BaseWebCollector):
             if not content_type.startswith("image/"):
                 logger.warning(f"URL {icon_url} did not return an image (content-type: {content_type})")
                 return None
+            if not (content := r.content):
+                logger.warning(f"URL {icon_url} returned no content")
+                return None
 
             parsed = urlparse(icon_url)
             filename = parsed.path.rsplit("/", 1)[-1] or "favicon.ico"
-            content = r.content
-            if content is None:
-                logger.warning(f"URL {icon_url} returned no image content")
-                return None
-            icon_content: MultiPartFilesAltType = {"file": (filename, content)}
+            icon_content: IconFile = {"file": (filename, content)}
 
             self.core_api.update_osint_source_icon(source_id, icon_content)
 

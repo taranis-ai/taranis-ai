@@ -10,6 +10,7 @@ config:
   ssePath: /sse
   taranisPort: "8080"
   requestsTimeout: "600"
+  disableHttp3: "false"
   sqlalchemyPoolTimeout: "3600"
   sqlalchemyPoolRecycle: "3600"
   authenticator: database
