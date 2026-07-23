@@ -20,4 +20,4 @@ Use `cd src/frontend && uv run pytest tests/unit/views/test_worker_task_notifica
 ## Pitfalls
 Do not change core queue endpoint status codes for this behavior. A missing or failed health check should keep the original task notification. The enqueue notification is still only about scheduling; failure visibility for admin/source/bot/render status comes from persisted task rows, not a second frontend polling path.
 
-Front-of-queue priority is local to each functional queue. Cross-queue execution remains determined by the worker's configured queue order, and an already running job is never preempted.
+Front-of-queue priority is local to each functional queue. Workers check enabled queues in this priority order: presenters, publishers, connectors, misc, bots, collectors. A dedicated collector worker is unaffected because it only subscribes to collectors. An already running job is never preempted.

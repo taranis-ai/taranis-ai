@@ -8,7 +8,7 @@ This module sets up RQ workers for different job types:
 - connectors: Handle external integrations
 
 Usage:
-    rq worker collectors bots presenters publishers connectors
+    rq worker presenters publishers connectors misc bots collectors
 """
 
 import sys
@@ -36,24 +36,10 @@ def get_redis_connection(*, spawn_safe: bool = False):
 
 
 def get_queues():
-    """Get list of queue names based on configured worker types."""
-    queue_names = []
+    """Get enabled queue names in dequeue-priority order."""
     worker_types = Config.WORKER_TYPES
-
-    if "Collectors" in worker_types:
-        queue_names.append("collectors")
-    if "Bots" in worker_types:
-        queue_names.append("bots")
-    if "Presenters" in worker_types:
-        queue_names.append("presenters")
-    if "Publishers" in worker_types:
-        queue_names.append("publishers")
-    if "Connectors" in worker_types:
-        queue_names.append("connectors")
-    if "Misc" in worker_types:
-        queue_names.append("misc")
-
-    return queue_names
+    worker_type_priorities = ("Presenters", "Publishers", "Connectors", "Misc", "Bots", "Collectors")
+    return [worker_type.lower() for worker_type in worker_type_priorities if worker_type in worker_types]
 
 
 def register_task_modules():

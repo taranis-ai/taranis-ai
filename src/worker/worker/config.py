@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     SSL_VERIFICATION: bool = False
     DISABLE_HTTP3: bool = False
     REQUESTS_TIMEOUT: int = 60
-    # This defines the execution order of worker types. RQ will process queues in the order they are defined here.
+    # This selects which task types the worker handles. The worker defines their dequeue-priority order.
     WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers", "Connectors", "Misc"]] = [
         "Bots",
         "Collectors",
