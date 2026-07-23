@@ -439,12 +439,17 @@ class StoryView(BaseView):
             logger.warning(f"Failed to enrich share dialog: {exc}")
         except Exception as exc:
             logger.warning(f"Failed to enrich share dialog: {exc}")
-        return render_template(
-            "assess/story_sharing_dialog.html",
-            connectors=connectors,
-            story_ids=story_ids,
-            mail_sharing_link=mail_sharing_link,
-        )
+        context: dict[str, Any] = {
+            "connectors": connectors,
+            "story_ids": story_ids,
+            "mail_sharing_link": mail_sharing_link,
+        }
+        if not is_htmx_request():
+            context |= cls._common_context()
+            context["_show_sidebar"] = False
+            return render_template("assess/story_share.html", **context)
+
+        return render_template("assess/story_sharing_dialog.html", **context)
 
     @classmethod
     @auth_required()
@@ -456,6 +461,9 @@ class StoryView(BaseView):
         logger.debug(f"Submitting sharing dialog for story {story_ids} - {request.form}")
         connector_id = request.form.get("connector", "")
         if not connector_id:
+            if not is_htmx_request():
+                cls.add_flash_notification({"error": "No connector selected for sharing."})
+                return cls.redirect_htmx(url_for("assess.share_story", story_id=story_ids[0]))
             return make_response(cls.render_response_notification({"error": "No connector selected for sharing."}), 400)
 
         try:
@@ -466,8 +474,14 @@ class StoryView(BaseView):
             raise
         except Exception:
             logger.exception("Failed to share stories with connector.")
-            notification_html = cls.render_response_notification({"error": "Failed to share stories with connector."})
-            status_code = 500
+            if not is_htmx_request():
+                cls.add_flash_notification({"error": "Failed to share stories with connector."})
+                return cls.redirect_htmx(url_for("assess.story", story_id=story_ids[0]))
+            return make_response(cls.render_response_notification({"error": "Failed to share stories with connector."}), 500)
+
+        if not is_htmx_request():
+            cls.add_flash_notification(core_response)
+            return cls.redirect_htmx(url_for("assess.story", story_id=story_ids[0]))
 
         return make_response(notification_html, status_code)
 
@@ -510,6 +524,12 @@ class StoryView(BaseView):
         story_ids = request.args.getlist("story_ids")
         logger.debug(f"Opening report dialog for stories {story_ids}")
         reports = DataPersistenceLayer().get_objects(ReportItem)
+        if not is_htmx_request():
+            context: dict[str, Any] = {"reports": reports, "story_ids": story_ids}
+            context |= cls._common_context()
+            context["_show_sidebar"] = False
+            return render_template("assess/story_report.html", **context), 200
+
         target = "#assess"
         if StoryView._get_current_url_path() != url_for("assess.assess"):
             target = f"#story-{story_ids[0]}"
@@ -523,6 +543,10 @@ class StoryView(BaseView):
         report_id = request.form.get("report", "")
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
         notification_html = cls.get_notification_from_response(response)
+        if not is_htmx_request():
+            cls.add_flash_notification(response)
+            return cls.redirect_htmx(url_for("assess.story", story_id=story_ids[0]))
+
         if StoryView._get_current_url_path() == url_for("assess.assess"):
             return cls.rerender_list(notification=notification_html)
         else:
@@ -1384,6 +1408,10 @@ class StoryView(BaseView):
             return cls._validation_error_notification(exc, StoryUpdatePayload)
 
         response = CoreApi().api_patch(f"/assess/stories/{story_id}", json_data=story_update.model_dump(mode="json"))
+        if not is_htmx_request():
+            cls.add_flash_notification(response)
+            return cls.redirect_htmx(url_for("assess.story", story_id=story_id))
+
         notification_html = cls.get_notification_from_response(response)
 
         content = cls._get_action_response_content(story_id)
