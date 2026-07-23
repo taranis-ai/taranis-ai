@@ -45,10 +45,6 @@
   {% if stories %}
     {# djlint:off #}
     <form id="bookmark-selection-form"
-          hx-post="{{ url_for('assess.bookmark_remove_stories', bookmark_id=bookmark.id) }}"
-          hx-target="#bookmark-detail-container"
-          hx-swap="outerHTML"
-          hx-confirm="Remove selected stories from this bookmark collection?"
           x-data='{
             selectionRevision: 0,
             showHints: false,

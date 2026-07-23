@@ -109,7 +109,15 @@
 
         {% if bookmark_mode %}
           {{ story_status_actions(bookmark_mode=True) }}
-          <button type="submit" class="btn btn-outline btn-error btn-sm tooltip" data-tip="{{ _('Remove selected') }}" data-testid="bookmark-remove-selected">
+          <button type="button"
+                  class="btn btn-outline btn-error btn-sm tooltip"
+                  data-tip="{{ _('Remove selected') }}"
+                  hx-post="{{ url_for('assess.bookmark_remove_stories', bookmark_id=bookmark.id) }}"
+                  hx-target="#bookmark-detail-container"
+                  hx-swap="outerHTML"
+                  hx-include="#bookmark-selection-form"
+                  hx-confirm="Remove selected stories from this bookmark collection?"
+                  data-testid="bookmark-remove-selected">
             {{ heroicon_mini("x-mark") }}
             <span class="text-sm sr-only 2xl:not-sr-only">Remove selected</span>
           </button>
