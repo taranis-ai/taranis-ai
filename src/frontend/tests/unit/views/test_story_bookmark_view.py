@@ -283,7 +283,9 @@ def test_bookmark_detail_renders_stories_and_remove_selected(
         assert tree.xpath(f'//*[@data-testid="{action}"]')[0].get("hx-include") == "#bookmark-selection-form"
     for action_url in (url_for("assess.cluster_story"), url_for("assess.report_story")):
         assert tree.xpath(f'//*[@hx-get="{action_url}"]')[0].get("hx-include") == "#bookmark-selection-form"
-    assert selection_form.xpath('.//button[@type="submit" and @data-testid="bookmark-remove-selected"]')
+    remove_selected = selection_form.xpath('.//button[@type="button" and @data-testid="bookmark-remove-selected"]')[0]
+    assert remove_selected.get("hx-include") == "#bookmark-selection-form"
+    assert remove_selected.get("hx-confirm") == "Remove selected stories from this bookmark collection?"
     assert not tree.xpath('//*[@data-testid="bookmark-story"]')
     story_request = next(call for call in responses_mock.calls if urlparse(_request_url(call)).path.endswith("/assess/stories"))
     assert parse_qs(urlparse(_request_url(story_request)).query)["story_ids"] == ["story-1"]
