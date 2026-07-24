@@ -8,7 +8,7 @@
 {% set card_id = 'story-' ~ story_id %}
 {% set toggled_read = (not (story.read | default(false))) | tojson %}
 {% set toggled_important = (not (story.important | default(false))) | tojson %}
-{% set vote_endpoint = url_for('assess.story_update', story_id=story.id) %}
+{% set vote_endpoint = url_for('assess.story_update', story_id=story.id, bookmark_id=bookmark_id or None) %}
 {% set user_vote = story.user_vote or '' %}
 {% set like_active = user_vote == 'like' %}
 {% set dislike_active = user_vote == 'dislike' %}
@@ -57,9 +57,10 @@
             {{ heroicon_mini("check", class="h-4 w-4") }}
             <span>Save changes</span>
           </button>
-          <a href="{{ url_for('assess.story', story_id=story.id) }}" class="btn btn-sm btn-outline w-38">
+          <a href="{{ url_for('assess.bookmark', bookmark_id=bookmark_id) if bookmark_id else url_for('assess.story', story_id=story.id) }}"
+             class="btn btn-sm btn-outline w-38">
             {{ heroicon_mini("arrow-uturn-left", class="h-4 w-4") }}
-            <span>Return to story</span>
+            <span>{{ "Return to bookmark" if bookmark_id else "Return to story" }}</span>
           </a>
           <button type="button"
                   class="btn btn-outline btn-sm"
@@ -67,7 +68,7 @@
                   hx-get="{{ url_for('assess.report_story') }}"
                   hx-target="body"
                   hx-swap="beforeend"
-                  hx-vals='{"story_ids": "{{ story.id }}" }'
+                  hx-vals='{"story_ids": "{{ story.id }}"{% if bookmark_id %}, "bookmark_id": "{{ bookmark_id }}"{% endif %} }'
                   data-testid="share-story-to-report">
             {{ heroicon_mini("document-chart-bar") }}
             <span class="text-sm">Add to Report</span>
@@ -76,8 +77,10 @@
             </span>
           </button>
           <div class="join">
-            <a href="?layout=advanced" class="btn btn-sm join-item btn-outline {% if layout == 'advanced' %}btn-info btn-active{% endif %}">Advanced</a>
-            <a href="?layout=simple" class="btn btn-sm join-item btn-outline {% if layout == 'simple' %}btn-info btn-active{% endif %}">Simple</a>
+            <a href="{{ url_for('assess.story_edit', story_id=story.id, layout='advanced', bookmark_id=bookmark_id or None) }}"
+               class="btn btn-sm join-item btn-outline {% if layout == 'advanced' %}btn-info btn-active{% endif %}">Advanced</a>
+            <a href="{{ url_for('assess.story_edit', story_id=story.id, layout='simple', bookmark_id=bookmark_id or None) }}"
+               class="btn btn-sm join-item btn-outline {% if layout == 'simple' %}btn-info btn-active{% endif %}">Simple</a>
           </div>
           {{ story_edit_actions(story) }}
         </div>

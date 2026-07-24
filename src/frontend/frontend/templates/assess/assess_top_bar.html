@@ -1,4 +1,36 @@
+{% macro story_status_actions(in_dropdown=False, bookmark_mode=False) %}
+  <button type="button"
+          class="btn btn-outline btn-sm tooltip {{ 'w-full join-item' if in_dropdown else '' }}"
+          hx-trigger="click, keyup[shiftKey && code == 'Space' && canUseAssessShortcut(event)] from:body"
+          hx-post="{{ url_for('assess.bulk_action') }}"
+          {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
+          :hx-vals='action_vals("read", !selectedItemsAreRead())'
+          :data-tip="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"
+          data-testid="bulk-toggle-read">
+    {{ heroicon_mini("eye") }}
+    <span class="text-sm sr-only 2xl:not-sr-only" x-text="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"></span>
+    <span class="text-xs opacity-80" x-show="showHints">
+      <kbd class="kbd kbd-xs">Shift+Space</kbd>
+    </span>
+  </button>
 
+  <button type="button"
+          class="btn btn-outline btn-sm tooltip {{ 'w-full join-item' if in_dropdown else '' }}"
+          hx-trigger="click, keyup[shiftKey && key == 'I' && canUseAssessShortcut(event)] from:body"
+          hx-post="{{ url_for('assess.bulk_action') }}"
+          {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
+          :hx-vals='action_vals("important", !selectedItemsAreImportant())'
+          :data-tip="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"
+          data-testid="bulk-toggle-important">
+    {{ heroicon_mini("star") }}
+    <span class="text-sm sr-only 2xl:not-sr-only" x-text="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"></span>
+    <span class="text-xs" x-show="showHints">
+      <kbd class="kbd kbd-xs">Shift+I</kbd>
+    </span>
+  </button>
+{% endmacro %}
+
+{% set bookmark_mode = bookmark is defined and bookmark %}
 <div class="sticky z-10 mb-4"
      style="top: calc(var(--app-header-height) + var(--viewport-warning-height))"
      @keydown.shift.window="showHints = true"
@@ -22,7 +54,11 @@
             :aria-hidden="(selectedItems.length !== 1).toString()">Select one more to cluster</span>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <div class="flex flex-wrap items-center gap-2" x-show="selectedItems.length" x-transition.opacity hx-target="#assess" hx-swap="outerHTML">
+      <div class="flex flex-wrap items-center gap-2"
+           x-show="selectedItems.length"
+           x-transition.opacity
+           hx-target="{{ '#bookmark-detail-container' if bookmark_mode else '#assess' }}"
+           hx-swap="outerHTML">
         <button type="button"
                 class="btn btn-outline btn-sm tooltip"
                 x-show="selectedItems.length === 1"
@@ -46,6 +82,7 @@
                 hx-get="{{ url_for('assess.cluster_story') }}"
                 hx-target="body"
                 hx-swap="beforeend"
+                {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% endif %}
                 :hx-vals='action_vals()'>
           {{ heroicon_mini("rectangle-group") }}
           <span class="text-sm sr-only 2xl:not-sr-only">Cluster</span>
@@ -61,6 +98,7 @@
                 hx-target="body"
                 hx-swap="beforeend"
                 :data-tip="selectedItems.length > 1 ? 'Add selected stories to report' : 'Add selected story to report'"
+                {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% endif %}
                 :hx-vals='action_vals()'>
           {{ heroicon_mini("document-chart-bar") }}
           <span class="text-sm sr-only 2xl:not-sr-only">Add to Report</span>
@@ -69,65 +107,53 @@
           </span>
         </button>
 
-        <button type="button"
-                class="btn btn-outline btn-sm tooltip"
-                hx-trigger="click, keyup[shiftKey && key == 'B' && canUseAssessShortcut(event)] from:body"
-                hx-get="{{ url_for('assess.bookmark_story') }}"
-                hx-target="body"
-                hx-swap="beforeend"
-                :data-tip="selectedItems.length > 1 ? 'Bookmark selected stories' : 'Bookmark selected story'"
-                :hx-vals='action_vals()'>
-          {{ heroicon_mini("bookmark") }}
-          <span class="text-sm sr-only 2xl:not-sr-only">Bookmark</span>
-          <span class="text-xs opacity-80" x-show="showHints">
-            <kbd class="kbd kbd-xs">Shift+B</kbd>
-          </span>
-        </button>
-
-        <div class="dropdown dropdown-end">
+        {% if bookmark_mode %}
+          {{ story_status_actions(bookmark_mode=True) }}
+          <button type="button"
+                  class="btn btn-outline btn-error btn-sm tooltip"
+                  data-tip="{{ _('Remove selected') }}"
+                  hx-post="{{ url_for('assess.bookmark_remove_stories', bookmark_id=bookmark.id) }}"
+                  hx-target="#bookmark-detail-container"
+                  hx-swap="outerHTML"
+                  hx-include="#bookmark-selection-form"
+                  hx-confirm="Remove selected stories from this bookmark collection?"
+                  data-testid="bookmark-remove-selected">
+            {{ heroicon_mini("x-mark") }}
+            <span class="text-sm sr-only 2xl:not-sr-only">Remove selected</span>
+          </button>
+        {% else %}
           <button type="button"
                   class="btn btn-outline btn-sm tooltip"
-                  role="button"
-                  aria-haspopup="true"
-                  aria-label="Additional Story actions"
-                  tabindex="0"
-                  data-tip="{{ _('Actions') }}"
-                  data-testid="assess-tob-bar-actions-menu">
-            {{ heroicon_mini("ellipsis-horizontal") }}
-            <span class="sr-only 2xl:not-sr-only">Actions</span>
+                  hx-trigger="click, keyup[shiftKey && key == 'B' && canUseAssessShortcut(event)] from:body"
+                  hx-get="{{ url_for('assess.bookmark_story') }}"
+                  hx-target="body"
+                  hx-swap="beforeend"
+                  :data-tip="selectedItems.length > 1 ? 'Bookmark selected stories' : 'Bookmark selected story'"
+                  :hx-vals='action_vals()'>
+            {{ heroicon_mini("bookmark") }}
+            <span class="text-sm sr-only 2xl:not-sr-only">Bookmark</span>
+            <span class="text-xs opacity-80" x-show="showHints">
+              <kbd class="kbd kbd-xs">Shift+B</kbd>
+            </span>
           </button>
-          <div class="dropdown-content mt-2 w-48 rounded-box bg-base-100 p-2 shadow" tabindex="0">
-            <div class="join join-vertical w-full">
-              <button type="button"
-                      class="btn btn-outline btn-sm tooltip"
-                      hx-trigger="click, keyup[shiftKey && code == 'Space' && canUseAssessShortcut(event)] from:body"
-                      hx-post="{{ url_for('assess.bulk_action') }}"
-                      hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"
-                      :hx-vals='action_vals("read", !selectedItemsAreRead())'
-                      :data-tip="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'">
-                {{ heroicon_mini("eye") }}
-                <span class="text-sm sr-only 2xl:not-sr-only" x-text="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"></span>
-                <span class="text-xs opacity-80" x-show="showHints">
-                  <kbd class="kbd kbd-xs">Shift+Space</kbd>
-                </span>
-              </button>
 
-              <button type="button"
-                      class="btn btn-outline btn-sm tooltip"
-                      hx-trigger="click, keyup[shiftKey && key == 'I' && canUseAssessShortcut(event)] from:body"
-                      hx-post="{{ url_for('assess.bulk_action') }}"
-                      hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"
-                      :hx-vals='action_vals("important", !selectedItemsAreImportant())'
-                      :data-tip="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'">
-                {{ heroicon_mini("star") }}
-                <span class="text-sm sr-only 2xl:not-sr-only" x-text="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"></span>
-                <span class="text-xs" x-show="showHints">
-                  <kbd class="kbd kbd-xs">Shift+I</kbd>
-                </span>
-              </button>
+          <div class="dropdown dropdown-end">
+            <button type="button"
+                    class="btn btn-outline btn-sm tooltip"
+                    role="button"
+                    aria-haspopup="true"
+                    aria-label="Additional Story actions"
+                    tabindex="0"
+                    data-tip="{{ _('Actions') }}"
+                    data-testid="assess-tob-bar-actions-menu">
+              {{ heroicon_mini("ellipsis-horizontal") }}
+              <span class="sr-only 2xl:not-sr-only">Actions</span>
+            </button>
+            <div class="dropdown-content mt-2 w-48 rounded-box bg-base-100 p-2 shadow" tabindex="0">
+              <div class="join join-vertical w-full">{{ story_status_actions(in_dropdown=True) }}</div>
             </div>
           </div>
-        </div>
+        {% endif %}
 
       </div>
       <div class="flex flex-wrap items-center gap-2" x-show="!selectedItems.length" x-cloak>

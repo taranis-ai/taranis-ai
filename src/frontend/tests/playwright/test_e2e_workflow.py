@@ -17,7 +17,12 @@ class TestUserWorkflow(BaseE2ETest):
         self.assert_dashboard_sections_visible(page, ["Assess", "Analyze", "Publish", "Connectors"])
         assert page.get_by_role("link", name="Administration").count() == 0
 
-    def test_instance_setup(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, fake_source):
+    def test_instance_setup(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin: None,
+        fake_source: str,
+    ):
         page = non_admin_logged_in_page
         self.navigate_to_assess(page)
         expect(page.get_by_test_id("assess")).to_be_visible()
@@ -69,8 +74,8 @@ class TestUserWorkflow(BaseE2ETest):
     def test_story_bookmarks(
         self,
         non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
-        stories_date_descending: list,
+        forward_console_and_page_errors_non_admin: None,
+        stories_date_descending: list[str],
     ):
         page = non_admin_logged_in_page
         bookmark_name = f"E2E Bookmark {uuid4()}"
@@ -99,7 +104,10 @@ class TestUserWorkflow(BaseE2ETest):
         for story_id in selected_story_ids:
             expect(page.get_by_test_id(f"story-card-{story_id}")).to_be_visible()
 
-        self.highlight_element(page.get_by_test_id(f"story-card-{selected_story_ids[0]}"), scroll=False).click()
+        selected_card = page.get_by_test_id(f"story-card-{selected_story_ids[0]}")
+        self.highlight_element(selected_card, scroll=False).click()
+        expect(selected_card).to_have_attribute("aria-selected", "true")
+        assert "bg-primary/5" in (selected_card.get_attribute("class") or "")
         self.highlight_element(page.get_by_test_id("bookmark-remove-selected")).click()
         confirm_button = page.locator(".swal2-container .swal2-confirm")
         expect(confirm_button).to_be_visible()
@@ -119,9 +127,9 @@ class TestUserWorkflow(BaseE2ETest):
     def test_assess(
         self,
         non_admin_logged_in_page: Page,
-        forward_console_and_page_errors_non_admin,
-        stories_date_descending_not_important: list,
-        stories_date_descending_important: list,
+        forward_console_and_page_errors_non_admin: None,
+        stories_date_descending_not_important: list[str],
+        stories_date_descending_important: list[str],
     ):
         def mark_story_as_read(story_id: str):
             story_card = page.get_by_test_id(f"story-card-{story_id}")
@@ -167,7 +175,7 @@ class TestUserWorkflow(BaseE2ETest):
             reset_story_filters()
             set_story_filters(read="false", important="false")
 
-        def assess_workflow_1(non_important_story_ids):
+        def assess_workflow_1(non_important_story_ids: list[str]):
             # Check summary and mark as read
             assert len(non_important_story_ids) == 28
 
@@ -207,7 +215,7 @@ class TestUserWorkflow(BaseE2ETest):
                 print(f"Marking story {non_important_story_ids[i]} as read AND is {i}/28")
                 mark_story_as_read(non_important_story_ids[i])
 
-        def assess_workflow_2(important_story_ids):
+        def assess_workflow_2(important_story_ids: list[str]):
             set_story_filters(important="true")
 
             # Show/unshow details of all stories
@@ -273,12 +281,14 @@ class TestUserWorkflow(BaseE2ETest):
         assess_workflow_1(stories_date_descending_not_important)
         assess_workflow_2(stories_date_descending_important)
 
-    def test_reports(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_date_descending: list):
+    def test_reports(
+        self,
+        non_admin_logged_in_page: Page,
+        forward_console_and_page_errors_non_admin: None,
+        stories_date_descending: list[str],
+    ):
         def go_to_analyze():
             self.navigate_to_analyze(page)
-
-        def go_to_assess():
-            self.navigate_to_assess(page)
 
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
@@ -314,7 +324,7 @@ class TestUserWorkflow(BaseE2ETest):
             self.highlight_element(page.get_by_test_id("share-to-report-dialog-button")).click()
             page.keyboard.press("Escape")
 
-        def modify_report_1(stories_date_descending):
+        def modify_report_1(stories_date_descending: list[str]):
             self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
             self.expect_list_of_test_ids_visible(page, [f"story-link-{story_id}" for story_id in stories_date_descending])
             self.highlight_element(page.get_by_placeholder("Date"), scroll=False).fill("17/3/2024")
@@ -358,18 +368,6 @@ class TestUserWorkflow(BaseE2ETest):
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/report_item_view.png")
 
-        def check_reports_items_by_tag():
-            self.highlight_element(page.get_by_role("button", name="reset filter")).click()
-            self.highlight_element(page.get_by_label("Tags", exact=True)).click()
-            self.highlight_element(page.get_by_label("Tags", exact=True)).fill("test")
-            self.short_sleep(0.5)
-            self.highlight_element(page.get_by_text("Test Report").last).click()
-            page.get_by_test_id("all-stories-div").click()
-            page.keyboard.press("Control+A")
-            self.short_sleep(duration=1)
-            page.keyboard.press("Control+Space")
-            self.short_sleep(duration=1)
-
         #           Run test
         # ============================
 
@@ -394,7 +392,7 @@ class TestUserWorkflow(BaseE2ETest):
         # go_to_assess()
         # check_reports_items_by_tag()
 
-    def test_e2e_publish(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin):
+    def test_e2e_publish(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin: None):
         page = non_admin_logged_in_page
 
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()

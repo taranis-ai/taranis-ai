@@ -2,7 +2,9 @@
 {% set detail_view = detail_view | default(true) %}
 
 {% if story %}
-  <div x-data='{ isSelected(id) { return false; } }' class="p-8">{{ story_card(story, detail_view=detail_view) }}</div>
+  <div x-data='{ isSelected(id) { return false; } }' class="p-8">
+    {{ story_card(story, detail_view=detail_view, show_bookmark=show_bookmark | default(True) , bookmark_id=bookmark_id | default(None)) }}
+  </div>
 {% else %}
   {% include "partials/404.html" %}
 {% endif %}

@@ -40,6 +40,7 @@
             });
           ">
       <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+      {% if bookmark_id %}<input type="hidden" name="bookmark_id" value="{{ bookmark_id }}">{% endif %}
     {# djlint: on#}
     <div class="sortable" id="sortable-container">
       {% for story in stories %}
@@ -65,7 +66,7 @@
       <button type="button"
               class="btn btn-outline w-1/2"
               hx-post="{{ url_for('assess.submit_cluster_story') }}"
-              hx-target="#assess"
+              hx-target="{{ target | default('#assess') }}"
               hx-include="#sortable-form"
               hx-on::after-request="document.getElementById('story_grouping_dialog').close()"
               data-testid="dialog-story-cluster-submit">Cluster</button>

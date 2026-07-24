@@ -6,6 +6,7 @@ from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.collectors.playwright_manager import PlaywrightManager
+from worker.config import Config
 from worker.log import logger
 
 
@@ -71,7 +72,8 @@ class SimpleWebCollector(BaseWebCollector):
         return [self.news_item_from_article(self.web_url, self.xpath)]
 
     def web_collector(self, source: dict, manual: bool = False):
-        response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
+        with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
+            response = session.head(self.web_url, headers=self.headers, proxies=self.proxies, timeout=30)
 
         if response.status_code == 429:
             raise requests.exceptions.HTTPError(f"{self.web_url} returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")

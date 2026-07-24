@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     CENTRIFUGO_CONNECT_PROXY_SECRET: SecretStr = SecretStr("centrifugo-connect-proxy-secret")
     CENTRIFUGO_ALLOWED_ORIGINS: str = "http://localhost:8080"
     DISABLE_SCHEDULER: bool = False
-    TARANIS_SENTRY_DSN: str | None = None
+    TARANIS_CORE_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False
     SENTRY_SEND_DEFAULT_PII: bool = False
     SENTRY_ENABLE_DB_QUERY_SOURCE: bool = False

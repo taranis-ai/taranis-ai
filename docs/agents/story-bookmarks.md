@@ -17,6 +17,16 @@ The Assess page shows a compact bookmark bar with up to six collections ordered 
 
 Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark` action because those stories are already in a bookmark collection.
 
+Bookmark detail views also reuse the Assess selection hotkey bar except for `Shift+B`. Bookmark actions re-render the bookmark detail instead of navigating back to Assess, Read/Important actions stay at the top level alongside Remove selected, and story cards expose Read, Important, and In Reports state even when the user's compact-card preference is enabled. The clustering dialog still offers `Cluster and Open`; choosing it intentionally navigates to the resulting primary story.
+
+Selecting a Bookmark story card checks its native `story_ids` input and updates both the selection count and the card's selected styling (`aria-selected`, primary background/border, and shadow). Bookmark actions submit those checked inputs directly; JavaScript only adapts the HTML-backed selection to the shared Assess toolbar interface. Assess and Bookmark use the same card-state synchronizer so their selected cards cannot diverge visually.
+
+Per-card Ungroup requests carry the bookmark ID and re-render the current collection for both success and error responses. Core rejects ungrouping stories assigned to reports, so Bookmark must show that error without redirecting to Assess.
+
+Story editor actions that replace the editor in place, including Like and Dislike, carry the bookmark ID so the replacement keeps its Return to bookmark link and Bookmark-aware Save action.
+
+When an eligible bookmarked story is ungrouped, core replaces its bookmark relationship with relationships to the newly created standalone stories in the same transaction. If a partial ACL-limited ungroup leaves the source story non-empty, bookmarks retain it alongside the accessible new stories.
+
 ## Code Paths
 
 - Core API: `src/core/core/api/assess.py`
@@ -34,6 +44,7 @@ Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark
   - `StoryBookmarkStoryPayload`
   - `StoryBookmark`
 - Frontend views: `src/frontend/frontend/views/story_bookmark_views.py`, `src/frontend/frontend/views/story_views.py`
+- Frontend selection adapter: `src/frontend/frontend/templates/bookmarks/bookmark_detail.html`
 - Frontend routes: `src/frontend/frontend/router/assess.py`
 - Templates: `src/frontend/frontend/templates/bookmarks/`, `src/frontend/frontend/templates/assess/bookmarks_bar.html`, `src/frontend/frontend/templates/assess/story_actions.html`
 - Tests:
@@ -49,6 +60,10 @@ Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark
 Users reorder bookmark collections on `/bookmarks` by dragging cards. The frontend posts the ordered `bookmark_ids` list to `/assess/bookmarks/order`; core scopes the IDs to the current user and persists zero-based `position` values.
 
 Bookmark mutations in the frontend call core through `CoreApi()`, then invalidate the local bookmark cache so list/detail views and the Assess bar can refresh with current data.
+
+Bulk story actions, report additions, and clustering carry `bookmark_id` through their existing Assess dialogs and endpoints. `StoryView.rerender_list()` uses that value to render the current bookmark detail and preserve selected visible story IDs.
+
+Bookmark detail uses the bookmark's ordered story IDs to query the canonical Assess story collection before rendering cards. Do not render directly from the bookmark's embedded `stories` payload because it does not carry Assess-only enrichment such as `in_reports_count`.
 
 The instant bookmark path first looks up the earliest collection, then falls back to creating `Bookmarks` in core if the user has none. The modal flow posts selected story IDs to the existing add-stories endpoint.
 
@@ -68,4 +83,6 @@ The instant bookmark path first looks up the earliest collection, then falls bac
 - Keep cache invalidation after bookmark reorder or the Assess bar and bookmark list can render stale positions.
 - The Assess bookmark bar is intentionally capped at six items; do not broaden it without an explicit UI change.
 - Keep the Assess `Shift+B` bookmark shortcut guarded by `canUseAssessShortcut`; typing uppercase letters in bookmark dialogs must not reopen toolbar modals.
+- Do not add `Shift+B` to the bookmark detail hotkey bar, and keep its Read and Important actions outside the overflow Actions menu.
+- Keep Bookmark selection HTML-backed: checked `story_ids` inputs are the request source of truth, not a separate JavaScript selection store.
 - Prefer `data-testid` selectors when adding e2e coverage for bookmark behavior.

@@ -31,6 +31,23 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
     assert str(exception.value) == "404 Client Error: None for url: https://test.org/404"
 
 
+@pytest.mark.parametrize("disable_http3", [False, True])
+def test_base_web_collector_http3_config(base_web_collector_mock, base_web_collector, monkeypatch, disable_http3):
+    session_class = requests.Session
+    session_options = []
+
+    def create_session(**kwargs):
+        session_options.append(kwargs)
+        return session_class(**kwargs)
+
+    monkeypatch.setattr(Config, "DISABLE_HTTP3", disable_http3)
+    monkeypatch.setattr(requests, "Session", create_session)
+
+    base_web_collector.send_get_request("https://test.org/200")
+
+    assert session_options == [{"disable_http3": disable_http3}]
+
+
 def test_rss_collector(rss_collector_mock, rss_collector):
     from tests.testdata import rss_collector_source_data
 

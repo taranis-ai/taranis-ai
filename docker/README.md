@@ -108,7 +108,7 @@ Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import j
 
 ## Advanced monitoring
 
-Taranis AI supports advanced monitoring of `ingress`, `core` and `database` using [Sentry](https://docs.sentry.io/). It can be enabled by setting respective `SENTRY_DSN` environment variables described below.
+Taranis AI supports advanced monitoring of `core` and `frontend` using [Sentry](https://docs.sentry.io/). Leave the service-specific Sentry DSN variables unset to disable it.
 
 ## Advanced build methods
 
@@ -167,7 +167,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `CENTRIFUGO_API_KEY`          | Dedicated Centrifugo HTTP API key          | none          |
 | `CENTRIFUGO_CONNECT_PROXY_SECRET` | Dedicated connect-proxy shared secret  | none          |
 | `CENTRIFUGO_ALLOWED_ORIGINS`  | Space-separated exact browser origins     | `http://localhost:8080` |
-| `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
+| `TARANIS_CORE_SENTRY_DSN`     | Core Sentry DSN                            | `''`          |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
 
@@ -185,6 +185,7 @@ All other Centrifugo server behavior is configured through native `CENTRIFUGO_*`
 | `TARANIS_CORE_HOST`*    | Hostname and Port of the Taranis AI core   | `core:8080`                 |
 | `API_KEY`               | API Key for communication with core        | `supersecret`               |
 | `REDIS_URL`             | Redis connection URL                       | `redis://redis:6379`        |
+| `DISABLE_HTTP3`         | Disable HTTP/3 for web-based collectors    | `False`                     |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 
 
@@ -197,6 +198,7 @@ All other Centrifugo server behavior is configured through native `CENTRIFUGO_*`
 | `TARANIS_BASE_PATH`     | Deployment path used to scope authentication cookies | `/`              |
 | `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
 | `REALTIME_ENABLED`      | Open the authenticated same-origin EventSource | `false`                  |
+| `TARANIS_FRONTEND_SENTRY_DSN` | Frontend Sentry DSN                        | `''`                         |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 | `GRANIAN_WORKERS_MAX_RSS` | Per-worker Granian RSS recycle limit in MiB | `1024`       |
 
