@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/vendor.bundle.css') }}">
 
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/realtime.js') }}" defer></script>
     <meta name="htmx-config"
           content='{"selfRequestsOnly": false, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "400", "swap": true, "error": true}, {"code": "[45]..", "swap": false, "error": true}, {"code": "...", "swap": false}]}' />
     {% block head %}
@@ -23,6 +24,8 @@
         data-confirm-ok="{{ _('OK') }}"
         data-confirm-delete="{{ _('Delete') }}"
         data-confirm-cancel="{{ _('Cancel') }}"
+        data-realtime-enabled="{{ 'true' if config['REALTIME_ENABLED'] and request.cookies.get(config['JWT_ACCESS_COOKIE_NAME']) else 'false' }}"
+        data-realtime-url="{{ config['TARANIS_BASE_PATH'] }}sse"
         hx-ext="response-targets"
         x-data="{ sidebarOpen: {{ 'true' if _show_sidebar and templates and templates.get('sidebar_template') else 'false' }}, init() { if (window.self !== window.top) this.sidebarOpen = false } }">
     {% include "partials/viewport_notice.html" %}

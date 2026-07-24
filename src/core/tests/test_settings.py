@@ -96,6 +96,17 @@ def test_skip_initial_user_onboarding_from_env(monkeypatch):
     assert settings.SKIP_INITIAL_USER_ONBOARDING is True
 
 
+def test_realtime_secrets_must_be_distinct_when_enabled():
+    with pytest.raises(ValidationError, match="must be distinct"):
+        Settings(
+            REALTIME_ENABLED=True,
+            API_KEY=SecretStr("shared-secret"),
+            JWT_SECRET_KEY="jwt-secret",
+            CENTRIFUGO_API_KEY=SecretStr("shared-secret"),
+            CENTRIFUGO_CONNECT_PROXY_SECRET=SecretStr("connect-secret"),
+        )
+
+
 def test_core_sentry_dsn_is_read_from_settings():
     settings = Settings(TARANIS_CORE_SENTRY_DSN="https://core@example.invalid/2")
 

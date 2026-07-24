@@ -78,8 +78,11 @@ class Settings(BaseSettings):
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
     DATA_FOLDER: str = "./taranis_data"  # When started with Docker, the path is /app/data
-    SSE_URL: str = "http://sse:8088/publish"
-    DISABLE_SSE: bool = False
+    REALTIME_ENABLED: bool = False
+    CENTRIFUGO_API_URL: str = "http://centrifugo:9000"
+    CENTRIFUGO_API_KEY: SecretStr = SecretStr("centrifugo-api-key")
+    CENTRIFUGO_CONNECT_PROXY_SECRET: SecretStr = SecretStr("centrifugo-connect-proxy-secret")
+    CENTRIFUGO_ALLOWED_ORIGINS: str = "http://localhost:8080"
     DISABLE_SCHEDULER: bool = False
     TARANIS_CORE_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False
@@ -116,6 +119,22 @@ class Settings(BaseSettings):
             update_payload["pool_recycle"] = self.SQLALCHEMY_POOL_RECYCLE
         self.SQLALCHEMY_ENGINE_OPTIONS.update(update_payload)
         object.__setattr__(self, "SQLALCHEMY_DATABASE_URI_MASK", mask_db_uri(self.SQLALCHEMY_DATABASE_URI))
+        return self
+
+    @model_validator(mode="after")
+    def validate_realtime_settings(self) -> "Settings":
+        if not self.REALTIME_ENABLED:
+            return self
+
+        api_key = self.CENTRIFUGO_API_KEY.get_secret_value()
+        proxy_secret = self.CENTRIFUGO_CONNECT_PROXY_SECRET.get_secret_value()
+        if not api_key or not proxy_secret:
+            raise ValueError("Centrifugo API and connect proxy secrets must be non-empty")
+        existing_secrets = {self.API_KEY.get_secret_value(), self.JWT_SECRET_KEY}
+        if api_key == proxy_secret or api_key in existing_secrets or proxy_secret in existing_secrets:
+            raise ValueError("Centrifugo secrets must be distinct from each other and existing application secrets")
+        if not self.CENTRIFUGO_ALLOWED_ORIGINS.split():
+            raise ValueError("CENTRIFUGO_ALLOWED_ORIGINS must contain at least one exact origin")
         return self
 
     TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "dev"] = "database"

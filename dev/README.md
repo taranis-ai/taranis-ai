@@ -82,7 +82,7 @@ Start support services via the dev compose file
 docker compose -f dev/compose.yml up -d
 ```
 
-This starts local Redis without authentication on `localhost:${TARANIS_REDIS_PORT:-6379}`.
+This starts local Redis without authentication and a pinned Centrifugo instance bound to loopback for the local core and NGINX processes.
 Queue state is not persisted across local Redis restarts in this dev setup.
 
 Setup nginx.

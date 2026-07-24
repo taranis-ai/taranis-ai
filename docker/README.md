@@ -162,9 +162,19 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `DB_PASSWORD`                 | PostgreSQL database password               | `supersecret` |
 | `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
 | `JWT_COOKIE_SUFFIX`           | Literal suffix for JWT and CSRF cookie names | `''`        |
+| `REALTIME_ENABLED`            | Enable Centrifugo publication and browser connections | `false` |
+| `CENTRIFUGO_API_URL`          | Cluster-internal Centrifugo HTTP API URL   | `http://centrifugo:9000` |
+| `CENTRIFUGO_API_KEY`          | Dedicated Centrifugo HTTP API key          | none          |
+| `CENTRIFUGO_CONNECT_PROXY_SECRET` | Dedicated connect-proxy shared secret  | none          |
+| `CENTRIFUGO_ALLOWED_ORIGINS`  | Space-separated exact browser origins     | `http://localhost:8080` |
 | `TARANIS_CORE_SENTRY_DSN`     | Core Sentry DSN                            | `''`          |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
+
+`CENTRIFUGO_API_KEY` and `CENTRIFUGO_CONNECT_PROXY_SECRET` must be non-empty and distinct from each other, `API_KEY`, and `JWT_SECRET_KEY`.
+
+The Centrifugo service also reads `CENTRIFUGO_REDIS_URL` directly; core does not.
+All other Centrifugo server behavior is configured through native `CENTRIFUGO_*` environment variables; no configuration file or runtime config volume is required.
 
 ### `worker`
 
@@ -187,6 +197,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `JWT_COOKIE_SUFFIX`     | Literal suffix for JWT and CSRF cookie names | `''`                      |
 | `TARANIS_BASE_PATH`     | Deployment path used to scope authentication cookies | `/`              |
 | `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
+| `REALTIME_ENABLED`      | Open the authenticated same-origin EventSource | `false`                  |
 | `TARANIS_FRONTEND_SENTRY_DSN` | Frontend Sentry DSN                        | `''`                         |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 | `GRANIAN_WORKERS_MAX_RSS` | Per-worker Granian RSS recycle limit in MiB | `1024`       |
