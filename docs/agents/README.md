@@ -23,6 +23,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Story Bookmarks](story-bookmarks.md) - bookmark collections, the Assess bookmark bar, instant single-story bookmarking, and bookmark cache invalidation.
 - [Worker Task Notifications](worker-task-notifications.md) - frontend notifications for worker-backed actions when tasks are queued but no workers are connected.
 - [Authentication Cookies](authentication-cookies.md) - JWT/CSRF cookie names, deployment suffixes, base-path scoping, and auth cookie consumers.
+- [Realtime Events](realtime-events.md) - Centrifugo SSE transport, connect-proxy authentication, event publishing, frontend recovery, and deployment configuration.
 - [Public Product Publishing](public-product-publishing.md) - Taranis publisher presets, persistent report files, and unauthenticated public report URLs.
 
 ## File Format

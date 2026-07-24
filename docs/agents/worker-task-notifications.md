@@ -4,13 +4,13 @@
 Worker-backed frontend actions, task queue notifications, OSINT source collect, bot execute, word-list gather, product render, product publish, `/health`, and no-worker warning behavior.
 
 ## Expected Behavior
-Worker-backed actions still report queue success when core accepts the job. If core health reports `workers: down`, the frontend shows a warning that the task was queued but may not be processed until a worker starts. Final task failures are not pushed into that enqueue notification, but persisted task/status views reflect actual RQ-level failures such as exceptions, timeouts, and killed workhorses. For user-triggered runs, the persisted task row also carries the authenticated `user_id`; scheduler-driven runs leave it empty.
+Worker-backed actions still report queue success when core accepts the job. If core health reports `workers: down`, the frontend shows a warning that the task was queued but may not be processed until a worker starts. Final task failures are not pushed into that enqueue notification, but persisted task/status views reflect actual RQ-level failures such as exceptions, timeouts, and killed workhorses. For user-triggered runs, the persisted task row also carries the authenticated `user_id`; scheduler-driven runs leave it empty. A successful user-triggered presenter result also publishes a user-scoped `product.rendered` realtime event after the render has been committed.
 
 ## Code Paths
 Frontend notification handling lives in `frontend.views.base_view.BaseView.render_worker_task_notification`. Core health is read through `frontend.data_persistence.DataPersistenceLayer.get_core_health`.
 
 ## Data Flow
-The frontend posts the worker-backed action to core. On a successful response, it reads cached `/health`; only `services.workers == "down"` changes the notification from success to warning. Core includes the authenticated user in the queued job metadata for manual runs, and worker-side task persistence copies that onto the task row. Separately, core stores synthetic task failures from worker-level RQ hooks when a job dies before task code can call `save_task_result(...)`, and from the background reconciler when a run is missed or stalls before any worker-side persistence can happen.
+The frontend posts the worker-backed action to core. On a successful response, it reads cached `/health`; only `services.workers == "down"` changes the notification from success to warning. Core includes the authenticated user in the queued job metadata for manual runs, and worker-side task persistence copies that onto the task row. For successful presenter tasks, core stores the rendered product and then attempts a bounded user-scoped realtime notification; notification failure never changes the task result. Separately, core stores synthetic task failures from worker-level RQ hooks when a job dies before task code can call `save_task_result(...)`, and from the background reconciler when a run is missed or stalls before any worker-side persistence can happen.
 
 ## Testing
 Use `cd src/frontend && uv run pytest tests/unit/views/test_worker_task_notifications.py` for focused coverage.

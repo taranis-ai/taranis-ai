@@ -7,7 +7,9 @@ config:
   granianPort: "8080"
   taranisBasePath: /
   jwtCookieSuffix: ""
-  ssePath: /sse
+  realtimeEnabled: "true"
+  centrifugoApiUrl: http://centrifugo:9000
+  centrifugoAllowedOrigins: https://CHANGE_ME_INGRESS_HOSTNAME
   taranisPort: "8080"
   requestsTimeout: "600"
   sqlalchemyPoolTimeout: "3600"
@@ -22,6 +24,8 @@ config:
 secrets:
   jwtSecretKey: CHANGE_ME_LONG_RANDOM_JWT_SECRET
   apiKey: CHANGE_ME_CORE_API_KEY
+  centrifugoApiKey: CHANGE_ME_CENTRIFUGO_API_KEY
+  centrifugoConnectProxySecret: CHANGE_ME_CENTRIFUGO_CONNECT_PROXY_SECRET
   botApiKey: CHANGE_ME_BOT_API_KEY
   preSeedPasswordAdmin: CHANGE_ME_ADMIN_PASSWORD
   preSeedPasswordUser: CHANGE_ME_DEFAULT_USER_PASSWORD
@@ -34,6 +38,7 @@ database:
 
 redis:
   url: redis://CHANGE_ME_REDIS_HOSTNAME:6379/0
+  realtimeUrl: redis://:CHANGE_ME_REDIS_PASSWORD@CHANGE_ME_REDIS_HOSTNAME:6379/0
   password: CHANGE_ME_REDIS_PASSWORD
 
 storage:
@@ -69,9 +74,9 @@ images:
   frontend:
     repository: ghcr.io/taranis-ai/taranis-frontend
     tag: latest
-  sse:
-    repository: ghcr.io/taranis-ai/sse-broker
-    tag: latest
+  centrifugo:
+    repository: centrifugo/centrifugo
+    tag: v6.9.1
   ingress:
     repository: ghcr.io/taranis-ai/taranis-ingress
     tag: latest
@@ -91,7 +96,7 @@ images:
 replicas:
   core: 1
   frontend: 1
-  sse: 1
+  centrifugo: 1
   ingress: 1
   collector: 1
   worker: 1
@@ -115,7 +120,7 @@ resources:
     requests:
       cpu: "1"
       memory: 512Mi
-  sse:
+  centrifugo:
     limits:
       cpu: "2"
       memory: 2Gi

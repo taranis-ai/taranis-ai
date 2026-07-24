@@ -3,12 +3,16 @@ config:
   granianHost: CHANGE_ME_BIND_HOST
   taranisBasePath: "/"
   jwtCookieSuffix: ""
-  ssePath: "/sse"
+  realtimeEnabled: "true"
+  centrifugoApiUrl: http://centrifugo:9000
+  centrifugoAllowedOrigins: https://CHANGE_ME_INGRESS_HOSTNAME
   authenticator: "database"
 
 secrets:
   jwtSecretKey: CHANGE_ME_LONG_RANDOM_JWT_SECRET
   apiKey: CHANGE_ME_CORE_API_KEY
+  centrifugoApiKey: CHANGE_ME_CENTRIFUGO_API_KEY
+  centrifugoConnectProxySecret: CHANGE_ME_CENTRIFUGO_CONNECT_PROXY_SECRET
   botApiKey: CHANGE_ME_BOT_API_KEY
   preSeedPasswordAdmin: CHANGE_ME_ADMIN_PASSWORD
   preSeedPasswordUser: CHANGE_ME_DEFAULT_USER_PASSWORD
@@ -21,6 +25,7 @@ database:
 
 redis:
   url: redis://CHANGE_ME_REDIS_HOSTNAME:6379/0
+  realtimeUrl: redis://:CHANGE_ME_REDIS_PASSWORD@CHANGE_ME_REDIS_HOSTNAME:6379/0
   password: CHANGE_ME_REDIS_PASSWORD
 
 storage:
@@ -40,8 +45,9 @@ images:
     tag: latest
   frontend:
     tag: latest
-  sse:
-    tag: latest
+  centrifugo:
+    repository: centrifugo/centrifugo
+    tag: v6.9.1
   ingress:
     tag: latest
   worker:

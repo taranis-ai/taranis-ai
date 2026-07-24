@@ -6,6 +6,7 @@ from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission
 
 from core.config import Config
 from core.log import logger
+from core.managers.realtime_publisher import realtime_publisher
 from core.model.product import Product
 from core.model.task import Task as TaskModel
 from core.model.token_blacklist import TokenBlacklist
@@ -122,14 +123,14 @@ class TaskService:
             return
 
         if task_kind == "presenter_task":
-            cls._handle_presenter_result(result_data)
+            cls._handle_presenter_result(result_data, submission.user_id)
             return
 
         if task_kind == "bot_task":
             cls._handle_bot_result(submission, result_data)
 
     @staticmethod
-    def _handle_presenter_result(result_data: dict[str, Any] | None) -> None:
+    def _handle_presenter_result(result_data: dict[str, Any] | None, user_id: str | None) -> None:
         if result_data is None:
             logger.error("Invalid presenter task result payload")
             return
@@ -141,7 +142,9 @@ class TaskService:
             logger.error(f"Product {product_id} not found or no render result")
             return
 
-        Product.update_render_for_id(product_id, rendered_product)
+        _, status = Product.update_render_for_id(product_id, rendered_product)
+        if status == 200 and user_id:
+            realtime_publisher.product_rendered(product_id, user_id, "completed")
 
     @staticmethod
     def _handle_bot_result(submission: TaskSubmission, result_data: dict[str, Any] | None) -> None:

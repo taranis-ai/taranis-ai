@@ -13,10 +13,10 @@ Replace every `CHANGE_ME_...` value before deployment.
 
 Always required:
 - In `kubernetes/00-config.yaml` (or `helm/values.yaml`), set `GRANIAN_HOST`.
-- In `kubernetes/01-secrets.yaml` (or `helm/values.yaml`), set `JWT_SECRET_KEY`, `API_KEY`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `REDIS_URL`, `REDIS_PASSWORD`.
+- In `kubernetes/01-secrets.yaml` (or `helm/values.yaml`), set `JWT_SECRET_KEY`, `API_KEY`, `CENTRIFUGO_API_KEY`, `CENTRIFUGO_CONNECT_PROXY_SECRET`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `REDIS_URL`, `CENTRIFUGO_REDIS_URL`, and `REDIS_PASSWORD`. Keep the two Centrifugo secrets distinct from each other and from existing application keys.
 - The raw manifest provides `TARANIS_BASE_PATH: /`; set it only when serving the application below a subpath.
 - When multiple deployments share a domain, set a unique `JWT_COOKIE_SUFFIX` such as `_q` for each deployment and keep it aligned between core and frontend. Helm exposes the same setting as `config.jwtCookieSuffix`.
-- The raw manifest provides `SSE_PATH: /sse`; keep it aligned with the ingress SSE route if you change it.
+- The raw manifest keeps the public realtime endpoint at `/sse`; ingress rewrites it to Centrifugo's `/connection/uni_sse`.
 
 Optional `llm-bot` overlay:
 - In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`; optionally set `LLM_TIMEOUT` and `LLM_MODEL`.
@@ -25,7 +25,7 @@ Optional `llm-bot` overlay:
 
 ## Images
 
-Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `sse-broker`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`).
+Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9.1` image.
 Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
 Pin explicit tags for production.
 
@@ -76,7 +76,7 @@ Verify base services:
 kubectl get configmap,secret,pvc,svc,deploy,ingress
 kubectl rollout status deploy/core
 kubectl rollout status deploy/frontend
-kubectl rollout status deploy/sse-broker
+kubectl rollout status deploy/centrifugo
 kubectl rollout status deploy/ingress
 kubectl rollout status deploy/worker
 kubectl rollout status deploy/collector

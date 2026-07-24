@@ -13,7 +13,7 @@ services:
       NGINX_WORKERS: "4"
       NGINX_CONNECTIONS: "16"
       TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
-      TARANIS_SSE_UPSTREAM: "${TARANIS_SSE_UPSTREAM:-sse:8088}"
+      TARANIS_REALTIME_UPSTREAM: "${TARANIS_REALTIME_UPSTREAM:-centrifugo:8000}"
       TARANIS_FRONTEND_UPSTREAM: "${TARANIS_FRONTEND_UPSTREAM:-frontend:8080}"
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
     healthcheck:
@@ -61,6 +61,11 @@ services:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
       API_KEY: "${API_KEY}"
+      REALTIME_ENABLED: "${REALTIME_ENABLED:-true}"
+      CENTRIFUGO_API_URL: "${CENTRIFUGO_API_URL:-http://centrifugo:9000}"
+      CENTRIFUGO_API_KEY: "${CENTRIFUGO_API_KEY}"
+      CENTRIFUGO_CONNECT_PROXY_SECRET: "${CENTRIFUGO_CONNECT_PROXY_SECRET}"
+      CENTRIFUGO_ALLOWED_ORIGINS: "${CENTRIFUGO_ALLOWED_ORIGINS:-http://localhost:8080}"
       DEBUG: "${DEBUG:-False}"
     volumes:
       - "core_data:/app/data"
@@ -117,6 +122,7 @@ services:
       TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
+      REALTIME_ENABLED: "${REALTIME_ENABLED:-true}"
       DEBUG: "${DEBUG:-False}"
     healthcheck:
       test: ["CMD", "taranis-frontend-healthcheck"]
@@ -189,17 +195,40 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  sse:
-    image: "${DOCKER_IMAGE_NAMESPACE}/sse-broker:latest"
+  centrifugo:
+    image: "centrifugo/centrifugo:v6.9.1"
     deploy:
       restart_policy:
         condition: always
-    # ports:
-    #  - "${TARANIS_SSE_PORT:-8088}:8088"
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+      - "9000"
     environment:
-      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
-      SSE_PATH: "${TARANIS_BASE_PATH:-/}sse"
-      API_KEY: "${API_KEY}"
+      CENTRIFUGO_HTTP_API_KEY: "${CENTRIFUGO_API_KEY}"
+      CENTRIFUGO_HTTP_SERVER_INTERNAL_PORT: "9000"
+      CENTRIFUGO_ENGINE_TYPE: "redis"
+      CENTRIFUGO_ENGINE_REDIS_ADDRESS: "${CENTRIFUGO_REDIS_URL:-redis://redis:6379/0}"
+      CENTRIFUGO_ENGINE_REDIS_PREFIX: "taranis:realtime"
+      CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "${CENTRIFUGO_ALLOWED_ORIGINS:-http://localhost:8080}"
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_ENABLED: "true"
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: "http://core:8080${TARANIS_BASE_PATH:-/}api/internal/realtime/connect"
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_HEADERS: "Cookie Origin"
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_STATIC_HEADERS: "{\"X-Realtime-Proxy-Key\":\"${CENTRIFUGO_CONNECT_PROXY_SECRET}\"}"
+      CENTRIFUGO_CHANNEL_PUBLICATION_DATA_FORMAT: "json_object"
+      CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"global"},{"name":"org"},{"name":"user","allow_user_limited_channels":true}]'
+      CENTRIFUGO_WEBSOCKET_DISABLED: "true"
+      CENTRIFUGO_UNI_SSE_ENABLED: "true"
+      CENTRIFUGO_HEALTH_ENABLED: "true"
+      CENTRIFUGO_PROMETHEUS_ENABLED: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     logging:
       driver: "json-file"
       options:

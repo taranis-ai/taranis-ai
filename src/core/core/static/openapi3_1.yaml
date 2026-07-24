@@ -8946,41 +8946,6 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
-  /users/sse-connected:
-    post:
-      security:
-      - UserAuth: []
-      tags:
-      - users
-      description: handle sse connected
-      operationId: user.sse_connected.post
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '201':
-          description: created
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /worker/bots/{bot_id}:
     parameters:
     - name: bot_id

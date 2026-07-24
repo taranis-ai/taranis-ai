@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-11 12:19+0200\n"
+"POT-Creation-Date: 2026-07-23 18:00+0200\n"
 "PO-Revision-Date: 2026-06-10 12:15+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: frontend/i18n.py:105
+#: frontend/i18n.py:111
 msgid "English"
 msgstr "Englisch"
 
-#: frontend/i18n.py:106
+#: frontend/i18n.py:112
 msgid "German"
 msgstr "Deutsch"
 
@@ -30,15 +30,15 @@ msgstr "Deutsch"
 msgid "Taranis AI - Open-Source Intelligence leveraging AI"
 msgstr "Taranis AI - Open-Source Intelligence mit KI"
 
-#: frontend/templates/base.html:22 frontend/templates/login/index.html:20
+#: frontend/templates/base.html:24 frontend/templates/login/index.html:21
 msgid "OK"
 msgstr "OK"
 
-#: frontend/templates/base.html:23 frontend/templates/login/index.html:20
+#: frontend/templates/base.html:25 frontend/templates/login/index.html:21
 msgid "Delete"
 msgstr "Löschen"
 
-#: frontend/templates/base.html:24 frontend/templates/login/index.html:20
+#: frontend/templates/base.html:26 frontend/templates/login/index.html:21
 msgid "Cancel"
 msgstr "Abbrechen"
 
@@ -53,6 +53,36 @@ msgstr "Keine Storys gefunden"
 #: frontend/templates/analyze/attribute_macros.html:113
 msgid "No stories to choose from"
 msgstr "Keine Storys zur Auswahl"
+
+#: frontend/templates/assess/assess_top_bar.html:29
+msgid "Edit"
+msgstr ""
+
+#: frontend/templates/assess/assess_top_bar.html:43
+#, fuzzy
+msgid "Cluster"
+msgstr "Benutzer"
+
+#: frontend/templates/assess/assess_top_bar.html:94
+msgid "Actions"
+msgstr ""
+
+#: frontend/templates/assess/assess_top_bar.html:137
+#, fuzzy
+msgid "Select all"
+msgstr "Tags auswählen"
+
+#: frontend/templates/assess/assess_top_bar.html:151
+#, fuzzy
+msgid "Clear selection"
+msgstr "Auswahl als gelesen markieren"
+
+#: frontend/templates/assess/bookmarks_bar.html:9
+#: frontend/templates/bookmarks/bookmark_detail.html:12
+#: frontend/templates/bookmarks/bookmark_list.html:4
+#: frontend/templates/partials/navbar.html:65
+msgid "Bookmarks"
+msgstr "Lesezeichen"
 
 #: frontend/templates/attribute/attribute_form.html:52
 msgid "Select attributes"
@@ -82,13 +112,9 @@ msgstr "Keine Tags zur Auswahl"
 msgid "Taranis AI - Your AI-powered assistant platform."
 msgstr "Taranis AI - Ihre KI-gestützte Assistenzplattform."
 
-#: frontend/templates/login/index.html:28
+#: frontend/templates/login/index.html:29
 msgid "Error contacting Core API"
 msgstr "Fehler beim Kontaktieren der Core API"
-
-#: frontend/templates/login/login.html:5
-msgid "Taranis Logo"
-msgstr "Taranis Logo"
 
 #: frontend/templates/login/login.html:10
 #: frontend/templates/login/login.html:11
@@ -97,7 +123,7 @@ msgstr "Benutzername"
 
 #: frontend/templates/login/login.html:16
 #: frontend/templates/login/login.html:17
-#: frontend/templates/user_profile/settings_content.html:237
+#: frontend/templates/user_profile/settings_content.html:242
 msgid "Password"
 msgstr "Passwort"
 
@@ -105,64 +131,61 @@ msgstr "Passwort"
 msgid "Login"
 msgstr "Anmelden"
 
-#: frontend/templates/partials/navbar.html:2
+#: frontend/templates/partials/navbar.html:3
 msgid "Toggle sidebar"
 msgstr "Seitenleiste umschalten"
 
-#: frontend/templates/partials/navbar.html:6
+#: frontend/templates/partials/navbar.html:8
 msgid "Taranis AI Logo"
 msgstr "Taranis AI Logo"
 
-#: frontend/templates/partials/navbar.html:17
+#: frontend/templates/partials/navbar.html:19
 msgid "Administration"
 msgstr "Administration"
 
-#: frontend/templates/partials/navbar.html:24
+#: frontend/templates/partials/navbar.html:26
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: frontend/templates/partials/navbar.html:30
+#: frontend/templates/partials/navbar.html:32
 #: frontend/templates/user_profile/hotkey_kbd.html:9
 #: frontend/templates/user_profile/hotkey_kbd.html:20
-#: frontend/templates/user_profile/hotkey_kbd.html:31
 #: frontend/templates/user_profile/hotkey_kbd.html:42
 #: frontend/templates/user_profile/hotkey_kbd.html:53
 #: frontend/templates/user_profile/hotkey_kbd.html:64
+#: frontend/templates/user_profile/hotkey_kbd.html:75
 msgid "Assess"
 msgstr "Bewerten"
 
-#: frontend/templates/partials/navbar.html:36
-#: frontend/templates/user_profile/hotkey_kbd.html:65
+#: frontend/templates/partials/navbar.html:38
+#: frontend/templates/user_profile/hotkey_kbd.html:76
 msgid "Analyze"
 msgstr "Analysieren"
 
-#: frontend/templates/partials/navbar.html:42
-#: frontend/templates/user_profile/hotkey_kbd.html:66
+#: frontend/templates/partials/navbar.html:44
+#: frontend/templates/user_profile/hotkey_kbd.html:77
 msgid "Publish"
 msgstr "Veröffentlichen"
 
-#: frontend/templates/partials/navbar.html:48
+#: frontend/templates/partials/navbar.html:50
 msgid "Assets"
 msgstr "Assets"
 
-#: frontend/templates/partials/navbar.html:57
+#: frontend/templates/partials/navbar.html:59
 msgid "Profile"
 msgstr "Profil"
 
-#: frontend/templates/partials/navbar.html:60
+#: frontend/templates/partials/navbar.html:62
 msgid "User Settings"
 msgstr "Benutzereinstellungen"
 
-#: frontend/templates/partials/navbar.html:63
+#: frontend/templates/partials/navbar.html:71
 msgid "Logout"
 msgstr "Abmelden"
 
-#: frontend/templates/partials/navbar.html:63
-#: frontend/templates/bookmarks/bookmark_list.html:4
-#: frontend/templates/bookmarks/bookmark_detail.html:12
-#: frontend/templates/assess/bookmarks_bar.html:8
-msgid "Bookmarks"
-msgstr "Lesezeichen"
+#: frontend/templates/partials/taranis_login_logo_motion_snippet.html:4
+msgid "Taranis Logo"
+msgstr "Taranis Logo"
 
 #: frontend/templates/partials/viewport_notice.html:5
 msgid "Dismiss resolution warning"
@@ -209,58 +232,58 @@ msgid "Add selection to report"
 msgstr "Auswahl zum Bericht hinzufügen"
 
 #: frontend/templates/user_profile/hotkey_kbd.html:22
-#: frontend/templates/user_profile/hotkey_kbd.html:33
 #: frontend/templates/user_profile/hotkey_kbd.html:44
+#: frontend/templates/user_profile/hotkey_kbd.html:55
 msgid "Available when one or more stories are selected."
 msgstr "Verfügbar, wenn eine oder mehrere Storys ausgewählt sind."
 
-#: frontend/templates/user_profile/hotkey_kbd.html:29
+#: frontend/templates/user_profile/hotkey_kbd.html:40
 msgid "Mark selection as read"
 msgstr "Auswahl als gelesen markieren"
 
-#: frontend/templates/user_profile/hotkey_kbd.html:40
+#: frontend/templates/user_profile/hotkey_kbd.html:51
 msgid "Mark selection as important"
 msgstr "Auswahl als wichtig markieren"
 
-#: frontend/templates/user_profile/hotkey_kbd.html:51
+#: frontend/templates/user_profile/hotkey_kbd.html:62
 msgid "Cluster selected stories"
 msgstr "Ausgewählte Storys gruppieren"
 
-#: frontend/templates/user_profile/hotkey_kbd.html:55
+#: frontend/templates/user_profile/hotkey_kbd.html:66
 msgid "Requires two or more stories selected."
 msgstr "Erfordert zwei oder mehr ausgewählte Storys."
 
-#: frontend/templates/user_profile/hotkey_kbd.html:62
+#: frontend/templates/user_profile/hotkey_kbd.html:73
 msgid "Select all items in view"
 msgstr "Alle Elemente in der Ansicht auswählen"
 
-#: frontend/templates/user_profile/hotkey_kbd.html:68
+#: frontend/templates/user_profile/hotkey_kbd.html:79
 msgid "Available when story results are loaded."
 msgstr "Verfügbar, wenn Story-Ergebnisse geladen sind."
 
-#: frontend/templates/user_profile/hotkey_kbd.html:74
+#: frontend/templates/user_profile/hotkey_kbd.html:85
 msgid "Hold"
 msgstr "Halte"
 
-#: frontend/templates/user_profile/hotkey_kbd.html:74
+#: frontend/templates/user_profile/hotkey_kbd.html:85
 msgid "while browsing Assess to reveal these shortcuts in the toolbar."
 msgstr ""
 "beim Browsen in Bewerten gedrückt, um diese Kurzbefehle in der "
 "Werkzeugleiste anzuzeigen."
 
-#: frontend/templates/user_profile/hotkey_kbd.html:80
+#: frontend/templates/user_profile/hotkey_kbd.html:91
 msgid "Shortcut"
 msgstr "Kurzbefehl"
 
-#: frontend/templates/user_profile/hotkey_kbd.html:81
+#: frontend/templates/user_profile/hotkey_kbd.html:92
 msgid "Label"
 msgstr "Bezeichnung"
 
-#: frontend/templates/user_profile/hotkey_kbd.html:82
+#: frontend/templates/user_profile/hotkey_kbd.html:93
 msgid "Hint"
 msgstr "Hinweis"
 
-#: frontend/templates/user_profile/hotkey_kbd.html:83
+#: frontend/templates/user_profile/hotkey_kbd.html:94
 msgid "Available in"
 msgstr "Verfügbar in"
 
@@ -328,103 +351,99 @@ msgstr "Zusätzliche Aktionen in der Story-Bearbeitung anzeigen."
 msgid "Language"
 msgstr "Sprache"
 
-#: frontend/templates/user_profile/settings_content.html:131
+#: frontend/templates/user_profile/settings_content.html:132
 msgid "Choose the interface language."
 msgstr "Sprache der Benutzeroberfläche auswählen."
 
-#: frontend/templates/user_profile/settings_content.html:132
+#: frontend/templates/user_profile/settings_content.html:133
 msgid "Experimental: currently only login and user settings are translated."
-msgstr "Experimentell: Derzeit sind nur Anmeldung und Benutzereinstellungen übersetzt."
+msgstr ""
+"Experimentell: Derzeit sind nur Anmeldung und Benutzereinstellungen "
+"übersetzt."
 
-#: frontend/templates/user_profile/settings_content.html:139
+#: frontend/templates/user_profile/settings_content.html:143
 msgid "Timezone"
 msgstr "Zeitzone"
 
-#: frontend/templates/user_profile/settings_content.html:145
+#: frontend/templates/user_profile/settings_content.html:150
 msgid "Select timezone"
 msgstr "Zeitzone auswählen"
 
-#: frontend/templates/user_profile/settings_content.html:146
+#: frontend/templates/user_profile/settings_content.html:151
 msgid "No timezones found"
 msgstr "Keine Zeitzonen gefunden"
 
-#: frontend/templates/user_profile/settings_content.html:147
+#: frontend/templates/user_profile/settings_content.html:152
 msgid "No timezones to choose from"
 msgstr "Keine Zeitzonen zur Auswahl"
 
-#: frontend/templates/user_profile/settings_content.html:148
+#: frontend/templates/user_profile/settings_content.html:153
 msgid "Press to select"
 msgstr "Zum Auswählen drücken"
 
-#: frontend/templates/user_profile/settings_content.html:155
+#: frontend/templates/user_profile/settings_content.html:159
 msgid "Use browser timezone"
 msgstr "Browser-Zeitzone verwenden"
 
-#: frontend/templates/user_profile/settings_content.html:158
+#: frontend/templates/user_profile/settings_content.html:162
 msgid "Choose how local times are displayed."
 msgstr "Auswählen, wie lokale Zeiten angezeigt werden."
 
-#: frontend/templates/user_profile/settings_content.html:166
+#: frontend/templates/user_profile/settings_content.html:170
 msgid "End of shift"
 msgstr "Schichtende"
 
-#: frontend/templates/user_profile/settings_content.html:170
+#: frontend/templates/user_profile/settings_content.html:174
 msgid "Used to plan notifications and highlights."
 msgstr "Wird zur Planung von Benachrichtigungen und Hervorhebungen verwendet."
 
-#: frontend/templates/user_profile/settings_content.html:179
-msgid "Live updates"
-msgstr "Live-Aktualisierungen"
-
-#: frontend/templates/user_profile/settings_content.html:180
-msgid "Checking connection status..."
-msgstr "Verbindungsstatus wird geprüft..."
-
-#: frontend/templates/user_profile/settings_content.html:183
-msgid "Enable SSE"
-msgstr "SSE aktivieren"
-
-#: frontend/templates/user_profile/settings_content.html:187
-msgid "Server-sent events let the UI react to changes without refreshing."
+#: frontend/templates/user_profile/settings_content.html:219
+msgid "Onboarding Tours"
 msgstr ""
-"Server-sent Events lassen die Oberfläche ohne Aktualisierung auf "
-"Änderungen reagieren."
 
-#: frontend/templates/user_profile/settings_content.html:238
+#: frontend/templates/user_profile/settings_content.html:220
+msgid "Reset your completed onboarding tours and show them again."
+msgstr ""
+
+#: frontend/templates/user_profile/settings_content.html:224
+msgid "Reset onboarding tours"
+msgstr ""
+
+#: frontend/templates/user_profile/settings_content.html:243
 msgid "Change your password"
 msgstr "Passwort ändern"
 
-#: frontend/templates/user_profile/settings_content.html:239
+#: frontend/templates/user_profile/settings_content.html:244
 msgid "Keep this secure and avoid reusing passwords from other systems."
 msgstr ""
 "Halte es sicher und vermeide die Wiederverwendung von Passwörtern aus "
 "anderen Systemen."
 
-#: frontend/templates/user_profile/settings_content.html:245
+#: frontend/templates/user_profile/settings_content.html:250
 msgid "Current password"
 msgstr "Aktuelles Passwort"
 
-#: frontend/templates/user_profile/settings_content.html:257
+#: frontend/templates/user_profile/settings_content.html:262
 msgid "New password"
 msgstr "Neues Passwort"
 
-#: frontend/templates/user_profile/settings_content.html:264
+#: frontend/templates/user_profile/settings_content.html:269
 msgid "Confirm new password"
 msgstr "Neues Passwort bestätigen"
 
-#: frontend/templates/user_profile/settings_content.html:270
+#: frontend/templates/user_profile/settings_content.html:275
 msgid "Update password"
 msgstr "Passwort aktualisieren"
 
-#: frontend/templates/user_profile/settings_content.html:282
+#: frontend/templates/user_profile/settings_content.html:287
 msgid "Keyboard Shortcuts"
 msgstr "Tastaturkurzbefehle"
 
-#: frontend/templates/user_profile/settings_content.html:284
+#: frontend/templates/user_profile/settings_content.html:289
 msgid "HotKeys are currently static only."
 msgstr "HotKeys sind derzeit nur statisch."
 
-#: frontend/templates/user_profile/settings_content.html:286
+#: frontend/templates/user_profile/settings_content.html:291
 msgid "tracks progress on making them configurable."
 msgstr "verfolgt den Fortschritt, sie konfigurierbar zu machen."
 
@@ -450,11 +469,30 @@ msgstr "API ist nicht erreichbar - %(url)s"
 msgid "Username and password are required"
 msgstr "Benutzername und Passwort sind erforderlich"
 
-#: frontend/views/user_views.py:50
+#: frontend/views/user_views.py:49
 msgid "Failed to change password."
 msgstr "Passwort konnte nicht geändert werden."
+
+#: frontend/views/user_views.py:63
+msgid "Failed to update profile settings."
+msgstr ""
 
 #~ msgid "Detected from your browser and used to display local times."
 #~ msgstr ""
 #~ "Wird aus deinem Browser erkannt und "
 #~ "zur Anzeige lokaler Zeiten verwendet."
+
+#~ msgid "Live updates"
+#~ msgstr "Live-Aktualisierungen"
+
+#~ msgid "Checking connection status..."
+#~ msgstr "Verbindungsstatus wird geprüft..."
+
+#~ msgid "Enable SSE"
+#~ msgstr "SSE aktivieren"
+
+#~ msgid "Server-sent events let the UI react to changes without refreshing."
+#~ msgstr ""
+#~ "Server-sent Events lassen die Oberfläche"
+#~ " ohne Aktualisierung auf Änderungen "
+#~ "reagieren."

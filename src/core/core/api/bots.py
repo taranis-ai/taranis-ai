@@ -8,7 +8,7 @@ from core.log import logger
 from core.managers.auth_manager import api_key_required
 from core.managers.db_manager import db
 from core.managers.decorators import extract_args
-from core.managers.sse_manager import sse_manager
+from core.managers.realtime_publisher import realtime_publisher
 from core.model import bot, news_item, story
 from core.service.cache_invalidation import (
     SCOPE_ASSESS_VIEWS,
@@ -31,7 +31,8 @@ class BotGroupAction(MethodView):
         if not story_ids:
             return {"error": "No story ids provided"}, 400
         response, code = story.Story.group_stories(story_ids, actor=_bot_actor())
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
@@ -44,7 +45,8 @@ class BotGroupMultipleAction(MethodView):
         if not story_ids:
             return {"error": "No stories provided"}, 400
         response, code = story.Story.group_multiple_stories(story_ids, actor=_bot_actor())
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
@@ -57,7 +59,8 @@ class BotUnGroupAction(MethodView):
         if not newsitem_ids:
             return {"error": "No news items provided"}, 400
         response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, actor=_bot_actor())
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
@@ -115,13 +118,13 @@ class StoryAttributes(MethodView):
                 if isinstance(input_data, dict):
                     input_data = input_data.get("attributes", input_data)
                 current_story.patch_attributes(input_data)
-                sse_manager.news_items_updated()
             else:
                 return {"error": "No data provided"}, 400
             current_story.updated = current_story.utcnow()
             current_story.update_status(change=_bot_actor())
             current_story.record_revision(note="update_story_attributes")
             db.session.commit()
+            realtime_publisher.assess_changed()
             invalidate_frontend_cache_on_success(200, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
             return {"message": "Story updated successfully"}, 200
         return {"error": "Story not found"}, 404
@@ -135,7 +138,8 @@ class UpdateStory(MethodView):
     @api_key_required
     def put(self, story_id: str):
         result = story.Story.update(story_id, request.json, actor=_bot_actor())
-        sse_manager.news_items_updated()
+        if 200 <= result[1] < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(result[1], scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return result
 

@@ -1,0 +1,93 @@
+import uuid
+from unittest.mock import Mock
+
+import pytest
+import requests
+from pydantic import SecretStr
+
+from core.config import Config
+from core.managers.realtime_publisher import RealtimePublisher
+
+
+def _publisher(response_payload=None, side_effect=None):
+    session = Mock(spec=requests.Session)
+    response = Mock(spec=requests.Response)
+    response.json.return_value = {"result": {"responses": [{}]}} if response_payload is None else response_payload
+    response.raise_for_status.return_value = None
+    session.post.return_value = response
+    session.post.side_effect = side_effect
+    return RealtimePublisher(session), session
+
+
+@pytest.fixture
+def enabled_realtime(monkeypatch):
+    monkeypatch.setattr(Config, "REALTIME_ENABLED", True)
+    monkeypatch.setattr(Config, "CENTRIFUGO_API_URL", "http://centrifugo:9000")
+    monkeypatch.setattr(Config, "CENTRIFUGO_API_KEY", SecretStr("dedicated-realtime-key"))
+
+
+def test_disabled_publisher_performs_no_network_io(monkeypatch):
+    monkeypatch.setattr(Config, "REALTIME_ENABLED", False)
+    publisher, session = _publisher()
+
+    assert publisher.assess_changed() is False
+    session.post.assert_not_called()
+
+
+def test_publish_uses_explicit_channel_dedicated_key_and_strict_timeout(enabled_realtime):
+    publisher, session = _publisher()
+    organization_id = str(uuid.uuid7())
+    report_item_id = str(uuid.uuid7())
+
+    assert publisher.report_item_changed(report_item_id, organization_id, "created") is True
+
+    request = session.post.call_args
+    assert request.args == ("http://centrifugo:9000/api/broadcast",)
+    assert request.kwargs["headers"]["X-API-Key"] == "dedicated-realtime-key"
+    assert request.kwargs["timeout"] == (0.2, 0.3)
+    assert request.kwargs["json"]["channels"] == [f"org:{organization_id}"]
+    event = request.kwargs["json"]["data"]
+    assert event["v"] == 1
+    assert uuid.UUID(event["id"]).version == 7
+    assert event["type"] == "report.item.changed"
+    assert event["resource"] == {"kind": "report_item", "id": report_item_id}
+
+
+@pytest.mark.parametrize(
+    "response_payload",
+    [
+        {},
+        {"error": {"code": 100, "message": "rejected"}},
+        {"result": {}},
+        {"result": {"responses": [{"error": {"code": 100, "message": "rejected"}}]}},
+    ],
+)
+def test_api_level_failures_do_not_escape(enabled_realtime, response_payload):
+    publisher, _ = _publisher(response_payload=response_payload)
+
+    assert publisher.assess_changed() is False
+
+
+def test_timeout_does_not_escape_or_disable_later_attempts(enabled_realtime):
+    publisher, session = _publisher(side_effect=requests.ReadTimeout())
+
+    assert publisher.assess_changed() is False
+
+    session.post.side_effect = None
+    assert publisher.assess_changed() is True
+    assert session.post.call_count == 2
+
+
+def test_unexpected_realtime_failure_does_not_escape(enabled_realtime):
+    publisher, _ = _publisher(side_effect=RuntimeError("isolated realtime failure"))
+
+    assert publisher.assess_changed() is False
+
+
+def test_product_event_uses_user_limited_channel(enabled_realtime):
+    publisher, session = _publisher()
+    product_id = str(uuid.uuid7())
+    user_id = str(uuid.uuid7())
+
+    assert publisher.product_rendered(product_id, user_id, "success") is True
+    assert session.post.call_args.kwargs["json"]["channels"] == [f"user:#{user_id}"]

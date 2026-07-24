@@ -133,9 +133,9 @@ Keep disabled:
 
 Use separate, randomly generated secrets for the Centrifugo HTTP API and connect proxy. Do not reuse the Taranis `API_KEY` or `JWT_SECRET_KEY`. The HTTP API must be reachable from core inside the deployment network but must not be routed through public ingress.
 
-Set an exact origin allowlist for each deployment. Configure a per-node connection ceiling above the tested target and a connection-rate limit that allows controlled reconnects without permitting an unbounded connection storm. Initial production defaults are 1,500 connections and 100 new connections per second per node.
+Set an exact origin allowlist for each deployment. Leave Centrifugo's connection limits at their defaults until production measurements justify explicit ceilings; deployment-level capacity and ingress controls remain the first operational guardrails.
 
-Centrifugo must send a heartbeat more frequently than the ingress read timeout. The starting values are a 25-second heartbeat and a 60-second ingress read timeout. Kubernetes termination grace must be at least 45 seconds so a pod can stop accepting new clients and drain existing connections before forced termination.
+Centrifugo's default 25-second heartbeat must remain more frequent than the 60-second ingress read timeout. Kubernetes termination grace remains 45 seconds, which exceeds Centrifugo's default 30-second graceful shutdown period.
 
 ## Ingress and transport
 
@@ -157,7 +157,7 @@ Native SSE over HTTP/1.1 has a restrictive per-browser, per-origin connection li
 
 1. An authenticated page opens a same-origin `EventSource` to `${TARANIS_BASE_PATH}sse`.
 2. The browser sends the existing access-token cookie. No token is placed in a query parameter or JavaScript-readable URL.
-3. Centrifugo calls an internal core connect-proxy endpoint and forwards only the allowlisted `Cookie`, `Origin`, `User-Agent`, `X-Real-IP`, `X-Forwarded-For`, and request-correlation headers.
+3. Centrifugo calls an internal core connect-proxy endpoint and forwards only the `Cookie` and `Origin` headers consumed by core.
 4. Centrifugo adds `X-Realtime-Proxy-Key` through the connect proxy's `http.static_headers`; core rejects requests without the expected value. The header is not included in `http_headers` or `emulated_headers`, so a client value cannot override it.
 5. Core validates the JWT cookie with the existing authentication stack and loads the current user, organization, and permissions from authoritative application state.
 6. Core returns the Centrifugo user ID, connection expiry, and server-side channels. The browser cannot add channels.
@@ -235,9 +235,9 @@ Required fields:
 - `type`: a known event type.
 - `occurred_at`: UTC RFC 3339 timestamp.
 - `change`: one of `created`, `updated`, `deleted`, `invalidated`, or `completed`.
-- `data`: JSON object, empty unless the event contract requires a small non-sensitive value.
+- `data`: JSON object, empty unless a fixed publisher method adds a small value required by the event contract.
 
-`resource` is optional. It may contain only a resource kind and opaque identifier. Event data must not contain report bodies, product content, usernames, email addresses, roles, permissions, access tokens, or lease tokens.
+`resource` is optional. Fixed publisher methods pass only opaque resource identifiers and the terminal product-render status. Call sites must not add report bodies, product content, usernames, email addresses, roles, permissions, access tokens, or lease tokens.
 
 Initial event mapping:
 
@@ -276,7 +276,7 @@ A single frontend module owns the EventSource. Page modules never open their own
 The module:
 
 - Opens one same-origin EventSource per authenticated browser tab.
-- Parses Centrifugo's unidirectional publication envelope and then validates the Taranis event envelope.
+- Parses Centrifugo's unidirectional publication envelope and checks the Taranis event version and type.
 - Dispatches domain `CustomEvent` instances without embedding HTML.
 - Tracks whether the connection has opened before, so a reconnect can be distinguished from the initial connection.
 - Closes the connection on logout and page teardown.
@@ -413,9 +413,8 @@ Readiness requires the Centrifugo process and Redis engine to be usable. Livenes
 
 ### Contract and unit tests
 
-- Construct every supported event and reject unknown versions, invalid types, malformed IDs, and non-UTC timestamps.
-- Require an explicit audience and map global, organization, and user audiences to the exact channel names.
-- Prove event payload validation prevents sensitive or oversized data from entering the envelope.
+- Construct every supported event through its fixed publisher method and check its exact channel.
+- Prove fixed publisher methods include only the intended identifiers and status value.
 - Prove a Centrifugo timeout, rejection, or malformed response does not change the successful domain response.
 - Prove disabled realtime performs no HTTP call.
 - Validate connect-proxy responses for users with and without organizations.
@@ -478,7 +477,7 @@ Record CPU, memory, Redis latency, event latency, reconnect rate, and error rate
 
 Ship core, frontend, ingress, and Centrifugo changes as one coordinated release behind `REALTIME_ENABLED`.
 
-1. Add pinned Centrifugo configuration, secrets, health checks, internal API access, Redis engine configuration, and the `/sse` ingress route.
+1. Add pinned Centrifugo environment configuration, secrets, health checks, internal API access, Redis engine configuration, and the `/sse` ingress route.
 2. Deploy with `REALTIME_ENABLED=false` and validate Centrifugo health and connect-proxy authentication in the target environment.
 3. Enable realtime for a test deployment and run isolation, two-replica, reconnect, and load acceptance tests.
 4. Enable the new frontend connection module and core publisher together. Do not dual-publish to the old and new brokers.
