@@ -13,6 +13,7 @@ from trafilatura import extract, extract_metadata
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.config import Config
+from worker.core_api import IconFile
 from worker.log import logger
 
 
@@ -117,7 +118,11 @@ class BaseWebCollector(BaseCollector):
         if not r.ok or not (content := r.content):
             return None
 
-        self.core_api.update_osint_source_icon(osint_source_id, {"file": ("favicon.ico", content)})
+        filename = r.headers.get("content-disposition")
+        if not isinstance(filename, str):
+            filename = "file"
+        icon_content: IconFile = {"file": (filename, content)}
+        self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:

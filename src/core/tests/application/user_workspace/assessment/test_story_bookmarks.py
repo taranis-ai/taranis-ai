@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from tests.application.support.api_test_base import BaseTest
+from tests.application.support.builders import build_news_item_payload, create_story
 
 
 class TestStoryBookmarks(BaseTest):
@@ -154,3 +155,26 @@ class TestStoryBookmarks(BaseTest):
         assert response.status_code == 200
         assert response.get_json()["removed"] == 0
         assert response.get_json()["story_count"] == 1
+
+    def test_ungroup_replaces_bookmarked_story_with_created_stories(self, app, client, auth_header, fake_source):
+        with app.app_context():
+            story = create_story(
+                news_items=[
+                    build_news_item_payload(source_id=fake_source, title="First bookmarked item"),
+                    build_news_item_payload(source_id=fake_source, title="Second bookmarked item"),
+                ]
+            )
+            source_story_id = story.id
+
+        bookmark_id = self._create_bookmark(client, auth_header, f"Ungroup {uuid4()}")
+        self._add_stories(client, auth_header, bookmark_id, [source_story_id])
+
+        response = client.put(self.concat_url("stories/ungroup"), headers=auth_header, json=[source_story_id])
+
+        assert response.status_code == 200
+        detail_response = client.get(self.concat_url(f"bookmarks/{bookmark_id}"), headers=auth_header)
+        assert detail_response.status_code == 200
+        detail = detail_response.get_json()
+        assert detail["story_count"] == 2
+        assert source_story_id not in detail["story_ids"]
+        assert {item["title"] for item in detail["stories"]} == {"First bookmarked item", "Second bookmarked item"}

@@ -1,10 +1,5 @@
 {% from "assess/story_card.html" import story_card with context %}
-
-<div id="bookmark-detail-container"
-     class="p-4 space-y-4"
-     data-testid="bookmark-detail"
-     x-data='{ selectedItems: [], toggleSelection(id) { this.selectedItems = this.selectedItems.includes(id) ? this.selectedItems.filter(item => item !== id) : [...this.selectedItems, id]; this.$nextTick(() => this.syncSelectedCardState()); }, clearSelection() { this.selectedItems = []; this.syncSelectedCardState(); }, syncSelectedCardState() { const selectedIds = new Set(this.selectedItems); document.querySelectorAll("#bookmark-detail-container article[data-story-id]").forEach(node => { const selected = selectedIds.has(node.dataset.storyId); const read = node.dataset.storyRead === "true"; node.classList.toggle("bg-primary/5", selected); node.classList.toggle("border-primary", selected || !read); node.classList.toggle("border-base-200", !selected && read); node.classList.toggle("shadow-md", selected); node.setAttribute("aria-selected", selected.toString()); }); } }'
-     @keyup.escape.window="clearSelection()">
+<div id="bookmark-detail-container" class="p-4 space-y-4" data-testid="bookmark-detail">
   <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
     <div class="min-w-0">
       <a href="{{ url_for('assess.bookmarks') }}" class="btn btn-ghost btn-sm mb-2">
@@ -48,40 +43,85 @@
   </div>
 
   {% if stories %}
-    <form id="bookmark-remove-form"
-          hx-post="{{ url_for('assess.bookmark_remove_stories', bookmark_id=bookmark.id) }}"
-          hx-target="#bookmark-detail-container"
-          hx-swap="outerHTML"
-          hx-confirm="Remove selected stories from this bookmark collection?">
-      <template x-for="storyId in selectedItems" :key="storyId">
-        <input type="hidden" name="story_ids" :value="storyId">
-      </template>
-    </form>
-    <div class="sticky z-10" style="top: calc(var(--app-header-height) + var(--viewport-warning-height))">
-      <div class="flex min-h-[3rem] flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg lg:flex-row lg:items-center lg:justify-between">
-        <div class="flex flex-wrap items-center gap-3" data-testid="bookmark-story-count">
-          <span class="badge badge-ghost badge-lg">{{ stories.total_count }} stories</span>
-          <span class="badge badge-primary badge-lg" x-show="selectedItems.length" x-cloak><span x-text="selectedItems.length"></span> selected</span>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button type="button" class="btn btn-ghost btn-sm" x-show="selectedItems.length" x-cloak @click="clearSelection()">Clear</button>
-          <button type="submit"
-                  form="bookmark-remove-form"
-                  class="btn btn-outline btn-error btn-sm"
-                  :disabled="!selectedItems.length"
-                  data-testid="bookmark-remove-selected">
-            {{ heroicon_mini("x-mark") }}
-            Remove selected
-          </button>
-        </div>
-      </div>
-    </div>
+    {# djlint:off #}
+    <form id="bookmark-selection-form"
+          x-data='{
+            selectionRevision: 0,
+            showHints: false,
+            editUrlTemplate: {{ url_for("assess.story_edit", story_id="__ID__", bookmark_id=bookmark.id) | tojson }},
+            get selectionForm() {
+              return document.getElementById("bookmark-selection-form");
+            },
+            get storyInputs() {
+              void this.selectionRevision;
+              return Array.from(this.selectionForm.querySelectorAll("input[name=story_ids]"));
+            },
+            get storyIds() {
+              return this.storyInputs.map(input => input.value);
+            },
+            get selectedInputs() {
+              return this.storyInputs.filter(input => input.checked);
+            },
+            get selectedItems() {
+              return this.selectedInputs.map(input => input.value);
+            },
+            get selectedCards() {
+              const selectedIds = new Set(this.selectedItems);
+              return Array.from(this.selectionForm.querySelectorAll("article[data-story-id]"))
+                .filter(card => selectedIds.has(card.dataset.storyId));
+            },
+            init() {
+              this.refreshSelection();
+            },
+            refreshSelection() {
+              this.selectionRevision++;
+              syncSelectedStoryCardState(this.selectionForm.querySelector("[data-story-list]"), this.selectedItems);
+            },
+            toggleSelection(id) {
+              this.storyInputs.find(input => input.value === id)?.click();
+            },
+            setSelection(checked) {
+              this.storyInputs.forEach(input => input.checked = checked);
+              this.refreshSelection();
+            },
+            clearSelection() {
+              this.setSelection(false);
+            },
+            selectAll() {
+              this.setSelection(true);
+            },
+            selectedItemsAreImportant() {
+              return this.selectedCards.length > 0 && this.selectedCards.every(card => card.dataset.storyImportant === "true");
+            },
+            selectedItemsAreRead() {
+              return this.selectedCards.length > 0 && this.selectedCards.every(card => card.dataset.storyRead === "true");
+            },
+            action_vals(action, value) {
+              return JSON.stringify(action ? { action, value } : {});
+            },
+            openStoryEdit() {
+              if (this.selectedItems.length === 1) window.location.href = this.editUrlTemplate.replace("__ID__", this.selectedItems[0]);
+            }
+          }'
+          @change="refreshSelection()"
+          @htmx:after-swap="refreshSelection()"
+          @keyup.escape.window="clearSelection()">
+      <input type="hidden" name="bookmark_id" value="{{ bookmark.id }}">
+      {% include "assess/assess_top_bar.html" %}
 
-    <div id="bookmark-story-list">
-      {% for story in stories %}
-        {{ story_card(story, show_bookmark=False) }}
-      {% endfor %}
-    </div>
+      <div id="bookmark-story-list" data-story-list>
+        {% for story in stories %}
+          <input id="bookmark-select-story-{{ story.id }}"
+                 type="checkbox"
+                 name="story_ids"
+                 value="{{ story.id }}"
+                 {% if story.id in selected_story_ids %}checked{% endif %}
+                 hidden>
+          {{ story_card(story, show_bookmark=False, bookmark_id=bookmark.id) }}
+        {% endfor %}
+      </div>
+    </form>
+    {# djlint:on #}
   {% else %}
     <div class="alert alert-info" data-testid="empty-bookmark">This bookmark collection has no stories.</div>
   {% endif %}
