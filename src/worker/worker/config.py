@@ -4,6 +4,9 @@ from pydantic import ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
+WORKER_TYPE_PRIORITIES = ("Presenters", "Publishers", "Connectors", "Misc", "Bots", "Collectors")
+
+
 class Settings(BaseSettings):
     class Config:
         env_file = ".env"
@@ -22,14 +25,7 @@ class Settings(BaseSettings):
     DISABLE_HTTP3: bool = False
     REQUESTS_TIMEOUT: int = 60
     # This selects which task types the worker handles. The worker defines their dequeue-priority order.
-    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers", "Connectors", "Misc"]] = [
-        "Bots",
-        "Collectors",
-        "Presenters",
-        "Publishers",
-        "Connectors",
-        "Misc",
-    ]
+    WORKER_TYPES: list[str] = list(WORKER_TYPE_PRIORITIES)
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
     RQ_WORKER_CLASS: Literal["auto", "fork", "spawn"] = "auto"
@@ -48,6 +44,13 @@ class Settings(BaseSettings):
             return "/"
 
         return f"/{v.strip('/')}/"
+
+    @field_validator("WORKER_TYPES")
+    @classmethod
+    def ensure_known_worker_types(cls, worker_types: list[str]) -> list[str]:
+        if unknown_worker_types := set(worker_types) - set(WORKER_TYPE_PRIORITIES):
+            raise ValueError(f"Unknown worker types: {', '.join(sorted(unknown_worker_types))}")
+        return worker_types
 
     @model_validator(mode="after")
     def set_taranis_core(self) -> Self:

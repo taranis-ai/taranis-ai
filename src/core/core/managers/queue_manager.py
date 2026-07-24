@@ -47,7 +47,7 @@ from models.admin import CronSpec
 from redis import Redis
 from rq import Queue
 from rq.exceptions import NoSuchJobError
-from rq.job import Job
+from rq.job import Dependency, Job
 
 from core.config import Config
 from core.log import logger
@@ -447,6 +447,20 @@ class QueueManager:
         return self._queues.get(queue_name)
 
     @staticmethod
+    def _is_user_triggered(meta: dict[str, Any] | None) -> bool:
+        return bool(meta and meta.get("user_id"))
+
+    @staticmethod
+    def _prioritize_dependencies(depends_on: Any) -> Dependency:
+        if isinstance(depends_on, Dependency):
+            return Dependency(
+                depends_on.dependencies,
+                allow_failure=depends_on.allow_failure,
+                enqueue_at_front=True,
+            )
+        return Dependency(depends_on, enqueue_at_front=True)
+
+    @staticmethod
     def _build_task_meta(
         task: str,
         *,
@@ -571,12 +585,11 @@ class QueueManager:
             if meta:
                 kwargs["meta"] = dict(meta)
 
-            user_triggered = bool(meta and meta.get("user_id"))
-            job = queue.enqueue(task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
-            if user_triggered and getattr(job, "is_deferred", False):
-                job.enqueue_at_front = True
-                job.save()
-            return job
+            user_triggered = self._is_user_triggered(meta)
+            if user_triggered and (depends_on := kwargs.get("depends_on")) is not None:
+                kwargs["depends_on"] = self._prioritize_dependencies(depends_on)
+
+            return queue.enqueue(task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
             return False
@@ -621,7 +634,7 @@ class QueueManager:
             if meta:
                 kwargs["meta"] = dict(meta)
 
-            user_triggered = bool(meta and meta.get("user_id"))
+            user_triggered = self._is_user_triggered(meta)
             logger.info(
                 f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}, args={args}, kwargs={kwargs}"
             )

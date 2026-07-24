@@ -17,7 +17,7 @@ from typing import Any
 import redis
 from rq import Queue, SpawnWorker, Worker
 
-from worker.config import Config
+from worker.config import WORKER_TYPE_PRIORITIES, Config
 from worker.core_api import CoreApi
 from worker.log import logger
 from worker.rq_failure_bridge import rq_failure_exception_handler, rq_work_horse_killed_handler
@@ -38,8 +38,7 @@ def get_redis_connection(*, spawn_safe: bool = False):
 def get_queues():
     """Get enabled queue names in dequeue-priority order."""
     worker_types = Config.WORKER_TYPES
-    worker_type_priorities = ("Presenters", "Publishers", "Connectors", "Misc", "Bots", "Collectors")
-    return [worker_type.lower() for worker_type in worker_type_priorities if worker_type in worker_types]
+    return [worker_type.lower() for worker_type in WORKER_TYPE_PRIORITIES if worker_type in worker_types]
 
 
 def register_task_modules():
