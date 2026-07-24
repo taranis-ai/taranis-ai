@@ -34,6 +34,7 @@ import json
 import re
 import time
 from collections.abc import Callable, Iterable
+from copy import copy
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
@@ -453,12 +454,17 @@ class QueueManager:
     @staticmethod
     def _prioritize_dependencies(depends_on: Any) -> Dependency:
         if isinstance(depends_on, Dependency):
-            return Dependency(
-                depends_on.dependencies,
-                allow_failure=depends_on.allow_failure,
-                enqueue_at_front=True,
-            )
+            prioritized = copy(depends_on)
+            prioritized.enqueue_at_front = True
+            return prioritized
         return Dependency(depends_on, enqueue_at_front=True)
+
+    @classmethod
+    def _prepare_user_priority(cls, meta: dict[str, Any] | None, kwargs: dict[str, Any]) -> bool:
+        user_triggered = cls._is_user_triggered(meta)
+        if user_triggered and (depends_on := kwargs.get("depends_on")) is not None:
+            kwargs["depends_on"] = cls._prioritize_dependencies(depends_on)
+        return user_triggered
 
     @staticmethod
     def _build_task_meta(
@@ -585,10 +591,7 @@ class QueueManager:
             if meta:
                 kwargs["meta"] = dict(meta)
 
-            user_triggered = self._is_user_triggered(meta)
-            if user_triggered and (depends_on := kwargs.get("depends_on")) is not None:
-                kwargs["depends_on"] = self._prioritize_dependencies(depends_on)
-
+            user_triggered = self._prepare_user_priority(meta, kwargs)
             return queue.enqueue(task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
@@ -616,7 +619,10 @@ class QueueManager:
         meta: dict[str, Any] | None = None,
         **kwargs,
     ):
-        """Enqueue a task to run at a specific time"""
+        """Enqueue a task to run at a specific time.
+
+        RQ promotes scheduled jobs at their due time without waiting for unfinished dependencies.
+        """
         if self.error:
             return False
 
@@ -634,7 +640,7 @@ class QueueManager:
             if meta:
                 kwargs["meta"] = dict(meta)
 
-            user_triggered = self._is_user_triggered(meta)
+            user_triggered = self._prepare_user_priority(meta, kwargs)
             logger.info(
                 f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}, args={args}, kwargs={kwargs}"
             )
