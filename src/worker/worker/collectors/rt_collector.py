@@ -7,6 +7,7 @@ import niquests as requests
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError
+from worker.core_api import IconFile
 from worker.log import logger
 
 
@@ -192,7 +193,11 @@ class RTCollector(BaseWebCollector):
         if not r.ok or not (content := r.content):
             return None
 
-        self.core_api.update_osint_source_icon(osint_source_id, {"file": ("favicon.png", content)})
+        filename = r.headers.get("content-disposition")
+        if not isinstance(filename, str):
+            filename = "file"
+        icon_content: IconFile = {"file": (filename, content)}
+        self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
     def rt_collector(self, source: dict) -> list[dict]:

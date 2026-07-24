@@ -147,6 +147,23 @@ function omniSearch(searchUrl) {
   };
 }
 
+function syncSelectedStoryCardState(storyList, selectedItems) {
+  if (!(storyList instanceof Element)) {
+    return;
+  }
+
+  const selectedIds = new Set(selectedItems);
+  storyList.querySelectorAll("article[data-story-id]").forEach((node) => {
+    const selected = selectedIds.has(node.dataset.storyId);
+    const read = node.dataset.storyRead === "true";
+    node.classList.toggle("bg-primary/5", selected);
+    node.classList.toggle("border-primary", selected || !read);
+    node.classList.toggle("border-base-200", !selected && read);
+    node.classList.toggle("shadow-md", selected);
+    node.setAttribute("aria-selected", selected.toString());
+  });
+}
+
 function canUseAssessShortcut(event, key = null) {
   if (event?.defaultPrevented) {
     return false;

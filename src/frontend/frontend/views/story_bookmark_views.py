@@ -2,8 +2,9 @@ from typing import Any
 
 from flask import abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
-from models.assess import StoryBookmark
+from models.assess import Story, StoryBookmark
 from pydantic import ValidationError
+from requests import Response
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
@@ -32,7 +33,7 @@ class StoryBookmarkView(BaseView):
         return "story_bookmarks"
 
     @classmethod
-    def _response_status(cls, response) -> int:
+    def _response_status(cls, response: Response) -> int:
         return getattr(response, "status_code", 500) or 500
 
     @classmethod
@@ -130,13 +131,25 @@ class StoryBookmarkView(BaseView):
         return render_template(template, **context), status
 
     @classmethod
-    def _bookmark_story_context(cls, bookmark: StoryBookmark) -> dict[str, Any]:
+    def _bookmark_story_context(cls, bookmark: StoryBookmark, selected_story_ids: list[str] | None = None) -> dict[str, Any]:
         filter_lists = StoryView.get_filter_lists()
-        stories = CacheObject(bookmark.stories, total_count=len(bookmark.stories), limit=max(len(bookmark.stories), 1))
+        story_ids = bookmark.story_ids
+        if story_ids:
+            paging_data = PagingData(query_params={"story_ids": story_ids}).set_fetch_all()
+            story_results = DataPersistenceLayer().get_objects(Story, paging_data)
+            stories_by_id = {story.id: story for story in story_results if story.id}
+            ordered_stories = [stories_by_id[story_id] for story_id in story_ids if story_id in stories_by_id]
+        else:
+            ordered_stories = []
+        stories = CacheObject(ordered_stories, total_count=len(ordered_stories), limit=max(len(ordered_stories), 1))
         enhanced_stories = StoryView._get_enhanced_stories(stories, list(filter_lists.sources))
+        rendered_story_ids = [story.id for story in enhanced_stories if story.id]
+        visible_story_ids = set(rendered_story_ids)
         return {
             "bookmark": bookmark,
             "stories": enhanced_stories,
+            "story_ids": rendered_story_ids,
+            "selected_story_ids": [story_id for story_id in selected_story_ids or [] if story_id in visible_story_ids],
         }
 
     @classmethod
@@ -148,9 +161,13 @@ class StoryBookmarkView(BaseView):
         return bookmark
 
     @classmethod
-    def _render_detail(cls, bookmark_id: str, notification: str | None = None) -> ResponseReturnValue:
+    def _render_detail(
+        cls, bookmark_id: str, notification: str | None = None, selected_story_ids: list[str] | None = None
+    ) -> ResponseReturnValue:
         bookmark = cls._get_bookmark(bookmark_id)
-        body = render_template("bookmarks/bookmark_detail.html", **cls._bookmark_story_context(bookmark))
+        body = render_template(
+            "bookmarks/bookmark_detail.html", **cls._bookmark_story_context(bookmark, selected_story_ids=selected_story_ids)
+        )
         return make_response((notification or "") + body, 200)
 
     @classmethod

@@ -8,6 +8,7 @@ from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError, parse_datetime
 from worker.collectors.playwright_manager import PlaywrightManager
+from worker.core_api import IconFile
 from worker.log import logger
 
 
@@ -231,7 +232,9 @@ class RSSCollector(BaseWebCollector):
 
             parsed = urlparse(icon_url)
             filename = parsed.path.rsplit("/", 1)[-1] or "favicon.ico"
-            self.core_api.update_osint_source_icon(source_id, {"file": (filename, content)})
+            icon_content: IconFile = {"file": (filename, content)}
+
+            self.core_api.update_osint_source_icon(source_id, icon_content)
 
         except Exception as e:
             logger.error(f"Exception while fetching icon from {icon_url}: {e}")
