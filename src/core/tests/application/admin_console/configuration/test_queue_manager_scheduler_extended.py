@@ -837,6 +837,21 @@ def test_get_scheduled_jobs_filters_sorts_and_paginates(app, monkeypatch):
     assert [job["name"] for job in schedules["items"]] == ["Alpha archive"]
 
 
+def test_get_scheduled_jobs_uses_safe_paging_defaults(app, monkeypatch):
+    monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: []))
+    monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
+
+    qm = _make_queue_manager()
+    qm._redis = object()
+
+    with app.app_context():
+        schedules, status = qm.get_scheduled_jobs({"page": "invalid", "limit": "invalid"})
+
+    assert status == 200
+    assert schedules["total_count"] == 1
+    assert schedules["items"][0]["id"] == qm_module.TOKEN_CLEANUP_JOB_ID
+
+
 def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
     class FakeSpec:
         def __init__(self, job_id: str, task_name: str, queue_name: str):

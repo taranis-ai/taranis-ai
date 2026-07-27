@@ -11,6 +11,7 @@ Scheduler dashboard, scheduled jobs, active jobs, failed jobs, execution history
 - Scheduled, active, and failed data refresh only while its tab is active. A refresh preserves the tab's current table query.
 - Switching tabs clears table-specific query parameters and loads the selected tab from its first page. Execution history refreshes once when selected but does not poll.
 - Direct links to a scheduler tab render the full dashboard with that tab selected. HTMX requests render only the requested table.
+- Malformed RQ-list page or limit parameters fall back to the first page and default page size instead of failing the request.
 - Datetimes are stored and returned as UTC values and displayed in the profile timezone through the frontend `format_datetime` filter.
 - Failed-job error text is displayed through the scheduler error dialog and must be passed to the browser through Jinja JSON encoding.
 

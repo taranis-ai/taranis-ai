@@ -30,6 +30,7 @@ def _dashboard_page(items: list, total_count: int) -> CacheObject:
 
 
 def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
+    paging_data = _paging_data("last_run_desc")
     rows = [
         {
             "id": task_id,
@@ -44,18 +45,18 @@ def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
         }
         for task_id, stats in task_history.task_stats.items()
     ]
-    if search := (request.args.get("search") or "").strip().lower():
+    if search := (paging_data.search or "").strip().lower():
         rows = [row for row in rows if any(search in str(row.get(field) or "").lower() for field in ("id", "task", "worker_id"))]
 
-    order = request.args.get("order", "last_run_desc")
+    order = paging_data.order or "last_run_desc"
     field, separator, direction = order.rpartition("_")
     if not separator or field not in {"task", "last_run", "last_success", "successes", "failures", "success_pct"}:
         field, direction = "last_run", "desc"
     rows.sort(key=lambda row: str(row.get(field) or "").lower(), reverse=direction == "desc")
     rows.sort(key=lambda row: row.get(field) is None)
 
-    page = max(request.args.get("page", default=1, type=int) or 1, 1)
-    limit = max(request.args.get("limit", default=20, type=int) or 20, 1)
+    page = paging_data.page or 1
+    limit = paging_data.limit or 20
     offset = (page - 1) * limit
     return CacheObject(rows[offset : offset + limit], total_count=len(rows), page=page, limit=limit, order=order)
 

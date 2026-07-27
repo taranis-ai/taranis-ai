@@ -64,6 +64,13 @@ TOKEN_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Token Blacklist"
 RQ_JOB_ID_COMPONENT_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
+def _positive_int(value: Any, default: int) -> int:
+    try:
+        return max(int(value), 1)
+    except (TypeError, ValueError):
+        return default
+
+
 def _filter_sort_paginate_jobs(
     jobs: list[dict[str, Any]],
     filter_args: dict[str, Any] | None,
@@ -103,8 +110,8 @@ def _filter_sort_paginate_jobs(
     if filter_args.get("fetch_all") == "true":
         return {"items": jobs, "total_count": total_count}
 
-    page = max(int(filter_args.get("page", 1)), 1)
-    limit = max(int(filter_args.get("limit", 20)), 1)
+    page = _positive_int(filter_args.get("page"), 1)
+    limit = _positive_int(filter_args.get("limit"), 20)
     offset = (page - 1) * limit
     return {"items": jobs[offset : offset + limit], "total_count": total_count}
 

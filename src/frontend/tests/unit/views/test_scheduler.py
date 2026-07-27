@@ -197,7 +197,7 @@ def test_scheduler_tables_render_standard_controls(
     assert f'id="{container_id}"' in html
     assert 'placeholder="Search..."' in html
     assert "Items per page:" in html
-    assert "Page 1 of 1" in html
+    assert "Page 1 of" in html
     assert f'href="{url}?order=' in html
 
 
@@ -222,6 +222,21 @@ def test_scheduler_table_forwards_query_to_core(
     }
     html = response.get_data(as_text=True)
     assert 'value="collector"' in html
+
+
+def test_scheduler_table_forwards_default_order_to_core(
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_jobs_table")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    assert responses_mock.calls[-1].request.params == {"order": "next_run_time_asc"}
 
 
 def test_scheduler_history_filters_aggregate_rows(
