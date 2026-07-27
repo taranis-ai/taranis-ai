@@ -2,7 +2,9 @@
 from datetime import datetime, timezone
 from typing import Any, cast
 
+import fakeredis
 import rq.registry as rq_registry
+from rq import Queue
 
 from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
@@ -479,6 +481,36 @@ def test_enqueue_task_places_user_triggered_job_at_front(monkeypatch):
     )
 
     assert queue_calls[0]["kwargs"]["at_front"] is True
+
+
+def test_user_triggered_jobs_run_lifo_ahead_of_background_jobs():
+    queue = Queue("presenters", connection=fakeredis.FakeRedis())
+    qm = _make_queue_manager()
+    qm._queues = {"presenters": queue}
+
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "background-product",
+        job_id="background-job",
+        meta={"task": "presenter_task", "user_id": None, "worker_id": "background-product", "worker_type": "presenter_task"},
+    )
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "first-user-product",
+        job_id="first-user-job",
+        meta={"task": "presenter_task", "user_id": "user-1", "worker_id": "first-user-product", "worker_type": "presenter_task"},
+    )
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "second-user-product",
+        job_id="second-user-job",
+        meta={"task": "presenter_task", "user_id": "user-2", "worker_id": "second-user-product", "worker_type": "presenter_task"},
+    )
+
+    assert queue.job_ids == ["second-user-job", "first-user-job", "background-job"]
 
 
 def test_enqueue_task_prioritizes_dependencies_for_user_triggered_job(monkeypatch):

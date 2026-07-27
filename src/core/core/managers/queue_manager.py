@@ -641,9 +641,7 @@ class QueueManager:
                 kwargs["meta"] = dict(meta)
 
             user_triggered = self._prepare_user_priority(meta, kwargs)
-            logger.info(
-                f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}, args={args}, kwargs={kwargs}"
-            )
+            logger.info(f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}")
             job = queue.enqueue_at(scheduled_time, task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
             logger.info(f"enqueue_at: created job {job.id} scheduled for {scheduled_time}")
             return job
