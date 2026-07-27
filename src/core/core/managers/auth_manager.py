@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from functools import wraps
 from hmac import compare_digest
 
-from flask import Flask, Response, g, jsonify, make_response, request
+from flask import Flask, Response, g, make_response, request
 from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, verify_jwt_in_request
 
 from core.auth.database_authenticator import DatabaseAuthenticator
@@ -58,16 +58,6 @@ def change_password(old_password: str, new_password: str, confirm_password: str)
     except Exception:
         logger.exception("Error changing password")
         return make_response({"error": "Internal server error"}, 500)
-
-
-def refresh(user: "User"):
-    exp_timestamp = get_jwt()["exp"]
-    now = datetime.now(timezone.utc)
-    target_timestamp = datetime.timestamp(now + timedelta(minutes=30))
-    if target_timestamp > exp_timestamp:
-        return current_authenticator.refresh(user)
-    encoded_token = request.cookies.get("access_token_cookie")
-    return jsonify({"access_token": encoded_token})
 
 
 def logout(jti):

@@ -34,14 +34,14 @@ def _access_token_for_user(app, user: UserProfile) -> str:
 
 def _authenticated_client_for_user(app, user: UserProfile):
     client = app.test_client()
-    client.set_cookie(key="access_token_cookie", value=_access_token_for_user(app, user))
+    client.set_cookie(key=app.config["JWT_ACCESS_COOKIE_NAME"], value=_access_token_for_user(app, user))
     return client
 
 
 def _request_context(app, headers: dict[str, str] | None = None, user: UserProfile | None = None, path: str = "/frontend/login"):
     request_headers = dict(headers or {})
     if user:
-        request_headers["Cookie"] = f"access_token_cookie={_access_token_for_user(app, user)}"
+        request_headers["Cookie"] = f"{app.config['JWT_ACCESS_COOKIE_NAME']}={_access_token_for_user(app, user)}"
     return app.test_request_context(path, headers=request_headers)
 
 

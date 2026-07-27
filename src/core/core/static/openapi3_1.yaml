@@ -85,10 +85,12 @@ paths:
       tags:
       - auth
       operationId: auth.refresh.get
-      description: refresh an API token
+      description: refresh an access token for CLI and other non-browser clients
+      security:
+      - UserAuth: []
       responses:
         '200':
-          description: refreshed API token
+          description: refreshed access token
           content:
             application/json:
               schema:

@@ -32,6 +32,7 @@ server {
     location ${TARANIS_BASE_PATH}api {
         proxy_pass http://coreupstream;
         proxy_redirect off;
+        proxy_read_timeout 30m;
     }
 
     location ${TARANIS_BASE_PATH}reports {

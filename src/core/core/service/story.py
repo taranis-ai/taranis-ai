@@ -166,8 +166,8 @@ class StoryService:
         story.remove_attributes([f"report_{report_id}"])
 
     @staticmethod
-    def fetch_and_create_story(parameters: dict[str, Any]) -> tuple[dict[str, Any], int]:
-        result = queue_manager.queue_manager.fetch_single_news_item(parameters=parameters)
+    def fetch_and_create_story(parameters: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, Any], int]:
+        result = queue_manager.queue_manager.fetch_single_news_item(parameters=parameters, user_id=user_id)
         if isinstance(result, tuple):
             return result
         if isinstance(result, list):
@@ -183,8 +183,8 @@ class StoryService:
         """
         Import a list of stories from JSON data.
         """
+        imported_stories = []
         try:
-            imported_stories = []
             for story_data in json_data:
                 story = Story.from_dict(story_data)
                 db.session.add(story)
@@ -203,8 +203,8 @@ class StoryService:
         """
         Import a list of news items from JSON data.
         """
+        imported_news_items = []
         try:
-            imported_news_items = []
             for news_item_data in json_data:
                 news_item = NewsItem.from_dict(news_item_data)
                 db.session.add(news_item)
@@ -249,7 +249,7 @@ class StoryService:
 
     @staticmethod
     def _serialize_revision(revision: StoryRevision, include_data: bool = False) -> dict[str, Any]:
-        payload = {
+        payload: dict[str, Any] = {
             "id": revision.id,
             "revision": revision.revision,
             "created_at": revision.created_at.isoformat() if revision.created_at else None,

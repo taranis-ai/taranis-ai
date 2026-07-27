@@ -92,7 +92,11 @@
         },
         openList() {
           this.isOpen = true;
-          this.$refs.suggestionsList?.style.removeProperty("display");
+          if (this.shouldShowOptions()) {
+            this.$refs.suggestionsList?.style.removeProperty("display");
+          } else {
+            this.$refs.suggestionsList?.style.setProperty("display", "none");
+          }
         },
         closeList() {
           this.isOpen = false;
@@ -168,6 +172,7 @@
                autocomplete="off"
                x-model="query"
                x-ref="searchInput"
+               @click="openList()"
                @focus="openList()"
                @change.stop
                @keydown.enter.prevent="selectFirst()"

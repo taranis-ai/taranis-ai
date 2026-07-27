@@ -82,7 +82,7 @@ DOCKER_IMAGE_NAMESPACE=ghcr.io/taranis-ai TARANIS_TAG=latest ./docker/run_releas
 LOCUST_USERS=10 LOCUST_SPAWN_RATE=2 LOCUST_RUN_TIME=10m ./docker/run_release_gate_tests.sh load
 ```
 
-Load-test artifacts are written to `$LOAD_ARTIFACT_DIR` when set, otherwise to a temporary directory.
+The load gate seeds synthetic stories and reports before Locust starts. Failed Locust flows are reported but do not fail the release gate; setup and runner errors remain fatal. Load-test artifacts are written to `$LOAD_ARTIFACT_DIR` when set, otherwise to a temporary directory. The GitHub Actions workflow uploads those reports together with its captured release-gate output.
 
 ## PostgreSQL TLS multiprocess smoke test
 
@@ -108,7 +108,7 @@ Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import j
 
 ## Advanced monitoring
 
-Taranis AI supports advanced monitoring of `ingress`, `core` and `database` using [Sentry](https://docs.sentry.io/). It can be enabled by setting respective `SENTRY_DSN` environment variables described below.
+Taranis AI supports advanced monitoring of `core` and `frontend` using [Sentry](https://docs.sentry.io/). Leave the service-specific Sentry DSN variables unset to disable it.
 
 ## Advanced build methods
 
@@ -153,6 +153,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `REDIS_URL`                   | Redis connection URL                       | `redis://redis:6379` |
 | `PRE_SEED_PASSWORD_ADMIN`     | Initial password for `admin`               | `admin`       |
 | `PRE_SEED_PASSWORD_USER`      | Initial password for `user`                | `user`        |
+| `SKIP_INITIAL_USER_ONBOARDING`| Initially disable onboarding for all users | `False`       |
 | `API_KEY`                     | API Key for communication with workers     | `supersecret` |
 | `DEBUG`                       | Debug logging                              | `False`       |
 | `DB_URL`                      | PostgreSQL database URL                    | `localhost`   |
@@ -160,7 +161,8 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `DB_USER`                     | PostgreSQL database user                   | `taranis`     |
 | `DB_PASSWORD`                 | PostgreSQL database password               | `supersecret` |
 | `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
-| `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
+| `JWT_COOKIE_SUFFIX`           | Literal suffix for JWT and CSRF cookie names | `''`        |
+| `TARANIS_CORE_SENTRY_DSN`     | Core Sentry DSN                            | `''`          |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
 
@@ -173,6 +175,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `TARANIS_CORE_HOST`*    | Hostname and Port of the Taranis AI core   | `core:8080`                 |
 | `API_KEY`               | API Key for communication with core        | `supersecret`               |
 | `REDIS_URL`             | Redis connection URL                       | `redis://redis:6379`        |
+| `DISABLE_HTTP3`         | Disable HTTP/3 for web-based collectors    | `False`                     |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 
 
@@ -181,7 +184,10 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | Environment variable    | Description                                | Default                     |
 | ----------------------- | ------------------------------------------ | --------------------------- |
 | `JWT_SECRET_KEY`        | JWT token secret key.                      | `supersecret`               |
+| `JWT_COOKIE_SUFFIX`     | Literal suffix for JWT and CSRF cookie names | `''`                      |
+| `TARANIS_BASE_PATH`     | Deployment path used to scope authentication cookies | `/`              |
 | `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
+| `TARANIS_FRONTEND_SENTRY_DSN` | Frontend Sentry DSN                        | `''`                         |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 | `GRANIAN_WORKERS_MAX_RSS` | Per-worker Granian RSS recycle limit in MiB | `1024`       |
 
@@ -189,7 +195,9 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 > [!NOTE]
 > ** If `TARANIS_CORE_URL` is not set it will be calculated as: `http://{TARANIS_CORE_HOST}/{TARANIS_BASE_PATH}/api`.
 >
-> If you set `TARANIS_CORE_URL`: `TARANIS_CORE_HOST` and `TARANIS_BASE_PATH` will be ignored.
+> If you set `TARANIS_CORE_URL`, `TARANIS_CORE_HOST` is ignored. `TARANIS_BASE_PATH` still scopes authentication cookies.
+
+When multiple deployments share a domain, give each deployment a unique `JWT_COOKIE_SUFFIX` including its separator, such as `_q` for `TARANIS_BASE_PATH=/q/`. Core and frontend must receive the same suffix and base path. The access-token and CSRF cookies are also scoped to that base path.
 
 ### `ingress`
 

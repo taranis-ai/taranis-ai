@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Any, cast
 
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import selectinload
@@ -89,7 +90,10 @@ def pre_seed_update(db_engine: Engine):
     pre_seed_attributes()
 
     for w in workers:
-        if worker := Worker.filter_by_type(w["type"]):
+        w = cast(dict[str, Any], w)
+        worker_type = str(w["type"])
+        w["type"] = worker_type
+        if worker := Worker.filter_by_type(worker_type):
             worker.update(w)
         else:
             Worker.add(w)
@@ -97,14 +101,16 @@ def pre_seed_update(db_engine: Engine):
     pre_seed_default_publisher()
 
     for b in bots:
-        bot = Bot.filter_by_type(b["type"])
+        b = cast(dict[str, Any], b)
+        bot = Bot.filter_by_type(str(b["type"]))
         if not bot:
             b["enabled"] = False
             logger.debug(f"Adding new bot type '{b['type']}' in disabled state")
             Bot.add(b)
 
     for r in report_types:
-        rt = ReportItemType.filter_by_title(r["title"])
+        r = cast(dict[str, Any], r)
+        rt = ReportItemType.filter_by_title(str(r["title"]))
         if not rt:
             ReportItemType.add(r)
 
@@ -257,12 +263,17 @@ def migrate_user_profile(user_profile: dict, template: dict) -> dict:
 
 
 def migrate_user_profiles():
+    from core.model.settings import Settings
     from core.model.user import PROFILE_TEMPLATE, User
 
+    profile_template = {
+        **PROFILE_TEMPLATE,
+        "onboarding_enabled": Settings.get_settings().get("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING),
+    }
     users = User.get_all_for_collector() or []
     for user in users:
         current = user.profile if isinstance(user.profile, dict) else {}
-        updated = migrate_user_profile(current, PROFILE_TEMPLATE)
+        updated = migrate_user_profile(current, profile_template)
         if current != updated:
             logger.debug(f"Migrating user profile for user {user.name}")
             User.update_profile(user=user, data=updated)

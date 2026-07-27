@@ -1,5 +1,5 @@
 import contextlib
-from enum import IntEnum, StrEnum, auto, nonmember
+from enum import IntEnum, StrEnum, auto
 
 
 class TLPLevel(StrEnum):
@@ -9,22 +9,11 @@ class TLPLevel(StrEnum):
     AMBER = "amber"
     RED = "red"
 
-    _ACCESSIBLE_NAMES = nonmember(
-        {
-            "RED": ["RED", "AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
-            "AMBER_STRICT": ["AMBER_STRICT", "AMBER", "GREEN", "CLEAR"],
-            "AMBER": ["AMBER", "GREEN", "CLEAR"],
-            "GREEN": ["GREEN", "CLEAR"],
-            "CLEAR": ["CLEAR"],
-        }
-    )
-
     def get_accessible_levels(self) -> list[str]:
         """
         Return the list of TLPLevel members this level can access.
         """
-        names = type(self)._ACCESSIBLE_NAMES.get(self.name, [])
-        return [type(self)[nm].value for nm in names]
+        return [level.value for level in _TLP_ACCESSIBLE_LEVELS.get(self, ())]
 
     @classmethod
     def get_most_restrictive_tlp(cls, tlp_levels: list["TLPLevel"]) -> "TLPLevel":
@@ -35,18 +24,24 @@ class TLPLevel(StrEnum):
         if not tlp_levels:
             return cls.CLEAR
 
-        provided = {tlp.name for tlp in tlp_levels}
+        provided = set(tlp_levels)
 
-        return next(
-            (cls[level_name] for level_name in cls._ACCESSIBLE_NAMES.keys() if level_name in provided),
-            cls.CLEAR,
-        )
+        return next((level for level in _TLP_ACCESSIBLE_LEVELS if level in provided), cls.CLEAR)
 
     @classmethod
     def get_tlp_level(cls, tlp_level: str) -> "TLPLevel | None":
         with contextlib.suppress(ValueError):
             return TLPLevel(tlp_level)
         return None
+
+
+_TLP_ACCESSIBLE_LEVELS: dict[TLPLevel, tuple[TLPLevel, ...]] = {
+    TLPLevel.RED: (TLPLevel.RED, TLPLevel.AMBER_STRICT, TLPLevel.AMBER, TLPLevel.GREEN, TLPLevel.CLEAR),
+    TLPLevel.AMBER_STRICT: (TLPLevel.AMBER_STRICT, TLPLevel.AMBER, TLPLevel.GREEN, TLPLevel.CLEAR),
+    TLPLevel.AMBER: (TLPLevel.AMBER, TLPLevel.GREEN, TLPLevel.CLEAR),
+    TLPLevel.GREEN: (TLPLevel.GREEN, TLPLevel.CLEAR),
+    TLPLevel.CLEAR: (TLPLevel.CLEAR,),
+}
 
 
 class ItemType(StrEnum):

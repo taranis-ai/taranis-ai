@@ -34,8 +34,9 @@ import json
 import re
 import time
 from collections.abc import Callable, Iterable
+from copy import copy
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from croniter import croniter
 from flask import Flask
@@ -47,7 +48,7 @@ from models.admin import CronSpec
 from redis import Redis
 from rq import Queue
 from rq.exceptions import NoSuchJobError
-from rq.job import Job
+from rq.job import Dependency, Job
 
 from core.config import Config
 from core.log import logger
@@ -163,7 +164,7 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _compute_next_timestamp(cron: str | None, interval: int | None, base_ts: float) -> float:
     if cron:
         dt = datetime.fromtimestamp(base_ts, tz=timezone.utc)
-        return croniter(cron, dt).get_next(datetime).timestamp()
+        return cast(datetime, croniter(cron, dt).get_next(datetime)).timestamp()
     if interval is not None:
         return base_ts + int(interval)
     raise ValueError("CronSpec must provide either cron or interval")
@@ -466,6 +467,25 @@ class QueueManager:
         return self._queues.get(queue_name)
 
     @staticmethod
+    def _is_user_triggered(meta: dict[str, Any] | None) -> bool:
+        return bool(meta and meta.get("user_id"))
+
+    @staticmethod
+    def _prioritize_dependencies(depends_on: Any) -> Dependency:
+        if isinstance(depends_on, Dependency):
+            prioritized = copy(depends_on)
+            prioritized.enqueue_at_front = True
+            return prioritized
+        return Dependency(depends_on, enqueue_at_front=True)
+
+    @classmethod
+    def _prepare_user_priority(cls, meta: dict[str, Any] | None, kwargs: dict[str, Any]) -> bool:
+        user_triggered = cls._is_user_triggered(meta)
+        if user_triggered and (depends_on := kwargs.get("depends_on")) is not None:
+            kwargs["depends_on"] = cls._prioritize_dependencies(depends_on)
+        return user_triggered
+
+    @staticmethod
     def _build_task_meta(
         task: str,
         *,
@@ -590,7 +610,8 @@ class QueueManager:
             if meta:
                 kwargs["meta"] = dict(meta)
 
-            return queue.enqueue(task_func, *args, job_id=job_id, **kwargs)
+            user_triggered = self._prepare_user_priority(meta, kwargs)
+            return queue.enqueue(task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
             return False
@@ -617,7 +638,10 @@ class QueueManager:
         meta: dict[str, Any] | None = None,
         **kwargs,
     ):
-        """Enqueue a task to run at a specific time"""
+        """Enqueue a task to run at a specific time.
+
+        RQ promotes scheduled jobs at their due time without waiting for unfinished dependencies.
+        """
         if self.error:
             return False
 
@@ -635,10 +659,9 @@ class QueueManager:
             if meta:
                 kwargs["meta"] = dict(meta)
 
-            logger.info(
-                f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}, args={args}, kwargs={kwargs}"
-            )
-            job = queue.enqueue_at(scheduled_time, task_func, *args, job_id=job_id, **kwargs)
+            user_triggered = self._prepare_user_priority(meta, kwargs)
+            logger.info(f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}")
+            job = queue.enqueue_at(scheduled_time, task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
             logger.info(f"enqueue_at: created job {job.id} scheduled for {scheduled_time}")
             return job
         except Exception as e:
@@ -809,7 +832,7 @@ class QueueManager:
         payload_hash = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
         return f"fetch_single_news_item_{payload_hash}"
 
-    def fetch_single_news_item(self, parameters: dict[str, Any]):
+    def fetch_single_news_item(self, parameters: dict[str, Any], user_id: str | None = None):
         url = get_simple_web_collector_url(parameters)
         job = self.enqueue_task(
             "collectors",
@@ -818,7 +841,7 @@ class QueueManager:
             job_id=self._get_single_fetch_job_id(parameters),
             meta=self._build_task_meta(
                 "collector_task",
-                user_id=None,
+                user_id=user_id,
                 worker_id=self._get_single_fetch_url(parameters),
                 worker_type="simple_web_collector",
             ),
@@ -1344,7 +1367,8 @@ class QueueManager:
             cron_jobs: list[dict[str, Any]] = []
 
             for source in OSINTSource.get_all_for_collector():
-                if not (cron_schedule := source.get_schedule_with_default()):
+                source_cron_schedule = source.get_schedule_with_default()
+                if not source_cron_schedule:
                     continue
 
                 cron_jobs.append(
@@ -1352,14 +1376,15 @@ class QueueManager:
                         "task": "collector_task",
                         "queue": "collectors",
                         "args": [source.id, False],
-                        "cron": cron_schedule,
+                        "cron": source_cron_schedule,
                         "task_id": source.task_id,
                         "name": source.name,
                     }
                 )
 
             for bot_item in Bot.get_all_for_collector():
-                if not (cron_schedule := bot_item.get_schedule()):
+                bot_cron_schedule = bot_item.get_schedule()
+                if not bot_cron_schedule:
                     continue
 
                 cron_jobs.append(
@@ -1367,7 +1392,7 @@ class QueueManager:
                         "task": "bot_task",
                         "queue": "bots",
                         "args": [bot_item.id],
-                        "cron": cron_schedule,
+                        "cron": bot_cron_schedule,
                         "task_id": bot_item.task_id,
                         "name": bot_item.name,
                     }

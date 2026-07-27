@@ -1,7 +1,10 @@
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings
+
+
+WORKER_TYPE_PRIORITIES = ("Presenters", "Publishers", "Connectors", "Misc", "Bots", "Collectors")
 
 
 class Settings(BaseSettings):
@@ -19,16 +22,10 @@ class Settings(BaseSettings):
     COLORED_LOGS: bool = True
     DEBUG: bool = False
     SSL_VERIFICATION: bool = False
+    DISABLE_HTTP3: bool = False
     REQUESTS_TIMEOUT: int = 60
-    # This defines the execution order of worker types. RQ will process queues in the order they are defined here.
-    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers", "Connectors", "Misc"]] = [
-        "Bots",
-        "Collectors",
-        "Presenters",
-        "Publishers",
-        "Connectors",
-        "Misc",
-    ]
+    # This selects which task types the worker handles. The worker defines their dequeue-priority order.
+    WORKER_TYPES: list[str] = list(WORKER_TYPE_PRIORITIES)
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
     RQ_WORKER_CLASS: Literal["auto", "fork", "spawn"] = "auto"
@@ -48,8 +45,15 @@ class Settings(BaseSettings):
 
         return f"/{v.strip('/')}/"
 
+    @field_validator("WORKER_TYPES")
+    @classmethod
+    def ensure_known_worker_types(cls, worker_types: list[str]) -> list[str]:
+        if unknown_worker_types := set(worker_types) - set(WORKER_TYPE_PRIORITIES):
+            raise ValueError(f"Unknown worker types: {', '.join(sorted(unknown_worker_types))}")
+        return worker_types
+
     @model_validator(mode="after")
-    def set_taranis_core(self) -> "Settings":
+    def set_taranis_core(self) -> Self:
         if self.TARANIS_CORE_URL:
             return self
         object.__setattr__(self, "TARANIS_CORE_URL", f"http://{self.TARANIS_CORE_HOST}{self.TARANIS_BASE_PATH}api")

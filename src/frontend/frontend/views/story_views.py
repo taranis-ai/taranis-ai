@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from json import JSONDecodeError
-from typing import Any, Callable
+from typing import Any, Callable, cast
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
@@ -37,6 +37,9 @@ from frontend.utils.form_data_parser import parse_formdata
 from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
+
+
+_quote_via = cast(Any, quote)
 
 
 def _sanitize_news_item_import_payload(news_item_data: dict[str, Any], story_id: str | None = None) -> dict[str, Any]:
@@ -418,7 +421,7 @@ class StoryView(BaseView):
 
     @classmethod
     def default_share_story_link(cls) -> str:
-        return f"mailto:?{urlencode({'subject': 'sharing stories from taranis ai'}, quote_via=quote)}"
+        return f"mailto:?{urlencode({'subject': 'sharing stories from taranis ai'}, quote_via=_quote_via)}"
 
     @classmethod
     @auth_required()
@@ -499,19 +502,20 @@ class StoryView(BaseView):
         if body:
             params["body"] = body
 
-        return f"mailto:?{urlencode(params, quote_via=quote)}"
+        return f"mailto:?{urlencode(params, quote_via=_quote_via)}"
 
     @classmethod
     @auth_required()
     def get_report_dialog(cls) -> tuple[str, int]:
         story_ids = request.args.getlist("story_ids")
+        bookmark_id = cls._get_bookmark_id()
         logger.debug(f"Opening report dialog for stories {story_ids}")
         reports = DataPersistenceLayer().get_objects(ReportItem)
-        target = "#assess"
-        if StoryView._get_current_url_path() != url_for("assess.assess"):
-            target = f"#story-{story_ids[0]}"
+        target = cls._get_story_action_target(story_ids)
 
-        return render_template("assess/story_report_dialog.html", story_ids=story_ids, reports=reports, target=target), 200
+        return render_template(
+            "assess/story_report_dialog.html", story_ids=story_ids, reports=reports, target=target, bookmark_id=bookmark_id
+        ), 200
 
     @classmethod
     @auth_required()
@@ -520,7 +524,7 @@ class StoryView(BaseView):
         report_id = request.form.get("report", "")
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
         notification_html = cls.get_notification_from_response(response)
-        if StoryView._get_current_url_path() == url_for("assess.assess"):
+        if cls._get_bookmark_id() or StoryView._get_current_url_path() == url_for("assess.assess"):
             return cls.rerender_list(notification=notification_html)
         else:
             content = cls._get_action_response_content(story_ids[0])
@@ -530,9 +534,11 @@ class StoryView(BaseView):
     @auth_required()
     def get_cluster_dialog(cls) -> tuple[str, int]:
         story_ids = request.args.getlist("story_ids")
+        bookmark_id = cls._get_bookmark_id()
         logger.debug(f"Opening cluster dialog for stories {story_ids}")
         stories = [DataPersistenceLayer().get_object(Story, s) for s in story_ids]
-        return render_template("assess/story_grouping_dialog.html", stories=stories), 200
+        target = cls._get_story_action_target(story_ids)
+        return render_template("assess/story_grouping_dialog.html", stories=stories, target=target, bookmark_id=bookmark_id), 200
 
     @classmethod
     @auth_required()
@@ -811,6 +817,13 @@ class StoryView(BaseView):
 
     @classmethod
     def rerender_list(cls, notification: str | None = None):
+        if bookmark_id := cls._get_bookmark_id():
+            return cls._render_bookmark_after_story_change(
+                bookmark_id,
+                notification=notification,
+                selected_story_ids=request.form.getlist("story_ids"),
+            )
+
         request_params = request.args.to_dict(flat=False)
 
         if request.method == "POST" and "HX-Current-URL" in request.headers:
@@ -850,7 +863,12 @@ class StoryView(BaseView):
     def get_item_context(cls, object_id: str) -> dict[str, Any]:
         context = super().get_item_context(object_id)
         context["_show_sidebar"] = False
-        context["form_action"] = f"hx-post={url_for('assess.story_edit', story_id=object_id)}"
+        bookmark_id = cls._get_bookmark_id()
+        context["bookmark_id"] = bookmark_id
+        form_url = url_for("assess.story_edit", story_id=object_id)
+        if bookmark_id:
+            form_url = url_for("assess.story_edit", story_id=object_id, bookmark_id=bookmark_id, return_to_bookmark="1")
+        context["form_action"] = f"hx-post={form_url}"
         story = context.get("story")
 
         if isinstance(story, Story):
@@ -999,9 +1017,13 @@ class StoryView(BaseView):
 
     @classmethod
     @auth_required()
-    def news_item_view(cls, news_item_id: str = "0"):
+    def news_item_view(cls, news_item_id: str = "0") -> tuple[str, int]:
+        return cls._render_news_item_view(news_item_id), 200
+
+    @classmethod
+    def _render_news_item_view(cls, news_item_id: str) -> str:
         news_item = DataPersistenceLayer().get_object(NewsItem, news_item_id) if news_item_id != "0" else NewsItem.model_construct(id="")
-        return render_template("assess/news_item_create.html", news_item=news_item), 200
+        return render_template("assess/news_item_create.html", news_item=news_item)
 
     @classmethod
     @auth_required()
@@ -1088,7 +1110,7 @@ class StoryView(BaseView):
 
         return cls._handle_news_item_response(
             core_response,
-            content_builder=lambda _: cls.news_item_view(news_item_id=news_item_id)[0],
+            content_builder=lambda _: cls._render_news_item_view(news_item_id),
         )
 
     @classmethod
@@ -1273,6 +1295,10 @@ class StoryView(BaseView):
         except Exception:
             return cls.render_response_notification({"error": "Failed to delete story"})
 
+        if bookmark_id := cls._get_bookmark_id():
+            notification_html = cls.get_notification_from_response(core_response)
+            return cls._render_bookmark_after_story_change(bookmark_id, notification=notification_html)
+
         if cls._get_current_url_path() == url_for("assess.assess"):
             notification_html = cls.get_notification_from_response(core_response)
             return cls.rerender_list(notification=notification_html)
@@ -1288,8 +1314,44 @@ class StoryView(BaseView):
         return ""
 
     @staticmethod
+    def _get_bookmark_id() -> str:
+        return request.args.get("bookmark_id") or request.form.get("bookmark_id", "")
+
+    @classmethod
+    def _get_story_action_target(cls, story_ids: list[str]) -> str:
+        if cls._get_bookmark_id():
+            return "#bookmark-detail-container"
+        if cls._get_current_url_path() != url_for("assess.assess") and story_ids:
+            return f"#story-{story_ids[0]}"
+        return "#assess"
+
+    @staticmethod
+    def _invalidate_bookmark_story_cache(bookmark_id: str) -> None:
+        from frontend.views.story_bookmark_views import StoryBookmarkView
+
+        DataPersistenceLayer().invalidate_model_cache_locally(Story)
+        StoryBookmarkView._invalidate_bookmark_cache(bookmark_id)
+
+    @classmethod
+    def _render_bookmark_after_story_change(
+        cls,
+        bookmark_id: str,
+        notification: str | None = None,
+        selected_story_ids: list[str] | None = None,
+    ) -> ResponseReturnValue:
+        from frontend.views.story_bookmark_views import StoryBookmarkView
+
+        cls._invalidate_bookmark_story_cache(bookmark_id)
+        return StoryBookmarkView._render_detail(
+            bookmark_id,
+            notification=notification,
+            selected_story_ids=selected_story_ids,
+        )
+
+    @staticmethod
     def _get_action_response_content(story_id: str) -> str:
         current_url = StoryView._get_current_url_path()
+        bookmark_id = StoryView._get_bookmark_id()
 
         edit_path = url_for("assess.story_edit", story_id=story_id)
         detail_path = url_for("assess.story", story_id=story_id)
@@ -1310,11 +1372,8 @@ class StoryView(BaseView):
                 **context,
             )
 
-        return render_template(
-            "assess/story.html",
-            detail_view=False,
-            **context,
-        )
+        context["show_bookmark"] = not bookmark_id
+        return render_template("assess/story.html", detail_view=False, **context)
 
     @classmethod
     @auth_required()
@@ -1333,6 +1392,11 @@ class StoryView(BaseView):
         else:
             try:
                 core_response = CoreApi().api_put("/assess/stories/ungroup", json_data=[story_id])
+                if bookmark_id := cls._get_bookmark_id():
+                    return cls._render_bookmark_after_story_change(
+                        bookmark_id,
+                        notification=cls.get_notification_from_response(core_response),
+                    )
                 cls.add_flash_notification(core_response)
                 return cls.redirect_htmx(url_for("assess.assess"))
             except HTTPException:
@@ -1377,6 +1441,11 @@ class StoryView(BaseView):
             return cls._validation_error_notification(exc, StoryUpdatePayload)
 
         response = CoreApi().api_patch(f"/assess/stories/{story_id}", json_data=story_update.model_dump(mode="json"))
+        if bookmark_id := cls._get_bookmark_id():
+            cls._invalidate_bookmark_story_cache(bookmark_id)
+            if request.args.get("return_to_bookmark") == "1" and getattr(response, "ok", False):
+                cls.add_flash_notification(response)
+                return cls.redirect_htmx(url_for("assess.bookmark", bookmark_id=bookmark_id))
         notification_html = cls.get_notification_from_response(response)
 
         content = cls._get_action_response_content(story_id)

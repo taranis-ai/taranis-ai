@@ -22,6 +22,8 @@ Workflow:
 
 ## Easy Mode
 
+The automated setup supports Ubuntu and Debian 13.
+
 Clone Repository
 
 ```bash
@@ -120,7 +122,11 @@ tmux new-window -t taranis:4 -n rq-dashboard -c src/worker
 tmux attach-session -t taranis
 ```
 
-Or simply run `./dev/start_tmux.sh` which sets up all windows automatically.
+Or run `./dev/start_tmux.sh` for the core, Tailwind, frontend, and worker windows. Set `WITH_CRON_RQ=1` to also start cron and rq-dashboard:
+
+```bash
+WITH_CRON_RQ=1 ./dev/start_tmux.sh
+```
 
 In Core Tab:
 
@@ -194,9 +200,9 @@ Use the migration harness to reproduce production-like upgrades from the current
 ./dev/test_master_to_branch_migration.sh
 ```
 
-This harness requires `podman`.
+This harness requires Podman, or Docker with `CONTAINER_CLI=docker`.
 
-The script creates a temporary git worktree from `origin/master`, starts a disposable PostgreSQL container with Podman, initializes and seeds a fresh master database, copies it, then starts the current branch against the copy so pending yoyo migrations are applied. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
+The script creates a temporary git worktree from `origin/master`, starts a disposable PostgreSQL container, initializes and seeds a fresh master database, copies it, then starts the current branch against the copy so pending yoyo migrations are applied. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
 
 Useful options:
 
@@ -205,9 +211,12 @@ BASE_REF=master ./dev/test_master_to_branch_migration.sh
 KEEP_MIGRATION_TEST_DB=1 ./dev/test_master_to_branch_migration.sh
 PG_IMAGE=postgres:16-alpine ./dev/test_master_to_branch_migration.sh
 PYTEST_TARGET=tests ./dev/test_master_to_branch_migration.sh
+CONTAINER_CLI=docker BASE_REF=1.4.1 ./dev/test_master_to_branch_migration.sh
 ```
 
 `KEEP_MIGRATION_TEST_DB=1` leaves the temporary worktree and PostgreSQL container running for inspection. Do not point this harness at shared or production databases.
+
+After a schema-related PR is approved, CI uses this harness with the latest stable Git release tag as `BASE_REF` and the approved PR checkout as the migration target.
 
 ### RQ Cron Scheduler
 
@@ -217,7 +226,7 @@ The development setup includes an **RQ Cron Scheduler** that automatically enque
 * Automatically enqueues collection and bot tasks at their scheduled times
 * Picks up definition changes from Redis on each poll cycle
 
-When using `./dev/start_tmux.sh`, the cron scheduler is automatically started in window 4.
+When using `WITH_CRON_RQ=1 ./dev/start_tmux.sh`, the cron scheduler is started in window 4.
 
 **Manual start:**
 ```bash
@@ -241,7 +250,7 @@ The development setup includes [rq-dashboard](https://github.com/Parallels/rq-da
 * Job details including arguments, results, and tracebacks
 * Ability to cancel jobs, requeue failed jobs, and empty queues
 
-When using `./dev/start_tmux.sh`, rq-dashboard is automatically started on port **9181** in window 5.
+When using `WITH_CRON_RQ=1 ./dev/start_tmux.sh`, rq-dashboard is started on port **9181** in window 5.
 
 Access it at: http://localhost:9181
 

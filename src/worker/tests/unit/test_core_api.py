@@ -15,3 +15,13 @@ def test_update_osint_source_icon_sends_multipart_file(requests_mock):
 
     assert result == {"message": "Icon uploaded"}
     assert requests_mock.request_history[0].headers["Content-Type"].startswith("multipart/form-data")
+
+
+def test_run_post_collection_bots_forwards_current_job_user(requests_mock, monkeypatch):
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/post-collection-bots", json={"message": "scheduled"})
+    monkeypatch.setattr(CoreApi, "_get_current_job_user_id", staticmethod(lambda: "user-1"))
+
+    result = CoreApi().run_post_collection_bots("source-1")
+
+    assert result == {"message": "scheduled"}
+    assert requests_mock.request_history[0].json() == {"source_id": "source-1", "user_id": "user-1"}

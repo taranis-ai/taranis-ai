@@ -1,4 +1,4 @@
-from flask import Blueprint, Flask, Response, jsonify, request, send_file
+from flask import Blueprint, Flask, Response, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from werkzeug.datastructures import FileStorage
 
@@ -169,9 +169,7 @@ class Stories(MethodView):
     @api_key_required
     def post(self):
         response, status = Story.add_or_update(request.json)
-        json_response = jsonify(response)
-        json_response.status_code = status
-        return json_response
+        return make_response(jsonify(response), status)
 
 
 class MISPStories(MethodView):
@@ -183,9 +181,7 @@ class MISPStories(MethodView):
             return {"error": "Expected a list of stories"}, 400
         result, status = Story.add_or_update_for_misp(data)
         sse_manager.news_items_updated()
-        json_response = jsonify(result)
-        json_response.status_code = status
-        return json_response
+        return make_response(jsonify(result), status)
 
     @api_key_required
     def put(self):
@@ -198,9 +194,7 @@ class MISPStories(MethodView):
         if news_item_ids := data.get("news_items"):
             result, code = Connector.update_news_item_last_change(news_item_ids)
         sse_manager.news_items_updated()
-        json_response = jsonify(result)
-        json_response.status_code = code
-        return json_response
+        return make_response(jsonify(result), code)
 
 
 class Tags(MethodView):
@@ -271,7 +265,10 @@ class BotInfo(MethodView):
 
     @api_key_required
     def put(self, bot_id):
-        if bot := Bot.update(bot_id, request.json or {}):
+        data = request.json
+        if not isinstance(data, dict) or not data:
+            return {"error": "No data provided"}, 400
+        if bot := Bot.update(bot_id, data):
             return bot.to_dict(), 200
         return {"error": "Bot not found"}, 404
 
@@ -282,7 +279,7 @@ class PostCollectionBots(MethodView):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
         if source_id := data.get("source_id", None):
-            return queue_manager.queue_manager.post_collection_bots(source_id=source_id)
+            return queue_manager.queue_manager.post_collection_bots(source_id=source_id, user_id=data.get("user_id"))
         return {"error": "No source_id provided"}, 400
 
 

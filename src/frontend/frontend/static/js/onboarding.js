@@ -8,13 +8,6 @@ const adminAdvancedTourId = "admin_advanced_v1";
 const userProductOverviewTaskId = "user_product_overview_v1";
 const taskDefinitions = {};
 
-function getOnboardingCSRFToken() {
-  return document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("csrf_access_token="))
-    ?.split("=")[1];
-}
-
 function registerOnboardingTask(definition) {
   taskDefinitions[definition.id] = definition;
 }
@@ -86,7 +79,7 @@ function saveOnboardingTask(root, task, status) {
     credentials: "same-origin",
     headers: {
       "HX-Request": "true",
-      "X-CSRF-TOKEN": getOnboardingCSRFToken() || "",
+      "X-CSRF-TOKEN": getCSRFToken() || "",
     },
   }).catch((error) => {
     console.error("Failed to save onboarding task state", error);

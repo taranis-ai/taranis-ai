@@ -1,4 +1,4 @@
-{% from "macros/forms.html" import form_input, form_select %}
+{% from "macros/forms.html" import form_input, form_select, form_switch %}
 
 {% set create = (user_id | default("0")) == "0" %}
 
@@ -66,7 +66,7 @@
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ user_id }}</p>
 
   <form id="user-form" class="w-3/4 ml-[10%]" method="post" action="{{ form_action }}">
-    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
     {% include "partials/admin_form_error.html" %}
 
     {{ form_input('Username', 'username', user.username, form_error.username, width="w-3/4") }}
@@ -121,6 +121,9 @@
     </div>
 
     {{ form_select(label='Organization', name='organization', value=user_organization_id, options=organizations, width="w-3/4") }}
+
+    {% set onboarding_enabled = user.profile.onboarding_enabled if not create and user.profile else onboarding_enabled_default %}
+    {{ form_switch('Onboarding enabled', 'profile[onboarding_enabled]', onboarding_enabled, yes_val=true, no_val=false, required=False, preserve=False, width='w-3/4', input_id='user-onboarding-enabled') }}
 
     <input type="submit" class="btn btn-primary w-3/4" value="{{ submit_text }}" />
   </form>

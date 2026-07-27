@@ -1187,6 +1187,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         collector_interval_input = settings_form.get_by_test_id("settings-default-collector-interval").first
         story_conflict_input = settings_form.get_by_test_id("settings-default-story-conflict-retention").first
         news_conflict_input = settings_form.get_by_test_id("settings-default-news-item-conflict-retention").first
+        onboarding_switch = settings_form.locator("#settings-onboarding-enabled").first
         settings_submit = settings_form.get_by_test_id("settings-submit").first
         stories_import_url = url_for("assess.import_stories", _external=True)
 
@@ -1205,6 +1206,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(story_conflict_input).to_have_value("200")
             expect(news_conflict_input).to_have_attribute("required", "")
             expect(news_conflict_input).to_have_value("200")
+            expect(onboarding_switch).to_be_checked()
 
         def change_default_values():
             expect(collector_interval_input).to_be_visible()
@@ -1387,6 +1389,32 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.goto(url_for("admin_settings.settings", _external=True))
             page.get_by_role("button", name="Invalidate Cache").click()
 
+        def test_onboarding_controls() -> None:
+            reset_admin_onboarding_tours(page)
+            page.goto(url_for("admin_settings.settings", _external=True))
+            onboarding_switch.uncheck()
+            with page.expect_response(settings_update_url) as response_info:
+                settings_submit.click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+
+            page.goto(url_for("admin.dashboard", _external=True))
+            expect(page.locator("#onboarding-root")).to_have_count(0)
+
+            page.goto(url_for("admin.users", _external=True))
+            page.get_by_role("link", name="admin", exact=True).click()
+            page.locator("#user-onboarding-enabled").check()
+            page.locator('input[type="submit"]').click()
+            expect(page).to_have_url(url_for("admin.users", _external=True))
+
+            page.goto(url_for("admin.dashboard", _external=True))
+            expect(page.locator("#onboarding-root")).to_have_count(1)
+
+            page.goto(url_for("admin_settings.settings", _external=True))
+            onboarding_switch.check()
+            with page.expect_response(settings_update_url) as response_info:
+                settings_submit.click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+
         go_to_admin_settings()
         check_default_values()
         change_default_values()
@@ -1394,6 +1422,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         exported_stories_file = test_export_all_stories(pre_seed_stories)
         test_export_stories_metadata_time_filter(pre_seed_stories)
         import_stories_from_json(exported_stories_file)
+        test_onboarding_controls()
         revert_to_default_values()
         test_clear_cache()
 
