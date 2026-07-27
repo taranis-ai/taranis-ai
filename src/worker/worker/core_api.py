@@ -273,6 +273,27 @@ class CoreApi:
             logger.exception("Can't get cron job configurations")
             return None
 
+    def cleanup_task_history(self) -> dict | None:
+        url = f"{self.api_url}/worker/tasks/history/cleanup"
+        try:
+            response = requests.post(url=url, headers=self.headers, verify=self.verify, json={}, timeout=self.timeout)
+        except Exception:
+            logger.exception("Can't cleanup task history")
+            return None
+        if response.ok:
+            return response.json()
+        try:
+            response_data = response.json()
+        except Exception:
+            response_data = response.text
+        status_code = response.status_code or 0
+        return {
+            "error": response_data.get("error", response.text) if isinstance(response_data, dict) else str(response_data),
+            "reason": "core_http_error",
+            "retryable": status_code >= 500,
+            "data": {"status_code": status_code, "response": response_data},
+        }
+
     def get_bot_config(self, bot_id: str) -> dict | None:
         try:
             return self.api_get(f"/worker/bots/{bot_id}")

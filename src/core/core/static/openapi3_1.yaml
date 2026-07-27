@@ -9076,6 +9076,25 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/tasks/history/cleanup:
+    post:
+      security:
+      - APIKey: []
+      description: clean up persisted task history older than the configured retention window
+      operationId: worker.task_history_cleanup_worker.post
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /worker/misp/last-change:
     post:
       security:
