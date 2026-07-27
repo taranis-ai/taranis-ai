@@ -2,7 +2,9 @@
 from datetime import datetime, timezone
 from typing import Any, cast
 
+import fakeredis
 import rq.registry as rq_registry
+from rq import Queue
 
 from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
@@ -451,9 +453,194 @@ def test_enqueue_task_passes_meta_to_rq_queue(monkeypatch):
             "task_func": "worker.collectors.collector_tasks.collector_task",
             "args": ("source-1", True),
             "job_id": "collect_rss_collector_source-1",
-            "kwargs": {"meta": {"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"}},
+            "kwargs": {
+                "at_front": False,
+                "meta": {"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"},
+            },
         }
     ]
+
+
+def test_enqueue_task_places_user_triggered_job_at_front(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue(self, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append({"task_func": task_func, "args": args, "job_id": job_id, "kwargs": kwargs})
+            return object()
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "product-1",
+        job_id="presenter_task_product-1",
+        meta={"task": "presenter_task", "user_id": "user-1", "worker_id": "product-1", "worker_type": "presenter_task"},
+    )
+
+    assert queue_calls[0]["kwargs"]["at_front"] is True
+
+
+def test_user_triggered_jobs_run_lifo_ahead_of_background_jobs():
+    queue = Queue("presenters", connection=fakeredis.FakeRedis())
+    qm = _make_queue_manager()
+    qm._queues = {"presenters": queue}
+
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "background-product",
+        job_id="background-job",
+        meta={"task": "presenter_task", "user_id": None, "worker_id": "background-product", "worker_type": "presenter_task"},
+    )
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "first-user-product",
+        job_id="first-user-job",
+        meta={"task": "presenter_task", "user_id": "user-1", "worker_id": "first-user-product", "worker_type": "presenter_task"},
+    )
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "second-user-product",
+        job_id="second-user-job",
+        meta={"task": "presenter_task", "user_id": "user-2", "worker_id": "second-user-product", "worker_type": "presenter_task"},
+    )
+
+    assert queue.job_ids == ["second-user-job", "first-user-job", "background-job"]
+
+
+def test_enqueue_task_prioritizes_dependencies_for_user_triggered_job(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue(self, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append({"task_func": task_func, "args": args, "job_id": job_id, "kwargs": kwargs})
+            return object()
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+
+    qm.enqueue_task(
+        "publishers",
+        "publisher_task",
+        "product-1",
+        "publisher-1",
+        depends_on=["presenter-job-1", "presenter-job-2"],
+        meta={"task": "publisher_task", "user_id": "user-1", "worker_id": "publisher-1", "worker_type": "publisher_task"},
+    )
+
+    dependency = queue_calls[0]["kwargs"]["depends_on"]
+    assert isinstance(dependency, qm_module.Dependency)
+    assert dependency.dependencies == ["presenter-job-1", "presenter-job-2"]
+    assert dependency.allow_failure is False
+    assert dependency.enqueue_at_front is True
+
+
+def test_enqueue_task_preserves_existing_dependency_options(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue(self, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append({"task_func": task_func, "args": args, "job_id": job_id, "kwargs": kwargs})
+            return object()
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+    existing_dependency = qm_module.Dependency("presenter-job", allow_failure=True)
+    existing_dependency.custom_config = {"timeout": 120}
+
+    qm.enqueue_task(
+        "publishers",
+        "publisher_task",
+        "product-1",
+        "publisher-1",
+        depends_on=existing_dependency,
+        meta={"task": "publisher_task", "user_id": "user-1", "worker_id": "publisher-1", "worker_type": "publisher_task"},
+    )
+
+    dependency = queue_calls[0]["kwargs"]["depends_on"]
+    assert isinstance(dependency, qm_module.Dependency)
+    assert dependency is not existing_dependency
+    assert dependency.dependencies == ["presenter-job"]
+    assert dependency.allow_failure is True
+    assert dependency.enqueue_at_front is True
+    assert dependency.custom_config == {"timeout": 120}
+    assert existing_dependency.enqueue_at_front is False
+
+
+def test_enqueue_at_preserves_user_priority(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue_at(self, scheduled_time, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append(
+                {
+                    "scheduled_time": scheduled_time,
+                    "task_func": task_func,
+                    "args": args,
+                    "job_id": job_id,
+                    "kwargs": kwargs,
+                }
+            )
+            return object()
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+    scheduled_time = datetime(2026, 7, 23, tzinfo=timezone.utc)
+
+    qm.enqueue_at(
+        "presenters",
+        "presenter_task",
+        scheduled_time,
+        "product-1",
+        job_id="presenter_task_product-1",
+        depends_on="collector-job",
+        meta={"task": "presenter_task", "user_id": "user-1", "worker_id": "product-1", "worker_type": "presenter_task"},
+    )
+
+    assert queue_calls[0]["kwargs"]["at_front"] is True
+    dependency = queue_calls[0]["kwargs"]["depends_on"]
+    assert isinstance(dependency, qm_module.Dependency)
+    assert dependency.dependencies == ["collector-job"]
+    assert dependency.enqueue_at_front is True
+
+
+def test_enqueue_at_keeps_background_job_at_normal_priority(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue_at(self, scheduled_time, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append(
+                {
+                    "scheduled_time": scheduled_time,
+                    "task_func": task_func,
+                    "args": args,
+                    "job_id": job_id,
+                    "kwargs": kwargs,
+                }
+            )
+            return object()
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+    scheduled_time = datetime(2026, 7, 23, tzinfo=timezone.utc)
+
+    qm.enqueue_at(
+        "presenters",
+        "presenter_task",
+        scheduled_time,
+        "product-1",
+        job_id="presenter_task_product-1",
+        depends_on="collector-job",
+        meta={"task": "presenter_task", "user_id": None, "worker_id": "product-1", "worker_type": "presenter_task"},
+    )
+
+    assert queue_calls[0]["kwargs"]["at_front"] is False
+    assert queue_calls[0]["kwargs"]["depends_on"] == "collector-job"
 
 
 def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypatch):

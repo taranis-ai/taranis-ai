@@ -166,8 +166,8 @@ class StoryService:
         story.remove_attributes([f"report_{report_id}"])
 
     @staticmethod
-    def fetch_and_create_story(parameters: dict[str, Any]) -> tuple[dict[str, Any], int]:
-        result = queue_manager.queue_manager.fetch_single_news_item(parameters=parameters)
+    def fetch_and_create_story(parameters: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, Any], int]:
+        result = queue_manager.queue_manager.fetch_single_news_item(parameters=parameters, user_id=user_id)
         if isinstance(result, tuple):
             return result
         if isinstance(result, list):
