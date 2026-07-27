@@ -580,14 +580,16 @@ class QueueTasks(MethodView):
 
 class ActiveJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        return queue_manager.queue_manager.get_active_jobs()
+    @extract_args("search", "page", "limit", "order", "fetch_all")
+    def get(self, filter_args: dict[str, Any] | None = None):
+        return queue_manager.queue_manager.get_active_jobs(filter_args)
 
 
 class FailedJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        return queue_manager.queue_manager.get_failed_jobs()
+    @extract_args("search", "page", "limit", "order", "fetch_all")
+    def get(self, filter_args: dict[str, Any] | None = None):
+        return queue_manager.queue_manager.get_failed_jobs(filter_args)
 
 
 class WorkerStats(MethodView):
@@ -648,12 +650,13 @@ class CronJobs(MethodView):
 
 class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self, task_id: str | None = None):
+    @extract_args("search", "page", "limit", "order", "fetch_all")
+    def get(self, task_id: str | None = None, filter_args: dict[str, Any] | None = None):
         try:
             if task_id:
                 return queue_manager.queue_manager.get_scheduled_job(task_id)
 
-            return queue_manager.queue_manager.get_scheduled_jobs()
+            return queue_manager.queue_manager.get_scheduled_jobs(filter_args)
         except Exception:
             logger.exception("Failed to get schedules")
             return {"error": "Failed to get schedules"}, 500

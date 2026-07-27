@@ -7590,6 +7590,27 @@ paths:
       - config
       description: get schedule
       operationId: config.config_queue_schedule.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
+      - name: fetch_all
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success
@@ -8035,6 +8056,27 @@ paths:
       - config
       description: get workers active
       operationId: config.config_active_jobs.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
+      - name: fetch_all
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success
@@ -8098,6 +8140,27 @@ paths:
       - config
       description: get workers failed
       operationId: config.config_failed_jobs.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
+      - name: fetch_all
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success
@@ -8119,6 +8182,27 @@ paths:
       - config
       description: get workers schedule
       operationId: config.config_queue_schedule_config.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
+      - name: fetch_all
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success

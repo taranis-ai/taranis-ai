@@ -32,9 +32,7 @@
               </svg>
               Scheduled Jobs
             </h2>
-            <div id="scheduled-jobs-table" hx-get="{{ url_for('admin.scheduler_jobs_table') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
-              {% include "schedule/jobs_table.html" %}
-            </div>
+            {% include "schedule/jobs_table.html" %}
           </div>
         </div>
       </div>
@@ -49,9 +47,7 @@
               </svg>
               Currently Running
             </h2>
-            <div id="active-jobs-table" hx-get="{{ url_for('admin.scheduler_active_jobs') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
-              <p class="text-center py-4">Loading active jobs...</p>
-            </div>
+            {% include "schedule/active_jobs.html" %}
           </div>
         </div>
       </div>
@@ -66,9 +62,7 @@
               </svg>
               Failed Jobs
             </h2>
-            <div id="failed-jobs-table" hx-get="{{ url_for('admin.scheduler_failed_jobs') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
-              <p class="text-center py-4">Loading failed jobs...</p>
-            </div>
+            {% include "schedule/failed_jobs.html" %}
           </div>
         </div>
       </div>
@@ -117,6 +111,7 @@
       scheduled: { id: 'scheduled-jobs-table', intervalMs: 10000, immediate: false },
       active: { id: 'active-jobs-table', intervalMs: 5000, immediate: true },
       failed: { id: 'failed-jobs-table', intervalMs: 10000, immediate: true },
+      history: { id: 'execution-history-table', intervalMs: null, immediate: false },
     };
     let activeRefreshTimer = null;
 
@@ -124,6 +119,7 @@
       try {
         const url = new URL(window.location.href);
         url.searchParams.set('tab', tabName);
+        ['search', 'page', 'limit', 'order'].forEach(param => url.searchParams.delete(param));
         history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
       } catch (err) {
         console.debug('Failed to update tab query param', err);
@@ -137,7 +133,7 @@
       }
     };
 
-    const triggerSchedulerRefresh = (tabName) => {
+    const triggerSchedulerRefresh = (tabName, resetQuery = false) => {
       const config = schedulerRefreshTargets[tabName];
       if (!config || !window.htmx) {
         return;
@@ -145,11 +141,20 @@
 
       const target = document.getElementById(config.id);
       if (target) {
+        if (resetQuery && target.dataset.baseUrl) {
+          target.setAttribute('hx-get', target.dataset.baseUrl);
+          window.htmx.ajax('GET', target.dataset.baseUrl, {
+            target: `#${config.id}`,
+            swap: 'outerHTML',
+            select: `#${config.id}`,
+          });
+          return;
+        }
         window.htmx.trigger(target, 'scheduler:refresh');
       }
     };
 
-    const startTabRefreshLoop = (tabName) => {
+    const startTabRefreshLoop = (tabName, immediate = null) => {
       stopTabRefreshLoop();
 
       const config = schedulerRefreshTargets[tabName];
@@ -157,13 +162,15 @@
         return;
       }
 
-      if (config.immediate) {
+      if (immediate ?? config.immediate) {
         triggerSchedulerRefresh(tabName);
       }
 
-      activeRefreshTimer = window.setInterval(() => {
-        triggerSchedulerRefresh(tabName);
-      }, config.intervalMs);
+      if (config.intervalMs !== null) {
+        activeRefreshTimer = window.setInterval(() => {
+          triggerSchedulerRefresh(tabName);
+        }, config.intervalMs);
+      }
     };
 
     document.querySelectorAll('.tab').forEach(tab => {
@@ -177,7 +184,8 @@
         document.getElementById(`${tabName}-tab`).classList.remove('hidden');
 
         updateTabInUrl(tabName);
-        startTabRefreshLoop(tabName);
+        startTabRefreshLoop(tabName, false);
+        triggerSchedulerRefresh(tabName, true);
       });
     });
 

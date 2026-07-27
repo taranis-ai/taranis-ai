@@ -73,9 +73,8 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
     assert 'id="scheduled-jobs-table"' in html
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
-    assert html.count('hx-trigger="scheduler:refresh"') == 3
+    assert html.count('hx-trigger="scheduler:refresh"') == 4
     assert 'id="execution-history">' in html
-    assert "window.htmx.trigger(target, 'scheduler:refresh');" in html
 
 
 def test_scheduler_dashboard_initial_render_uses_aggregate_endpoints(authenticated_client, responses_mock, mock_core_get_endpoints):
@@ -98,7 +97,7 @@ def test_scheduler_dashboard_initial_render_uses_aggregate_endpoints(authenticat
 @pytest.mark.parametrize(
     ("endpoint", "expected_paths", "expected_text"),
     [
-        ("admin.scheduler_jobs_table", ["/config/schedule"], "Total: 1 scheduled jobs"),
+        ("admin.scheduler_jobs_table", ["/config/schedule"], "Items per page:"),
         ("admin.scheduler_queue_cards", ["/config/workers/tasks", "/config/workers/stats"], "Collectors"),
         ("admin.scheduler_active_jobs", ["/config/workers/active"], "Running Bot"),
         ("admin.scheduler_failed_jobs", ["/config/workers/failed"], "Failed Connector"),
@@ -168,3 +167,74 @@ def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(
 
     assert response.status_code == 200
     assert "01. January 2025 13:00" in response.get_data(as_text=True)
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "table_id", "container_id"),
+    [
+        ("admin.scheduler_jobs_table", "scheduled-jobs", "scheduled-jobs-table"),
+        ("admin.scheduler_active_jobs", "active-jobs", "active-jobs-table"),
+        ("admin.scheduler_failed_jobs", "failed-jobs", "failed-jobs-table"),
+        ("admin.scheduler_history", "execution-history-jobs", "execution-history-table"),
+    ],
+)
+def test_scheduler_tables_render_standard_controls(
+    endpoint,
+    table_id,
+    container_id,
+    authenticated_client,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    with authenticated_client.application.app_context():
+        url = url_for(endpoint)
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert f'data-testid="{table_id}"' in html
+    assert f'id="{container_id}"' in html
+    assert 'placeholder="Search..."' in html
+    assert "Items per page:" in html
+    assert "Page 1 of 1" in html
+    assert f'href="{url}?order=' in html
+
+
+def test_scheduler_table_forwards_query_to_core(
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_jobs_table", search="collector", page=2, limit=5, order="name_desc")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    request_query = responses_mock.calls[-1].request.params
+    assert request_query == {
+        "search": "collector",
+        "page": "2",
+        "limit": "5",
+        "order": "name_desc",
+    }
+    html = response.get_data(as_text=True)
+    assert 'value="collector"' in html
+
+
+def test_scheduler_history_filters_aggregate_rows(
+    authenticated_client,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_history", search="wordlist")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "WORDLIST_BOT" in html
+    assert "rss_collector" not in html

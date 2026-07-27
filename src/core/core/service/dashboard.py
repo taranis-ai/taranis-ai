@@ -35,7 +35,7 @@ class DashboardService:
         report_items_completed = ReportItem.count_all(True)
         report_items_in_progress = ReportItem.count_all(False)
         latest_collected = NewsItem.latest_collected()
-        schedules, _ = queue_manager.queue_manager.get_scheduled_jobs()
+        schedules, _ = queue_manager.queue_manager.get_scheduled_jobs({"fetch_all": "true"})
         schedule_length = cls._count_user_scheduled_jobs(schedules)
         conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         health_status, _ = get_health_response()

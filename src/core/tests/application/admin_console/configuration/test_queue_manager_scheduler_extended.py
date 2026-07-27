@@ -802,6 +802,41 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
     assert schedules["total_count"] == 121
 
 
+def test_get_scheduled_jobs_filters_sorts_and_paginates(app, monkeypatch):
+    def fake_osint_entries():
+        return [
+            {
+                "id": f"osint_source_{index}",
+                "name": name,
+                "queue": "collectors",
+                "next_run_time": datetime(2025, 1, 1, index, 0, 0),
+                "schedule": "0 * * * *",
+                "type": "cron",
+            }
+            for index, name in enumerate(["Alpha feed", "Beta feed", "Alpha archive"])
+        ]
+
+    monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: fake_osint_entries()))
+    monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
+
+    qm = _make_queue_manager()
+    qm._redis = object()
+
+    with app.app_context():
+        schedules, status = qm.get_scheduled_jobs(
+            {
+                "search": "alpha",
+                "order": "name_desc",
+                "page": "2",
+                "limit": "1",
+            }
+        )
+
+    assert status == 200
+    assert schedules["total_count"] == 2
+    assert [job["name"] for job in schedules["items"]] == ["Alpha archive"]
+
+
 def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
     class FakeSpec:
         def __init__(self, job_id: str, task_name: str, queue_name: str):

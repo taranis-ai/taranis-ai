@@ -29,7 +29,7 @@ def test_get_dashboard_data_includes_task_totals(monkeypatch):
     monkeypatch.setattr(
         dashboard_module.queue_manager,
         "queue_manager",
-        SimpleNamespace(get_scheduled_jobs=lambda: ({"total_count": 4}, None)),
+        SimpleNamespace(get_scheduled_jobs=lambda filter_args=None: ({"total_count": 4}, None)),
         raising=False,
     )
     monkeypatch.setattr(StoryConflict, "conflict_store", [object(), object()])
