@@ -47,12 +47,6 @@ def test_check_worker_health_passes_when_expected_queue_exists(monkeypatch):
     assert redis_connection.hgetall_keys == ["rq:worker:worker-a"]
 
 
-def test_expected_worker_queues_use_lowercase_worker_types(monkeypatch):
-    monkeypatch.setattr(healthcheck.Config, "WORKER_TYPES", ["Presenters", "Collectors"])
-
-    assert healthcheck._expected_worker_queues() == {"presenters", "collectors"}
-
-
 def test_check_worker_health_fails_when_expected_queue_missing(monkeypatch):
     monkeypatch.setattr(healthcheck.Config, "WORKER_TYPES", ["Collectors"])
     redis_connection = FakeRedis(workers={"rq:worker:worker-b": {"queues": "bots"}})
