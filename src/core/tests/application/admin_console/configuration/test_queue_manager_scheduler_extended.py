@@ -798,8 +798,8 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
         schedules, status = qm.get_scheduled_jobs()
 
     assert status == 200
-    # 120 OSINT cron jobs + cleanup housekeeping cron
-    assert schedules["total_count"] == 121
+    # 120 OSINT cron jobs + two housekeeping crons
+    assert schedules["total_count"] == 122
 
 
 def test_get_scheduled_jobs_filters_sorts_and_paginates(app, monkeypatch):
@@ -926,6 +926,7 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
     assert "osint_source_live-source" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "bot_live-bot" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "cleanup_token_blacklist" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert "cleanup_task_history" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "osint_source_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "bot_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "custom_keep" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]

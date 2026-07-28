@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from models.task import Task as TaskResponseModel
@@ -40,6 +40,18 @@ class TaskService:
     def delete_task(task_id: str) -> tuple[dict[str, Any], int]:
         return TaskModel.delete(task_id)
 
+    @staticmethod
+    def cleanup_history() -> tuple[dict[str, Any], int]:
+        retention_days = Config.TASK_HISTORY_RETENTION_DAYS
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
+        deleted = TaskModel.delete_older_than_last_run(cutoff)
+        return {
+            "message": "Task history cleanup completed",
+            "deleted": deleted,
+            "cutoff": cutoff.isoformat(),
+            "retention_days": retention_days,
+        }, 200
+
     @classmethod
     def save_task_result(cls, submission: TaskSubmission) -> tuple[dict[str, Any], int]:
         task_kind = cls._resolve_task_kind(submission.id, submission.task)
@@ -76,6 +88,8 @@ class TaskService:
             return "gather_word_list"
         if task_name == "cleanup_token_blacklist" or task_id.startswith("cleanup_token_blacklist"):
             return "cleanup_token_blacklist"
+        if task_name == "cleanup_task_history" or task_id.startswith("cleanup_task_history"):
+            return "cleanup_task_history"
         if task_name == "presenter_task" or task_id.startswith("presenter_task"):
             return "presenter_task"
         if task_name == "collector_task" or task_name.startswith("collect_") or task_id.startswith("collect_"):
