@@ -16,6 +16,9 @@ jobs:
   test_docker_deployment:
     if: ${{ github.event.review.state == 'approved' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
+    env:
+      APPLICATION_SERVICES: ingress core frontend collector workers cron
+      SUPPORT_SERVICES: redis sse database
 
     steps:
       - name: Checkout repository
@@ -34,15 +37,15 @@ jobs:
       - name: Pull latest published application images
         if: ${{ inputs.use_latest_published_images }}
         working-directory: docker
-        run: docker compose pull ingress core frontend collector workers cron
+        run: docker compose pull $APPLICATION_SERVICES
 
       - name: Run docker compose for last commit
         working-directory: docker
         env:
           PRE_SEED_PASSWORD_USER: test
         run: |
-          docker compose pull redis sse database
-          docker compose up ingress core frontend database redis collector workers cron sse --pull=never --wait-timeout=180 --wait
+          docker compose pull $SUPPORT_SERVICES
+          docker compose up $APPLICATION_SERVICES $SUPPORT_SERVICES --pull=never --wait-timeout=180 --wait
 
       - name: Check container status
         # Show status/logs only when a previous step failed (e.g. compose --wait)
