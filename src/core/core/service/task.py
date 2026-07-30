@@ -6,6 +6,7 @@ from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission
 
 from core.config import Config
 from core.log import logger
+from core.managers.sse_manager import sse_manager
 from core.model.product import Product
 from core.model.task import Task as TaskModel
 from core.model.token_blacklist import TokenBlacklist
@@ -126,6 +127,15 @@ class TaskService:
                 logger.error("Invalid connector task result payload")
                 return
             handle_misp_connector_result(result_data)
+            sse_manager.news_items_updated()
+            cache_invalidation_module.invalidate_frontend_cache_on_success(
+                200,
+                scopes=(
+                    cache_invalidation_module.SCOPE_ASSESS_VIEWS,
+                    cache_invalidation_module.SCOPE_STORY_REPORT_VIEWS,
+                    cache_invalidation_module.SCOPE_SCHEDULE,
+                ),
+            )
             return
 
         if task_kind == "gather_word_list":

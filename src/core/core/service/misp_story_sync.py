@@ -18,10 +18,34 @@ def handle_misp_connector_result(result: dict[str, Any]) -> None:
         return
 
     for payload in sync_results:
-        apply_misp_sync_story_result(payload, connector_id=connector_id if isinstance(connector_id, str) else None)
+        if payload.get("type") == "misp_auto_update_blocked":
+            apply_misp_auto_update_blocked(payload)
+        else:
+            apply_misp_sync_story_result(
+                payload,
+                connector_id=connector_id if isinstance(connector_id, str) else None,
+                clear_auto_update_status=payload.get("auto_update") is True,
+            )
 
 
-def apply_misp_sync_story_result(payload: dict[str, Any], connector_id: str | None = None) -> bool:
+def apply_misp_auto_update_blocked(payload: dict[str, Any]) -> bool:
+    story_id = payload.get("story_id")
+    proposal_url = payload.get("proposal_url")
+    if not isinstance(story_id, str) or not isinstance(proposal_url, str):
+        logger.error("Invalid MISP auto-update blocked payload")
+        return False
+    story = Story.get(story_id)
+    if not story or not story.misp_auto_update:
+        return False
+    sync = story.misp_auto_update
+    sync.status = "blocked"
+    sync.proposal_url = proposal_url
+    sync.pending_until = None
+    db.session.commit()
+    return True
+
+
+def apply_misp_sync_story_result(payload: dict[str, Any], connector_id: str | None = None, clear_auto_update_status: bool = False) -> bool:
     if not isinstance(payload, dict):
         logger.error(f"Invalid MISP sync payload type: {type(payload)}")
         return False
@@ -74,7 +98,16 @@ def apply_misp_sync_story_result(payload: dict[str, Any], connector_id: str | No
             news_item.updated = news_item.utcnow()
             changed = True
 
+    sync_state_changed = False
+    if clear_auto_update_status and (sync := story.misp_auto_update):
+        sync_state_changed = (sync.status, sync.proposal_url, sync.pending_until) != ("enabled", None, None)
+        sync.status = "enabled"
+        sync.proposal_url = None
+        sync.pending_until = None
+
     if not changed:
+        if sync_state_changed:
+            db.session.commit()
         return True
 
     story.updated = story.utcnow()

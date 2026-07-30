@@ -26,6 +26,7 @@ class MispConnector:
         self.request_timeout: int = 5
         self.sharing_group_id: int | None = None
         self.distribution: int | None = None
+        self.last_blocked_url: str | None = None
 
     def parse_parameters(self, parameters: dict) -> None:
         self.url = parameters.get("URL", "")
@@ -54,7 +55,7 @@ class MispConnector:
             logger.warning(f"Invalid DISTRIBUTION value: {raw_distribution}. Falling back to 0.")
             return 0
 
-    def execute(self, connector_data: dict) -> dict[str, Any]:
+    def execute(self, connector_data: dict, auto_update: bool = False) -> dict[str, Any]:
         connector_config = connector_data.get("connector_config")
         stories = connector_data.get("story", [])
         if connector_config is None:
@@ -64,7 +65,7 @@ class MispConnector:
         story_results: list[dict[str, Any]] = []
         for story in stories:
             misp_event_uuid = self.get_uuid_if_story_was_shared_to_misp(story)
-            story_results.append(self.misp_sender(story, misp_event_uuid))
+            story_results.append(self.misp_sender(story, misp_event_uuid, auto_update=auto_update))
         return self._build_execution_result(story_results)
 
     def get_uuid_if_story_was_shared_to_misp(self, story: dict) -> str | None:
@@ -187,10 +188,31 @@ class MispConnector:
             return story
         return None
 
-    def update_misp_event(self, misp: PyMISP, story: dict, misp_event_uuid: str) -> MISPEvent | list[MISPShadowAttribute] | None:
+    def has_external_proposals(self, misp: PyMISP, event_uuid: str) -> bool:
+        response = misp._prepare_request("GET", f"shadow_attributes/index/{event_uuid}")
+        data = misp._check_json_response(response) or []
+        proposals = (
+            data if isinstance(data, list) else data.get("response", data.get("ShadowAttribute", [])) if isinstance(data, dict) else []
+        )
+        if not isinstance(proposals, list):
+            return False
+        return any(str(proposal.get("org_id", "")) != str(self.org_id) for proposal in proposals if isinstance(proposal, dict))
+
+    def update_misp_event(
+        self, misp: PyMISP, story: dict, misp_event_uuid: str, auto_update: bool = False
+    ) -> MISPEvent | list[MISPShadowAttribute] | None:
         if event := self.get_event_by_uuid(misp, story, misp_event_uuid):
             event_dict = event.to_dict()
             orgc_id = event_dict.get("orgc_id", None)
+
+            if auto_update:
+                if str(orgc_id) != str(self.org_id):
+                    logger.warning(f"Skipping auto-update for unowned MISP event {misp_event_uuid}")
+                    return None
+                if self.has_external_proposals(misp, misp_event_uuid):
+                    self.last_blocked_url = f"{self.url}/events/view/{misp_event_uuid}"
+                    logger.warning(f"Skipping auto-update for MISP event {misp_event_uuid}: external proposal exists")
+                    return None
 
             if orgc_id != self.org_id:
                 extension_id = self.add_missing_news_items_as_extension(event, story, misp)
@@ -503,7 +525,9 @@ class MispConnector:
         event.EventReport = [new_report]
         return event
 
-    def send_event_to_misp(self, story: dict, misp_event_uuid: str | None = None) -> MISPEvent | list[MISPShadowAttribute] | None:
+    def send_event_to_misp(
+        self, story: dict, misp_event_uuid: str | None = None, auto_update: bool = False
+    ) -> MISPEvent | list[MISPShadowAttribute] | None:
         """
         Either update an existing event (if 'misp_event_uuid' is provided)
         or create a new event if no UUID is provided.
@@ -518,7 +542,7 @@ class MispConnector:
             )
 
             if misp_event_uuid:
-                if result := self.update_misp_event(misp, story, misp_event_uuid):
+                if result := self.update_misp_event(misp, story, misp_event_uuid, auto_update=auto_update):
                     if isinstance(result, MISPEvent):
                         logger.info(f"Event with UUID: {result.uuid} was updated in MISP")
                     elif isinstance(result, list) and all(isinstance(x, MISPShadowAttribute) for x in result):
@@ -545,26 +569,35 @@ class MispConnector:
 
         return None
 
-    def misp_sender(self, story: dict, misp_event_uuid: str | None = None) -> dict[str, Any]:
+    def misp_sender(self, story: dict, misp_event_uuid: str | None = None, auto_update: bool = False) -> dict[str, Any]:
         """
         Creates or updates the event in MISP and returns a story-level connector result.
         """
         story_id = story.get("id", "")
         news_item_ids_to_mark_external = self._get_news_item_ids_to_mark_external(story)
 
-        if result := self.send_event_to_misp(story, misp_event_uuid):
+        self.last_blocked_url = None
+        result = (
+            self.send_event_to_misp(story, misp_event_uuid, auto_update=True)
+            if auto_update
+            else self.send_event_to_misp(story, misp_event_uuid)
+        )
+        if result:
             if isinstance(result, MISPEvent):
                 logger.debug(f"Create MISP sync result for story {story_id}")
+                sync_result = {
+                    "type": "misp_sync_story",
+                    "version": 1,
+                    "story_id": story_id,
+                    "misp_event_uuid": result.uuid,
+                    "news_item_ids_to_mark_external": news_item_ids_to_mark_external,
+                }
+                if auto_update:
+                    sync_result["auto_update"] = True
                 return {
                     "action": "synced",
                     "message": "Story synced to MISP",
-                    "sync_result": {
-                        "type": "misp_sync_story",
-                        "version": 1,
-                        "story_id": story_id,
-                        "misp_event_uuid": result.uuid,
-                        "news_item_ids_to_mark_external": news_item_ids_to_mark_external,
-                    },
+                    "sync_result": sync_result,
                 }
             if isinstance(result, list) and all(isinstance(item, MISPShadowAttribute) for item in result):
                 return {
@@ -572,6 +605,17 @@ class MispConnector:
                     "message": f"{len(result)} proposals submitted to MISP",
                     "sync_result": None,
                 }
+
+        if auto_update and self.last_blocked_url:
+            return {
+                "action": "blocked",
+                "message": "MISP auto-update blocked by an external proposal",
+                "sync_result": {
+                    "type": "misp_auto_update_blocked",
+                    "story_id": story_id,
+                    "proposal_url": self.last_blocked_url,
+                },
+            }
 
         return {
             "action": "failed",

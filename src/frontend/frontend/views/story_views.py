@@ -872,6 +872,12 @@ class StoryView(BaseView):
         story = context.get("story")
 
         if isinstance(story, Story):
+            try:
+                context["misp_connectors"] = [
+                    item for item in DataPersistenceLayer().get_objects(Connector).items if str(item.type or "").lower() == "misp_connector"
+                ]
+            except Exception:
+                context["misp_connectors"] = []
             attributes = story.attributes or []
             context["has_rt_id"] = any(isinstance(attr, dict) and attr.get("key") == "rt_id" for attr in attributes)
 
