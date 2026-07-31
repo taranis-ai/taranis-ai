@@ -876,6 +876,8 @@ class StoryView(BaseView):
                 context["misp_connectors"] = [
                     item for item in DataPersistenceLayer().get_objects(Connector).items if str(item.type or "").lower() == "misp_connector"
                 ]
+            except HTTPException:
+                raise
             except Exception:
                 context["misp_connectors"] = []
             attributes = story.attributes or []
