@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Any, cast
 
 import fakeredis
+import pytest
 import rq.registry as rq_registry
 from rq import Queue
 
@@ -100,6 +101,23 @@ def _make_queue_manager() -> QueueManager:
     qm._queues = cast(dict[str, Any], {})
     qm._redis = _FakeRedis()
     return qm
+
+
+@pytest.mark.parametrize(
+    "filter_args",
+    [
+        {"page": "invalid", "limit": "invalid"},
+        {"page": "0", "limit": "0"},
+        {"page": "-2", "limit": "-5"},
+    ],
+)
+def test_filter_sort_paginate_jobs_uses_defaults_for_invalid_paging(filter_args):
+    jobs = [{"id": f"job-{index:02d}"} for index in range(25)]
+
+    result = qm_module._filter_sort_paginate_jobs(jobs, filter_args, default_order="id_asc")
+
+    assert [job["id"] for job in result["items"]] == [f"job-{index:02d}" for index in range(20)]
+    assert result["total_count"] == 25
 
 
 def test_annotate_jobs_ignores_scheduled_lateness(monkeypatch):
@@ -848,8 +866,11 @@ def test_get_scheduled_jobs_uses_safe_paging_defaults(app, monkeypatch):
         schedules, status = qm.get_scheduled_jobs({"page": "invalid", "limit": "invalid"})
 
     assert status == 200
-    assert schedules["total_count"] == 1
-    assert schedules["items"][0]["id"] == qm_module.TOKEN_CLEANUP_JOB_ID
+    assert schedules["total_count"] == 2
+    assert {job["id"] for job in schedules["items"]} == {
+        qm_module.TASK_HISTORY_CLEANUP_JOB_ID,
+        qm_module.TOKEN_CLEANUP_JOB_ID,
+    }
 
 
 def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):

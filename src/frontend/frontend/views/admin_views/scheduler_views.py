@@ -50,13 +50,21 @@ def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
 
     order = paging_data.order or "last_run_desc"
     field, separator, direction = order.rpartition("_")
-    if not separator or field not in {"task", "last_run", "last_success", "successes", "failures", "success_pct"}:
+    if (
+        not separator
+        or field not in {"task", "last_run", "last_success", "successes", "failures", "success_pct"}
+        or direction not in {"asc", "desc"}
+    ):
         field, direction = "last_run", "desc"
-    rows.sort(key=lambda row: str(row.get(field) or "").lower(), reverse=direction == "desc")
+    order = f"{field}_{direction}"
+    if field in {"successes", "failures", "success_pct"}:
+        rows.sort(key=lambda row: row.get(field) or 0, reverse=direction == "desc")
+    else:
+        rows.sort(key=lambda row: str(row.get(field) or "").lower(), reverse=direction == "desc")
     rows.sort(key=lambda row: row.get(field) is None)
 
-    page = paging_data.page or 1
-    limit = paging_data.limit or 20
+    page = paging_data.page if paging_data.page and paging_data.page > 0 else 1
+    limit = paging_data.limit if paging_data.limit and paging_data.limit > 0 else 20
     offset = (page - 1) * limit
     return CacheObject(rows[offset : offset + limit], total_count=len(rows), page=page, limit=limit, order=order)
 

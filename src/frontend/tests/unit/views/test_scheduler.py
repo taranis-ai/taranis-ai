@@ -6,6 +6,7 @@ from flask import url_for
 from models.user import ProfileSettings
 
 from frontend.cache import add_user_to_cache, cache
+from frontend.config import Config
 
 
 def _requested_core_paths(responses_mock):
@@ -253,3 +254,117 @@ def test_scheduler_history_filters_aggregate_rows(
     html = response.get_data(as_text=True)
     assert "WORDLIST_BOT" in html
     assert "rss_collector" not in html
+
+
+@pytest.mark.parametrize("order", ["successes_asc", "failures_asc", "success_pct_asc"])
+def test_scheduler_history_sorts_statistics_numerically(
+    order,
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    history = {
+        "items": [],
+        "total_count": 0,
+        "task_stats": {
+            "task-two": {
+                "worker_type": "Task Two",
+                "worker_id": "worker-two",
+                "last_run": "2026-01-01T00:00:00Z",
+                "successes": 2,
+                "failures": 2,
+                "total": 4,
+                "success_pct": 2,
+            },
+            "task-ten": {
+                "worker_type": "Task Ten",
+                "worker_id": "worker-ten",
+                "last_run": "2026-01-02T00:00:00Z",
+                "successes": 10,
+                "failures": 10,
+                "total": 20,
+                "success_pct": 10,
+            },
+        },
+        "totals": {"successes": 12, "failures": 12, "overall_success_rate": 50},
+    }
+    responses_mock.replace(responses.GET, f"{Config.TARANIS_CORE_URL}/tasks", json=history)
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_history", order=order)
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert html.index("Task Two") < html.index("Task Ten")
+
+
+def test_scheduler_history_uses_default_slice_for_negative_paging(
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    history = {
+        "items": [],
+        "total_count": 0,
+        "task_stats": {
+            f"task-{index:02d}": {
+                "worker_type": f"Task {index:02d}",
+                "worker_id": f"worker-{index:02d}",
+                "last_run": f"2026-01-{(index % 28) + 1:02d}T00:00:00Z",
+                "successes": index,
+                "failures": 0,
+                "total": index,
+                "success_pct": 100,
+            }
+            for index in range(21)
+        },
+        "totals": {"successes": 210, "failures": 0, "overall_success_rate": 100},
+    }
+    responses_mock.replace(responses.GET, f"{Config.TARANIS_CORE_URL}/tasks", json=history)
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_history", order="task_asc", page=-1, limit=-1)
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'title="Worker ID: worker-00"' in html
+    assert 'title="Worker ID: worker-19"' in html
+    assert 'title="Worker ID: worker-20"' not in html
+
+
+def test_scheduler_history_uses_default_order_for_invalid_direction(
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    history = {
+        "items": [],
+        "total_count": 0,
+        "task_stats": {
+            "older": {
+                "worker_type": "Older Task",
+                "worker_id": "older",
+                "last_run": "2026-01-01T00:00:00Z",
+            },
+            "newer": {
+                "worker_type": "Newer Task",
+                "worker_id": "newer",
+                "last_run": "2026-01-02T00:00:00Z",
+            },
+        },
+        "totals": {},
+    }
+    responses_mock.replace(responses.GET, f"{Config.TARANIS_CORE_URL}/tasks", json=history)
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_history", order="successes_sideways")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert html.index("Newer Task") < html.index("Older Task")

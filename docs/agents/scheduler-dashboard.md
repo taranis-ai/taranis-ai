@@ -8,10 +8,10 @@ Scheduler dashboard, scheduled jobs, active jobs, failed jobs, execution history
 
 - The admin scheduler dashboard shows queue and worker status plus tabs for scheduled, active, failed, and historical jobs.
 - Each tab uses the standard Taranis table appearance and supports search, sorting, page size selection, and pagination.
-- Scheduled, active, and failed data refresh only while its tab is active. A refresh preserves the tab's current table query.
+- Scheduled, active, and failed job lists refresh only while their respective tabs are active. A refresh preserves each tab's current table query.
 - Switching tabs clears table-specific query parameters and loads the selected tab from its first page. Execution history refreshes once when selected but does not poll.
 - Direct links to a scheduler tab render the full dashboard with that tab selected. HTMX requests render only the requested table.
-- Malformed RQ-list page or limit parameters fall back to the first page and default page size instead of failing the request.
+- Malformed or non-positive scheduler page and limit parameters fall back to the first page and default page size.
 - Datetimes are stored and returned as UTC values and displayed in the profile timezone through the frontend `format_datetime` filter.
 - Failed-job error text is displayed through the scheduler error dialog and must be passed to the browser through Jinja JSON encoding.
 

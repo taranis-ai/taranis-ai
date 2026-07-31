@@ -69,9 +69,10 @@ RQ_JOB_ID_COMPONENT_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 def _positive_int(value: Any, default: int) -> int:
     try:
-        return max(int(value), 1)
+        parsed_value = int(value)
     except (TypeError, ValueError):
         return default
+    return parsed_value if parsed_value > 0 else default
 
 
 def _filter_sort_paginate_jobs(
