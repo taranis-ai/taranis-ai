@@ -113,6 +113,39 @@ def test_auto_update_proposals_are_stored_on_the_story(monkeypatch):
 
 
 @pytest.mark.usefixtures("session")
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"story_id": 1, "proposal_url": "https://misp.example/events/view/event-1"},
+        {"story_id": "story-1"},
+        {"story_id": "story-1", "proposal_url": 1},
+    ],
+)
+def test_invalid_auto_update_blocked_payload_does_not_change_story(payload):
+    story = _story()
+    previous_attributes = [attribute.to_small_dict() for attribute in story.attributes]
+    previous_revision = story.revision
+
+    assert not apply_misp_auto_update_blocked(payload)
+    db.session.refresh(story)
+    assert [attribute.to_small_dict() for attribute in story.attributes] == previous_attributes
+    assert story.revision == previous_revision
+
+
+@pytest.mark.usefixtures("session")
+def test_auto_update_blocked_payload_for_missing_story_does_not_change_database():
+    story = _story()
+    previous_attributes = [attribute.to_small_dict() for attribute in story.attributes]
+    previous_revision = story.revision
+
+    assert not apply_misp_auto_update_blocked({"story_id": "missing-story", "proposal_url": "https://misp.example/events/view/event-1"})
+    db.session.refresh(story)
+    assert [attribute.to_small_dict() for attribute in story.attributes] == previous_attributes
+    assert story.revision == previous_revision
+
+
+@pytest.mark.usefixtures("session")
 def test_malformed_sync_results_do_not_skip_valid_results():
     story = _story()
 

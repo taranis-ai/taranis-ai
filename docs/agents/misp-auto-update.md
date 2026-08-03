@@ -18,7 +18,7 @@ Auto-update configuration stores only a MISP connector and whether it is enabled
 
 ## Data Flow
 
-Story changes enqueue `connector_task` after five minutes. The worker returns either a normal MISP sync result or a blocked result containing the MISP event URL. Core persists that URL as `has_proposals`, timestamps and revisions the story, and the frontend renders it independently of the enabled badge. Invalid individual sync entries are ignored so other results in the task still apply.
+Story changes enqueue `connector_task` after five minutes. The worker returns either a normal MISP sync result or a blocked result containing the MISP event URL. Core persists that URL as `has_proposals`, timestamps and revisions the story, and the frontend renders it independently of the enabled badge. Proposal lookup errors fail closed, so no automatic update is sent while proposal status is unknown. Invalid individual sync entries are ignored so other results in the task still apply.
 
 ## Testing
 
