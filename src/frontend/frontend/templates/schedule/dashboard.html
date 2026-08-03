@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% set current_tab = initial_tab if initial_tab in ["scheduled", "active", "failed", "history"] else "scheduled" %}
+{% from "schedule/table.html" import refreshable_table_placeholder %}
 {% block content %}
   <div class="p-4" id="scheduler-dashboard">
     <div class="flex justify-between items-center mb-6">
@@ -32,7 +33,11 @@
               </svg>
               Scheduled Jobs
             </h2>
-            {% include "schedule/jobs_table.html" %}
+            {% if current_tab == 'scheduled' %}
+              {% include "schedule/jobs_table.html" %}
+            {% else %}
+              {{ refreshable_table_placeholder('scheduled-jobs-table', url_for('admin.scheduler_jobs_table') ) }}
+            {% endif %}
           </div>
         </div>
       </div>
@@ -47,7 +52,11 @@
               </svg>
               Currently Running
             </h2>
-            {% include "schedule/active_jobs.html" %}
+            {% if current_tab == 'active' %}
+              {% include "schedule/active_jobs.html" %}
+            {% else %}
+              {{ refreshable_table_placeholder('active-jobs-table', url_for('admin.scheduler_active_jobs') ) }}
+            {% endif %}
           </div>
         </div>
       </div>
@@ -62,7 +71,11 @@
               </svg>
               Failed Jobs
             </h2>
-            {% include "schedule/failed_jobs.html" %}
+            {% if current_tab == 'failed' %}
+              {% include "schedule/failed_jobs.html" %}
+            {% else %}
+              {{ refreshable_table_placeholder('failed-jobs-table', url_for('admin.scheduler_failed_jobs') ) }}
+            {% endif %}
           </div>
         </div>
       </div>
@@ -77,7 +90,11 @@
               </svg>
               Execution History
             </h2>
-            <div id="execution-history">{% include "schedule/execution_history.html" %}</div>
+            {% if current_tab == 'history' %}
+              {% include "schedule/execution_history.html" %}
+            {% else %}
+              {{ refreshable_table_placeholder('execution-history', url_for('admin.scheduler_history') ) }}
+            {% endif %}
           </div>
         </div>
       </div>
@@ -108,10 +125,10 @@
   <script>
     // Tab switching logic
     const schedulerRefreshTargets = {
-      scheduled: { id: 'scheduled-jobs-table', intervalMs: 10000, immediate: false },
-      active: { id: 'active-jobs-table', intervalMs: 5000, immediate: true },
-      failed: { id: 'failed-jobs-table', intervalMs: 10000, immediate: true },
-      history: { id: 'execution-history-table', intervalMs: null, immediate: false },
+      scheduled: { id: 'scheduled-jobs-table', intervalMs: 10000 },
+      active: { id: 'active-jobs-table', intervalMs: 10000 },
+      failed: { id: 'failed-jobs-table', intervalMs: 10000 },
+      history: { id: 'execution-history', intervalMs: null },
     };
     let activeRefreshTimer = null;
 
@@ -143,27 +160,17 @@
       if (target) {
         if (resetQuery && target.dataset.baseUrl) {
           target.setAttribute('hx-get', target.dataset.baseUrl);
-          window.htmx.ajax('GET', target.dataset.baseUrl, {
-            target: `#${config.id}`,
-            swap: 'outerHTML',
-            select: `#${config.id}`,
-          });
-          return;
         }
         window.htmx.trigger(target, 'scheduler:refresh');
       }
     };
 
-    const startTabRefreshLoop = (tabName, immediate = null) => {
+    const startTabRefreshLoop = (tabName) => {
       stopTabRefreshLoop();
 
       const config = schedulerRefreshTargets[tabName];
       if (!config) {
         return;
-      }
-
-      if (immediate ?? config.immediate) {
-        triggerSchedulerRefresh(tabName);
       }
 
       if (config.intervalMs !== null) {
@@ -184,7 +191,7 @@
         document.getElementById(`${tabName}-tab`).classList.remove('hidden');
 
         updateTabInUrl(tabName);
-        startTabRefreshLoop(tabName, false);
+        startTabRefreshLoop(tabName);
         triggerSchedulerRefresh(tabName, true);
       });
     });

@@ -7607,10 +7607,6 @@ paths:
         in: query
         schema:
           type: string
-      - name: fetch_all
-        in: query
-        schema:
-          type: string
       responses:
         '200':
           description: success
@@ -8073,10 +8069,6 @@ paths:
         in: query
         schema:
           type: string
-      - name: fetch_all
-        in: query
-        schema:
-          type: string
       responses:
         '200':
           description: success
@@ -8098,27 +8090,6 @@ paths:
       - config
       description: get workers cron jobs
       operationId: config.config_cron_jobs.get
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-  /config/workers/dashboard:
-    get:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: get workers dashboard
-      operationId: config.config_scheduler_dashboard.get
       responses:
         '200':
           description: success
@@ -8157,10 +8128,6 @@ paths:
         in: query
         schema:
           type: string
-      - name: fetch_all
-        in: query
-        schema:
-          type: string
       responses:
         '200':
           description: success
@@ -8196,10 +8163,6 @@ paths:
         schema:
           type: integer
       - name: order
-        in: query
-        schema:
-          type: string
-      - name: fetch_all
         in: query
         schema:
           type: string

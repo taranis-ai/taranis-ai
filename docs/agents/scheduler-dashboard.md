@@ -2,14 +2,15 @@
 
 ## When To Load
 
-Scheduler dashboard, scheduled jobs, active jobs, failed jobs, execution history, queue status, RQ registries, or routes below `/admin/scheduler`.
+Load this memory when working on the scheduler dashboard, scheduled jobs, active jobs, failed jobs, execution history, queue status, RQ registries, or routes below `/admin/scheduler`.
 
 ## Expected Behavior
 
 - The admin scheduler dashboard shows queue and worker status plus tabs for scheduled, active, failed, and historical jobs.
 - Each tab uses the standard Taranis table appearance and supports search, sorting, page size selection, and pagination.
-- Scheduled, active, and failed job lists refresh only while their respective tabs are active. A refresh preserves each tab's current table query.
-- Switching tabs clears table-specific query parameters and loads the selected tab from its first page. Execution history refreshes once when selected but does not poll.
+- Only the selected tab is loaded during the initial page render. Other tabs load their first page when selected.
+- Scheduled, active, and failed job lists refresh every ten seconds only while their respective tabs are active. A refresh preserves each tab's current table query.
+- Switching tabs clears table-specific query parameters and reloads the selected tab from its first page. Execution history loads when selected but does not poll.
 - Direct links to a scheduler tab render the full dashboard with that tab selected. HTMX requests render only the requested table.
 - Malformed or non-positive scheduler page and limit parameters fall back to the first page and default page size.
 - Datetimes are stored and returned as UTC values and displayed in the profile timezone through the frontend `format_datetime` filter.
@@ -30,10 +31,11 @@ Scheduler dashboard, scheduled jobs, active jobs, failed jobs, execution history
 
 ## Data Flow
 
-- The first full dashboard render reads the aggregate scheduler dashboard endpoint and task history endpoint.
-- Subsequent HTMX refreshes use the granular scheduled, active, failed, queue, and task-history endpoints.
+- The first full dashboard render reads queue status, worker statistics, and only the selected tab's granular endpoint.
+- Inactive tabs render lightweight HTMX placeholders and load from their granular endpoint when selected.
 - Table query parameters are parsed by the frontend into `PagingData` and forwarded through `DataPersistenceLayer`.
 - Core applies search, ordering, and pagination to RQ-backed lists before returning `items` and `total_count`; the frontend wraps that response in `CacheObject` for shared pagination controls.
+- Scheduler list endpoints never return an unpaginated collection. The main dashboard uses a dedicated Redis-backed count instead of fetching schedule rows.
 - Execution-history statistics are returned as an aggregate mapping and are filtered, ordered, and paged in the frontend.
 - Scheduler cache entries have short timeouts. Each distinct endpoint and paging query has its own list-cache key.
 
@@ -48,7 +50,7 @@ Scheduler dashboard, scheduled jobs, active jobs, failed jobs, execution history
 ## Pitfalls
 
 - Do not make frontend user-facing views import scheduler models from `models.admin`; scheduler routes are admin-only.
-- Keep the initial aggregate fetch to avoid multiplying core calls during full-page rendering.
+- Do not preload inactive scheduler tabs through the aggregate scheduler endpoint.
 - Preserve the selected tab when table links update the browser URL.
 - Do not carry `search`, `page`, `limit`, or `order` from one scheduler tab into another.
 - Auto-refresh must not reset an active search, sort, page, or page-size selection.

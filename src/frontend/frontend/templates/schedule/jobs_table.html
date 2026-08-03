@@ -1,4 +1,4 @@
-{% from "schedule/table.html" import scheduler_table %}
+{% from "schedule/table.html" import refreshable_table %}
 {% set columns = [
   {
     "title": "Job Name",
@@ -36,14 +36,13 @@
     "sortable": true
   }
 ] %}
-{% call(job) scheduler_table(
+{% call(job) refreshable_table(
   'scheduled-jobs-table',
   'scheduled-jobs',
   jobs,
   columns,
   url_for('admin.scheduler_jobs_table'),
-  'No scheduled jobs',
-  refresh=true
+  'No scheduled jobs'
   ) %}
   <tr class="hover:bg-info {% if job.is_overdue %}bg-error/5{% endif %}">
     <td>

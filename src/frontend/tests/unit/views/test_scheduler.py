@@ -75,24 +75,74 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
     assert html.count('hx-trigger="scheduler:refresh"') == 4
-    assert 'id="execution-history">' in html
+    assert html.count("intervalMs: 10000") == 3
+    assert "intervalMs: 5000" not in html
+    assert 'id="execution-history"' in html
 
 
-def test_scheduler_dashboard_initial_render_uses_aggregate_endpoints(authenticated_client, responses_mock, mock_core_get_endpoints):
+@pytest.mark.parametrize(
+    ("endpoint", "selected_path", "inactive_paths"),
+    [
+        (
+            "admin.scheduler",
+            "/config/schedule",
+            {"/config/workers/active", "/config/workers/failed", "/tasks"},
+        ),
+        (
+            "admin.scheduler_active_jobs",
+            "/config/workers/active",
+            {"/config/schedule", "/config/workers/failed", "/tasks"},
+        ),
+        (
+            "admin.scheduler_failed_jobs",
+            "/config/workers/failed",
+            {"/config/schedule", "/config/workers/active", "/tasks"},
+        ),
+        (
+            "admin.scheduler_history",
+            "/tasks",
+            {"/config/schedule", "/config/workers/active", "/config/workers/failed"},
+        ),
+    ],
+)
+def test_scheduler_dashboard_initial_render_loads_only_selected_tab(
+    endpoint,
+    selected_path,
+    inactive_paths,
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+):
+    with authenticated_client.application.app_context():
+        url = url_for(endpoint)
+
+    response = authenticated_client.get(url)
+
+    assert response.status_code == 200
+    requested_paths = _requested_core_paths(responses_mock)
+    assert "/config/workers/dashboard" not in requested_paths
+    assert "/config/workers/tasks" in requested_paths
+    assert "/config/workers/stats" in requested_paths
+    assert selected_path in requested_paths
+    assert inactive_paths.isdisjoint(requested_paths)
+
+
+def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler")
 
     response = authenticated_client.get(url)
 
     assert response.status_code == 200
-    requested_paths = _requested_core_paths(responses_mock)
-    assert "/config/workers/dashboard" in requested_paths
-    assert "/tasks" in requested_paths
-    assert "/config/schedule" not in requested_paths
-    assert "/config/workers/tasks" not in requested_paths
-    assert "/config/workers/stats" not in requested_paths
-    assert "/config/workers/active" not in requested_paths
-    assert "/config/workers/failed" not in requested_paths
+    html = response.get_data(as_text=True)
+    assert 'data-testid="scheduled-jobs"' in html
+    assert 'id="active-jobs-table"' in html
+    assert 'id="failed-jobs-table"' in html
+    assert 'id="execution-history"' in html
+    assert html.count("Loading...</p>") == 3
+    assert 'data-testid="active-jobs"' not in html
+    assert 'data-testid="failed-jobs"' not in html
+    assert 'data-testid="execution-history-jobs"' not in html
 
 
 @pytest.mark.parametrize(
@@ -225,7 +275,7 @@ def test_scheduler_table_forwards_query_to_core(
     assert 'value="collector"' in html
 
 
-def test_scheduler_table_forwards_default_order_to_core(
+def test_scheduler_table_leaves_default_order_to_core(
     authenticated_client,
     responses_mock,
     mock_core_get_endpoints,
@@ -237,7 +287,7 @@ def test_scheduler_table_forwards_default_order_to_core(
     response = authenticated_client.get(url, headers=htmx_header)
 
     assert response.status_code == 200
-    assert responses_mock.calls[-1].request.params == {"order": "next_run_time_asc"}
+    assert responses_mock.calls[-1].request.params == {}
 
 
 def test_scheduler_history_filters_aggregate_rows(

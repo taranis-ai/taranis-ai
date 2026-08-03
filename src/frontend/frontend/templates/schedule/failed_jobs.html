@@ -1,4 +1,4 @@
-{% from "schedule/table.html" import scheduler_table %}
+{% from "schedule/table.html" import refreshable_table %}
 {% set columns = [
   {
     "title": "Job Name",
@@ -21,14 +21,13 @@
     "sortable": false
   }
 ] %}
-{% call(job) scheduler_table(
+{% call(job) refreshable_table(
   'failed-jobs-table',
   'failed-jobs',
   failed_jobs,
   columns,
   url_for('admin.scheduler_failed_jobs'),
-  'No failed jobs',
-  refresh=true
+  'No failed jobs'
   ) %}
   <tr class="hover:bg-info">
     <td>

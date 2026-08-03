@@ -1,91 +1,97 @@
-{% from "schedule/table.html" import scheduler_table %}
-{% set columns = [
-  {
-    "title": "Task",
-    "field": "task",
-    "sortable": true
-  },
-  {
-    "title": "Status",
-    "field": "status",
-    "sortable": false
-  },
-  {
-    "title": "Last Run",
-    "field": "last_run",
-    "sortable": true
-  },
-  {
-    "title": "Last Success",
-    "field": "last_success",
-    "sortable": true
-  },
-  {
-    "title": "Stats",
-    "field": "success_pct",
-    "sortable": true
-  }
-] %}
-{% call(stats) scheduler_table(
-  'execution-history-table',
-  'execution-history-jobs',
-  task_stats,
-  columns,
-  url_for('admin.scheduler_history'),
-  'No execution history available',
-  refresh=true
-  ) %}
-  <tr class="hover:bg-info">
-    <td>
-      <div class="font-medium" title="Worker ID: {{ stats.worker_id }}">{{ stats.task }}</div>
-    </td>
-    <td>
-      {% set badge = stats.status_badge %}
-      {% if badge %}
-        <span class="badge badge-{{ badge.variant }} badge-sm">{{ badge.label }}</span>
-      {% elif stats.failures == 0 %}
-        <span class="badge badge-success badge-sm">All Success</span>
-      {% elif stats.success_pct >= 80 %}
-        <span class="badge badge-warning badge-sm">Mostly Success</span>
-      {% else %}
-        <span class="badge badge-error badge-sm">Many Failures</span>
-      {% endif %}
-    </td>
-    <td>
-      {% if stats.last_run %}
-        <span class="text-xs">{{ stats.last_run | format_datetime }}</span>
-      {% else %}
-        <span class="text-xs opacity-50">Never</span>
-      {% endif %}
-    </td>
-    <td>
-      {% if stats.last_success %}
-        <span class="text-xs">{{ stats.last_success | format_datetime }}</span>
-      {% else %}
-        <span class="text-xs opacity-50">Never</span>
-      {% endif %}
-    </td>
-    <td>
-      <div class="flex gap-2">
-        <div class="badge badge-success">✓ {{ stats.successes }}</div>
-        <div class="badge badge-error">✗ {{ stats.failures }}</div>
-        <div class="badge badge-ghost min-w-16 justify-end text-right">{{ stats.success_pct }}%</div>
-      </div>
-    </td>
-  </tr>
-{% endcall %}
+{% from "schedule/table.html" import refreshable_table %}
+<div id="execution-history"
+     data-base-url="{{ url_for('admin.scheduler_history') }}"
+     hx-get="{{ url_for('admin.scheduler_history') }}"
+     hx-trigger="scheduler:refresh"
+     hx-select="#execution-history"
+     hx-swap="outerHTML">
+  {% set columns = [
+    {
+      "title": "Task",
+      "field": "task",
+      "sortable": true
+    },
+    {
+      "title": "Status",
+      "field": "status",
+      "sortable": false
+    },
+    {
+      "title": "Last Run",
+      "field": "last_run",
+      "sortable": true
+    },
+    {
+      "title": "Last Success",
+      "field": "last_success",
+      "sortable": true
+    },
+    {
+      "title": "Stats",
+      "field": "success_pct",
+      "sortable": true
+    }
+  ] %}
+  {% call(stats) refreshable_table(
+    'execution-history-table',
+    'execution-history-jobs',
+    task_stats,
+    columns,
+    url_for('admin.scheduler_history'),
+    'No execution history available'
+    ) %}
+    <tr class="hover:bg-info">
+      <td>
+        <div class="font-medium" title="Worker ID: {{ stats.worker_id }}">{{ stats.task }}</div>
+      </td>
+      <td>
+        {% set badge = stats.status_badge %}
+        {% if badge %}
+          <span class="badge badge-{{ badge.variant }} badge-sm">{{ badge.label }}</span>
+        {% elif stats.failures == 0 %}
+          <span class="badge badge-success badge-sm">All Success</span>
+        {% elif stats.success_pct >= 80 %}
+          <span class="badge badge-warning badge-sm">Mostly Success</span>
+        {% else %}
+          <span class="badge badge-error badge-sm">Many Failures</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if stats.last_run %}
+          <span class="text-xs">{{ stats.last_run | format_datetime }}</span>
+        {% else %}
+          <span class="text-xs opacity-50">Never</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if stats.last_success %}
+          <span class="text-xs">{{ stats.last_success | format_datetime }}</span>
+        {% else %}
+          <span class="text-xs opacity-50">Never</span>
+        {% endif %}
+      </td>
+      <td>
+        <div class="flex gap-2">
+          <div class="badge badge-success">✓ {{ stats.successes }}</div>
+          <div class="badge badge-error">✗ {{ stats.failures }}</div>
+          <div class="badge badge-ghost min-w-16 justify-end text-right">{{ stats.success_pct }}%</div>
+        </div>
+      </td>
+    </tr>
+  {% endcall %}
 
-<div class="stats shadow mt-6 w-full">
-  <div class="stat">
-    <div class="stat-title">Total Successes</div>
-    <div class="stat-value text-success">{{ total_successes }}</div>
-  </div>
-  <div class="stat">
-    <div class="stat-title">Total Failures</div>
-    <div class="stat-value text-error">{{ total_failures }}</div>
-  </div>
-  <div class="stat">
-    <div class="stat-title">Success Rate</div>
-    <div class="stat-value text-info">{{ overall_success_rate }}%</div>
+  <div class="stats shadow mt-6 w-full">
+    <div class="stat">
+      <div class="stat-title">Total Successes</div>
+      <div class="stat-value text-success">{{ total_successes }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Total Failures</div>
+      <div class="stat-value text-error">{{ total_failures }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Success Rate</div>
+      <div class="stat-value text-info">{{ overall_success_rate }}%</div>
+    </div>
   </div>
 </div>

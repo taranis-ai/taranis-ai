@@ -1,5 +1,5 @@
 # pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 
 import fakeredis
@@ -101,6 +101,17 @@ def _make_queue_manager() -> QueueManager:
     qm._queues = cast(dict[str, Any], {})
     qm._redis = _FakeRedis()
     return qm
+
+
+def test_get_user_scheduled_job_count_excludes_housekeeping_jobs():
+    qm = _make_queue_manager()
+    qm._redis.hashes[qm_module.CRON_DEFS_KEY] = {  # type: ignore[attr-defined]
+        "collector-source-1": b"{}",
+        qm_module.TASK_HISTORY_CLEANUP_JOB_ID: b"{}",
+        qm_module.TOKEN_CLEANUP_JOB_ID: b"{}",
+    }
+
+    assert qm.get_user_scheduled_job_count() == 1
 
 
 @pytest.mark.parametrize(
@@ -333,7 +344,7 @@ def test_get_active_jobs_uses_registry(monkeypatch):
     qm = _make_queue_manager()
     qm._queues = {"bots": _DummyQueue("bots")}  # type: ignore[assignment]
 
-    payload, status = qm.get_active_jobs()
+    payload, status = qm.get_active_jobs({})
 
     assert status == 200
     assert payload["items"][0]["id"] == "job-1"
@@ -357,7 +368,7 @@ def test_get_failed_jobs_uses_registry(monkeypatch):
     qm = _make_queue_manager()
     qm._queues = {"misc": _DummyQueue("misc")}  # type: ignore[assignment]
 
-    payload, status = qm.get_failed_jobs()
+    payload, status = qm.get_failed_jobs({})
 
     assert status == 200
     assert payload["items"][0]["id"] == "job-9"
@@ -387,7 +398,7 @@ def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
     qm = _make_queue_manager()
     qm._queues = {"bots": _DummyQueue("bots")}  # type: ignore[assignment]
 
-    payload, status = qm.get_failed_jobs()
+    payload, status = qm.get_failed_jobs({})
 
     assert status == 200
     assert payload == {"items": [], "total_count": 0}
@@ -795,7 +806,7 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
                 "id": f"osint_source_{i}",
                 "name": f"Collector {i}",
                 "queue": "collectors",
-                "next_run_time": datetime(2025, 1, 1, 0, 0, 0),
+                "next_run_time": datetime(2025, 1, 1, 0, 0, 0) + timedelta(minutes=120 - i),
                 "previous_run_time": datetime(2024, 12, 31, 23, 0, 0),
                 "schedule": "0 * * * *",
                 "type": "cron",
@@ -813,11 +824,13 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
     qm._redis = object()
 
     with app.app_context():
-        schedules, status = qm.get_scheduled_jobs()
+        schedules, status = qm.get_scheduled_jobs({})
 
     assert status == 200
     # 120 OSINT cron jobs + two housekeeping crons
     assert schedules["total_count"] == 122
+    assert len(schedules["items"]) == 20
+    assert schedules["items"][0]["id"] == "osint_source_119"
 
 
 def test_get_scheduled_jobs_filters_sorts_and_paginates(app, monkeypatch):
