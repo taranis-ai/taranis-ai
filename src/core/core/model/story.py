@@ -58,6 +58,9 @@ class Story(BaseModel):
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
     search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), server_default="")
+    misp_auto_update: Mapped["StoryMispAutoUpdate | None"] = relationship(
+        "StoryMispAutoUpdate", uselist=False, cascade="all, delete-orphan", back_populates="story"
+    )
 
     def __init__(
         self,
@@ -868,6 +871,15 @@ class Story(BaseModel):
         if not story:
             return {"error": "Story not found"}, 404
 
+        if "misp_auto_update" in data and user and "CONNECTOR_USER_ACCESS" not in user.get_permissions():
+            return {"error": "forbidden"}, 403
+
+        if "misp_auto_update" in data and data["misp_auto_update"] is not None:
+            try:
+                StoryMispAutoUpdate.configure(story, data["misp_auto_update"])
+            except ValueError as exc:
+                return {"error": str(exc)}, 400
+
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
 
@@ -906,6 +918,10 @@ class Story(BaseModel):
         story.recompute_relevance()
         story.record_revision(user, note="update")
         db.session.commit()
+        if not external:
+            from core.service.misp_auto_update import schedule_story_update
+
+            schedule_story_update(story)
         return {"message": "Story updated successfully", "id": story.id, "story": story.to_detail_dict()}, 200
 
     @classmethod
@@ -1430,6 +1446,8 @@ class Story(BaseModel):
         data["in_reports_count"] = ReportItemStory.count(self.id)
         data["links"] = self.links
         data["revision_count"] = self.get_revision_count()
+        if self.misp_auto_update:
+            data["misp_auto_update"] = self.misp_auto_update.to_public_dict()
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
@@ -1501,6 +1519,32 @@ class NewsItemVote(BaseModel):
         if vote := cls.get_by_filter(item_id, user_id):
             return {"like": vote.like, "dislike": vote.dislike}
         return {"like": False, "dislike": False}
+
+
+class StoryMispAutoUpdate(BaseModel):
+    __tablename__ = "story_misp_auto_update"
+
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
+    connector_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("connector.id", ondelete="CASCADE"), nullable=False)
+    enabled: Mapped[bool] = db.Column(db.Boolean, default=False, nullable=False)
+
+    story: Mapped[Story] = relationship("Story", back_populates="misp_auto_update")
+
+    @classmethod
+    def configure(cls, story: Story, data: dict[str, Any]) -> None:
+        from core.model.connector import Connector
+
+        connector = Connector.get(data.get("connector_id")) if data.get("connector_id") else None
+        if not connector or str(connector.type.value).lower() != "misp_connector":
+            raise ValueError("Select a MISP connector for auto-update")
+        sync = story.misp_auto_update or cls()
+        sync.story_id = story.id
+        sync.connector_id = connector.id
+        sync.enabled = bool(data.get("enabled"))
+        story.misp_auto_update = sync
+
+    def to_public_dict(self) -> dict[str, Any]:
+        return {"connector_id": self.connector_id, "enabled": self.enabled}
 
 
 class StoryNewsItemAttribute(BaseModel):

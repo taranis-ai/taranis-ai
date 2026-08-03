@@ -1,6 +1,8 @@
 import json
+from types import SimpleNamespace
 
 import pytest
+from pymisp import exceptions
 
 from worker.config import Config
 from worker.connectors import base_misp_builder, connector_tasks
@@ -216,7 +218,7 @@ def test_misp_sender_returns_sync_payload_after_successful_event(monkeypatch):
         ],
     }
 
-    monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None: event)
+    monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None, auto_update=False: ("updated", event))
 
     assert connector.misp_sender(story, misp_event_uuid="existing-event-uuid") == {
         "action": "synced",
@@ -236,13 +238,124 @@ def test_misp_sender_returns_proposal_result_for_proposals(monkeypatch):
 
     connector = MispConnector()
 
-    monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None: [MISPShadowAttribute()])
+    monkeypatch.setattr(
+        connector,
+        "send_event_to_misp",
+        lambda story_data, existing_uuid=None, auto_update=False: ("proposed", [MISPShadowAttribute()]),
+    )
 
     assert connector.misp_sender({"id": "story-123", "news_items": [{"id": "news-1", "last_change": "internal"}]}, "existing-event-uuid") == {
         "action": "proposed",
         "message": "1 proposals submitted to MISP",
         "sync_result": None,
     }
+
+
+def test_auto_update_blocked_result_includes_event_url(monkeypatch):
+    connector = MispConnector()
+    proposal_url = "https://misp.example/events/view/event-1"
+
+    def blocked(*args, **kwargs):
+        assert kwargs["auto_update"] is True
+        return "blocked", proposal_url
+
+    monkeypatch.setattr(connector, "send_event_to_misp", blocked)
+
+    assert connector.misp_sender({"id": "story-123", "news_items": []}, "event-1", auto_update=True) == {
+        "action": "blocked",
+        "message": "MISP auto-update blocked by an external proposal",
+        "sync_result": {"type": "misp_auto_update_blocked", "story_id": "story-123", "proposal_url": proposal_url},
+    }
+
+
+def test_blocked_results_are_counted_in_execution_summary():
+    connector = MispConnector()
+
+    assert connector._build_execution_result([])["action"] == "mixed"
+    assert connector._build_execution_result(
+        [{"action": "blocked", "message": "MISP auto-update blocked by an external proposal", "sync_result": {}}]
+    ) == {
+        "action": "blocked",
+        "message": "MISP auto-update blocked by an external proposal",
+        "sync_results": [],
+    }
+    assert (
+        connector._build_execution_result(
+            [
+                {"action": "synced", "sync_result": {}},
+                {"action": "blocked", "sync_result": {}},
+                {"action": "failed", "sync_result": {}},
+            ]
+        )["message"]
+        == "Processed 3 stories: 1 synced, 0 proposed, 1 blocked, 1 failed"
+    )
+
+
+def test_pymisp_uses_configured_timeout(monkeypatch):
+    connector = MispConnector()
+    connector.url = "https://misp.example"
+    connector.api_key = "key"
+    connector.request_timeout = 42
+    captured = {}
+
+    monkeypatch.setattr("worker.connectors.misp_connector.PyMISP", lambda **kwargs: captured.update(kwargs) or object())
+    monkeypatch.setattr(connector, "add_misp_event", lambda misp, story: None)
+
+    connector.send_event_to_misp({})
+
+    assert captured["timeout"] == 42
+
+
+def test_auto_update_unowned_event_is_skipped(monkeypatch):
+    connector = MispConnector()
+    connector.org_id = "1"
+    event = SimpleNamespace(to_dict=lambda: {"orgc_id": "2"})
+    monkeypatch.setattr(connector, "get_event_by_uuid", lambda *args: event)
+
+    assert connector.update_misp_event(SimpleNamespace(), {}, "event-1", auto_update=True) == ("skipped",)
+
+    monkeypatch.setattr(connector, "send_event_to_misp", lambda *args, **kwargs: ("skipped",))
+    assert connector.misp_sender({"id": "story-123", "news_items": []}, "event-1", auto_update=True)["action"] == "failed"
+
+
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    [
+        ([{"org_id": "2"}], True),
+        ({"response": [{"org_id": "2"}]}, True),
+        ({"ShadowAttribute": [{"org_id": "1"}]}, False),
+        ({"response": {"ShadowAttribute": [{"org_id": "2"}]}}, True),
+        ({}, False),
+    ],
+)
+def test_external_proposal_response_shapes(response, expected):
+    connector = MispConnector()
+    connector.org_id = "1"
+    misp = SimpleNamespace(_prepare_request=lambda *args: object(), _check_json_response=lambda _: response)
+
+    assert connector.has_external_proposals(misp, "event-1") is expected
+
+
+@pytest.mark.parametrize(
+    ("failing_method", "error"),
+    [
+        ("_prepare_request", OSError("connection failed")),
+        ("_check_json_response", exceptions.PyMISPUnexpectedResponse("invalid JSON")),
+    ],
+)
+def test_auto_update_fails_closed_when_proposal_lookup_fails(monkeypatch, failing_method, error):
+    connector = MispConnector()
+    connector.org_id = "1"
+    event = SimpleNamespace(to_dict=lambda: {"orgc_id": "1"})
+    monkeypatch.setattr(connector, "get_event_by_uuid", lambda *args: event)
+    misp = SimpleNamespace(_prepare_request=lambda *args: object(), _check_json_response=lambda *args: [])
+
+    def fail(*args):
+        raise error
+
+    monkeypatch.setattr(misp, failing_method, fail)
+
+    assert connector.update_misp_event(misp, {}, "event-1", auto_update=True) == ("failed",)
 
 
 def test_valid_distribution():

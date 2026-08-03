@@ -194,6 +194,11 @@ class StoryTag(TaranisBaseModel):
     type: str | None = None
 
 
+class MispAutoUpdatePayload(TaranisBaseModel):
+    connector_id: str | None = None
+    enabled: bool = False
+
+
 class Story(TaranisBaseModel):
     _core_endpoint = "/assess/stories"
     _model_name = "story"
@@ -220,6 +225,7 @@ class Story(TaranisBaseModel):
     in_reports_count: int | None = None
     tags: list[dict[str, Any]] | None = None
     attributes: list[dict[str, Any]] | None = None
+    misp_auto_update: MispAutoUpdatePayload | None = None
 
     @classmethod
     def normalize_datetime(cls, date: str | datetime | None) -> datetime | None:
@@ -332,6 +338,7 @@ class StoryUpdatePayload(TaranisBaseModel):
     comments: str | None = None
     summary: str | None = None
     attributes: list[dict[str, Any]] | None = None
+    misp_auto_update: MispAutoUpdatePayload | None = None
 
 
 class BulkAction(TaranisBaseModel):
