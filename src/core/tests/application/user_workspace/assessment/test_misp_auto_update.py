@@ -5,7 +5,7 @@ import pytest
 from core.managers.db_manager import db
 from core.model.connector import Connector
 from core.model.story import Story
-from core.service.misp_story_sync import apply_misp_auto_update_blocked, apply_misp_sync_story_result
+from core.service.misp_story_sync import apply_misp_auto_update_blocked, apply_misp_sync_story_result, handle_misp_connector_result
 from tests.application.support.builders import build_news_item_payload, create_story
 
 
@@ -53,6 +53,31 @@ def test_misp_auto_update_requires_connector_access(client, auth_header, auth_he
     )
     invalid_payload = {"misp_auto_update": {"connector_id": "not-a-misp-connector", "enabled": True}}
     assert client.patch(f"/api/assess/stories/{story.id}", json=invalid_payload, headers=auth_header).status_code == 400
+    assert Story.get(story.id).title == story.title
+    assert Story.get(story.id).attributes == story.attributes
+
+
+@pytest.mark.usefixtures("session")
+def test_invalid_auto_update_does_not_apply_other_story_changes(client, auth_header, monkeypatch):
+    monkeypatch.setattr("core.service.misp_auto_update.schedule_story_update", lambda story: None)
+    story = _story()
+    original_title = story.title
+
+    response = client.patch(
+        f"/api/assess/stories/{story.id}",
+        json={
+            "title": "Should not persist",
+            "attributes": [{"key": "new_attribute", "value": "Should not persist"}],
+            "misp_auto_update": {"connector_id": "not-a-misp-connector", "enabled": True},
+        },
+        headers=auth_header,
+    )
+
+    assert response.status_code == 400
+    db.session.expire_all()
+    unchanged_story = Story.get(story.id)
+    assert unchanged_story.title == original_title
+    assert unchanged_story.find_attribute_by_key("new_attribute") is None
 
 
 @pytest.mark.usefixtures("session")
@@ -65,9 +90,14 @@ def test_auto_update_proposals_are_stored_on_the_story(monkeypatch):
     assert sync is not None
 
     proposal_url = "https://misp.example/events/view/event-1"
+    previous_updated = story.updated
+    previous_revision = story.revision
     assert apply_misp_auto_update_blocked({"story_id": story.id, "proposal_url": proposal_url})
+    db.session.refresh(story)
     assert sync.enabled is True
     assert story.find_attribute_by_key("has_proposals").value == proposal_url
+    assert story.updated > previous_updated
+    assert story.revision == previous_revision + 1
 
     payload = {
         "type": "misp_sync_story",
@@ -80,3 +110,21 @@ def test_auto_update_proposals_are_stored_on_the_story(monkeypatch):
 
     assert apply_misp_sync_story_result(payload, clear_auto_update_proposals=True)
     assert story.find_attribute_by_key("has_proposals") is None
+
+
+@pytest.mark.usefixtures("session")
+def test_malformed_sync_results_do_not_skip_valid_results():
+    story = _story()
+
+    handle_misp_connector_result(
+        {
+            "connector_type": "MISP_CONNECTOR",
+            "connector_id": "connector-1",
+            "sync_results": [
+                None,
+                {"type": "misp_sync_story", "story_id": story.id, "misp_event_uuid": "event-1", "news_item_ids_to_mark_external": []},
+            ],
+        }
+    )
+
+    assert story.find_attribute_by_key("misp_event_uuid").value == "event-1"

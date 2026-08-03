@@ -18,13 +18,13 @@ Auto-update configuration stores only a MISP connector and whether it is enabled
 
 ## Data Flow
 
-Story changes enqueue `connector_task` after five minutes. The worker returns either a normal MISP sync result or a blocked result containing the MISP event URL. Core persists that URL as `has_proposals`, which the frontend renders independently of the enabled badge.
+Story changes enqueue `connector_task` after five minutes. The worker returns either a normal MISP sync result or a blocked result containing the MISP event URL. Core persists that URL as `has_proposals`, timestamps and revisions the story, and the frontend renders it independently of the enabled badge. Invalid individual sync entries are ignored so other results in the task still apply.
 
 ## Testing
 
 - Core: `src/core/tests/application/user_workspace/assessment/test_misp_auto_update.py`
 - Frontend: `src/frontend/tests/unit/views/test_story_view.py`
-- Worker: `src/worker/tests/connectors/test_misp_connector.py`
+- Worker: `src/worker/tests/connectors/test_misp_connector.py` (including aggregate blocked status and configured PyMISP timeout)
 - Run focused tests from `src/core` and `src/worker` with `uv run pytest`.
 
 ## Pitfalls

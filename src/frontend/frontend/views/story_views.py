@@ -1371,6 +1371,8 @@ class StoryView(BaseView):
         context = StoryView.get_item_context(story_id)
         if updated_story:
             context["story"] = Story(**updated_story)
+            sources = {source.id: source for source in StoryView.get_filter_lists().sources if source.id}
+            StoryView._enhance_story_with_details(context["story"], sources)
         if not context.get("story"):
             logger.warning(f"Story {story_id} not found")
             return render_template("partials/404.html")

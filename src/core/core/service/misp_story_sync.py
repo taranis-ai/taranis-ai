@@ -18,6 +18,9 @@ def handle_misp_connector_result(result: dict[str, Any]) -> None:
         return
 
     for payload in sync_results:
+        if not isinstance(payload, dict):
+            logger.error(f"Invalid MISP sync payload type: {type(payload)}")
+            continue
         if payload.get("type") == "misp_auto_update_blocked":
             apply_misp_auto_update_blocked(payload)
         else:
@@ -38,6 +41,8 @@ def apply_misp_auto_update_blocked(payload: dict[str, Any]) -> bool:
     if not story:
         return False
     story.patch_attributes({"has_proposals": {"key": "has_proposals", "value": proposal_url}})
+    story.updated = story.utcnow()
+    story.record_revision(note="misp_sync_story")
     db.session.commit()
     return True
 

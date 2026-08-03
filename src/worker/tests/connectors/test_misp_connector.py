@@ -263,6 +263,43 @@ def test_auto_update_blocked_result_includes_event_url(monkeypatch):
     }
 
 
+def test_blocked_results_are_counted_in_execution_summary():
+    connector = MispConnector()
+
+    assert connector._build_execution_result(
+        [{"action": "blocked", "message": "MISP auto-update blocked by an external proposal", "sync_result": {}}]
+    ) == {
+        "action": "blocked",
+        "message": "MISP auto-update blocked by an external proposal",
+        "sync_results": [],
+    }
+    assert (
+        connector._build_execution_result(
+            [
+                {"action": "synced", "sync_result": {}},
+                {"action": "blocked", "sync_result": {}},
+                {"action": "failed", "sync_result": {}},
+            ]
+        )["message"]
+        == "Processed 3 stories: 1 synced, 0 proposed, 1 blocked, 1 failed"
+    )
+
+
+def test_pymisp_uses_configured_timeout(monkeypatch):
+    connector = MispConnector()
+    connector.url = "https://misp.example"
+    connector.api_key = "key"
+    connector.request_timeout = 42
+    captured = {}
+
+    monkeypatch.setattr("worker.connectors.misp_connector.PyMISP", lambda **kwargs: captured.update(kwargs) or object())
+    monkeypatch.setattr(connector, "add_misp_event", lambda misp, story: None)
+
+    connector.send_event_to_misp({})
+
+    assert captured["timeout"] == 42
+
+
 def test_auto_update_unowned_event_is_skipped(monkeypatch):
     connector = MispConnector()
     connector.org_id = "1"

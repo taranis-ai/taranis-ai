@@ -871,6 +871,15 @@ class Story(BaseModel):
         if not story:
             return {"error": "Story not found"}, 404
 
+        if "misp_auto_update" in data and user and "CONNECTOR_USER_ACCESS" not in user.get_permissions():
+            return {"error": "forbidden"}, 403
+
+        if "misp_auto_update" in data and data["misp_auto_update"] is not None:
+            try:
+                StoryMispAutoUpdate.configure(story, data["misp_auto_update"])
+            except ValueError as exc:
+                return {"error": str(exc)}, 400
+
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
 
@@ -894,15 +903,6 @@ class Story(BaseModel):
 
         if "attributes" in data:
             story.set_attributes(data["attributes"])
-
-        if "misp_auto_update" in data and user and "CONNECTOR_USER_ACCESS" not in user.get_permissions():
-            return {"error": "forbidden"}, 403
-
-        if "misp_auto_update" in data and data["misp_auto_update"] is not None:
-            try:
-                StoryMispAutoUpdate.configure(story, data["misp_auto_update"])
-            except ValueError as exc:
-                return {"error": str(exc)}, 400
 
         if "relevance_override" in data:
             story.relevance_override = data["relevance_override"] or 0

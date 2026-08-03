@@ -537,6 +537,7 @@ class MispConnector:
                 ssl=self.ssl,
                 proxies=self.proxies,
                 http_headers=self.headers,
+                timeout=self.request_timeout,
             )
 
             if misp_event_uuid:
@@ -622,34 +623,39 @@ class MispConnector:
         sync_results = [story_result["sync_result"] for story_result in story_results if story_result.get("sync_result")]
         synced = sum(1 for story_result in story_results if story_result.get("action") == "synced")
         proposed = sum(1 for story_result in story_results if story_result.get("action") == "proposed")
+        blocked = sum(1 for story_result in story_results if story_result.get("action") == "blocked")
         failed = sum(1 for story_result in story_results if story_result.get("action") == "failed")
 
         return {
-            "action": self._get_overall_action(synced=synced, proposed=proposed, failed=failed),
-            "message": self._build_action_message(total=len(story_results), synced=synced, proposed=proposed, failed=failed),
+            "action": self._get_overall_action(synced=synced, proposed=proposed, blocked=blocked, failed=failed),
+            "message": self._build_action_message(total=len(story_results), synced=synced, proposed=proposed, blocked=blocked, failed=failed),
             "sync_results": sync_results,
         }
 
     @staticmethod
-    def _get_overall_action(synced: int, proposed: int, failed: int) -> str:
-        if failed and not synced and not proposed:
+    def _get_overall_action(synced: int, proposed: int, blocked: int, failed: int) -> str:
+        if failed and not synced and not proposed and not blocked:
             return "failed"
-        if synced and not proposed and not failed:
+        if synced and not proposed and not blocked and not failed:
             return "synced"
-        if proposed and not synced and not failed:
+        if proposed and not synced and not blocked and not failed:
             return "proposed"
+        if blocked and not synced and not proposed and not failed:
+            return "blocked"
         return "mixed"
 
     @staticmethod
-    def _build_action_message(total: int, synced: int, proposed: int, failed: int) -> str:
+    def _build_action_message(total: int, synced: int, proposed: int, blocked: int, failed: int) -> str:
         if total == 1:
             if synced:
                 return "Story synced to MISP"
             if proposed:
                 return f"{proposed} proposals submitted to MISP"
+            if blocked:
+                return "MISP auto-update blocked by an external proposal"
             return "Story was not synced to MISP"
 
-        return f"Processed {total} stories: {synced} synced, {proposed} proposed, {failed} failed"
+        return f"Processed {total} stories: {synced} synced, {proposed} proposed, {blocked} blocked, {failed} failed"
 
     @staticmethod
     def _get_news_item_ids_to_mark_external(story: dict) -> list[str]:
