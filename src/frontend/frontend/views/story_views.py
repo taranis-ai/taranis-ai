@@ -873,7 +873,7 @@ class StoryView(BaseView):
 
         if isinstance(story, Story):
             context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
-            context["can_manage_connectors"] = bool({"ALL", "CONNECTOR_USER_ACCESS"} & set(current_user.permissions or []))
+            context["can_manage_connectors"] = "CONNECTOR_USER_ACCESS" in (current_user.permissions or [])
             if context["can_manage_connectors"] and context["layout"] == "advanced":
                 try:
                     context["misp_connectors"] = [

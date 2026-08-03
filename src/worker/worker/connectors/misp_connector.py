@@ -26,7 +26,6 @@ class MispConnector:
         self.request_timeout: int = 5
         self.sharing_group_id: int | None = None
         self.distribution: int | None = None
-        self.last_blocked_url: str | None = None
 
     def parse_parameters(self, parameters: dict) -> None:
         self.url = parameters.get("URL", "")
@@ -200,7 +199,7 @@ class MispConnector:
 
     def update_misp_event(
         self, misp: PyMISP, story: dict, misp_event_uuid: str, auto_update: bool = False
-    ) -> MISPEvent | list[MISPShadowAttribute] | None:
+    ) -> MISPEvent | list[MISPShadowAttribute] | tuple[str, str | None] | None:
         if event := self.get_event_by_uuid(misp, story, misp_event_uuid):
             event_dict = event.to_dict()
             orgc_id = event_dict.get("orgc_id", None)
@@ -208,11 +207,10 @@ class MispConnector:
             if auto_update:
                 if str(orgc_id) != str(self.org_id):
                     logger.warning(f"Skipping auto-update for unowned MISP event {misp_event_uuid}")
-                    return None
+                    return "skipped", None
                 if self.has_external_proposals(misp, misp_event_uuid):
-                    self.last_blocked_url = f"{self.url}/events/view/{misp_event_uuid}"
                     logger.warning(f"Skipping auto-update for MISP event {misp_event_uuid}: external proposal exists")
-                    return None
+                    return "blocked", f"{self.url}/events/view/{misp_event_uuid}"
 
             if orgc_id != self.org_id:
                 extension_id = self.add_missing_news_items_as_extension(event, story, misp)
@@ -527,7 +525,7 @@ class MispConnector:
 
     def send_event_to_misp(
         self, story: dict, misp_event_uuid: str | None = None, auto_update: bool = False
-    ) -> MISPEvent | list[MISPShadowAttribute] | None:
+    ) -> MISPEvent | list[MISPShadowAttribute] | tuple[str, str | None] | None:
         """
         Either update an existing event (if 'misp_event_uuid' is provided)
         or create a new event if no UUID is provided.
@@ -543,6 +541,8 @@ class MispConnector:
 
             if misp_event_uuid:
                 if result := self.update_misp_event(misp, story, misp_event_uuid, auto_update=auto_update):
+                    if isinstance(result, tuple):
+                        return result
                     if isinstance(result, MISPEvent):
                         logger.info(f"Event with UUID: {result.uuid} was updated in MISP")
                     elif isinstance(result, list) and all(isinstance(x, MISPShadowAttribute) for x in result):
@@ -576,12 +576,7 @@ class MispConnector:
         story_id = story.get("id", "")
         news_item_ids_to_mark_external = self._get_news_item_ids_to_mark_external(story)
 
-        self.last_blocked_url = None
-        result = (
-            self.send_event_to_misp(story, misp_event_uuid, auto_update=True)
-            if auto_update
-            else self.send_event_to_misp(story, misp_event_uuid)
-        )
+        result = self.send_event_to_misp(story, misp_event_uuid, auto_update=auto_update)
         if result:
             if isinstance(result, MISPEvent):
                 logger.debug(f"Create MISP sync result for story {story_id}")
@@ -606,14 +601,14 @@ class MispConnector:
                     "sync_result": None,
                 }
 
-        if auto_update and self.last_blocked_url:
+        if auto_update and isinstance(result, tuple) and result[0] == "blocked" and result[1]:
             return {
                 "action": "blocked",
                 "message": "MISP auto-update blocked by an external proposal",
                 "sync_result": {
                     "type": "misp_auto_update_blocked",
                     "story_id": story_id,
-                    "proposal_url": self.last_blocked_url,
+                    "proposal_url": result[1],
                 },
             }
 

@@ -6,14 +6,14 @@ MISP auto-update, MISP proposal warnings, `has_proposals`, `StoryMispAutoUpdate`
 
 ## Expected Behavior
 
-Auto-update configuration stores only a MISP connector and whether it is enabled. It appears in the Advanced story editor; users without `CONNECTOR_USER_ACCESS` can see its status and proposal link but cannot change it. Story edits schedule a push after five minutes. An external MISP proposal leaves auto-update enabled and stores the event URL in `has_proposals`; a successful automatic push removes that attribute. Story cards show only the enabled badge.
+Auto-update configuration stores only a MISP connector and whether it is enabled. It appears in the Advanced story editor; only users with `CONNECTOR_USER_ACCESS` can change it, while other users can see its status and proposal link. Story edits schedule a push after five minutes. An external MISP proposal leaves auto-update enabled and stores the event URL in `has_proposals`; a successful automatic push removes that attribute. Story cards show only the enabled badge.
 
 ## Code Paths
 
 - Core configuration and response: `src/core/core/model/story.py`
 - Scheduling: `src/core/core/service/misp_auto_update.py`
 - Worker result application: `src/core/core/service/misp_story_sync.py`
-- MISP push and blocked payload: `src/worker/worker/connectors/misp_connector.py`
+- MISP push and blocked payload: `src/worker/worker/connectors/misp_connector.py` returns explicit blocked/skipped outcomes to its sender.
 - UI: `src/frontend/frontend/templates/assess/story_card.html` and `src/frontend/frontend/templates/assess/story_edit_content.html`
 
 ## Data Flow

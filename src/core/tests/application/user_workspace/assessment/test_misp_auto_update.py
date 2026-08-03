@@ -45,6 +45,7 @@ def test_misp_auto_update_requires_connector_access(client, auth_header, auth_he
 
     payload = {"misp_auto_update": {"connector_id": connector.id, "enabled": True}}
     assert client.patch(f"/api/assess/stories/{story.id}", json=payload, headers=auth_header_user_permissions).status_code == 403
+    assert client.patch(f"/api/assess/stories/{story.id}", json={"title": "Updated"}, headers=auth_header_user_permissions).status_code == 200
     assert client.patch(f"/api/assess/stories/{story.id}", json=payload, headers=auth_header).status_code == 200
 
     monkeypatch.setattr(

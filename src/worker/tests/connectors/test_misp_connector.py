@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -216,7 +217,7 @@ def test_misp_sender_returns_sync_payload_after_successful_event(monkeypatch):
         ],
     }
 
-    monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None: event)
+    monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None, auto_update=False: event)
 
     assert connector.misp_sender(story, misp_event_uuid="existing-event-uuid") == {
         "action": "synced",
@@ -236,7 +237,7 @@ def test_misp_sender_returns_proposal_result_for_proposals(monkeypatch):
 
     connector = MispConnector()
 
-    monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None: [MISPShadowAttribute()])
+    monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None, auto_update=False: [MISPShadowAttribute()])
 
     assert connector.misp_sender({"id": "story-123", "news_items": [{"id": "news-1", "last_change": "internal"}]}, "existing-event-uuid") == {
         "action": "proposed",
@@ -251,8 +252,7 @@ def test_auto_update_blocked_result_includes_event_url(monkeypatch):
 
     def blocked(*args, **kwargs):
         assert kwargs["auto_update"] is True
-        connector.last_blocked_url = proposal_url
-        return None
+        return "blocked", proposal_url
 
     monkeypatch.setattr(connector, "send_event_to_misp", blocked)
 
@@ -261,6 +261,18 @@ def test_auto_update_blocked_result_includes_event_url(monkeypatch):
         "message": "MISP auto-update blocked by an external proposal",
         "sync_result": {"type": "misp_auto_update_blocked", "story_id": "story-123", "proposal_url": proposal_url},
     }
+
+
+def test_auto_update_unowned_event_is_skipped(monkeypatch):
+    connector = MispConnector()
+    connector.org_id = "1"
+    event = SimpleNamespace(to_dict=lambda: {"orgc_id": "2"})
+    monkeypatch.setattr(connector, "get_event_by_uuid", lambda *args: event)
+
+    assert connector.update_misp_event(SimpleNamespace(), {}, "event-1", auto_update=True) == ("skipped", None)
+
+    monkeypatch.setattr(connector, "send_event_to_misp", lambda *args, **kwargs: ("skipped", None))
+    assert connector.misp_sender({"id": "story-123", "news_items": []}, "event-1", auto_update=True)["action"] == "failed"
 
 
 def test_valid_distribution():
