@@ -872,14 +872,19 @@ class StoryView(BaseView):
         story = context.get("story")
 
         if isinstance(story, Story):
-            try:
-                context["misp_connectors"] = [
-                    item for item in DataPersistenceLayer().get_objects(Connector).items if str(item.type or "").lower() == "misp_connector"
-                ]
-            except HTTPException:
-                raise
-            except Exception:
-                context["misp_connectors"] = []
+            context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
+            context["can_manage_connectors"] = bool({"ALL", "CONNECTOR_USER_ACCESS"} & set(current_user.permissions or []))
+            if context["can_manage_connectors"] and context["layout"] == "advanced":
+                try:
+                    context["misp_connectors"] = [
+                        item
+                        for item in DataPersistenceLayer().get_objects(Connector).items
+                        if str(item.type or "").lower() == "misp_connector"
+                    ]
+                except HTTPException:
+                    raise
+                except Exception:
+                    context["misp_connectors"] = []
             attributes = story.attributes or []
             context["has_rt_id"] = any(isinstance(attr, dict) and attr.get("key") == "rt_id" for attr in attributes)
 
@@ -895,7 +900,6 @@ class StoryView(BaseView):
             context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
             context["story_sentiment_status"] = cls._format_sentiment_status(sentiment_value)
             context["sentiment_chip_class"] = cls._get_sentiment_chip_class(context["story_sentiment_status"])
-            context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
             sources = list(cls.get_filter_lists().sources)
             source_dict = {source.id: source for source in sources if source.id}
             cls._enhance_story_with_details(story, source_dict)

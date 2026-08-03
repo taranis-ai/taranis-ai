@@ -895,6 +895,9 @@ class Story(BaseModel):
         if "attributes" in data:
             story.set_attributes(data["attributes"])
 
+        if "misp_auto_update" in data and user and "CONNECTOR_USER_ACCESS" not in user.get_permissions():
+            return {"error": "forbidden"}, 403
+
         if "misp_auto_update" in data and data["misp_auto_update"] is not None:
             try:
                 StoryMispAutoUpdate.configure(story, data["misp_auto_update"])

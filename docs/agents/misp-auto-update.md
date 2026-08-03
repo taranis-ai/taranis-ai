@@ -6,7 +6,7 @@ MISP auto-update, MISP proposal warnings, `has_proposals`, `StoryMispAutoUpdate`
 
 ## Expected Behavior
 
-Auto-update configuration stores only a MISP connector and whether it is enabled. Story edits schedule a push after five minutes. An external MISP proposal leaves auto-update enabled and stores the event URL in `has_proposals`; a successful automatic push removes that attribute.
+Auto-update configuration stores only a MISP connector and whether it is enabled. It appears in the Advanced story editor; users without `CONNECTOR_USER_ACCESS` can see its status and proposal link but cannot change it. Story edits schedule a push after five minutes. An external MISP proposal leaves auto-update enabled and stores the event URL in `has_proposals`; a successful automatic push removes that attribute. Story cards show only the enabled badge.
 
 ## Code Paths
 
@@ -23,9 +23,12 @@ Story changes enqueue `connector_task` after five minutes. The worker returns ei
 ## Testing
 
 - Core: `src/core/tests/application/user_workspace/assessment/test_misp_auto_update.py`
+- Frontend: `src/frontend/tests/unit/views/test_story_view.py`
 - Worker: `src/worker/tests/connectors/test_misp_connector.py`
 - Run focused tests from `src/core` and `src/worker` with `uv run pytest`.
 
 ## Pitfalls
 
 `has_proposals` is shared with the MISP collector. Do not add proposal status fields or a migration for the branch-only auto-update table.
+
+Only request MISP connectors for users with `CONNECTOR_USER_ACCESS`; core must reject direct configuration updates without that permission.

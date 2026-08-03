@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 
 from core.managers.db_manager import db
@@ -33,6 +35,23 @@ def test_misp_auto_update_only_stores_configuration(monkeypatch):
     assert Story.update(story.id, {"misp_auto_update": {"connector_id": second_connector.id, "enabled": True}})[1] == 200
     assert Story.update(story.id, {"misp_auto_update": {"connector_id": second_connector.id, "enabled": False}})[1] == 200
     assert sync.to_public_dict() == {"connector_id": second_connector.id, "enabled": False}
+
+
+@pytest.mark.usefixtures("session")
+def test_misp_auto_update_requires_connector_access(client, auth_header, auth_header_user_permissions, monkeypatch):
+    monkeypatch.setattr("core.service.misp_auto_update.schedule_story_update", lambda story: None)
+    story = _story()
+    connector = _misp_connector("MISP")
+
+    payload = {"misp_auto_update": {"connector_id": connector.id, "enabled": True}}
+    assert client.patch(f"/api/assess/stories/{story.id}", json=payload, headers=auth_header_user_permissions).status_code == 403
+    assert client.patch(f"/api/assess/stories/{story.id}", json=payload, headers=auth_header).status_code == 200
+
+    monkeypatch.setattr(
+        Connector, "get", lambda connector_id: SimpleNamespace(id=connector_id, type=SimpleNamespace(value="other_connector"))
+    )
+    invalid_payload = {"misp_auto_update": {"connector_id": "not-a-misp-connector", "enabled": True}}
+    assert client.patch(f"/api/assess/stories/{story.id}", json=invalid_payload, headers=auth_header).status_code == 400
 
 
 @pytest.mark.usefixtures("session")

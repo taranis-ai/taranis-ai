@@ -451,6 +451,36 @@ def test_story_edit_advanced_view_renders_sentiment_status_chip(authenticated_cl
     assert "Sentiment · Negative" in response.text
 
 
+def test_story_edit_misp_auto_update_is_advanced_only(authenticated_client_basic, responses_mock):
+    story_payload = story_with_news_item_tags()
+    story_payload["misp_auto_update"] = {"connector_id": "connector-1", "enabled": True}
+    story_payload["attributes"] = [{"key": "has_proposals", "value": "https://misp.example/event-1"}]
+    mock_story_for_edit(responses_mock, story_payload)
+
+    simple_response = authenticated_client_basic.get(url_for("assess.story_edit", story_id=story_payload["id"], layout="simple"))
+    advanced_response = authenticated_client_basic.get(url_for("assess.story_edit", story_id=story_payload["id"], layout="advanced"))
+
+    assert "MISP auto-update" not in simple_response.text
+    assert "MISP auto-update" in advanced_response.text
+    assert "Blocked by MISP proposal" in advanced_response.text
+    assert "misp_auto_update[connector_id]" not in advanced_response.text
+    assert not any(urlparse(call.request.url).path.endswith("/assess/connectors") for call in responses_mock.calls)
+
+
+def test_story_edit_misp_auto_update_controls_require_connector_access(authenticated_client, responses_mock):
+    story_payload = story_with_news_item_tags()
+    mock_story_for_edit(responses_mock, story_payload)
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/connectors",
+        json={"total_count": 1, "items": [{"id": "connector-1", "name": "MISP", "type": "misp_connector"}]},
+    )
+
+    response = authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"], layout="advanced"))
+
+    assert 'name="misp_auto_update[connector_id]"' in response.text
+    assert 'form="story-edit-form"' in response.text
+
+
 def test_update_news_item_tags_posts_to_news_item_endpoint_and_rerenders_card(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     responses_mock.put(

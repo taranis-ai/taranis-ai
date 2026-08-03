@@ -174,31 +174,6 @@
           </label>
 
           <div class="grid grid-cols-2 gap-8">
-            {% set misp_sync = story.misp_auto_update or {} %}
-            {% set proposal_url = story.attributes | selectattr('key', 'equalto', 'has_proposals') | map(attribute='value') | first | default(none) %}
-            <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 h-full">
-              <h3 class="text-lg font-semibold">MISP auto-update</h3>
-              <p class="text-xs text-base-content/60 mt-1">Push this story after five minutes without further changes.</p>
-              <label class="select w-full mt-3">
-                <span class="label">MISP connector</span>
-                <select name="misp_auto_update[connector_id]" class="select select-bordered w-full">
-                  <option value="">Select connector</option>
-                  {% for connector in misp_connectors | default([]) %}
-                    <option value="{{ connector.id }}" {% if connector.id == misp_sync.connector_id %}selected{% endif %}>{{ connector.name }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="label cursor-pointer justify-start gap-3 mt-2">
-                <input type="checkbox" name="misp_auto_update[enabled]" value="true" class="checkbox checkbox-primary" {% if misp_sync.enabled %}checked{% endif %}>
-                <span class="label-text">Enable auto-update</span>
-              </label>
-              {% if proposal_url %}
-                <a class="badge badge-warning badge-outline mt-2" href="{{ proposal_url }}" target="_blank" rel="noopener">Blocked by MISP proposal</a>
-              {% endif %}
-              {% if misp_sync.enabled %}
-                <span class="badge badge-success badge-outline mt-2">MISP auto-update enabled</span>
-              {% endif %}
-            </section>
             <label class="floating-label">
               <span class="label">Summary</span>
               <textarea name="summary" class="textarea textarea-bordered w-full" placeholder="Summarise the key takeaways">{{ story.summary }}</textarea>
@@ -280,6 +255,40 @@
               <button type="submit" class="btn btn-outline btn-accent" {% if has_rt_id %}disabled{% endif %}>Cybersecurity classification</button>
             </form>
 
+          </div>
+        </div>
+
+        {% set misp_sync = story.misp_auto_update or {} %}
+        {% set proposal_url = story.attributes | selectattr('key', 'equalto', 'has_proposals') | map(attribute='value') | first | default(none) %}
+        <div class="card bg-base-100 shadow-lg border border-base-200">
+          <div class="card-body space-y-3">
+            <h3 class="card-title text-lg">MISP auto-update</h3>
+            <p class="text-sm text-base-content/70">Push this story after five minutes without further changes.</p>
+            {% if can_manage_connectors %}
+              <label class="select w-full">
+                <span class="label">MISP connector</span>
+                <select name="misp_auto_update[connector_id]" form="story-edit-form" class="select select-bordered w-full">
+                  <option value="">Select connector</option>
+                  {% for connector in misp_connectors | default([]) %}
+                    <option value="{{ connector.id }}" {% if connector.id == misp_sync.connector_id %}selected{% endif %}>{{ connector.name }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label class="label cursor-pointer justify-start gap-3">
+                <input type="checkbox"
+                       name="misp_auto_update[enabled]"
+                       form="story-edit-form"
+                       value="true"
+                       class="checkbox checkbox-primary"
+                       {% if misp_sync.enabled %}checked{% endif %}>
+                <span class="label-text">Enable auto-update</span>
+              </label>
+            {% else %}
+              <p class="text-sm text-base-content/70">You do not have permission to change MISP auto-update settings.</p>
+            {% endif %}
+            {% if proposal_url %}
+              <a class="badge badge-warning badge-outline" href="{{ proposal_url }}" target="_blank" rel="noopener">Blocked by MISP proposal</a>
+            {% endif %}
           </div>
         </div>
       </aside>
