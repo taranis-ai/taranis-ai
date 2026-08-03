@@ -99,9 +99,11 @@
                   <span class="badge badge-primary badge-xs whitespace-nowrap">Unread</span>
                 {% endif %}
                 {% if story.important | default(false) %}<span class="badge badge-warning badge-xs whitespace-nowrap">Important</span>{% endif %}
-                {% if story.misp_auto_update and story.misp_auto_update.status == 'blocked' %}
-                  <a class="badge badge-warning badge-xs whitespace-nowrap" href="{{ story.misp_auto_update.proposal_url }}" target="_blank" rel="noopener">MISP proposal blocks update</a>
-                {% elif story.misp_auto_update and story.misp_auto_update.enabled %}
+                {% set proposal_url = story.attributes | selectattr('key', 'equalto', 'has_proposals') | map(attribute='value') | first | default(none) %}
+                {% if proposal_url %}
+                  <a class="badge badge-warning badge-xs whitespace-nowrap" href="{{ proposal_url }}" target="_blank" rel="noopener">MISP proposal blocks update</a>
+                {% endif %}
+                {% if story.misp_auto_update and story.misp_auto_update.enabled %}
                   <span class="badge badge-success badge-outline badge-xs whitespace-nowrap">MISP auto-update</span>
                 {% endif %}
                 {% if story.relevance is not none %}

@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 from core.managers import queue_manager
-from core.managers.db_manager import db
 from core.model.story import Story
 
 
@@ -23,13 +22,11 @@ def schedule_story_update(story: Story) -> None:
     if not sync.enabled:
         return
 
-    pending_until = story.utcnow() + timedelta(minutes=DEBOUNCE_MINUTES)
-    sync.pending_until = pending_until
-    db.session.commit()
+    scheduled_time = story.utcnow() + timedelta(minutes=DEBOUNCE_MINUTES)
     queue.enqueue_at(
         "connectors",
         "connector_task",
-        pending_until,
+        scheduled_time,
         sync.connector_id,
         [story.id],
         True,

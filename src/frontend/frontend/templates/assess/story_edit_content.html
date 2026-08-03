@@ -175,6 +175,7 @@
 
           <div class="grid grid-cols-2 gap-8">
             {% set misp_sync = story.misp_auto_update or {} %}
+            {% set proposal_url = story.attributes | selectattr('key', 'equalto', 'has_proposals') | map(attribute='value') | first | default(none) %}
             <section class="rounded-2xl border border-base-200 bg-base-200/40 p-5 h-full">
               <h3 class="text-lg font-semibold">MISP auto-update</h3>
               <p class="text-xs text-base-content/60 mt-1">Push this story after five minutes without further changes.</p>
@@ -191,9 +192,10 @@
                 <input type="checkbox" name="misp_auto_update[enabled]" value="true" class="checkbox checkbox-primary" {% if misp_sync.enabled %}checked{% endif %}>
                 <span class="label-text">Enable auto-update</span>
               </label>
-              {% if misp_sync.status == 'blocked' %}
-                <a class="badge badge-warning badge-outline mt-2" href="{{ misp_sync.proposal_url }}" target="_blank" rel="noopener">Blocked by MISP proposal</a>
-              {% elif misp_sync.enabled %}
+              {% if proposal_url %}
+                <a class="badge badge-warning badge-outline mt-2" href="{{ proposal_url }}" target="_blank" rel="noopener">Blocked by MISP proposal</a>
+              {% endif %}
+              {% if misp_sync.enabled %}
                 <span class="badge badge-success badge-outline mt-2">MISP auto-update enabled</span>
               {% endif %}
             </section>

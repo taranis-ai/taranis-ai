@@ -245,6 +245,24 @@ def test_misp_sender_returns_proposal_result_for_proposals(monkeypatch):
     }
 
 
+def test_auto_update_blocked_result_includes_event_url(monkeypatch):
+    connector = MispConnector()
+    proposal_url = "https://misp.example/events/view/event-1"
+
+    def blocked(*args, **kwargs):
+        assert kwargs["auto_update"] is True
+        connector.last_blocked_url = proposal_url
+        return None
+
+    monkeypatch.setattr(connector, "send_event_to_misp", blocked)
+
+    assert connector.misp_sender({"id": "story-123", "news_items": []}, "event-1", auto_update=True) == {
+        "action": "blocked",
+        "message": "MISP auto-update blocked by an external proposal",
+        "sync_result": {"type": "misp_auto_update_blocked", "story_id": "story-123", "proposal_url": proposal_url},
+    }
+
+
 def test_valid_distribution():
     connector = MispConnector()
     connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "DISTRIBUTION": "2"})

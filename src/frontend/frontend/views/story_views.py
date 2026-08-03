@@ -1357,7 +1357,7 @@ class StoryView(BaseView):
         )
 
     @staticmethod
-    def _get_action_response_content(story_id: str) -> str:
+    def _get_action_response_content(story_id: str, updated_story: dict[str, Any] | None = None) -> str:
         current_url = StoryView._get_current_url_path()
         bookmark_id = StoryView._get_bookmark_id()
 
@@ -1365,6 +1365,8 @@ class StoryView(BaseView):
         detail_path = url_for("assess.story", story_id=story_id)
 
         context = StoryView.get_item_context(story_id)
+        if updated_story:
+            context["story"] = Story(**updated_story)
         if not context.get("story"):
             logger.warning(f"Story {story_id} not found")
             return render_template("partials/404.html")
@@ -1456,7 +1458,10 @@ class StoryView(BaseView):
                 return cls.redirect_htmx(url_for("assess.bookmark", bookmark_id=bookmark_id))
         notification_html = cls.get_notification_from_response(response)
 
-        content = cls._get_action_response_content(story_id)
+        updated_story = (
+            response.json().get("story") if getattr(response, "ok", False) else None
+        )  # Get updated story data if the response is successful; Helps show the correct connector setting
+        content = cls._get_action_response_content(story_id, updated_story)
         return make_response(notification_html + content, 200)
 
     def get(self, **kwargs: Any) -> ResponseReturnValue:

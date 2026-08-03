@@ -896,9 +896,8 @@ class Story(BaseModel):
             story.set_attributes(data["attributes"])
 
         if "misp_auto_update" in data and data["misp_auto_update"] is not None:
-            config = data["misp_auto_update"]
             try:
-                StoryMispAutoUpdate.configure(story, config, user)
+                StoryMispAutoUpdate.configure(story, data["misp_auto_update"])
             except ValueError as exc:
                 return {"error": str(exc)}, 400
 
@@ -1525,48 +1524,24 @@ class StoryMispAutoUpdate(BaseModel):
     story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
     connector_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("connector.id", ondelete="CASCADE"), nullable=False)
     enabled: Mapped[bool] = db.Column(db.Boolean, default=False, nullable=False)
-    status: Mapped[str] = db.Column(db.String(), default="enabled", nullable=False)
-    proposal_url: Mapped[str | None] = db.Column(db.String(), nullable=True)
-    pending_until: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
 
     story: Mapped[Story] = relationship("Story", back_populates="misp_auto_update")
 
     @classmethod
-    def configure(cls, story: Story, data: dict[str, Any], user: User | None) -> None:
+    def configure(cls, story: Story, data: dict[str, Any]) -> None:
         from core.model.connector import Connector
 
-        connector_id = data.get("connector_id")
-        enabled = bool(data.get("enabled"))
-        if not enabled:
-            if story.misp_auto_update:
-                story.misp_auto_update.enabled = False
-                story.misp_auto_update.status = "disabled"
-                story.misp_auto_update.proposal_url = None
-            return
-        connector = Connector.get(connector_id) if connector_id else None
+        connector = Connector.get(data.get("connector_id")) if data.get("connector_id") else None
         if not connector or str(connector.type.value).lower() != "misp_connector":
             raise ValueError("Select a MISP connector for auto-update")
-        if not story.misp_auto_update:
-            story.misp_auto_update = cls(story_id=story.id, connector_id=connector.id, enabled=True, status="enabled")
-        else:
-            story.misp_auto_update.connector_id = connector.id
-            story.misp_auto_update.enabled = True
-            story.misp_auto_update.status = "enabled"
-            story.misp_auto_update.proposal_url = None
-
-    def __init__(self, story_id: str, connector_id: str, enabled: bool = False, status: str = "enabled"):
-        self.story_id = story_id
-        self.connector_id = connector_id
-        self.enabled = enabled
-        self.status = status
+        sync = story.misp_auto_update or cls()
+        sync.story_id = story.id
+        sync.connector_id = connector.id
+        sync.enabled = bool(data.get("enabled"))
+        story.misp_auto_update = sync
 
     def to_public_dict(self) -> dict[str, Any]:
-        return {
-            "connector_id": self.connector_id,
-            "enabled": self.enabled,
-            "status": self.status,
-            "proposal_url": self.proposal_url,
-        }
+        return {"connector_id": self.connector_id, "enabled": self.enabled}
 
 
 class StoryNewsItemAttribute(BaseModel):
