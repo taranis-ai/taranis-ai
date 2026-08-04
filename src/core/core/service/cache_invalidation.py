@@ -32,12 +32,10 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
         "failed_job",
         "queue_status",
         "worker_stats",
-        "scheduler_dashboard",
         "task_history_response",
     ),
     SCOPE_SCHEDULE_STATUS: (
         "job",
-        "scheduler_dashboard",
         "task_history_response",
     ),
     SCOPE_TRENDING_CLUSTERS: ("trending_clusters",),

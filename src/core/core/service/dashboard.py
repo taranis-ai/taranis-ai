@@ -10,23 +10,6 @@ from core.service.health import get_health_response
 
 
 class DashboardService:
-    @staticmethod
-    def _count_user_scheduled_jobs(schedules: dict) -> int:
-        if not isinstance(schedules, dict):
-            return 0
-
-        if "items" not in schedules:
-            return int(schedules.get("total_count", 0) or 0)
-
-        items = schedules.get("items", [])
-        if not isinstance(items, list):
-            return int(schedules.get("total_count", 0) or 0)
-
-        housekeeping_job_ids = {
-            queue_manager.TOKEN_CLEANUP_JOB_ID,
-        }
-        return sum(1 for item in items if isinstance(item, dict) and item.get("id") not in housekeeping_job_ids)
-
     @classmethod
     def get_dashboard_data(cls) -> dict:
         total_news_items = NewsItem.get_count()
@@ -35,8 +18,7 @@ class DashboardService:
         report_items_completed = ReportItem.count_all(True)
         report_items_in_progress = ReportItem.count_all(False)
         latest_collected = NewsItem.latest_collected()
-        schedules, _ = queue_manager.queue_manager.get_scheduled_jobs()
-        schedule_length = cls._count_user_scheduled_jobs(schedules)
+        schedule_length = queue_manager.queue_manager.get_scheduled_job_count()
         conflict_count = len(StoryConflict.conflict_store) + len(NewsItemConflict.conflict_store)
         health_status, _ = get_health_response()
         task_status_totals = Task.get_status_totals()

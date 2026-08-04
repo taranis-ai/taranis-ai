@@ -134,7 +134,7 @@
   </div>
 {% endmacro %}
 
-{% macro table_header(column) %}
+{% macro table_header(column, container_id=None, base_url=None) %}
   {% from "macros/query_params.html" import update_query_params %}
   {% set order_direction = 'asc' if request.args.get('order') != column.field ~ '_asc' else 'desc' %}
   {% set order = column.field ~ '_' ~ order_direction %}
@@ -142,7 +142,10 @@
   {% set order_url = update_query_params(order_params) %}
   {% if column.sortable %}
     <th hx-boost>
-      <a href="{{ order_url }}" hx-target="closest table" hx-push-url="true" class="link link-hover">
+      <a href="{{ (base_url or '') ~ order_url }}"
+         {% if container_id %} hx-select="#{{ container_id }}" hx-target="#{{ container_id }}" hx-swap="outerHTML" {% else %} hx-target="closest table" {% endif %}
+         hx-push-url="true"
+         class="link link-hover">
         {{ column.title }}
         {% if request.args.get('order', '').startswith(column.field) %}
           {% if request.args.get('order').endswith('_asc') %}
