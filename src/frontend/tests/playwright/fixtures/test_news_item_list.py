@@ -3,7 +3,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 import pytest
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def news_items_list(app, fake_source):
     seed = uuid4().hex[:8]
     items = [

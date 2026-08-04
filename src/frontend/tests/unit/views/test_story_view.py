@@ -309,6 +309,22 @@ def test_story_update_payload_ignores_tags():
     assert payload.model_dump(mode="json") == {"title": "Updated Story"}
 
 
+def test_story_update_redirects_to_story_without_htmx(authenticated_client, responses_mock):
+    responses_mock.patch(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/story-1",
+        json={"message": "Story updated"},
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.story_update", story_id="story-1"),
+        data={"read": "true"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == url_for("assess.story", story_id="story-1")
+    assert json.loads(responses_mock.calls[0].request.body) == {"read": True}
+
+
 def _render_news_item_card(story: Story) -> str:
     return render_template_string(
         '{% from "assess/news_item_card.html" import news_item_card %}{{ news_item_card(story.news_items[0], story) }}',
@@ -579,7 +595,14 @@ def test_story_read_action_replaces_story_card(app):
 
     tree = html.fromstring(f"<div>{markup}</div>")
     toggle_read = tree.xpath('//*[@data-testid="toggle-read"]')[0]
+    toggle_read_form = toggle_read.getparent()
 
+    assert toggle_read.tag == "button"
+    assert toggle_read.get("type") == "submit"
+    assert toggle_read_form.tag == "form"
+    assert toggle_read_form.get("method") == "post"
+    assert toggle_read_form.get("action") == "/story/1"
+    assert toggle_read_form.xpath('./input[@name="read"]/@value') == ["true"]
     assert toggle_read.get("hx-target") == "#story-1"
     assert toggle_read.get("hx-select") == "#story-1"
     assert toggle_read.get("hx-swap") == "outerHTML"
@@ -979,7 +1002,7 @@ def test_create_news_item_from_url_posts_simple_web_collector_payload(authentica
     }
 
 
-def test_story_sharing_dialog_loads_connectors_from_assess_endpoint(authenticated_client_basic, responses_mock):
+def test_story_share_page_loads_connectors_from_assess_endpoint(authenticated_client_basic, responses_mock):
     story_id = "story-1"
     connector_id = "connector-1"
 
@@ -1007,10 +1030,67 @@ def test_story_sharing_dialog_loads_connectors_from_assess_endpoint(authenticate
     assert response.status_code == 200
     assert connector_id in response.text
     assert "MISP Connector" in response.text
+    tree = html.fromstring(response.text)
+    share_form = tree.xpath('//form[@action="/story/sharing"]')[0]
+    assert share_form.get("method") == "post"
+    assert share_form.xpath('./input[@name="story_ids"]/@value') == [story_id]
     assert all(call.request.url != f"{Config.TARANIS_CORE_URL}/config/connectors" for call in responses_mock.calls)
 
 
-def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authenticated_client_basic, monkeypatch, responses_mock):
+def test_story_share_redirects_to_story_without_htmx(authenticated_client_basic, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/story/connector-1/share",
+        json={"message": "Story shared"},
+    )
+
+    response = authenticated_client_basic.post(
+        url_for("assess.submit_share_story"),
+        data={"story_ids": "story-1", "connector": "connector-1"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == url_for("assess.story", story_id="story-1")
+    assert json.loads(responses_mock.calls[0].request.body) == {"story_ids": ["story-1"]}
+
+
+def test_story_report_page_lists_reports_without_htmx(authenticated_client_basic, responses_mock):
+    story_id = "story-1"
+    report_id = "report-1"
+
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items",
+        json={"total_count": 1, "items": [{"id": report_id, "title": "Weekly report", "report_item_type_id": "report-type-1"}]},
+    )
+
+    response = authenticated_client_basic.get(url_for("assess.report_story", story_ids=story_id))
+
+    assert response.status_code == 200
+    tree = html.fromstring(response.text)
+    report_form = tree.xpath('//form[@action="/story/report"]')[0]
+    assert report_form.get("method") == "post"
+    assert report_form.xpath('./input[@name="story_ids"]/@value') == [story_id]
+    assert report_form.xpath('.//option[@value="report-1"]/text()') == ["Weekly report"]
+
+
+def test_add_story_to_report_redirects_to_story_without_htmx(authenticated_client_basic, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/report-1/stories",
+        json={"message": "Story added to report"},
+    )
+
+    response = authenticated_client_basic.post(
+        url_for("assess.submit_report_story"),
+        data={"story_ids": "story-1", "report": "report-1"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == url_for("assess.story", story_id="story-1")
+    assert json.loads(responses_mock.calls[0].request.body) == ["story-1"]
+
+
+def test_story_sharing_dialog_still_renders_when_connector_loading_fails(
+    authenticated_client_basic, htmx_header, monkeypatch, responses_mock
+):
     story_id = "story-1"
 
     responses_mock.get(
@@ -1023,7 +1103,7 @@ def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authent
 
     monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.get_objects", raise_connector_loading_error)
 
-    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
+    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id), headers=htmx_header)
 
     assert response.status_code == 200
     assert "Share Stories" in response.text
@@ -1037,7 +1117,9 @@ def test_story_sharing_dialog_still_renders_when_connector_loading_fails(authent
     assert len(connector_select) == 0
 
 
-def test_story_sharing_dialog_still_renders_when_connector_loading_is_forbidden(authenticated_client_basic, monkeypatch, responses_mock):
+def test_story_sharing_dialog_still_renders_when_connector_loading_is_forbidden(
+    authenticated_client_basic, htmx_header, monkeypatch, responses_mock
+):
     story_id = "story-1"
 
     responses_mock.get(
@@ -1050,7 +1132,7 @@ def test_story_sharing_dialog_still_renders_when_connector_loading_is_forbidden(
 
     monkeypatch.setattr("frontend.views.story_views.DataPersistenceLayer.get_objects", raise_connector_loading_error)
 
-    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id))
+    response = authenticated_client_basic.get(url_for("assess.share_story", story_id=story_id), headers=htmx_header)
 
     assert response.status_code == 200
     assert "Share Stories" in response.text

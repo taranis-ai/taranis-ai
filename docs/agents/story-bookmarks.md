@@ -13,6 +13,8 @@ The frontend supports two bookmark entry paths:
 - the modal flow for selecting one or more stories and choosing an existing or new collection
 - the instant single-story flow that uses the first available collection or creates a default collection named `Bookmarks`
 
+The instant story action remains an HTMX update when JavaScript is available, but is also a normal POST form. Without JavaScript it redirects to the story detail page with the result notification.
+
 The Assess page shows a compact bookmark bar with up to six collections ordered by user-defined bookmark position and an `All bookmarks` link. Bookmark labels in templates should stay translatable, but the default collection name used by the instant create path stays `Bookmarks`.
 
 Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark` action because those stories are already in a bookmark collection.
@@ -52,6 +54,7 @@ When an eligible bookmarked story is ungrouped, core replaces its bookmark relat
   - `src/frontend/tests/unit/views/test_story_bookmark_view.py`
   - `src/frontend/tests/unit/views/test_story_view.py`
   - `src/frontend/tests/playwright/test_e2e_workflow.py`
+  - `src/frontend/tests/playwright/test_no_javascript.py`
 
 ## Data Flow
 
@@ -72,6 +75,7 @@ The instant bookmark path first looks up the earliest collection, then falls bac
 - Core API coverage: `cd src/core && uv run pytest tests/application/user_workspace/assessment/test_story_bookmarks.py`
 - Frontend bookmark views: `cd src/frontend && uv run pytest tests/unit/views/test_story_bookmark_view.py tests/unit/views/test_story_view.py`
 - E2E coverage: `cd src/frontend && uv run pytest tests/playwright/test_e2e_workflow.py -k bookmark`
+- JavaScript-disabled instant action coverage: `cd src/frontend && uv run pytest tests/playwright/test_no_javascript.py --e2e-ci`
 - If bookmark-related template strings change, refresh catalogs with `cd src/frontend && uv run pybabel compile -d frontend/translations`
 
 ## Pitfalls
