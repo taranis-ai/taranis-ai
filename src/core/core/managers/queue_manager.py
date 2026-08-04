@@ -1293,17 +1293,16 @@ class QueueManager:
                     annotated_job[field] = value.isoformat()
             return annotated_job, 200
 
-    def get_user_scheduled_job_count(self) -> int:
+    def get_scheduled_job_count(self) -> int:
         if self.error or not self._redis:
             return 0
 
         try:
             from rq.registry import ScheduledJobRegistry
 
-            job_ids = {_decode_redis_value(job_id) for job_id in self._redis.hkeys(CRON_DEFS_KEY)}
+            job_ids = set(self._get_managed_cron_specs())
             for queue in self._queues.values():
                 job_ids.update(ScheduledJobRegistry(queue=queue).get_job_ids())
-            job_ids.difference_update({TOKEN_CLEANUP_JOB_ID, TASK_HISTORY_CLEANUP_JOB_ID})
             return len(job_ids)
         except Exception:
             logger.exception("Failed to count scheduled jobs")

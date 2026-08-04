@@ -7,11 +7,14 @@ import pytest
 import rq.registry as rq_registry
 from rq import Queue
 
+import core.service.dashboard as dashboard_module
 from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
 from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
 from core.model.task import Task as TaskModel
+from core.service.dashboard import DashboardService
+from tests.application.support.builders import create_osint_source
 
 
 class _FakeRedis:
@@ -103,15 +106,35 @@ def _make_queue_manager() -> QueueManager:
     return qm
 
 
-def test_get_user_scheduled_job_count_excludes_housekeeping_jobs():
+def test_get_scheduled_job_count_includes_configured_and_housekeeping_jobs(monkeypatch):
     qm = _make_queue_manager()
-    qm._redis.hashes[qm_module.CRON_DEFS_KEY] = {  # type: ignore[attr-defined]
-        "collector-source-1": b"{}",
-        qm_module.TASK_HISTORY_CLEANUP_JOB_ID: b"{}",
-        qm_module.TOKEN_CLEANUP_JOB_ID: b"{}",
-    }
+    monkeypatch.setattr(
+        qm,
+        "_get_managed_cron_specs",
+        lambda: {
+            "collector-source-1": None,
+            qm_module.TASK_HISTORY_CLEANUP_JOB_ID: None,
+            qm_module.TOKEN_CLEANUP_JOB_ID: None,
+        },
+    )
 
-    assert qm.get_user_scheduled_job_count() == 1
+    assert qm.get_scheduled_job_count() == 3
+
+
+def test_dashboard_schedule_count_matches_scheduled_jobs_total_for_configured_sources(app, session, monkeypatch):
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm_module, "queue_manager", qm)
+    monkeypatch.setattr(dashboard_module, "get_health_response", lambda: ({"healthy": True}, 200))
+
+    with app.app_context():
+        create_osint_source(rank=1, name="Scheduled count consistency source")
+
+        schedules, status = qm.get_scheduled_jobs({})
+        dashboard = DashboardService.get_dashboard_data()["items"][0]
+
+    assert status == 200
+    assert dashboard["schedule_length"] > len(qm._get_housekeeping_cron_specs())
+    assert dashboard["schedule_length"] == schedules["total_count"]
 
 
 @pytest.mark.parametrize(

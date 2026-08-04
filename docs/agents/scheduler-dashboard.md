@@ -13,6 +13,7 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Switching tabs clears table-specific query parameters and reloads the selected tab from its first page. Execution history loads when selected but does not poll.
 - Direct links to a scheduler tab render the full dashboard with that tab selected. HTMX requests render only the requested table.
 - Malformed or non-positive scheduler page and limit parameters fall back to the first page and default page size.
+- The Admin Dashboard schedule count includes housekeeping jobs and matches the full Scheduled Jobs dataset.
 - Datetimes are stored and returned as UTC values and displayed in the profile timezone through the frontend `format_datetime` filter.
 - Failed-job error text is displayed through the scheduler error dialog and must be passed to the browser through Jinja JSON encoding.
 
@@ -35,7 +36,7 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Inactive tabs render lightweight HTMX placeholders and load from their granular endpoint when selected.
 - Table query parameters are parsed by the frontend into `PagingData` and forwarded through `DataPersistenceLayer`.
 - Core applies search, ordering, and pagination to RQ-backed lists before returning `items` and `total_count`; the frontend wraps that response in `CacheObject` for shared pagination controls.
-- Scheduler list endpoints never return an unpaginated collection. The main dashboard uses a dedicated Redis-backed count instead of fetching schedule rows.
+- Scheduler list endpoints never return an unpaginated collection. The main dashboard counts unique configured cron jobs and RQ registry jobs, including housekeeping jobs, without fetching or annotating schedule rows.
 - Execution-history statistics are returned as an aggregate mapping and are filtered, ordered, and paged in the frontend.
 - Scheduler cache entries have short timeouts. Each distinct endpoint and paging query has its own list-cache key.
 
@@ -45,6 +46,7 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Frontend end-to-end admin coverage: `src/frontend/tests/playwright/test_e2e_admin.py`
 - Core queue manager coverage: `src/core/tests/application/admin_console/configuration/test_queue_manager_scheduler_extended.py`
 - Core config API coverage: `src/core/tests/application/admin_console/configuration/test_config_api.py`
+- Keep a configured-source consistency test asserting that the dedicated dashboard count matches the Scheduled Jobs aggregate total.
 - Run focused tests from the relevant component directory while iterating, then run the component lint commands and `./dev/check_pyrefly.sh` after Python changes.
 
 ## Pitfalls
