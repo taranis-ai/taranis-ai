@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1.7
+
+FROM postgres:17-bookworm AS builder
+
+ARG AGE_REF=e1467f12e0b1d15dd35d3ab93f057a7112d425b8
+ARG PGVECTOR_REF=159b79aaad5983fb7459c1e3df2897fbb2d11788
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && apt-get install --no-install-recommends -y \
+    bison \
+    build-essential \
+    ca-certificates \
+    flex \
+    git \
+    libreadline-dev \
+    postgresql-server-dev-17 \
+    zlib1g-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git init /tmp/age && \
+    git -C /tmp/age remote add origin https://github.com/apache/age.git && \
+    git -C /tmp/age fetch --depth 1 origin "$AGE_REF" && \
+    git -C /tmp/age checkout --detach FETCH_HEAD && \
+    make -C /tmp/age && \
+    make -C /tmp/age install
+
+RUN git init /tmp/pgvector && \
+    git -C /tmp/pgvector remote add origin https://github.com/pgvector/pgvector.git && \
+    git -C /tmp/pgvector fetch --depth 1 origin "$PGVECTOR_REF" && \
+    git -C /tmp/pgvector checkout --detach FETCH_HEAD && \
+    make -C /tmp/pgvector && \
+    make -C /tmp/pgvector install
+
+FROM postgres:17-bookworm
+
+LABEL description="PostgreSQL 17 with Apache AGE and pgvector for Taranis HRAG"
+
+COPY --from=builder /usr/lib/postgresql/17/lib/age.so /usr/lib/postgresql/17/lib/
+COPY --from=builder /usr/lib/postgresql/17/lib/vector.so /usr/lib/postgresql/17/lib/
+COPY --from=builder /usr/share/postgresql/17/extension/age* /usr/share/postgresql/17/extension/
+COPY --from=builder /usr/share/postgresql/17/extension/vector* /usr/share/postgresql/17/extension/
