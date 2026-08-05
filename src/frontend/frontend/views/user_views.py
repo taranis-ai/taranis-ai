@@ -151,8 +151,8 @@ class UserTaskView(MethodView):
             return render_template(template, tasks=tasks), 200
         except HTTPException:
             raise
-        except Exception as exc:
+        except Exception:
             logger.exception("Failed to load user tasks")
             if is_htmx_request():
-                return BaseView.render_response_notification({"error": f"Failed to load tasks: {exc}"}), 500
-            return render_template("errors/500.html", error=str(exc)), 500
+                return BaseView.render_response_notification({"error": "Failed to load tasks."}), 500
+            raise

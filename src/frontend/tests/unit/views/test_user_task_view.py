@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 
+import pytest
 from flask import url_for
 
 from frontend.config import Config
@@ -88,6 +89,18 @@ def test_my_tasks_renders_failure_reason_and_retryability(authenticated_client_b
     assert "Failed" in body
     assert "Render Failed" in body
     assert "Retryable" in body
+
+
+def test_my_tasks_full_page_failure_propagates(authenticated_client_basic, monkeypatch):
+    def fail_to_load_tasks(*args, **kwargs):
+        raise RuntimeError("task loading failed")
+
+    monkeypatch.setattr("frontend.views.user_views.DataPersistenceLayer.get_objects", fail_to_load_tasks)
+    with authenticated_client_basic.application.app_context():
+        url = url_for("user.tasks")
+
+    with pytest.raises(RuntimeError, match="task loading failed"):
+        authenticated_client_basic.get(url)
 
 
 def test_my_tasks_navbar_link(app):
