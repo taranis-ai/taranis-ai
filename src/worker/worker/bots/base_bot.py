@@ -15,6 +15,7 @@ class BaseBot:
         self.language: str | None = None
         self.model: str | None = None
         self.bot_api: Any = None
+        self.default_bot_lookback_days: int | None = None
 
     def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
@@ -35,12 +36,17 @@ class BaseBot:
         if timefrom := parameters.get("timefrom"):
             filter_dict["timefrom"] = timefrom
         elif "timefrom" not in filter_dict:
-            filter_dict["timefrom"] = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
+            filter_dict["timefrom"] = self.default_timefrom()
 
         filter_dict["worker"] = True
         filter_dict["exclude_attr"] = self.type
 
         return filter_dict
+
+    def default_timefrom(self) -> str:
+        if self.default_bot_lookback_days is None:
+            raise RuntimeError("Default bot lookback is not configured")
+        return (datetime.datetime.now() - datetime.timedelta(days=self.default_bot_lookback_days)).isoformat()
 
     def update_filter_for_pagination(self, filter_dict, limit=100):
         filter_dict["limit"] = limit

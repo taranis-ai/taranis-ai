@@ -1,4 +1,3 @@
-import datetime
 import re
 
 from worker.log import logger
@@ -26,7 +25,7 @@ class AnalystBot(BaseBot):
         self.attr_name = attr.replace(" ", "").split(",")
 
         bots_params = dict(zip(self.regexp, self.attr_name))
-        limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
+        limit = self.default_timefrom()
 
         if not (data := self.core_api.get_news_items(limit)):
             logger.debug(f"No News Items for filter: {limit}")
