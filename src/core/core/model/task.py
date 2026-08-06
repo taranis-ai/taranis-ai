@@ -133,6 +133,57 @@ class Task(BaseModel):
     def get_by_job_id(cls, job_id: str) -> "Task | None":
         return cls.get_first(db.select(cls).where(cls.job_id == job_id))
 
+    @staticmethod
+    def _positive_int(value: Any, default: int) -> int:
+        try:
+            parsed_value = int(value)
+        except (TypeError, ValueError):
+            return default
+        return parsed_value if parsed_value > 0 else default
+
+    @classmethod
+    def get_user_tasks_for_api(cls, user_id: str, filter_args: dict[str, Any] | None = None) -> tuple[dict[str, Any], int]:
+        filter_args = dict(filter_args or {})
+        query = db.select(cls).where(
+            cls.user_id == user_id,
+            cls.status.in_(cls.SUCCESS_STATUSES | cls.FAILURE_STATUSES),
+            cls.last_run.is_not(None),
+        )
+
+        if search := str(filter_args.get("search") or "").strip():
+            pattern = f"%{search}%"
+            query = query.where(
+                or_(
+                    cls.job_id.ilike(pattern),
+                    cls.task.ilike(pattern),
+                    cls.worker_id.ilike(pattern),
+                    cls.worker_type.ilike(pattern),
+                    cls.status.ilike(pattern),
+                    cls.result.ilike(pattern),
+                )
+            )
+
+        allowed_orders = {
+            "worker_type_asc",
+            "worker_type_desc",
+            "status_asc",
+            "status_desc",
+            "last_run_asc",
+            "last_run_desc",
+        }
+        order = str(filter_args.get("order") or "last_run_desc")
+        normalized_args = {
+            "page": cls._positive_int(filter_args.get("page"), 1),
+            "limit": cls._positive_int(filter_args.get("limit"), 20),
+            "order": order if order in allowed_orders else "last_run_desc",
+        }
+
+        count = cls.get_filtered_count(query)
+        query = cls._add_paging_to_query(normalized_args, query)
+        query = cls._add_sorting_to_query(normalized_args, query)
+        items = cls.get_filtered(query) or []
+        return {"items": cls.to_list(items), "total_count": count}, 200
+
     @classmethod
     def get_latest_matching(
         cls,

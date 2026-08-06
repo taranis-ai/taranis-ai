@@ -51,6 +51,14 @@ class TaskResultEnvelope(TaranisBaseModel):
     data: Any = None
 
 
+class UserTaskResult(TaranisBaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    message: str
+    reason: str | None = None
+    retryable: bool = False
+
+
 class Task(TaranisBaseModel):
     """Task execution result model"""
 
@@ -69,6 +77,31 @@ class Task(TaranisBaseModel):
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None
+
+
+class UserTask(TaranisBaseModel):
+    _core_endpoint = "/tasks/user"
+    _model_name = "user_task"
+    _pretty_name = "User Task"
+    _cache_timeout = 1
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    job_id: str | None = None
+    task: str | None = None
+    worker_id: str | None = None
+    worker_type: str | None = None
+    result: UserTaskResult
+    status: str
+    last_run: datetime
+
+
+class UserTaskList(TaranisBaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    items: list[UserTask] = Field(default_factory=list)
+    total_count: int = 0
 
 
 class TaskSubmission(TaranisBaseModel):

@@ -81,7 +81,6 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
         if not isinstance(connector_result, dict):
             raise RuntimeError(f"Connector {connector.type} returned an invalid result payload")
 
-        logger.info(f"Connector with id: {connector_id} executed successfully")
         result = {
             "connector_id": connector_id,
             "connector_type": connector.type,
@@ -90,6 +89,23 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
             "sync_results": connector_result.get("sync_results", []),
             "story_ids": story_ids,
         }
+        if result["action"] == "failed":
+            if job:
+                core_api.save_task_result(
+                    job.id,
+                    "connector_task",
+                    "FAILURE",
+                    worker_id=connector_id,
+                    worker_type=connector.type,
+                    result=build_failure_task_result(
+                        str(result["message"]),
+                        reason="connector_sync_failed",
+                        data=result,
+                    ),
+                )
+            return result
+
+        logger.info(f"Connector with id: {connector_id} executed successfully")
         if job:
             core_api.save_task_result(
                 job.id,

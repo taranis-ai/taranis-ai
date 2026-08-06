@@ -557,7 +557,7 @@ class MispConnector:
                 logger.debug(f"Create MISP sync result for story {story_id}")
                 return {
                     "action": "synced",
-                    "message": "Story synced to MISP",
+                    "message": "Story updated in MISP" if misp_event_uuid else "Story synced to MISP",
                     "sync_result": {
                         "type": "misp_sync_story",
                         "version": 1,
@@ -587,7 +587,11 @@ class MispConnector:
 
         return {
             "action": self._get_overall_action(synced=synced, proposed=proposed, failed=failed),
-            "message": self._build_action_message(total=len(story_results), synced=synced, proposed=proposed, failed=failed),
+            "message": (
+                str(story_results[0].get("message") or "Connector executed")
+                if len(story_results) == 1
+                else self._build_action_message(total=len(story_results), synced=synced, proposed=proposed, failed=failed)
+            ),
             "sync_results": sync_results,
         }
 
