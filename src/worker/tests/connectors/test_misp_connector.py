@@ -140,6 +140,102 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, cap
     assert sync_result["news_item_ids_to_mark_external"] == ["06cc6fd0-a775-4923-bdef-8cd5381164ce"]
 
 
+@pytest.mark.parametrize(
+    "connector_result",
+    [
+        {"action": "synced", "message": "Story synced to MISP", "sync_results": [{"type": "misp_sync_story"}]},
+        {"action": "proposed", "message": "1 proposals submitted to MISP", "sync_results": []},
+    ],
+)
+def test_connector_task_completed_outcome_persists_success(requests_mock, mock_job, monkeypatch, connector_result):
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        json={"id": "connector-1", "type": "misp_connector"},
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
+    monkeypatch.setattr(connector_tasks, "_get_connector_data", lambda *args: {"story": [{"id": "story-1"}]})
+    monkeypatch.setattr(MispConnector, "execute", lambda self, data: connector_result)
+
+    result = connector_tasks.connector_task("connector-1", ["story-1"])
+
+    assert result["action"] == connector_result["action"]
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    payload = post_calls[0].json()
+    assert payload["status"] == "SUCCESS"
+    assert payload["result"]["message"] == connector_result["message"]
+    assert payload["result"]["reason"] is None
+
+
+def test_connector_task_failed_outcome_persists_failure(requests_mock, mock_job, monkeypatch):
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        json={"id": "connector-1", "type": "misp_connector"},
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
+    monkeypatch.setattr(connector_tasks, "_get_connector_data", lambda *args: {"story": [{"id": "story-1"}]})
+    monkeypatch.setattr(
+        MispConnector,
+        "execute",
+        lambda self, data: {
+            "action": "failed",
+            "message": "Story was not synced to MISP",
+            "reason": "misp_sync_failed",
+            "retryable": False,
+            "sync_results": [],
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="Story was not synced to MISP"):
+        connector_tasks.connector_task("connector-1", ["story-1"])
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    payload = post_calls[0].json()
+    assert payload["status"] == "FAILURE"
+    assert payload["result"] == {
+        "message": "Story was not synced to MISP",
+        "reason": "misp_sync_failed",
+        "retryable": False,
+        "data": {
+            "connector_id": "connector-1",
+            "connector_type": "MISP_CONNECTOR",
+            "action": "failed",
+            "message": "Story was not synced to MISP",
+            "sync_results": [],
+            "story_ids": ["story-1"],
+        },
+    }
+
+
+def test_connector_task_configuration_failure_does_not_expose_exception(requests_mock, mock_job, monkeypatch):
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        json={"id": "connector-1", "type": "misp_connector"},
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
+    monkeypatch.setattr(connector_tasks, "_get_connector_data", lambda *args: {"story": [{"id": "story-1"}]})
+
+    def reject_configuration(self, data):
+        raise ValueError("API_KEY=super-secret")
+
+    monkeypatch.setattr(MispConnector, "execute", reject_configuration)
+
+    with pytest.raises(RuntimeError, match="Connector configuration is invalid"):
+        connector_tasks.connector_task("connector-1", ["story-1"])
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    payload = post_calls[0].json()
+    assert payload["status"] == "FAILURE"
+    assert payload["result"]["message"] == "Connector configuration is invalid"
+    assert payload["result"]["reason"] == "connector_configuration_invalid"
+    assert "super-secret" not in json.dumps(payload)
+
+
 def test_connector_task_unknown_type_persists_failure(requests_mock, mock_job, monkeypatch):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
@@ -242,6 +338,40 @@ def test_misp_sender_returns_proposal_result_for_proposals(monkeypatch):
         "action": "proposed",
         "message": "1 proposals submitted to MISP",
         "sync_result": None,
+    }
+
+
+def test_misp_sender_returns_safe_failure_result(monkeypatch):
+    connector = MispConnector()
+    monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None: None)
+
+    story_result = connector.misp_sender({"id": "story-123"})
+
+    assert story_result == {
+        "action": "failed",
+        "message": "Story was not synced to MISP",
+        "reason": "misp_sync_failed",
+        "retryable": False,
+        "sync_result": None,
+    }
+
+
+def test_misp_execution_result_propagates_safe_failure():
+    connector = MispConnector()
+    story_result = {
+        "action": "failed",
+        "message": "Story was not synced to MISP",
+        "reason": "misp_sync_failed",
+        "retryable": False,
+        "sync_result": None,
+    }
+
+    assert connector._build_execution_result([story_result]) == {
+        "action": "failed",
+        "message": "Story was not synced to MISP",
+        "reason": "misp_sync_failed",
+        "retryable": False,
+        "sync_results": [],
     }
 
 

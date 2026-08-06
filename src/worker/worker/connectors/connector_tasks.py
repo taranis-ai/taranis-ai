@@ -14,6 +14,10 @@ from worker.core_api import CoreApi, build_failure_task_result, build_success_ta
 from worker.log import logger
 
 
+class _ConnectorOutcomeFailure(RuntimeError):
+    pass
+
+
 def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, Any]:
     """Push stories to an external connector system.
 
@@ -81,7 +85,6 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
         if not isinstance(connector_result, dict):
             raise RuntimeError(f"Connector {connector.type} returned an invalid result payload")
 
-        logger.info(f"Connector with id: {connector_id} executed successfully")
         result = {
             "connector_id": connector_id,
             "connector_type": connector.type,
@@ -90,6 +93,24 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
             "sync_results": connector_result.get("sync_results", []),
             "story_ids": story_ids,
         }
+        if result["action"] == "failed":
+            if job:
+                core_api.save_task_result(
+                    job.id,
+                    "connector_task",
+                    "FAILURE",
+                    worker_id=connector_id,
+                    worker_type=connector.type,
+                    result=build_failure_task_result(
+                        str(result["message"]),
+                        reason=str(connector_result.get("reason") or "connector_sync_failed"),
+                        retryable=connector_result.get("retryable") is True,
+                        data=result,
+                    ),
+                )
+            raise _ConnectorOutcomeFailure(str(result["message"]))
+
+        logger.info(f"Connector with id: {connector_id} executed successfully")
         if job:
             core_api.save_task_result(
                 job.id,
@@ -104,8 +125,13 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
                 ),
             )
         return result
+    except _ConnectorOutcomeFailure:
+        raise
     except Exception as e:
         logger.exception(f"Error executing connector with id: {connector_id}")
+        invalid_configuration = isinstance(e, ValueError)
+        message = "Connector configuration is invalid" if invalid_configuration else f"Error executing connector with id: {connector_id}"
+        reason = "connector_configuration_invalid" if invalid_configuration else "connector_execution_failed"
         if job:
             core_api.save_task_result(
                 job.id,
@@ -114,12 +140,12 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
                 worker_id=connector_id,
                 worker_type=connector_config.get("type", "connector_task"),
                 result=build_failure_task_result(
-                    f"Error executing connector with id: {connector_id}",
-                    reason="connector_execution_failed",
+                    message,
+                    reason=reason,
                     data={"connector_id": connector_id, "story_ids": story_ids},
                 ),
             )
-        raise RuntimeError(f"Error executing connector with id: {connector_id}") from e
+        raise RuntimeError(message) from e
 
 
 def drop_utf16_surrogates(data: str) -> str:

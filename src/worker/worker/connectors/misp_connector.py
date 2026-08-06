@@ -576,6 +576,8 @@ class MispConnector:
         return {
             "action": "failed",
             "message": "Story was not synced to MISP",
+            "reason": "misp_sync_failed",
+            "retryable": False,
             "sync_result": None,
         }
 
@@ -585,11 +587,19 @@ class MispConnector:
         proposed = sum(1 for story_result in story_results if story_result.get("action") == "proposed")
         failed = sum(1 for story_result in story_results if story_result.get("action") == "failed")
 
-        return {
-            "action": self._get_overall_action(synced=synced, proposed=proposed, failed=failed),
+        action = self._get_overall_action(synced=synced, proposed=proposed, failed=failed)
+        result: dict[str, Any] = {
+            "action": action,
             "message": self._build_action_message(total=len(story_results), synced=synced, proposed=proposed, failed=failed),
             "sync_results": sync_results,
         }
+        if action == "failed":
+            result["reason"] = next(
+                (story_result["reason"] for story_result in story_results if story_result.get("reason")),
+                "misp_sync_failed",
+            )
+            result["retryable"] = any(story_result.get("retryable") is True for story_result in story_results)
+        return result
 
     @staticmethod
     def _get_overall_action(synced: int, proposed: int, failed: int) -> str:
