@@ -10,6 +10,7 @@ from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model import bot, news_item, story
+from core.model.settings import Settings
 from core.service.cache_invalidation import (
     SCOPE_ASSESS_VIEWS,
     SCOPE_SCHEDULE,
@@ -68,8 +69,10 @@ class NewsItem(MethodView):
         try:
             if news_item_id:
                 return news_item.NewsItem.get_for_api(news_item_id)
-            filtre_args = {"limit": request.args.get("limit", default=(datetime.now() - timedelta(weeks=1)).isoformat())}
-            return news_item.NewsItem.get_all_for_api(filtre_args)
+            default_lookback_days = Settings.get_settings()["default_bot_lookback_days"]
+            default_timefrom = (datetime.now() - timedelta(days=default_lookback_days)).isoformat()
+            filter_args = {"limit": request.args.get("limit", default=default_timefrom)}
+            return news_item.NewsItem.get_all_for_api(filter_args)
         except Exception:
             logger.exception("Failed to get bot news item data")
             return {"error": "Failed to get news item data"}, 400

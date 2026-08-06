@@ -18,6 +18,7 @@ from core.model.product import Product
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
 from core.model.report_item import ReportItem
+from core.model.settings import Settings
 from core.model.story import Story
 from core.model.word_list import WordList
 from core.service.cache_invalidation import (
@@ -260,7 +261,9 @@ class BotInfo(MethodView):
             return Bot.get_all_for_api(filter_args)
 
         if result := Bot.get(bot_id):
-            return result.to_dict(), 200
+            bot_config = result.to_dict()
+            bot_config["default_bot_lookback_days"] = Settings.get_settings()["default_bot_lookback_days"]
+            return bot_config, 200
         return {"error": "Bot not found"}, 404
 
     @api_key_required
