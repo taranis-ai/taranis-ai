@@ -237,6 +237,7 @@ class User(TaranisBaseModel):
 class TaranisConfig(TaranisBaseModel):
     default_collector_proxy: AnyUrl | Literal[""] = ""
     default_collector_interval: str = ""
+    default_bot_lookback_days: int = Field(default=7, ge=1)
     default_tlp_level: TLPLevel = TLPLevel.CLEAR
     default_story_conflict_retention: str = "200"
     default_news_item_conflict_retention: str = "200"

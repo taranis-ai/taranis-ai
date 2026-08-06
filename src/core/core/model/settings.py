@@ -31,6 +31,7 @@ class Settings(BaseModel):
         merged: dict[str, Any] = dict(settings) if isinstance(settings, Mapping) else {}
         merged.setdefault("default_collector_proxy", "")
         merged.setdefault("default_collector_interval", "0 */8 * * *")
+        merged.setdefault("default_bot_lookback_days", 7)
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
@@ -55,6 +56,11 @@ class Settings(BaseModel):
             update_data = cls._normalize_update_data(dict(raw_update_data))
         except ValueError:
             return {"error": "Invalid timezone"}, 400
+        if "default_bot_lookback_days" in update_data:
+            try:
+                update_data["default_bot_lookback_days"] = cls._validate_positive_int(update_data["default_bot_lookback_days"])
+            except ValueError:
+                return {"error": "Invalid bot lookback setting"}, 400
         if "onboarding_enabled" in update_data:
             try:
                 update_data["onboarding_enabled"] = cls._validate_bool(update_data["onboarding_enabled"])
@@ -132,6 +138,20 @@ class Settings(BaseModel):
         if isinstance(value, str) and value.strip().lower() in {"true", "false"}:
             return value.strip().lower() == "true"
         raise ValueError("Invalid boolean")
+
+    @staticmethod
+    def _validate_positive_int(value: Any) -> int:
+        if isinstance(value, bool):
+            raise ValueError("Invalid positive integer")
+        if isinstance(value, int):
+            normalized = value
+        elif isinstance(value, str) and value.strip().isdecimal():
+            normalized = int(value.strip())
+        else:
+            raise ValueError("Invalid positive integer")
+        if normalized < 1:
+            raise ValueError("Invalid positive integer")
+        return normalized
 
     @classmethod
     def get_settings_entry(cls) -> "Settings | None":
