@@ -14,10 +14,6 @@ from worker.core_api import CoreApi, build_failure_task_result, build_success_ta
 from worker.log import logger
 
 
-class _ConnectorOutcomeFailure(RuntimeError):
-    pass
-
-
 def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, Any]:
     """Push stories to an external connector system.
 
@@ -103,12 +99,11 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
                     worker_type=connector.type,
                     result=build_failure_task_result(
                         str(result["message"]),
-                        reason=str(connector_result.get("reason") or "connector_sync_failed"),
-                        retryable=connector_result.get("retryable") is True,
+                        reason="connector_sync_failed",
                         data=result,
                     ),
                 )
-            raise _ConnectorOutcomeFailure(str(result["message"]))
+            return result
 
         logger.info(f"Connector with id: {connector_id} executed successfully")
         if job:
@@ -125,13 +120,8 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
                 ),
             )
         return result
-    except _ConnectorOutcomeFailure:
-        raise
     except Exception as e:
         logger.exception(f"Error executing connector with id: {connector_id}")
-        invalid_configuration = isinstance(e, ValueError)
-        message = "Connector configuration is invalid" if invalid_configuration else f"Error executing connector with id: {connector_id}"
-        reason = "connector_configuration_invalid" if invalid_configuration else "connector_execution_failed"
         if job:
             core_api.save_task_result(
                 job.id,
@@ -140,12 +130,12 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
                 worker_id=connector_id,
                 worker_type=connector_config.get("type", "connector_task"),
                 result=build_failure_task_result(
-                    message,
-                    reason=reason,
+                    f"Error executing connector with id: {connector_id}",
+                    reason="connector_execution_failed",
                     data={"connector_id": connector_id, "story_ids": story_ids},
                 ),
             )
-        raise RuntimeError(message) from e
+        raise RuntimeError(f"Error executing connector with id: {connector_id}") from e
 
 
 def drop_utf16_surrogates(data: str) -> str:
