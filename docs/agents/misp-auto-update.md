@@ -6,7 +6,7 @@ MISP auto-update, MISP proposal warnings, `has_proposals`, `StoryMispAutoUpdate`
 
 ## Expected Behavior
 
-Auto-update configuration stores only a MISP connector and whether it is enabled. It appears in the Advanced story editor; only users with `CONNECTOR_USER_ACCESS` can change it, while other users can see its status and proposal link. Story edits schedule a push after five minutes. An external MISP proposal leaves auto-update enabled and stores the event URL in `has_proposals`; a successful automatic push removes that attribute. Story cards show only the enabled badge.
+Auto-update configuration stores only a MISP connector and whether it is enabled. It appears in the Advanced story editor; only users with `CONNECTOR_USER_ACCESS` can change it, while other users can see its status and proposal link. Approved user and bot content mutations schedule a push after five minutes; inbound MISP changes do not. An external MISP proposal leaves auto-update enabled and stores the event URL in `has_proposals`; a successful automatic push removes that attribute. Story cards show only the enabled badge.
 
 ## Code Paths
 
@@ -18,7 +18,7 @@ Auto-update configuration stores only a MISP connector and whether it is enabled
 
 ## Data Flow
 
-Story changes enqueue `connector_task` after five minutes. The worker returns either a normal MISP sync result or a blocked result containing the MISP event URL. Core persists that URL as `has_proposals`, timestamps and revisions the story, and the frontend renders it independently of the enabled badge. Proposal lookup errors fail closed, so no automatic update is sent while proposal status is unknown. Invalid individual sync entries are ignored so other results in the task still apply.
+Assess and bot entry points schedule autosync after successful commits for normal story/content mutations: story edits, direct news-item edits and deletion, tags, attributes, language, grouping, and ungrouping. The dedicated `/worker/misp/stories` ingestion endpoint does not schedule, and lower-level mutation methods do not inspect origin. Applying outbound sync results also does not schedule another update. Origin is never inferred from `last_change`. The worker returns either a normal MISP sync result or a blocked result containing the MISP event URL. Core persists that URL as `has_proposals`, timestamps and revisions the story, and the frontend renders it independently of the enabled badge. Proposal lookup errors fail closed, so no automatic update is sent while proposal status is unknown. Invalid individual sync entries are ignored so other results in the task still apply.
 
 ## Testing
 

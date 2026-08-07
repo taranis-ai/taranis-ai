@@ -6,7 +6,6 @@ from flask.views import MethodView
 from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import api_key_required
-from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model import bot, news_item, story
@@ -17,6 +16,8 @@ from core.service.cache_invalidation import (
     SCOPE_STORY_VIEWS,
     invalidate_frontend_cache_on_success,
 )
+from core.service.misp_auto_update import schedule_story_updates
+from core.service.story import StoryService
 
 
 def _bot_actor() -> str:
@@ -31,6 +32,8 @@ class BotGroupAction(MethodView):
         if not story_ids:
             return {"error": "No story ids provided"}, 400
         response, code = story.Story.group_stories(story_ids, actor=_bot_actor())
+        if code == 200:
+            schedule_story_updates({story.Story.get(story_id) for story_id in story_ids if story.Story.get(story_id)})
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
@@ -44,6 +47,8 @@ class BotGroupMultipleAction(MethodView):
         if not story_ids:
             return {"error": "No stories provided"}, 400
         response, code = story.Story.group_multiple_stories(story_ids, actor=_bot_actor())
+        if code == 200:
+            schedule_story_updates({story.Story.get(story_id) for mapping in story_ids for story_id in mapping if story.Story.get(story_id)})
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
@@ -56,7 +61,10 @@ class BotUnGroupAction(MethodView):
         newsitem_ids = payload.get("newsitem_ids") if isinstance(payload, dict) else payload
         if not newsitem_ids:
             return {"error": "No news items provided"}, 400
+        affected_stories = {item.story for item in (news_item.NewsItem.get(item_id) for item_id in newsitem_ids) if item and item.story}
         response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, actor=_bot_actor())
+        if code == 200:
+            schedule_story_updates(affected_stories)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
@@ -81,6 +89,10 @@ class NewsItem(MethodView):
                 return {"error": "No update data provided"}, 400
             if language := request.json.get("language"):
                 response, status = news_item.NewsItem.update_news_item_lang(news_item_id, language, actor=_bot_actor())
+                if status == 200:
+                    if item := news_item.NewsItem.get(news_item_id):
+                        if item.story:
+                            schedule_story_updates({item.story})
                 invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
                 return response, status
             return {"error": "Not implemented"}, 501
@@ -93,6 +105,10 @@ class UpdateNewsItemAttributes(MethodView):
     @api_key_required
     def put(self, news_item_id):
         response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=_bot_actor())
+        if status == 200:
+            if item := news_item.NewsItem.get(news_item_id):
+                if item.story:
+                    schedule_story_updates({item.story})
         invalidate_frontend_cache_on_success(
             status,
             scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS),
@@ -114,14 +130,10 @@ class StoryAttributes(MethodView):
             if input_data := request.json:
                 if isinstance(input_data, dict):
                     input_data = input_data.get("attributes", input_data)
-                current_story.patch_attributes(input_data)
+                StoryService.update_attributes(current_story, input_data, actor=_bot_actor())
                 sse_manager.news_items_updated()
             else:
                 return {"error": "No data provided"}, 400
-            current_story.updated = current_story.utcnow()
-            current_story.update_status(change=_bot_actor())
-            current_story.record_revision(note="update_story_attributes")
-            db.session.commit()
             invalidate_frontend_cache_on_success(200, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
             return {"message": "Story updated successfully"}, 200
         return {"error": "Story not found"}, 404
@@ -135,6 +147,8 @@ class UpdateStory(MethodView):
     @api_key_required
     def put(self, story_id: str):
         result = story.Story.update(story_id, request.json, actor=_bot_actor())
+        if result[1] == 200:
+            schedule_story_updates({story.Story.get(story_id)})
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(result[1], scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return result

@@ -663,22 +663,22 @@ class Story(BaseModel):
                 news_item.delete_item()
 
     @classmethod
-    def add_or_update(cls, data) -> "tuple[dict, int]":
+    def add_or_update(cls, data, actor: str | None = None) -> "tuple[dict, int]":
         if "id" not in data:
-            return cls.add(data)
+            return cls.add(data, actor=actor)
 
         story_id = data.get("id")
         if Story.get(story_id) is None:
-            return cls._handle_new_story_add(data)
+            return cls._handle_new_story_add(data, actor=actor)
 
         if data.pop("conflict", None):
             return cls.update_with_conflicts(story_id, data)
         else:
-            return cls._handle_existing_story_update(data)
+            return cls._handle_existing_story_update(data, actor=actor)
 
     @classmethod
-    def _handle_new_story_add(cls, data) -> "tuple[dict, int]":
-        message, code = cls.add(data)
+    def _handle_new_story_add(cls, data, actor: str | None = None) -> "tuple[dict, int]":
+        message, code = cls.add(data, actor=actor)
         if code != 200 and message.get("error") == "Story already exists":
             logger.warning(f"Story being added {data['id']} contains existing content. A news item conflict is raised.")
             cls.handle_conflicting_news_items(data)
@@ -686,7 +686,7 @@ class Story(BaseModel):
         return message, code
 
     @classmethod
-    def _handle_existing_story_update(cls, data) -> "tuple[dict, int]":
+    def _handle_existing_story_update(cls, data, actor: str | None = None) -> "tuple[dict, int]":
         story_ids = [data["id"]]
         news_item_to_delete = data.pop("news_items_to_delete", None)
 
@@ -700,8 +700,8 @@ class Story(BaseModel):
         if news_item_to_delete:
             cls.delete_news_items(news_item_to_delete)
 
-        cls.group_stories(story_ids)
-        return cls.update(data["id"], data, external=True)
+        cls.group_stories(story_ids, actor=actor)
+        return cls.update(data["id"], data, external=True, actor=actor)
 
     @classmethod
     def _process_news_items(cls, data: dict[str, Any]) -> "tuple[list[str], list[str]]":
@@ -865,7 +865,14 @@ class Story(BaseModel):
         return result, 200
 
     @classmethod
-    def update(cls, story_id: str, data, user=None, external: bool = False, actor: str | None = None) -> tuple[dict, int]:
+    def update(
+        cls,
+        story_id: str,
+        data: dict[str, Any],
+        user=None,
+        external: bool = False,
+        actor: str | None = None,
+    ) -> tuple[dict, int]:
         story: "Story | None" = cls.get(story_id)
         logger.debug(f"Updating story {story_id} with data: {data}")
         if not story:
@@ -918,10 +925,6 @@ class Story(BaseModel):
         story.recompute_relevance()
         story.record_revision(user, note="update")
         db.session.commit()
-        if not external:
-            from core.service.misp_auto_update import schedule_story_update
-
-            schedule_story_update(story)
         return {"message": "Story updated successfully", "id": story.id, "story": story.to_detail_dict()}, 200
 
     @classmethod
@@ -1121,7 +1124,12 @@ class Story(BaseModel):
         return any(ReportItemStory.is_assigned(story_id) for story_id in story_ids)
 
     @classmethod
-    def group_multiple_stories(cls, story_mappings: list[list[str]], user: User | None = None, actor: str | None = None):
+    def group_multiple_stories(
+        cls,
+        story_mappings: list[list[str]],
+        user: User | None = None,
+        actor: str | None = None,
+    ):
         results = [cls.group_stories(story_ids, user=user, actor=actor) for story_ids in story_mappings]
         if any(result[1] == 500 for result in results):
             return {"error": "grouping failed"}, 500
@@ -1158,7 +1166,12 @@ class Story(BaseModel):
             return {"error": "grouping failed"}, 500
 
     @classmethod
-    def group_stories(cls, story_ids: Sequence[str], user: User | None = None, actor: str | None = None):
+    def group_stories(
+        cls,
+        story_ids: Sequence[str],
+        user: User | None = None,
+        actor: str | None = None,
+    ):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
             if not isinstance(story_ids, list):
@@ -1240,9 +1253,9 @@ class Story(BaseModel):
             removed_titles_by_story: dict[Story, set[str]] = {}
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
-                if not news_item or not user:
+                if not news_item or (user is None and actor is None):
                     continue
-                if not news_item.allowed_with_acl(user, True):
+                if user and not news_item.allowed_with_acl(user, True):
                     continue
                 story = Story.get(news_item.story_id)
                 if not story:

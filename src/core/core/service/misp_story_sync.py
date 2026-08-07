@@ -28,6 +28,7 @@ def handle_misp_connector_result(result: dict[str, Any]) -> None:
                 payload,
                 connector_id=connector_id if isinstance(connector_id, str) else None,
                 clear_auto_update_proposals=payload.get("auto_update") is True,
+                proposal_url=payload.get("proposal_url") if isinstance(payload.get("proposal_url"), str) else None,
             )
 
 
@@ -47,7 +48,9 @@ def apply_misp_auto_update_blocked(payload: dict[str, Any]) -> bool:
     return True
 
 
-def apply_misp_sync_story_result(payload: dict[str, Any], connector_id: str | None = None, clear_auto_update_proposals: bool = False) -> bool:
+def apply_misp_sync_story_result(
+    payload: dict[str, Any], connector_id: str | None = None, clear_auto_update_proposals: bool = False, proposal_url: str | None = None
+) -> bool:
     if not isinstance(payload, dict):
         logger.error(f"Invalid MISP sync payload type: {type(payload)}")
         return False
@@ -100,7 +103,12 @@ def apply_misp_sync_story_result(payload: dict[str, Any], connector_id: str | No
             news_item.updated = news_item.utcnow()
             changed = True
 
-    if clear_auto_update_proposals and story.find_attribute_by_key("has_proposals"):
+    if (
+        clear_auto_update_proposals
+        and proposal_url
+        and (proposal_attribute := story.find_attribute_by_key("has_proposals"))
+        and proposal_attribute.value == proposal_url
+    ):
         story.remove_attributes(["has_proposals"])
         changed = True
 

@@ -58,6 +58,33 @@ def test_misp_auto_update_requires_connector_access(client, auth_header, auth_he
 
 
 @pytest.mark.usefixtures("session")
+def test_blank_disabled_misp_auto_update_is_normalized_at_api_boundary(client, auth_header, monkeypatch):
+    monkeypatch.setattr("core.service.misp_auto_update.schedule_story_update", lambda story: None)
+    story = _story()
+
+    response = client.patch(
+        f"/api/assess/stories/{story.id}",
+        json={"title": "Updated", "misp_auto_update": {"connector_id": "", "enabled": False}},
+        headers=auth_header,
+    )
+
+    assert response.status_code == 200
+    assert Story.get(story.id).title == "Updated"
+    assert Story.get(story.id).misp_auto_update is None
+
+
+@pytest.mark.usefixtures("session")
+def test_only_misp_update_path_skips_autosync(monkeypatch):
+    scheduled = []
+    monkeypatch.setattr("core.service.misp_auto_update.schedule_story_update", scheduled.append)
+    story = _story()
+
+    Story.update(story.id, {"title": "MISP update"}, external=True, actor="connector_misp")
+
+    assert scheduled == []
+
+
+@pytest.mark.usefixtures("session")
 def test_invalid_auto_update_does_not_apply_other_story_changes(client, auth_header, monkeypatch):
     monkeypatch.setattr("core.service.misp_auto_update.schedule_story_update", lambda story: None)
     story = _story()
@@ -109,6 +136,13 @@ def test_auto_update_proposals_are_stored_on_the_story(monkeypatch):
     assert story.find_attribute_by_key("has_proposals").value == proposal_url
 
     assert apply_misp_sync_story_result(payload, clear_auto_update_proposals=True)
+    assert story.find_attribute_by_key("has_proposals").value == proposal_url
+
+    assert apply_misp_sync_story_result(
+        payload,
+        clear_auto_update_proposals=True,
+        proposal_url=proposal_url,
+    )
     assert story.find_attribute_by_key("has_proposals") is None
 
 

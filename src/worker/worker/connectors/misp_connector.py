@@ -598,6 +598,7 @@ class MispConnector:
             }
             if auto_update:
                 sync_result["auto_update"] = True
+                sync_result["proposal_url"] = f"{self.url}/events/view/{result[1].uuid}"
             return {"action": "synced", "message": "Story synced to MISP", "sync_result": sync_result}
         if result[0] == "proposed":
             return {"action": "proposed", "message": f"{len(result[1])} proposals submitted to MISP", "sync_result": None}

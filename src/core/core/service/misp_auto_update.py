@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import timedelta
 
 from core.managers import queue_manager
@@ -33,3 +34,10 @@ def schedule_story_update(story: Story) -> None:
         job_id=job_id,
         meta=queue._build_task_meta("connector_task", user_id=None, worker_id=sync.connector_id, worker_type="misp_connector"),
     )
+
+
+def schedule_story_updates(stories: Iterable[Story | None]) -> None:
+    for story in stories:
+        if story is None:
+            continue
+        schedule_story_update(story)

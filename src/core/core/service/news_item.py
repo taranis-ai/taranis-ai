@@ -3,6 +3,7 @@ from core.managers.db_manager import db
 from core.model.news_item import NewsItem
 from core.model.story import Story
 from core.model.user import User
+from core.service.misp_auto_update import schedule_story_updates
 
 
 class NewsItemService:
@@ -21,6 +22,7 @@ class NewsItemService:
         if story := Story.get(news_item.story_id):
             story.record_revision(user, note="update_news_item")
             db.session.commit()
+            schedule_story_updates({story})
             return {"message": "Successfully updated News Item", "story_id": story.id, "news_item_id": news_item.id}, 200
 
         db.session.rollback()
@@ -55,6 +57,7 @@ class NewsItemService:
         story.update_status(change=story_actor)
         story.record_revision(user, note="delete_news_item")
         db.session.commit()
+        schedule_story_updates({story})
         logger.debug(f"NewsItem with id: {news_item_id} deleted")
         return {"message": "News Item deleted", "id": news_item.id, "story_id": story.id}, 200
 

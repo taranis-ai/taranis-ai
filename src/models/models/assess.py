@@ -337,8 +337,21 @@ class StoryUpdatePayload(TaranisBaseModel):
     description: str | None = None
     comments: str | None = None
     summary: str | None = None
+    relevance: int | None = None
+    relevance_override: int | None = None
     attributes: list[dict[str, Any]] | None = None
     misp_auto_update: MispAutoUpdatePayload | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def omit_unconfigured_misp_auto_update(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        normalized = dict(value)
+        misp_auto_update = normalized.get("misp_auto_update")
+        if isinstance(misp_auto_update, dict) and not misp_auto_update.get("connector_id") and not misp_auto_update.get("enabled"):
+            normalized.pop("misp_auto_update")
+        return normalized
 
 
 class BulkAction(TaranisBaseModel):

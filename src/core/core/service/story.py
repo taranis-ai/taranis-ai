@@ -166,6 +166,17 @@ class StoryService:
         story.remove_attributes([f"report_{report_id}"])
 
     @staticmethod
+    def update_attributes(story: Story, attributes: Any, actor: str | None = None) -> None:
+        story.patch_attributes(attributes)
+        story.updated = story.utcnow()
+        story.update_status(change=actor)
+        story.record_revision(note="update_story_attributes")
+        db.session.commit()
+        from core.service.misp_auto_update import schedule_story_updates
+
+        schedule_story_updates({story})
+
+    @staticmethod
     def fetch_and_create_story(parameters: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, Any], int]:
         result = queue_manager.queue_manager.fetch_single_news_item(parameters=parameters, user_id=user_id)
         if isinstance(result, tuple):
