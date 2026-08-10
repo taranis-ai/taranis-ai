@@ -1,6 +1,7 @@
 from worker.bots.analyst_bot import AnalystBot
 from worker.bots.cybersec_classifier_bot import CyberSecClassifierBot
 from worker.bots.grouping_bot import GroupingBot
+from worker.bots.hrag_bot import HragBot
 from worker.bots.intelowl_bot import IntelOwlBot
 from worker.bots.ioc_bot import IOCBot
 from worker.bots.nlp_bot import NLPBot
@@ -23,4 +24,5 @@ __all__ = [
     "SummaryBot",
     "SentimentAnalysisBot",
     "CyberSecClassifierBot",
+    "HragBot",
 ]

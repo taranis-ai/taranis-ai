@@ -91,6 +91,7 @@ class BOT_TYPES(StrEnum):
     WORDLIST_BOT = auto()
     SENTIMENT_ANALYSIS_BOT = auto()
     CYBERSEC_CLASSIFIER_BOT = auto()
+    HRAG_BOT = auto()
 
     @classmethod
     def _missing_(cls, value):
@@ -157,6 +158,7 @@ class WORKER_TYPES(StrEnum):
     SENTIMENT_ANALYSIS_BOT = auto()
     CYBERSEC_CLASSIFIER_BOT = auto()
     WORDLIST_BOT = auto()
+    HRAG_BOT = auto()
     PANDOC_PRESENTER = auto()
     PDF_PRESENTER = auto()
     HTML_PRESENTER = auto()

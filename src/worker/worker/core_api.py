@@ -366,6 +366,21 @@ class CoreApi:
     def get_tags(self) -> dict | None:
         return self.api_get("/worker/tags")
 
+    def get_hrag_schema(self) -> dict | None:
+        return self.api_get("/worker/hrag/schema")
+
+    def index_hrag_document(self, payload: dict[str, Any]) -> dict | None:
+        return self.api_post("/worker/hrag/index", json_data=payload)
+
+    def retrieve_hrag(self, embedding: list[float], user_id: str, limit: int = 20) -> dict | None:
+        return self.api_post("/worker/hrag/retrieve", json_data={"embedding": embedding, "user_id": user_id, "limit": limit})
+
+    def query_hrag_graph(self, cypher: str, parameters: dict[str, Any], user_id: str) -> dict | None:
+        return self.api_post(
+            "/worker/hrag/graph-query",
+            json_data={"cypher": cypher, "parameters": parameters, "user_id": user_id},
+        )
+
     def get_words_for_tagging_bot(self) -> dict | None:
         try:
             return self.api_get(url="/worker/word-lists?usage=4&with_entries=true")

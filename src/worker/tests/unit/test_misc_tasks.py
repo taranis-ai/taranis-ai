@@ -1,8 +1,34 @@
 from worker.misc import misc_tasks
+from worker.misc.hrag_tasks import _graph_schema, _hrag_request
 
 
 class DummyJob:
     id = "job-123"
+
+
+def test_hrag_request_strips_retrieval_scores_for_the_llm_bot_contract():
+    request = _hrag_request(
+        "Which actor is involved?",
+        {
+            "passages": [{"id": "news-item:1", "source": "https://example.test", "text": "Reporting", "score": 0.9}],
+            "graph_facts": [{"id": "relation:1", "source": "news-item:1", "fact": "Actor -[USES]-> Tool"}],
+        },
+    )
+
+    assert request == {
+        "question": "Which actor is involved?",
+        "passages": [{"id": "news-item:1", "source": "https://example.test", "text": "Reporting"}],
+        "graph_facts": [{"id": "relation:1", "source": "news-item:1", "fact": "Actor -[USES]-> Tool"}],
+    }
+
+
+def test_hrag_graph_schema_uses_only_supported_llm_bot_fields():
+    assert _graph_schema({"entity_types": [{"name": "ThreatActor"}], "relation_types": []}) == {
+        "node_labels": [{"label": "ThreatActor", "properties": [{"name": "name", "type": "string"}]}],
+        "relationship_types": [],
+        "default_limit": 20,
+        "maximum_limit": 100,
+    }
 
 
 def test_cleanup_token_blacklist_reports_task(monkeypatch):

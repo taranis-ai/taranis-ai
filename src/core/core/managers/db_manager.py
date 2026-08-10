@@ -15,9 +15,11 @@ db: SQLAlchemy = SQLAlchemy()
 
 
 def initial_database_setup(engine: Engine):
+    import_module("core.model.hrag")
     import_module("core.model.ioc")
 
     is_empty = is_db_empty(engine)
+    setup_hrag_extensions(engine)
     db.metadata.create_all(bind=engine)
     setup_fts(engine)
     if is_empty:
@@ -29,6 +31,9 @@ def initial_database_setup(engine: Engine):
         sync_enums(engine)
         pre_seed_update(db.engine)
 
+    from core.model.hrag import HragAge
+
+    HragAge.sync()
     db.session.remove()
 
 
@@ -46,6 +51,14 @@ def setup_fts(engine: Engine):
         return
     with engine.begin() as conn:
         conn.execute(text(open("core/sql/fulltext_search.sql", "r").read()))
+
+
+def setup_hrag_extensions(engine: Engine):
+    if engine.dialect.name != "postgresql":
+        return
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS age"))
 
 
 def is_db_empty(engine: Engine) -> bool:

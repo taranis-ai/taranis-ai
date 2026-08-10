@@ -105,6 +105,7 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str
         "summary_bot": worker.bots.SummaryBot(),
         "sentiment_analysis_bot": worker.bots.SentimentAnalysisBot(),
         "cybersec_classifier_bot": worker.bots.CyberSecClassifierBot(),
+        "hrag_bot": worker.bots.HragBot(),
     }
 
     bot_type = bot_config.get("type")

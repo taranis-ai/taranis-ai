@@ -178,6 +178,7 @@ TASK_MAP = {
     "connector_task": "worker.connectors.connector_tasks.connector_task",
     "gather_word_list": "worker.misc.misc_tasks.gather_word_list",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
+    "hrag_query_task": "worker.misc.hrag_tasks.hrag_query_task",
     "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
 }
 

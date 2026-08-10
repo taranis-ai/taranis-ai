@@ -10,6 +10,7 @@ from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 from core.model.connector import Connector
+from core.model.hrag import HragAge, HragIndex, HragSchemaConfig
 from core.model.ioc import IOC
 from core.model.news_item import NewsItem
 from core.model.news_item_tag import NewsItemTag
@@ -18,6 +19,7 @@ from core.model.product import Product
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
 from core.model.report_item import ReportItem
+from core.model.role_based_access import RoleBasedAccess
 from core.model.story import Story
 from core.model.word_list import WordList
 from core.service.cache_invalidation import (
@@ -229,6 +231,55 @@ class DropTags(MethodView):
         return NewsItemTag.delete_all()
 
 
+class HragSchema(MethodView):
+    @api_key_required
+    def get(self):
+        return HragSchemaConfig.get_active_schema().model_dump(), 200
+
+
+class HragIndexing(MethodView):
+    @api_key_required
+    def post(self):
+        if not isinstance(request.json, dict):
+            return {"error": "Expected an HRAG indexing object"}, 400
+        return HragIndex.upsert(request.json)
+
+
+class HragRetrieval(MethodView):
+    @api_key_required
+    def post(self):
+        payload = request.json
+        if not isinstance(payload, dict) or not isinstance(payload.get("embedding"), list) or not payload.get("user_id"):
+            return {"error": "Expected an embedding and user_id"}, 400
+        try:
+            result = HragIndex.retrieve(
+                payload["embedding"],
+                str(payload["user_id"]),
+                min(max(int(payload.get("limit", 20)), 1), 100),
+            )
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return result, 200
+
+
+class HragGraphQuery(MethodView):
+    @api_key_required
+    def post(self):
+        payload = request.json
+        if not isinstance(payload, dict) or not isinstance(payload.get("cypher"), str) or not isinstance(payload.get("parameters"), dict):
+            return {"error": "Expected Cypher and parameters"}, 400
+        if RoleBasedAccess.is_enabled():
+            return {"error": "AGE graph traversal is unavailable while RBAC is enabled"}, 403
+        try:
+            rows = HragAge.query(payload["cypher"], payload["parameters"])
+        except (KeyError, RuntimeError, ValueError) as exc:
+            return {"error": str(exc)}, 400
+        except Exception:
+            logger.exception("HRAG graph query failed")
+            return {"error": "HRAG graph query failed"}, 500
+        return {"rows": rows}, 200
+
+
 class IOCs(MethodView):
     @api_key_required
     def post(self):
@@ -332,6 +383,10 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))
     worker_bp.add_url_rule("/tags", view_func=Tags.as_view("tags_worker"))
     worker_bp.add_url_rule("/iocs", view_func=IOCs.as_view("iocs_worker"))
+    worker_bp.add_url_rule("/hrag/schema", view_func=HragSchema.as_view("hrag_schema_worker"))
+    worker_bp.add_url_rule("/hrag/index", view_func=HragIndexing.as_view("hrag_index_worker"))
+    worker_bp.add_url_rule("/hrag/retrieve", view_func=HragRetrieval.as_view("hrag_retrieve_worker"))
+    worker_bp.add_url_rule("/hrag/graph-query", view_func=HragGraphQuery.as_view("hrag_graph_query_worker"))
     worker_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
     worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))

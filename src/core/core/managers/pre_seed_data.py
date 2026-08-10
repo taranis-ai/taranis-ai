@@ -250,6 +250,20 @@ workers = [
         "description": "Bot for classifying news items into cybersecurity/non-cybersecurity related",
     },
     {
+        "type": "HRAG_BOT",
+        "name": "HRAG Bot",
+        "parameters": [
+            {"parameter": "ITEM_FILTER"},
+            {"parameter": "REQUESTS_TIMEOUT", "type": "text", "rules": "positive_int"},
+            {"parameter": "BOT_API_KEY"},
+            {"parameter": "BOT_ENDPOINT", "value": "http://llm-bot:5008", "rules": "required"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "RUN_AFTER_BOTS"},
+            {"parameter": "REFRESH_INTERVAL", "type": "cron_interval"},
+        ],
+        "description": "Bot for maintaining HRAG embeddings and graph evidence",
+    },
+    {
         "type": "PANDOC_PRESENTER",
         "description": "Presenter for generating .odt & .docx documents",
         "parameters": [
@@ -482,6 +496,11 @@ bots = [
         "name": "Cybersecurity Classifier Bot",
         "description": "Bot for classifying news items into cybersecurity/non-cybersecurity related",
         "type": "CYBERSEC_CLASSIFIER_BOT",
+    },
+    {
+        "name": "HRAG Bot",
+        "description": "Bot for maintaining HRAG embeddings and graph evidence",
+        "type": "HRAG_BOT",
     },
 ]
 

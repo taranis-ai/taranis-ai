@@ -17,6 +17,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Admin User Import/Export](admin-user-import-export.md) - admin user export/import JSON format, duplicate handling, passwordless external users, and UI notification behavior.
 - [Bot Run Order DAG](bot-run-order-dag.md) - post-collection bot DAG configuration, admin run-order UI, and dependent bot scheduling.
 - [IntelOwl Enrichment](intelowl-enrichment.md) - IntelOwl enrichment bot behavior, summary-only persistence, email analyzer setup, and story/report task flow.
+- [HRAG](hrag.md) - graph/vector indexing, AGE graph traversal, LLM-bot integration, and query task behavior.
 - [Admin User CLI](admin-user-cli.md) - operational password reset and role repair through `taranis-cli` inside the core container.
 - [Initial User Onboarding](initial-user-onboarding.md) - startup flag for completing onboarding on the pre-seeded `admin` and `user` accounts.
 - [Release Gate Tests](release-gate-tests.md) - Docker/Compose release gates that run expensive checks against already published GHCR images.

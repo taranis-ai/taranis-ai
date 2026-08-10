@@ -35,7 +35,7 @@ class BaseBot:
         if timefrom := parameters.get("timefrom"):
             filter_dict["timefrom"] = timefrom
         else:
-            filter_dict["timefrom"] = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
+            filter_dict["timefrom"] = (datetime.datetime.now() - datetime.timedelta(days=720)).isoformat()
 
         filter_dict["worker"] = True
         filter_dict["exclude_attr"] = self.type
