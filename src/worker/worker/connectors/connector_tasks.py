@@ -14,38 +14,6 @@ from worker.core_api import CoreApi, build_failure_task_result, build_success_ta
 from worker.log import logger
 
 
-class MissingConnectorResourceError(RuntimeError):
-    pass
-
-
-def _finish_skipped_auto_update(
-    core_api: CoreApi,
-    job,
-    connector_id: str,
-    story_ids: list[str] | None,
-    message: str,
-) -> dict[str, Any]:
-    result = {
-        "connector_id": connector_id,
-        "connector_type": "MISP_CONNECTOR",
-        "action": "skipped",
-        "message": message,
-        "sync_results": [],
-        "story_ids": story_ids,
-        "auto_update": True,
-    }
-    if job:
-        core_api.save_task_result(
-            job.id,
-            "connector_task",
-            "SUCCESS",
-            worker_id=connector_id,
-            worker_type="MISP_CONNECTOR",
-            result=build_success_task_result(default_message=message, base_data=result),
-        )
-    return result
-
-
 def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: bool = False) -> dict[str, Any]:
     """Push stories to an external connector system.
 
@@ -70,9 +38,6 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
         connector_config = _get_connector_config(core_api, connector_id)
         connector = _get_connector(connector_config.get("type", ""))
     except Exception as e:
-        if auto_update and isinstance(e, MissingConnectorResourceError):
-            logger.info(f"Skipping MISP auto-update because connector {connector_id} no longer exists")
-            return _finish_skipped_auto_update(core_api, job, connector_id, story_ids, "MISP auto-update configuration no longer exists")
         if job:
             connector_type = connector_config.get("type", "connector_task") if "connector_config" in locals() else "connector_task"
             reason = "connector_not_found" if "not found" in str(e).lower() else "connector_not_implemented"
@@ -95,9 +60,6 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
     try:
         connector_data = _get_connector_data(core_api, connector_id, connector_config, story_ids)
     except Exception as e:
-        if auto_update and isinstance(e, MissingConnectorResourceError):
-            logger.info(f"Skipping MISP auto-update because stories {story_ids} no longer exist")
-            return _finish_skipped_auto_update(core_api, job, connector_id, story_ids, "MISP auto-update story no longer exists")
         if job:
             core_api.save_task_result(
                 job.id,
@@ -112,18 +74,6 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
                 ),
             )
         raise
-
-    if auto_update:
-        connector_data["story"] = [
-            story
-            for story in connector_data["story"]
-            if isinstance((sync := story.get("misp_auto_update")), dict)
-            and sync.get("enabled") is True
-            and sync.get("connector_id") == connector_id
-        ]
-        if not connector_data["story"]:
-            logger.info("Skipping MISP auto-update because its configuration is no longer enabled")
-            return _finish_skipped_auto_update(core_api, job, connector_id, story_ids, "MISP auto-update configuration no longer exists")
 
     # Execute connector
     try:
@@ -209,10 +159,9 @@ def _get_connector_config(core_api: CoreApi, connector_id: str) -> dict:
     Raises:
         RuntimeError: If connector not found or has no type
     """
-    connector_config, status_code = core_api.api_get_with_status(f"/worker/connectors/{connector_id}")
+    connector_config = core_api.get_connector_config(connector_id)
     if not connector_config:
-        error = MissingConnectorResourceError if status_code == 404 else RuntimeError
-        raise error(f"Connector with id {connector_id} not found")
+        raise RuntimeError(f"Connector with id {connector_id} not found")
 
     connector_type = connector_config.get("type")
     if connector_type is None:
@@ -264,8 +213,6 @@ def _get_connector_data(
 
     try:
         connector_data["story"] = get_story_by_id(core_api, normalized_story_ids)
-    except MissingConnectorResourceError:
-        raise
     except Exception as e:
         logger.exception(f"Failed to get stories with id: {normalized_story_ids}")
         raise RuntimeError(f"Failed to get stories with id: {normalized_story_ids}") from e
@@ -288,21 +235,16 @@ def get_story_by_id(core_api: CoreApi, story_ids: list[str]) -> list:
     """
     search_queries = [{"story_id": story_id} for story_id in story_ids]
     stories = []
-    missing = True
 
     for query in search_queries:
-        story, status_code = core_api.api_get_with_status("/worker/stories", params=query)
-        if story:
+        if story := core_api.get_stories(query):
             storylist = json.dumps(story)
             storylist = drop_utf16_surrogates(storylist)
             story = json.loads(storylist)
             stories.extend(story)
-        elif status_code != 404:
-            missing = False
 
     if not stories:
         logger.error(f"Stories {search_queries} not found")
-        error = MissingConnectorResourceError if missing else RuntimeError
-        raise error(f"Stories with queries {search_queries} not found")
+        raise RuntimeError(f"Stories with queries {search_queries} not found")
 
     return stories
