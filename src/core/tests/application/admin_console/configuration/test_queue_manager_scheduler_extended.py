@@ -1,16 +1,20 @@
 # pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 
 import fakeredis
+import pytest
 import rq.registry as rq_registry
 from rq import Queue
 
+import core.service.dashboard as dashboard_module
 from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
 from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
 from core.model.task import Task as TaskModel
+from core.service.dashboard import DashboardService
+from tests.application.support.builders import create_osint_source
 
 
 class _FakeRedis:
@@ -100,6 +104,54 @@ def _make_queue_manager() -> QueueManager:
     qm._queues = cast(dict[str, Any], {})
     qm._redis = _FakeRedis()
     return qm
+
+
+def test_get_scheduled_job_count_includes_configured_and_housekeeping_jobs(monkeypatch):
+    qm = _make_queue_manager()
+    monkeypatch.setattr(
+        qm,
+        "_get_managed_cron_specs",
+        lambda: {
+            "collector-source-1": None,
+            qm_module.TASK_HISTORY_CLEANUP_JOB_ID: None,
+            qm_module.TOKEN_CLEANUP_JOB_ID: None,
+        },
+    )
+
+    assert qm.get_scheduled_job_count() == 3
+
+
+def test_dashboard_schedule_count_matches_scheduled_jobs_total_for_configured_sources(app, session, monkeypatch):
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm_module, "queue_manager", qm)
+    monkeypatch.setattr(dashboard_module, "get_health_response", lambda: ({"healthy": True}, 200))
+
+    with app.app_context():
+        create_osint_source(rank=1, name="Scheduled count consistency source")
+
+        schedules, status = qm.get_scheduled_jobs({})
+        dashboard = DashboardService.get_dashboard_data()["items"][0]
+
+    assert status == 200
+    assert dashboard["schedule_length"] > len(qm._get_housekeeping_cron_specs())
+    assert dashboard["schedule_length"] == schedules["total_count"]
+
+
+@pytest.mark.parametrize(
+    "filter_args",
+    [
+        {"page": "invalid", "limit": "invalid"},
+        {"page": "0", "limit": "0"},
+        {"page": "-2", "limit": "-5"},
+    ],
+)
+def test_filter_sort_paginate_jobs_uses_defaults_for_invalid_paging(filter_args):
+    jobs = [{"id": f"job-{index:02d}"} for index in range(25)]
+
+    result = qm_module._filter_sort_paginate_jobs(jobs, filter_args, default_order="id_asc")
+
+    assert [job["id"] for job in result["items"]] == [f"job-{index:02d}" for index in range(20)]
+    assert result["total_count"] == 25
 
 
 def test_annotate_jobs_ignores_scheduled_lateness(monkeypatch):
@@ -315,7 +367,7 @@ def test_get_active_jobs_uses_registry(monkeypatch):
     qm = _make_queue_manager()
     qm._queues = {"bots": _DummyQueue("bots")}  # type: ignore[assignment]
 
-    payload, status = qm.get_active_jobs()
+    payload, status = qm.get_active_jobs({})
 
     assert status == 200
     assert payload["items"][0]["id"] == "job-1"
@@ -339,7 +391,7 @@ def test_get_failed_jobs_uses_registry(monkeypatch):
     qm = _make_queue_manager()
     qm._queues = {"misc": _DummyQueue("misc")}  # type: ignore[assignment]
 
-    payload, status = qm.get_failed_jobs()
+    payload, status = qm.get_failed_jobs({})
 
     assert status == 200
     assert payload["items"][0]["id"] == "job-9"
@@ -369,7 +421,7 @@ def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
     qm = _make_queue_manager()
     qm._queues = {"bots": _DummyQueue("bots")}  # type: ignore[assignment]
 
-    payload, status = qm.get_failed_jobs()
+    payload, status = qm.get_failed_jobs({})
 
     assert status == 200
     assert payload == {"items": [], "total_count": 0}
@@ -777,7 +829,7 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
                 "id": f"osint_source_{i}",
                 "name": f"Collector {i}",
                 "queue": "collectors",
-                "next_run_time": datetime(2025, 1, 1, 0, 0, 0),
+                "next_run_time": datetime(2025, 1, 1, 0, 0, 0) + timedelta(minutes=120 - i),
                 "previous_run_time": datetime(2024, 12, 31, 23, 0, 0),
                 "schedule": "0 * * * *",
                 "type": "cron",
@@ -795,11 +847,66 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
     qm._redis = object()
 
     with app.app_context():
-        schedules, status = qm.get_scheduled_jobs()
+        schedules, status = qm.get_scheduled_jobs({})
 
     assert status == 200
     # 120 OSINT cron jobs + two housekeeping crons
     assert schedules["total_count"] == 122
+    assert len(schedules["items"]) == 20
+    assert schedules["items"][0]["id"] == "osint_source_119"
+
+
+def test_get_scheduled_jobs_filters_sorts_and_paginates(app, monkeypatch):
+    def fake_osint_entries():
+        return [
+            {
+                "id": f"osint_source_{index}",
+                "name": name,
+                "queue": "collectors",
+                "next_run_time": datetime(2025, 1, 1, index, 0, 0),
+                "schedule": "0 * * * *",
+                "type": "cron",
+            }
+            for index, name in enumerate(["Alpha feed", "Beta feed", "Alpha archive"])
+        ]
+
+    monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: fake_osint_entries()))
+    monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
+
+    qm = _make_queue_manager()
+    qm._redis = object()
+
+    with app.app_context():
+        schedules, status = qm.get_scheduled_jobs(
+            {
+                "search": "alpha",
+                "order": "name_desc",
+                "page": "2",
+                "limit": "1",
+            }
+        )
+
+    assert status == 200
+    assert schedules["total_count"] == 2
+    assert [job["name"] for job in schedules["items"]] == ["Alpha archive"]
+
+
+def test_get_scheduled_jobs_uses_safe_paging_defaults(app, monkeypatch):
+    monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: []))
+    monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
+
+    qm = _make_queue_manager()
+    qm._redis = object()
+
+    with app.app_context():
+        schedules, status = qm.get_scheduled_jobs({"page": "invalid", "limit": "invalid"})
+
+    assert status == 200
+    assert schedules["total_count"] == 2
+    assert {job["id"] for job in schedules["items"]} == {
+        qm_module.TASK_HISTORY_CLEANUP_JOB_ID,
+        qm_module.TOKEN_CLEANUP_JOB_ID,
+    }
 
 
 def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):

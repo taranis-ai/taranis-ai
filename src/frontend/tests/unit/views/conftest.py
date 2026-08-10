@@ -185,40 +185,6 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             content_type="application/json",
         )
 
-    scheduler_expect_object = str(core_payloads.get("Scheduler", {}).get("_expect_object") or "Scheduler Job")
-
-    # Provide scheduler-specific endpoints so the dashboard renders during tests
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/config/workers/dashboard",
-        json={
-            "scheduled_jobs": [
-                {
-                    "id": "test-scheduler-job",
-                    "name": scheduler_expect_object,
-                    "queue": "collectors",
-                    "type": "cron",
-                    "schedule": "*/15 * * * *",
-                    "next_run_time": "2025-01-01T12:00:00",
-                }
-            ],
-            "scheduled_total_count": 1,
-            "queues": [
-                {"name": "collectors", "messages": 0},
-                {"name": "bots", "messages": 2},
-            ],
-            "worker_stats": {
-                "total_workers": 3,
-                "busy_workers": 1,
-                "idle_workers": 2,
-            },
-            "active_jobs": [],
-            "active_total_count": 0,
-            "failed_jobs": [],
-            "failed_total_count": 0,
-        },
-        status=200,
-        content_type="application/json",
-    )
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/config/admin-menu-badges",
         json={"osint_source": 2, "bot": 3},

@@ -67,6 +67,55 @@ TASK_HISTORY_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Task History"
 RQ_JOB_ID_COMPONENT_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
+def _positive_int(value: Any, default: int) -> int:
+    try:
+        parsed_value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed_value if parsed_value > 0 else default
+
+
+def _filter_sort_paginate_jobs(
+    jobs: list[dict[str, Any]],
+    filter_args: dict[str, Any],
+    *,
+    default_order: str,
+) -> dict[str, Any]:
+    if search := str(filter_args.get("search") or "").strip().lower():
+        jobs = [
+            job
+            for job in jobs
+            if any(search in str(job.get(field) or "").lower() for field in ("id", "name", "queue", "type", "schedule", "status", "error"))
+        ]
+
+    order = str(filter_args.get("order") or default_order)
+    field, separator, direction = order.rpartition("_")
+    if not separator or direction not in {"asc", "desc"}:
+        field, direction = default_order.rsplit("_", 1)
+    if field not in {
+        "id",
+        "name",
+        "queue",
+        "type",
+        "schedule",
+        "next_run_time",
+        "last_run",
+        "started_at",
+        "failed_at",
+        "status",
+    }:
+        field, direction = default_order.rsplit("_", 1)
+
+    jobs.sort(key=lambda job: str(job.get(field) or "").lower(), reverse=direction == "desc")
+    jobs.sort(key=lambda job: job.get(field) is None)
+
+    total_count = len(jobs)
+    page = _positive_int(filter_args.get("page"), 1)
+    limit = _positive_int(filter_args.get("limit"), 20)
+    offset = (page - 1) * limit
+    return {"items": jobs[offset : offset + limit], "total_count": total_count}
+
+
 def _decode_redis_value(value: bytes | str) -> str:
     return value.decode() if isinstance(value, bytes) else str(value)
 
@@ -1244,7 +1293,22 @@ class QueueManager:
                     annotated_job[field] = value.isoformat()
             return annotated_job, 200
 
-    def get_scheduled_jobs(self) -> tuple[dict, int]:
+    def get_scheduled_job_count(self) -> int:
+        if self.error or not self._redis:
+            return 0
+
+        try:
+            from rq.registry import ScheduledJobRegistry
+
+            job_ids = set(self._get_managed_cron_specs())
+            for queue in self._queues.values():
+                job_ids.update(ScheduledJobRegistry(queue=queue).get_job_ids())
+            return len(job_ids)
+        except Exception:
+            logger.exception("Failed to count scheduled jobs")
+            return 0
+
+    def get_scheduled_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
         """Get all scheduled jobs across all queues
 
         Returns both:
@@ -1311,8 +1375,9 @@ class QueueManager:
                     if isinstance(value, datetime):
                         job[field] = value.isoformat()
 
-            logger.info(f"get_scheduled_jobs: returning {len(annotated_jobs)} total jobs")
-            return {"items": annotated_jobs, "total_count": len(annotated_jobs)}, 200
+            result = _filter_sort_paginate_jobs(annotated_jobs, filter_args, default_order="next_run_time_asc")
+            logger.info(f"get_scheduled_jobs: returning {len(result['items'])} of {result['total_count']} jobs")
+            return result, 200
         except Exception as e:
             logger.exception(f"Failed to get scheduled jobs: {e}")
             return {"error": "Failed to get scheduled jobs"}, 500
@@ -1423,7 +1488,7 @@ class QueueManager:
             logger.exception("Failed to get cron job configurations")
             return {"error": "Failed to get cron job configurations"}, 500
 
-    def get_active_jobs(self) -> tuple[dict, int]:
+    def get_active_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
         """Get currently running jobs from StartedJobRegistry"""
         if self.error or not self._redis:
             return {"error": "QueueManager not initialized"}, 500
@@ -1454,12 +1519,12 @@ class QueueManager:
                         logger.error(f"Failed to fetch active job {job_id}: {e}")
                         continue
 
-            return {"items": active_jobs, "total_count": len(active_jobs)}, 200
+            return _filter_sort_paginate_jobs(active_jobs, filter_args, default_order="started_at_asc"), 200
         except Exception as e:
             logger.exception(f"Failed to get active jobs: {e}")
             return {"error": "Failed to get active jobs"}, 500
 
-    def get_failed_jobs(self) -> tuple[dict, int]:
+    def get_failed_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
         """Get failed jobs from FailedJobRegistry"""
         if self.error or not self._redis:
             return {"error": "QueueManager not initialized"}, 500
@@ -1501,7 +1566,7 @@ class QueueManager:
                         logger.debug(f"Skipping failed job {job_id}: {e}")
                         continue
 
-            return {"items": failed_jobs, "total_count": len(failed_jobs)}, 200
+            return _filter_sort_paginate_jobs(failed_jobs, filter_args, default_order="failed_at_desc"), 200
         except Exception as e:
             logger.exception(f"Failed to get failed jobs: {e}")
             return {"error": "Failed to get failed jobs"}, 500
