@@ -260,7 +260,7 @@ class BotInfo(MethodView):
             return Bot.get_all_for_api(filter_args)
 
         if result := Bot.get(bot_id):
-            return result.to_dict(), 200
+            return Bot.get_with_defaults(result.to_dict()), 200
         return {"error": "Bot not found"}, 404
 
     @api_key_required

@@ -2,6 +2,7 @@ from collections.abc import Mapping
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from models.admin import DEFAULT_BOT_LOOKBACK_DAYS
 from sqlalchemy.orm import Mapped
 
 from core.config import Config
@@ -34,6 +35,7 @@ class Settings(BaseModel):
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
+        merged.setdefault("default_bot_lookback_days", DEFAULT_BOT_LOOKBACK_DAYS)
         merged.setdefault("default_timezone", None)
         merged.setdefault("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING)
         return merged
@@ -53,8 +55,8 @@ class Settings(BaseModel):
             return {"error": "settings must be a JSON object"}, 400
         try:
             update_data = cls._normalize_update_data(dict(raw_update_data))
-        except ValueError:
-            return {"error": "Invalid timezone"}, 400
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
         if "onboarding_enabled" in update_data:
             try:
                 update_data["onboarding_enabled"] = cls._validate_bool(update_data["onboarding_enabled"])
@@ -108,7 +110,18 @@ class Settings(BaseModel):
         normalized = dict(data)
         if "default_timezone" in normalized:
             normalized["default_timezone"] = cls._validate_timezone(normalized.get("default_timezone"))
+        if "default_bot_lookback_days" in normalized:
+            normalized["default_bot_lookback_days"] = cls._validate_bot_lookback_days(normalized["default_bot_lookback_days"])
         return normalized
+
+    @staticmethod
+    def _validate_bot_lookback_days(value: Any) -> int:
+        if isinstance(value, bool) or not isinstance(value, (int, str)):
+            raise ValueError("Invalid bot lookback setting")
+        value_text = str(value).strip()
+        if not value_text.isdecimal():
+            raise ValueError("Invalid bot lookback setting")
+        return int(value_text)
 
     @staticmethod
     def _validate_timezone(value: Any) -> str | None:
@@ -122,7 +135,7 @@ class Settings(BaseModel):
         try:
             ZoneInfo(timezone_name)
         except ZoneInfoNotFoundError:
-            raise ValueError(f"Invalid timezone: {timezone_name}") from None
+            raise ValueError("Invalid timezone") from None
         return timezone_name
 
     @staticmethod

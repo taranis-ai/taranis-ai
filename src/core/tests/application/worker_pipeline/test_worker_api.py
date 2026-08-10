@@ -40,6 +40,20 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert captured == {"source_id": "source-1", "user_id": "user-1"}
 
+    def test_worker_bot_config_includes_global_lookback(self, client, api_header, bots, monkeypatch):
+        from core.model.settings import Settings
+
+        monkeypatch.setattr(
+            Settings,
+            "get_settings",
+            classmethod(lambda cls: {"default_bot_lookback_days": 0}),
+        )
+
+        response = client.get(f"{self.base_uri}/bots/{bots[0].id}", headers=api_header)
+
+        assert response.status_code == 200
+        assert response.get_json()["parameters"]["DEFAULT_LOOKBACK_DAYS"] == 0
+
     @pytest.mark.parametrize(
         "result_payload",
         [

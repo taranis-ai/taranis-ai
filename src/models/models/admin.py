@@ -20,6 +20,9 @@ from models.types import (
 )
 
 
+DEFAULT_BOT_LOOKBACK_DAYS = 7
+
+
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -240,6 +243,7 @@ class TaranisConfig(TaranisBaseModel):
     default_tlp_level: TLPLevel = TLPLevel.CLEAR
     default_story_conflict_retention: str = "200"
     default_news_item_conflict_retention: str = "200"
+    default_bot_lookback_days: int = Field(default=DEFAULT_BOT_LOOKBACK_DAYS, ge=0)
     default_timezone: str | None = None
     onboarding_enabled: bool = True
 

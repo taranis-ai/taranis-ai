@@ -2,6 +2,8 @@ import datetime
 from typing import Any
 from urllib.parse import parse_qs
 
+from models.admin import DEFAULT_BOT_LOOKBACK_DAYS
+
 from worker.core_api import CoreApi
 from worker.log import logger
 
@@ -34,13 +36,20 @@ class BaseBot:
 
         if timefrom := parameters.get("timefrom"):
             filter_dict["timefrom"] = timefrom
-        elif "timefrom" not in filter_dict:
-            filter_dict["timefrom"] = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
+        elif "timefrom" not in filter_dict and (timefrom := self.get_default_timefrom(parameters)):
+            filter_dict["timefrom"] = timefrom
 
         filter_dict["worker"] = True
         filter_dict["exclude_attr"] = self.type
 
         return filter_dict
+
+    @staticmethod
+    def get_default_timefrom(parameters: dict) -> str | None:
+        lookback_days = int(parameters.get("DEFAULT_LOOKBACK_DAYS", DEFAULT_BOT_LOOKBACK_DAYS))
+        if lookback_days == 0:
+            return None
+        return (datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=lookback_days)).isoformat()
 
     def update_filter_for_pagination(self, filter_dict, limit=100):
         filter_dict["limit"] = limit

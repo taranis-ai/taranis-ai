@@ -2,7 +2,7 @@ from datetime import datetime
 from graphlib import CycleError, TopologicalSorter
 from typing import Any, Sequence
 
-from models.admin import CronSpec
+from models.admin import DEFAULT_BOT_LOOKBACK_DAYS, CronSpec
 from models.types import BOT_TYPES
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, relationship
@@ -12,6 +12,7 @@ from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.parameter_value import ParameterValue
+from core.model.settings import Settings
 from core.model.task import Task as TaskModel
 from core.model.worker import Worker
 
@@ -393,6 +394,11 @@ class Bot(BaseModel):
         data["parameters"] = self.parameter_map
         if self.status:
             data["status"] = self.status
+        return data
+
+    @staticmethod
+    def get_with_defaults(data: dict[str, Any]) -> dict[str, Any]:
+        data["parameters"]["DEFAULT_LOOKBACK_DAYS"] = Settings.get_settings().get("default_bot_lookback_days", DEFAULT_BOT_LOOKBACK_DAYS)
         return data
 
     @classmethod

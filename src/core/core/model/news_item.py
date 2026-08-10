@@ -502,9 +502,7 @@ class NewsItem(BaseModel):
             normalized_timeto = AssessStory.model_validate({"created": timeto}).created
             query = query.filter(cls.published <= normalized_timeto)
 
-        offset = filter_args.get("offset", 0)
-        limit = filter_args.get("limit", 20)
-        return query.offset(offset).limit(limit)
+        return query
 
     def allowed_with_acl(self, user: User, require_write_access: bool) -> bool:
         if not RoleBasedAccess.is_enabled():

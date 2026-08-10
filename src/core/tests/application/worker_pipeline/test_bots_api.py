@@ -41,6 +41,21 @@ class TestBotsApi(BaseTest):
         assert response.status_code == 200
         assert story_id == stories[0], "Response ID should match request ID"
 
+    def test_news_item_list_supports_unlimited_global_lookback(self, client, stories, api_header, monkeypatch):
+        from core.model.settings import Settings
+
+        monkeypatch.setattr(
+            Settings,
+            "get_settings",
+            classmethod(lambda cls: {"default_bot_lookback_days": 0}),
+        )
+
+        response = client.get(f"{self.base_uri}/news-item", headers=api_header)
+
+        assert response.status_code == 200
+        assert isinstance(response.get_json(), list)
+        assert response.get_json()
+
     def test_old_format_attribute_update(self, client, stories, api_header):
         """
         This test queries the story update authenticated.

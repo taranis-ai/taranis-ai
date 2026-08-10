@@ -10,6 +10,8 @@ The admin dependency preview is scoped to the connected dependency component con
 
 Collector-triggered runs enqueue the reachable enabled DAG once. Manual and cron bot runs enqueue the downstream DAG for their specific `worker_id` only after a successful result. Dependent jobs inherit the original filter and run with dependent triggering suppressed, so downstream completions do not schedule duplicate chains.
 
+Bots process the previous seven days by default. Admins can change the global bot lookback in Admin Settings; zero removes the cutoff. An explicit `timefrom` in a bot filter always takes precedence over the global default.
+
 For multiple parents, a bot waits only for parents that are part of the current scheduled chain. Disabled or missing parents do not block a chain, but the preview should warn admins.
 
 ## Code Paths
@@ -17,6 +19,7 @@ For multiple parents, a bot waits only for parents that are part of the current 
 - Queue graph scheduling: `src/core/core/managers/queue_manager.py`
 - Bot result follow-up scheduling: `src/core/core/service/task.py`
 - Worker bot result metadata: `src/worker/worker/bots/bot_tasks.py`
+- Shared bot lookback filtering: `src/worker/worker/bots/base_bot.py`
 - Admin bot UI: `src/frontend/frontend/views/admin_views/bot_views.py`, `src/frontend/frontend/templates/bot/`
 - Seeded defaults: `src/core/core/managers/pre_seed_data.py`
 

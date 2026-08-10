@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
+from models.admin import DEFAULT_BOT_LOOKBACK_DAYS
 
 from core.config import Config
 from core.log import logger
@@ -10,6 +11,7 @@ from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model import bot, news_item, story
+from core.model.settings import Settings
 from core.service.cache_invalidation import (
     SCOPE_ASSESS_VIEWS,
     SCOPE_SCHEDULE,
@@ -68,8 +70,16 @@ class NewsItem(MethodView):
         try:
             if news_item_id:
                 return news_item.NewsItem.get_for_api(news_item_id)
-            filtre_args = {"limit": request.args.get("limit", default=(datetime.now() - timedelta(weeks=1)).isoformat())}
-            return news_item.NewsItem.get_all_for_api(filtre_args)
+            timefrom = request.args.get("limit")
+            if timefrom is None:
+                lookback_days = int(Settings.get_settings().get("default_bot_lookback_days", DEFAULT_BOT_LOOKBACK_DAYS))
+                if lookback_days:
+                    timefrom = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).isoformat()
+            filter_args = {"fetch_all": "true"}
+            if timefrom:
+                filter_args["timefrom"] = timefrom
+            response, status = news_item.NewsItem.get_all_for_api(filter_args)
+            return response["items"], status
         except Exception:
             logger.exception("Failed to get bot news item data")
             return {"error": "Failed to get news item data"}, 400

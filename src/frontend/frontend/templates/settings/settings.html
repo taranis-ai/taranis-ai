@@ -66,6 +66,11 @@
             {{ form_input('Default News Item Conflict Retention', 'settings[default_news_item_conflict_retention]', current_settings.default_news_item_conflict_retention, preserve=False, data_testid='settings-default-news-item-conflict-retention') }}
           </div>
           <div class="p-4 border rounded-lg hover:bg-base-200 transition">
+            <h3 class="font-semibold text-lg mb-2">Default Bot Lookback</h3>
+            <p class="text-sm text-gray-500 mb-3">Set how many days bots process by default. Use 0 for all matching data.</p>
+            {{ form_input('Default Bot Lookback (days)', 'settings[default_bot_lookback_days]', current_settings.default_bot_lookback_days, preserve=False, pattern='[0-9]+', invalid_msg='Enter zero or a positive whole number.', data_testid='settings-default-bot-lookback-days') }}
+          </div>
+          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
             <h3 class="font-semibold text-lg mb-2">Default Timezone</h3>
             <p class="text-sm text-gray-500 mb-3">Set the timezone copied into new user profiles when none is supplied.</p>
             <select id="default-timezone-select"

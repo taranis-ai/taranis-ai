@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from worker.bots.base_bot import BaseBot
@@ -33,6 +35,20 @@ def test_filter_timefrom_is_not_replaced_by_the_default_window(parameters):
     assert filter_dict["timefrom"] == "2026-07-01T00:00:00"
 
 
+def test_filter_uses_configured_default_lookback():
+    before = datetime.now(timezone.utc) - timedelta(days=3)
+    filter_dict = BaseBot().get_filter_dict({"DEFAULT_LOOKBACK_DAYS": 3})
+    after = datetime.now(timezone.utc) - timedelta(days=3)
+
+    assert before <= datetime.fromisoformat(filter_dict["timefrom"]) <= after
+
+
+def test_zero_default_lookback_removes_time_filter():
+    filter_dict = BaseBot().get_filter_dict({"DEFAULT_LOOKBACK_DAYS": 0})
+
+    assert "timefrom" not in filter_dict
+
+
 def test_ioc_bot(story_get_mock):
     import worker.bots as bots
 
@@ -51,6 +67,24 @@ def test_analyst_bot_returns_meaningful_result_when_no_news_items(monkeypatch):
     result = analyst_bot.execute({"REGULAR_EXPRESSION": "tag", "ATTRIBUTE_NAME": "label"})
 
     assert result == {"message": "No news items found", "result": {}}
+
+
+def test_analyst_bot_omits_time_filter_for_unlimited_lookback(monkeypatch):
+    import worker.bots as bots
+
+    limits = []
+    analyst_bot = bots.AnalystBot()
+    monkeypatch.setattr(analyst_bot.core_api, "get_news_items", lambda limit: limits.append(limit))
+
+    analyst_bot.execute(
+        {
+            "REGULAR_EXPRESSION": "tag",
+            "ATTRIBUTE_NAME": "label",
+            "DEFAULT_LOOKBACK_DAYS": 0,
+        }
+    )
+
+    assert limits == [None]
 
 
 def test_news_item_content_for_tagging_handles_nullable_fields():
