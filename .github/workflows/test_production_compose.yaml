@@ -1,6 +1,11 @@
 name: Smoke test docker compose
 on:
   workflow_dispatch:
+    inputs:
+      use_latest_published_images:
+        description: Skip the build and smoke-test the latest published GHCR images
+        type: boolean
+        default: false
   pull_request_review:
     types: [submitted]
 
@@ -11,24 +16,36 @@ jobs:
   test_docker_deployment:
     if: ${{ github.event.review.state == 'approved' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
+    env:
+      APPLICATION_SERVICES: ingress core frontend collector workers cron
+      SUPPORT_SERVICES: redis sse database
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
       - name: Build Docker images from PR code
+        if: ${{ !inputs.use_latest_published_images }}
         run: |
           chmod +x docker/build_container.sh
           ./docker/build_container.sh
+
+      - name: Prepare docker compose environment
+        working-directory: docker
+        run: cp env.sample .env
+
+      - name: Pull latest published application images
+        if: ${{ inputs.use_latest_published_images }}
+        working-directory: docker
+        run: docker compose pull $APPLICATION_SERVICES
 
       - name: Run docker compose for last commit
         working-directory: docker
         env:
           PRE_SEED_PASSWORD_USER: test
         run: |
-          cp env.sample .env
-          docker compose pull redis sse database
-          docker compose up ingress core frontend database redis collector workers cron sse --pull=never --wait-timeout=180 --wait
+          docker compose pull $SUPPORT_SERVICES
+          docker compose up $APPLICATION_SERVICES $SUPPORT_SERVICES --pull=never --wait-timeout=180 --wait
 
       - name: Check container status
         # Show status/logs only when a previous step failed (e.g. compose --wait)

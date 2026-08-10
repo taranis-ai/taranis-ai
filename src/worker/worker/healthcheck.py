@@ -7,14 +7,6 @@ from worker.config import Config
 
 
 CRON_LEADER_KEY = "rq:cron:leader"
-WORKER_QUEUE_NAMES = {
-    "Bots": "bots",
-    "Collectors": "collectors",
-    "Presenters": "presenters",
-    "Publishers": "publishers",
-    "Connectors": "connectors",
-    "Misc": "misc",
-}
 
 
 def _redis_connection() -> Redis:
@@ -26,7 +18,7 @@ def _redis_connection() -> Redis:
 
 
 def _expected_worker_queues() -> set[str]:
-    return {WORKER_QUEUE_NAMES[worker_type] for worker_type in Config.WORKER_TYPES if worker_type in WORKER_QUEUE_NAMES}
+    return {worker_type.lower() for worker_type in Config.WORKER_TYPES}
 
 
 def check_worker_health(redis_connection: Any, hostname: str | None = None) -> None:

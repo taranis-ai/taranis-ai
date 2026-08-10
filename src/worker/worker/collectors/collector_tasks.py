@@ -289,5 +289,30 @@ def fetch_single_news_item(parameters: dict[str, Any]):
 
             return result_message
         except Exception as e:
+            if job:
+                core_api.save_task_result(
+                    job.id,
+                    "collector_task",
+                    "FAILURE",
+                    worker_id=worker_id,
+                    worker_type=worker_type,
+                    result=build_failure_task_result(
+                        str(e),
+                        reason="collection_failed",
+                        data={"source_id": worker_id},
+                    ),
+                )
             raise RuntimeError(e) from e
+    if job:
+        core_api.save_task_result(
+            job.id,
+            "collector_task",
+            "SUCCESS",
+            worker_id=worker_id,
+            worker_type=worker_type,
+            result=build_success_task_result(
+                default_message=f"Fetched news item from {worker_id}",
+                data=preview_result,
+            ),
+        )
     return preview_result
