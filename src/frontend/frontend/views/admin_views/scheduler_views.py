@@ -4,7 +4,7 @@ from flask import render_template, request
 from flask.typing import ResponseReturnValue
 from flask.views import MethodView
 from models.admin import ActiveJob, FailedJob, Job, QueueStatus, WorkerStats
-from models.task import TaskHistoryResponse
+from models.task import TaskError, TaskHistoryResponse
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
@@ -65,13 +65,13 @@ class SchedulerView(AdminBaseView):
     base_route = "admin.scheduler"
     _read_only = True
     _index = 61
-    allowed_tabs = {"scheduled", "active", "failed", "history"}
+    allowed_tabs = {"scheduled", "active", "failed", "errors", "history"}
 
     @classmethod
     def _resolve_tab(cls, initial_tab: str | None) -> str:
         tab = (request.args.get("tab") or initial_tab or "scheduled").lower()
         match tab:
-            case "scheduled" | "active" | "failed" | "history":
+            case "scheduled" | "active" | "failed" | "errors" | "history":
                 return tab
             case _:
                 return "scheduled"
@@ -83,7 +83,7 @@ class SchedulerView(AdminBaseView):
             persistence = DataPersistenceLayer()
             queues = persistence.get_objects(QueueStatus)
             worker_stats = persistence.get_object(WorkerStats)
-            jobs = active_jobs = failed_jobs = task_stats = None
+            jobs = active_jobs = failed_jobs = task_errors = task_stats = None
             total_successes = total_failures = overall_success_rate = 0
 
             paging_data = parse_paging_data()
@@ -94,6 +94,8 @@ class SchedulerView(AdminBaseView):
                     active_jobs = persistence.get_objects(ActiveJob, paging_data)
                 case "failed":
                     failed_jobs = persistence.get_objects(FailedJob, paging_data)
+                case "errors":
+                    task_errors = persistence.get_objects(TaskError, paging_data)
                 case "history":
                     history = persistence.get_object(TaskHistoryResponse)
                     if history is None:
@@ -111,6 +113,9 @@ class SchedulerView(AdminBaseView):
                     "worker_stats": worker_stats,
                     "active_jobs": active_jobs,
                     "failed_jobs": failed_jobs,
+                    "task_errors": task_errors,
+                    "error_scope": request.args.get("scope") if request.args.get("scope") in {"current", "history"} else "current",
+                    "error_category": request.args.get("category") if request.args.get("category") in {"all", "collector", "bot"} else "all",
                     "task_stats": task_stats,
                     "total_successes": total_successes,
                     "total_failures": total_failures,
@@ -219,6 +224,27 @@ class ScheduleHistoryAPI(MethodView):
             raise
         except Exception as exc:  # pragma: no cover - defensive rendering path
             return BaseView.render_response_notification({"error": f"Failed to load history: {exc}"}), 500
+
+
+class ScheduleErrorsAPI(MethodView):
+    @auth_required()
+    def get(self):
+        if not is_htmx_request():
+            return SchedulerView().get(initial_tab="errors")
+        try:
+            task_errors = DataPersistenceLayer().get_objects(TaskError, parse_paging_data())
+            error_scope = request.args.get("scope") if request.args.get("scope") in {"current", "history"} else "current"
+            error_category = request.args.get("category") if request.args.get("category") in {"all", "collector", "bot"} else "all"
+            return render_template(
+                "schedule/task_errors.html",
+                task_errors=task_errors,
+                error_scope=error_scope,
+                error_category=error_category,
+            )
+        except HTTPException:
+            raise
+        except Exception as exc:  # pragma: no cover - defensive rendering path
+            return BaseView.render_response_notification({"error": f"Failed to load task errors: {exc}"}), 500
 
 
 class ScheduleJobDetailsAPI(MethodView):

@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 import pytest
 import responses
 from flask import url_for
+from lxml import html as lxml_html
 from models.user import ProfileSettings
 
 from frontend.cache import add_user_to_cache, cache
@@ -30,6 +31,7 @@ pytestmark = pytest.mark.usefixtures("_clear_scheduler_cache")
         ("admin.scheduler_jobs_table", "scheduled"),
         ("admin.scheduler_active_jobs", "active"),
         ("admin.scheduler_failed_jobs", "failed"),
+        ("admin.scheduler_errors", "errors"),
         ("admin.scheduler_history", "history"),
     ],
 )
@@ -60,6 +62,50 @@ def test_scheduler_tab_query_param_overrides_initial(authenticated_client, mock_
     assert 'id="scheduled-tab" class="tab-panel hidden"' not in html
 
 
+def test_admin_sidebar_badges_link_to_filtered_errors_without_changing_main_links(
+    authenticated_client,
+    mock_core_get_endpoints,
+):
+    with authenticated_client.application.app_context():
+        scheduler_url = url_for("admin.scheduler")
+        source_url = url_for("admin.osint_sources")
+        bot_url = url_for("admin.bots")
+        source_errors_url = url_for("admin.scheduler", tab="errors", scope="current", category="collector")
+        bot_errors_url = url_for("admin.scheduler", tab="errors", scope="current", category="bot")
+
+    response = authenticated_client.get(scheduler_url)
+
+    assert response.status_code == 200
+    tree = lxml_html.fromstring(response.get_data(as_text=True))
+    source_link = tree.xpath('//*[@data-testid="admin-menu-OSINT Source"]')[0]
+    bot_link = tree.xpath('//*[@data-testid="admin-menu-Bot"]')[0]
+    source_error_link = tree.xpath('//*[@data-testid="admin-menu-OSINT Source-errors"]')[0]
+    bot_error_link = tree.xpath('//*[@data-testid="admin-menu-Bot-errors"]')[0]
+    assert source_link.get("href") == source_url
+    assert bot_link.get("href") == bot_url
+    assert source_error_link.get("href") == source_errors_url
+    assert bot_error_link.get("href") == bot_errors_url
+
+
+def test_admin_sidebar_hides_zero_error_badges(authenticated_client, responses_mock, mock_core_get_endpoints):
+    responses_mock.replace(
+        responses.GET,
+        f"{Config.TARANIS_CORE_URL}/config/admin-menu-badges",
+        json={"osint_source": 0, "bot": 0},
+    )
+    with authenticated_client.application.app_context():
+        scheduler_url = url_for("admin.scheduler")
+
+    response = authenticated_client.get(scheduler_url)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'data-testid="admin-menu-OSINT Source"' in html
+    assert 'data-testid="admin-menu-Bot"' in html
+    assert 'data-testid="admin-menu-OSINT Source-errors"' not in html
+    assert 'data-testid="admin-menu-Bot-errors"' not in html
+
+
 def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler")
@@ -74,8 +120,12 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
     assert 'id="scheduled-jobs-table"' in html
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
-    assert html.count('hx-trigger="scheduler:refresh"') == 4
-    assert html.count("intervalMs: 10000") == 3
+    assert 'id="task-errors-panel"' in html
+    assert ">Queue Failures</a>" in html
+    assert ">Task Errors</a>" in html
+    assert ">Failed Jobs</a>" not in html
+    assert html.count('hx-trigger="scheduler:refresh"') == 5
+    assert html.count("intervalMs: 10000") == 4
     assert "intervalMs: 5000" not in html
     assert 'id="execution-history"' in html
 
@@ -99,9 +149,14 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
             {"/config/schedule", "/config/workers/active", "/tasks"},
         ),
         (
+            "admin.scheduler_errors",
+            "/tasks/errors",
+            {"/config/schedule", "/config/workers/active", "/config/workers/failed", "/tasks"},
+        ),
+        (
             "admin.scheduler_history",
             "/tasks",
-            {"/config/schedule", "/config/workers/active", "/config/workers/failed"},
+            {"/config/schedule", "/config/workers/active", "/config/workers/failed", "/tasks/errors"},
         ),
     ],
 )
@@ -138,8 +193,9 @@ def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated
     assert 'data-testid="scheduled-jobs"' in html
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
+    assert 'id="task-errors-panel"' in html
     assert 'id="execution-history"' in html
-    assert html.count("Loading...</p>") == 3
+    assert html.count("Loading...</p>") == 4
     assert 'data-testid="active-jobs"' not in html
     assert 'data-testid="failed-jobs"' not in html
     assert 'data-testid="execution-history-jobs"' not in html
@@ -152,6 +208,7 @@ def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated
         ("admin.scheduler_queue_cards", ["/config/workers/tasks", "/config/workers/stats"], "Collectors"),
         ("admin.scheduler_active_jobs", ["/config/workers/active"], "Running Bot"),
         ("admin.scheduler_failed_jobs", ["/config/workers/failed"], "Failed Connector"),
+        ("admin.scheduler_errors", ["/tasks/errors"], "404 Client Error"),
         ("admin.scheduler_history", ["/tasks"], "Success Rate"),
     ],
 )
@@ -226,6 +283,7 @@ def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(
         ("admin.scheduler_jobs_table", "scheduled-jobs", "scheduled-jobs-table"),
         ("admin.scheduler_active_jobs", "active-jobs", "active-jobs-table"),
         ("admin.scheduler_failed_jobs", "failed-jobs", "failed-jobs-table"),
+        ("admin.scheduler_errors", "task-errors", "task-errors-table"),
         ("admin.scheduler_history", "execution-history-jobs", "execution-history-table"),
     ],
 )
@@ -304,6 +362,29 @@ def test_scheduler_history_filters_aggregate_rows(
     html = response.get_data(as_text=True)
     assert "WORDLIST_BOT" in html
     assert "rss_collector" not in html
+
+
+def test_scheduler_errors_forwards_filters_and_renders_persisted_error(
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_errors", scope="history", category="collector", search="missing")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    assert responses_mock.calls[-1].request.params == {
+        "scope": "history",
+        "category": "collector",
+        "search": "missing",
+    }
+    html = response.get_data(as_text=True)
+    assert "https://example.invalid/missing" in html
+    assert "404 Client Error" in html
+    assert 'aria-label="Error scope"' in html
 
 
 @pytest.mark.parametrize("order", ["successes_asc", "failures_asc", "success_pct_asc"])

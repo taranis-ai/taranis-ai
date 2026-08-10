@@ -22,6 +22,7 @@ from frontend.views import (
 )
 from frontend.views.admin_views.scheduler_views import (
     ScheduleActiveJobsAPI,
+    ScheduleErrorsAPI,
     ScheduleFailedJobsAPI,
     ScheduleHistoryAPI,
     ScheduleJobsAPI,
@@ -149,6 +150,7 @@ def init(app: Flask):
     admin_bp.add_url_rule("/scheduler/queues", view_func=ScheduleQueuesAPI.as_view("scheduler_queue_cards"))
     admin_bp.add_url_rule("/scheduler/active", view_func=ScheduleActiveJobsAPI.as_view("scheduler_active_jobs"))
     admin_bp.add_url_rule("/scheduler/failed", view_func=ScheduleFailedJobsAPI.as_view("scheduler_failed_jobs"))
+    admin_bp.add_url_rule("/scheduler/errors", view_func=ScheduleErrorsAPI.as_view("scheduler_errors"))
     admin_bp.add_url_rule("/scheduler/history", view_func=ScheduleHistoryAPI.as_view("scheduler_history"))
 
     admin_bp.add_url_rule("/organizations", view_func=OrganizationView.as_view("organizations"))

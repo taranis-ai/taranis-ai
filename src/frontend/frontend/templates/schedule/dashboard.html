@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% set current_tab = initial_tab if initial_tab in ["scheduled", "active", "failed", "history"] else "scheduled" %}
+{% set current_tab = initial_tab if initial_tab in ["scheduled", "active", "failed", "errors", "history"] else "scheduled" %}
 {% from "schedule/table.html" import refreshable_table_placeholder %}
 {% block content %}
   <div class="p-4" id="scheduler-dashboard">
@@ -17,7 +17,8 @@
     <div class="tabs tabs-border tabs-boxed mt-6 mb-4">
       <a class="tab {% if current_tab == 'scheduled' %}tab-active{% endif %}" data-tab="scheduled">Scheduled Jobs</a>
       <a class="tab {% if current_tab == 'active' %}tab-active{% endif %}" data-tab="active">Active Jobs</a>
-      <a class="tab {% if current_tab == 'failed' %}tab-active{% endif %}" data-tab="failed">Failed Jobs</a>
+      <a class="tab {% if current_tab == 'failed' %}tab-active{% endif %}" data-tab="failed">Queue Failures</a>
+      <a class="tab {% if current_tab == 'errors' %}tab-active{% endif %}" data-tab="errors">Task Errors</a>
       <a class="tab {% if current_tab == 'history' %}tab-active{% endif %}" data-tab="history">Execution History</a>
     </div>
 
@@ -69,12 +70,30 @@
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
               </svg>
-              Failed Jobs
+              Queue Failures
             </h2>
+            <p class="text-sm opacity-70">Jobs currently held in the RQ failed-job registry.</p>
             {% if current_tab == 'failed' %}
               {% include "schedule/failed_jobs.html" %}
             {% else %}
               {{ refreshable_table_placeholder('failed-jobs-table', url_for('admin.scheduler_failed_jobs') ) }}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div id="errors-tab" class="tab-panel {% if current_tab != 'errors' %}hidden{% endif %}">
+        <div class="card bg-base-200 shadow-lg">
+          <div class="card-body">
+            <h2 class="card-title">
+              {{ heroicon_outline('exclamation-triangle', class='w-6 h-6') }}
+              Task Errors
+            </h2>
+            <p class="text-sm opacity-70">Persisted failures reported by collectors, bots, and other tasks.</p>
+            {% if current_tab == 'errors' %}
+              {% include "schedule/task_errors.html" %}
+            {% else %}
+              {{ refreshable_table_placeholder('task-errors-panel', url_for('admin.scheduler_errors') ) }}
             {% endif %}
           </div>
         </div>
@@ -128,6 +147,7 @@
       scheduled: { id: 'scheduled-jobs-table', intervalMs: 10000 },
       active: { id: 'active-jobs-table', intervalMs: 10000 },
       failed: { id: 'failed-jobs-table', intervalMs: 10000 },
+      errors: { id: 'task-errors-panel', intervalMs: 10000 },
       history: { id: 'execution-history', intervalMs: null },
     };
     let activeRefreshTimer = null;
@@ -136,7 +156,7 @@
       try {
         const url = new URL(window.location.href);
         url.searchParams.set('tab', tabName);
-        ['search', 'page', 'limit', 'order'].forEach(param => url.searchParams.delete(param));
+        ['search', 'page', 'limit', 'order', 'scope', 'category'].forEach(param => url.searchParams.delete(param));
         history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
       } catch (err) {
         console.debug('Failed to update tab query param', err);
@@ -211,7 +231,11 @@
 
       jobNameEl.textContent = job?.name || 'Unknown job';
       jobIdEl.textContent = job?.id || 'N/A';
-      jobErrorEl.textContent = job?.error || 'No error details available.';
+      const details = [job?.error || 'No error details available.'];
+      if (job?.reason) details.push(`Reason: ${job.reason}`);
+      if (job?.worker_id) details.push(`Worker: ${job.worker_id}`);
+      if (job?.user_id) details.push(`Triggered by user: ${job.user_id}`);
+      jobErrorEl.textContent = details.join('\n\n');
 
       dialog.showModal();
     };

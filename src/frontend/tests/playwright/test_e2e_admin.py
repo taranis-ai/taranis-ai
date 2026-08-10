@@ -187,6 +187,49 @@ class TestEndToEndAdmin(BaseE2ETest):
         with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
         expect(page.locator("#history-tab .stats")).to_have_count(1)
 
+    def test_source_error_badge_opens_persisted_manual_collector_error(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        core_request_client,
+        api_header,
+    ):
+        page = logged_in_page
+        marker = uuid.uuid4().hex
+        task_id = f"fetch_single_news_item_{marker}"
+        worker_url = f"https://example.invalid/{marker}"
+        core_request_client.post(
+            "/tasks",
+            json_data={
+                "id": task_id,
+                "task": "collector_task",
+                "worker_id": worker_url,
+                "worker_type": "simple_web_collector",
+                "status": "FAILURE",
+                "result": {
+                    "message": f"404 Client Error {marker}",
+                    "reason": "collection_failed",
+                    "retryable": False,
+                    "data": {"source_id": worker_url},
+                },
+            },
+            headers=api_header,
+            authenticated=False,
+        )
+
+        try:
+            page.goto(url_for("admin.osint_sources", _external=True))
+            badge = page.get_by_test_id("admin-menu-OSINT Source-errors")
+            expect(badge).to_be_visible()
+            badge.click()
+
+            expect(page).to_have_url(url_for("admin.scheduler", tab="errors", scope="current", category="collector", _external=True))
+            expect(page.locator("#task-errors-panel")).to_contain_text(worker_url)
+            page.locator("#task-errors-panel").get_by_role("button", name="View Error").first.click()
+            expect(page.locator("#job-error-modal")).to_contain_text(f"404 Client Error {marker}")
+        finally:
+            core_request_client.delete(f"/tasks/{task_id}")
+
     def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
         page = logged_in_page
 

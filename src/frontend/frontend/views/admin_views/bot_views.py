@@ -94,6 +94,10 @@ class BotView(AdminBaseView):
         return 0
 
     @classmethod
+    def get_admin_menu_badge_route(cls) -> str:
+        return url_for("admin.scheduler", tab="errors", scope="current", category="bot")
+
+    @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:
         parameters = {}
         parameter_values = {}

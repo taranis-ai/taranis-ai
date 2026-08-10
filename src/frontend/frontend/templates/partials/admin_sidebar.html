@@ -1,13 +1,15 @@
 <ul class="menu menu-vertical bg-base-200 w-full">
   {% for view_name, view in admin_views.items() %}
-    <li>
+    <li class="relative">
       <a href="{{ view.get_base_route() }}"
+         class="{% if view.get_admin_menu_badge %}pr-12{% endif %}"
          data-testid="admin-menu-{{ view_name }}"
          data-tour-target="admin-menu-{{ view_name | lower | replace(' ', '-') }}">
         {{ heroicon_outline(view.icon) }}
-        {% from "macros/admin_menu_badge.html" import admin_menu_badge %}
-        {{ view_name }}{{ admin_menu_badge(view) }}
+        {{ view_name }}
       </a>
+      {% from "macros/admin_menu_badge.html" import admin_menu_badge %}
+      {{ admin_menu_badge(view, view_name) }}
     </li>
   {% endfor %}
   <li>

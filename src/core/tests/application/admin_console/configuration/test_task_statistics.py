@@ -199,18 +199,83 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
 def test_get_admin_menu_badges_sums_failures_by_category(monkeypatch):
     monkeypatch.setattr(
         Task,
-        "get_status_counts_by_task",
-        classmethod(
-            lambda cls: {
-                "rss_collector": {"failures": 4},
-                "manual_collector": {"failures": 2},
-                "WORDLIST_BOT": {"failures": 7},
-                "not_relevant": {"failures": 11},
-            }
-        ),
+        "get_current_error_counts",
+        classmethod(lambda cls: {"collector": 6, "bot": 7}),
     )
 
     assert Task.get_admin_menu_badges() == {
         "osint_source": 6,
         "bot": 7,
     }
+
+
+def test_task_errors_current_and_history_follow_latest_worker_outcome(app):
+    marker = Task.uuid7_str()
+    url_worker = f"https://example.invalid/{marker}"
+    source_worker = f"source-{marker}"
+    task_ids = [f"{marker}-url-failure", f"{marker}-source-failure", f"{marker}-source-success"]
+
+    with app.app_context():
+        try:
+            for task_id, worker_id, status, message in [
+                (task_ids[0], url_worker, "FAILURE", "404"),
+                (task_ids[1], source_worker, "FAILURE", "timeout"),
+                (task_ids[2], source_worker, "NOT_MODIFIED", "unchanged"),
+            ]:
+                Task.add(
+                    {
+                        "id": task_id,
+                        "task": "collector_task",
+                        "worker_id": worker_id,
+                        "worker_type": "simple_web_collector" if worker_id == url_worker else "rss_collector",
+                        "status": status,
+                        "result": {"message": message, "retryable": False},
+                    }
+                )
+
+            current, current_count = Task.get_errors({"scope": "current", "category": "collector", "search": marker})
+            history, history_count = Task.get_errors({"scope": "history", "category": "collector", "search": marker})
+
+            assert current_count == 1
+            assert [task.worker_id for task in current] == [url_worker]
+            assert history_count == 2
+            assert {task.worker_id for task in history} == {url_worker, source_worker}
+        finally:
+            for task_id in task_ids:
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+
+def test_current_error_count_matches_filtered_error_total(app):
+    marker = Task.uuid7_str()
+    task_ids = [f"{marker}-collector", f"{marker}-bot"]
+
+    with app.app_context():
+        baseline = Task.get_current_error_counts()
+        try:
+            for task_id, task_name, worker_id, worker_type in [
+                (task_ids[0], "collector_task", f"source-{marker}", "rss_collector"),
+                (task_ids[1], f"bot_{marker}", f"bot-{marker}", "WORDLIST_BOT"),
+            ]:
+                Task.add(
+                    {
+                        "id": task_id,
+                        "task": task_name,
+                        "worker_id": worker_id,
+                        "worker_type": worker_type,
+                        "status": "FAILURE",
+                        "result": {"message": marker, "retryable": False},
+                    }
+                )
+
+            counts = Task.get_current_error_counts()
+            _, collector_total = Task.get_errors({"scope": "current", "category": "collector"})
+            _, bot_total = Task.get_errors({"scope": "current", "category": "bot"})
+
+            assert counts == {"collector": baseline["collector"] + 1, "bot": baseline["bot"] + 1}
+            assert collector_total == counts["collector"]
+            assert bot_total == counts["bot"]
+        finally:
+            for task_id in task_ids:
+                if Task.get(task_id):
+                    Task.delete(task_id)

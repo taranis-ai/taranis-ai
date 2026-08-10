@@ -2367,6 +2367,77 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /tasks/errors:
+    get:
+      tags:
+      - config
+      operationId: tasks.task_errors.get
+      description: list persisted task failures
+      security:
+      - APIKey: []
+      - UserAuth: []
+      parameters:
+      - name: scope
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - current
+          - history
+          default: current
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - collector
+          - bot
+          default: all
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+      - name: order
+        in: query
+        required: false
+        schema:
+          type: string
+          default: last_run_desc
+      responses:
+        '200':
+          description: paginated persisted task failures
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/task_error'
+                  total_count:
+                    type: integer
+                required:
+                - items
+                - total_count
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /bots/news-item:
     get:
       security:
@@ -11098,6 +11169,31 @@ components:
       required:
       - message
       - retryable
+    task_error:
+      allOf:
+      - $ref: '#/components/schemas/task_history_entry'
+      - type: object
+        properties:
+          job_id:
+            type:
+            - string
+            - 'null'
+          user_id:
+            type:
+            - string
+            - 'null'
+          category:
+            type: string
+            enum:
+            - collector
+            - bot
+            - other
+          worker_name:
+            type:
+            - string
+            - 'null'
+        required:
+        - category
     task_history_stats:
       type: object
       properties:

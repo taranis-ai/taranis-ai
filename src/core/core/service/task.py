@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from models.task import Task as TaskResponseModel
-from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission
+from models.task import TaskError, TaskHistoryResponse, TaskResultEnvelope, TaskSubmission
 
 from core.config import Config
 from core.log import logger
@@ -37,8 +37,35 @@ class TaskService:
         return validated.model_dump(mode="json", exclude_none=False), status
 
     @staticmethod
+    def get_errors(filter_args: dict[str, Any] | None = None) -> tuple[dict[str, Any], int]:
+        tasks, total_count = TaskModel.get_errors(filter_args)
+        worker_ids = {task.worker_id for task in tasks if task.worker_id}
+        worker_names: dict[str, str] = {}
+        if worker_ids:
+            from core.model.bot import Bot
+            from core.model.osint_source import OSINTSource
+
+            worker_names.update({source.id: source.name for source in OSINTSource.get_bulk(list(worker_ids))})
+            worker_names.update({bot.id: bot.name for bot in Bot.get_bulk(list(worker_ids))})
+
+        items = []
+        for task in tasks:
+            task_type = (task.worker_type or task.task or "").lower()
+            category = "collector" if "collector" in task_type else "bot" if "bot" in task_type else "other"
+            payload = task.to_dict() | {
+                "category": category,
+                "worker_name": worker_names.get(task.worker_id or "") or task.worker_id,
+            }
+            items.append(TaskError.model_validate(payload).model_dump(mode="json", exclude_none=False))
+        return {"items": items, "total_count": total_count}, 200
+
+    @staticmethod
     def delete_task(task_id: str) -> tuple[dict[str, Any], int]:
-        return TaskModel.delete(task_id)
+        result, status = TaskModel.delete(task_id)
+        if status == 200:
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("task_error")
+        return result, status
 
     @staticmethod
     def cleanup_history() -> tuple[dict[str, Any], int]:
@@ -71,6 +98,7 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
+        cache_invalidation_module.cache_invalidation_service.invalidate_model("task_error")
         if submission.status == "SUCCESS" and submission.result is not None:
             cls._handle_success_result(submission)
         elif task_kind in {"collector_task", "bot_task"}:

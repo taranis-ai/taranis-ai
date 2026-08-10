@@ -127,6 +127,16 @@ class TaskHistoryEntry(TaranisBaseModel):
     last_success: datetime | None = None
 
 
+class TaskError(TaskHistoryEntry):
+    _core_endpoint = "/tasks/errors"
+    _model_name = "task_error"
+    _pretty_name = "Task Error"
+    _cache_timeout = 1
+
+    category: str
+    worker_name: str | None = None
+
+
 class TaskHistoryStats(TaranisBaseModel):
     user_id: str | None = None
     worker_id: str | None = None
