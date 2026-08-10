@@ -19,6 +19,7 @@ Before suggesting local startup, ask which workflow the developer wants:
 - Manual tmux workflow from `dev/README.md`
 
 `./dev/start_dev.sh` supports macOS with Homebrew and Podman, Ubuntu, and Debian 13.
+Its Podman path applies `dev/compose.podman.yml` to omit Docker's explicit `host-gateway` mapping; Podman Machine resolves `host.docker.internal` itself.
 
 Do not assume tmux.
 

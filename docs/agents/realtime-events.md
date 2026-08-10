@@ -17,6 +17,7 @@ Centrifugo, SSE, `/sse`, `/connection/uni_sse`, realtime events, `EventSource`, 
 - One frontend module owns one `EventSource` per authenticated tab. It checks the event version and type, dispatches domain events, coalesces reconnect resynchronization for 300 ms, closes on logout/teardown, and never starts a polling loop.
 - Centrifugo connection, heartbeat, and other control frames do not trigger resynchronization. Terminal disconnects stop reconnection; temporary failures reconnect with jitter and show one degraded notice after 15 seconds.
 - Relevant Assess, Analyze, and Publish pages show one refresh notice for domain events and reconnect resynchronization. Assess reloads its current filtered `#assess` fragment through HTMX when available and falls back to normal navigation.
+- Development Compose publishes both Centrifugo ports on `0.0.0.0` so they remain reachable from the host when services run inside Podman Machine. Keep this development-only exposure when changing `dev/compose.yml`.
 - The report-lock compatibility service intentionally preserves the existing process-local behavior in this PR. Redis leases, ownership tokens, expiry, and lost-update protection are out of scope and will be implemented in the next PR.
 
 ## Code Paths

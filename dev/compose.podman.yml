@@ -1,0 +1,3 @@
+services:
+  centrifugo:
+    extra_hosts: !reset []

@@ -39,8 +39,8 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "127.0.0.1:${TARANIS_CENTRIFUGO_PORT:-8088}:8000"
-      - "127.0.0.1:${TARANIS_CENTRIFUGO_API_PORT:-9000}:9000"
+      - "0.0.0.0:${TARANIS_CENTRIFUGO_PORT:-8088}:8000"
+      - "0.0.0.0:${TARANIS_CENTRIFUGO_API_PORT:-9000}:9000"
     environment:
       CENTRIFUGO_HTTP_API_KEY: "${CENTRIFUGO_API_KEY:-dev-centrifugo-api-key}"
       CENTRIFUGO_HTTP_SERVER_INTERNAL_PORT: "9000"
