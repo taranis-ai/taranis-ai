@@ -107,13 +107,22 @@ class Connector(BaseModel):
 
     @classmethod
     def delete(cls, connector_id: str, force: bool = False) -> tuple[dict, int]:
+        from core.model.story import StoryMispAutoUpdate
+        from core.service.misp_auto_update import cancel_misp_auto_update_jobs
+
         if not (connector := cls.get(connector_id)):
             return {"error": "Connector not found"}, 404
 
+        story_ids = (
+            db.session.execute(db.select(StoryMispAutoUpdate.story_id).where(StoryMispAutoUpdate.connector_id == connector_id))
+            .scalars()
+            .all()
+        )
         try:
             connector.unschedule_connector()
             db.session.delete(connector)
             db.session.commit()
+            cancel_misp_auto_update_jobs(story_ids)
             return {"message": "Connector deleted", "id": connector.id}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")

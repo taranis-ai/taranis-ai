@@ -641,6 +641,7 @@ def test_story_read_action_replaces_story_card(app):
 
 def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
+    story_payload["misp_auto_update"] = {"connector_id": "connector-1", "enabled": True}
     bookmark_payloads = [_bookmark_collection_payload(f"bookmark-{index}", f"Bookmark {index}", index, index - 1) for index in range(1, 8)]
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
@@ -658,6 +659,7 @@ def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticate
     response = authenticated_client.get(url_for("assess.assess"))
 
     assert response.status_code == 200
+    assert "MISP auto-update" in response.text
     tree = html.fromstring(response.text)
     bar = tree.xpath('//*[@data-testid="assess-bookmarks-bar"]')[0]
     assert bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-1"]')

@@ -12,15 +12,26 @@ def _job_id(story_id: str) -> str:
     return f"misp_auto_update_{story_id.replace('-', '_')}"
 
 
-def schedule_story_update(story: Story) -> None:
-    sync = story.misp_auto_update
-    if not sync:
+def cancel_misp_auto_update_job(story_id: str) -> None:
+    queue_manager.queue_manager.cancel_job(_job_id(story_id))
+
+
+def cancel_misp_auto_update_jobs(story_ids: Iterable[str]) -> None:
+    for story_id in set(story_ids):
+        if story_id:
+            cancel_misp_auto_update_job(story_id)
+
+
+def refresh_misp_auto_update_job(story_id: str) -> None:
+    story = Story.get(story_id)
+    if story and not story.misp_auto_update:
         return
 
-    job_id = _job_id(story.id)
+    job_id = _job_id(story_id)
     queue = queue_manager.queue_manager
-    queue.cancel_job(job_id)
-    if not sync.enabled:
+    cancel_misp_auto_update_job(story_id)
+
+    if not story or not (sync := story.misp_auto_update) or not sync.enabled:
         return
 
     scheduled_time = story.utcnow() + timedelta(minutes=DEBOUNCE_MINUTES)
@@ -29,15 +40,14 @@ def schedule_story_update(story: Story) -> None:
         "connector_task",
         scheduled_time,
         sync.connector_id,
-        [story.id],
+        [story_id],
         True,
         job_id=job_id,
         meta=queue._build_task_meta("connector_task", user_id=None, worker_id=sync.connector_id, worker_type="misp_connector"),
     )
 
 
-def schedule_story_updates(stories: Iterable[Story | None]) -> None:
-    for story in stories:
-        if story is None:
-            continue
-        schedule_story_update(story)
+def refresh_misp_auto_update_jobs(story_ids: Iterable[str]) -> None:
+    for story_id in set(story_ids):
+        if story_id:
+            refresh_misp_auto_update_job(story_id)

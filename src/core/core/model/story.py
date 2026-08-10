@@ -663,22 +663,22 @@ class Story(BaseModel):
                 news_item.delete_item()
 
     @classmethod
-    def add_or_update(cls, data, actor: str | None = None) -> "tuple[dict, int]":
+    def add_or_update(cls, data) -> "tuple[dict, int]":
         if "id" not in data:
-            return cls.add(data, actor=actor)
+            return cls.add(data)
 
         story_id = data.get("id")
         if Story.get(story_id) is None:
-            return cls._handle_new_story_add(data, actor=actor)
+            return cls._handle_new_story_add(data)
 
         if data.pop("conflict", None):
             return cls.update_with_conflicts(story_id, data)
         else:
-            return cls._handle_existing_story_update(data, actor=actor)
+            return cls._handle_existing_story_update(data)
 
     @classmethod
-    def _handle_new_story_add(cls, data, actor: str | None = None) -> "tuple[dict, int]":
-        message, code = cls.add(data, actor=actor)
+    def _handle_new_story_add(cls, data) -> "tuple[dict, int]":
+        message, code = cls.add(data)
         if code != 200 and message.get("error") == "Story already exists":
             logger.warning(f"Story being added {data['id']} contains existing content. A news item conflict is raised.")
             cls.handle_conflicting_news_items(data)
@@ -686,7 +686,7 @@ class Story(BaseModel):
         return message, code
 
     @classmethod
-    def _handle_existing_story_update(cls, data, actor: str | None = None) -> "tuple[dict, int]":
+    def _handle_existing_story_update(cls, data) -> "tuple[dict, int]":
         story_ids = [data["id"]]
         news_item_to_delete = data.pop("news_items_to_delete", None)
 
@@ -700,8 +700,8 @@ class Story(BaseModel):
         if news_item_to_delete:
             cls.delete_news_items(news_item_to_delete)
 
-        cls.group_stories(story_ids, actor=actor)
-        return cls.update(data["id"], data, external=True, actor=actor)
+        cls.group_stories(story_ids)
+        return cls.update(data["id"], data, external=True)
 
     @classmethod
     def _process_news_items(cls, data: dict[str, Any]) -> "tuple[list[str], list[str]]":
@@ -878,7 +878,7 @@ class Story(BaseModel):
         if not story:
             return {"error": "Story not found"}, 404
 
-        if "misp_auto_update" in data and user and "CONNECTOR_USER_ACCESS" not in user.get_permissions():
+        if "misp_auto_update" in data and (not user or "CONNECTOR_USER_ACCESS" not in user.get_permissions()):
             return {"error": "forbidden"}, 403
 
         if "misp_auto_update" in data and data["misp_auto_update"] is not None:
@@ -1253,9 +1253,9 @@ class Story(BaseModel):
             removed_titles_by_story: dict[Story, set[str]] = {}
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
-                if not news_item or (user is None and actor is None):
+                if not news_item or not user:
                     continue
-                if user and not news_item.allowed_with_acl(user, True):
+                if not news_item.allowed_with_acl(user, True):
                     continue
                 story = Story.get(news_item.story_id)
                 if not story:
@@ -1448,6 +1448,8 @@ class Story(BaseModel):
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["links"] = self.links
+        if self.misp_auto_update:
+            data["misp_auto_update"] = self.misp_auto_update.to_dict()
         del data["search_vector"]
         return data
 
@@ -1459,14 +1461,14 @@ class Story(BaseModel):
         data["in_reports_count"] = ReportItemStory.count(self.id)
         data["links"] = self.links
         data["revision_count"] = self.get_revision_count()
-        if self.misp_auto_update:
-            data["misp_auto_update"] = self.misp_auto_update.to_public_dict()
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
         data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
+        if self.misp_auto_update:
+            data["misp_auto_update"] = self.misp_auto_update.to_dict()
         if attributes := self.attributes:
             data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
         del data["search_vector"]
@@ -1556,7 +1558,7 @@ class StoryMispAutoUpdate(BaseModel):
         sync.enabled = bool(data.get("enabled"))
         story.misp_auto_update = sync
 
-    def to_public_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"connector_id": self.connector_id, "enabled": self.enabled}
 
 

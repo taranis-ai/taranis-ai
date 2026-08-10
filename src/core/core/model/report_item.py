@@ -340,6 +340,7 @@ class ReportItem(BaseModel):
             ReportStorySyncService.sync_report_membership(report_item, stories, "attach")
         report_item.record_revision(user, note="created")
         db.session.commit()
+        ReportStorySyncService.refresh_auto_update_jobs(stories)
         return report_item, 200
 
     def add_attributes(self):
@@ -481,6 +482,7 @@ class ReportItem(BaseModel):
         ReportStorySyncService.sync_report_membership(report_item, stories, "attach")
         report_item.record_revision(user, note="add_stories")
         db.session.commit()
+        ReportStorySyncService.refresh_auto_update_jobs(stories)
 
         logger.debug(f"Added {story_ids} stories to Report Item {report_item.id}")
         return {"message": "Successfully added stories"}, 200
@@ -496,6 +498,7 @@ class ReportItem(BaseModel):
         ReportStorySyncService.sync_report_membership(report_item, stories_to_remove, "detach")
         report_item.record_revision(user, note="remove_stories")
         db.session.commit()
+        ReportStorySyncService.refresh_auto_update_jobs(stories_to_remove)
 
         return {"message": "Successfully removed stories"}, 200
 
@@ -535,6 +538,7 @@ class ReportItem(BaseModel):
         logger.debug(f"Updating Report Item {report_id} with data: {data}")
         if err or not report_item:
             return err, status
+        affected_stories = list(report_item.stories)
 
         if title := data.get("title"):
             retag_stories = True
@@ -559,6 +563,7 @@ class ReportItem(BaseModel):
 
         report_item.record_revision(user, note="update")
         db.session.commit()
+        ReportStorySyncService.refresh_auto_update_jobs([*affected_stories, *report_item.stories])
 
         logger.debug(f"Updated Report Item {report_item.id}")
 
@@ -590,18 +595,22 @@ class ReportItem(BaseModel):
         ReportStorySyncService.sync_report_membership(report, affected_stories, "detach")
         db.session.delete(report)
         db.session.commit()
+        ReportStorySyncService.refresh_auto_update_jobs(affected_stories)
         return {"message": "Successfully deleted report"}, 200
 
     @classmethod
     def delete_all(cls) -> tuple[dict[str, Any], int]:
         reports = list(db.session.execute(db.select(cls)).scalars())
+        affected_stories = []
         for report in reports:
-            affected_stories = list(report.stories)
+            report_stories = list(report.stories)
+            affected_stories.extend(report_stories)
             report.stories = []
-            ReportStorySyncService.sync_report_membership(report, affected_stories, "detach")
+            ReportStorySyncService.sync_report_membership(report, report_stories, "detach")
             db.session.delete(report)
 
         db.session.commit()
+        ReportStorySyncService.refresh_auto_update_jobs(affected_stories)
         logger.debug(f"All {cls.__name__} deleted")
         return {"message": f"All {cls.__name__} deleted"}, 200
 

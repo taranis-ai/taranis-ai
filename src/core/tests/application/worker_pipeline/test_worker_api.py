@@ -312,9 +312,11 @@ class TestWorkerApi:
             assert _tag_names(news_item.get("tags", [])) == _tag_names(expected_item.get("tags", []))
         assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1
 
-    def test_worker_put_tags(self, client, stories, api_header):
+    def test_worker_put_tags(self, client, stories, api_header, monkeypatch):
         story_1_id = stories[0]
         tags = ["tag3", "tag4"]
+        refreshed = []
+        monkeypatch.setattr("core.service.news_item.refresh_misp_auto_update_jobs", refreshed.append)
         story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
         news_item_id = story_response.get_json()[0]["news_items"][0]["id"]
 
@@ -332,6 +334,7 @@ class TestWorkerApi:
         updated_tags = updated_news_item.get("tags", [])
         assert [tag.get("name") for tag in updated_tags] == tags
         assert all(tag.get("tag_type") == "misc" for tag in updated_tags)
+        assert refreshed == [[story_1_id]]
 
     def test_worker_put_tags_invalid_cases(self, client, stories, api_header):
         story_1_id = stories[0]
@@ -492,9 +495,11 @@ class TestWorkerTaskResults:
                 if Product.get(product_id):
                     Product.delete(product_id)
 
-    def test_worker_task_results_apply_bot_tags(self, client, stories, auth_header, api_header, app, wordlist_bot_result):
+    def test_worker_task_results_apply_bot_tags(self, client, stories, auth_header, api_header, app, wordlist_bot_result, monkeypatch):
         from core.model.task import Task
 
+        refreshed = []
+        monkeypatch.setattr("core.service.task.refresh_misp_auto_update_jobs", refreshed.append)
         task_id = f"cron-bot-wordlist-{uuid.uuid4().hex}"
         payload = {
             "id": task_id,
@@ -509,6 +514,7 @@ class TestWorkerTaskResults:
             response = client.post(self.base_uri, json=payload, headers=api_header)
 
             assert response.status_code == 200
+            assert refreshed == [set(stories)]
 
             for story_id in stories:
                 story_response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)

@@ -12,6 +12,7 @@ from core.model.task import Task as TaskModel
 from core.model.token_blacklist import TokenBlacklist
 from core.model.word_list import WordList
 from core.service import cache_invalidation as cache_invalidation_module
+from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 from core.service.misp_story_sync import handle_misp_connector_result
 from core.service.news_item_tag import NewsItemTagService
 
@@ -180,13 +181,18 @@ class TaskService:
             logger.error("Invalid bot task result data payload")
             return
 
+        affected_story_ids = set()
         if worker_type in TAGGING_BOTS:
-            NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
+            affected_story_ids = NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
 
         if worker_type == "INTEL_OWL_BOT":
             TaskService._handle_intelowl_bot_result(bot_result, worker_id)
         else:
-            NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
+            affected_story_ids.update(
+                NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
+            )
+
+        refresh_misp_auto_update_jobs(affected_story_ids)
 
         if result_data.get("trigger_dependents", True):
             from core.managers import queue_manager
