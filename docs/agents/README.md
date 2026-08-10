@@ -25,6 +25,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Authentication Cookies](authentication-cookies.md) - JWT/CSRF cookie names, deployment suffixes, base-path scoping, and auth cookie consumers.
 - [Realtime Events](realtime-events.md) - Centrifugo SSE transport, connect-proxy authentication, event publishing, frontend recovery, and deployment configuration.
 - [Public Product Publishing](public-product-publishing.md) - Taranis publisher presets, persistent report files, and unauthenticated public report URLs.
+- [Scheduler Dashboard](scheduler-dashboard.md) - scheduler tabs, RQ-backed table data, granular refreshes, pagination and filtering, and task history.
 
 ## File Format
 

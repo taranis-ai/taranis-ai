@@ -34,6 +34,7 @@ import json
 import re
 import time
 from collections.abc import Callable, Iterable
+from copy import copy
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
@@ -47,7 +48,7 @@ from models.admin import CronSpec
 from redis import Redis
 from rq import Queue
 from rq.exceptions import NoSuchJobError
-from rq.job import Job
+from rq.job import Dependency, Job
 
 from core.config import Config
 from core.log import logger
@@ -60,7 +61,59 @@ CRON_NEXT_KEY = "rq:cron:next"
 TOKEN_CLEANUP_JOB_ID = "cleanup_token_blacklist"
 TOKEN_CLEANUP_CRON = "0 2 * * *"
 TOKEN_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Token Blacklist"
+TASK_HISTORY_CLEANUP_JOB_ID = "cleanup_task_history"
+TASK_HISTORY_CLEANUP_CRON = "0 3 * * *"
+TASK_HISTORY_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Task History"
 RQ_JOB_ID_COMPONENT_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _positive_int(value: Any, default: int) -> int:
+    try:
+        parsed_value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed_value if parsed_value > 0 else default
+
+
+def _filter_sort_paginate_jobs(
+    jobs: list[dict[str, Any]],
+    filter_args: dict[str, Any],
+    *,
+    default_order: str,
+) -> dict[str, Any]:
+    if search := str(filter_args.get("search") or "").strip().lower():
+        jobs = [
+            job
+            for job in jobs
+            if any(search in str(job.get(field) or "").lower() for field in ("id", "name", "queue", "type", "schedule", "status", "error"))
+        ]
+
+    order = str(filter_args.get("order") or default_order)
+    field, separator, direction = order.rpartition("_")
+    if not separator or direction not in {"asc", "desc"}:
+        field, direction = default_order.rsplit("_", 1)
+    if field not in {
+        "id",
+        "name",
+        "queue",
+        "type",
+        "schedule",
+        "next_run_time",
+        "last_run",
+        "started_at",
+        "failed_at",
+        "status",
+    }:
+        field, direction = default_order.rsplit("_", 1)
+
+    jobs.sort(key=lambda job: str(job.get(field) or "").lower(), reverse=direction == "desc")
+    jobs.sort(key=lambda job: job.get(field) is None)
+
+    total_count = len(jobs)
+    page = _positive_int(filter_args.get("page"), 1)
+    limit = _positive_int(filter_args.get("limit"), 20)
+    offset = (page - 1) * limit
+    return {"items": jobs[offset : offset + limit], "total_count": total_count}
 
 
 def _decode_redis_value(value: bytes | str) -> str:
@@ -178,6 +231,7 @@ TASK_MAP = {
     "connector_task": "worker.connectors.connector_tasks.connector_task",
     "gather_word_list": "worker.misc.misc_tasks.gather_word_list",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
+    "cleanup_task_history": "worker.misc.misc_tasks.cleanup_task_history",
     "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
 }
 
@@ -317,6 +371,21 @@ class QueueManager:
                 func_path="cleanup_token_blacklist",
                 queue_name="misc",
             ),
+            CronSpec(
+                meta={
+                    **QueueManager._build_task_meta(
+                        TASK_HISTORY_CLEANUP_JOB_ID,
+                        user_id=None,
+                        worker_id=TASK_HISTORY_CLEANUP_JOB_ID,
+                        worker_type=TASK_HISTORY_CLEANUP_JOB_ID,
+                    ),
+                    "name": TASK_HISTORY_CLEANUP_DISPLAY_NAME,
+                },
+                job_id=TASK_HISTORY_CLEANUP_JOB_ID,
+                cron=TASK_HISTORY_CLEANUP_CRON,
+                func_path="cleanup_task_history",
+                queue_name="misc",
+            ),
         )
         return {spec.job_id: spec for spec in specs}
 
@@ -447,6 +516,25 @@ class QueueManager:
         return self._queues.get(queue_name)
 
     @staticmethod
+    def _is_user_triggered(meta: dict[str, Any] | None) -> bool:
+        return bool(meta and meta.get("user_id"))
+
+    @staticmethod
+    def _prioritize_dependencies(depends_on: Any) -> Dependency:
+        if isinstance(depends_on, Dependency):
+            prioritized = copy(depends_on)
+            prioritized.enqueue_at_front = True
+            return prioritized
+        return Dependency(depends_on, enqueue_at_front=True)
+
+    @classmethod
+    def _prepare_user_priority(cls, meta: dict[str, Any] | None, kwargs: dict[str, Any]) -> bool:
+        user_triggered = cls._is_user_triggered(meta)
+        if user_triggered and (depends_on := kwargs.get("depends_on")) is not None:
+            kwargs["depends_on"] = cls._prioritize_dependencies(depends_on)
+        return user_triggered
+
+    @staticmethod
     def _build_task_meta(
         task: str,
         *,
@@ -571,7 +659,8 @@ class QueueManager:
             if meta:
                 kwargs["meta"] = dict(meta)
 
-            return queue.enqueue(task_func, *args, job_id=job_id, **kwargs)
+            user_triggered = self._prepare_user_priority(meta, kwargs)
+            return queue.enqueue(task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
             return False
@@ -598,7 +687,10 @@ class QueueManager:
         meta: dict[str, Any] | None = None,
         **kwargs,
     ):
-        """Enqueue a task to run at a specific time"""
+        """Enqueue a task to run at a specific time.
+
+        RQ promotes scheduled jobs at their due time without waiting for unfinished dependencies.
+        """
         if self.error:
             return False
 
@@ -616,10 +708,9 @@ class QueueManager:
             if meta:
                 kwargs["meta"] = dict(meta)
 
-            logger.info(
-                f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}, args={args}, kwargs={kwargs}"
-            )
-            job = queue.enqueue_at(scheduled_time, task_func, *args, job_id=job_id, **kwargs)
+            user_triggered = self._prepare_user_priority(meta, kwargs)
+            logger.info(f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}")
+            job = queue.enqueue_at(scheduled_time, task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
             logger.info(f"enqueue_at: created job {job.id} scheduled for {scheduled_time}")
             return job
         except Exception as e:
@@ -790,7 +881,7 @@ class QueueManager:
         payload_hash = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
         return f"fetch_single_news_item_{payload_hash}"
 
-    def fetch_single_news_item(self, parameters: dict[str, Any]):
+    def fetch_single_news_item(self, parameters: dict[str, Any], user_id: str | None = None):
         url = get_simple_web_collector_url(parameters)
         job = self.enqueue_task(
             "collectors",
@@ -799,7 +890,7 @@ class QueueManager:
             job_id=self._get_single_fetch_job_id(parameters),
             meta=self._build_task_meta(
                 "collector_task",
-                user_id=None,
+                user_id=user_id,
                 worker_id=self._get_single_fetch_url(parameters),
                 worker_type="simple_web_collector",
             ),
@@ -1144,6 +1235,13 @@ class QueueManager:
                     cron_schedule=TOKEN_CLEANUP_CRON,
                 )
             )
+            all_jobs.append(
+                self._build_housekeeping_schedule_entry(
+                    job_id=TASK_HISTORY_CLEANUP_JOB_ID,
+                    name=TASK_HISTORY_CLEANUP_DISPLAY_NAME,
+                    cron_schedule=TASK_HISTORY_CLEANUP_CRON,
+                )
+            )
         except Exception as e:
             logger.warning(f"Failed to fetch cron schedules: {e}")
             # Don't fail the whole request if cron scheduler is not available
@@ -1195,7 +1293,22 @@ class QueueManager:
                     annotated_job[field] = value.isoformat()
             return annotated_job, 200
 
-    def get_scheduled_jobs(self) -> tuple[dict, int]:
+    def get_scheduled_job_count(self) -> int:
+        if self.error or not self._redis:
+            return 0
+
+        try:
+            from rq.registry import ScheduledJobRegistry
+
+            job_ids = set(self._get_managed_cron_specs())
+            for queue in self._queues.values():
+                job_ids.update(ScheduledJobRegistry(queue=queue).get_job_ids())
+            return len(job_ids)
+        except Exception:
+            logger.exception("Failed to count scheduled jobs")
+            return 0
+
+    def get_scheduled_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
         """Get all scheduled jobs across all queues
 
         Returns both:
@@ -1262,8 +1375,9 @@ class QueueManager:
                     if isinstance(value, datetime):
                         job[field] = value.isoformat()
 
-            logger.info(f"get_scheduled_jobs: returning {len(annotated_jobs)} total jobs")
-            return {"items": annotated_jobs, "total_count": len(annotated_jobs)}, 200
+            result = _filter_sort_paginate_jobs(annotated_jobs, filter_args, default_order="next_run_time_asc")
+            logger.info(f"get_scheduled_jobs: returning {len(result['items'])} of {result['total_count']} jobs")
+            return result, 200
         except Exception as e:
             logger.exception(f"Failed to get scheduled jobs: {e}")
             return {"error": "Failed to get scheduled jobs"}, 500
@@ -1359,12 +1473,22 @@ class QueueManager:
                     "name": "Cleanup Token Blacklist",
                 }
             )
+            cron_jobs.append(
+                {
+                    "task": TASK_HISTORY_CLEANUP_JOB_ID,
+                    "queue": "misc",
+                    "args": [],
+                    "cron": TASK_HISTORY_CLEANUP_CRON,
+                    "task_id": TASK_HISTORY_CLEANUP_JOB_ID,
+                    "name": "Cleanup Task History",
+                }
+            )
             return {"cron_jobs": cron_jobs}, 200
         except Exception:
             logger.exception("Failed to get cron job configurations")
             return {"error": "Failed to get cron job configurations"}, 500
 
-    def get_active_jobs(self) -> tuple[dict, int]:
+    def get_active_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
         """Get currently running jobs from StartedJobRegistry"""
         if self.error or not self._redis:
             return {"error": "QueueManager not initialized"}, 500
@@ -1395,12 +1519,12 @@ class QueueManager:
                         logger.error(f"Failed to fetch active job {job_id}: {e}")
                         continue
 
-            return {"items": active_jobs, "total_count": len(active_jobs)}, 200
+            return _filter_sort_paginate_jobs(active_jobs, filter_args, default_order="started_at_asc"), 200
         except Exception as e:
             logger.exception(f"Failed to get active jobs: {e}")
             return {"error": "Failed to get active jobs"}, 500
 
-    def get_failed_jobs(self) -> tuple[dict, int]:
+    def get_failed_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
         """Get failed jobs from FailedJobRegistry"""
         if self.error or not self._redis:
             return {"error": "QueueManager not initialized"}, 500
@@ -1442,7 +1566,7 @@ class QueueManager:
                         logger.debug(f"Skipping failed job {job_id}: {e}")
                         continue
 
-            return {"items": failed_jobs, "total_count": len(failed_jobs)}, 200
+            return _filter_sort_paginate_jobs(failed_jobs, filter_args, default_order="failed_at_desc"), 200
         except Exception as e:
             logger.exception(f"Failed to get failed jobs: {e}")
             return {"error": "Failed to get failed jobs"}, 500

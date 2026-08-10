@@ -27,6 +27,7 @@ from core.service.cache_invalidation import (
     invalidate_frontend_cache_on_success,
 )
 from core.service.product import ProductService
+from core.service.task import TaskService
 
 
 class AddNewsItems(MethodView):
@@ -112,6 +113,12 @@ class CronJobs(MethodView):
     @api_key_required
     def get(self):
         return queue_manager.queue_manager.get_cron_job_configs()
+
+
+class TaskHistoryCleanup(MethodView):
+    @api_key_required
+    def post(self):
+        return TaskService.cleanup_history()
 
 
 class SourceIcon(MethodView):
@@ -274,7 +281,7 @@ class PostCollectionBots(MethodView):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
         if source_id := data.get("source_id", None):
-            return queue_manager.queue_manager.post_collection_bots(source_id=source_id)
+            return queue_manager.queue_manager.post_collection_bots(source_id=source_id, user_id=data.get("user_id"))
         return {"error": "No source_id provided"}, 400
 
 
@@ -324,6 +331,7 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/cron-jobs", view_func=CronJobs.as_view("cron_jobs_worker"))
+    worker_bp.add_url_rule("/tasks/history/cleanup", view_func=TaskHistoryCleanup.as_view("task_history_cleanup_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>/publish", view_func=ProductsPublish.as_view("products_publish_worker"))

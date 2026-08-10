@@ -21,6 +21,25 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
+    def test_post_collection_bots_forwards_user_id(self, client, api_header, monkeypatch):
+        captured = {}
+
+        def fake_post_collection_bots(source_id, user_id=None):
+            captured["source_id"] = source_id
+            captured["user_id"] = user_id
+            return {"message": "scheduled"}, 200
+
+        monkeypatch.setattr("core.api.worker.queue_manager.queue_manager.post_collection_bots", fake_post_collection_bots)
+
+        response = client.put(
+            f"{self.base_uri}/post-collection-bots",
+            json={"source_id": "source-1", "user_id": "user-1"},
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        assert captured == {"source_id": "source-1", "user_id": "user-1"}
+
     @pytest.mark.parametrize(
         "result_payload",
         [
@@ -658,7 +677,6 @@ class TestWorkerTaskResults:
             "taranis_frontend:user:alice:model:osint_source:detail:other-source",
             f"taranis_frontend:user:alice:model:task:detail:{task_id}",
             "taranis_frontend:user:alice:model:job:list:default",
-            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
             "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
             "taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton",
             "taranis_frontend:user:alice:model:active_job:list:default",
@@ -698,7 +716,6 @@ class TestWorkerTaskResults:
                 "taranis_frontend:user:alice:model:osint_source:detail:other-source",
                 f"taranis_frontend:user:alice:model:task:detail:{task_id}",
                 "taranis_frontend:user:alice:model:job:list:default",
-                "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
                 "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
                 "taranis_frontend:user:alice:model:active_job:list:default",
                 "taranis_frontend:user:alice:model:failed_job:list:default",
@@ -727,7 +744,6 @@ class TestWorkerTaskResults:
             "taranis_frontend:user:alice:model:osint_source:detail:other-source",
             f"taranis_frontend:user:alice:model:task:detail:{task_id}",
             "taranis_frontend:user:alice:model:job:list:default",
-            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
             "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
             "taranis_frontend:user:alice:model:active_job:list:default",
             "taranis_frontend:user:alice:model:failed_job:list:default",

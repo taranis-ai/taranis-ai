@@ -113,22 +113,6 @@ class WorkerStats(TaranisBaseModel):
     idle_workers: int = 0
 
 
-class SchedulerDashboardData(TaranisBaseModel):
-    _core_endpoint = "/config/workers/dashboard"
-    _cache_timeout = 1
-    _model_name = "scheduler_dashboard"
-    _pretty_name = "Scheduler Dashboard"
-
-    scheduled_jobs: list[Job] = Field(default_factory=list)
-    scheduled_total_count: int = 0
-    queues: list[QueueStatus] = Field(default_factory=list)
-    worker_stats: WorkerStats | None = None
-    active_jobs: list[ActiveJob] = Field(default_factory=list)
-    active_total_count: int = 0
-    failed_jobs: list[FailedJob] = Field(default_factory=list)
-    failed_total_count: int = 0
-
-
 class AdminMenuBadges(TaranisBaseModel):
     _core_endpoint = "/config/admin-menu-badges"
     _cache_timeout = 300

@@ -89,7 +89,7 @@ class NewsItemFetch(MethodView):
         if not self._is_supported_web_url(url):
             return {"error": "A valid http or https URL is required"}, 400
 
-        response, status = StoryService.fetch_and_create_story(parameters)
+        response, status = StoryService.fetch_and_create_story(parameters, user_id=current_user.id)
         if 200 <= status < 300:
             realtime_publisher.assess_changed()
             invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
