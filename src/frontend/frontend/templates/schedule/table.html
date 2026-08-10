@@ -1,0 +1,51 @@
+{% macro refreshable_table(container_id, table_id, data, columns, base_url, empty_message) %}
+  {% from "macros/table.html" import table_controls, table_header, table_search_bar %}
+  <div id="{{ container_id }}"
+       class="table-container"
+       data-base-url="{{ base_url }}"
+       hx-get="{{ base_url }}{{ request.query_string.decode() and '?' ~ request.query_string.decode() }}"
+       hx-trigger="scheduler:refresh"
+       hx-select="#{{ container_id }}"
+       hx-swap="outerHTML">
+    <div class="mb-4">{{ table_search_bar(container_id, base_url) }}</div>
+    <div class="overflow-x-auto">
+      <table class="table shadow table-zebra table-sm" id="{{ table_id }}" data-testid="{{ table_id }}">
+        <thead>
+          <tr>{% for column in columns %}{{ table_header(column, container_id, base_url) }}{% endfor %}</tr>
+        </thead>
+        <tbody>
+          {% if data %}
+            {% for item in data %}{{ caller(item) }}{% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="{{ columns|length }}">
+                <div class="text-center">
+                  <p class="text-gray-500">{{ empty_message }}</p>
+                </div>
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+        <tfoot hx-select="#{{ container_id }}" hx-target="#{{ container_id }}" hx-swap="outerHTML">
+          <tr>
+            <td colspan="{{ columns|length }}">
+              <div class="flex justify-center">{{ table_controls(base_url=base_url, data=data) }}</div>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+{% endmacro %}
+
+{% macro refreshable_table_placeholder(container_id, base_url) %}
+  <div id="{{ container_id }}"
+       class="table-container"
+       data-base-url="{{ base_url }}"
+       hx-get="{{ base_url }}"
+       hx-trigger="scheduler:refresh"
+       hx-select="#{{ container_id }}"
+       hx-swap="outerHTML">
+    <p class="py-4 text-center">Loading...</p>
+  </div>
+{% endmacro %}

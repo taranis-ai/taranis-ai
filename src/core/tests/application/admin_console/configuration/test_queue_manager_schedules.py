@@ -21,7 +21,7 @@ def test_get_scheduled_jobs_includes_cleanup_cron(app, monkeypatch):
     queue_manager._redis = cast(Redis, object())
 
     with app.app_context():
-        schedules, status = QueueManager.get_scheduled_jobs(queue_manager)
+        schedules, status = QueueManager.get_scheduled_jobs(queue_manager, {})
 
     assert status == 200
     items = schedules.get("items", [])
@@ -60,7 +60,7 @@ def test_get_scheduled_jobs_skips_zero_count_registry_debug_logs(monkeypatch, ca
     queue_manager._redis = cast(Redis, object())
 
     with caplog.at_level(logging.DEBUG):
-        schedules, status = QueueManager.get_scheduled_jobs(queue_manager)
+        schedules, status = QueueManager.get_scheduled_jobs(queue_manager, {})
 
     assert status == 200
     assert schedules["total_count"] == 0

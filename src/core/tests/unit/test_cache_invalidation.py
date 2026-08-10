@@ -61,7 +61,6 @@ def test_invalidate_scope_schedule_clears_scheduler_related_models(monkeypatch):
     service = _build_service(
         [
             "taranis_frontend:user:alice:model:job:list:one",
-            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
             "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
             "taranis_frontend:user:alice:model:story:list:one",
         ]
@@ -69,7 +68,7 @@ def test_invalidate_scope_schedule_clears_scheduler_related_models(monkeypatch):
 
     deleted = service.invalidate_scope(SCOPE_SCHEDULE)
 
-    assert deleted == 3
+    assert deleted == 2
     assert set(service._client.scan_iter(match="*")) == {"taranis_frontend:user:alice:model:story:list:one"}
 
 
@@ -79,7 +78,6 @@ def test_invalidate_scope_schedule_status_keeps_queue_runtime_models(monkeypatch
     service = _build_service(
         [
             "taranis_frontend:user:alice:model:job:list:one",
-            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
             "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
             "taranis_frontend:user:alice:model:active_job:list:one",
             "taranis_frontend:user:alice:model:failed_job:list:one",
@@ -90,7 +88,7 @@ def test_invalidate_scope_schedule_status_keeps_queue_runtime_models(monkeypatch
 
     deleted = service.invalidate_scope(SCOPE_SCHEDULE_STATUS)
 
-    assert deleted == 3
+    assert deleted == 2
     assert set(service._client.scan_iter(match="*")) == {
         "taranis_frontend:user:alice:model:active_job:list:one",
         "taranis_frontend:user:alice:model:failed_job:list:one",

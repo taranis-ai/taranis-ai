@@ -7590,6 +7590,23 @@ paths:
       - config
       description: get schedule
       operationId: config.config_queue_schedule.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success
@@ -8035,6 +8052,23 @@ paths:
       - config
       description: get workers active
       operationId: config.config_active_jobs.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success
@@ -8069,27 +8103,6 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
-  /config/workers/dashboard:
-    get:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: get workers dashboard
-      operationId: config.config_scheduler_dashboard.get
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /config/workers/failed:
     get:
       security:
@@ -8098,6 +8111,23 @@ paths:
       - config
       description: get workers failed
       operationId: config.config_failed_jobs.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success
@@ -8119,6 +8149,23 @@ paths:
       - config
       description: get workers schedule
       operationId: config.config_queue_schedule_config.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% set current_tab = initial_tab if initial_tab in ["scheduled", "active", "failed", "history"] else "scheduled" %}
+{% from "schedule/table.html" import refreshable_table_placeholder %}
 {% block content %}
   <div class="p-4" id="scheduler-dashboard">
     <div class="flex justify-between items-center mb-6">
@@ -32,9 +33,11 @@
               </svg>
               Scheduled Jobs
             </h2>
-            <div id="scheduled-jobs-table" hx-get="{{ url_for('admin.scheduler_jobs_table') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
+            {% if current_tab == 'scheduled' %}
               {% include "schedule/jobs_table.html" %}
-            </div>
+            {% else %}
+              {{ refreshable_table_placeholder('scheduled-jobs-table', url_for('admin.scheduler_jobs_table') ) }}
+            {% endif %}
           </div>
         </div>
       </div>
@@ -49,9 +52,11 @@
               </svg>
               Currently Running
             </h2>
-            <div id="active-jobs-table" hx-get="{{ url_for('admin.scheduler_active_jobs') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
-              <p class="text-center py-4">Loading active jobs...</p>
-            </div>
+            {% if current_tab == 'active' %}
+              {% include "schedule/active_jobs.html" %}
+            {% else %}
+              {{ refreshable_table_placeholder('active-jobs-table', url_for('admin.scheduler_active_jobs') ) }}
+            {% endif %}
           </div>
         </div>
       </div>
@@ -66,9 +71,11 @@
               </svg>
               Failed Jobs
             </h2>
-            <div id="failed-jobs-table" hx-get="{{ url_for('admin.scheduler_failed_jobs') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
-              <p class="text-center py-4">Loading failed jobs...</p>
-            </div>
+            {% if current_tab == 'failed' %}
+              {% include "schedule/failed_jobs.html" %}
+            {% else %}
+              {{ refreshable_table_placeholder('failed-jobs-table', url_for('admin.scheduler_failed_jobs') ) }}
+            {% endif %}
           </div>
         </div>
       </div>
@@ -83,7 +90,11 @@
               </svg>
               Execution History
             </h2>
-            <div id="execution-history">{% include "schedule/execution_history.html" %}</div>
+            {% if current_tab == 'history' %}
+              {% include "schedule/execution_history.html" %}
+            {% else %}
+              {{ refreshable_table_placeholder('execution-history', url_for('admin.scheduler_history') ) }}
+            {% endif %}
           </div>
         </div>
       </div>
@@ -114,9 +125,10 @@
   <script>
     // Tab switching logic
     const schedulerRefreshTargets = {
-      scheduled: { id: 'scheduled-jobs-table', intervalMs: 10000, immediate: false },
-      active: { id: 'active-jobs-table', intervalMs: 5000, immediate: true },
-      failed: { id: 'failed-jobs-table', intervalMs: 10000, immediate: true },
+      scheduled: { id: 'scheduled-jobs-table', intervalMs: 10000 },
+      active: { id: 'active-jobs-table', intervalMs: 10000 },
+      failed: { id: 'failed-jobs-table', intervalMs: 10000 },
+      history: { id: 'execution-history', intervalMs: null },
     };
     let activeRefreshTimer = null;
 
@@ -124,6 +136,7 @@
       try {
         const url = new URL(window.location.href);
         url.searchParams.set('tab', tabName);
+        ['search', 'page', 'limit', 'order'].forEach(param => url.searchParams.delete(param));
         history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
       } catch (err) {
         console.debug('Failed to update tab query param', err);
@@ -137,7 +150,7 @@
       }
     };
 
-    const triggerSchedulerRefresh = (tabName) => {
+    const triggerSchedulerRefresh = (tabName, resetQuery = false) => {
       const config = schedulerRefreshTargets[tabName];
       if (!config || !window.htmx) {
         return;
@@ -145,6 +158,9 @@
 
       const target = document.getElementById(config.id);
       if (target) {
+        if (resetQuery && target.dataset.baseUrl) {
+          target.setAttribute('hx-get', target.dataset.baseUrl);
+        }
         window.htmx.trigger(target, 'scheduler:refresh');
       }
     };
@@ -157,13 +173,11 @@
         return;
       }
 
-      if (config.immediate) {
-        triggerSchedulerRefresh(tabName);
+      if (config.intervalMs !== null) {
+        activeRefreshTimer = window.setInterval(() => {
+          triggerSchedulerRefresh(tabName);
+        }, config.intervalMs);
       }
-
-      activeRefreshTimer = window.setInterval(() => {
-        triggerSchedulerRefresh(tabName);
-      }, config.intervalMs);
     };
 
     document.querySelectorAll('.tab').forEach(tab => {
@@ -178,6 +192,7 @@
 
         updateTabInUrl(tabName);
         startTabRefreshLoop(tabName);
+        triggerSchedulerRefresh(tabName, true);
       });
     });
 
