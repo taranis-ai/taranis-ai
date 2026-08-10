@@ -463,7 +463,7 @@ class StoryView(BaseView):
         if not connector_id:
             if not is_htmx_request():
                 cls.add_flash_notification({"error": "No connector selected for sharing."})
-                return cls.redirect_htmx(url_for("assess.share_story", story_id=story_ids[0]))
+                return cls.redirect_htmx(url_for("assess.share_story", story_ids=story_ids))
             return make_response(cls.render_response_notification({"error": "No connector selected for sharing."}), 400)
 
         try:
@@ -542,6 +542,15 @@ class StoryView(BaseView):
     def submit_report_dialog(cls) -> ResponseReturnValue:
         story_ids = request.form.getlist("story_ids")
         report_id = request.form.get("report", "")
+        if not story_ids or not report_id:
+            error = {"error": "No stories selected for reporting." if not story_ids else "No report selected."}
+            if not is_htmx_request():
+                cls.add_flash_notification(error)
+                if story_ids:
+                    return cls.redirect_htmx(url_for("assess.report_story", story_ids=story_ids, bookmark_id=cls._get_bookmark_id() or None))
+                return cls.redirect_htmx(url_for("assess.assess"))
+            return make_response(cls.render_response_notification(error), 400)
+
         response = CoreApi().api_post(f"/analyze/report-items/{report_id}/stories", json_data=story_ids)
         notification_html = cls.get_notification_from_response(response)
         if not is_htmx_request():

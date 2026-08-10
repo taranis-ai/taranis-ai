@@ -601,7 +601,10 @@ def test_story_read_action_replaces_story_card(app):
     assert toggle_read.get("type") == "submit"
     assert toggle_read_form.tag == "form"
     assert toggle_read_form.get("method") == "post"
-    assert toggle_read_form.get("action") == "/story/1"
+    assert toggle_read_form.get("action") == url_for("assess.story", story_id=story.id)
+    csrf_inputs = toggle_read_form.xpath('./input[@name="csrf_token"]')
+    assert len(csrf_inputs) == 1
+    assert csrf_inputs[0].get("type") == "hidden"
     assert toggle_read_form.xpath('./input[@name="read"]/@value') == ["true"]
     assert toggle_read.get("hx-target") == "#story-1"
     assert toggle_read.get("hx-select") == "#story-1"
@@ -1034,6 +1037,7 @@ def test_story_share_page_loads_connectors_from_assess_endpoint(authenticated_cl
     share_form = tree.xpath('//form[@action="/story/sharing"]')[0]
     assert share_form.get("method") == "post"
     assert share_form.xpath('./input[@name="story_ids"]/@value') == [story_id]
+    assert share_form.xpath('.//select[@id="connector"]/option[1]/@value') == [""]
     assert all(call.request.url != f"{Config.TARANIS_CORE_URL}/config/connectors" for call in responses_mock.calls)
 
 
@@ -1051,6 +1055,37 @@ def test_story_share_redirects_to_story_without_htmx(authenticated_client_basic,
     assert response.status_code == 302
     assert response.headers["Location"] == url_for("assess.story", story_id="story-1")
     assert json.loads(responses_mock.calls[0].request.body) == {"story_ids": ["story-1"]}
+
+
+def test_story_share_validation_preserves_story_ids_without_htmx(authenticated_client_basic):
+    response = authenticated_client_basic.post(
+        url_for("assess.submit_share_story"),
+        data=MultiDict([("story_ids", "story-1"), ("story_ids", "story-2")]),
+    )
+
+    assert response.status_code == 302
+    location = urlparse(response.headers["Location"])
+    assert location.path == url_for("assess.share_story")
+    assert parse_qs(location.query) == {"story_ids": ["story-1", "story-2"]}
+    with authenticated_client_basic.session_transaction() as session:
+        assert session["_flashes"] == [("error", "No connector selected for sharing.")]
+
+
+def test_story_share_failure_redirects_to_story_without_htmx(authenticated_client_basic, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/story/connector-1/share",
+        body=RuntimeError("sharing failed"),
+    )
+
+    response = authenticated_client_basic.post(
+        url_for("assess.submit_share_story"),
+        data={"story_ids": "story-1", "connector": "connector-1"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == url_for("assess.story", story_id="story-1")
+    with authenticated_client_basic.session_transaction() as session:
+        assert session["_flashes"] == [("error", "Failed to share stories with connector.")]
 
 
 def test_story_report_page_lists_reports_without_htmx(authenticated_client_basic, responses_mock):
@@ -1086,6 +1121,49 @@ def test_add_story_to_report_redirects_to_story_without_htmx(authenticated_clien
     assert response.status_code == 302
     assert response.headers["Location"] == url_for("assess.story", story_id="story-1")
     assert json.loads(responses_mock.calls[0].request.body) == ["story-1"]
+
+
+def test_add_story_to_report_redirects_to_bookmark_without_htmx(authenticated_client_basic, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/report-1/stories",
+        json={"message": "Story added to report"},
+    )
+
+    response = authenticated_client_basic.post(
+        url_for("assess.submit_report_story", bookmark_id="bookmark-1"),
+        data={"story_ids": "story-1", "report": "report-1"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == url_for("assess.bookmark", bookmark_id="bookmark-1")
+
+
+def test_add_story_to_report_rejects_missing_story_ids_without_htmx(authenticated_client_basic, responses_mock):
+    response = authenticated_client_basic.post(
+        url_for("assess.submit_report_story"),
+        data={"report": "report-1"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == url_for("assess.assess")
+    assert not responses_mock.calls
+    with authenticated_client_basic.session_transaction() as session:
+        assert session["_flashes"] == [("error", "No stories selected for reporting.")]
+
+
+def test_add_story_to_report_rejects_missing_report_without_htmx(authenticated_client_basic, responses_mock):
+    response = authenticated_client_basic.post(
+        url_for("assess.submit_report_story", bookmark_id="bookmark-1"),
+        data=MultiDict([("story_ids", "story-1"), ("story_ids", "story-2")]),
+    )
+
+    assert response.status_code == 302
+    location = urlparse(response.headers["Location"])
+    assert location.path == url_for("assess.report_story")
+    assert parse_qs(location.query) == {"bookmark_id": ["bookmark-1"], "story_ids": ["story-1", "story-2"]}
+    assert not responses_mock.calls
+    with authenticated_client_basic.session_transaction() as session:
+        assert session["_flashes"] == [("error", "No report selected.")]
 
 
 def test_story_sharing_dialog_still_renders_when_connector_loading_fails(

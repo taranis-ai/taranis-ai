@@ -15,6 +15,8 @@ The frontend supports two bookmark entry paths:
 
 The instant story action remains an HTMX update when JavaScript is available, but is also a normal POST form. Without JavaScript it redirects to the story detail page with the result notification.
 
+Full-page share and report forms preserve all selected story IDs when validation fails. Missing story, connector, or report selections are rejected before calling core; non-HTMX requests redirect to a safe retry page with a flash notification.
+
 The Assess page shows a compact bookmark bar with up to six collections ordered by user-defined bookmark position and an `All bookmarks` link. Bookmark labels in templates should stay translatable, but the default collection name used by the instant create path stays `Bookmarks`.
 
 Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark` action because those stories are already in a bookmark collection.

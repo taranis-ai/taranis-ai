@@ -12,7 +12,7 @@
             <label class="select w-full">
               <span class="label">Connector</span>
               <select id="connector" name="connector" required class="select select-bordered w-full">
-                <option selected disabled>Select a connector</option>
+                <option selected disabled value="">Select a connector</option>
                 {% for option in connectors %}<option value="{{ option.id }}">{{ option.name }}</option>{% endfor %}
               </select>
             </label>
