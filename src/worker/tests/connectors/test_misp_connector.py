@@ -287,7 +287,7 @@ def test_blocked_results_are_counted_in_execution_summary():
                 {"action": "failed", "sync_result": {}},
             ]
         )["message"]
-        == "Processed 3 stories: 1 synced, 0 proposed, 1 blocked, 1 failed"
+        == "Processed 3 stories: 1 synced, 0 proposed, 1 blocked, 0 skipped, 1 failed"
     )
 
 
@@ -315,7 +315,13 @@ def test_auto_update_unowned_event_is_skipped(monkeypatch):
     assert connector.update_misp_event(SimpleNamespace(), {}, "event-1", auto_update=True) == ("skipped",)
 
     monkeypatch.setattr(connector, "send_event_to_misp", lambda *args, **kwargs: ("skipped",))
-    assert connector.misp_sender({"id": "story-123", "news_items": []}, "event-1", auto_update=True)["action"] == "failed"
+    result = connector.misp_sender({"id": "story-123", "news_items": []}, "event-1", auto_update=True)
+    assert result == {"action": "skipped", "message": "MISP auto-update skipped for unowned event", "sync_result": None}
+    assert connector._build_execution_result([result]) == {
+        "action": "skipped",
+        "message": "MISP auto-update skipped for unowned event",
+        "sync_results": [],
+    }
 
 
 @pytest.mark.parametrize(

@@ -612,6 +612,8 @@ class MispConnector:
                     "proposal_url": result[1],
                 },
             }
+        if result[0] == "skipped":
+            return {"action": "skipped", "message": "MISP auto-update skipped for unowned event", "sync_result": None}
 
         return {
             "action": "failed",
@@ -623,7 +625,7 @@ class MispConnector:
         sync_results = [story_result["sync_result"] for story_result in story_results if story_result.get("sync_result")]
         counts = {
             action: sum(story_result.get("action") == action for story_result in story_results)
-            for action in ("synced", "proposed", "blocked", "failed")
+            for action in ("synced", "proposed", "blocked", "skipped", "failed")
         }
 
         return {
@@ -637,7 +639,7 @@ class MispConnector:
         return next((action for action, count in counts.items() if count and count == sum(counts.values())), "mixed")
 
     @staticmethod
-    def _build_action_message(total: int, synced: int, proposed: int, blocked: int, failed: int) -> str:
+    def _build_action_message(total: int, synced: int, proposed: int, blocked: int, skipped: int, failed: int) -> str:
         if total == 1:
             if synced:
                 return "Story synced to MISP"
@@ -645,9 +647,11 @@ class MispConnector:
                 return f"{proposed} proposals submitted to MISP"
             if blocked:
                 return "MISP auto-update blocked by an external proposal"
+            if skipped:
+                return "MISP auto-update skipped for unowned event"
             return "Story was not synced to MISP"
 
-        return f"Processed {total} stories: {synced} synced, {proposed} proposed, {blocked} blocked, {failed} failed"
+        return f"Processed {total} stories: {synced} synced, {proposed} proposed, {blocked} blocked, {skipped} skipped, {failed} failed"
 
     @staticmethod
     def _get_news_item_ids_to_mark_external(story: dict) -> list[str]:
