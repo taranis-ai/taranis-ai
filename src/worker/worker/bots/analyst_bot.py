@@ -25,7 +25,7 @@ class AnalystBot(BaseBot):
         self.attr_name = attr.replace(" ", "").split(",")
 
         bots_params = dict(zip(self.regexp, self.attr_name))
-        limit = self.get_default_timefrom(parameters)
+        limit = parameters.get("timefrom") or self.get_default_timefrom(parameters)
 
         if not (data := self.core_api.get_news_items(limit)):
             logger.debug(f"No News Items for filter: {limit}")

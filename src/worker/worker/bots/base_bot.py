@@ -45,8 +45,8 @@ class BaseBot:
         return filter_dict
 
     @staticmethod
-    def get_default_timefrom(parameters: dict) -> str | None:
-        lookback_days = int(parameters.get("DEFAULT_LOOKBACK_DAYS", DEFAULT_BOT_LOOKBACK_DAYS))
+    def get_default_timefrom(parameters: dict | None) -> str | None:
+        lookback_days = int((parameters or {}).get("DEFAULT_LOOKBACK_DAYS", DEFAULT_BOT_LOOKBACK_DAYS))
         if lookback_days == 0:
             return None
         return (datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=lookback_days)).isoformat()

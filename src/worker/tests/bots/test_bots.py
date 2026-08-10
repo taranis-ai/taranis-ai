@@ -35,10 +35,17 @@ def test_filter_timefrom_is_not_replaced_by_the_default_window(parameters):
     assert filter_dict["timefrom"] == "2026-07-01T00:00:00"
 
 
-def test_filter_uses_configured_default_lookback():
-    before = datetime.now(timezone.utc) - timedelta(days=3)
-    filter_dict = BaseBot().get_filter_dict({"DEFAULT_LOOKBACK_DAYS": 3})
-    after = datetime.now(timezone.utc) - timedelta(days=3)
+@pytest.mark.parametrize(
+    ("parameters", "lookback_days"),
+    [
+        ({}, 7),
+        ({"DEFAULT_LOOKBACK_DAYS": 3}, 3),
+    ],
+)
+def test_filter_uses_default_lookback(parameters, lookback_days):
+    before = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+    filter_dict = BaseBot().get_filter_dict(parameters)
+    after = datetime.now(timezone.utc) - timedelta(days=lookback_days)
 
     assert before <= datetime.fromisoformat(filter_dict["timefrom"]) <= after
 
@@ -85,6 +92,24 @@ def test_analyst_bot_omits_time_filter_for_unlimited_lookback(monkeypatch):
     )
 
     assert limits == [None]
+
+
+def test_analyst_bot_preserves_explicit_timefrom(monkeypatch):
+    import worker.bots as bots
+
+    limits = []
+    analyst_bot = bots.AnalystBot()
+    monkeypatch.setattr(analyst_bot.core_api, "get_news_items", lambda limit: limits.append(limit))
+
+    analyst_bot.execute(
+        {
+            "REGULAR_EXPRESSION": "tag",
+            "ATTRIBUTE_NAME": "label",
+            "timefrom": "2026-07-01T00:00:00",
+        }
+    )
+
+    assert limits == ["2026-07-01T00:00:00"]
 
 
 def test_news_item_content_for_tagging_handles_nullable_fields():

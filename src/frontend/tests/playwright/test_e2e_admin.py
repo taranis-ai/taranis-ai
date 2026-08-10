@@ -1244,6 +1244,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_test_id("settings-default-tlp-level").first).to_have_value("red")
 
         def check_new_values():
+            page.reload()
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
             expect(page.get_by_test_id("settings-default-tlp-level").first).to_have_value("red")
@@ -1405,6 +1406,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             collector_interval_input.fill("0 */8 * * *")
             story_conflict_input.fill("200")
             news_conflict_input.fill("200")
+            bot_lookback_input.fill("7")
             with page.expect_response(settings_update_url) as response_info:
                 settings_submit.click()
             assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"

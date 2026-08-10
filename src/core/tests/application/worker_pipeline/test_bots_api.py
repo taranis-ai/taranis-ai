@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock
+
 from tests.application.support.api_test_base import BaseTest
 
 
@@ -41,7 +44,25 @@ class TestBotsApi(BaseTest):
         assert response.status_code == 200
         assert story_id == stories[0], "Response ID should match request ID"
 
-    def test_news_item_list_supports_unlimited_global_lookback(self, client, stories, api_header, monkeypatch):
+    def test_news_item_list_uses_seven_day_fallback(self, client, api_header, monkeypatch):
+        from core.model import news_item
+        from core.model.settings import Settings
+
+        monkeypatch.setattr(Settings, "get_settings", classmethod(lambda cls: {}))
+        get_all_for_api = Mock(return_value=({"items": []}, 200))
+        monkeypatch.setattr(news_item.NewsItem, "get_all_for_api", get_all_for_api)
+        before = datetime.now(timezone.utc) - timedelta(days=7)
+
+        response = client.get(f"{self.base_uri}/news-item", headers=api_header)
+
+        after = datetime.now(timezone.utc) - timedelta(days=7)
+        assert response.status_code == 200
+        filter_args = get_all_for_api.call_args.args[0]
+        assert filter_args["fetch_all"] == "true"
+        assert before <= datetime.fromisoformat(filter_args["timefrom"]) <= after
+
+    def test_news_item_list_supports_unlimited_global_lookback(self, client, api_header, monkeypatch):
+        from core.model import news_item
         from core.model.settings import Settings
 
         monkeypatch.setattr(
@@ -49,12 +70,15 @@ class TestBotsApi(BaseTest):
             "get_settings",
             classmethod(lambda cls: {"default_bot_lookback_days": 0}),
         )
+        get_all_for_api = Mock(return_value=({"items": [{"id": "news-item-1"}]}, 200))
+        monkeypatch.setattr(news_item.NewsItem, "get_all_for_api", get_all_for_api)
 
         response = client.get(f"{self.base_uri}/news-item", headers=api_header)
 
         assert response.status_code == 200
         assert isinstance(response.get_json(), list)
         assert response.get_json()
+        get_all_for_api.assert_called_once_with({"fetch_all": "true"})
 
     def test_old_format_attribute_update(self, client, stories, api_header):
         """
