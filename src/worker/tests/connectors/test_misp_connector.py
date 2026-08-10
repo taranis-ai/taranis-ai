@@ -204,6 +204,50 @@ def test_connector_task_story_load_failure_persists_failure(requests_mock, mock_
     }
 
 
+def test_automatic_connector_task_skips_deleted_connector(requests_mock, mock_job, monkeypatch):
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1", status_code=404)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
+
+    result = connector_tasks.connector_task("connector-1", ["story-1"], auto_update=True)
+
+    assert result["action"] == "skipped"
+    assert requests_mock.request_history[-1].json()["status"] == "SUCCESS"
+
+
+def test_automatic_connector_task_skips_deleted_story(requests_mock, mock_job, monkeypatch):
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        json={"id": "connector-1", "type": "misp_connector"},
+    )
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=story-1", status_code=404)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
+
+    result = connector_tasks.connector_task("connector-1", ["story-1"], auto_update=True)
+
+    assert result["action"] == "skipped"
+    assert requests_mock.request_history[-1].json()["status"] == "SUCCESS"
+
+
+def test_automatic_connector_task_skips_removed_configuration(requests_mock, mock_job, monkeypatch):
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        json={"id": "connector-1", "type": "misp_connector"},
+    )
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=story-1",
+        json=[{"id": "story-1", "news_items": []}],
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
+
+    result = connector_tasks.connector_task("connector-1", ["story-1"], auto_update=True)
+
+    assert result["action"] == "skipped"
+    assert requests_mock.request_history[-1].json()["status"] == "SUCCESS"
+
+
 def test_misp_sender_returns_sync_payload_after_successful_event(monkeypatch):
     from pymisp import MISPEvent
 

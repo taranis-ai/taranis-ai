@@ -137,12 +137,15 @@ class CoreApi:
         response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
-    def api_get(self, url: str, params=None):
+    def api_get_with_status(self, url: str, params=None) -> tuple[Any | None, int]:
         url = f"{self.api_url}{url}"
         if params:
             url += f"?{urlencode(params, doseq=True)}"
         response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
-        return self.check_response(response, url)
+        return self.check_response(response, url), response.status_code or 0
+
+    def api_get(self, url: str, params=None):
+        return self.api_get_with_status(url, params)[0]
 
     def api_delete(self, url: str):
         url = f"{self.api_url}{url}"
