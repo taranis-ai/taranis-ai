@@ -15,6 +15,9 @@ Centrifugo, SSE, `/sse`, `/connection/uni_sse`, realtime events, `EventSource`, 
 - Realtime publication is best-effort. Any network, HTTP, malformed-response, or Centrifugo error returns false and cannot roll back or change the domain operation.
 - The connect proxy is reachable by Centrifugo directly on core but blocked at public NGINX. It requires its dedicated static proxy secret, an exact allowed `Origin`, and a valid non-revoked access cookie before returning global, organization, and user channels. Authentication failures return a terminal Centrifugo disconnect.
 - One frontend module owns one `EventSource` per authenticated tab. It checks the event version and type, dispatches domain events, coalesces reconnect resynchronization for 300 ms, closes on logout/teardown, and never starts a polling loop.
+- Centrifugo connection, heartbeat, and other control frames do not trigger resynchronization. Terminal disconnects stop reconnection; temporary failures reconnect with jitter and show one degraded notice after 15 seconds.
+- Relevant Assess, Analyze, and Publish pages show one refresh notice for domain events and reconnect resynchronization. Assess reloads its current filtered `#assess` fragment through HTMX when available and falls back to normal navigation.
+- The report-lock compatibility service intentionally preserves the existing process-local behavior in this PR. Redis leases, ownership tokens, expiry, and lost-update protection are out of scope and will be implemented in the next PR.
 
 ## Code Paths
 
@@ -24,6 +27,7 @@ Centrifugo, SSE, `/sse`, `/connection/uni_sse`, realtime events, `EventSource`, 
 - Report lock compatibility service: `src/core/core/managers/report_item_lock_service.py`
 - Domain publishers: `src/core/core/api/assess.py`, `analyze.py`, `bots.py`, `connectors.py`, `worker.py`, `src/core/core/service/report_publish_workflow.py`, and `task.py`
 - Frontend connection module: `src/frontend/frontend/static/js/realtime.js`
+- Frontend realtime notices: `src/frontend/frontend/templates/partials/realtime_notices.html`
 - Frontend gate and URL: `src/frontend/frontend/config.py` and `templates/base.html`
 - NGINX route: `src/ingress/extras/default.conf.template` and `dev/nginx.conf`
 - Centrifugo environment configuration: `docker/compose.yml`, `deploy/kubernetes/00-config.yaml`, and `deploy/helm/templates/configmap.yaml`
@@ -51,3 +55,4 @@ After a successful domain mutation or committed presenter result, core creates o
 - Allowed origins are exact, space-separated values. Do not add wildcard fallback behavior.
 - Keep `/api`, `/health`, `/metrics`, `/debug`, `/admin`, and Swagger off the public realtime NGINX location.
 - Reconnect recovery refetches authoritative state; no Centrifugo history or `Last-Event-ID` replay is assumed.
+- Do not extend the compatibility report-lock service in this PR; the distributed lease redesign belongs to the next PR.

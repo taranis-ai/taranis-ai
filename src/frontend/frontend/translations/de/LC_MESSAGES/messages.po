@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-23 18:00+0200\n"
+"POT-Creation-Date: 2026-08-10 16:07+0200\n"
 "PO-Revision-Date: 2026-06-10 12:15+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -54,31 +54,36 @@ msgstr "Keine Storys gefunden"
 msgid "No stories to choose from"
 msgstr "Keine Storys zur Auswahl"
 
-#: frontend/templates/assess/assess_top_bar.html:29
+#: frontend/templates/assess/assess_top_bar.html:65
 msgid "Edit"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:43
+#: frontend/templates/assess/assess_top_bar.html:79
 #, fuzzy
 msgid "Cluster"
 msgstr "Benutzer"
 
-#: frontend/templates/assess/assess_top_bar.html:94
+#: frontend/templates/assess/assess_top_bar.html:114
+#, fuzzy
+msgid "Remove selected"
+msgstr "Zum Auswählen drücken"
+
+#: frontend/templates/assess/assess_top_bar.html:147
 msgid "Actions"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:137
+#: frontend/templates/assess/assess_top_bar.html:163
 #, fuzzy
 msgid "Select all"
 msgstr "Tags auswählen"
 
-#: frontend/templates/assess/assess_top_bar.html:151
+#: frontend/templates/assess/assess_top_bar.html:177
 #, fuzzy
 msgid "Clear selection"
 msgstr "Auswahl als gelesen markieren"
 
 #: frontend/templates/assess/bookmarks_bar.html:9
-#: frontend/templates/bookmarks/bookmark_detail.html:12
+#: frontend/templates/bookmarks/bookmark_detail.html:7
 #: frontend/templates/bookmarks/bookmark_list.html:4
 #: frontend/templates/partials/navbar.html:65
 msgid "Bookmarks"
@@ -182,6 +187,36 @@ msgstr "Benutzereinstellungen"
 #: frontend/templates/partials/navbar.html:71
 msgid "Logout"
 msgstr "Abmelden"
+
+#: frontend/templates/partials/realtime_notices.html:6
+msgid "Live updates are unavailable. Data may require a manual refresh."
+msgstr "Live-Aktualisierungen sind nicht verfügbar. Die Daten müssen möglicherweise manuell aktualisiert werden."
+
+#: frontend/templates/partials/realtime_notices.html:10
+#: frontend/templates/partials/realtime_notices.html:28
+msgid "Dismiss realtime notification"
+msgstr "Echtzeitbenachrichtigung schließen"
+
+#: frontend/templates/partials/realtime_notices.html:10
+#: frontend/templates/partials/realtime_notices.html:28
+msgid "Dismiss"
+msgstr "Schließen"
+
+#: frontend/templates/partials/realtime_notices.html:18
+msgid "New data is available."
+msgstr "Neue Daten sind verfügbar."
+
+#: frontend/templates/partials/realtime_notices.html:19
+msgid "New stories are available in Assess."
+msgstr "Neue Stories sind in Assess verfügbar."
+
+#: frontend/templates/partials/realtime_notices.html:20
+msgid "Refresh"
+msgstr "Aktualisieren"
+
+#: frontend/templates/partials/realtime_notices.html:21
+msgid "Load new stories"
+msgstr "Neue Stories laden"
 
 #: frontend/templates/partials/taranis_login_logo_motion_snippet.html:4
 msgid "Taranis Logo"

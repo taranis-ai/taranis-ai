@@ -294,7 +294,9 @@ All ordinary read and write flows continue without realtime. An active report ed
 
 Remove the user-facing "Enable SSE" control. Realtime is a deployment capability rather than a user preference because disabling it silently weakens collaboration behavior.
 
-## Report lock redesign
+## Report lock redesign (next PR)
+
+> **Out of scope for PR #980:** The Redis lease, ownership-token, expiry, and lost-update protections below are intentionally deferred to the next PR. PR #980 preserves the existing process-local report-lock behavior while replacing the realtime transport.
 
 ### Lease storage
 
