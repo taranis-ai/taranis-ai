@@ -22,7 +22,7 @@ Workflow:
 
 ## Easy Mode
 
-The automated setup supports Ubuntu and Debian 13.
+The automated setup supports macOS, Ubuntu, and Debian 13. macOS requires Homebrew; the setup uses Podman for containers.
 
 Clone Repository
 
