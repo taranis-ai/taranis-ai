@@ -155,7 +155,7 @@ class Task(BaseModel):
                 )
             )
 
-        filter_args = filters.model_dump(exclude_none=True)
+        filter_args = filters.model_dump()
 
         count = cls.get_filtered_count(query)
         query = cls._add_paging_to_query(filter_args, query)
