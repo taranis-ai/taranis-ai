@@ -18,6 +18,8 @@ Before suggesting local startup, ask which workflow the developer wants:
 - Manual non-tmux startup: `docker compose -f dev/compose.yml up -d`, then run `./install_and_run_dev.sh` in `src/core`, `src/frontend`, and `src/worker` in separate terminals
 - Manual tmux workflow from `dev/README.md`
 
+`./dev/start_dev.sh` supports macOS with Homebrew and Podman, Ubuntu, and Debian 13.
+
 Do not assume tmux.
 
 ## Validation
