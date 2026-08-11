@@ -1,5 +1,6 @@
 import pytest
 
+from worker.bots.base_bot import BaseBot
 from worker.bots.tagging_content import _news_item_content_for_tagging
 from worker.config import Config
 
@@ -17,6 +18,19 @@ def test_initalize_bots():
     bots.TaggingBot()
     bots.SummaryBot()
     bots.WordlistBot()
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        {"ITEM_FILTER": "timefrom=2026-07-01T00%3A00%3A00"},
+        {"filter": {"timefrom": "2026-07-01T00:00:00"}},
+    ],
+)
+def test_filter_timefrom_is_not_replaced_by_the_default_window(parameters):
+    filter_dict = BaseBot().get_filter_dict(parameters)
+
+    assert filter_dict["timefrom"] == "2026-07-01T00:00:00"
 
 
 def test_ioc_bot(story_get_mock):
