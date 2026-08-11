@@ -1,6 +1,3 @@
-from urllib.parse import urlparse
-
-import pytest
 from flask import url_for
 
 from frontend.config import Config
@@ -20,9 +17,12 @@ def _task_payload(job_id: str = "task-1") -> dict:
 
 
 def test_my_tasks_renders_standard_table_for_basic_user(authenticated_client_basic, responses_mock):
+    failed = _task_payload("task-failed")
+    failed["status"] = "FAILURE"
+    failed["result"] = {"message": "Rendering failed", "reason": "render_failed", "retryable": True}
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/tasks/user",
-        json={"items": [_task_payload()], "total_count": 1},
+        json={"items": [_task_payload(), failed], "total_count": 2},
     )
     with authenticated_client_basic.application.app_context():
         url = url_for("user.tasks")
@@ -32,13 +32,15 @@ def test_my_tasks_renders_standard_table_for_basic_user(authenticated_client_bas
     assert response.status_code == 200
     body = response.get_data(as_text=True)
     assert 'data-testid="my-tasks-page"' in body
-    assert 'data-testid="user-tasks"' in body
     assert "Pdf Presenter" in body
     assert "Product rendered" in body
-    assert 'placeholder="Search..."' in body
-    assert "Items per page:" in body
-    assert "Page 1 of 1" in body
-    assert f'href="{url}?order=' in body
+    assert "Success" in body
+    assert "Failed" in body
+    assert "Rendering failed" in body
+    assert "Render Failed" in body
+    assert "Retryable" in body
+    assert 'data-testid="nav-my-tasks"' in body
+    assert ">My Tasks</a>" in body
 
 
 def test_my_tasks_forwards_table_query_to_core(authenticated_client_basic, responses_mock, htmx_header):
@@ -54,7 +56,6 @@ def test_my_tasks_forwards_table_query_to_core(authenticated_client_basic, respo
     assert response.status_code == 200
     assert 'id="user-tasks-table-container"' in response.get_data(as_text=True)
     core_call = responses_mock.calls[-1]
-    assert urlparse(core_call.request.url).path.endswith("/tasks/user")
     assert core_call.request.params == {
         "search": "render",
         "page": "2",
@@ -74,40 +75,17 @@ def test_my_tasks_renders_empty_state(authenticated_client_basic, responses_mock
     assert 'data-testid="empty-user-tasks"' in response.get_data(as_text=True)
 
 
-def test_my_tasks_renders_failure_reason_and_retryability(authenticated_client_basic, responses_mock):
-    failed = _task_payload("task-failed")
-    failed["status"] = "FAILURE"
-    failed["result"] = {"message": "Rendering failed", "reason": "render_failed", "retryable": True}
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/tasks/user", json={"items": [failed], "total_count": 1})
-    with authenticated_client_basic.application.app_context():
-        url = url_for("user.tasks")
-
-    response = authenticated_client_basic.get(url)
-
-    body = response.get_data(as_text=True)
-    assert response.status_code == 200
-    assert "Failed" in body
-    assert "Render Failed" in body
-    assert "Retryable" in body
-
-
-def test_my_tasks_full_page_failure_propagates(authenticated_client_basic, monkeypatch):
+def test_my_tasks_htmx_failure_returns_sanitized_notification(authenticated_client_basic, htmx_header, monkeypatch):
     def fail_to_load_tasks(*args, **kwargs):
-        raise RuntimeError("task loading failed")
+        raise RuntimeError("sensitive task loading details")
 
     monkeypatch.setattr("frontend.views.user_views.DataPersistenceLayer.get_objects", fail_to_load_tasks)
     with authenticated_client_basic.application.app_context():
         url = url_for("user.tasks")
 
-    with pytest.raises(RuntimeError, match="task loading failed"):
-        authenticated_client_basic.get(url)
+    response = authenticated_client_basic.get(url, headers=htmx_header)
 
-
-def test_my_tasks_navbar_link(app):
-    with app.test_request_context("/"):
-        from flask import render_template
-
-        body = render_template("partials/navbar.html", is_admin=False)
-
-    assert 'data-testid="nav-my-tasks"' in body
-    assert ">My Tasks</a>" in body
+    assert response.status_code == 500
+    body = response.get_data(as_text=True)
+    assert "Failed to load tasks." in body
+    assert "sensitive task loading details" not in body

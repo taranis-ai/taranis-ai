@@ -3,7 +3,7 @@ from typing import Any
 from flask import Blueprint, Flask, g, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.task import TaskSubmission
+from models.task import TaskSubmission, UserTaskFilter
 from pydantic import ValidationError
 
 from core.config import Config
@@ -46,7 +46,8 @@ class UserTasks(MethodView):
     @auth_required()
     @extract_args("search", "page", "limit", "order")
     def get(self, filter_args: dict[str, Any] | None = None):
-        return TaskService.get_user_tasks(current_user.id, filter_args)
+        filters = UserTaskFilter.model_validate(filter_args or {})
+        return TaskService.get_user_tasks(current_user.id, filters)
 
 
 def initialize(app: Flask):
