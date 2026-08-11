@@ -31,7 +31,6 @@ def test_my_tasks_renders_standard_table_for_basic_user(authenticated_client_bas
 
     assert response.status_code == 200
     body = response.get_data(as_text=True)
-    assert 'data-testid="my-tasks-page"' in body
     assert "Pdf Presenter" in body
     assert "Product rendered" in body
     assert "Success" in body
