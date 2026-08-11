@@ -40,8 +40,12 @@ services:
         condition: service_healthy
     ports:
       - "0.0.0.0:${TARANIS_CENTRIFUGO_PORT:-8088}:8000"
-      - "0.0.0.0:${TARANIS_CENTRIFUGO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${TARANIS_CENTRIFUGO_API_PORT:-9000}:9000"
     environment:
+      CENTRIFUGO_ADMIN_ENABLED: "true"
+      CENTRIFUGO_ADMIN_EXTERNAL: "true"
+      CENTRIFUGO_ADMIN_PASSWORD: "${CENTRIFUGO_ADMIN_PASSWORD:-admin}"
+      CENTRIFUGO_ADMIN_SECRET: "${CENTRIFUGO_ADMIN_SECRET:-dev-centrifugo-admin-secret}"
       CENTRIFUGO_HTTP_API_KEY: "${CENTRIFUGO_API_KEY:-dev-centrifugo-api-key}"
       CENTRIFUGO_HTTP_SERVER_INTERNAL_PORT: "9000"
       CENTRIFUGO_ENGINE_TYPE: "redis"

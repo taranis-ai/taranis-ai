@@ -82,7 +82,7 @@ Start support services via the dev compose file
 docker compose -f dev/compose.yml up -d
 ```
 
-This starts local Redis without authentication and a pinned Centrifugo instance bound to loopback for the local core and NGINX processes.
+This starts local Redis without authentication and a pinned Centrifugo instance. Its client and authenticated admin UI port is available at `http://localhost:8088` and binds to all host interfaces, while its API and health port `9000` remains loopback-only. The development admin password defaults to `admin`; override `CENTRIFUGO_ADMIN_PASSWORD` and `CENTRIFUGO_ADMIN_SECRET` as needed.
 Queue state is not persisted across local Redis restarts in this dev setup.
 
 Setup nginx.
