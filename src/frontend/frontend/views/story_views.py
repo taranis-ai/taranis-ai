@@ -903,7 +903,7 @@ class StoryView(BaseView):
         form_url = url_for("assess.story_edit", story_id=object_id)
         if bookmark_id:
             form_url = url_for("assess.story_edit", story_id=object_id, bookmark_id=bookmark_id, return_to_bookmark="1")
-        context["form_action"] = f"hx-post={form_url}"
+        context["form_action"] = form_url
         story = context.get("story")
 
         if isinstance(story, Story):

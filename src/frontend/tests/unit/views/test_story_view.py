@@ -325,6 +325,22 @@ def test_story_update_redirects_to_story_without_htmx(authenticated_client, resp
     assert json.loads(responses_mock.calls[0].request.body) == {"read": True}
 
 
+def test_story_edit_standard_post_updates_and_redirects(authenticated_client, responses_mock):
+    responses_mock.patch(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/story-1",
+        json={"message": "Story updated"},
+    )
+
+    response = authenticated_client.post(
+        url_for("assess.story_edit", story_id="story-1"),
+        data={"title": "Updated Story"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == url_for("assess.story", story_id="story-1")
+    assert json.loads(responses_mock.calls[0].request.body) == {"title": "Updated Story"}
+
+
 def _render_news_item_card(story: Story) -> str:
     return render_template_string(
         '{% from "assess/news_item_card.html" import news_item_card %}{{ news_item_card(story.news_items[0], story) }}',
@@ -434,9 +450,11 @@ def test_manual_news_item_validation_error_targets_notification_bar(authenticate
     assert "Invalid BCP 47 language tag" in notification_bar.text_content()
 
 
-def test_story_edit_renders_news_item_tag_editor(authenticated_client, responses_mock):
+def test_story_edit_renders_news_item_tag_editor(app, authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     mock_story_for_edit(responses_mock, story_payload)
+    csrf_token = "csrf-token"
+    authenticated_client.set_cookie(key=app.config["JWT_ACCESS_CSRF_COOKIE_NAME"], value=csrf_token)
 
     response = authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"]))
 
@@ -449,6 +467,12 @@ def test_story_edit_renders_news_item_tag_editor(authenticated_client, responses
     assert "resetTags(); tagEditorOpen = false" in response.text
     assert not tree.xpath('//*[@data-testid="tag-name-input"]')
     assert not tree.xpath('//*[@data-testid="tag-value-input"]')
+
+    edit_form = tree.xpath('//form[@id="story-edit-form"]')[0]
+    assert edit_form.get("method") == "post"
+    assert edit_form.get("action") == url_for("assess.story_edit", story_id=story_payload["id"])
+    assert edit_form.get("hx-post") == edit_form.get("action")
+    assert edit_form.xpath('./input[@name="csrf_token"]/@value') == [csrf_token]
 
 
 def test_story_edit_advanced_view_renders_sentiment_status_chip(authenticated_client, responses_mock):

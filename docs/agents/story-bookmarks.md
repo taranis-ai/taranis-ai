@@ -29,6 +29,8 @@ Per-card Ungroup requests carry the bookmark ID and re-render the current collec
 
 Story editor actions that replace the editor in place, including Like and Dislike, carry the bookmark ID so the replacement keeps its Return to bookmark link and Bookmark-aware Save action.
 
+The story editor Save action is a normal CSRF-protected POST form, enhanced with HTMX when JavaScript is available. Bookmark-aware saves preserve the bookmark return target in both paths.
+
 When an eligible bookmarked story is ungrouped, core replaces its bookmark relationship with relationships to the newly created standalone stories in the same transaction. If a partial ACL-limited ungroup leaves the source story non-empty, bookmarks retain it alongside the accessible new stories.
 
 ## Code Paths
