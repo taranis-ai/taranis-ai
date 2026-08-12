@@ -2,16 +2,20 @@ from typing import Any
 
 from flask import render_template, request
 from flask.typing import ResponseReturnValue
+from flask.views import MethodView
 from flask_babel import gettext
 from flask_jwt_extended import current_user
+from models.task import UserTask
 from models.user import ProfileSettings, UserProfile
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required, update_current_user_cache
 from frontend.core_api import CoreApi
+from frontend.data_persistence import DataPersistenceLayer
 from frontend.i18n import get_supported_language_options, get_timezone_options
 from frontend.log import logger
+from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.utils.validation_helpers import format_pydantic_errors
 from frontend.views.base_view import BaseView
 
@@ -135,3 +139,20 @@ class UserProfileView(BaseView):
 
     def post(self, *args: Any, **kwargs: Any) -> ResponseReturnValue:
         return self.post_settings_view()
+
+
+class UserTaskView(MethodView):
+    decorators = [auth_required()]
+
+    def get(self) -> ResponseReturnValue:
+        try:
+            tasks = DataPersistenceLayer().get_objects(UserTask, parse_paging_data())
+            template = "user_tasks/table.html" if is_htmx_request() else "user_tasks/index.html"
+            return render_template(template, tasks=tasks), 200
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to load user tasks")
+            if is_htmx_request():
+                return BaseView.render_response_notification({"error": "Failed to load tasks."}), 500
+            raise
