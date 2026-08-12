@@ -198,18 +198,19 @@ Use the migration harness to reproduce production-like upgrades from the current
 
 ```bash
 ./dev/test_master_to_branch_migration.sh
+./dev/test_master_to_branch_migration.sh 1.4.0
 ```
 
 This harness requires Podman, or Docker with `CONTAINER_CLI=docker`.
 
-The script creates a temporary git worktree from `origin/master`, starts a disposable PostgreSQL container, initializes and seeds a fresh master database, copies it, then starts the current branch against the copy so pending yoyo migrations are applied. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
+The script creates a temporary git worktree from `origin/master`, or from the release ref passed as its first argument, starts a disposable PostgreSQL container, initializes and seeds a fresh base database, copies it, then starts the current branch against the copy so pending yoyo migrations are applied. It finally runs a configurable pytest target against the migrated database, defaulting to `tests/unit`.
 
 Useful options:
 
 ```bash
 BASE_REF=master ./dev/test_master_to_branch_migration.sh
 KEEP_MIGRATION_TEST_DB=1 ./dev/test_master_to_branch_migration.sh
-PG_IMAGE=postgres:16-alpine ./dev/test_master_to_branch_migration.sh
+PG_IMAGE=docker.io/library/postgres:16-alpine ./dev/test_master_to_branch_migration.sh
 PYTEST_TARGET=tests ./dev/test_master_to_branch_migration.sh
 CONTAINER_CLI=docker BASE_REF=1.4.1 ./dev/test_master_to_branch_migration.sh
 ```
