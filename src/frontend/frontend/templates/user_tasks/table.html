@@ -1,0 +1,86 @@
+{% from "macros/table.html" import table_controls, table_header, table_search_bar %}
+{% set base_url = url_for('user.tasks') %}
+{% set container_id = "user-tasks-table-container" %}
+{% set columns = [
+  {
+    "title": "Task",
+    "field": "worker_type",
+    "sortable": true
+  },
+  {
+    "title": "Status",
+    "field": "status",
+    "sortable": true
+  },
+  {
+    "title": "Result",
+    "field": "result",
+    "sortable": false
+  },
+  {
+    "title": "Reason",
+    "field": "reason",
+    "sortable": false
+  },
+  {
+    "title": "Completed",
+    "field": "last_run",
+    "sortable": true
+  }
+] %}
+<div id="{{ container_id }}" class="table-container space-y-4">
+  {{ table_search_bar(container_id, base_url) }}
+  <div class="overflow-x-auto">
+    <table class="table shadow table-zebra table-sm" id="user-tasks" data-testid="user-tasks">
+      <thead>
+        <tr>{% for column in columns %}{{ table_header(column, container_id, base_url) }}{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% if tasks %}
+          {% for task in tasks %}
+            <tr class="hover:bg-info" data-testid="user-task-row">
+              <td>
+                <div class="font-medium">{{ (task.worker_type or task.task or "Task") | replace('_', ' ') | title }}</div>
+                <div class="text-xs opacity-50">{{ task.job_id or task.id }}</div>
+              </td>
+              <td>
+                {% if task.status == "SUCCESS" %}
+                  <span class="badge badge-success badge-sm">Success</span>
+                {% elif task.status == "NOT_MODIFIED" %}
+                  <span class="badge badge-info badge-sm">Not Modified</span>
+                {% elif task.status == "FAILURE" %}
+                  <span class="badge badge-error badge-sm">Failed</span>
+                {% else %}
+                  <span class="badge badge-ghost badge-sm">{{ task.status | replace('_', ' ') | title }}</span>
+                {% endif %}
+              </td>
+              <td class="max-w-[50ch] whitespace-normal">{{ task.result.message }}</td>
+              <td>
+                {% if task.result.reason %}
+                  <span>{{ task.result.reason | replace('_', ' ') | title }}</span>
+                {% else %}
+                  <span class="opacity-50">—</span>
+                {% endif %}
+                {% if task.result.retryable %}<span class="badge badge-warning badge-sm ml-2">Retryable</span>{% endif %}
+              </td>
+              <td class="whitespace-nowrap">{{ task.last_run | format_datetime }}</td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="{{ columns | length }}">
+              <div class="py-6 text-center text-base-content/60" data-testid="empty-user-tasks">No completed tasks found.</div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+      <tfoot hx-select="#{{ container_id }}" hx-target="#{{ container_id }}" hx-swap="outerHTML">
+        <tr>
+          <td colspan="{{ columns | length }}">
+            <div class="flex justify-center">{{ table_controls(base_url=base_url, data=tasks) }}</div>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>

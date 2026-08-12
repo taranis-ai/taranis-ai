@@ -1,8 +1,8 @@
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import AliasChoices, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from pydantic import BaseModel as PydanticBaseModel
 
 from models.base import TaranisBaseModel
@@ -51,6 +51,14 @@ class TaskResultEnvelope(TaranisBaseModel):
     data: Any = None
 
 
+class UserTaskResult(TaranisBaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    message: str
+    reason: str | None = None
+    retryable: bool = False
+
+
 class Task(TaranisBaseModel):
     """Task execution result model"""
 
@@ -69,6 +77,74 @@ class Task(TaranisBaseModel):
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None
+
+
+class UserTask(TaranisBaseModel):
+    _core_endpoint = "/tasks/user"
+    _model_name = "user_task"
+    _pretty_name = "User Task"
+    _cache_timeout = 1
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    job_id: str | None = None
+    task: str | None = None
+    worker_id: str | None = None
+    worker_type: str | None = None
+    result: UserTaskResult
+    status: str
+    last_run: datetime
+
+
+class UserTaskList(TaranisBaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    items: list[UserTask] = Field(default_factory=list)
+    total_count: int = 0
+
+
+class UserTaskFilter(TaranisBaseModel):
+    search: str | None = None
+    page: int = 1
+    limit: int = 20
+    order: Literal[
+        "worker_type_asc",
+        "worker_type_desc",
+        "status_asc",
+        "status_desc",
+        "last_run_asc",
+        "last_run_desc",
+    ] = "last_run_desc"
+
+    @field_validator("search", mode="before")
+    @classmethod
+    def normalize_search(cls, value: Any) -> str | None:
+        search = str(value or "").strip()
+        return search or None
+
+    @field_validator("page", "limit", mode="before")
+    @classmethod
+    def normalize_positive_int(cls, value: Any, info: ValidationInfo) -> int:
+        default = 1 if info.field_name == "page" else 20
+        try:
+            parsed_value = int(value)
+        except (TypeError, ValueError):
+            return default
+        return parsed_value if parsed_value > 0 else default
+
+    @field_validator("order", mode="before")
+    @classmethod
+    def normalize_order(cls, value: Any) -> str:
+        allowed_orders = {
+            "worker_type_asc",
+            "worker_type_desc",
+            "status_asc",
+            "status_desc",
+            "last_run_asc",
+            "last_run_desc",
+        }
+        return str(value) if value in allowed_orders else "last_run_desc"
 
 
 class TaskSubmission(TaranisBaseModel):

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from models.task import Task as TaskResponseModel
-from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission
+from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission, UserTaskFilter, UserTaskList
 
 from core.config import Config
 from core.log import logger
@@ -34,6 +34,14 @@ class TaskService:
 
         result.update(TaskModel.get_task_statistics())
         validated = TaskHistoryResponse.model_validate(result)
+        return validated.model_dump(mode="json", exclude_none=False), status
+
+    @staticmethod
+    def get_user_tasks(user_id: str, filters: UserTaskFilter) -> tuple[dict[str, Any], int]:
+        result, status = TaskModel.get_user_tasks_for_api(user_id, filters)
+        if status != 200:
+            return result, status
+        validated = UserTaskList.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), status
 
     @staticmethod

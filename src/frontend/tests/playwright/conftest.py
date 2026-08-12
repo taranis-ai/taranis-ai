@@ -579,7 +579,7 @@ def stories_function_wrapper(api_header, fake_source, core_request_client):
             pass
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def stories_session_wrapper(api_header, fake_source, core_request_client):
     stories_list, _ = stories(core_request_client, api_header, fake_source)
     yield stories_list
@@ -730,7 +730,7 @@ def pre_seed_stories(news_items_list, core_request_client):  # noqa: F811
             pass
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pre_seed_stories_enriched(story_list_enriched, api_header, core_request_client):  # noqa: F811
     allow_requests_passthru()
 
@@ -741,7 +741,7 @@ def pre_seed_stories_enriched(story_list_enriched, api_header, core_request_clie
     yield []
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pre_seed_report_stories(story_item_list, api_header, core_request_client):
     allow_requests_passthru()
 
@@ -915,7 +915,7 @@ def report_item_dict(story_item_list):
     }
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def fake_source(core_request_client):
     allow_requests_passthru()
 
@@ -931,8 +931,10 @@ def fake_source(core_request_client):
 
     yield source_data["id"]
 
+    core_request_client.delete(f"/config/osint-sources/{source_data['id']}", params={"force": "true"})
 
-@pytest.fixture(scope="session")
+
+@pytest.fixture(scope="module")
 def story_item_list(fake_source):
     yield [
         {
