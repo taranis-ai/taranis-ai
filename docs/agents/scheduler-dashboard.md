@@ -63,4 +63,5 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Runtime RQ registry data is not SQL-backed, so scheduler list filtering, ordering, and pagination are applied after collecting and annotating the registry entries.
 - Do not use Queue Failures to explain sidebar badges: that tab is transient RQ state, while badge counts and Task Errors use retained database task rows.
 - One-off `simple_web_collector` URL fetches are collector errors. They appear in Scheduler Errors but not as synthetic rows in the configured OSINT Source table.
+- Core owns the `rq:cron:def` Redis hash. Startup reconciliation treats the current source, bot, and housekeeping specifications as an allowlist and removes every other persisted definition and its artifacts.
 - Execution-history totals and per-worker statistics describe the full matching dataset, not only the visible page.

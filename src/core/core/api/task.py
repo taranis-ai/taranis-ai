@@ -2,12 +2,13 @@ from typing import Any
 
 from flask import Blueprint, Flask, g, request
 from flask.views import MethodView
-from models.task import TaskSubmission
+from flask_jwt_extended import current_user
+from models.task import TaskSubmission, UserTaskFilter
 from pydantic import ValidationError
 
 from core.config import Config
 from core.log import logger
-from core.managers.auth_manager import api_key_or_auth_required, api_key_required
+from core.managers.auth_manager import api_key_or_auth_required, api_key_required, auth_required
 from core.managers.decorators import extract_args
 from core.service.task import TaskService
 
@@ -48,9 +49,18 @@ class TaskErrors(MethodView):
         return TaskService.get_errors(filter_args)
 
 
+class UserTasks(MethodView):
+    @auth_required()
+    @extract_args("search", "page", "limit", "order")
+    def get(self, filter_args: dict[str, Any] | None = None):
+        filters = UserTaskFilter.model_validate(filter_args or {})
+        return TaskService.get_user_tasks(current_user.id, filters)
+
+
 def initialize(app: Flask):
     task_bp = Blueprint("tasks", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/tasks")
     task_bp.add_url_rule("", view_func=Task.as_view("tasks"))
     task_bp.add_url_rule("/errors", view_func=TaskErrors.as_view("task_errors"))
+    task_bp.add_url_rule("/user", view_func=UserTasks.as_view("user_tasks"), methods=["GET"])
     task_bp.add_url_rule("/<string:task_id>", view_func=Task.as_view("task"), methods=["GET", "DELETE"])
     app.register_blueprint(task_bp)

@@ -15,7 +15,7 @@ run_step() {
 }
 
 masked_url() {
-  python - "$1" <<'PY'
+  python3 - "$1" <<'PY'
 import sys
 from urllib.parse import urlparse, urlunparse
 
@@ -102,22 +102,29 @@ cleanup() {
 }
 
 require_command git
+require_command python3
 require_command uv
 
 CONTAINER_CLI="${CONTAINER_CLI:-podman}"
 require_command "$CONTAINER_CLI"
 
+if [ "${CONTAINER_CLI##*/}" = "podman" ] && [ -n "${SNAP_REAL_HOME:-}" ] && [ -n "${SNAP_USER_DATA:-}" ]; then
+  case "${XDG_DATA_HOME:-}" in
+    "$SNAP_USER_DATA"/*) export XDG_DATA_HOME="$SNAP_REAL_HOME/.local/share" ;;
+  esac
+fi
+
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "Run this command from inside the taranis-ai git worktree."
 cd "$ROOT_DIR"
 
-BASE_REF="${BASE_REF:-origin/master}"
+BASE_REF="${BASE_REF:-${1:-origin/master}}"
 CURRENT_REF="$(git rev-parse --abbrev-ref HEAD)"
 PYTEST_TARGET="${PYTEST_TARGET:-tests/unit}"
 RUN_ID="$(date +%Y%m%d%H%M%S)-$$"
 TMP_DIR="$(mktemp -d)"
 MASTER_WORKTREE="$TMP_DIR/master"
 PG_CONTAINER="taranis-migration-test-$RUN_ID"
-PG_IMAGE="${PG_IMAGE:-postgres:17-alpine}"
+PG_IMAGE="${PG_IMAGE:-docker.io/library/postgres:17-alpine}"
 PG_USER="taranis"
 PG_PASSWORD="supersecret"
 MASTER_DB="taranis_master_${RUN_ID//-/_}"

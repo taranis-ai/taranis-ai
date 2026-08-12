@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from typing import Any
 
+from models.task import UserTaskFilter
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Mapped
 
@@ -15,6 +16,7 @@ class Task(BaseModel):
 
     SUCCESS_STATUSES = {"SUCCESS", "NOT_MODIFIED"}
     FAILURE_STATUSES = {"FAILURE"}
+    USER_TASK_TERMINAL_STATUSES = SUCCESS_STATUSES | FAILURE_STATUSES | {"PREVIEW"}
     DEFAULT_RESULT = {"message": "No task result was recorded", "reason": "missing_result", "retryable": False, "data": None}
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
@@ -132,6 +134,34 @@ class Task(BaseModel):
     @classmethod
     def get_by_job_id(cls, job_id: str) -> "Task | None":
         return cls.get_first(db.select(cls).where(cls.job_id == job_id))
+
+    @classmethod
+    def get_user_tasks_for_api(cls, user_id: str, filters: UserTaskFilter) -> tuple[dict[str, Any], int]:
+        query = db.select(cls).where(
+            cls.user_id == user_id,
+            cls.status.in_(cls.USER_TASK_TERMINAL_STATUSES),
+            cls.last_run.is_not(None),
+        )
+
+        if filters.search:
+            pattern = f"%{filters.search}%"
+            query = query.where(
+                or_(
+                    cls.job_id.ilike(pattern),
+                    cls.task.ilike(pattern),
+                    cls.worker_id.ilike(pattern),
+                    cls.worker_type.ilike(pattern),
+                    cls.status.ilike(pattern),
+                )
+            )
+
+        filter_args = filters.model_dump()
+
+        count = cls.get_filtered_count(query)
+        query = cls._add_paging_to_query(filter_args, query)
+        query = cls._add_sorting_to_query(filter_args, query)
+        items = cls.get_filtered(query) or []
+        return {"items": cls.to_list(items), "total_count": count}, 200
 
     @classmethod
     def get_latest_matching(

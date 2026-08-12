@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def story_list_enriched(fake_source):
     yield [
         {
