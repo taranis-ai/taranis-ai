@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="mx-auto max-w-xl p-8">
+    <div class="card border border-base-200 bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h1 class="card-title text-2xl">Add to Report</h1>
+        <form method="post" action="{{ url_for('assess.submit_report_story', bookmark_id=bookmark_id or None) }}" class="space-y-4">
+          <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+          {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
+          {% if bookmark_id %}<input type="hidden" name="bookmark_id" value="{{ bookmark_id }}">{% endif %}
+          <label class="select w-full">
+            <span class="label">Report</span>
+            <select id="report" name="report" required class="select select-bordered w-full">
+              <option selected disabled value="">Select a report</option>
+              {% for report in reports %}<option value="{{ report.id }}">{{ report.title }}</option>{% endfor %}
+            </select>
+          </label>
+          <button type="submit" class="btn btn-outline w-full">Add to report</button>
+          <a class="btn btn-outline w-full"
+             href="{{ url_for('analyze.report', report_id='0') }}?{% for story_id in story_ids %}story_ids={{ story_id }}&{% endfor %}">New Report</a>
+        </form>
+      </div>
+    </div>
+  </section>
+{% endblock content %}
