@@ -50,20 +50,21 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
       libpangoft2-1.0-0 && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/.venv /app/.venv
+RUN groupadd user && \
+    useradd --home-dir /app -g user user && \
+    install -d -o user -g user /app/ms-playwright
+
+COPY --from=builder --chown=user:user /app/.venv /app/.venv
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     playwright install-deps chromium && \
     rm -rf /var/lib/apt/lists/*
 
-RUN groupadd user && \
-    useradd --home-dir /app -g user user && \
-    install -d -o user -g user /app/ms-playwright
-COPY --chown=user:user ./src/worker/. /app/
-
 USER user
 
 RUN playwright install --only-shell chromium
+
+COPY --chown=user:user ./src/worker/. /app/
 
 ARG git_info
 ENV GIT_INFO=${git_info:-'{}'}
