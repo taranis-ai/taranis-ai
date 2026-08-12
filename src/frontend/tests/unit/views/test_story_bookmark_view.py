@@ -151,6 +151,24 @@ def test_instant_bookmark_story_uses_first_ordered_bookmark(
     assert payload == {"story_ids": ["story-1"]}
 
 
+def test_instant_bookmark_story_redirects_to_story_without_htmx(
+    authenticated_client_basic: FlaskClient, responses_mock: RequestsMock
+) -> None:
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/bookmarks",
+        json={"items": [_bookmark_payload(story_count=0, stories=[])], "total_count": 1},
+    )
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/bookmarks/bookmark-1/stories",
+        json={"message": "1 stories bookmarked", "added": 1, "story_count": 1},
+    )
+
+    response = authenticated_client_basic.post(url_for("assess.instant_bookmark_story", story_id="story-1"))
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == url_for("assess.story", story_id="story-1")
+
+
 def test_instant_bookmark_story_creates_default_collection_when_none_exists(
     authenticated_client_basic: FlaskClient, responses_mock: RequestsMock, htmx_header: dict[str, bool]
 ) -> None:
