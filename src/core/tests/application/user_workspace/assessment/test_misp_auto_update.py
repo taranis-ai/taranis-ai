@@ -291,6 +291,50 @@ def test_malformed_sync_results_do_not_skip_valid_results():
 
 
 @pytest.mark.usefixtures("session")
+def test_handle_misp_connector_result_stores_blocked_auto_update_proposal():
+    story = _story()
+    proposal_url = "https://misp.example/events/view/event-1"
+
+    handle_misp_connector_result(
+        {
+            "connector_type": "MISP_CONNECTOR",
+            "connector_id": "connector-1",
+            "sync_results": [{"type": "misp_auto_update_blocked", "story_id": story.id, "proposal_url": proposal_url}],
+        }
+    )
+
+    assert story.find_attribute_by_key("has_proposals").value == proposal_url
+
+
+@pytest.mark.usefixtures("session")
+def test_handle_misp_connector_result_only_clears_matching_auto_update_proposal():
+    story = _story()
+    proposal_url = "https://misp.example/events/view/event-1"
+    story.patch_attributes([{"key": "has_proposals", "value": proposal_url}])
+    db.session.commit()
+    payload = {
+        "type": "misp_sync_story",
+        "story_id": story.id,
+        "misp_event_uuid": "event-1",
+        "news_item_ids_to_mark_external": [],
+        "auto_update": False,
+        "proposal_url": proposal_url,
+    }
+    result = {"connector_type": "MISP_CONNECTOR", "connector_id": "connector-1", "sync_results": [payload]}
+
+    handle_misp_connector_result(result)
+    assert story.find_attribute_by_key("has_proposals").value == proposal_url
+
+    payload.update(auto_update=True, proposal_url="https://misp.example/events/view/event-2")
+    handle_misp_connector_result(result)
+    assert story.find_attribute_by_key("has_proposals").value == proposal_url
+
+    payload["proposal_url"] = proposal_url
+    handle_misp_connector_result(result)
+    assert story.find_attribute_by_key("has_proposals") is None
+
+
+@pytest.mark.usefixtures("session")
 def test_report_changes_refresh_affected_story_after_commit(admin_user, monkeypatch):
     refreshed = []
     monkeypatch.setattr("core.service.misp_auto_update.refresh_misp_auto_update_job", refreshed.append)
