@@ -14,8 +14,7 @@
     "npm:@codemirror/view@^6.43.8": "6.43.8",
     "npm:@tailwindcss/cli@*": "4.3.0",
     "npm:@tailwindcss/cli@4.3.0": "4.3.0",
-    "npm:alpinejs@*": "3.15.12",
-    "npm:alpinejs@^3.15.12": "3.15.12",
+    "npm:alpinejs@^3.16.0": "3.16.0",
     "npm:choices.js@*": "11.2.3",
     "npm:choices.js@^11.2.3": "11.2.3",
     "npm:codemirror@^6.0.2": "6.0.2",
@@ -358,8 +357,8 @@
     "@vue/shared@3.1.5": {
       "integrity": "sha512-oJ4F3TnvpXaQwZJNF3ZK+kLPHKarDmJjJ6jyzVNDKH9md1dptjC7lWR//jrGuLdek/U6iltWxqAnYOu8gCiOvA=="
     },
-    "alpinejs@3.15.12": {
-      "integrity": "sha512-nJvPAQVNPdZZ0NrExJ/kzQco3ijR8LwvCOadQecllESiqT4NyZ/57sN9V2XyvhlBGAbmlKYgeWZvYdKq99ij/Q==",
+    "alpinejs@3.16.0": {
+      "integrity": "sha512-fRAp17Igmh2NHvgRGOY8n/x9o/g8rlseVn27awaq3wy7IsNYfu0lKnQGHn4WQx+NdjnpQFajhRiULah+R1Nsog==",
       "dependencies": [
         "@vue/reactivity"
       ]
@@ -555,7 +554,7 @@
       "npm:@codemirror/state@^6.7.1",
       "npm:@codemirror/view@^6.43.8",
       "npm:@tailwindcss/cli@4.3.0",
-      "npm:alpinejs@^3.15.12",
+      "npm:alpinejs@^3.16.0",
       "npm:choices.js@^11.2.3",
       "npm:codemirror@^6.0.2",
       "npm:daisyui@^5.7.16",
