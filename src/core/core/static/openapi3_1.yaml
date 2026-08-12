@@ -2367,6 +2367,57 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /tasks/user:
+    get:
+      tags:
+      - tasks
+      operationId: tasks.user_tasks.get
+      description: list completed tasks triggered by the authenticated user
+      security:
+      - UserAuth: []
+      parameters:
+      - name: search
+        in: query
+        required: false
+        description: searches task identifiers, worker identifiers and types, task names, and statuses
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 20
+      - name: order
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - worker_type_asc
+          - worker_type_desc
+          - status_asc
+          - status_desc
+          - last_run_asc
+          - last_run_desc
+          default: last_run_desc
+      responses:
+        '200':
+          description: user task results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user_task_list'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /bots/news-item:
     get:
       security:
@@ -11098,6 +11149,69 @@ components:
       required:
       - message
       - retryable
+    user_task_result:
+      type: object
+      additionalProperties: false
+      properties:
+        message:
+          type: string
+        reason:
+          type:
+          - string
+          - 'null'
+        retryable:
+          type: boolean
+          default: false
+      required:
+      - message
+      - retryable
+    user_task:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        job_id:
+          type:
+          - string
+          - 'null'
+        task:
+          type:
+          - string
+          - 'null'
+        worker_id:
+          type:
+          - string
+          - 'null'
+        worker_type:
+          type:
+          - string
+          - 'null'
+        result:
+          $ref: '#/components/schemas/user_task_result'
+        status:
+          type: string
+        last_run:
+          type: string
+          format: date-time
+      required:
+      - id
+      - result
+      - status
+      - last_run
+    user_task_list:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/user_task'
+        total_count:
+          type: integer
+      required:
+      - items
+      - total_count
     task_history_stats:
       type: object
       properties:

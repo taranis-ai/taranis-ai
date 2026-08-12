@@ -20,7 +20,7 @@ from .dashboard_views import DashboardView
 from .onboarding_views import OnboardingPromptView
 from .product_views import ProductView
 from .report_views import ReportItemView
-from .user_views import UserProfileView
+from .user_views import UserProfileView, UserTaskView
 
 
 __all__ = [
@@ -48,4 +48,5 @@ __all__ = [
     "ReportItemView",
     "ProductView",
     "UserProfileView",
+    "UserTaskView",
 ]
