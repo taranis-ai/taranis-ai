@@ -3,9 +3,13 @@
     {% set badge = view.get_admin_menu_badge() %}
     {% if badge > 0 and view.get_admin_menu_badge_route %}
       <a href="{{ view.get_admin_menu_badge_route() }}"
-         class="badge badge-error badge-sm absolute right-3 top-1/2 z-10 -translate-y-1/2 transition hover:scale-110 hover:brightness-90"
+         class="group badge badge-error badge-sm absolute right-3 top-1/2 z-10 -translate-y-1/2 gap-0 transition-all hover:scale-110 hover:gap-1 hover:brightness-90 focus-visible:gap-1"
          aria-label="View {{ badge }} current {{ view_name }} errors"
-         data-testid="admin-menu-{{ view_name }}-errors">{{ badge }}</a>
+         data-testid="admin-menu-{{ view_name }}-errors">
+        {{ badge }}
+        <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all group-hover:max-w-20 group-hover:opacity-100 group-focus-visible:max-w-20 group-focus-visible:opacity-100"
+              aria-hidden="true">Show errors</span>
+      </a>
     {% endif %}
   {% endif %}
 {% endmacro %}
