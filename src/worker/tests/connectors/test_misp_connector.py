@@ -291,11 +291,10 @@ def test_blocked_results_are_counted_in_execution_summary():
     )
 
 
-def test_pymisp_uses_configured_timeout(monkeypatch):
+@pytest.mark.parametrize(("request_timeout", "expected"), [("", 5), ("42", 42)])
+def test_pymisp_uses_configured_timeout(monkeypatch, request_timeout, expected):
     connector = MispConnector()
-    connector.url = "https://misp.example"
-    connector.api_key = "key"
-    connector.request_timeout = 42
+    connector.parse_parameters({"URL": "https://misp.example", "API_KEY": "key", "REQUEST_TIMEOUT": request_timeout})
     captured = {}
 
     monkeypatch.setattr("worker.connectors.misp_connector.PyMISP", lambda **kwargs: captured.update(kwargs) or object())
@@ -303,7 +302,7 @@ def test_pymisp_uses_configured_timeout(monkeypatch):
 
     connector.send_event_to_misp({})
 
-    assert captured["timeout"] == 42
+    assert captured["timeout"] == expected
 
 
 def test_auto_update_unowned_event_is_skipped(monkeypatch):

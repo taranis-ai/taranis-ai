@@ -8,6 +8,8 @@ MISP auto-update, MISP proposal warnings, `has_proposals`, `StoryMispAutoUpdate`
 
 Auto-update configuration stores only a MISP connector and whether it is enabled. It appears in the Advanced story editor; only users with `CONNECTOR_USER_ACCESS` can change it, while other users can see its status and proposal link. Approved user and bot content mutations schedule a push after five minutes; inbound MISP changes do not. An automatic update of an unowned MISP event completes as skipped, while manual execution retains its proposal behavior. An external MISP proposal leaves auto-update enabled and stores the event URL in `has_proposals`; a successful automatic push removes that attribute. Story cards show only the enabled badge.
 
+An empty MISP connector request timeout uses the five-second default.
+
 ## Code Paths
 
 - Core configuration and response: `src/core/core/model/story.py`

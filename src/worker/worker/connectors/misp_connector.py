@@ -41,7 +41,7 @@ class MispConnector:
         self.api_key = parameters.get("API_KEY", "")
         self.org_id = parameters.get("ORGANISATION_ID", "")
         self.ssl = parameters.get("SSL", False)
-        self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
+        self.request_timeout = int(parameters.get("REQUEST_TIMEOUT") or 5)
         self.proxies = parameters.get("PROXIES")
         self.headers = parameters.get("HEADERS", {})
         try:
