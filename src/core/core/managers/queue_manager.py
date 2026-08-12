@@ -290,11 +290,7 @@ class QueueManager:
             managed_specs = self._get_managed_cron_specs()
             desired_ids = set(managed_specs)
             current_ids = self._get_registered_cron_job_ids()
-            housekeeping_ids = set(self._get_housekeeping_cron_specs())
-            managed_current_ids = {
-                job_id for job_id in current_ids if job_id.startswith(("osint_source_", "bot_")) or job_id in housekeeping_ids
-            }
-            stale_ids = sorted(managed_current_ids - desired_ids)
+            stale_ids = sorted(current_ids - desired_ids)
 
             registered = 0
             source_count = 0
