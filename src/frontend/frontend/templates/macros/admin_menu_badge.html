@@ -3,7 +3,7 @@
     {% set badge = view.get_admin_menu_badge() %}
     {% if badge > 0 and view.get_admin_menu_badge_route %}
       <a href="{{ view.get_admin_menu_badge_route() }}"
-         class="badge badge-error badge-sm absolute right-3 top-1/2 z-10 -translate-y-1/2"
+         class="badge badge-error badge-sm absolute right-3 top-1/2 z-10 -translate-y-1/2 transition hover:scale-110 hover:brightness-90"
          aria-label="View {{ badge }} current {{ view_name }} errors"
          data-testid="admin-menu-{{ view_name }}-errors">{{ badge }}</a>
     {% endif %}

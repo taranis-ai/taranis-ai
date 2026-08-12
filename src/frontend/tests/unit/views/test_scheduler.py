@@ -85,6 +85,8 @@ def test_admin_sidebar_badges_link_to_filtered_errors_without_changing_main_link
     assert bot_link.get("href") == bot_url
     assert source_error_link.get("href") == source_errors_url
     assert bot_error_link.get("href") == bot_errors_url
+    assert {"transition", "hover:scale-110", "hover:brightness-90"} <= set(source_error_link.classes)
+    assert {"transition", "hover:scale-110", "hover:brightness-90"} <= set(bot_error_link.classes)
 
 
 def test_admin_sidebar_hides_zero_error_badges(authenticated_client, responses_mock, mock_core_get_endpoints):
