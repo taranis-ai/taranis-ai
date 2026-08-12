@@ -1361,7 +1361,7 @@ class StoryView(BaseView):
         )
 
     @staticmethod
-    def _get_action_response_content(story_id: str, updated_story: dict[str, Any] | None = None) -> str:
+    def _get_action_response_content(story_id: str) -> str:
         current_url = StoryView._get_current_url_path()
         bookmark_id = StoryView._get_bookmark_id()
 
@@ -1369,10 +1369,6 @@ class StoryView(BaseView):
         detail_path = url_for("assess.story", story_id=story_id)
 
         context = StoryView.get_item_context(story_id)
-        if updated_story:
-            context["story"] = Story(**updated_story)
-            sources = {source.id: source for source in StoryView.get_filter_lists().sources if source.id}
-            StoryView._enhance_story_with_details(context["story"], sources)
         if not context.get("story"):
             logger.warning(f"Story {story_id} not found")
             return render_template("partials/404.html")
@@ -1462,12 +1458,11 @@ class StoryView(BaseView):
             if request.args.get("return_to_bookmark") == "1" and getattr(response, "ok", False):
                 cls.add_flash_notification(response)
                 return cls.redirect_htmx(url_for("assess.bookmark", bookmark_id=bookmark_id))
+        elif getattr(response, "ok", False):
+            DataPersistenceLayer().invalidate_model_cache_locally(Story, story_id)
         notification_html = cls.get_notification_from_response(response)
 
-        updated_story = (
-            response.json().get("story") if getattr(response, "ok", False) else None
-        )  # Get updated story data if the response is successful; Helps show the correct connector setting
-        content = cls._get_action_response_content(story_id, updated_story)
+        content = cls._get_action_response_content(story_id)
         return make_response(notification_html + content, 200)
 
     def get(self, **kwargs: Any) -> ResponseReturnValue:

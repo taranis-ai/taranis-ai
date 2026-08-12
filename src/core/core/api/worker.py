@@ -6,7 +6,6 @@ from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import api_key_required
-from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
@@ -144,13 +143,13 @@ class SourceIcon(MethodView):
 
 
 def _configured_misp_story_ids() -> set[str]:
-    return set(db.session.execute(db.select(StoryMispAutoUpdate.story_id)).scalars().all())
+    return set(StoryMispAutoUpdate.get_story_ids())
 
 
 def _cancel_deleted_misp_story_jobs(story_ids: set[str]) -> None:
     if not story_ids:
         return
-    surviving_ids = set(db.session.execute(db.select(Story.id).where(Story.id.in_(story_ids))).scalars().all())
+    surviving_ids = {story.id for story in Story.get_bulk(list(story_ids))}
     cancel_misp_auto_update_jobs(story_ids - surviving_ids)
 
 

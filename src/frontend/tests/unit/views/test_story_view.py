@@ -469,7 +469,7 @@ def test_story_edit_misp_auto_update_is_advanced_only(authenticated_client, resp
     assert not any(urlparse(call.request.url).path.endswith("/assess/connectors") for call in responses_mock.calls)
 
 
-def test_story_action_response_enhances_updated_story(authenticated_client, responses_mock):
+def test_story_action_response_refreshes_updated_story(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     updated_story = story_with_news_item_tags()
     updated_story["summary"] = ""
@@ -478,9 +478,12 @@ def test_story_action_response_enhances_updated_story(authenticated_client, resp
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
         json={"tags": [], "sources": [{"id": "manual", "name": "Updated source"}], "groups": []},
     )
-    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}", json=story_payload)
+    story_url = f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}"
+    responses_mock.get(story_url, json=story_payload)
     responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}", json={"story": updated_story})
 
+    authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"]))
+    responses_mock.replace("GET", story_url, json=updated_story)
     response = authenticated_client.post(url_for("assess.story_update", story_id=story_payload["id"]))
 
     assert "Updated replacement content" in response.text

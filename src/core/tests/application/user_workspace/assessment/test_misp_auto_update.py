@@ -6,7 +6,7 @@ from core.managers.db_manager import db
 from core.model.connector import Connector
 from core.model.report_item import ReportItem
 from core.model.report_item_type import ReportItemType
-from core.model.story import Story
+from core.model.story import Story, StoryMispAutoUpdate
 from core.service.misp_story_sync import apply_misp_auto_update_blocked, apply_misp_sync_story_result, handle_misp_connector_result
 from core.service.news_item_tag import NewsItemTagService
 from core.service.story import StoryService
@@ -124,6 +124,19 @@ def test_story_list_serializes_misp_auto_update(admin_user):
     assert Story.update(story.id, {"misp_auto_update": {"connector_id": connector.id, "enabled": True}}, admin_user)[1] == 200
 
     assert story.to_dict()["misp_auto_update"] == {"connector_id": connector.id, "enabled": True}
+
+
+@pytest.mark.usefixtures("session")
+def test_misp_auto_update_story_ids_can_be_filtered_by_connector(admin_user):
+    first_story = _story()
+    second_story = _story()
+    first_connector = _misp_connector("First MISP")
+    second_connector = _misp_connector("Second MISP")
+    assert Story.update(first_story.id, {"misp_auto_update": {"connector_id": first_connector.id}}, admin_user)[1] == 200
+    assert Story.update(second_story.id, {"misp_auto_update": {"connector_id": second_connector.id}}, admin_user)[1] == 200
+
+    assert set(StoryMispAutoUpdate.get_story_ids()) == {first_story.id, second_story.id}
+    assert StoryMispAutoUpdate.get_story_ids(first_connector.id) == [first_story.id]
 
 
 @pytest.mark.usefixtures("session")
@@ -391,7 +404,10 @@ def test_tag_deletion_refreshes_each_affected_story_once(monkeypatch):
 def test_connector_deletion_cancels_configured_story_jobs(admin_user, monkeypatch):
     story = _story()
     connector = _misp_connector("MISP")
+    other_story = _story()
+    other_connector = _misp_connector("Other MISP")
     assert Story.update(story.id, {"misp_auto_update": {"connector_id": connector.id, "enabled": True}}, admin_user)[1] == 200
+    assert Story.update(other_story.id, {"misp_auto_update": {"connector_id": other_connector.id, "enabled": True}}, admin_user)[1] == 200
     cancelled = []
     monkeypatch.setattr("core.service.misp_auto_update.cancel_misp_auto_update_jobs", cancelled.append)
 

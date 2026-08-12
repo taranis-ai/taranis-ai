@@ -1546,6 +1546,13 @@ class StoryMispAutoUpdate(BaseModel):
     story: Mapped[Story] = relationship("Story", back_populates="misp_auto_update")
 
     @classmethod
+    def get_story_ids(cls, connector_id: str | None = None) -> list[str]:
+        query = db.select(cls.story_id)
+        if connector_id is not None:
+            query = query.where(cls.connector_id == connector_id)
+        return list(db.session.execute(query).scalars().all())
+
+    @classmethod
     def configure(cls, story: Story, data: dict[str, Any]) -> None:
         from core.model.connector import Connector
 

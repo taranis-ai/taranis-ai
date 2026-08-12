@@ -113,16 +113,12 @@ class Connector(BaseModel):
         if not (connector := cls.get(connector_id)):
             return {"error": "Connector not found"}, 404
 
-        story_ids = (
-            db.session.execute(db.select(StoryMispAutoUpdate.story_id).where(StoryMispAutoUpdate.connector_id == connector_id))
-            .scalars()
-            .all()
-        )
+        configured_story_ids = StoryMispAutoUpdate.get_story_ids(connector_id)
         try:
             connector.unschedule_connector()
             db.session.delete(connector)
             db.session.commit()
-            cancel_misp_auto_update_jobs(story_ids)
+            cancel_misp_auto_update_jobs(configured_story_ids)
             return {"message": "Connector deleted", "id": connector.id}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
