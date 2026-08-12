@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from typing import Any
 
+from models.task import UserTaskFilter
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Mapped
 
@@ -15,6 +16,7 @@ class Task(BaseModel):
 
     SUCCESS_STATUSES = {"SUCCESS", "NOT_MODIFIED"}
     FAILURE_STATUSES = {"FAILURE"}
+    USER_TASK_TERMINAL_STATUSES = SUCCESS_STATUSES | FAILURE_STATUSES | {"PREVIEW"}
     DEFAULT_RESULT = {"message": "No task result was recorded", "reason": "missing_result", "retryable": False, "data": None}
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
@@ -133,25 +135,16 @@ class Task(BaseModel):
     def get_by_job_id(cls, job_id: str) -> "Task | None":
         return cls.get_first(db.select(cls).where(cls.job_id == job_id))
 
-    @staticmethod
-    def _positive_int(value: Any, default: int) -> int:
-        try:
-            parsed_value = int(value)
-        except (TypeError, ValueError):
-            return default
-        return parsed_value if parsed_value > 0 else default
-
     @classmethod
-    def get_user_tasks_for_api(cls, user_id: str, filter_args: dict[str, Any] | None = None) -> tuple[dict[str, Any], int]:
-        filter_args = dict(filter_args or {})
+    def get_user_tasks_for_api(cls, user_id: str, filters: UserTaskFilter) -> tuple[dict[str, Any], int]:
         query = db.select(cls).where(
             cls.user_id == user_id,
-            cls.status.in_(cls.SUCCESS_STATUSES | cls.FAILURE_STATUSES),
+            cls.status.in_(cls.USER_TASK_TERMINAL_STATUSES),
             cls.last_run.is_not(None),
         )
 
-        if search := str(filter_args.get("search") or "").strip():
-            pattern = f"%{search}%"
+        if filters.search:
+            pattern = f"%{filters.search}%"
             query = query.where(
                 or_(
                     cls.job_id.ilike(pattern),
@@ -159,28 +152,14 @@ class Task(BaseModel):
                     cls.worker_id.ilike(pattern),
                     cls.worker_type.ilike(pattern),
                     cls.status.ilike(pattern),
-                    cls.result.ilike(pattern),
                 )
             )
 
-        allowed_orders = {
-            "worker_type_asc",
-            "worker_type_desc",
-            "status_asc",
-            "status_desc",
-            "last_run_asc",
-            "last_run_desc",
-        }
-        order = str(filter_args.get("order") or "last_run_desc")
-        normalized_args = {
-            "page": cls._positive_int(filter_args.get("page"), 1),
-            "limit": cls._positive_int(filter_args.get("limit"), 20),
-            "order": order if order in allowed_orders else "last_run_desc",
-        }
+        filter_args = filters.model_dump()
 
         count = cls.get_filtered_count(query)
-        query = cls._add_paging_to_query(normalized_args, query)
-        query = cls._add_sorting_to_query(normalized_args, query)
+        query = cls._add_paging_to_query(filter_args, query)
+        query = cls._add_sorting_to_query(filter_args, query)
         items = cls.get_filtered(query) or []
         return {"items": cls.to_list(items), "total_count": count}, 200
 

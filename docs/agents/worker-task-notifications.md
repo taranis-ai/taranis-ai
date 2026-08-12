@@ -7,7 +7,7 @@ Worker-backed frontend actions, task queue notifications, OSINT source collect, 
 Worker-backed actions still report queue success when core accepts the job. If core health reports `workers: down`, the frontend shows a warning that the task was queued but may not be processed until a worker starts. Final task failures are not pushed into that enqueue notification, but persisted task/status views reflect actual RQ-level failures such as exceptions, timeouts, and killed workhorses. For user-triggered runs, the persisted task row also carries the authenticated `user_id`; scheduler-driven runs leave it empty.
 MISP connector outcomes are persisted according to the completed operation rather than successful worker dispatch: synchronized stories and submitted proposals are successes, while a story that was not synchronized is a failure with a brief reason. New-event synchronization and existing-event updates have distinct result messages. Raw MISP exceptions and connector credentials are not exposed in the user task result.
 Task history is retained globally by the daily `cleanup_task_history` housekeeping job. The retention window comes from the core `TASK_HISTORY_RETENTION_DAYS` environment variable and does not vary by task type or worker family.
-The My Tasks page lists only completed persisted results belonging to the authenticated user. It does not query Redis or display queued and running jobs; enqueue notifications remain the immediate acknowledgement for those states.
+The My Tasks page lists only completed persisted results belonging to the authenticated user, including successful OSINT source previews with `PREVIEW` status. It does not query Redis or display queued and running jobs; enqueue notifications remain the immediate acknowledgement for those states.
 
 Jobs carrying an authenticated `user_id` are enqueued at the front of their functional RQ queue. User-triggered jobs therefore run in last-in, first-out order within that queue, while scheduler-driven and other background jobs retain normal first-in, first-out ordering. User attribution and front-of-queue priority propagate through deferred dependencies and post-collection bot scheduling.
 
@@ -26,7 +26,7 @@ Use `cd src/worker && uv run pytest tests/connectors/test_misp_connector.py` for
 ## Pitfalls
 Do not change core queue endpoint status codes for this behavior. A missing or failed health check should keep the original task notification. The enqueue notification is still only about scheduling; failure visibility for admin/source/bot/render status comes from persisted task rows, not a second frontend polling path.
 
-The user endpoint must always derive ownership from the authenticated user, exclude scheduler and other-user rows, and omit task-specific `result.data`.
+The user endpoint must always derive ownership from the authenticated user, exclude scheduler and other-user rows, and omit task-specific `result.data`. Search is limited to visible relational fields and must not match `result.data` or other serialized result content.
 
 Front-of-queue priority is local to each functional queue. Workers check enabled queues in this priority order: presenters, publishers, connectors, misc, bots, collectors. A dedicated collector worker is unaffected because it only subscribes to collectors. An already running job is never preempted.
 

@@ -2379,6 +2379,7 @@ paths:
       - name: search
         in: query
         required: false
+        description: searches task identifiers, worker identifiers and types, task names, and statuses
         schema:
           type: string
       - name: page
@@ -2386,11 +2387,15 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 1
+          default: 1
       - name: limit
         in: query
         required: false
         schema:
           type: integer
+          minimum: 1
+          default: 20
       - name: order
         in: query
         required: false
@@ -2403,6 +2408,7 @@ paths:
           - status_desc
           - last_run_asc
           - last_run_desc
+          default: last_run_desc
       responses:
         '200':
           description: user task results
