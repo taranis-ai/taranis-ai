@@ -34,7 +34,6 @@ See `.github/workflows` for CI behavior. Run commands from the relevant componen
 - E2E tests start and stop a dedicated Docker/Podman Compose test stack automatically for the session; you mainly need Docker/Podman Compose available locally (see `src/frontend/tests/playwright/README.md`).
 - If VS Code supplies `DEBUG=release`, unset it or use a boolean value such as `DEBUG=true` before starting frontend or core tests.
 - Models has no unit tests. Worker browser-scraping tests install Playwright browsers.
-- Core tests replace Redis connections with an in-process fake so test queues and cache invalidations cannot affect a running local instance.
 - E2E admin tests on `master` intentionally keep many functions commented out; do not uncomment them without proving they pass.
 
 ## Test Conventions

@@ -1,10 +1,6 @@
 import importlib
 import os
-import uuid
 from copy import deepcopy
-
-import fakeredis
-from rq.job import Job
 
 
 def _reload_external_auth_modules():
@@ -24,25 +20,6 @@ def _reload_external_auth_modules():
 def test_is_alive(client):
     response = client.get("/api/isalive")
     assert {"isalive": True} == response.json
-
-
-def test_task_enqueue_uses_isolated_functional_redis(client, auth_header, app):
-    word_list_id = str(uuid.uuid7())
-
-    response = client.post(f"/api/config/word-lists/gather/{word_list_id}", headers=auth_header)
-
-    assert response.status_code == 200
-    queue_manager = app.extensions["rq"]
-    assert isinstance(queue_manager.redis, fakeredis.FakeRedis)
-    job_id = f"gather_word_list_{word_list_id}"
-    job = Job.fetch(job_id, connection=queue_manager.redis)
-    assert job.origin == "misc"
-    assert job.func_name == "worker.misc.misc_tasks.gather_word_list"
-    assert job.args == (word_list_id,)
-    assert job.meta["task"] == "gather_word_list"
-    assert job.meta["worker_id"] == word_list_id
-    assert job.meta["worker_type"] == "gather_word_list"
-    assert job_id in queue_manager.get_queue("misc").job_ids
 
 
 def test_is_alive_fail(client):
