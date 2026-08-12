@@ -221,6 +221,10 @@ class StoryBookmarkView(BaseView):
 
         response = CoreApi().api_post(f"/assess/bookmarks/{bookmark_id}/stories", json_data={"story_ids": [story_id]})
         cls._invalidate_bookmark_cache(bookmark_id)
+        if not is_htmx_request():
+            cls.add_flash_notification(response)
+            return cls.redirect_htmx(url_for("assess.story", story_id=story_id))
+
         return make_response(cls.get_notification_from_response(response), cls._response_status(response))
 
     @classmethod

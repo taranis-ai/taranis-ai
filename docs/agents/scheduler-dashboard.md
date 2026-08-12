@@ -57,4 +57,5 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Do not carry `search`, `page`, `limit`, or `order` from one scheduler tab into another.
 - Auto-refresh must not reset an active search, sort, page, or page-size selection.
 - Runtime RQ registry data is not SQL-backed, so scheduler list filtering, ordering, and pagination are applied after collecting and annotating the registry entries.
+- Core owns the `rq:cron:def` Redis hash. Startup reconciliation treats the current source, bot, and housekeeping specifications as an allowlist and removes every other persisted definition and its artifacts.
 - Execution-history totals and per-worker statistics describe the full matching dataset, not only the visible page.

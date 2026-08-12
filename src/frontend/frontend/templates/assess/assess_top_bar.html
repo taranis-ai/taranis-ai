@@ -30,8 +30,16 @@
   </button>
 {% endmacro %}
 
+<noscript>
+  <style>
+    #assess-top-bar {
+      display: none;
+    }
+  </style>
+</noscript>
 {% set bookmark_mode = bookmark is defined and bookmark %}
-<div class="sticky z-10 mb-4"
+<div id="assess-top-bar"
+     class="sticky z-10 mb-4"
      style="top: calc(var(--app-header-height) + var(--viewport-warning-height))"
      @keydown.shift.window="showHints = true"
      @keyup.shift.window="showHints = false">
