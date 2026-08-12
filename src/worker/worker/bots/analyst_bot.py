@@ -1,7 +1,5 @@
 import re
 
-from worker.log import logger
-
 from .base_bot import BaseBot
 
 
@@ -25,37 +23,33 @@ class AnalystBot(BaseBot):
         self.attr_name = attr.replace(" ", "").split(",")
 
         bots_params = dict(zip(self.regexp, self.attr_name))
-        limit = self.default_timefrom()
+        if not (data := self.get_stories(parameters)):
+            return {"message": "No new stories found", "result": {}}
+        for story in data:
+            for item in story.get("news_items", []):
+                news_item_id = item["id"]
+                title = item["title"]
+                review = item["review"]
+                content = item["content"]
 
-        if not (data := self.core_api.get_news_items(limit)):
-            logger.debug(f"No News Items for filter: {limit}")
-            return {"message": "No news items found", "result": {}}
-        for item in data:
-            if not item:
-                continue
-            news_item_id = item["id"]
-            title = item["title"]
-            review = item["review"]
-            content = item["content"]
+                analyzed_text = set((title + review + content).split())
 
-            analyzed_text = set((title + review + content).split())
+                for element in analyzed_text:
+                    attributes = []
+                    for key, value in bots_params.items():
+                        if finding := re.search(f"({value})", element.strip(".,")):
+                            value = finding[1]
 
-            for element in analyzed_text:
-                attributes = []
-                for key, value in bots_params.items():
-                    if finding := re.search(f"({value})", element.strip(".,")):
-                        value = finding[1]
+                            news_attribute = {
+                                "key": key,
+                                "value": value,
+                            }
 
-                        news_attribute = {
-                            "key": key,
-                            "value": value,
-                        }
+                            attributes.append(news_attribute)
 
-                        attributes.append(news_attribute)
-
-                        self.core_api.update_news_item_attributes(
-                            news_item_id,
-                            attributes,
-                        )
+                            self.core_api.update_news_item_attributes(
+                                news_item_id,
+                                attributes,
+                            )
 
         return {"message": "Analyst bot completed", "result": {}}

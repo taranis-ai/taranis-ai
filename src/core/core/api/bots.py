@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta
-
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
 
@@ -10,7 +8,6 @@ from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model import bot, news_item, story
-from core.model.settings import Settings
 from core.service.cache_invalidation import (
     SCOPE_ASSESS_VIEWS,
     SCOPE_SCHEDULE,
@@ -65,14 +62,9 @@ class BotUnGroupAction(MethodView):
 
 class NewsItem(MethodView):
     @api_key_required
-    def get(self, news_item_id: str | None = None):
+    def get(self, news_item_id: str):
         try:
-            if news_item_id:
-                return news_item.NewsItem.get_for_api(news_item_id)
-            default_lookback_days = Settings.get_settings()["default_bot_lookback_days"]
-            default_timefrom = (datetime.now() - timedelta(days=default_lookback_days)).isoformat()
-            filter_args = {"limit": request.args.get("limit", default=default_timefrom)}
-            return news_item.NewsItem.get_all_for_api(filter_args)
+            return news_item.NewsItem.get_for_api(news_item_id)
         except Exception:
             logger.exception("Failed to get bot news item data")
             return {"error": "Failed to get news item data"}, 400
@@ -164,7 +156,6 @@ def initialize(app: Flask):
 
     bots_bp.add_url_rule("", view_func=BotsInfo.as_view("bots"))
     bots_bp.add_url_rule("/<string:bot_id>", view_func=BotsInfo.as_view("bot_info"))
-    bots_bp.add_url_rule("/news-item", view_func=NewsItem.as_view("bots_news_item"))
     bots_bp.add_url_rule(
         "/news-item/<string:news_item_id>",
         view_func=NewsItem.as_view("update_news_item"),
