@@ -9,6 +9,7 @@ from flask import url_for
 from htmx_helpers import with_htmx_wait
 from playwright.sync_api import Page, expect
 
+from tests.external_e2e import allow_requests_passthru
 from tests.playwright.notification_helpers import dismiss_notifications
 
 
@@ -198,6 +199,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         marker = uuid.uuid4().hex
         task_id = f"fetch_single_news_item_{marker}"
         worker_url = f"https://example.invalid/{marker}"
+        allow_requests_passthru(core_request_client.base_url)
         core_request_client.post(
             "/tasks",
             json_data={
