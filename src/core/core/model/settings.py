@@ -58,7 +58,7 @@ class Settings(BaseModel):
             return {"error": "Invalid timezone"}, 400
         if "default_bot_lookback_days" in update_data:
             try:
-                update_data["default_bot_lookback_days"] = cls._validate_positive_int(update_data["default_bot_lookback_days"])
+                update_data["default_bot_lookback_days"] = cls._validate_non_negative_int(update_data["default_bot_lookback_days"])
             except ValueError:
                 return {"error": "Invalid bot lookback setting"}, 400
         if "onboarding_enabled" in update_data:
@@ -140,17 +140,17 @@ class Settings(BaseModel):
         raise ValueError("Invalid boolean")
 
     @staticmethod
-    def _validate_positive_int(value: Any) -> int:
+    def _validate_non_negative_int(value: Any) -> int:
         if isinstance(value, bool):
-            raise ValueError("Invalid positive integer")
+            raise ValueError("Invalid non-negative integer")
         if isinstance(value, int):
             normalized = value
         elif isinstance(value, str) and value.strip().isdecimal():
             normalized = int(value.strip())
         else:
-            raise ValueError("Invalid positive integer")
-        if normalized < 1:
-            raise ValueError("Invalid positive integer")
+            raise ValueError("Invalid non-negative integer")
+        if normalized < 0:
+            raise ValueError("Invalid non-negative integer")
         return normalized
 
     @classmethod

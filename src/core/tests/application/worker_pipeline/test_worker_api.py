@@ -44,6 +44,26 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert captured_filter["timefrom"] == "2026-08-07T12:00:00"
 
+    def test_zero_bot_lookback_does_not_apply_timefrom(self, client, api_header, monkeypatch):
+        captured_filter = {}
+
+        monkeypatch.setattr("core.api.worker.Settings.get_settings", lambda: {"default_bot_lookback_days": 0})
+
+        def capture_filter(filter_args):
+            captured_filter.update(filter_args)
+            return [{"id": "story-1"}]
+
+        monkeypatch.setattr("core.api.worker.Story.get_for_worker", capture_filter)
+
+        response = client.get(
+            f"{self.base_uri}/stories",
+            query_string={"worker": "true", "exclude_attr": "ANALYST_BOT"},
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        assert "timefrom" not in captured_filter
+
     def test_non_bot_story_query_does_not_apply_default_lookback(self, client, api_header, monkeypatch):
         captured_filter = {}
 

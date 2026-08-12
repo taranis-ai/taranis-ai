@@ -169,7 +169,8 @@ class Stories(MethodView):
         targets_stories = filter_args.get("story_id") or filter_args.get("story_ids")
         if is_bot_query and not targets_stories and "timefrom" not in filter_args:
             default_lookback_days = Settings.get_settings()["default_bot_lookback_days"]
-            filter_args["timefrom"] = (Story.utcnow() - timedelta(days=default_lookback_days)).isoformat()
+            if default_lookback_days > 0:
+                filter_args["timefrom"] = (Story.utcnow() - timedelta(days=default_lookback_days)).isoformat()
 
         if story := Story.get_for_worker(filter_args):
             return jsonify(story), 200
