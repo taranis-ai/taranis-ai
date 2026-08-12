@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from flask import Blueprint, Flask, Response, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from werkzeug.datastructures import FileStorage
@@ -163,6 +165,12 @@ class Stories(MethodView):
         for key in filter_list_keys:
             filter_args[key] = request.args.getlist(key)
 
+        is_bot_query = str(filter_args.get("worker", "")).lower() == "true"
+        targets_stories = filter_args.get("story_id") or filter_args.get("story_ids")
+        if is_bot_query and not targets_stories and "timefrom" not in filter_args:
+            default_lookback_days = Settings.get_settings()["default_bot_lookback_days"]
+            filter_args["timefrom"] = (Story.utcnow() - timedelta(days=default_lookback_days)).isoformat()
+
         if story := Story.get_for_worker(filter_args):
             return jsonify(story), 200
         return {"error": "No stories found"}, 404
@@ -261,9 +269,7 @@ class BotInfo(MethodView):
             return Bot.get_all_for_api(filter_args)
 
         if result := Bot.get(bot_id):
-            bot_config = result.to_dict()
-            bot_config["default_bot_lookback_days"] = Settings.get_settings()["default_bot_lookback_days"]
-            return bot_config, 200
+            return result.to_dict(), 200
         return {"error": "Bot not found"}, 404
 
     @api_key_required
