@@ -13,7 +13,7 @@ Centrifugo, SSE, `/sse`, `/connection/uni_sse`, realtime events, `EventSource`, 
 - `REALTIME_ENABLED=false` prevents core publication and frontend `EventSource` creation without affecting REST behavior.
 - Core's fixed publisher methods send small, versioned envelopes to explicit global, organization, or user-limited channels. Call sites pass IDs and status only. Publication uses a pooled HTTP session, a dedicated API key, 200 ms connect and 300 ms read timeouts, and the HTTP client's default no-retry behavior.
 - Realtime publication is best-effort. Any network, HTTP, malformed-response, or Centrifugo error returns false and cannot roll back or change the domain operation.
-- The connect proxy is reachable by Centrifugo directly on core but blocked at public NGINX. It requires its dedicated static proxy secret, an exact allowed `Origin`, and a valid non-revoked access cookie before returning global, organization, and user channels. Authentication failures return a terminal Centrifugo disconnect.
+- Centrifugo enforces its exact browser-origin allowlist before calling the protected `POST ${TARANIS_BASE_PATH}api/realtime/connect` endpoint. Core requires the dedicated static proxy secret and a valid non-revoked access cookie before returning global, organization, and user channels. Authentication failures return a terminal Centrifugo disconnect.
 - One frontend module owns one `EventSource` per authenticated tab. It checks the event version and type, dispatches domain events, coalesces reconnect resynchronization for 300 ms, closes on logout/teardown, and never starts a polling loop.
 - Centrifugo connection, heartbeat, and other control frames do not trigger resynchronization. Terminal disconnects stop reconnection; temporary failures reconnect with jitter and show one degraded notice after 15 seconds.
 - Relevant Assess, Analyze, and Publish pages show one refresh notice for domain events and reconnect resynchronization. Assess reloads its current filtered `#assess` fragment through HTMX when available and falls back to normal navigation.
@@ -52,7 +52,7 @@ After a successful domain mutation or committed presenter result, core creates o
 - Never reuse `API_KEY`, `JWT_SECRET_KEY`, the Centrifugo HTTP API key, or the connect-proxy secret for another role.
 - Do not put access tokens or API keys in the public SSE URL or logs.
 - A Centrifugo HTTP 200 may still contain a top-level or per-channel API error; validate the response body.
-- Native `EventSource` cannot add custom headers. Authentication depends on same-origin cookies forwarded by NGINX, while the server-to-server proxy secret prevents direct connect-proxy use.
+- Native `EventSource` cannot add custom headers. Centrifugo enforces the browser origin, while Core authenticates the forwarded same-origin cookie and server-to-server proxy secret.
 - Allowed origins are exact, space-separated values. Do not add wildcard fallback behavior.
 - Keep `/api`, `/health`, `/metrics`, `/debug`, `/admin`, and Swagger off the public realtime NGINX location.
 - Reconnect recovery refetches authoritative state; no Centrifugo history or `Last-Event-ID` replay is assumed.

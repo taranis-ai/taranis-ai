@@ -36,8 +36,8 @@ data:
   CENTRIFUGO_ENGINE_TYPE: redis
   CENTRIFUGO_ENGINE_REDIS_PREFIX: taranis:realtime
   CENTRIFUGO_CLIENT_PROXY_CONNECT_ENABLED: "true"
-  CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: "http://core:8080{{ .Values.config.taranisBasePath }}api/internal/realtime/connect"
-  CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_HEADERS: Cookie Origin
+  CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: "http://core:8080{{ .Values.config.taranisBasePath }}api/realtime/connect"
+  CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_HEADERS: Cookie
   CENTRIFUGO_CHANNEL_PUBLICATION_DATA_FORMAT: json_object
   CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"global"},{"name":"org"},{"name":"user","allow_user_limited_channels":true}]'
   CENTRIFUGO_WEBSOCKET_DISABLED: "true"

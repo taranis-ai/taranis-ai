@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-10 16:07+0200\n"
+"POT-Creation-Date: 2026-08-12 15:58+0200\n"
 "PO-Revision-Date: 2026-06-10 12:15+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -30,15 +30,15 @@ msgstr "Deutsch"
 msgid "Taranis AI - Open-Source Intelligence leveraging AI"
 msgstr "Taranis AI - Open-Source Intelligence mit KI"
 
-#: frontend/templates/base.html:24 frontend/templates/login/index.html:21
+#: frontend/templates/base.html:25 frontend/templates/login/index.html:21
 msgid "OK"
 msgstr "OK"
 
-#: frontend/templates/base.html:25 frontend/templates/login/index.html:21
+#: frontend/templates/base.html:26 frontend/templates/login/index.html:21
 msgid "Delete"
 msgstr "Löschen"
 
-#: frontend/templates/base.html:26 frontend/templates/login/index.html:21
+#: frontend/templates/base.html:27 frontend/templates/login/index.html:21
 msgid "Cancel"
 msgstr "Abbrechen"
 
@@ -184,37 +184,49 @@ msgstr "Profil"
 msgid "User Settings"
 msgstr "Benutzereinstellungen"
 
+#: frontend/templates/partials/navbar.html:68
+#: frontend/templates/user_tasks/index.html:5
+msgid "My Tasks"
+msgstr ""
+
 #: frontend/templates/partials/navbar.html:71
+#: frontend/templates/user_notifications/index.html:6
+msgid "Notification Center"
+msgstr ""
+
+#: frontend/templates/partials/navbar.html:78
 msgid "Logout"
 msgstr "Abmelden"
 
-#: frontend/templates/partials/realtime_notices.html:6
+#: frontend/templates/partials/realtime_notices.html:3
 msgid "Live updates are unavailable. Data may require a manual refresh."
-msgstr "Live-Aktualisierungen sind nicht verfügbar. Die Daten müssen möglicherweise manuell aktualisiert werden."
+msgstr ""
+"Live-Aktualisierungen sind nicht verfügbar. Die Daten müssen "
+"möglicherweise manuell aktualisiert werden."
 
-#: frontend/templates/partials/realtime_notices.html:10
-#: frontend/templates/partials/realtime_notices.html:28
+#: frontend/templates/partials/realtime_notices.html:4
+#: frontend/templates/partials/realtime_notices.html:19
 msgid "Dismiss realtime notification"
 msgstr "Echtzeitbenachrichtigung schließen"
 
-#: frontend/templates/partials/realtime_notices.html:10
-#: frontend/templates/partials/realtime_notices.html:28
+#: frontend/templates/partials/realtime_notices.html:4
+#: frontend/templates/partials/realtime_notices.html:19
 msgid "Dismiss"
 msgstr "Schließen"
 
-#: frontend/templates/partials/realtime_notices.html:18
+#: frontend/templates/partials/realtime_notices.html:12
 msgid "New data is available."
 msgstr "Neue Daten sind verfügbar."
 
-#: frontend/templates/partials/realtime_notices.html:19
+#: frontend/templates/partials/realtime_notices.html:13
 msgid "New stories are available in Assess."
 msgstr "Neue Stories sind in Assess verfügbar."
 
-#: frontend/templates/partials/realtime_notices.html:20
+#: frontend/templates/partials/realtime_notices.html:14
 msgid "Refresh"
 msgstr "Aktualisieren"
 
-#: frontend/templates/partials/realtime_notices.html:21
+#: frontend/templates/partials/realtime_notices.html:15
 msgid "Load new stories"
 msgstr "Neue Stories laden"
 
@@ -253,6 +265,20 @@ msgstr "Keine Rollen gefunden"
 #: frontend/templates/user/user_form.html:114
 msgid "No roles to choose from"
 msgstr "Keine Rollen zur Auswahl"
+
+#: frontend/templates/user_notifications/index.html:7
+msgid ""
+"Notifications from this browser session. They are not stored on the "
+"server."
+msgstr ""
+
+#: frontend/templates/user_notifications/index.html:9
+msgid "Clear all"
+msgstr "Alle löschen"
+
+#: frontend/templates/user_notifications/index.html:11
+msgid "No notifications in this browser session."
+msgstr ""
 
 #: frontend/templates/user_profile/hotkey_kbd.html:7
 msgid "Edit selected story"
@@ -504,11 +530,11 @@ msgstr "API ist nicht erreichbar - %(url)s"
 msgid "Username and password are required"
 msgstr "Benutzername und Passwort sind erforderlich"
 
-#: frontend/views/user_views.py:49
+#: frontend/views/user_views.py:53
 msgid "Failed to change password."
 msgstr "Passwort konnte nicht geändert werden."
 
-#: frontend/views/user_views.py:63
+#: frontend/views/user_views.py:67
 msgid "Failed to update profile settings."
 msgstr ""
 

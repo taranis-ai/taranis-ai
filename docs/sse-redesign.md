@@ -157,12 +157,12 @@ Native SSE over HTTP/1.1 has a restrictive per-browser, per-origin connection li
 
 1. An authenticated page opens a same-origin `EventSource` to `${TARANIS_BASE_PATH}sse`.
 2. The browser sends the existing access-token cookie. No token is placed in a query parameter or JavaScript-readable URL.
-3. Centrifugo calls an internal core connect-proxy endpoint and forwards only the `Cookie` and `Origin` headers consumed by core.
+3. Centrifugo validates the browser origin, then calls Core's protected connect-proxy endpoint and forwards the `Cookie` header.
 4. Centrifugo adds `X-Realtime-Proxy-Key` through the connect proxy's `http.static_headers`; core rejects requests without the expected value. The header is not included in `http_headers` or `emulated_headers`, so a client value cannot override it.
 5. Core validates the JWT cookie with the existing authentication stack and loads the current user, organization, and permissions from authoritative application state.
 6. Core returns the Centrifugo user ID, connection expiry, and server-side channels. The browser cannot add channels.
 
-The internal endpoint is `POST /api/internal/realtime/connect`. It is excluded from the public OpenAPI description even if network routing makes the path technically reachable. Both the proxy secret and a valid access cookie are required.
+The endpoint is `POST /api/realtime/connect`. Both the proxy secret and a valid access cookie are required.
 
 A successful proxy response has this conceptual shape:
 

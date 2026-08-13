@@ -68,9 +68,13 @@
           <a href="{{ url_for('user.tasks') }}" data-testid="nav-my-tasks">{{ _("My Tasks") }}</a>
         </li>
         <li>
+          <a href="{{ url_for('user.notifications') }}" data-testid="nav-notification-center">{{ _("Notification Center") }}</a>
+        </li>
+        <li>
           <a href="{{ url_for('base.logout') }}"
              data-viewport-warning-reset-on-logout="true"
              data-realtime-close-on-logout="true"
+             data-session-notifications-clear-on-logout="true"
              data-testid="logout-link">{{ _("Logout") }}</a>
         </li>
       </ul>

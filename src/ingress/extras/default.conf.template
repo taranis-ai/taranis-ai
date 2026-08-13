@@ -29,10 +29,6 @@ server {
         proxy_pass http://frontendupstream;
     }
 
-    location = ${TARANIS_BASE_PATH}api/internal/realtime/connect {
-        return 404;
-    }
-
     location ${TARANIS_BASE_PATH}api {
         proxy_pass http://coreupstream;
         proxy_redirect off;

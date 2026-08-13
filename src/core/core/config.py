@@ -82,7 +82,6 @@ class Settings(BaseSettings):
     CENTRIFUGO_API_URL: str = "http://centrifugo:9000"
     CENTRIFUGO_API_KEY: SecretStr = SecretStr("centrifugo-api-key")
     CENTRIFUGO_CONNECT_PROXY_SECRET: SecretStr = SecretStr("centrifugo-connect-proxy-secret")
-    CENTRIFUGO_ALLOWED_ORIGINS: str = "http://localhost:8080"
     DISABLE_SCHEDULER: bool = False
     TARANIS_CORE_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False
@@ -133,8 +132,6 @@ class Settings(BaseSettings):
         existing_secrets = {self.API_KEY.get_secret_value(), self.JWT_SECRET_KEY}
         if api_key == proxy_secret or api_key in existing_secrets or proxy_secret in existing_secrets:
             raise ValueError("Centrifugo secrets must be distinct from each other and existing application secrets")
-        if not self.CENTRIFUGO_ALLOWED_ORIGINS.split():
-            raise ValueError("CENTRIFUGO_ALLOWED_ORIGINS must contain at least one exact origin")
         return self
 
     TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "dev"] = "database"

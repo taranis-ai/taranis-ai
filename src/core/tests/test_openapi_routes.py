@@ -8,7 +8,7 @@ from core.__init__ import create_app
 
 
 OPENAPI_PATH = Path(__file__).resolve().parents[1] / "core" / "static" / "openapi3_1.yaml"
-IGNORED_PATHS = {"/", "/internal/realtime/connect"}
+IGNORED_PATHS = {"/"}
 
 
 def _canonical_path(path: str) -> str:

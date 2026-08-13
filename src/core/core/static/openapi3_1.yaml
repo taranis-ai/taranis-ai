@@ -22,6 +22,8 @@ tags:
   description: session-related functionality
 - name: health
   description: see whether Taranis dependencies are healthy
+- name: realtime
+  description: authenticate Centrifugo realtime connections
 - name: isalive
   description: see whether the Taranis instance is alive
 - name: users
@@ -220,6 +222,19 @@ paths:
                         - up
                         - down
                         - n/a
+  /realtime/connect:
+    post:
+      tags:
+      - realtime
+      operationId: realtime.connect.post
+      description: authenticate a Centrifugo connection using its dedicated proxy secret and the user's access cookie
+      security:
+      - RealtimeProxyKey: []
+      responses:
+        '200':
+          description: connection credentials or a terminal disconnect
+        '403':
+          description: missing or invalid connect-proxy secret
   /users:
     get:
       security:
@@ -11257,6 +11272,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    RealtimeProxyKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Proxy-Key
   responses:
     404NotFound:
       description: Not found response

@@ -22,11 +22,6 @@ def connect():
         logger.warning("realtime_connect_rejected %s", {"reason": "proxy_secret"})
         return {"error": "forbidden"}, 403
 
-    origin = request.headers.get("Origin", "")
-    if not origin or origin not in Config.CENTRIFUGO_ALLOWED_ORIGINS.split():
-        logger.warning("realtime_connect_rejected %s", {"reason": "origin"})
-        return {"error": "forbidden"}, 403
-
     if not Config.REALTIME_ENABLED:
         return AUTHENTICATION_DISCONNECT, 200
 
@@ -59,6 +54,6 @@ def connect():
 
 
 def initialize(app: Flask):
-    realtime_bp = Blueprint("realtime", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/internal/realtime")
+    realtime_bp = Blueprint("realtime", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/realtime")
     realtime_bp.add_url_rule("/connect", methods=["POST"], view_func=connect)
     app.register_blueprint(realtime_bp)

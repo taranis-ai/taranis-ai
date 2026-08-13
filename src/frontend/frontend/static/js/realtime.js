@@ -79,6 +79,12 @@
     document.getElementById("realtime-status-notification")?.classList.remove(
       "hidden",
     );
+    self.taranisNotifications?.add({
+      message: document.querySelector(
+        "#realtime-status-notification .alert span",
+      )?.textContent,
+      level: "warning",
+    });
   }
 
   function scheduleOutageNotification() {
@@ -114,6 +120,11 @@
       : notice.dataset.defaultAction;
     refresh.href = `${self.location.pathname}${self.location.search}`;
     notice.classList.remove("hidden");
+    self.taranisNotifications?.add({
+      message: notice.querySelector("[data-realtime-data-message]")
+        ?.textContent,
+      level: "info",
+    });
   }
 
   function scheduleReconnect() {
