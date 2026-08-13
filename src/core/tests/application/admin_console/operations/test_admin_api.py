@@ -59,6 +59,26 @@ class TestAdminApi(BaseTest):
         assert response_settings["default_collector_proxy"] == "http://patched-proxy.test:2222"
         assert response_settings["default_collector_interval"] == initial_settings["settings"]["default_collector_interval"]
 
+    def test_settings_accepts_zero_bot_lookback(self, client, auth_header):
+        response = self.assert_put_ok(
+            client,
+            "settings",
+            {"settings": {"default_bot_lookback_days": "0"}},
+            auth_header,
+        )
+
+        assert response.get_json()["settings"]["default_bot_lookback_days"] == 0
+
+    def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
+        response = client.put(
+            self.concat_url("settings"),
+            json={"settings": {"default_bot_lookback_days": -1}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "Invalid bot lookback setting"
+
     def test_settings_rejects_invalid_default_timezone(self, client, auth_header):
         response = client.put(
             self.concat_url("settings"),

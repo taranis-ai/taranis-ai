@@ -1,4 +1,3 @@
-import datetime
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -34,8 +33,6 @@ class BaseBot:
 
         if timefrom := parameters.get("timefrom"):
             filter_dict["timefrom"] = timefrom
-        elif "timefrom" not in filter_dict:
-            filter_dict["timefrom"] = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
 
         filter_dict["worker"] = True
         filter_dict["exclude_attr"] = self.type
