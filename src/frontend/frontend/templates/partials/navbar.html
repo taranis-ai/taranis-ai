@@ -74,7 +74,7 @@
           <a href="{{ url_for('base.logout') }}"
              data-viewport-warning-reset-on-logout="true"
              data-realtime-close-on-logout="true"
-             data-session-notifications-clear-on-logout="true"
+             @click="window.taranisNotifications.clear()"
              data-testid="logout-link">{{ _("Logout") }}</a>
         </li>
       </ul>

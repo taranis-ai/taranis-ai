@@ -242,16 +242,18 @@ function replaceNotificationBarFromResponse(responseText) {
     return;
   }
 
+  const level = responseDoc.querySelector("#notification-bar .alert-error")
+    ? "error"
+    : "info";
   const nextNotificationBar = currentNotificationBar.cloneNode(false);
   const alert = document.createElement("div");
-  alert.className = responseDoc.querySelector("#notification-bar .alert-error")
-    ? "alert alert-error"
-    : "alert alert-info";
+  alert.className = `alert alert-${level}`;
   alert.setAttribute("role", "alert");
   alert.textContent = message;
 
   nextNotificationBar.append(alert);
   currentNotificationBar.replaceWith(nextNotificationBar);
+  self.taranisNotifications?.add({ message, level });
 }
 
 document.body.addEventListener("htmx:responseError", function (evt) {

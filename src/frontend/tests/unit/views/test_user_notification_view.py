@@ -11,5 +11,6 @@ def test_notification_center_renders_without_a_core_request(authenticated_client
     body = response.get_data(as_text=True)
     assert 'data-testid="notification-center-page"' in body
     assert "data-notification-center-list" in body
+    assert 'x-for="notification in notifications"' in body
     assert 'data-testid="nav-notification-center"' in body
     assert 'src="/static/js/notification-center.js"' in body
