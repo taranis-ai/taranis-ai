@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta
-
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
 
@@ -67,12 +65,9 @@ class BotUnGroupAction(MethodView):
 
 class NewsItem(MethodView):
     @api_key_required
-    def get(self, news_item_id: str | None = None):
+    def get(self, news_item_id: str):
         try:
-            if news_item_id:
-                return news_item.NewsItem.get_for_api(news_item_id)
-            filtre_args = {"limit": request.args.get("limit", default=(datetime.now() - timedelta(weeks=1)).isoformat())}
-            return news_item.NewsItem.get_all_for_api(filtre_args)
+            return news_item.NewsItem.get_for_api(news_item_id)
         except Exception:
             logger.exception("Failed to get bot news item data")
             return {"error": "Failed to get news item data"}, 400
@@ -165,7 +160,6 @@ def initialize(app: Flask):
 
     bots_bp.add_url_rule("", view_func=BotsInfo.as_view("bots"))
     bots_bp.add_url_rule("/<string:bot_id>", view_func=BotsInfo.as_view("bot_info"))
-    bots_bp.add_url_rule("/news-item", view_func=NewsItem.as_view("bots_news_item"))
     bots_bp.add_url_rule(
         "/news-item/<string:news_item_id>",
         view_func=NewsItem.as_view("update_news_item"),

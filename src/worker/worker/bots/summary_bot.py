@@ -19,7 +19,7 @@ class SummaryBot(BaseBot):
             return {"message": "No new stories found"}
 
         summary_api = self._build_bot_api(parameters, "SUMMARY_ENDPOINT", Config.SUMMARY_API_ENDPOINT)
-        title_api = self._build_bot_api(parameters, "TITLE_ENDPOINT", None)
+        title_api = self._build_bot_api(parameters, "TITLE_ENDPOINT", Config.TITLE_API_ENDPOINT)
 
         for story in data:
             news_items = story.get("news_items", [])

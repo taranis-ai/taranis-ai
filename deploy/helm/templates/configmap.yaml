@@ -21,8 +21,14 @@ data:
   TARANIS_AUTHENTICATOR: {{ .Values.config.authenticator | quote }}
   SKIP_INITIAL_USER_ONBOARDING: {{ .Values.config.skipInitialUserOnboarding | quote }}
   SUMMARY_API_ENDPOINT: {{ .Values.config.summaryApiEndpoint | quote }}
+  TITLE_API_ENDPOINT: {{ .Values.config.titleApiEndpoint | quote }}
   NLP_API_ENDPOINT: {{ .Values.config.nlpApiEndpoint | quote }}
   STORY_API_ENDPOINT: {{ .Values.config.storyApiEndpoint | quote }}
+  SENTIMENT_ANALYSIS_API_ENDPOINT: {{ .Values.config.sentimentAnalysisApiEndpoint | quote }}
+  CYBERSEC_CLASSIFIER_API_ENDPOINT: {{ .Values.config.cybersecClassifierApiEndpoint | quote }}
+  LLM_BASE_URL: {{ .Values.config.llmBaseUrl | quote }}
+  LLM_MODEL: {{ .Values.config.llmModel | quote }}
+  LLM_TIMEOUT: {{ .Values.config.llmTimeout | quote }}
   CACHE_DEFAULT_TIMEOUT: {{ .Values.config.cacheDefaultTimeout | quote }}
 ---
 apiVersion: v1

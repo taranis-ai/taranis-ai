@@ -153,10 +153,13 @@
     <div class="space-y-6 {{ column_class }}">
       <form id="story-edit-form"
             class="card bg-base-100 shadow-xl border border-base-200"
-            {{ form_action }}
+            method="post"
+            action="{{ form_action }}"
+            hx-post="{{ form_action }}"
             hx-target="#{{ card_id }}"
             hx-swap="outerHTML"
             hx-target-error="#notification-bar">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
         <div class="card-body space-y-1">
           <header class="flex items-center justify-between">
             <h2 class="card-title text-xl">Editor</h2>
