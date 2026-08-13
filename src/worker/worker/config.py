@@ -29,12 +29,12 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
     RQ_WORKER_CLASS: Literal["auto", "fork", "spawn"] = "auto"
-    SUMMARY_API_ENDPOINT: str = "http://summary_bot:8000"
-    TITLE_API_ENDPOINT: str | None = None
-    NLP_API_ENDPOINT: str = "http://nlp_bot:8000"
-    STORY_API_ENDPOINT: str = "http://story_bot:8000"
-    SENTIMENT_ANALYSIS_API_ENDPOINT: str = "http://sentiment_analysis_bot:8000"
-    CYBERSEC_CLASSIFIER_API_ENDPOINT: str = "http://cybersec_classifier_bot:8000"
+    SUMMARY_API_ENDPOINT: str = "http://llm-bot:8000/summarize"
+    TITLE_API_ENDPOINT: str | None = "http://llm-bot:8000/title"
+    NLP_API_ENDPOINT: str = "http://llm-bot:8000/ner"
+    STORY_API_ENDPOINT: str = "http://llm-bot:8000/cluster"
+    SENTIMENT_ANALYSIS_API_ENDPOINT: str = "http://llm-bot:8000/sentiment"
+    CYBERSEC_CLASSIFIER_API_ENDPOINT: str = "http://llm-bot:8000/cybersec-classification"
     CYBERSEC_CLASSIFIER_THRESHOLD: float = 0.65
     CRON_POLL_INTERVAL_SECONDS: float = 15.0
 
