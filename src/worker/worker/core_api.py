@@ -375,12 +375,6 @@ class CoreApi:
             logger.exception(f"Failed to update word list {word_list_id}: {e}")
             return None
 
-    def get_news_items(self, limit) -> dict | None:
-        try:
-            return self.api_get("/bots/news-item", params={"limit": limit})
-        except Exception:
-            return None
-
     def get_stories(self, filter_dict: dict) -> list | None:
         return self.api_get("/worker/stories", params=filter_dict) or []
 

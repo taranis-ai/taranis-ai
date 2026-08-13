@@ -27,7 +27,7 @@ def test_initalize_bots():
         {"filter": {"timefrom": "2026-07-01T00:00:00"}},
     ],
 )
-def test_filter_timefrom_is_not_replaced_by_the_default_window(parameters):
+def test_filter_timefrom_is_forwarded_to_story_query(parameters):
     filter_dict = BaseBot().get_filter_dict(parameters)
 
     assert filter_dict["timefrom"] == "2026-07-01T00:00:00"
@@ -42,15 +42,15 @@ def test_ioc_bot(story_get_mock):
     assert story_get_mock.call_count == 1
 
 
-def test_analyst_bot_returns_meaningful_result_when_no_news_items(monkeypatch):
+def test_analyst_bot_returns_meaningful_result_when_no_stories(monkeypatch):
     import worker.bots as bots
 
     analyst_bot = bots.AnalystBot()
-    monkeypatch.setattr(analyst_bot.core_api, "get_news_items", lambda limit: None)
+    monkeypatch.setattr(analyst_bot, "get_stories", lambda parameters: [])
 
     result = analyst_bot.execute({"REGULAR_EXPRESSION": "tag", "ATTRIBUTE_NAME": "label"})
 
-    assert result == {"message": "No news items found", "result": {}}
+    assert result == {"message": "No new stories found", "result": {}}
 
 
 def test_news_item_content_for_tagging_handles_nullable_fields():
