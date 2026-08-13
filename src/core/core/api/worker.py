@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from flask import Blueprint, Flask, Response, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from werkzeug.datastructures import FileStorage
@@ -18,6 +20,7 @@ from core.model.product import Product
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
 from core.model.report_item import ReportItem
+from core.model.settings import Settings
 from core.model.story import Story
 from core.model.word_list import WordList
 from core.service.cache_invalidation import (
@@ -161,6 +164,13 @@ class Stories(MethodView):
         filter_list_keys = ["source", "group", "story_ids"]
         for key in filter_list_keys:
             filter_args[key] = request.args.getlist(key)
+
+        is_bot_query = str(filter_args.get("worker", "")).lower() == "true"
+        targets_stories = filter_args.get("story_id") or filter_args.get("story_ids")
+        if is_bot_query and not targets_stories and "timefrom" not in filter_args:
+            default_lookback_days = Settings.get_settings()["default_bot_lookback_days"]
+            if default_lookback_days > 0:
+                filter_args["timefrom"] = (Story.utcnow() - timedelta(days=default_lookback_days)).isoformat()
 
         if story := Story.get_for_worker(filter_args):
             return jsonify(story), 200
