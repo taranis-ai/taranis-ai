@@ -54,12 +54,12 @@ class Settings(BaseModel):
             return {"error": "settings must be a JSON object"}, 400
         try:
             update_data = cls._normalize_update_data(dict(raw_update_data))
-        except ValueError:
+        except (TypeError, ValueError):
             return {"error": "Invalid timezone"}, 400
         if "default_bot_lookback_days" in update_data:
             try:
                 update_data["default_bot_lookback_days"] = cls._validate_non_negative_int(update_data["default_bot_lookback_days"])
-            except ValueError:
+            except (TypeError, ValueError):
                 return {"error": "Invalid bot lookback setting"}, 400
         if "onboarding_enabled" in update_data:
             try:

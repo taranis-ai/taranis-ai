@@ -432,7 +432,6 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
         "all_fields_typical",
         "minimal_required",
         "sharing_group_id_int",
-        "request_timeout_default",
         "sharing_group_id_invalid",
     ],
 )

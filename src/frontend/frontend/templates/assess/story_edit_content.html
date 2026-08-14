@@ -101,7 +101,7 @@
                       hx-swap="outerHTML"
                       hx-target-error="#notification-bar">
                 <span class="flex items-center gap-2">
-                  {{ heroicon_mini("hand-thumb-up", class="h-4 w-4 " ~ ('text-success-content' if like_active else 'text-base-content/70') ) }}
+                  {{ heroicon_mini("hand-thumb-up", class="h-4 w-4 " ~ ('text-success-content' if like_active else 'text-base-content/70')) }}
                   <span class="text-sm">Like</span>
                 </span>
                 <span class="badge badge-ghost badge-sm">{{ story.likes | default(0) }}</span>
@@ -114,7 +114,7 @@
                       hx-swap="outerHTML"
                       hx-target-error="#notification-bar">
                 <span class="flex items-center gap-2">
-                  {{ heroicon_mini("hand-thumb-down", class="h-4 w-4 " ~ ('text-error-content' if dislike_active else 'text-base-content/70') ) }}
+                  {{ heroicon_mini("hand-thumb-down", class="h-4 w-4 " ~ ('text-error-content' if dislike_active else 'text-base-content/70')) }}
                   <span class="text-sm">Dislike</span>
                 </span>
                 <span class="badge badge-ghost badge-sm">{{ story.dislikes | default(0) }}</span>
@@ -271,7 +271,7 @@
       </div>
 
       {% if story.news_items %}
-        <div class="space-y-4">{% for item in story.news_items %}{{ news_item_card(item, story, edit_tags=(not has_rt_id) ) }}{% endfor %}</div>
+        <div class="space-y-4">{% for item in story.news_items %}{{ news_item_card(item, story, edit_tags=(not has_rt_id)) }}{% endfor %}</div>
       {% else %}
         <p class="text-sm text-base-content/70">No news items are attached to this story yet.</p>
       {% endif %}
