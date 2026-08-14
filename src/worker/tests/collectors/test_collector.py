@@ -63,13 +63,14 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
         rss_collector_url_not_modified,
     )
     from worker.collectors.base_web_collector import NoChangeError
+    from worker.collectors.rss_collector import RSSCollectorError
 
     with pytest.raises(NoChangeError) as exception:
-        result = rss_collector.collect(rss_collector_source_data_not_modified)
+        rss_collector.collect(rss_collector_source_data_not_modified)
     assert str(exception.value) == f"{rss_collector_url_not_modified} was not modified"
 
-    result = rss_collector.collect(rss_collector_source_data_no_content)
-    assert result is None
+    with pytest.raises(RSSCollectorError, match="No parseable RSS or Atom feed was detected"):
+        rss_collector.collect(rss_collector_source_data_no_content)
 
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):

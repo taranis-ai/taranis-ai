@@ -79,6 +79,42 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
     }
 
 
+def test_empty_rss_feed_status_lifecycle(current_job, requests_mock, monkeypatch):
+    feed_url = "https://example.com/feed"
+    source = {
+        "id": "source-1",
+        "name": "Source 1",
+        "type": "rss_collector",
+        "parameters": {"FEED_URL": feed_url},
+    }
+
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    requests_mock.get(
+        feed_url,
+        text="<rss version='2.0'><channel><title>Empty</title><link>https://example.com/</link></channel></rss>",
+    )
+    requests_mock.get("https://example.com/favicon.ico", status_code=404)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    for _ in range(2):
+        collector_tasks.collector_task("source-1", False)
+        payload = requests_mock.request_history[-1].json()
+        source["status"] = {"last_success": None, "result": payload["result"]}
+
+    with pytest.raises(RuntimeError, match="after 3 collection attempts"):
+        collector_tasks.collector_task("source-1", False)
+
+    source["status"] = {"last_success": "2026-08-14T10:00:00"}
+    collector_tasks.collector_task("source-1", False)
+
+    payloads = [request.json() for request in requests_mock.request_history if request.method == "POST"]
+    assert [payload["status"] for payload in payloads] == ["PENDING", "PENDING", "FAILURE", "NOT_MODIFIED"]
+    assert "attempt 1 of 3" in payloads[0]["result"]["message"]
+    assert "attempt 2 of 3" in payloads[1]["result"]["message"]
+    assert "after 3 collection attempts" in payloads[2]["result"]["message"]
+    assert "after an earlier successful collection" in payloads[3]["result"]["message"]
+
+
 def test_fetch_single_news_item_accepts_simple_web_source_payload_and_persists_success_result(current_job, requests_mock, monkeypatch):
     captured_parameters = {}
 

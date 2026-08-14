@@ -20,6 +20,12 @@ class RSSCollectorError(Exception):
         logger.info(message)
 
 
+class EmptyRSSFeedError(RSSCollectorError):
+    def __init__(self, feed_url: str):
+        self.feed_url = feed_url
+        super().__init__(f"RSS feed {feed_url} returned no news items")
+
+
 class RSSCollector(BaseWebCollector):
     def __init__(self):
         super().__init__()
@@ -258,8 +264,7 @@ class RSSCollector(BaseWebCollector):
         finally:
             if self.playwright_manager:
                 self.playwright_manager.stop_playwright_if_needed()
-
-            return self.news_items
+        return self.news_items
 
     def collect_news(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
         if self.digest_splitting == "true":
@@ -287,7 +292,12 @@ class RSSCollector(BaseWebCollector):
         modified_since = None if manual else self.last_attempted
         self.feed_content = self.send_get_request(self.feed_url, modified_since)
 
-        return feedparser.parse(self.feed_content.content)
+        feed = feedparser.parse(self.feed_content.content)
+        if not feed.get("version"):
+            parser_error = feed.get("bozo_exception")
+            error_detail = f": {parser_error}" if parser_error else ""
+            raise RSSCollectorError(f"No parseable RSS or Atom feed was detected at {self.feed_url}{error_detail}")
+        return feed
 
     def preview_collector(self, source: dict):
         self.parse_source(source)
@@ -308,6 +318,8 @@ class RSSCollector(BaseWebCollector):
 
         logger.info(f"RSS-Feed {self.feed_url} returned feed with {len(feed['entries'])} entries")
 
+        if not feed["entries"]:
+            raise EmptyRSSFeedError(self.feed_url)
         self.news_items = self.gather_news_items(feed, source)
 
         return self.publish(self.news_items, source)

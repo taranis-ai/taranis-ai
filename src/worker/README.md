@@ -2,6 +2,8 @@
 
 This worker uses RQ (Redis Queue) for background task processing.
 
+RSS sources expose collection health through their persisted task status. Responses that are not identifiable as RSS or Atom fail immediately; parseable new feeds remain pending for two empty collections and fail on the third, while feeds that have succeeded before report a later empty collection as not modified.
+
 ## Install
 
 ```bash

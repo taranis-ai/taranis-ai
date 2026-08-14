@@ -10,8 +10,12 @@ from rq import get_current_job
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
+from worker.collectors.rss_collector import EmptyRSSFeedError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
+
+
+RSS_EMPTY_FEED_FAILURE_ATTEMPTS = 3
 
 
 @contextmanager
@@ -89,6 +93,22 @@ def _persist_and_return_result(
     return result_message
 
 
+def _next_empty_feed_attempt(source: dict[str, Any]) -> int:
+    status = source.get("status")
+    if not isinstance(status, dict):
+        return 1
+
+    result = status.get("result")
+    if not isinstance(result, dict) or result.get("reason") != "rss_feed_empty":
+        return 1
+
+    data = result.get("data")
+    previous_attempt = data.get("empty_collection_attempts") if isinstance(data, dict) else None
+    if not isinstance(previous_attempt, int) or previous_attempt < 1:
+        return 1
+    return min(previous_attempt + 1, RSS_EMPTY_FEED_FAILURE_ATTEMPTS)
+
+
 def collector_task(osint_source_id: str, manual: bool = False):
     """Collect news from an OSINT source.
 
@@ -139,6 +159,54 @@ def collector_task(osint_source_id: str, manual: bool = False):
         try:
             collection_result = collector_impl.collect(source, manual)
             result_message = f"'{source.get('name')}': {collection_result}"
+        except EmptyRSSFeedError as e:
+            previous_status = source.get("status")
+            if isinstance(previous_status, dict) and previous_status.get("last_success"):
+                result_message = f"No new items: RSS feed {e.feed_url} returned no news items after an earlier successful collection"
+                logger.info(result_message)
+                return _persist_and_return_result(
+                    job,
+                    core_api,
+                    result_message,
+                    worker_id=osint_source_id,
+                    worker_type=worker_type,
+                    meta_status="NOT_MODIFIED",
+                    reason="collector_not_modified",
+                    data={"source_id": osint_source_id, "manual": manual},
+                )
+
+            attempt = _next_empty_feed_attempt(source)
+            is_failure = attempt >= RSS_EMPTY_FEED_FAILURE_ATTEMPTS
+            if is_failure:
+                result_message = (
+                    f"Error: RSS feed {e.feed_url} returned no news items after {RSS_EMPTY_FEED_FAILURE_ATTEMPTS} collection attempts"
+                )
+                logger.error(result_message)
+            else:
+                result_message = (
+                    f"RSS feed {e.feed_url} returned no news items on collection attempt "
+                    f"{attempt} of {RSS_EMPTY_FEED_FAILURE_ATTEMPTS}; source remains PENDING"
+                )
+                logger.warning(result_message)
+
+            _persist_and_return_result(
+                job,
+                core_api,
+                result_message,
+                worker_id=osint_source_id,
+                worker_type=worker_type,
+                meta_status="FAILURE" if is_failure else "PENDING",
+                reason="rss_feed_empty",
+                data={
+                    "source_id": osint_source_id,
+                    "manual": manual,
+                    "empty_collection_attempts": attempt,
+                    "failure_threshold": RSS_EMPTY_FEED_FAILURE_ATTEMPTS,
+                },
+            )
+            if is_failure:
+                raise RuntimeError(result_message) from e
+            return result_message
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             result_message = f"No changes: {e}"
@@ -155,7 +223,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
         except Exception as e:
             logger.error(f"Collector task failed: {task_description}")
             task_status = "FAILURE"
-            result_message = f"Error: {str(e)}"
+            result_message = f"Error: {e!s}"
 
             # Save failure to database
             if job:
