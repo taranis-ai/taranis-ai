@@ -1,7 +1,7 @@
-import json
 from enum import StrEnum, auto
 from typing import Any
 
+from models.admin import ParameterValue as ParameterValueModel
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
@@ -93,17 +93,5 @@ class ParameterValue(BaseModel):
     def check_rules(self) -> bool:
         if not self.rules:
             return True
-        for rule in self.rules.split(","):
-            if rule == "required":
-                if not self.value:
-                    raise ValueError("This parameter is required")
-            elif rule == "tlp":
-                if self.value not in ["red", "amber", "amber+strict", "green", "clear", None, ""]:
-                    raise ValueError("Invalid TLP allowed values: red, amber, amber+strict, green, clear")
-            elif rule == "json":
-                if self.value:
-                    json_dict = json.loads(self.value)
-                    if not isinstance(json_dict, dict):
-                        raise ValueError('Input has to be a json of format \'{"<str>": "<str>"}\'')
-
+        ParameterValueModel.validate_rules(self.value, self.rules.split(","))
         return True

@@ -44,6 +44,13 @@ class Connector(BaseModel):
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
 
+    def to_worker_dict(self) -> dict[str, Any]:
+        return self.get_with_defaults(self.to_dict())
+
+    @staticmethod
+    def get_with_defaults(data: dict[str, Any]) -> dict[str, Any]:
+        return Worker.get_parameters_with_defaults(data)
+
     def to_user_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,

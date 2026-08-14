@@ -7,6 +7,7 @@ from pymisp import MISPAttribute, MISPEvent, MISPEventReport, MISPObject, MISPOb
 from worker.connectors import base_misp_builder
 from worker.connectors.definitions.misp_objects import BaseMispObject
 from worker.log import logger
+from worker.misp_parameters import parse_misp_runtime_parameters
 
 
 class MispConnector:
@@ -16,14 +17,14 @@ class MispConnector:
         self.description = "Connector for MISP"
 
         self.proxies = None
-        self.headers = {}
+        self.headers = {"User-Agent": "TaranisAI/1.0"}
         self.connector_id: str = ""
 
         self.url: str = ""
         self.api_key: str = ""
         self.org_id: str = ""
         self.ssl: bool = False
-        self.request_timeout: int = 5
+        self.request_timeout: int = 0
         self.sharing_group_id: int | None = None
         self.distribution: int | None = None
 
@@ -31,10 +32,7 @@ class MispConnector:
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
         self.org_id = parameters.get("ORGANISATION_ID", "")
-        self.ssl = parameters.get("SSL", False)
-        self.request_timeout = parameters.get("REQUEST_TIMEOUT", 5)
-        self.proxies = parameters.get("PROXIES")
-        self.headers = parameters.get("HEADERS", {})
+        self.ssl, self.proxies, self.headers, self.request_timeout = parse_misp_runtime_parameters(parameters)
         try:
             self.sharing_group_id = int(parameters.get("SHARING_GROUP_ID", "")) if parameters.get("SHARING_GROUP_ID") else None
         except ValueError:
@@ -515,6 +513,7 @@ class MispConnector:
                 ssl=self.ssl,
                 proxies=self.proxies,
                 http_headers=self.headers,
+                timeout=self.request_timeout,
             )
 
             if misp_event_uuid:

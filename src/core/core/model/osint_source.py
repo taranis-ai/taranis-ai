@@ -309,18 +309,11 @@ class OSINTSource(BaseModel):
         # Include refresh schedule for worker self-rescheduling
         data["refresh"] = self.get_schedule_with_default()
 
-        return data
+        return self.get_with_defaults(data)
 
     @staticmethod
     def get_with_defaults(data) -> dict[str, Any]:
-        params = data["parameters"]
-        settings = Settings.get_settings()
-
-        use_global = params.get("USE_GLOBAL_PROXY", "false").lower()
-        if use_global == "true":
-            data["parameters"]["PROXY_SERVER"] = settings.get("default_collector_proxy", "")
-
-        return data
+        return Worker.get_parameters_with_defaults(data)
 
     def to_assess_dict(self) -> dict[str, Any]:
         return {

@@ -103,9 +103,7 @@ class Sources(MethodView):
             if not (source := OSINTSource.get(source_id)):
                 return {"error": "Source not found"}, 404
 
-            data = source.to_worker_dict()
-            data_with_defaults = OSINTSource.get_with_defaults(data)
-            return data_with_defaults, 200
+            return source.to_worker_dict(), 200
 
         except Exception:
             logger.exception(f"Error fetching source {source_id}")
@@ -322,7 +320,7 @@ class Connectors(MethodView):
     @api_key_required
     def get(self, connector_id: str):
         if connector := Connector.get(connector_id):
-            return connector.to_dict(), 200
+            return connector.to_worker_dict(), 200
         return {"error": "Connector not found"}, 404
 
 

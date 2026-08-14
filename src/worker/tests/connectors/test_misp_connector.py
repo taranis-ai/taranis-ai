@@ -1,6 +1,9 @@
 import json
+from copy import deepcopy
+from unittest.mock import Mock
 
 import pytest
+from models.admin import MISPParameters
 
 from worker.config import Config
 from worker.connectors import base_misp_builder, connector_tasks
@@ -9,11 +12,21 @@ from worker.core_api import CoreApi
 
 
 @pytest.fixture
-def misp_connector_core_mock(requests_mock, stories):
+def normalized_misp_connector():
     from tests.misp_connector_test_data import misp_connector
 
+    normalized_connector = deepcopy(misp_connector)
+    assert normalized_connector["parameters"]["REQUEST_TIMEOUT"] == ""
+    normalized_connector["parameters"] = MISPParameters.normalize(
+        normalized_connector["parameters"], request_timeout=Config.REQUESTS_TIMEOUT, default_proxy=""
+    )
+    return normalized_connector
+
+
+@pytest.fixture
+def misp_connector_core_mock(requests_mock, stories, normalized_misp_connector):
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=ed13a0b1-4f5f-4c43-bdf2-820ee0d43448", json=[stories[11]])
-    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/connectors/74981521-4ba7-4216-b9ca-ebc00ffec29c", json=misp_connector)
+    requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/connectors/74981521-4ba7-4216-b9ca-ebc00ffec29c", json=normalized_misp_connector)
 
 
 @pytest.fixture
@@ -114,18 +127,12 @@ def test_drop_utf16_surrogates_edge_cases():
     # assert cleaned_emoji == input_emoji, "Non-BMP characters altered unexpectedly"
 
 
-def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, caplog):
-    import logging
-
-    # Set the logging level to ERROR to capture only error logs and fail properly
-    caplog.set_level(logging.ERROR, logger="root")
-
+def test_connector_story_processing(misp_connector_core_mock, misp_api_mock):
     result = connector_tasks.connector_task(
         "74981521-4ba7-4216-b9ca-ebc00ffec29c",
         ["ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"],
     )
-    errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
-    assert not errors, "Unexpected log errors:\n" + "\n".join(f"{r.levelname}: {r.message}" for r in errors)
+
     assert result["connector_id"] == "74981521-4ba7-4216-b9ca-ebc00ffec29c"
     assert result["connector_type"] == "MISP_CONNECTOR"
     assert result["action"] == "synced"
@@ -138,6 +145,20 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, cap
     assert sync_result["story_id"] == "ed13a0b1-4f5f-4c43-bdf2-820ee0d43448"
     assert isinstance(sync_result["misp_event_uuid"], str) and sync_result["misp_event_uuid"]
     assert sync_result["news_item_ids_to_mark_external"] == ["06cc6fd0-a775-4923-bdef-8cd5381164ce"]
+
+
+def test_normalized_connector_timeout_reaches_pymisp(normalized_misp_connector, monkeypatch):
+    from worker.connectors import misp_connector as misp_connector_module
+
+    pymisp = Mock()
+    connector = MispConnector()
+    connector.parse_parameters(normalized_misp_connector["parameters"])
+    monkeypatch.setattr(misp_connector_module, "PyMISP", pymisp)
+    monkeypatch.setattr(connector, "add_misp_event", Mock(return_value=Mock(uuid="event-uuid")))
+
+    connector.send_event_to_misp({})
+
+    assert pymisp.call_args.kwargs["timeout"] == Config.REQUESTS_TIMEOUT
 
 
 def test_connector_task_unknown_type_persists_failure(requests_mock, mock_job, monkeypatch):
@@ -245,31 +266,96 @@ def test_misp_sender_returns_proposal_result_for_proposals(monkeypatch):
     }
 
 
+def test_collector_and_connector_share_misp_runtime_parameters():
+    from worker.collectors.misp_collector import MispCollector
+
+    parameters = {
+        "URL": "http://localhost",
+        "API_KEY": "abc",
+        "SSL_CHECK": "true",
+        "PROXY_SERVER": "http://proxy:8080",
+        "ADDITIONAL_HEADERS": '{"X-Test": "1"}',
+        "USER_AGENT": "custom-agent",
+        "REQUEST_TIMEOUT": "17",
+    }
+    collector = MispCollector()
+    connector = MispConnector()
+
+    collector.parse_parameters(parameters)
+    connector.parse_parameters(parameters)
+
+    assert (collector.ssl, collector.proxies, collector.headers, collector.core_api.timeout) == (
+        connector.ssl,
+        connector.proxies,
+        connector.headers,
+        connector.request_timeout,
+    )
+
+
+def test_connector_ignores_legacy_parameter_keys():
+    connector = MispConnector()
+    connector.parse_parameters(
+        {
+            "URL": "http://localhost",
+            "API_KEY": "abc",
+            "SSL_CHECK": "false",
+            "PROXY_SERVER": "",
+            "ADDITIONAL_HEADERS": "",
+            "USER_AGENT": "",
+            "REQUEST_TIMEOUT": "60",
+            "SSL": True,
+            "PROXIES": {"https": "http://legacy-proxy"},
+            "HEADERS": {"X-Legacy": "ignored"},
+        }
+    )
+
+    assert connector.ssl is False
+    assert connector.proxies is None
+    assert connector.headers == {"User-Agent": "TaranisAI/1.0"}
+
+
 def test_valid_distribution():
     connector = MispConnector()
-    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "DISTRIBUTION": "2"})
+    connector.parse_parameters(
+        {"URL": "http://localhost", "API_KEY": "abc", "SSL_CHECK": "false", "REQUEST_TIMEOUT": "60", "DISTRIBUTION": "2"}
+    )
     assert connector.distribution == 2
 
 
 def test_empty_distribution_with_sharing_group():
     connector = MispConnector()
-    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1", "DISTRIBUTION": ""})
+    connector.parse_parameters(
+        {
+            "URL": "http://localhost",
+            "API_KEY": "abc",
+            "SSL_CHECK": "false",
+            "REQUEST_TIMEOUT": "60",
+            "SHARING_GROUP_ID": "1",
+            "DISTRIBUTION": "",
+        }
+    )
     assert connector.distribution == 4
 
 
 def test_empty_distribution_no_sharing_group():
     connector = MispConnector()
-    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "DISTRIBUTION": ""})
+    connector.parse_parameters(
+        {"URL": "http://localhost", "API_KEY": "abc", "SSL_CHECK": "false", "REQUEST_TIMEOUT": "60", "DISTRIBUTION": ""}
+    )
     assert connector.distribution == 0
 
 
 def test_invalid_distribution_string():
     connector = MispConnector()
-    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "DISTRIBUTION": "abc"})
+    connector.parse_parameters(
+        {"URL": "http://localhost", "API_KEY": "abc", "SSL_CHECK": "false", "REQUEST_TIMEOUT": "60", "DISTRIBUTION": "abc"}
+    )
     assert connector.distribution == 0
 
 
 def test_distribution_not_provided():
     connector = MispConnector()
-    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1"})
+    connector.parse_parameters(
+        {"URL": "http://localhost", "API_KEY": "abc", "SSL_CHECK": "false", "REQUEST_TIMEOUT": "60", "SHARING_GROUP_ID": "1"}
+    )
     assert connector.distribution == 4

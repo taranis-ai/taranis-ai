@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -176,6 +177,61 @@ class ParameterValue(TaranisBaseModel):
     id: str | None = None
     parameter: str = ""
     value: str | None = ""
+    rules: list[str] = Field(default_factory=list, exclude=True)
+
+    @classmethod
+    def validate_rules(cls, value: str | None, rules: list[str]) -> None:
+        for rule in rules:
+            if rule == "required" and not value:
+                raise ValueError("This parameter is required")
+            if rule == "tlp" and value not in ["red", "amber", "amber+strict", "green", "clear", None, ""]:
+                raise ValueError("Invalid TLP allowed values: red, amber, amber+strict, green, clear")
+            if rule == "json" and value:
+                json_value = json.loads(value)
+                if not isinstance(json_value, dict):
+                    raise ValueError('Input has to be a json of format \'{"<str>": "<str>"}\'')
+            if rule == "positive_int" and value:
+                try:
+                    if int(value) <= 0:
+                        raise ValueError
+                except (TypeError, ValueError):
+                    raise ValueError("Input has to be a positive integer") from None
+
+    @model_validator(mode="after")
+    def validate_parameter_rules(self):
+        self.validate_rules(self.value, self.rules)
+        return self
+
+
+class MISPParameters(TaranisBaseModel):
+    SSL_CHECK: Literal["true", "false"] = "false"
+    REQUEST_TIMEOUT: str
+    PROXY_SERVER: str = ""
+    ADDITIONAL_HEADERS: str = ""
+    USER_AGENT: str = ""
+    USE_GLOBAL_PROXY: Literal["true", "false"] = "false"
+
+    @field_validator("REQUEST_TIMEOUT")
+    @classmethod
+    def validate_request_timeout(cls, value: str) -> str:
+        ParameterValue.validate_rules(value, ["positive_int"])
+        return value
+
+    @field_validator("ADDITIONAL_HEADERS")
+    @classmethod
+    def validate_additional_headers(cls, value: str) -> str:
+        ParameterValue.validate_rules(value, ["json"])
+        return value
+
+    @classmethod
+    def normalize(cls, parameters: dict[str, str] | None, request_timeout: int, default_proxy: str) -> dict[str, str]:
+        normalized = dict(parameters or {})
+        normalized["SSL_CHECK"] = str(normalized.get("SSL_CHECK") or "false").lower()
+        normalized["REQUEST_TIMEOUT"] = str(normalized.get("REQUEST_TIMEOUT") or request_timeout)
+        normalized["USE_GLOBAL_PROXY"] = str(normalized.get("USE_GLOBAL_PROXY") or "false").lower()
+        if normalized["USE_GLOBAL_PROXY"] == "true":
+            normalized["PROXY_SERVER"] = default_proxy
+        return cls.model_validate(normalized).model_dump()
 
 
 class Worker(TaranisBaseModel):

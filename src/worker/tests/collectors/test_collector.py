@@ -387,7 +387,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             {
                 "url": "u",
                 "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
+                "proxies": None,
                 "headers": {"User-Agent": "TaranisAI/1.0"},
                 "ssl": False,
                 "sharing_group_id": None,
@@ -402,7 +402,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             {
                 "url": "u",
                 "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
+                "proxies": None,
                 "headers": {"User-Agent": "TaranisAI/1.0"},
                 "ssl": False,
                 "sharing_group_id": 99,
@@ -417,7 +417,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             {
                 "url": "u",
                 "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
+                "proxies": None,
                 "headers": {"User-Agent": "TaranisAI/1.0"},
                 "ssl": False,
                 "sharing_group_id": None,
@@ -432,7 +432,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             {
                 "url": "u",
                 "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
+                "proxies": None,
                 "headers": {"User-Agent": "TaranisAI/1.0"},
                 "ssl": False,
                 "sharing_group_id": None,
@@ -455,7 +455,7 @@ def test_parse_parameters_happy_and_edge(parameters, expected, expected_timeout)
 
     collector = MispCollector()
 
-    collector.parse_parameters(parameters)
+    collector.parse_parameters({"SSL_CHECK": "false", "REQUEST_TIMEOUT": str(Config.REQUESTS_TIMEOUT), **parameters})
 
     assert collector.url == expected["url"]
     assert collector.api_key == expected["api_key"]
@@ -490,5 +490,5 @@ def test_parse_parameters_error_cases(parameters, missing_field, expected_messag
     collector = MispCollector()
 
     with pytest.raises(ValueError) as excinfo:
-        collector.parse_parameters(parameters)
+        collector.parse_parameters({"SSL_CHECK": "false", "REQUEST_TIMEOUT": str(Config.REQUESTS_TIMEOUT), **parameters})
     assert expected_message in str(excinfo.value)

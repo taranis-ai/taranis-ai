@@ -1,10 +1,12 @@
 from functools import lru_cache
 from typing import Any
 
+from models.admin import MISPParameters
 from models.types import WORKER_CATEGORY, WORKER_TYPES
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
+from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
@@ -109,6 +111,22 @@ class Worker(BaseModel):
         missing_parameters = cls._get_missing_parameters(default_parameters, parsed_parameters)
 
         return parsed_parameters + missing_parameters
+
+    @classmethod
+    def get_parameters_with_defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
+        from core.model.settings import Settings
+
+        parameters = data["parameters"]
+        settings = Settings.get_settings()
+        if cls._normalize_worker_type_key(data.get("type", "")) in {"misp_collector", "misp_connector"}:
+            data["parameters"] = MISPParameters.normalize(
+                parameters,
+                request_timeout=Config.REQUESTS_TIMEOUT,
+                default_proxy=settings.get("default_collector_proxy", ""),
+            )
+        elif str(parameters.get("USE_GLOBAL_PROXY", "false")).lower() == "true":
+            parameters["PROXY_SERVER"] = settings.get("default_collector_proxy", "")
+        return data
 
     @classmethod
     def _get_or_create_parameters(cls, parameters) -> list[ParameterValue]:

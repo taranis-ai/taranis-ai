@@ -90,6 +90,7 @@ class Settings(BaseSettings):
     OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
     OSINT_SOURCE_ICON_PIXELS: int = 64
     OSINT_SOURCE_ICON_FORMAT: str = "PNG"
+    REQUESTS_TIMEOUT: int = 60
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
