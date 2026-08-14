@@ -783,7 +783,7 @@ def test_assess_save_saved_filter_posts_selected_filters_to_profile(authenticate
             "username": "admin",
             "name": "Arthur Dent",
             "profile": {"assess_saved_filters": []},
-            "permissions": ["ALL"],
+            "permissions": ["ASSESS_ACCESS"],
             "roles": [{"id": "role-1", "name": "Admin"}],
         },
     )

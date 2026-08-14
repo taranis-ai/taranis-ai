@@ -171,6 +171,8 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
 
+The supplied Centrifugo configuration enables presence only for `global:events`, which every authenticated browser already receives. Core uses the server API to provide the `ADMIN_OPERATIONS`-protected connected-client snapshot on the Admin Notifications page; browsers are not granted presence access, and organization/user channel presence remains disabled.
+
 `CENTRIFUGO_API_KEY` and `CENTRIFUGO_CONNECT_PROXY_SECRET` must be non-empty and distinct from each other, `API_KEY`, and `JWT_SECRET_KEY`.
 
 The Centrifugo service also reads `CENTRIFUGO_REDIS_URL` directly; core does not.

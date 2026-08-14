@@ -322,7 +322,7 @@ services:
       CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_HEADERS: "Cookie"
       CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_STATIC_HEADERS: "{\"X-Realtime-Proxy-Key\":\"${CENTRIFUGO_CONNECT_PROXY_SECRET}\"}"
       CENTRIFUGO_CHANNEL_PUBLICATION_DATA_FORMAT: "json_object"
-      CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"global"},{"name":"org"},{"name":"user","allow_user_limited_channels":true}]'
+      CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"global","presence":true},{"name":"org"},{"name":"user","allow_user_limited_channels":true}]'
       CENTRIFUGO_WEBSOCKET_DISABLED: "true"
       CENTRIFUGO_UNI_SSE_ENABLED: "true"
       CENTRIFUGO_HEALTH_ENABLED: "true"

@@ -91,3 +91,59 @@ def test_product_event_uses_user_limited_channel(enabled_realtime):
 
     assert publisher.product_rendered(product_id, user_id, "success") is True
     assert session.post.call_args.kwargs["json"]["channels"] == [f"user:#{user_id}"]
+
+
+def test_osint_source_preview_event_uses_user_limited_channel(enabled_realtime):
+    publisher, session = _publisher()
+    source_id = str(uuid.uuid7())
+    user_id = str(uuid.uuid7())
+
+    assert publisher.osint_source_preview_finished(source_id, user_id, "PREVIEW") is True
+
+    request_json = session.post.call_args.kwargs["json"]
+    assert request_json["channels"] == [f"user:#{user_id}"]
+    assert request_json["data"]["type"] == "osint_source.preview.finished"
+    assert request_json["data"]["resource"] == {"kind": "osint_source", "id": source_id}
+    assert request_json["data"]["data"] == {"status": "PREVIEW"}
+
+
+def test_broadcast_notification_preserves_message_and_is_persistent(enabled_realtime):
+    publisher, session = _publisher()
+
+    assert publisher.broadcast_notification("  Maintenance at 18:00  ") is True
+
+    request_json = session.post.call_args.kwargs["json"]
+    assert request_json["channels"] == ["global:events"]
+    assert request_json["data"]["type"] == "notification.broadcast"
+    assert request_json["data"]["data"] == {
+        "message": "  Maintenance at 18:00  ",
+        "persistent": True,
+    }
+
+
+def test_connected_clients_reads_global_channel_presence(enabled_realtime):
+    publisher, session = _publisher(
+        response_payload={
+            "result": {
+                "presence": {
+                    "client-2": {"client": "client-2", "user": "user-2"},
+                    "client-1": {"client": "client-1", "user": "user-1"},
+                }
+            }
+        }
+    )
+
+    assert publisher.connected_clients() == [
+        {"client_id": "client-1", "user_id": "user-1"},
+        {"client_id": "client-2", "user_id": "user-2"},
+    ]
+    request = session.post.call_args
+    assert request.args == ("http://centrifugo:9000/api/presence",)
+    assert request.kwargs["json"] == {"channel": "global:events"}
+    assert request.kwargs["timeout"] == (0.2, 0.3)
+
+
+def test_connected_clients_returns_none_for_invalid_presence(enabled_realtime):
+    publisher, _ = _publisher(response_payload={"error": {"code": 108, "message": "not available"}})
+
+    assert publisher.connected_clients() is None

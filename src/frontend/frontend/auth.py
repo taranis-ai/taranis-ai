@@ -58,11 +58,7 @@ def refresh_expiring_jwts(response: Response) -> Response:
 
 def user_has_admin_permissions(permissions: Iterable[str] | None) -> bool:
     permission_set = set(permissions or [])
-    return (
-        "ALL" in permission_set
-        or "ADMIN_OPERATIONS" in permission_set
-        or any(permission.startswith("CONFIG_") for permission in permission_set)
-    )
+    return "ADMIN_OPERATIONS" in permission_set or any(permission.startswith("CONFIG_") for permission in permission_set)
 
 
 def is_safe_redirect_target(next_target: str | None) -> bool:

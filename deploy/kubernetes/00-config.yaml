@@ -40,7 +40,7 @@ data:
   CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: http://core:8080/api/realtime/connect
   CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_HEADERS: Cookie
   CENTRIFUGO_CHANNEL_PUBLICATION_DATA_FORMAT: json_object
-  CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"global"},{"name":"org"},{"name":"user","allow_user_limited_channels":true}]'
+  CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"global","presence":true},{"name":"org"},{"name":"user","allow_user_limited_channels":true}]'
   CENTRIFUGO_WEBSOCKET_DISABLED: "true"
   CENTRIFUGO_UNI_SSE_ENABLED: "true"
   CENTRIFUGO_HEALTH_ENABLED: "true"

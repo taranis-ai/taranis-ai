@@ -4,6 +4,8 @@
     "report.item.changed",
     "report.lock.changed",
     "product.rendered",
+    "osint_source.preview.finished",
+    "notification.broadcast",
   ]);
 
   let eventSource;
@@ -64,7 +66,14 @@
     document.dispatchEvent(
       new CustomEvent(`realtime:${event.type}`, { detail: event }),
     );
-    showDataNotification(event.type);
+    if (event.type === "notification.broadcast") {
+      showBroadcastNotification(
+        event.data?.message,
+        event.data?.persistent === true,
+      );
+    } else {
+      showDataNotification(event.type);
+    }
   }
 
   function hideStatusNotification() {
@@ -125,6 +134,29 @@
         ?.textContent,
       level: "info",
     });
+  }
+
+  function showBroadcastNotification(message, persistent) {
+    if (typeof message !== "string" || !message.trim()) {
+      return;
+    }
+    const container = document.getElementById(
+      "realtime-broadcast-notifications",
+    );
+    const template = document.getElementById(
+      "realtime-broadcast-notification-template",
+    );
+    const notification = template?.content.firstElementChild?.cloneNode(true);
+    if (!container || !(notification instanceof Element)) {
+      return;
+    }
+    notification.querySelector("[data-realtime-broadcast-message]")
+      .textContent = message;
+    container.append(notification);
+    if (!persistent) {
+      self.setTimeout(() => notification.remove(), 10000);
+    }
+    self.taranisNotifications?.add({ message, level: "info" });
   }
 
   function scheduleReconnect() {
@@ -200,6 +232,13 @@
       event.target.closest("[data-realtime-dismiss-data]")
     ) {
       hideDataNotification();
+      return;
+    }
+    if (
+      event.target instanceof Element &&
+      event.target.closest("[data-realtime-dismiss-broadcast]")
+    ) {
+      event.target.closest("[data-realtime-broadcast-notification]")?.remove();
       return;
     }
     const refresh = event.target instanceof Element &&

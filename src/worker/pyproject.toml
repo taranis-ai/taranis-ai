@@ -15,6 +15,7 @@ requires-python = ">=3.12,<3.14"
 dependencies = [
     # Core
     "rq>=2.5",
+    "redis==8.0.1", # Until https://github.com/rq/rq/pull/2457 is merged
     "croniter>=6.0.0",
     "click",
     "python-dotenv",

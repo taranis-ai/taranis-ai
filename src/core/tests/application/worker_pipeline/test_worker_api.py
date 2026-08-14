@@ -133,6 +133,34 @@ class TestWorkerApi:
                 if Task.get(task_id):
                     Task.delete(task_id)
 
+    @pytest.mark.parametrize("status", ["PREVIEW", "FAILURE"])
+    def test_worker_preview_terminal_result_publishes_realtime_event(self, client, api_header, app, monkeypatch, status):
+        from core.model.task import Task
+
+        source_id = uuid.uuid4().hex
+        user_id = str(uuid.uuid4())
+        task_id = f"source_preview_{source_id}"
+        publish = Mock(return_value=True)
+        monkeypatch.setattr("core.service.task.realtime_publisher.osint_source_preview_finished", publish)
+
+        payload = {
+            "id": task_id,
+            "task": "collector_preview",
+            "user_id": user_id,
+            "result": {"message": "Preview finished", "reason": None, "retryable": False, "data": []},
+            "status": status,
+        }
+
+        try:
+            response = client.post("/api/tasks", json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            publish.assert_called_once_with(source_id, user_id, status)
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
     def test_worker_story_update(self, client, stories, cleanup_story_update_data, api_header):
         """
         This test queries the story update authenticated.

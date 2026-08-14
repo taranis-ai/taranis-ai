@@ -1,6 +1,7 @@
 import json
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, Sequence
+from typing import Any
 
 from models.user import (
     ADMIN_ADVANCED_TOUR_ID,
@@ -104,8 +105,7 @@ class User(BaseModel):
 
     @staticmethod
     def _has_any_permission(permissions: Sequence[str], required_permissions: frozenset[str]) -> bool:
-        permission_set = set(permissions)
-        return "ALL" in permission_set or bool(permission_set.intersection(required_permissions))
+        return bool(set(permissions).intersection(required_permissions))
 
     @classmethod
     def _pending_global_onboarding_tasks(cls, profile: ProfileSettings, permissions: Sequence[str]) -> list[OnboardingTask]:

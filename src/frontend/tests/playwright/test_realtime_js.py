@@ -8,6 +8,7 @@ from playwright.sync_api import Page
 pytestmark = pytest.mark.e2e_ci
 
 REALTIME_JS_PATH = Path(__file__).parents[2] / "frontend/static/js/realtime.js"
+VENDOR_JS_PATH = Path(__file__).parents[2] / "frontend/static/vendor/vendor.bundle.js"
 
 
 def _load_realtime(
@@ -38,6 +39,13 @@ def _load_realtime(
                 <a data-realtime-refresh href="/current"></a>
                 <button type="button" data-realtime-dismiss-data>Dismiss</button>
               </div>
+              <div id="realtime-broadcast-notifications"></div>
+              <template id="realtime-broadcast-notification-template">
+                <div data-realtime-broadcast-notification>
+                  <span data-realtime-broadcast-message></span>
+                  <button type="button" data-realtime-dismiss-broadcast>Dismiss</button>
+                </div>
+              </template>
               {f'<div id="{page_target}"></div>' if page_target else ""}
             </body>
             """
@@ -128,6 +136,94 @@ def test_realtime_owns_one_event_source_and_dispatches_valid_domain_event(page: 
 
     assert page.evaluate("() => EventSource.instances.length") == 1
     assert page.evaluate("() => window.receivedRealtimeEvents.length") == 1
+
+
+def test_osint_source_preview_event_refetches_only_the_matching_preview(page: Page):
+    requests = []
+    page.route(
+        "https://example.test/",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/html",
+            body="""
+              <body data-realtime-enabled="true" data-realtime-url="/sse">
+                <div id="source_preview"
+                     hx-get="/preview"
+                     hx-trigger='realtime:osint_source.preview.finished[detail.resource.id=="source-42"] from:document'
+                     hx-target="#source_preview"
+                     hx-swap="outerHTML"
+                     hx-select="#source_preview">
+                  Waiting
+                </div>
+              </body>
+            """,
+        ),
+    )
+    page.route(
+        "https://example.test/preview",
+        lambda route: (
+            requests.append(route.request.url),
+            route.fulfill(status=200, content_type="text/html", body='<div id="source_preview">Preview ready</div>'),
+        ),
+    )
+    page.goto("https://example.test/")
+    page.evaluate("""
+        () => {
+          window.EventSource = class {
+            static instances = [];
+
+            constructor() {
+              this.listeners = new Map();
+              EventSource.instances.push(this);
+            }
+
+            addEventListener(type, callback) {
+              const callbacks = this.listeners.get(type) || [];
+              callbacks.push(callback);
+              this.listeners.set(type, callbacks);
+            }
+
+            emit(type, data) {
+              for (const callback of this.listeners.get(type) || []) callback({ data });
+            }
+
+            close() {}
+          };
+        }
+    """)
+    page.add_script_tag(path=str(VENDOR_JS_PATH))
+    page.add_script_tag(path=str(REALTIME_JS_PATH))
+    page.evaluate("() => htmx.process(document.body)")
+
+    page.evaluate("""
+        () => EventSource.instances[0].emit("message", JSON.stringify({
+          pub: { data: {
+            v: 1,
+            type: "osint_source.preview.finished",
+            change: "completed",
+            resource: { kind: "osint_source", id: "source-elsewhere" },
+            data: { status: "PREVIEW" },
+          } },
+        }))
+    """)
+    page.wait_for_timeout(100)
+    assert requests == []
+
+    page.evaluate("""
+        () => EventSource.instances[0].emit("message", JSON.stringify({
+          pub: { data: {
+            v: 1,
+            type: "osint_source.preview.finished",
+            change: "completed",
+            resource: { kind: "osint_source", id: "source-42" },
+            data: { status: "PREVIEW" },
+          } },
+        }))
+    """)
+    page.locator("#source_preview").wait_for(state="visible")
+    page.wait_for_function("() => document.querySelector('#source_preview')?.textContent.includes('Preview ready')")
+
+    assert requests == ["https://example.test/preview"]
 
 
 def test_reconnect_emits_one_debounced_resynchronization(page: Page):
@@ -247,6 +343,58 @@ def test_report_event_shows_generic_refresh_notice(page: Page):
     assert "hidden" not in notice.get_attribute("class").split()
     assert notice.locator("[data-realtime-data-message]").inner_text() == "New data is available."
     assert notice.locator("[data-realtime-refresh]").inner_text() == "Refresh"
+
+
+def test_broadcast_shows_exact_persistent_message_until_dismissed(page: Page):
+    _load_realtime(page)
+    page.evaluate("""
+        () => {
+          window.broadcastTimeouts = [];
+          const nativeSetTimeout = window.setTimeout.bind(window);
+          window.setTimeout = (callback, delay, ...args) => {
+            if (delay === 10000) window.broadcastTimeouts.push(delay);
+            return nativeSetTimeout(callback, delay, ...args);
+          };
+        }
+    """)
+    page.evaluate("""
+        () => EventSource.instances[0].emit("message", JSON.stringify({
+          pub: {
+            data: {
+              v: 1,
+              type: "notification.broadcast",
+              change: "created",
+              data: {
+                message: "  Maintenance at 18:00  ",
+                persistent: true,
+              },
+            },
+          },
+        }))
+    """)
+
+    notification = page.locator("[data-realtime-broadcast-notification]")
+    assert notification.locator("[data-realtime-broadcast-message]").text_content() == "  Maintenance at 18:00  "
+
+    page.wait_for_timeout(50)
+    assert notification.count() == 1
+    assert page.evaluate("() => window.broadcastTimeouts") == []
+    notification.locator("[data-realtime-dismiss-broadcast]").click()
+    assert notification.count() == 0
+
+    page.evaluate("""
+        () => EventSource.instances[0].emit("message", JSON.stringify({
+          pub: {
+            data: {
+              v: 1,
+              type: "notification.broadcast",
+              data: { message: "Timed", persistent: false },
+            },
+          },
+        }))
+    """)
+    assert page.evaluate("() => window.broadcastTimeouts") == [10000]
+    notification.locator("[data-realtime-dismiss-broadcast]").click()
 
 
 def test_outage_notice_appears_once_and_clears_on_recovery(page: Page):

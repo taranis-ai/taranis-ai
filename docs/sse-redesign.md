@@ -49,7 +49,7 @@ The current deployment already operates Redis for RQ and caching, an ingress pro
 - Keep core mutations successful when the realtime system is slow or unavailable.
 - Provide predictable reconnect and resynchronization behavior.
 - Make report locks atomic, expiring, and safe across core replicas.
-- Preserve a path to WebSocket-based presence and collaboration without building it in phase 1.
+- Preserve a path to richer WebSocket-based presence and collaboration without building it in phase 1.
 - Provide health, metrics, logs, load limits, and graceful rollout behavior.
 
 ### Non-goals for phase 1
@@ -57,7 +57,7 @@ The current deployment already operates Redis for RQ and caching, an ingress pro
 - Guaranteed or exactly-once event delivery.
 - An offline notification inbox.
 - Event sourcing, a transactional outbox, or change-data capture.
-- Centrifugo history, presence, join/leave events, client publishing, RPC, or dynamic subscriptions.
+- Centrifugo history, organization/user-channel presence, join/leave events, client publishing, RPC, or dynamic subscriptions. The only presence use is server-side inspection of `global:events` for the admin connected-client status.
 - Bidirectional collaboration, live cursors, or shared document operations.
 - Cross-tab connection leader election.
 - Using SSE payloads as authorization evidence or authoritative entity state.
@@ -120,14 +120,14 @@ Enable only:
 - Health endpoints.
 - Prometheus metrics.
 
-Configure `global`, `org`, and `user` channel namespaces because Centrifugo treats the text before `:` as a namespace and rejects undefined namespaces. All three use JSON-object publication validation and leave history, presence, join/leave events, client subscribe, and client publish permissions disabled. The `user` namespace permits the server-assigned `user:#<user_uuid>` form; clients still cannot request that subscription themselves.
+Configure `global`, `org`, and `user` channel namespaces because Centrifugo treats the text before `:` as a namespace and rejects undefined namespaces. All three use JSON-object publication validation and leave history, join/leave events, client subscribe, and client publish permissions disabled. Presence is enabled only on `global`, so core can show the admin-only connected-client status; clients receive no presence permission. The `org` and `user` namespaces leave presence disabled. The `user` namespace permits the server-assigned `user:#<user_uuid>` form; clients still cannot request that subscription themselves.
 
 Keep disabled:
 
 - Bidirectional WebSocket, bidirectional SSE emulation, HTTP streaming, WebTransport, and gRPC client transports.
 - Client-side subscriptions and client publishing.
 - Channel history and recovery.
-- Presence and join/leave publications.
+- Client-side presence queries and join/leave publications.
 - Centrifugo admin UI.
 - Anonymous connections.
 
@@ -188,7 +188,7 @@ Phase 1 has exactly three audience kinds:
 
 | Audience | Channel | Use |
 |---|---|---|
-| Global | `global:events` | Opaque system-wide invalidations such as collected assessment data changing |
+| Global | `global:events` | System-wide invalidations and explicit administrator broadcast notifications |
 | Organization | `org:<organization_uuid>` | Shared report and lock invalidations scoped to an organization |
 | User | `user:#<user_uuid>` | User-triggered task or render completion |
 
@@ -196,7 +196,7 @@ Client-selected channels, resource-specific channels, wildcard subscriptions, an
 
 An event publisher must supply an audience explicitly. There is no default-to-global behavior. Channels route notifications but never grant data access; every subsequent REST request still performs normal RBAC checks.
 
-Logout, user deletion, role changes, and organization changes make a best-effort call to Centrifugo's disconnect API for the affected user. Reconnection recalculates channels. A disconnect failure does not roll back the account change, but it is logged as a security-relevant warning. The 15-minute connection expiry bounds stale subscriptions, and event payloads contain no confidential entity content.
+Logout, user deletion, role changes, and organization changes make a best-effort call to Centrifugo's disconnect API for the affected user. Reconnection recalculates channels. A disconnect failure does not roll back the account change, but it is logged as a security-relevant warning. The 15-minute connection expiry bounds stale subscriptions. Domain events contain no confidential entity content; an explicit administrator broadcast contains only the operator-entered text intended for every connected user.
 
 ## Core publication contract
 
@@ -237,7 +237,7 @@ Required fields:
 - `change`: one of `created`, `updated`, `deleted`, `invalidated`, or `completed`.
 - `data`: JSON object, empty unless a fixed publisher method adds a small value required by the event contract.
 
-`resource` is optional. Fixed publisher methods pass only opaque resource identifiers and the terminal product-render status. Call sites must not add report bodies, product content, usernames, email addresses, roles, permissions, access tokens, or lease tokens.
+`resource` is optional. Domain publisher methods pass only opaque resource identifiers and the terminal product-render status. The admin broadcast method accepts only the validated message intended for all users. Call sites must not add report bodies, product content, usernames, email addresses, roles, permissions, access tokens, or lease tokens.
 
 Initial event mapping:
 
@@ -247,6 +247,8 @@ Initial event mapping:
 | `report.item.changed` | Organization | Report item ID only |
 | `report.lock.changed` | Organization | Report item ID only; clients fetch current lease state |
 | `product.rendered` | User | Product ID and terminal render status only; use organization audience for system-triggered renders without a user |
+| `osint_source.preview.finished` | User | OSINT source ID and terminal preview status only; the matching page refetches rendered HTML |
+| `notification.broadcast` | Global | Administrator-entered message up to 500 characters plus `persistent: true`; clients render the string as text until dismissed |
 
 Consumers ignore unknown fields. An unknown `v` is not processed and triggers a full resynchronization. An unknown event `type` at a supported version is logged and ignored.
 
@@ -283,6 +285,12 @@ The module:
 - Never treats event data as trusted HTML or authorization evidence.
 
 Page-specific handlers subscribe to relevant domain events and fetch current HTML or JSON through existing authenticated endpoints. Handlers coalesce identical refreshes for 300 ms and add 0–500 ms random jitter before broad refreshes. If an event names a resource that is not visible on the current page, the handler does nothing.
+
+The OSINT source preview waiting fragment listens for its matching user-scoped completion event and refetches itself through HTMX. Its existing 20-second trigger remains a degraded-mode fallback because realtime publication is best-effort and the SSE transport has no history.
+
+`notification.broadcast` is handled directly by the connection module because it does not invalidate page data. Each event creates an existing-style persistent notification, assigns the message with `textContent`, records it in the session Notification Center, and removes it only when the user dismisses it.
+
+The dedicated Admin Notifications page also shows current connectivity. Its `ADMIN_OPERATIONS`-protected core endpoint calls Centrifugo's server API for `global:events` presence, counts client IDs and unique non-empty user IDs, and joins those IDs with Taranis users to display usernames. No username or profile data is stored in Centrifugo connection metadata, and browsers cannot call presence directly. This is a live snapshot, not a historical session or audit log.
 
 After any connection loss followed by a successful reopen, the connection module emits `realtime:resync`. Active page handlers then fetch their authoritative state. The first connection does not force every page to refetch its server-rendered content; lock-aware editor pages always fetch current lease state during initialization.
 
@@ -420,6 +428,8 @@ Readiness requires the Centrifugo process and Redis engine to be usable. Livenes
 - Prove a Centrifugo timeout, rejection, or malformed response does not change the successful domain response.
 - Prove disabled realtime performs no HTTP call.
 - Validate connect-proxy responses for users with and without organizations.
+- Validate that only `ADMIN_OPERATIONS` users can broadcast and that input validation preserves the accepted message exactly.
+- Validate that only `ADMIN_OPERATIONS` users can list connected clients, presence failures return an unavailable response, and Taranis usernames are resolved server-side.
 
 ### Authentication and isolation tests
 
@@ -455,6 +465,8 @@ Run core, Redis, ingress, and two Centrifugo replicas:
 
 - One EventSource is created per authenticated tab and none when realtime is disabled.
 - Centrifugo publications dispatch the correct domain event.
+- A broadcast displays the exact message and remains until dismissed.
+- The Admin Notifications page is a separate sidebar entry and displays the live client/user counts returned by core.
 - Repeated events are debounced and irrelevant resource IDs do not refresh the page.
 - A reconnect produces one resynchronization.
 - A 15-second outage shows one degraded notice; recovery removes it.

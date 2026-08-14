@@ -70,6 +70,48 @@ class RealtimePublisher:
     def assess_changed(self) -> bool:
         return self.publish("global:events", "assess.changed", "invalidated")
 
+    def broadcast_notification(self, message: str) -> bool:
+        return self.publish(
+            "global:events",
+            "notification.broadcast",
+            "created",
+            data={"message": message, "persistent": True},
+        )
+
+    def connected_clients(self) -> list[dict[str, str]] | None:
+        if not Config.REALTIME_ENABLED:
+            return None
+
+        try:
+            response = self.session.post(
+                f"{Config.CENTRIFUGO_API_URL.rstrip('/')}/api/presence",
+                headers={"X-API-Key": Config.CENTRIFUGO_API_KEY.get_secret_value()},
+                json={"channel": "global:events"},
+                timeout=(0.2, 0.3),
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, dict) or payload.get("error"):
+                raise ValueError("Centrifugo rejected the presence request")
+            result = payload.get("result")
+            presence = result.get("presence") if isinstance(result, dict) else None
+            if not isinstance(presence, dict):
+                raise TypeError("Centrifugo returned invalid presence data")
+            return sorted(
+                (
+                    {
+                        "client_id": str(info.get("client") or client_id),
+                        "user_id": str(info.get("user") or ""),
+                    }
+                    for client_id, info in presence.items()
+                    if isinstance(info, dict)
+                ),
+                key=lambda client: (client["user_id"], client["client_id"]),
+            )
+        except (requests.RequestException, TypeError, ValueError) as error:
+            logger.warning("realtime_presence_failed %s", {"failure": type(error).__name__})
+            return None
+
     def report_item_changed(self, report_item_id: str, organization_id: str, change: str = "updated") -> bool:
         return self.publish(
             f"org:{organization_id}",
@@ -92,6 +134,15 @@ class RealtimePublisher:
             "product.rendered",
             "completed",
             resource={"kind": "product", "id": product_id},
+            data={"status": status},
+        )
+
+    def osint_source_preview_finished(self, source_id: str, user_id: str, status: str) -> bool:
+        return self.publish(
+            f"user:#{user_id}",
+            "osint_source.preview.finished",
+            "completed",
+            resource={"kind": "osint_source", "id": source_id},
             data={"status": status},
         )
 

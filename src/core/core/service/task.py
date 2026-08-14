@@ -80,6 +80,17 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
+        if (
+            submission.user_id
+            and submission.task == "collector_preview"
+            and submission.id.startswith("source_preview_")
+            and submission.status in {"PREVIEW", "FAILURE"}
+        ):
+            realtime_publisher.osint_source_preview_finished(
+                submission.id.removeprefix("source_preview_"),
+                submission.user_id,
+                submission.status,
+            )
         if submission.status == "SUCCESS" and submission.result is not None:
             cls._handle_success_result(submission)
         elif task_kind in {"collector_task", "bot_task"}:

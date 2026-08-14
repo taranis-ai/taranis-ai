@@ -73,7 +73,6 @@ def test_is_safe_redirect_target_rejects_network_path_variants(app):
 @pytest.mark.parametrize(
     ("permissions", "expected"),
     [
-        (["ALL"], True),
         (["ADMIN_OPERATIONS"], True),
         (["CONFIG_USERS"], True),
         (["ASSESS_ACCESS", "CONFIG_WORD_LISTS"], True),
