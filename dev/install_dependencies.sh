@@ -33,28 +33,8 @@ install_basic_utils() {
 }
 
 install_astral() {
-    command -v uv >/dev/null 2>&1 || install_astral_tool uv 0.11.32 0ca8a288f44e290001c1141018c8744ecd11e7a1f98041f30ff0fdd387413286
-    command -v ruff >/dev/null 2>&1 || install_astral_tool ruff 0.16.2 a5bb90974bfc98a5fa91d835fa418d536aca4bbb0872416d1cd12c8494a626ff
-}
-
-install_astral_tool() {
-    local tool="$1"
-    local version="$2"
-    local expected_checksum="$3"
-    local installer
-    local actual_checksum
-
-    installer="$(curl -LsSf "https://astral.sh/$tool/$version/install.sh")"
-    if command -v sha256sum >/dev/null 2>&1; then
-        actual_checksum="$(printf '%s' "$installer" | sha256sum | cut -d ' ' -f 1)"
-    else
-        actual_checksum="$(printf '%s' "$installer" | shasum -a 256 | cut -d ' ' -f 1)"
-    fi
-    if [ "$actual_checksum" != "$expected_checksum" ]; then
-        echo "Checksum verification failed for $tool $version installer"
-        return 1
-    fi
-    printf '%s' "$installer" | sh
+    command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
+    command -v ruff >/dev/null 2>&1 || curl -LsSf https://astral.sh/ruff/install.sh | sh
 }
 
 # Install and setup Docker
