@@ -1,5 +1,5 @@
 import contextlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pymisp import MISPAttribute, MISPEvent, MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, exceptions
@@ -106,7 +106,7 @@ class MispConnector:
         new_report = MISPEventReport()
         if existing_uuid:
             new_report.uuid = existing_uuid
-        new_report.from_dict(name=report_title, content=content, timestamp=datetime.now(timezone.utc))
+        new_report.from_dict(name=report_title, content=content, timestamp=datetime.now(UTC))
         return new_report
 
     def get_event_by_uuid(self, misp: PyMISP, story: dict, event_uuid: str) -> MISPEvent | None:

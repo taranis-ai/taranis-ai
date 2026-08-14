@@ -173,9 +173,8 @@ class Product(BaseModel):
 
     @classmethod
     def get_render(cls, product_id: str):
-        if product := cls.get(product_id):
-            if product.render_result:
-                return {"mime_type": product.product_type.get_mimetype(), "blob": product.render_result, "filename": product.get_file_name()}
+        if (product := cls.get(product_id)) and product.render_result:
+            return {"mime_type": product.product_type.get_mimetype(), "blob": product.render_result, "filename": product.get_file_name()}
         return None
 
     @classmethod

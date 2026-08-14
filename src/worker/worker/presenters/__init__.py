@@ -10,11 +10,11 @@ from worker.presenters.text_presenter import TextPresenter
 # from worker.collectors.web_collector import WebCollector
 
 __all__ = [
-    "PANDOCPresenter",
+    "BasePresenter",
     "HTMLPresenter",
     "JSONPresenter",
+    "PANDOCPresenter",
     "PDFPresenter",
-    "BasePresenter",
-    "TextPresenter",
     "STIXPresenter",
+    "TextPresenter",
 ]

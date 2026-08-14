@@ -132,10 +132,9 @@ def unwrap_annotation(field_annotation: type | None) -> tuple[type, bool] | None
         return None
     ann: type = field_annotation
     field_required = True
-    if field_annotation is Union or isinstance(field_annotation, types.UnionType):
-        if args := get_args(field_annotation):
-            ann = args[0]
-            if None not in args:
-                field_required = False
+    if (field_annotation is Union or isinstance(field_annotation, types.UnionType)) and (args := get_args(field_annotation)):
+        ann = args[0]
+        if None not in args:
+            field_required = False
 
     return ann, field_required

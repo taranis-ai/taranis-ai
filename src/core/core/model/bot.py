@@ -1,6 +1,7 @@
-from datetime import datetime
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from graphlib import CycleError, TopologicalSorter
-from typing import Any, Sequence
+from typing import Any
 
 from models.admin import CronSpec
 from models.types import BOT_TYPES
@@ -101,9 +102,8 @@ class Bot(BaseModel):
             if parameters := data.get("parameters"):
                 update_parameter = ParameterValue.get_or_create_from_list(parameters)
                 bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
-            if index := data.get("index"):
-                if not Bot.index_exists(index):
-                    bot.index = index
+            if (index := data.get("index")) and not Bot.index_exists(index):
+                bot.index = index
             cls.validate_dependency_config()
             db.session.commit()
         except Exception:
@@ -450,12 +450,11 @@ class Bot(BaseModel):
 
         Note: All times are calculated in UTC for consistency across the system.
         """
-        from datetime import timezone
 
         from core.managers import queue_manager as queue_manager_module
         from core.managers.queue_manager import QueueManager
 
-        now = now or datetime.now(timezone.utc).replace(tzinfo=None)
+        now = now or datetime.now(UTC).replace(tzinfo=None)
         entries: list[dict[str, Any]] = []
 
         bots = cls.get_all_for_collector()

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from models.assess import StoryTag
 from models.base import TaranisBaseModel
 
-DashboardHealthState = Literal["up", "down", "n/a"]
+type DashboardHealthState = Literal["up", "down", "n/a"]
 
 class DashboardHealthServices(BaseModel):
     database: DashboardHealthState

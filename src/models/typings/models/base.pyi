@@ -2,7 +2,7 @@ from typing import ClassVar, TypeVar
 
 from pydantic import BaseModel
 
-T = TypeVar("T", bound="TaranisBaseModel")
+T = TypeVar("T", bound=TaranisBaseModel)
 
 class TaranisBaseModel(BaseModel):
     _core_endpoint: ClassVar[str]

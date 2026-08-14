@@ -3,7 +3,6 @@ import logging.handlers
 import socket
 import sys
 import traceback
-from typing import Optional
 
 from flask import request
 
@@ -11,7 +10,7 @@ from frontend.config import Config
 
 
 class TaranisLogger:
-    def __init__(self, module: str, debug: bool, colored: bool, syslog_address: Optional[tuple[str, int]]):
+    def __init__(self, module: str, debug: bool, colored: bool, syslog_address: tuple[str, int] | None):
         stream_handler = logging.StreamHandler(stream=sys.stdout)
         if colored:
             stream_handler.setFormatter(TaranisLogFormatter(module))

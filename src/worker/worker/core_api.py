@@ -408,7 +408,7 @@ class CoreApi:
 
     def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
-            payload = dict(attributes=attributes) if not isinstance(attributes, dict) else dict(attributes)
+            payload = {"attributes": attributes} if not isinstance(attributes, dict) else dict(attributes)
             return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=payload)
         except Exception:
             return None

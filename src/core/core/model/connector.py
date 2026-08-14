@@ -1,5 +1,6 @@
+import builtins
 from datetime import datetime
-from typing import Any, Type
+from typing import Any
 
 from models.types import COLLECTOR_TYPES, CONNECTOR_TYPES
 from sqlalchemy.exc import IntegrityError
@@ -79,11 +80,9 @@ class Connector(BaseModel):
 
     def schedule_connector(self):
         """TODO: Lower priority"""
-        pass
 
     def unschedule_connector(self):
         """TODO: Lower priority"""
-        pass
 
     @classmethod
     def update(cls, connector_id: str, data: dict) -> "Connector | None":
@@ -120,7 +119,7 @@ class Connector(BaseModel):
             return {"error": "Deleting Connector failed"}, 500
 
     @staticmethod
-    def _update_last_change(model_class: Type, data: dict[str, str]) -> tuple[dict[str, str], int]:
+    def _update_last_change(model_class: builtins.type, data: dict[str, str]) -> tuple[dict[str, str], int]:
         if not data:
             return {"error": "No data provided"}, 400
 

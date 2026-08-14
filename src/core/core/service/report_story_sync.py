@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Literal
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Literal
 
 from core.managers.db_manager import db
 from core.service.story import StoryService
@@ -16,7 +17,7 @@ ReportStoryAction = Literal["attach", "detach", "retag"]
 
 class ReportStorySyncService:
     @classmethod
-    def update_affected_stories(cls, stories: Iterable["Story"], flush: bool = True) -> list["Story"]:
+    def update_affected_stories(cls, stories: Iterable[Story], flush: bool = True) -> list[Story]:
         stories = list(stories)
         if not stories:
             return []
@@ -30,7 +31,7 @@ class ReportStorySyncService:
         return stories
 
     @classmethod
-    def sync_report_membership(cls, report: "ReportItem", stories: Iterable["Story"], action: ReportStoryAction) -> list["Story"]:
+    def sync_report_membership(cls, report: ReportItem, stories: Iterable[Story], action: ReportStoryAction) -> list[Story]:
         stories = list(stories)
         if not stories:
             return []

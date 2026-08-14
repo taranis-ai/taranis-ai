@@ -1,7 +1,8 @@
 import datetime
 import uuid
+from collections.abc import Callable
 from json import JSONDecodeError
-from typing import Any, Callable, cast
+from typing import Any, cast
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from flask import Response, abort, flash, json, make_response, redirect, render_template, request, session, url_for
@@ -1115,7 +1116,7 @@ class StoryView(BaseView):
     @classmethod
     @auth_required()
     def create_news_item(cls):
-        logger.debug(f"Creating news item with form fields: {[key for key in request.form.keys() if key != 'csrf_token']}")
+        logger.debug(f"Creating news item with form fields: {[key for key in request.form if key != 'csrf_token']}")
         if url := request.form.get("fetch_url"):
             form_data = parse_formdata(request.form)
             return cls._create_news_item_from_url(url, form_data.get("parameters", {}))
@@ -1306,13 +1307,17 @@ class StoryView(BaseView):
         story_id = payload.get("story_id") or payload.get("story_ids", [""])[0]
 
         current_url_path = cls._get_current_url_path()
-        if story_id and current_url_path in {
-            url_for("assess.story", story_id=story_id),
-            url_for("assess.story_edit", story_id=story_id),
-        }:
-            if CoreApi().api_get(f"/assess/stories/{story_id}") is None:
-                cls.add_flash_notification(core_response)
-                return cls.redirect_htmx(url_for("assess.assess"))
+        if (
+            story_id
+            and current_url_path
+            in {
+                url_for("assess.story", story_id=story_id),
+                url_for("assess.story_edit", story_id=story_id),
+            }
+            and CoreApi().api_get(f"/assess/stories/{story_id}") is None
+        ):
+            cls.add_flash_notification(core_response)
+            return cls.redirect_htmx(url_for("assess.assess"))
 
         return cls._handle_news_item_response(
             core_response,
@@ -1343,9 +1348,8 @@ class StoryView(BaseView):
 
     @staticmethod
     def _get_current_url_path() -> str:
-        if current_url := request.headers.get("HX-Current-URL", ""):
-            if parsed_url := urlparse(current_url):
-                return parsed_url.path or current_url
+        if (current_url := request.headers.get("HX-Current-URL", "")) and (parsed_url := urlparse(current_url)):
+            return parsed_url.path or current_url
         return ""
 
     @staticmethod

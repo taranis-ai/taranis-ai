@@ -1,7 +1,7 @@
 # pyright: reportMissingTypeStubs=false
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal, cast
 
 import ioc_fanger
@@ -341,4 +341,4 @@ class IntelOwlBot(BaseBot):
 
     @staticmethod
     def _now() -> str:
-        return datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        return datetime.now(UTC).replace(tzinfo=None).isoformat()

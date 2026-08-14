@@ -1,9 +1,10 @@
 import base64
 import json
 import uuid
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Sequence, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Self, TypeVar
 
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped
@@ -41,7 +42,7 @@ class BaseModel(db.Model):
 
     @staticmethod
     def utcnow() -> datetime:
-        return datetime.now(timezone.utc).replace(tzinfo=None)
+        return datetime.now(UTC).replace(tzinfo=None)
 
     @staticmethod
     def uuid7_str() -> str:
@@ -58,8 +59,8 @@ class BaseModel(db.Model):
     @staticmethod
     def as_utc_aware(value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
 
     @classmethod
     def serialize_datetime(cls, value: datetime) -> str:
@@ -81,7 +82,7 @@ class BaseModel(db.Model):
         return json.dumps(self.to_dict())
 
     @classmethod
-    def delete(cls: Type[T], id) -> tuple[dict[str, Any], int]:
+    def delete(cls, id) -> tuple[dict[str, Any], int]:
         model_name = type.__getattribute__(cls, "__name__")
         if item := cls.get(id):
             db.session.delete(item)
@@ -91,21 +92,21 @@ class BaseModel(db.Model):
         return {"error": f"{model_name} not found"}, 404
 
     @classmethod
-    def add(cls: Type[T], data) -> T:
+    def add(cls, data) -> Self:
         item = cls.from_dict(data)
         db.session.add(item)
         db.session.commit()
         return item
 
     @classmethod
-    def add_multiple(cls: Type[T], json_data) -> list[T]:
+    def add_multiple(cls, json_data) -> list[Self]:
         items = cls.load_multiple(json_data)
         db.session.add_all(items)
         db.session.commit()
         return items
 
     @classmethod
-    def delete_all(cls: Type[T]) -> tuple[dict[str, Any], int]:
+    def delete_all(cls) -> tuple[dict[str, Any], int]:
         db.session.execute(db.delete(cls))
         db.session.commit()
         model_name = type.__getattribute__(cls, "__name__")
@@ -113,14 +114,14 @@ class BaseModel(db.Model):
         return {"message": f"All {model_name} deleted"}, 200
 
     @classmethod
-    def from_dict(cls: Type[T], data: dict[str, Any]) -> T:
+    def from_dict(cls, data: dict[str, Any]) -> Self:
         return cls(**data)
 
     def to_detail_dict(self) -> dict[str, Any]:
         return self.to_dict()
 
     @classmethod
-    def load_multiple(cls: Type[T], json_data: list[dict[str, Any]]) -> list[T]:
+    def load_multiple(cls, json_data: list[dict[str, Any]]) -> list[Self]:
         return [cls.from_dict(data) for data in json_data]
 
     @classmethod
@@ -128,15 +129,15 @@ class BaseModel(db.Model):
         return [obj.to_dict() for obj in objects]
 
     @classmethod
-    def get(cls: Type[T], item_id: str | None) -> T | None:
+    def get(cls, item_id: str | None) -> Self | None:
         return None if item_id in (None, "") else db.session.get(cls, item_id)
 
     @classmethod
-    def get_all_for_collector(cls: Type[T]) -> Sequence[T] | None:
+    def get_all_for_collector(cls) -> Sequence[Self] | None:
         return db.session.execute(db.select(cls)).scalars().all()
 
     @classmethod
-    def get_bulk(cls: Type[T], item_ids: list[str]) -> list[T]:
+    def get_bulk(cls, item_ids: list[str]) -> list[Self]:
         return list(db.session.execute(db.select(cls).filter(cls.id.in_(item_ids))).scalars().all())
 
     @classmethod
@@ -150,7 +151,7 @@ class BaseModel(db.Model):
         return cls.get_filter_query(filter_args)
 
     @classmethod
-    def get_filter_query(cls: Type[T], filter_args: dict) -> Select:
+    def get_filter_query(cls, filter_args: dict) -> Select:
         query = db.select(cls)
 
         if search := filter_args.get("search"):
@@ -159,15 +160,15 @@ class BaseModel(db.Model):
         return query
 
     @classmethod
-    def get_filtered(cls: Type[T], query: Select) -> Sequence[T] | None:
+    def get_filtered(cls, query: Select) -> Sequence[Self] | None:
         return db.session.execute(query).scalars().all()
 
     @classmethod
-    def get_first(cls: Type[T], query: Select) -> T | None:
+    def get_first(cls, query: Select) -> Self | None:
         return db.session.execute(query).scalar()
 
     @classmethod
-    def get_by_filter(cls: Type[T], filter_args: dict) -> Sequence[T] | None:
+    def get_by_filter(cls, filter_args: dict) -> Sequence[Self] | None:
         return cls.get_filtered(cls.get_filter_query(filter_args))
 
     @classmethod
@@ -238,12 +239,12 @@ class BaseModel(db.Model):
         return filter_args.get("fetch_all") == "true"
 
     @classmethod
-    def get_filtered_count(cls: Type[T], query: Select) -> int:
+    def get_filtered_count(cls, query: Select) -> int:
         count_query = db.select(func.count()).select_from(query).order_by(None).offset(None).limit(None)
         return db.session.execute(count_query).scalar() or 0
 
     @classmethod
-    def get_count(cls: Type[T]) -> int:
+    def get_count(cls) -> int:
         count_query = db.select(func.count()).select_from(cls)
         return db.session.execute(count_query).scalar() or 0
 

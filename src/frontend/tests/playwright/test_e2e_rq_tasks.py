@@ -2,7 +2,7 @@ import json
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, cast
 
 import pytest
@@ -139,7 +139,7 @@ def _assert_cron_registration(
 
 def _previous_scheduled_timestamp(cron_spec: dict[str, Any], current_next_run: float) -> float:
     if cron_expression := cron_spec.get("cron"):
-        current_next_run_dt = datetime.fromtimestamp(current_next_run, tz=timezone.utc)
+        current_next_run_dt = datetime.fromtimestamp(current_next_run, tz=UTC)
         return croniter(str(cron_expression), current_next_run_dt).get_prev(datetime).timestamp()
 
     if interval := cron_spec.get("interval"):

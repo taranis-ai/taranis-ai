@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import worker.collectors as collectors
+from worker import collectors
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.config import Config
 
@@ -144,7 +144,7 @@ def browser_web_collector_instance(simple_web_collector):
 
 @pytest.fixture
 def rt_mock(requests_mock, collectors_mock):
-    import tests.collectors.rt_testdata as rt_testdata
+    from tests.collectors import rt_testdata
 
     requests_mock.get(rt_testdata.rt_ticket_search_url, json=rt_testdata.rt_ticket_search_result)
     requests_mock.get(rt_testdata.rt_no_tickets_url, json={"items": []})

@@ -116,14 +116,14 @@ class BaseWebCollector(BaseCollector):
         icon_url = f"{urlparse(web_url).scheme}://{urlparse(web_url).netloc}/favicon.ico"
         r = self._fetch_icon(icon_url)
         if not r.ok or not (content := r.content):
-            return None
+            return
 
         filename = r.headers.get("content-disposition")
         if not isinstance(filename, str):
             filename = "file"
         icon_content: IconFile = {"file": (filename, content)}
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
-        return None
+        return
 
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:
         if self.browser_mode == "true" and self.playwright_manager:
@@ -202,10 +202,10 @@ class BaseWebCollector(BaseCollector):
             try:
                 news_items.append(self.news_item_from_article(split_digest_url))
             except ValueError as e:
-                logger.warning(f"Failed to parse the digest with error: {str(e)}")
+                logger.warning(f"Failed to parse the digest with error: {e!s}")
                 continue
             except Exception as e:
-                logger.error(f"Failed digest splitting with error: {str(e)}")
-                raise e
+                logger.error(f"Failed digest splitting with error: {e!s}")
+                raise
 
         return news_items

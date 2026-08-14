@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import core.service.dashboard as dashboard_module
@@ -19,7 +19,7 @@ def _unique_value(prefix: str) -> str:
 
 
 def test_get_dashboard_data_includes_task_totals(monkeypatch):
-    latest_collected = datetime(2026, 4, 13, 12, 30, tzinfo=timezone.utc)
+    latest_collected = datetime(2026, 4, 13, 12, 30, tzinfo=UTC)
     schedule_count_calls = []
 
     monkeypatch.setattr(NewsItem, "get_count", classmethod(lambda cls: 11))

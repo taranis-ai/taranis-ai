@@ -1,6 +1,7 @@
 import json
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from flask import Response, abort, jsonify
 from flask_jwt_extended import current_user

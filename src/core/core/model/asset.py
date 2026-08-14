@@ -166,9 +166,8 @@ class Asset(BaseModel):
 
     @classmethod
     def get_for_api(cls, item_id, organization: Organization) -> tuple[dict[str, Any], int]:
-        if item := cls.get(item_id):
-            if AssetGroup.access_allowed(organization, item.asset_group_id):
-                return item.to_dict(), 200
+        if (item := cls.get(item_id)) and AssetGroup.access_allowed(organization, item.asset_group_id):
+            return item.to_dict(), 200
         return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
@@ -318,9 +317,8 @@ class AssetGroup(BaseModel):
             normalized_id = cls.normalize_uuid_id(item_id)
         except (TypeError, ValueError):
             normalized_id = None
-        if normalized_id and normalized_id != lookup_id:
-            if asset_group := super().get(normalized_id):
-                return asset_group
+        if normalized_id and normalized_id != lookup_id and (asset_group := super().get(normalized_id)):
+            return asset_group
         if lookup_id:
             return cls.get_by_key(lookup_id)
         return None

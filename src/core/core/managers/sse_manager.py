@@ -46,7 +46,7 @@ class SSEManager:
         self.publish({"data": data, "event": "product-rendered"})
 
     def to_report_item_json(self, report_item_id: str):
-        if report_item_id not in self.report_item_locks.keys():
+        if report_item_id not in self.report_item_locks:
             return {"report_item_id": report_item_id, "locked": False}
         return {
             "report_item_id": report_item_id,
@@ -70,7 +70,7 @@ class SSEManager:
         # schedule.every(1).minute.do(self.schedule_unlock_report_item, report_item_id, user_id)
 
     def report_item_unlock(self, report_item_id: str, user_id: str):
-        if report_item_id not in self.report_item_locks.keys():
+        if report_item_id not in self.report_item_locks:
             return self.to_report_item_json(report_item_id), 200
 
         del self.report_item_locks[report_item_id]

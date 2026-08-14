@@ -76,8 +76,8 @@ class PlaywrightManager:
             page.wait_for_load_state("networkidle")
         except TimeoutError as e:
             logger.error(
-                f"Fetching content with JS for {url} with {xpath=} has timed out, invalid XPath could be the reason, check for details. \nDetails: \n{str(e)}"
+                f"Fetching content with JS for {url} with {xpath=} has timed out, invalid XPath could be the reason, check for details. \nDetails: \n{e!s}"
             )
         except Exception as e:
-            logger.error(f"Error fetching content with JS: {str(e)}")
+            logger.error(f"Error fetching content with JS: {e!s}")
         return page.content() or ""

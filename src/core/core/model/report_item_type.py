@@ -35,9 +35,8 @@ class AttributeGroupItem(BaseModel):
         self.index = index
         self.required = required
 
-        if attribute:
-            if attr := Attribute.filter_by_name(attribute):
-                attribute_id = attr.id
+        if attribute and (attr := Attribute.filter_by_name(attribute)):
+            attribute_id = attr.id
 
         if not attribute_id:
             raise ValueError("AttributeGroupItem requires either attribute_id or attribute")

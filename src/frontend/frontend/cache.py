@@ -162,13 +162,12 @@ def get_cache_keys() -> list[str]:
 def get_cached_users() -> list[UserProfile]:
     users: list[UserProfile] = []
     for key in cache.scan_keys(build_user_profile_pattern(cache.key_prefix)):
-        if username := parse_user_profile_key(key):
-            if user := get_user_from_cache(username):
-                users.append(user)
+        if (username := parse_user_profile_key(key)) and (user := get_user_from_cache(username)):
+            users.append(user)
     return users
 
 
-def add_model_to_cache(model: T, cache_key: str, user_id: str) -> T | None:
+def add_model_to_cache[T: "TaranisBaseModel"](model: T, cache_key: str, user_id: str) -> T | None:
     try:
         cache.set(
             key=cache.model_detail_key(str(user_id), model._model_name, cache_key),

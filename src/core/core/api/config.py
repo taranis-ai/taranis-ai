@@ -7,9 +7,9 @@ from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.admin import OSINTSource as OSINTSourceModel
-from psycopg.errors import NotNullViolation, UniqueViolation  # noqa: F401
+from psycopg.errors import NotNullViolation, UniqueViolation
 from pydantic import ValidationError
-from sqlalchemy.exc import IntegrityError  # noqa: F401
+from sqlalchemy.exc import IntegrityError
 
 from core.config import Config
 from core.log import logger

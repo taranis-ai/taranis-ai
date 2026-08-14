@@ -4,7 +4,7 @@ import mockssh
 import pytest
 from pytest import yield_fixture
 
-import worker.publishers as publishers
+from worker import publishers
 
 
 class MockProduct:

@@ -1,6 +1,7 @@
 import copy
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, Iterable, Optional
+from typing import Any, ClassVar
 
 from models.dashboard import NewsItemConflict as NewsItemConflictModel
 
@@ -17,8 +18,8 @@ class NewsItemConflict:
     incoming_story: dict[str, Any]
     misp_address: str | None = None
 
-    conflict_store: ClassVar[Dict[str, "NewsItemConflict"]] = {}
-    story_index: ClassVar[Dict[str, dict[str, Any]]] = {}
+    conflict_store: ClassVar[dict[str, "NewsItemConflict"]] = {}
+    story_index: ClassVar[dict[str, dict[str, Any]]] = {}
 
     @classmethod
     def register(
@@ -113,7 +114,7 @@ class NewsItemConflict:
         logger.debug("NewsItemConflict: store and index flushed")
 
     @classmethod
-    def reevaluate_conflicts(cls, story_ids: Optional[Iterable[str]] = None, story_to_skip: str = ""):
+    def reevaluate_conflicts(cls, story_ids: Iterable[str] | None = None, story_to_skip: str = ""):
         from core.model.story import Story
 
         if story_ids is None:
@@ -150,7 +151,7 @@ class NewsItemConflict:
 
     @classmethod
     def _ingest_incoming_ungroup_internal(cls, data: dict, user: User) -> tuple[dict, int]:
-        import core.model.story as story
+        from core.model import story
 
         if not data:
             return {"error": "Missing story_ids or news_item_ids"}, 400

@@ -218,14 +218,14 @@ def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple
 
 
 def test_rt_collector_collect(rt_mock, rt_collector):
-    import tests.collectors.rt_testdata as rt_testdata
+    from tests.collectors import rt_testdata
 
     result = rt_collector.collect(rt_testdata.rt_collector_source_data)
     assert result is None
 
 
 def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
-    import tests.collectors.rt_testdata as rt_testdata
+    from tests.collectors import rt_testdata
 
     # query did not return tickets
     error_msg = f"No tickets available for {rt_testdata.rt_base_url}"
@@ -238,7 +238,7 @@ def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
 def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
     import json
 
-    import tests.collectors.rt_testdata as rt_testdata
+    from tests.collectors import rt_testdata
 
     # query response contains malformed json
     error_msg = "Expecting ':' delimiter: line 1 column 13 (char 12)"

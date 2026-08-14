@@ -125,13 +125,11 @@ class RSSCollector(BaseWebCollector):
 
             if isinstance(value, list) and value:
                 first = value[0]
-                if isinstance(first, dict) and "value" in first:
-                    if content := str(first["value"]).strip():
-                        return content
-
-            if isinstance(value, str):
-                if content := value.strip():
+                if isinstance(first, dict) and "value" in first and (content := str(first["value"]).strip()):
                     return content
+
+            if isinstance(value, str) and (content := value.strip()):
+                return content
 
         return ""
 
@@ -171,9 +169,8 @@ class RSSCollector(BaseWebCollector):
         if self.use_feed_content:
             content = self.extract_content_from_feed(feed_entry, source)
 
-            if self.xpath and content:
-                if extracted := self.xpath_extraction(content, self.xpath):
-                    content = extracted
+            if self.xpath and content and (extracted := self.xpath_extraction(content, self.xpath)):
+                content = extracted
         elif link:
             web_content = self.extract_web_content(link, self.xpath)
             content = str(web_content.get("content"))
@@ -226,15 +223,15 @@ class RSSCollector(BaseWebCollector):
             r = self._fetch_icon(icon_url)
             if not r.ok:
                 logger.warning(f"Failed to fetch icon from {icon_url}, status: {r.status_code}")
-                return None
+                return
 
             content_type = (r.headers.get("content-type") or "").lower()
             if not content_type.startswith("image/"):
                 logger.warning(f"URL {icon_url} did not return an image (content-type: {content_type})")
-                return None
+                return
             if not (content := r.content):
                 logger.warning(f"URL {icon_url} returned no content")
-                return None
+                return
 
             parsed = urlparse(icon_url)
             filename = parsed.path.rsplit("/", 1)[-1] or "favicon.ico"
@@ -245,14 +242,14 @@ class RSSCollector(BaseWebCollector):
         except Exception as e:
             logger.error(f"Exception while fetching icon from {icon_url}: {e}")
 
-        return None
+        return
 
     def parse_feed(self, feed_entries: list[feedparser.FeedParserDict], source: dict) -> list[NewsItem]:
         for feed_entry in feed_entries:
             try:
                 self.news_items.append(self.parse_feed_entry(feed_entry, source))
             except Exception as e:
-                logger.warning(f"Error parsing feed entry: {str(e)}")
+                logger.warning(f"Error parsing feed entry: {e!s}")
                 continue
         return self.news_items
 

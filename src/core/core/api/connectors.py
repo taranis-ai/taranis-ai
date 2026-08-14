@@ -16,9 +16,8 @@ from core.service.cache_invalidation import SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPO
 class StoryConflicts(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id=None):
-        if story_id:
-            if conflict := StoryConflict.conflict_store.get(story_id):
-                return conflict.to_dict(), 200
+        if story_id and (conflict := StoryConflict.conflict_store.get(story_id)):
+            return conflict.to_dict(), 200
         conflicts = [conflict.to_dict() for conflict in StoryConflict.conflict_store.values()]
         return {"conflicts": conflicts}, 200
 

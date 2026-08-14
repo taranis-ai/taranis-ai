@@ -75,9 +75,8 @@ class Presenters(MethodView):
     @api_key_required
     def get(self, presenter: str):
         try:
-            if pres := ProductType.get(presenter):
-                if tmpl := pres.get_template():
-                    return send_file(tmpl)
+            if (pres := ProductType.get(presenter)) and (tmpl := pres.get_template()):
+                return send_file(tmpl)
             return {"error": "Presenter not found"}, 404
         except Exception:
             logger.exception("Failed to get presenter %s", presenter)
