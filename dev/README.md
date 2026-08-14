@@ -1,6 +1,6 @@
 # Taranis AI Development setup
 
-Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json).
+Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json). Each Python component explicitly selects the established Ruff rule baseline so a Ruff upgrade does not silently enable new rules; rule-set migrations should be reviewed separately.
 
 ## Optional local signoff
 

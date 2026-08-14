@@ -52,6 +52,9 @@ dev = ["ruff", "pytest", "wheel", "pyrefly>=1.1.1"]
 line-length = 142
 target-version = "py313"
 
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
 [tool.ruff.lint.isort]
 lines-after-imports = 2
 
