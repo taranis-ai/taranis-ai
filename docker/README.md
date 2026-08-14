@@ -175,7 +175,7 @@ The supplied Centrifugo configuration enables presence only for `global:events`,
 
 `CENTRIFUGO_API_KEY` and `CENTRIFUGO_CONNECT_PROXY_SECRET` must be non-empty and distinct from each other, `API_KEY`, and `JWT_SECRET_KEY`.
 
-The Centrifugo service also reads `CENTRIFUGO_REDIS_URL` directly; core does not.
+The Centrifugo service also reads `CENTRIFUGO_REDIS_URL` directly; core does not. The sample environment derives its Redis URL password from `REDIS_PASSWORD` so the two credentials cannot drift.
 All other Centrifugo server behavior is configured through native `CENTRIFUGO_*` environment variables; no configuration file or runtime config volume is required.
 
 ### `worker`

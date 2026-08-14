@@ -271,6 +271,8 @@ class Story(MethodView):
     @validate_json
     def patch(self, story_id):
         response, code = story.Story.update(story_id, request.json, current_user)
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return response, code
 

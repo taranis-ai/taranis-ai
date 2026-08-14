@@ -1,6 +1,6 @@
 # SSE and Realtime Architecture Redesign
 
-- Status: accepted design; implementation pending
+- Status: implemented; Redis report-lock leases deferred
 - Date: 2026-07-22
 - Decision owner: Taranis engineering
 - Initial transport: Server-Sent Events (SSE)

@@ -10,7 +10,7 @@ Centrifugo, SSE, `/sse`, `/connection/uni_sse`, realtime events, `EventSource`, 
 - Browsers use the same-origin public `${TARANIS_BASE_PATH}sse` URL. NGINX rewrites only that route to Centrifugo's `/connection/uni_sse`, forwards authentication/origin headers, and disables buffering and caching.
 - Centrifugo's client port is internal to the deployment. Its API, health, and metrics handlers use a separate internal port; admin, debug, Swagger, WebSocket, health, and metrics routes are not proxied publicly.
 - Centrifugo uses the existing Redis instance with the dedicated `taranis:realtime` prefix.
-- `REALTIME_ENABLED=false` prevents core publication and frontend `EventSource` creation without affecting REST behavior.
+- `REALTIME_ENABLED=false` prevents core publication and frontend `EventSource` creation without affecting REST behavior. The generic Docker sample keeps realtime disabled until dedicated credentials are supplied, and core has no usable default Centrifugo secrets.
 - Core's fixed publisher methods send small, versioned envelopes to explicit global, organization, or user-limited channels. Call sites pass IDs and status only. Publication uses a pooled HTTP session, a dedicated API key, 200 ms connect and 300 ms read timeouts, and the HTTP client's default no-retry behavior.
 - Realtime publication is best-effort. Any network, HTTP, malformed-response, or Centrifugo error returns false and cannot roll back or change the domain operation.
 - Centrifugo enforces its exact browser-origin allowlist before calling the protected `POST ${TARANIS_BASE_PATH}api/realtime/connect` endpoint. Core requires the dedicated static proxy secret and a valid non-revoked access cookie before returning global, organization, and user channels. Authentication failures return a terminal Centrifugo disconnect.
@@ -21,7 +21,7 @@ Centrifugo, SSE, `/sse`, `/connection/uni_sse`, realtime events, `EventSource`, 
 - Administrators with `ADMIN_OPERATIONS` can send a message of up to 500 characters from the dedicated Admin Notifications page. Core publishes the exact string as a persistent `notification.broadcast` event on `global:events`; each connected browser renders it as text until manually dismissed and records it in the browser-session Notification Center.
 - Presence is enabled only for the `global` namespace. The Admin Notifications page asks core for server-side `global:events` presence, shows connected client and unique-user counts, and resolves Centrifugo user IDs to Taranis usernames. Clients are not granted permission to query presence, and organization/user namespaces keep presence disabled.
 - Development Compose publishes Centrifugo's client and authenticated admin UI port on `0.0.0.0`, while its API and health port stays on loopback. Keep this development-only split and `admin.external` behavior when changing `dev/compose.yml`.
-- The report-lock compatibility service intentionally preserves the existing process-local behavior in this PR. Redis leases, ownership tokens, expiry, and lost-update protection are out of scope and will be implemented in the next PR.
+- The report-lock compatibility service serializes its process-local state with one thread lock. Redis leases, ownership tokens, expiry, and lost-update protection are out of scope and will be implemented in the next PR.
 
 ## Code Paths
 
@@ -48,6 +48,7 @@ When a worker persists a terminal `source_preview_<source_id>` task for a user, 
 ## Testing
 
 - Publisher and envelope contract: `cd src/core && uv run pytest tests/unit/test_realtime_publisher.py`
+- Assess mutation publication and report-lock serialization: `cd src/core && uv run pytest tests/application/user_workspace/assessment/test_assess_api.py tests/unit/test_report_item_lock_service.py`
 - Preview publication and fragment trigger: `cd src/core && uv run pytest tests/application/worker_pipeline/test_worker_api.py`; `cd src/frontend && uv run pytest tests/unit/views/test_views.py tests/playwright/test_realtime_js.py --e2e-ci`
 - Connect proxy, broadcast, and presence security: `cd src/core && uv run pytest tests/application/mixed_flows/security/test_realtime_connect.py`
 - Admin Notifications page: `cd src/frontend && uv run pytest tests/unit/views/test_admin_notification_view.py`

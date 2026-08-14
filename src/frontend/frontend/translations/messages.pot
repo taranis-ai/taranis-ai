@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-12 15:58+0200\n"
+"POT-Creation-Date: 2026-08-14 13:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -53,27 +53,27 @@ msgstr ""
 msgid "No stories to choose from"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:65
+#: frontend/templates/assess/assess_top_bar.html:73
 msgid "Edit"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:79
+#: frontend/templates/assess/assess_top_bar.html:87
 msgid "Cluster"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:114
+#: frontend/templates/assess/assess_top_bar.html:122
 msgid "Remove selected"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:147
+#: frontend/templates/assess/assess_top_bar.html:155
 msgid "Actions"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:163
+#: frontend/templates/assess/assess_top_bar.html:171
 msgid "Select all"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:177
+#: frontend/templates/assess/assess_top_bar.html:185
 msgid "Clear selection"
 msgstr ""
 
@@ -204,6 +204,7 @@ msgstr ""
 
 #: frontend/templates/partials/realtime_notices.html:4
 #: frontend/templates/partials/realtime_notices.html:19
+#: frontend/templates/partials/realtime_notices.html:27
 msgid "Dismiss"
 msgstr ""
 
@@ -221,6 +222,10 @@ msgstr ""
 
 #: frontend/templates/partials/realtime_notices.html:15
 msgid "Load new stories"
+msgstr ""
+
+#: frontend/templates/partials/realtime_notices.html:27
+msgid "Dismiss broadcast notification"
 msgstr ""
 
 #: frontend/templates/partials/taranis_login_logo_motion_snippet.html:4
@@ -269,7 +274,7 @@ msgstr ""
 msgid "Clear all"
 msgstr ""
 
-#: frontend/templates/user_notifications/index.html:11
+#: frontend/templates/user_notifications/index.html:12
 msgid "No notifications in this browser session."
 msgstr ""
 

@@ -107,6 +107,18 @@ def test_realtime_secrets_must_be_distinct_when_enabled():
         )
 
 
+def test_realtime_secrets_have_no_usable_defaults():
+    assert Settings.model_fields["CENTRIFUGO_API_KEY"].default.get_secret_value() == ""
+    assert Settings.model_fields["CENTRIFUGO_CONNECT_PROXY_SECRET"].default.get_secret_value() == ""
+
+    with pytest.raises(ValidationError, match="must be non-empty"):
+        Settings(
+            REALTIME_ENABLED=True,
+            CENTRIFUGO_API_KEY=SecretStr(""),
+            CENTRIFUGO_CONNECT_PROXY_SECRET=SecretStr(""),
+        )
+
+
 def test_core_sentry_dsn_is_read_from_settings():
     settings = Settings(TARANIS_CORE_SENTRY_DSN="https://core@example.invalid/2")
 

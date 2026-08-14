@@ -47,7 +47,7 @@ class RealtimePublisher:
             )
             response.raise_for_status()
             responses = response.json().get("result", {}).get("responses")
-            if not isinstance(responses, list) or any(item.get("error") for item in responses):
+            if not isinstance(responses, list) or len(responses) != 1 or any(item.get("error") for item in responses):
                 raise ValueError("Centrifugo rejected the broadcast")
         except Exception as error:
             now = time.monotonic()

@@ -80,8 +80,8 @@ class Settings(BaseSettings):
     DATA_FOLDER: str = "./taranis_data"  # When started with Docker, the path is /app/data
     REALTIME_ENABLED: bool = False
     CENTRIFUGO_API_URL: str = "http://centrifugo:9000"
-    CENTRIFUGO_API_KEY: SecretStr = SecretStr("centrifugo-api-key")
-    CENTRIFUGO_CONNECT_PROXY_SECRET: SecretStr = SecretStr("centrifugo-connect-proxy-secret")
+    CENTRIFUGO_API_KEY: SecretStr = SecretStr("")
+    CENTRIFUGO_CONNECT_PROXY_SECRET: SecretStr = SecretStr("")
     DISABLE_SCHEDULER: bool = False
     TARANIS_CORE_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False

@@ -242,9 +242,11 @@ function replaceNotificationBarFromResponse(responseText) {
     return;
   }
 
-  const level = responseDoc.querySelector("#notification-bar .alert-error")
-    ? "error"
-    : "info";
+  const responseAlert = responseDoc.querySelector("#notification-bar .alert");
+  const level =
+    ["error", "warning", "success", "info"].find((level) =>
+      responseAlert?.classList.contains(`alert-${level}`)
+    ) || "info";
   const nextNotificationBar = currentNotificationBar.cloneNode(false);
   const alert = document.createElement("div");
   alert.className = `alert alert-${level}`;

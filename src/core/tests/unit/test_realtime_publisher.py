@@ -59,6 +59,7 @@ def test_publish_uses_explicit_channel_dedicated_key_and_strict_timeout(enabled_
         {},
         {"error": {"code": 100, "message": "rejected"}},
         {"result": {}},
+        {"result": {"responses": []}},
         {"result": {"responses": [{"error": {"code": 100, "message": "rejected"}}]}},
     ],
 )

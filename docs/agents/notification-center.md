@@ -16,10 +16,10 @@ Notification recording is explicitly event-driven. Server-rendered HTMX notifica
 - Realtime event capture: `src/frontend/frontend/static/js/realtime.js`
 
 ## Data Flow
-HTMX swaps a server-rendered notification into `#notification-bar`; its Alpine `x-init` calls the storage boundary once. Realtime and unswapped HTMX errors call the same boundary at their known event source. Admin broadcasts render the exact event message as text, remain until dismissed, and are recorded through the same storage boundary. The Notification Center reads the browser-session array once and Alpine renders it. Clear all and logout remove the storage key directly.
+HTMX swaps a server-rendered notification into `#notification-bar`; its Alpine `x-init` calls the storage boundary once. Realtime and unswapped HTMX errors call the same boundary at their known event source, preserving supported error, warning, success, and info levels. Admin broadcasts render the exact event message as text, remain until dismissed, and are recorded through the same storage boundary. The Notification Center reads the browser-session array once and Alpine renders it. Clear all and logout remove the storage key directly.
 
 ## Testing
-Use `cd src/frontend && uv run pytest tests/unit/views/test_user_notification_view.py` for route and menu coverage and `uv run pytest tests/playwright/test_notification_center_js.py tests/playwright/test_realtime_js.py --e2e-ci` for the explicit storage and realtime boundaries. Verify the Notification Center in a browser after a visible frontend or realtime notification; reload the page to confirm the entry remains for the current tab session, then use Clear all.
+Use `cd src/frontend && uv run pytest tests/unit/views/test_user_notification_view.py` for route and menu coverage and `uv run pytest tests/playwright/test_main_js.py tests/playwright/test_notification_center_js.py tests/playwright/test_realtime_js.py --e2e-ci` for the explicit response-error, storage, and realtime boundaries. Verify the Notification Center in a browser after a visible frontend or realtime notification; reload the page to confirm the entry remains for the current tab session, then use Clear all.
 
 ## Pitfalls
 My Tasks is a separate, server-backed history of completed worker results. Do not merge it with notification history. Use `sessionStorage`, not `localStorage`, so entries do not survive beyond the current tab session or cross a logout boundary. Never restore DOM observation, polling, document-wide click handling, or lifecycle scans for notification capture.

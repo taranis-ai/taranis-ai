@@ -22,7 +22,7 @@ Workflow:
 
 ## Easy Mode
 
-The automated setup supports macOS, Ubuntu, and Debian 13. macOS requires Homebrew; the setup uses Podman for containers.
+The automated setup supports macOS, Ubuntu, and Debian 13. macOS requires Homebrew; the setup uses Podman for containers. The bootstrap downloads pinned uv and Ruff installers and verifies their SHA-256 checksums before execution.
 
 Clone Repository
 

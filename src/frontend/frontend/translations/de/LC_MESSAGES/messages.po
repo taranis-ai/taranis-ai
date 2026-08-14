@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-12 15:58+0200\n"
+"POT-Creation-Date: 2026-08-14 13:19+0200\n"
 "PO-Revision-Date: 2026-06-10 12:15+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -54,33 +54,29 @@ msgstr "Keine Storys gefunden"
 msgid "No stories to choose from"
 msgstr "Keine Storys zur Auswahl"
 
-#: frontend/templates/assess/assess_top_bar.html:65
+#: frontend/templates/assess/assess_top_bar.html:73
 msgid "Edit"
-msgstr ""
+msgstr "Bearbeiten"
 
-#: frontend/templates/assess/assess_top_bar.html:79
-#, fuzzy
+#: frontend/templates/assess/assess_top_bar.html:87
 msgid "Cluster"
-msgstr "Benutzer"
+msgstr "Gruppieren"
 
-#: frontend/templates/assess/assess_top_bar.html:114
-#, fuzzy
+#: frontend/templates/assess/assess_top_bar.html:122
 msgid "Remove selected"
-msgstr "Zum Auswählen drücken"
+msgstr "Ausgewählte entfernen"
 
-#: frontend/templates/assess/assess_top_bar.html:147
+#: frontend/templates/assess/assess_top_bar.html:155
 msgid "Actions"
-msgstr ""
+msgstr "Aktionen"
 
-#: frontend/templates/assess/assess_top_bar.html:163
-#, fuzzy
+#: frontend/templates/assess/assess_top_bar.html:171
 msgid "Select all"
-msgstr "Tags auswählen"
+msgstr "Alle auswählen"
 
-#: frontend/templates/assess/assess_top_bar.html:177
-#, fuzzy
+#: frontend/templates/assess/assess_top_bar.html:185
 msgid "Clear selection"
-msgstr "Auswahl als gelesen markieren"
+msgstr "Auswahl aufheben"
 
 #: frontend/templates/assess/bookmarks_bar.html:9
 #: frontend/templates/bookmarks/bookmark_detail.html:7
@@ -187,12 +183,12 @@ msgstr "Benutzereinstellungen"
 #: frontend/templates/partials/navbar.html:68
 #: frontend/templates/user_tasks/index.html:5
 msgid "My Tasks"
-msgstr ""
+msgstr "Meine Aufgaben"
 
 #: frontend/templates/partials/navbar.html:71
 #: frontend/templates/user_notifications/index.html:6
 msgid "Notification Center"
-msgstr ""
+msgstr "Benachrichtigungszentrale"
 
 #: frontend/templates/partials/navbar.html:78
 msgid "Logout"
@@ -211,6 +207,7 @@ msgstr "Echtzeitbenachrichtigung schließen"
 
 #: frontend/templates/partials/realtime_notices.html:4
 #: frontend/templates/partials/realtime_notices.html:19
+#: frontend/templates/partials/realtime_notices.html:27
 msgid "Dismiss"
 msgstr "Schließen"
 
@@ -229,6 +226,10 @@ msgstr "Aktualisieren"
 #: frontend/templates/partials/realtime_notices.html:15
 msgid "Load new stories"
 msgstr "Neue Stories laden"
+
+#: frontend/templates/partials/realtime_notices.html:27
+msgid "Dismiss broadcast notification"
+msgstr "Broadcast-Benachrichtigung schließen"
 
 #: frontend/templates/partials/taranis_login_logo_motion_snippet.html:4
 msgid "Taranis Logo"
@@ -271,14 +272,16 @@ msgid ""
 "Notifications from this browser session. They are not stored on the "
 "server."
 msgstr ""
+"Benachrichtigungen aus dieser Browsersitzung. Sie werden nicht auf dem "
+"Server gespeichert."
 
 #: frontend/templates/user_notifications/index.html:9
 msgid "Clear all"
 msgstr "Alle löschen"
 
-#: frontend/templates/user_notifications/index.html:11
+#: frontend/templates/user_notifications/index.html:12
 msgid "No notifications in this browser session."
-msgstr ""
+msgstr "Keine Benachrichtigungen in dieser Browsersitzung."
 
 #: frontend/templates/user_profile/hotkey_kbd.html:7
 msgid "Edit selected story"
@@ -460,15 +463,15 @@ msgstr "Wird zur Planung von Benachrichtigungen und Hervorhebungen verwendet."
 
 #: frontend/templates/user_profile/settings_content.html:219
 msgid "Onboarding Tours"
-msgstr ""
+msgstr "Einführungstouren"
 
 #: frontend/templates/user_profile/settings_content.html:220
 msgid "Reset your completed onboarding tours and show them again."
-msgstr ""
+msgstr "Abgeschlossene Einführungstouren zurücksetzen und erneut anzeigen."
 
 #: frontend/templates/user_profile/settings_content.html:224
 msgid "Reset onboarding tours"
-msgstr ""
+msgstr "Einführungstouren zurücksetzen"
 
 #: frontend/templates/user_profile/settings_content.html:243
 msgid "Change your password"
@@ -536,7 +539,7 @@ msgstr "Passwort konnte nicht geändert werden."
 
 #: frontend/views/user_views.py:67
 msgid "Failed to update profile settings."
-msgstr ""
+msgstr "Profileinstellungen konnten nicht aktualisiert werden."
 
 #~ msgid "Detected from your browser and used to display local times."
 #~ msgstr ""
