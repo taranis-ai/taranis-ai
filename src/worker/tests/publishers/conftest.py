@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 import mockssh
 import pytest
-from pytest import yield_fixture
 
 from worker import publishers
 
@@ -170,7 +169,7 @@ def smtp_mock():
         yield smtp_instance
 
 
-@yield_fixture()
+@pytest.fixture
 def sftp_mock(request):
     import glob
     import os

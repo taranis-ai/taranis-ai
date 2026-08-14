@@ -44,7 +44,7 @@ def show_cron_status():
         print(f"  {leader}")
         print(f"\nDefinitions in Redis: {defs_count}")
         print(f"Next-run entries in Redis: {next_count}")
-    except (RedisError, UnicodeDecodeError, ValueError) as e:
+    except (RedisError, ValueError) as e:
         logger.exception(f"Failed to fetch cron scheduler status: {e}")
 
 

@@ -561,7 +561,7 @@ class BotDagPreview(MethodView):
     def post(self):
         try:
             return bot.Bot.get_dag_preview(request.json or {}), 200
-        except ValueError as exc:
+        except (TypeError, ValueError) as exc:
             logger.warning("Invalid bot DAG preview payload: %s", exc)
             return {"error": "Invalid bot DAG preview payload"}, 400
 

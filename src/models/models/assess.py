@@ -335,5 +335,5 @@ class StoryUpdatePayload(TaranisBaseModel):
 
 
 class BulkAction(TaranisBaseModel):
-    story_ids: list[str] = []
+    story_ids: list[str] = Field(default_factory=list)
     payload: StoryUpdatePayload | None = None

@@ -2,7 +2,7 @@
 
 import time
 from datetime import UTC, datetime
-from typing import Any, Literal, cast
+from typing import Any, ClassVar, Literal, cast
 
 import ioc_fanger
 from models.cti import CanonicalIOCType, normalize_ioc_type, normalize_ioc_value
@@ -19,7 +19,7 @@ ObservablePayload = dict[str, Any]
 
 
 class IntelOwlBot(BaseBot):
-    analyzer_map: dict[str, list[str]] = {
+    analyzer_map: ClassVar[dict[str, list[str]]] = {
         "cve": ["NVD_CVE", "Vulners"],
         "email": ["EmailRep", "HaveIBeenPwned"],
         "ip": ["ThreatFox", "URLhaus", "AbuseIPDB", "GreyNoiseCommunity", "VirusTotal_v3_Get_Observable"],
@@ -27,7 +27,7 @@ class IntelOwlBot(BaseBot):
         "url": ["URLhaus", "UrlScan_Search", "VirusTotal_v3_Get_Observable"],
         "hash": ["MalwareBazaar_Get_Observable", "YARAify_Search", "VirusTotal_v3_Get_Observable"],
     }
-    intelowl_classification: dict[str, str] = {
+    intelowl_classification: ClassVar[dict[str, str]] = {
         "cve": "generic",
         "email": "generic",
         "ip": "ip",
@@ -35,7 +35,7 @@ class IntelOwlBot(BaseBot):
         "url": "url",
         "hash": "hash",
     }
-    final_statuses = {"reported_without_fails", "reported_with_fails", "failed", "killed"}
+    final_statuses = frozenset({"reported_without_fails", "reported_with_fails", "failed", "killed"})
     poll_delay_seconds = 1.0
     poll_timeout_seconds = 30 * 60
 

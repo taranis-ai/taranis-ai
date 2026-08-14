@@ -251,9 +251,7 @@ class CoreApi:
             if response and isinstance(response, dict) and "items" in response:
                 return response["items"]
             # Fallback for direct list format (backwards compatibility)
-            if response and isinstance(response, list):
-                return response
-            return None
+            return response if response and isinstance(response, list) else None
         except requests.exceptions.RequestException:
             logger.exception("Can't get all bots")
             return None
@@ -266,9 +264,7 @@ class CoreApi:
         """
         try:
             response = self.api_get("/worker/cron-jobs")
-            if response and "cron_jobs" in response:
-                return response["cron_jobs"]
-            return None
+            return response["cron_jobs"] if response and "cron_jobs" in response else None
         except requests.exceptions.RequestException:
             logger.exception("Can't get cron job configurations")
             return None

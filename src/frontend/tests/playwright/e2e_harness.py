@@ -33,9 +33,13 @@ def _docker_is_podman(docker_bin: str) -> bool:
 
 def require_docker_compose_command() -> str:
     docker_bin = shutil.which("docker")
-    if docker_bin and not _docker_is_podman(docker_bin):
-        if _command_succeeds([docker_bin, "compose", "version"]) and _command_succeeds([docker_bin, "info"]):
-            return "docker compose"
+    if (
+        docker_bin
+        and not _docker_is_podman(docker_bin)
+        and _command_succeeds([docker_bin, "compose", "version"])
+        and _command_succeeds([docker_bin, "info"])
+    ):
+        return "docker compose"
 
     podman_bin = shutil.which("podman")
     if podman_bin and _command_succeeds([podman_bin, "info"]):

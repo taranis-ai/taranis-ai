@@ -29,7 +29,6 @@ def cleanup_token_blacklist(app):
 
 def initialize(app: Flask):
     global current_authenticator
-    global jwt
 
     jwt.init_app(app)
 

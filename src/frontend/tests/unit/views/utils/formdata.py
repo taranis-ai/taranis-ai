@@ -4,7 +4,6 @@ from typing import Union, get_args, get_origin
 import lxml.html
 from lxml.html import CheckboxValues, InputElement, MultipleSelectOptions
 from pydantic import BaseModel
-from pydantic.fields import FieldInfo
 
 
 class FormData(dict):
@@ -111,7 +110,6 @@ def gather_fields_from_model(model: type[BaseModel]) -> tuple[set[str], set[str]
         if name == "id":
             continue
 
-        info: FieldInfo = info
         ann = info.annotation
         field_required = True
         if nested_origin := unwrap_annotation(ann):

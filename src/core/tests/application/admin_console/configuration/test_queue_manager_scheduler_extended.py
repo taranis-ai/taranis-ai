@@ -250,7 +250,7 @@ def test_cancel_job_cancels_instance_and_cron(monkeypatch):
 
 def test_cancel_job_returns_false_when_not_found(monkeypatch):
     def fake_fetch(job_id, connection=None):
-        raise Exception("missing")
+        raise qm_module.NoSuchJobError("missing")
 
     monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
 

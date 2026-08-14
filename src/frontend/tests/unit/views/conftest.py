@@ -8,7 +8,6 @@ from models.types import BOT_TYPES
 from polyfactory.exceptions import ParameterException
 from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel
-from pydantic.fields import FieldInfo
 
 from frontend.config import Config
 from frontend.log import logger
@@ -112,9 +111,6 @@ def form_formats_from_models(worker_parameter_data: dict[str, Any]):
                 continue
             if field_name == "status":
                 continue
-
-            field_info: FieldInfo = field_info
-            field_name: str = field_name
 
             ann = field_info.annotation
             field_required = True

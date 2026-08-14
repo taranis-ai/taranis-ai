@@ -121,7 +121,7 @@ class Settings(BaseModel):
         if value is None:
             return None
         if not isinstance(value, str):
-            raise ValueError("Invalid timezone: must be a string")
+            raise TypeError("Invalid timezone: must be a string")
         timezone_name = value.strip()
         if not timezone_name:
             return None
@@ -142,7 +142,7 @@ class Settings(BaseModel):
     @staticmethod
     def _validate_non_negative_int(value: Any) -> int:
         if isinstance(value, bool):
-            raise ValueError("Invalid non-negative integer")
+            raise TypeError("Invalid non-negative integer")
         if isinstance(value, int):
             normalized = value
         elif isinstance(value, str) and value.strip().isdecimal():

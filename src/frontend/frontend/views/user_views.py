@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 from flask import render_template, request
 from flask.typing import ResponseReturnValue
@@ -142,7 +142,7 @@ class UserProfileView(BaseView):
 
 
 class UserTaskView(MethodView):
-    decorators = [auth_required()]
+    decorators: ClassVar[list[Any]] = [auth_required()]
 
     def get(self) -> ResponseReturnValue:
         try:

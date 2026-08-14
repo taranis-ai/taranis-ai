@@ -290,7 +290,7 @@ class Bot(BaseModel):
 
         parameters = candidate.get("parameters", {})
         if not isinstance(parameters, dict):
-            raise ValueError("Bot DAG preview parameters must be an object")
+            raise TypeError("Bot DAG preview parameters must be an object")
         if unexpected_parameters := set(parameters) - {RUN_AFTER_COLLECTOR, RUN_AFTER_BOTS}:
             raise ValueError(f"Unexpected bot DAG preview parameters: {', '.join(sorted(unexpected_parameters))}")
 

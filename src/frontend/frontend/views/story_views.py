@@ -121,7 +121,7 @@ class StoryView(BaseView):
             raise
         except ValueError as exc:
             logger.exception(f"Failed to load bookmark collections for assess bar: {exc}")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception(f"Unexpected bookmark bar load error: {exc}")
             return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
         return CacheObject([], limit=ASSESS_BOOKMARK_BAR_LIMIT)
@@ -1125,7 +1125,7 @@ class StoryView(BaseView):
             return cls._create_news_item_from_file(upload_file)
 
         item_data = parse_formdata(request.form)
-        item_data["collected"] = datetime.datetime.now().isoformat()
+        item_data["collected"] = datetime.datetime.now(datetime.UTC).isoformat()
         try:
             news_item = NewsItem(**item_data)
         except ValidationError as e:
@@ -1461,7 +1461,7 @@ class StoryView(BaseView):
             flask_response = make_response(response_data, 200)
             flask_response.headers["Content-Type"] = "application/json"
             flask_response.headers["Content-Disposition"] = (
-                f'attachment; filename="stories_export_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
+                f'attachment; filename="stories_export_{datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")}.json"'
             )
             return flask_response
         except HTTPException:

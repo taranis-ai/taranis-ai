@@ -1197,9 +1197,10 @@ class Story(BaseModel):
                 return {"error": "Story not found"}, 404
             new_story_ids: list[str] = []
             for news_item in story.news_items[:]:
-                if user is None or news_item.allowed_with_acl(user, True):
-                    if new_story_id := cls.create_from_item(news_item, commit=False, actor=actor):
-                        new_story_ids.append(new_story_id)
+                if (user is None or news_item.allowed_with_acl(user, True)) and (
+                    new_story_id := cls.create_from_item(news_item, commit=False, actor=actor)
+                ):
+                    new_story_ids.append(new_story_id)
             StoryBookmark.replace_story_after_ungroup(story, new_story_ids)
             story.update_status(change=actor)
             story.record_revision(user, note="ungroup_story")

@@ -412,21 +412,6 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             },
             Config.REQUESTS_TIMEOUT,
         ),
-        # Edge: REQUEST_TIMEOUT missing, should use default
-        (
-            {"URL": "u", "API_KEY": "k"},
-            {
-                "url": "u",
-                "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
-                "headers": {"User-Agent": "TaranisAI/1.0"},
-                "ssl": False,
-                "sharing_group_id": None,
-                "org_id": "",
-                "days_without_change": "",
-            },
-            Config.REQUESTS_TIMEOUT,
-        ),
         # Edge: SHARING_GROUP_ID not convertible to int
         (
             {"URL": "u", "API_KEY": "k", "SHARING_GROUP_ID": "not-an-int"},

@@ -296,7 +296,7 @@ class AssetGroup(BaseModel):
         if default_group := cls.get_by_key("default"):
             return default_group
         if not (org := Organization.find_by_name("The Earth")):
-            raise Exception("Default organization (id=1) not found. Cannot create default asset group.")
+            raise RuntimeError("Default organization (id=1) not found. Cannot create default asset group.")
         return AssetGroup.add(
             {
                 "name": "Default",

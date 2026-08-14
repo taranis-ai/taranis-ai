@@ -81,8 +81,11 @@ dev = [
 line-length = 142
 target-version = "py313"
 
+[tool.ruff.lint]
+ignore = ["BLE001"]
+
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["BLE001"]
+"tests/**/*.py" = ["BLE001", "DTZ", "RUF012"]
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2

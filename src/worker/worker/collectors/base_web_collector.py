@@ -89,7 +89,7 @@ class BaseWebCollector(BaseCollector):
         try:
             headers_dict = json.loads(headers)
             if not isinstance(headers_dict, dict):
-                raise ValueError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
+                raise TypeError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
             self.headers.update(headers_dict)
         except (json.JSONDecodeError, TypeError) as e:
             raise ValueError(f"ADDITIONAL_HEADERS: {headers} has to be valid JSON\n{e}") from e
