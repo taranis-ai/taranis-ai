@@ -50,7 +50,7 @@ When a worker persists a terminal `source_preview_<source_id>` task for a user, 
 - Publisher and envelope contract: `cd src/core && uv run pytest tests/unit/test_realtime_publisher.py`
 - Assess mutation publication and report-lock serialization: `cd src/core && uv run pytest tests/application/user_workspace/assessment/test_assess_api.py tests/unit/test_report_item_lock_service.py`
 - Preview publication and fragment trigger: `cd src/core && uv run pytest tests/application/worker_pipeline/test_worker_api.py`; `cd src/frontend && uv run pytest tests/unit/views/test_views.py tests/playwright/test_realtime_js.py --e2e-ci`
-- Connect proxy, broadcast, and presence security: `cd src/core && uv run pytest tests/application/mixed_flows/security/test_realtime_connect.py`
+- Connect proxy, broadcast, presence, and OpenAPI security: `cd src/core && uv run pytest tests/application/mixed_flows/security/test_realtime_connect.py tests/test_schema.py`
 - Admin Notifications page: `cd src/frontend && uv run pytest tests/unit/views/test_admin_notification_view.py`
 - Browser module: `cd src/frontend && uv run pytest tests/playwright/test_realtime_js.py --e2e-ci`
 - Render Compose variants with `docker compose ... config`.
