@@ -53,6 +53,7 @@ When a worker persists a terminal `source_preview_<source_id>` task for a user, 
 - Connect proxy, broadcast, presence, and OpenAPI security: `cd src/core && uv run pytest tests/application/mixed_flows/security/test_realtime_connect.py tests/test_schema.py`
 - Admin Notifications page: `cd src/frontend && uv run pytest tests/unit/views/test_admin_notification_view.py`
 - Browser module: `cd src/frontend && uv run pytest tests/playwright/test_realtime_js.py --e2e-ci`
+- The general Docker-backed frontend E2E suite disables realtime in both frontend and core because its test stack does not start Centrifugo; broker behavior is covered by the focused browser module and deployment checks above.
 - Render Compose variants with `docker compose ... config`.
 - Render the chart with `helm template` and raw manifests with `kubectl kustomize deploy/kubernetes`.
 - Start the pinned Centrifugo image from each rendered environment and verify health plus an authenticated broadcast; Centrifugo validates environment configuration on startup.
