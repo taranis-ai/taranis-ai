@@ -1,6 +1,7 @@
 from unittest.mock import Mock, patch
 
 from flask import Response, url_for
+from requests import RequestException
 
 import frontend.views.auth_views as auth_views_module
 from frontend.views.auth_views import AuthView
@@ -9,7 +10,7 @@ from frontend.views.auth_views import AuthView
 def test_external_login_with_retries_handles_exception_then_succeeds(app, monkeypatch):
     mock_api = Mock()
     successful_core_response = object()
-    mock_api.external_login.side_effect = [Exception("core unavailable"), None, successful_core_response]
+    mock_api.external_login.side_effect = [RequestException("core unavailable"), None, successful_core_response]
     monkeypatch.setattr(auth_views_module, "CoreApi", lambda: mock_api)
 
     view = AuthView()

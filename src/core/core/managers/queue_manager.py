@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from core.model.task import Task
 from models.admin import CronSpec
 from redis import Redis
+from redis.exceptions import RedisError
 from rq import Queue
 from rq.exceptions import NoSuchJobError
 from rq.job import Dependency, Job
@@ -390,7 +391,7 @@ class QueueManager:
 
         try:
             raw_ids = self._redis.hkeys(CRON_DEFS_KEY)
-        except Exception:
+        except RedisError:
             return set()
 
         return {_decode_redis_value(raw_id) for raw_id in raw_ids}

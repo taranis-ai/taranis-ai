@@ -103,7 +103,7 @@ class BaseWebCollector(BaseCollector):
         if last_attempted := source.get("last_attempted"):
             try:
                 return parse_datetime(last_attempted)
-            except Exception:
+            except (TypeError, ValueError, OverflowError):
                 return None
         return None
 

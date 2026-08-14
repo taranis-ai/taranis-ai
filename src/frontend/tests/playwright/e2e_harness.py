@@ -16,7 +16,7 @@ def wait_for_http_ok(url: str, timeout_seconds: int = 20, poll_interval: float =
             resp = requests.get(url, timeout=2)
             resp.raise_for_status()
             return
-        except Exception as exc:  # pragma: no cover - readiness polling
+        except requests.RequestException as exc:  # pragma: no cover - readiness polling
             last_exc = exc
             time.sleep(poll_interval)
     raise RuntimeError(f"Timed out waiting for {url}: {last_exc}")

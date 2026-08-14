@@ -1,3 +1,4 @@
+import binascii
 import mimetypes
 from base64 import b64decode
 from datetime import UTC, datetime, timedelta
@@ -140,7 +141,7 @@ class Product(BaseModel):
         try:
             b64decode(render_result)
             return True
-        except Exception:
+        except (binascii.Error, TypeError, ValueError):
             logger.exception()
             return False
 

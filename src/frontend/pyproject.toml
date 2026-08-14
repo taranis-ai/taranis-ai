@@ -67,6 +67,9 @@ taranis-frontend-healthcheck = "frontend.healthcheck:main"
 line-length = 142
 target-version = "py314"
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["BLE001"]
+
 [tool.ruff.lint.isort]
 lines-after-imports = 2
 

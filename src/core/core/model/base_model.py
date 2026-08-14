@@ -1,4 +1,5 @@
 import base64
+import binascii
 import json
 import uuid
 from collections.abc import Sequence
@@ -251,5 +252,5 @@ class BaseModel(db.Model):
     def is_valid_base64(self, s) -> bytes | None:
         try:
             return base64.b64decode(s, validate=True)
-        except Exception:
+        except (binascii.Error, TypeError, ValueError):
             return None

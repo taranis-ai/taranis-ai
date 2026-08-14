@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 from unittest.mock import MagicMock
 
 import pytest
@@ -71,8 +72,9 @@ def web_collector_url_mock(requests_mock):
 
 
 @pytest.fixture
-def collectors_mock(osint_source_update_mock, news_item_upload_mock):
-    pass
+def collectors_mock(requests_mock, osint_source_update_mock, news_item_upload_mock):
+    icon_endpoint = re.compile(rf"{re.escape(Config.TARANIS_CORE_URL)}/worker/osint-sources/[^/]+/icon$")
+    requests_mock.put(icon_endpoint, json={})
 
 
 @pytest.fixture
@@ -154,6 +156,7 @@ def rt_mock(requests_mock, collectors_mock):
     requests_mock.get(rt_testdata.rt_attachment_1_url, json=rt_testdata.rt_ticket_attachment_1)
     requests_mock.get(rt_testdata.worker_stories_url, json={})
     requests_mock.get(rt_testdata.favicon_url, json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", json={})
 
 
 @pytest.fixture
@@ -168,6 +171,7 @@ def misp_collector_mock(requests_mock):
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=320d4589-cd71-4722-aa28-ea5530e99830", json={})
     requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28", json={})
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/misp/stories", json={})
 
     requests_mock.get(
         "https://test.misp.test/users/view/me",

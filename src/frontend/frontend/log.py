@@ -20,7 +20,7 @@ class TaranisLogger:
         if syslog_address:
             try:
                 sys_log_handler = logging.handlers.SysLogHandler(address=syslog_address, socktype=socket.SOCK_STREAM)
-            except Exception:
+            except OSError:
                 print("Unable to connect to syslog server!")
 
         self.logger = logging.getLogger(module)

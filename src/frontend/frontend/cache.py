@@ -15,7 +15,9 @@ from models.cache_contract import (
     parse_user_profile_key,
 )
 from models.user import UserProfile
+from pydantic import ValidationError
 from redis import Redis
+from redis.exceptions import RedisError
 
 from frontend.log import logger
 
@@ -53,7 +55,7 @@ class FrontendCache:
             self.client = Redis.from_url(redis_url, password=redis_password, decode_responses=True)
             self.client.ping()
             logger.info("Frontend cache initialized with Redis backend")
-        except Exception:
+        except RedisError, ValueError:
             self.client = None
             logger.exception("Failed to initialize frontend Redis cache; continuing without caching")
 
@@ -65,7 +67,7 @@ class FrontendCache:
             if raw_value is None:
                 return None
             return json.loads(raw_value)
-        except Exception:
+        except RedisError, json.JSONDecodeError, TypeError:
             logger.exception("Failed to read from cache")
             return None
 
@@ -76,7 +78,7 @@ class FrontendCache:
         try:
             serialized = json.dumps(value)
             return bool(self.client.set(name=key, value=serialized, ex=timeout))
-        except Exception:
+        except RedisError, TypeError, ValueError:
             logger.exception("Failed to write to cache")
             return False
 
@@ -85,7 +87,7 @@ class FrontendCache:
             return 0
         try:
             return int(self.client.delete(key))
-        except Exception:
+        except RedisError:
             logger.exception("Failed to delete cache key")
             return 0
 
@@ -98,7 +100,7 @@ class FrontendCache:
             for index in range(0, len(keys), 500):
                 deleted += int(self.client.delete(*keys[index : index + 500]))
             return deleted
-        except Exception:
+        except RedisError:
             logger.exception("Failed to clear cache namespace")
             return 0
 
@@ -107,7 +109,7 @@ class FrontendCache:
             return []
         try:
             return sorted(str(key) for key in self.client.scan_iter(match=pattern, count=1000))
-        except Exception:
+        except RedisError:
             logger.exception("Failed to scan cache keys")
             return []
 
@@ -135,7 +137,7 @@ def add_user_to_cache(user: dict) -> UserProfile | None:
             value=user_object.model_dump(mode="json"),
         )
         return user_object
-    except Exception:
+    except ValidationError:
         logger.exception("Failed to add user to cache")
         return None
 
@@ -146,7 +148,7 @@ def get_user_from_cache(username: str) -> UserProfile | None:
         return None
     try:
         return UserProfile(**cached_user)
-    except Exception:
+    except ValidationError:
         logger.exception("Failed to deserialize cached user")
         return None
 

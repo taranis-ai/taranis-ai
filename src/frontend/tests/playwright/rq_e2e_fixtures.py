@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 import redis
+import requests
 import responses
 
 from tests.core_requests import CoreRequestClient
@@ -43,7 +44,7 @@ def _wait_for_admin_login(core_url: str, timeout_seconds: int = 30, poll_interva
             )
             if response.json().get("access_token"):
                 return
-        except Exception as exc:  # pragma: no cover - readiness polling
+        except (requests.JSONDecodeError, requests.RequestException) as exc:  # pragma: no cover - readiness polling
             last_exc = exc
             time.sleep(poll_interval)
     raise RuntimeError(f"Timed out waiting for admin login at {core_url}: {last_exc}")
@@ -57,7 +58,7 @@ def _wait_for_redis(port: int, timeout_seconds: int = 15) -> None:
         try:
             if client.ping():
                 return
-        except Exception as exc:  # pragma: no cover - readiness polling
+        except redis.exceptions.RedisError as exc:  # pragma: no cover - readiness polling
             last_exc = exc
             time.sleep(0.5)
     raise RuntimeError(f"Timed out waiting for redis on port {port}: {last_exc}")

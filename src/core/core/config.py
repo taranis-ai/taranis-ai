@@ -25,7 +25,7 @@ def mask_db_uri(uri: str) -> str:
             netloc = parsed.netloc
 
         return urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
-    except Exception:
+    except ValueError:
         return "<masked>"
 
 

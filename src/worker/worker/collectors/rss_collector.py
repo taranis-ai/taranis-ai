@@ -144,7 +144,7 @@ class RSSCollector(BaseWebCollector):
         )
         try:
             return parse_datetime(published) if published else None
-        except Exception:
+        except (TypeError, ValueError, OverflowError):
             logger.info("Could not parse published date from feed")
             return None
 
@@ -204,7 +204,7 @@ class RSSCollector(BaseWebCollector):
         ):
             try:
                 return parse_datetime(str(last_modified))
-            except Exception:
+            except (TypeError, ValueError, OverflowError):
                 return None
         return None
 
@@ -239,7 +239,7 @@ class RSSCollector(BaseWebCollector):
 
             self.core_api.update_osint_source_icon(source_id, icon_content)
 
-        except Exception as e:
+        except (ValueError, requests.exceptions.RequestException) as e:
             logger.error(f"Exception while fetching icon from {icon_url}: {e}")
 
         return

@@ -154,7 +154,7 @@ def logout() -> tuple[str, int] | Response:
         core_response: ReqResponse = CoreApi().logout()
     except HTTPException:
         raise
-    except Exception as exc:
+    except RequestException as exc:
         # If the core isn't reachable, fall back to the login page without crashing.
         logger.error(f"Core logout failed: {exc}")
         return render_login_page(login_error="Logout failed"), 500

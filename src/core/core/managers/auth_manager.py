@@ -4,6 +4,8 @@ from hmac import compare_digest
 
 from flask import Flask, Response, g, make_response, request
 from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, verify_jwt_in_request
+from flask_jwt_extended.exceptions import JWTExtendedException
+from jwt.exceptions import PyJWTError
 
 from core.auth.database_authenticator import DatabaseAuthenticator
 from core.auth.dev_authenticator import DevAuthenticator
@@ -124,7 +126,7 @@ def _has_valid_api_key(*, log_failures: bool = False) -> bool:
 def _jwt_authorize(permissions_set: set[str]) -> tuple[dict[str, str], int] | None:
     try:
         verify_jwt_in_request()
-    except Exception as ex:
+    except (JWTExtendedException, PyJWTError) as ex:
         logger.exception(str(ex))
         return AUTH_ERROR
 

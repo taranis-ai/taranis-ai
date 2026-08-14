@@ -6,6 +6,7 @@ from typing import Any
 from models.admin import CronSpec
 from models.types import BOT_TYPES
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
@@ -132,7 +133,7 @@ class Bot(BaseModel):
             return None
         try:
             return db.session.execute(db.select(cls).where(cls.type == bot_type).order_by(cls.index)).scalars().first()
-        except Exception:
+        except SQLAlchemyError:
             logger.exception(f"Error filtering bots by type: {filter_type}")
             return None
 

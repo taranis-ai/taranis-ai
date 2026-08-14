@@ -42,7 +42,7 @@ class BotApi:
         try:
             if response.ok:
                 return response.json()
-        except Exception:
+        except requests.exceptions.JSONDecodeError:
             logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None

@@ -6,6 +6,7 @@ import pytest
 from flask import Flask, make_response, render_template_string, url_for
 from flask_jwt_extended import create_access_token
 from models.user import UserProfile
+from requests import RequestException
 
 import frontend.auth as auth_module
 import frontend.views.auth_views as auth_views_module
@@ -13,7 +14,7 @@ import frontend.views.auth_views as auth_views_module
 
 def test_logout_returns_error_when_core_raises(app, monkeypatch):
     mock_api = Mock()
-    mock_api.logout.side_effect = Exception("core unavailable")
+    mock_api.logout.side_effect = RequestException("core unavailable")
     monkeypatch.setattr(auth_module, "CoreApi", lambda: mock_api)
 
     with app.test_request_context("/logout"):

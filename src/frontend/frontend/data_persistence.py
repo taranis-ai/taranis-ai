@@ -7,6 +7,7 @@ from flask_jwt_extended import get_jwt_identity
 from models.base import T, TaranisBaseModel
 from models.cache_contract import CACHE_DEFAULT_LIST_SUFFIX, build_model_pattern
 from models.dashboard import CoreHealth
+from pydantic import ValidationError
 from requests import Response
 
 from frontend.cache import cache
@@ -31,7 +32,7 @@ class DataPersistenceLayer:
     def get_cache_username(self) -> str:
         try:
             identity = get_jwt_identity()
-        except Exception:
+        except RuntimeError:
             identity = None
         return str(identity or "anonymous")
 
@@ -67,7 +68,7 @@ class DataPersistenceLayer:
             if paging_data is None:
                 return self._deserialize_object(object_model, cached_payload)
             return self._build_cache_object(object_model, cached_payload, paging_data)
-        except Exception:
+        except AttributeError, TypeError, ValidationError:
             logger.exception(f"Failed to deserialize cached data for {cache_key}")
             cache.delete(cache_key)
             return None
