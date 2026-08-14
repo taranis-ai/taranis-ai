@@ -509,7 +509,7 @@ class Users(MethodView):
 
 class Bots(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all", "state")
     def get(self, bot_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if bot_id:
             return bot.Bot.get_for_api(bot_id)
@@ -701,7 +701,7 @@ class ConnectorsPull(MethodView):
 
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all", "filter_manual")
+    @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all", "filter_manual", "state")
     def get(self, source_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if source_id:
             return osint_source.OSINTSource.get_for_api(source_id)

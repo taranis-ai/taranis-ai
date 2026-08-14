@@ -113,6 +113,8 @@ class TaskService:
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
             if task_kind == "collector_task":
                 cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
+            elif task_kind == "bot_task":
+                cache_invalidation_module.cache_invalidation_service.invalidate_model("bot", submission.worker_id)
         validated = TaskResponseModel.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), 200
 

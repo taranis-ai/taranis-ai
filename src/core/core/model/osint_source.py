@@ -225,17 +225,24 @@ class OSINTSource(BaseModel):
         filter_args = dict(filter_args or {})
         filter_args["filter_manual"] = cls._filter_manual_enabled(filter_args.get("filter_manual", True))
         status_order = filter_args.get("order") in {"status_asc", "status_desc"}
-        paginate_after_sorting = status_order and not cls._should_fetch_all(filter_args)
-        query_args = {**filter_args, "fetch_all": "true"} if paginate_after_sorting else filter_args
+        state = str(filter_args.get("state") or "").strip().upper()
+        post_process_status = status_order or bool(state)
+        paginate_after_status = post_process_status and not cls._should_fetch_all(filter_args)
+        query_args = {**filter_args, "fetch_all": "true"} if post_process_status else filter_args
 
         response, status_code = super().get_all_for_api(filter_args=query_args, with_count=with_count, user=user)
         items = response.get("items", [])
+        if state:
+            items = [item for item in items if (item.get("status") or {}).get("status", "").upper() == state]
+            response["items"] = items
+            if with_count:
+                response["total_count"] = len(items)
         if filter_args.get("order") == "status_asc":
             items.sort(key=lambda item: (item.get("status") or {}).get("status", ""))
         elif filter_args.get("order") == "status_desc":
             items.sort(key=lambda item: (item.get("status") or {}).get("status", ""), reverse=True)
 
-        if paginate_after_sorting:
+        if paginate_after_status:
             limit = min(int(filter_args.get("limit", 20)), DB_INTEGER_MAX)
             offset = filter_args.get("offset")
             if offset is None:
@@ -245,6 +252,14 @@ class OSINTSource(BaseModel):
             response["items"] = items[offset : offset + limit]
 
         return response, status_code
+
+    @classmethod
+    def get_current_failure_count(cls) -> int:
+        response, _ = cls.get_all_for_api(
+            filter_args={"fetch_all": "true", "filter_manual": "false", "state": "failure"},
+            with_count=True,
+        )
+        return int(response.get("total_count", 0) or 0)
 
     @staticmethod
     def _filter_manual_enabled(value: Any) -> bool:

@@ -10,7 +10,7 @@ from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.base_model import UUID_STR_LENGTH, BaseModel
+from core.model.base_model import DB_INTEGER_MAX, UUID_STR_LENGTH, BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.task import Task as TaskModel
 from core.model.worker import Worker
@@ -55,6 +55,7 @@ class Bot(BaseModel):
             exact_ids={self.task_id},
             prefixes=[self.cron_run_prefix],
             task_name=self.task_id,
+            worker_id=self.id,
         ):
             return task_result.to_dict()
         return None
@@ -394,6 +395,37 @@ class Bot(BaseModel):
         if self.status:
             data["status"] = self.status
         return data
+
+    @classmethod
+    def get_all_for_api(cls, filter_args: dict[str, Any] | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = dict(filter_args or {})
+        state = str(filter_args.get("state") or "").strip().upper()
+        query_args = {**filter_args, "fetch_all": "true"} if state else filter_args
+
+        response, status_code = super().get_all_for_api(filter_args=query_args, with_count=with_count, user=user)
+        if not state:
+            return response, status_code
+
+        items = [item for item in response.get("items", []) if (item.get("status") or {}).get("status", "").upper() == state]
+        response["items"] = items
+        if with_count:
+            response["total_count"] = len(items)
+
+        if not cls._should_fetch_all(filter_args):
+            limit = min(int(filter_args.get("limit", 20)), DB_INTEGER_MAX)
+            offset = filter_args.get("offset")
+            if offset is None:
+                offset = max((int(filter_args.get("page", 1)) - 1) * limit, 0)
+            else:
+                offset = max(min(int(offset), DB_INTEGER_MAX), 0)
+            response["items"] = items[offset : offset + limit]
+
+        return response, status_code
+
+    @classmethod
+    def get_current_failure_count(cls) -> int:
+        response, _ = cls.get_all_for_api(filter_args={"fetch_all": "true", "state": "failure"}, with_count=True)
+        return int(response.get("total_count", 0) or 0)
 
     @classmethod
     def delete(cls, id: str) -> tuple[dict[str, Any], int]:

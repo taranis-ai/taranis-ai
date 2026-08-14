@@ -17,7 +17,7 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Datetimes are stored and returned as UTC values and displayed in the profile timezone through the frontend `format_datetime` filter.
 - Failed-job error text is displayed through the scheduler error dialog and must be passed to the browser through Jinja JSON encoding.
 - The Task Errors tab reads persisted task failures rather than the RQ failed registry. Current errors are latest failed outcomes per worker identity; All history contains every retained failure.
-- OSINT Source and Bot sidebar badges link to Current errors filtered to their category, and their counts match those filtered results.
+- The OSINT Source sidebar badge counts failed configured sources and links to the source list filtered to failed states; one-off URL failures remain in Task Errors. The Bot badge links to Current Task Errors filtered to bots.
 
 ## Code Paths
 
@@ -62,6 +62,6 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Auto-refresh must not reset an active search, sort, page, or page-size selection.
 - Runtime RQ registry data is not SQL-backed, so scheduler list filtering, ordering, and pagination are applied after collecting and annotating the registry entries.
 - Do not use Queue Failures to explain sidebar badges: that tab is transient RQ state, while badge counts and Task Errors use retained database task rows.
-- One-off `simple_web_collector` URL fetches are collector errors. They appear in Scheduler Errors but not as synthetic rows in the configured OSINT Source table.
+- One-off `simple_web_collector` URL fetches are collector errors. They appear in Task Errors but not as synthetic rows in the configured OSINT Source table or its badge count.
 - Core owns the `rq:cron:def` Redis hash. Startup reconciliation treats the current source, bot, and housekeeping specifications as an allowlist and removes every other persisted definition and its artifacts.
 - Execution-history totals and per-worker statistics describe the full matching dataset, not only the visible page.
