@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from sqlalchemy import inspect, or_
@@ -282,7 +282,7 @@ class ReportItem(BaseModel):
         attributes = [a.clone_attribute() for a in self.attributes]
 
         report = ReportItem(
-            title=f"{self.title} ({datetime.now().isoformat()})",
+            title=f"{self.title} ({datetime.now(UTC).isoformat()})",
             report_item_type_id=self.report_item_type_id,
             attributes=attributes,
             completed=self.completed,
@@ -412,7 +412,7 @@ class ReportItem(BaseModel):
             query = query.where(or_(ReportItemType.title.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%")))
 
         if filter_range := filter_args.get("range"):
-            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            date_limit = cls.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
             if filter_range.upper() == "WEEK":
                 date_limit -= timedelta(days=date_limit.weekday())

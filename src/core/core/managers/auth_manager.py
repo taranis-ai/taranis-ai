@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import wraps
 from hmac import compare_digest
 
@@ -22,7 +22,7 @@ AUTH_ERROR = ({"error": "not authorized"}, 401)
 
 def cleanup_token_blacklist(app):
     with app.app_context():
-        TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
+        TokenBlacklist.delete_older(TokenBlacklist.utcnow() - timedelta(days=1))
 
 
 def initialize(app: Flask):

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 from urllib.parse import urlparse, urlunparse
 
@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_POOL_TIMEOUT: Annotated[int | None, Field(gt=0)] = None
     SQLALCHEMY_POOL_RECYCLE: Annotated[int | None, Field(ge=-1)] = None
     COLORED_LOGS: bool = True
-    BUILD_DATE: datetime = datetime.now()
+    BUILD_DATE: datetime = datetime.now(UTC)
     GIT_INFO: dict[str, str] | None = None
     DATA_FOLDER: str = "./taranis_data"  # When started with Docker, the path is /app/data
     SSE_URL: str = "http://sse:8088/publish"

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func
@@ -122,7 +122,7 @@ class NewsItemTagService:
 
     @staticmethod
     def set_worker_execution_attribute(*, worker_type: str, worker_id: str, found_tags: dict[str, Any]):
-        now = datetime.now().isoformat()
+        now = datetime.now(UTC).isoformat()
         tag_counts_by_story: dict[str, int] = {}
         stories_by_id: dict[str, Story] = {}
 

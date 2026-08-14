@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 import requests
 
@@ -51,15 +51,15 @@ class SSEManager:
         return {
             "report_item_id": report_item_id,
             "locked": True,
-            "lock_time": self.report_item_locks[report_item_id]["lock_time"].astimezone().isoformat(timespec="seconds"),
+            "lock_time": self.report_item_locks[report_item_id]["lock_time"].isoformat(timespec="seconds"),
         }
 
     def report_item_lock(self, report_item_id: str, user_id: str):
         if report_item_id in self.report_item_locks:
             if self.report_item_locks[report_item_id]["user_id"] == user_id:
-                self.report_item_locks[report_item_id]["lock_time"] = datetime.now()
+                self.report_item_locks[report_item_id]["lock_time"] = datetime.now(UTC)
             return self.to_report_item_json(report_item_id), 200
-        self.report_item_locks[report_item_id] = {"user_id": user_id, "lock_time": datetime.now()}
+        self.report_item_locks[report_item_id] = {"user_id": user_id, "lock_time": datetime.now(UTC)}
         self.publish(
             {
                 "data": report_item_id,

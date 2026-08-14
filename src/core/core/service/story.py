@@ -75,7 +75,7 @@ class StoryService:
 
     @classmethod
     def get_story_clusters(cls, days: int = 7, limit: int = 10):
-        start_date = datetime.now() - timedelta(days=days)
+        start_date = Story.utcnow() - timedelta(days=days)
         if clusters := Story.get_filtered(
             db.select(Story)
             .join(NewsItem)
