@@ -24,6 +24,7 @@ Core returns a source's `collector_http_state` as `http_validators` in worker-on
 ## Testing
 - Worker collector and task regressions: `src/worker/tests/collectors/test_collector.py`, `src/worker/tests/collectors/test_collector_tasks.py`
 - Core persistence and worker-source response: `src/core/tests/application/worker_pipeline/test_worker_api.py`
+- Scheduled collector E2E checks treat both `SUCCESS` and `NOT_MODIFIED` as successful terminal outcomes.
 - Run focused tests while iterating, then the full worker and core suites, component Ruff checks, and `./dev/check_pyrefly.sh`.
 
 ## Pitfalls

@@ -317,10 +317,15 @@ def test_rq_scheduled_collector_cron(
     forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
-    assert payload.get("status") == "SUCCESS"
+    status = payload.get("status")
+    assert status in {"SUCCESS", "NOT_MODIFIED"}
     result = payload.get("result") or {}
     result_message = result.get("message") if isinstance(result, dict) else result
-    assert source_payload["name"] in (result_message or "")
+    if status == "SUCCESS":
+        assert source_payload["name"] in (result_message or "")
+    else:
+        assert isinstance(result, dict)
+        assert result.get("reason") == "collector_not_modified"
     _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
     assert next_run_after_execution > forced_due_timestamp
 
