@@ -34,11 +34,8 @@ class RSSCollector(BaseWebCollector):
         self.description: str = "Collector for gathering data from RSS feeds"
 
         self.news_items: list[NewsItem] = []
-        self.timeout: int = 60
         self.feed_url: str = ""
         self.feed_content: requests.Response
-        self.last_modified: datetime.datetime | None = None
-        self.last_attempted: datetime.datetime | None = None
         self.language: str = ""
         self.use_feed_content: bool = False
 
@@ -65,7 +62,6 @@ class RSSCollector(BaseWebCollector):
         if not self.feed_url:
             raise ValueError("No FEED_URL set in source")
 
-        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.use_feed_content = self._determine_use_feed_content(params)
 
     def collect(self, source: dict, manual: bool = False):
@@ -176,7 +172,8 @@ class RSSCollector(BaseWebCollector):
             content = str(web_content.get("content"))
             author = author or str(web_content.get("author"))
             title = title or str(web_content.get("title"))
-            published = published or web_content.get("published_date") or self.last_modified
+            validator_date = self.http_validators.get("last_modified") if self.http_validators else None
+            published = published or web_content.get("published_date") or (parse_datetime(validator_date) if validator_date else None)
 
         else:
             logger.warning(f"No content could be extracted for RSS entry {feed_entry.get('id', link or title)}")
@@ -194,19 +191,6 @@ class RSSCollector(BaseWebCollector):
             published=published,
             language=self.language,
         )
-
-    # TODO: This function is renamed because of inheritance issues.
-    def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
-        if last_modified := feed_content.headers.get("Last-Modified"):
-            return parse_datetime(last_modified)
-        elif last_modified := feed.get(
-            "updated", feed.get("modified", feed.get("created", feed.get("pubDate", feed.get("lastBuildDate", None))))
-        ):
-            try:
-                return parse_datetime(str(last_modified))
-            except (TypeError, ValueError, OverflowError):
-                return None
-        return None
 
     def update_favicon_from_feed(self, feed: feedparser.FeedParserDict, source_id: str):
         logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
@@ -251,7 +235,7 @@ class RSSCollector(BaseWebCollector):
 
     def gather_news_items(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
         if self.browser_mode == "true":
-            self.playwright_manager = PlaywrightManager(self.proxies, self.headers)
+            self.playwright_manager = PlaywrightManager(self.proxies, self._request_headers(""))
         try:
             self.news_items = self.collect_news(feed, source)
         finally:
@@ -278,7 +262,7 @@ class RSSCollector(BaseWebCollector):
             for result in self.get_urls(self.feed_url, feed_entry.get("summary"))  # type: ignore
         ]  # Flat list of URLs
 
-    def get_feed(self, manual: bool = False) -> feedparser.FeedParserDict:
+    def get_feed(self) -> feedparser.FeedParserDict:
         """Send GET request to URL of RSS feed."""
 
         self.feed_content = self.send_get_request(self.feed_url)
@@ -293,19 +277,18 @@ class RSSCollector(BaseWebCollector):
     def preview_collector(self, source: dict):
         self.parse_source(source)
         self.configure_primary_http_resource(source, self.feed_url, manual=True)
-        feed = self.get_feed(manual=True)
+        feed = self.get_feed()
         self.news_items = self.gather_news_items(feed, source)
         return self.preview(self.news_items, source)
 
     def rss_collector(self, source: dict, manual: bool = False):
         self.last_attempted = self.get_last_attempted(source)
         self.configure_primary_http_resource(source, self.feed_url, manual=manual)
-        feed = self.get_feed(manual)
+        feed = self.get_feed()
         self.language = feed.feed.get("language", feed.feed.get("lang", ""))  # type: ignore
 
         if not self.last_attempted and not source.get("http_validators"):
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
-        self.last_modified = self.get_last_modified_feed(self.feed_content, feed)
 
         logger.info(f"RSS-Feed {self.feed_url} returned feed with {len(feed['entries'])} entries")
 

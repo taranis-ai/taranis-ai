@@ -120,6 +120,7 @@ def browser_web_collector_mock(monkeypatch) -> MagicMock:
     mock_manager.stop_playwright_if_needed.return_value = None
 
     def fake_playwright_manager_ctor(proxies, headers):
+        mock_manager.request_headers = headers
         return mock_manager
 
     monkeypatch.setattr(
