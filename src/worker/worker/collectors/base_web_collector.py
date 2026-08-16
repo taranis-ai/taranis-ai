@@ -43,6 +43,18 @@ class BaseWebCollector(BaseCollector):
         self.playwright_manager: PlaywrightManager | None = None
         self.browser_mode: str | None = None
         self.web_url: str = ""
+        self.http_validators: dict[str, str | None] | None = None
+        self.use_conditional_requests = False
+
+    def configure_primary_http_resource(self, source: dict, url: str, *, manual: bool) -> None:
+        self.http_validators = {"url": url, "etag": None, "last_modified": None}
+        stored_validators = source.get("http_validators")
+        if isinstance(stored_validators, dict) and stored_validators.get("url") == url:
+            for key in ("etag", "last_modified"):
+                value = stored_validators.get(key)
+                if value is None or isinstance(value, str):
+                    self.http_validators[key] = value
+        self.use_conditional_requests = not manual
 
     def send_get_request(self, url: str, modified_since: datetime.datetime | None = None) -> requests.Response:
         """Send a GET request to url with self.headers using self.proxies.
@@ -56,9 +68,20 @@ class BaseWebCollector(BaseCollector):
         if modified_since:
             request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
+        http_validators = self.http_validators
+        primary_request = http_validators is not None and http_validators["url"] == url
+        if http_validators is not None and primary_request and self.use_conditional_requests:
+            if etag := http_validators.get("etag"):
+                request_headers["If-None-Match"] = etag
+            if last_modified := http_validators.get("last_modified"):
+                request_headers["If-Modified-Since"] = last_modified
+
         logger.debug(f"Sending GET request to {url}")
         with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
             response = session.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
+        if http_validators is not None and primary_request and response.status_code == 200:
+            http_validators["etag"] = response.headers.get("ETag")
+            http_validators["last_modified"] = response.headers.get("Last-Modified")
         if response.status_code == 200 and not response.content:
             logger.info(f"Request to {url} got Response 200 OK, but returned no content")
         if response.status_code == 304:
@@ -129,7 +152,8 @@ class BaseWebCollector(BaseCollector):
         if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
 
-        response = self.send_get_request(web_url, self.last_attempted)
+        modified_since = None if self.http_validators is not None else self.last_attempted
+        response = self.send_get_request(web_url, modified_since)
 
         if not response.text:
             return "", None

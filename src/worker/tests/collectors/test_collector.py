@@ -73,6 +73,77 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
         rss_collector.collect(rss_collector_source_data_no_content)
 
 
+def test_rss_publish_error_propagates(rss_collector, requests_mock):
+    from models.assess import NewsItem
+
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", status_code=500, text="failed")
+
+    with pytest.raises(RuntimeError, match="Cannot add news items"):
+        rss_collector.publish([NewsItem(osint_source_id="source-1", title="Item")], {"parameters": {}})
+
+
+def test_primary_http_validator_lifecycle(base_web_collector, requests_mock):
+    from worker.collectors.base_web_collector import NoChangeError
+
+    url = "https://example.com/feed"
+    validators = {
+        "url": url,
+        "etag": 'W/"opaque-etag"',
+        "last_modified": "Tue, 11 Aug 2026 09:07:03 GMT",
+    }
+    requests_mock.get(
+        url,
+        [
+            {"text": "feed", "headers": {"ETag": validators["etag"], "Last-Modified": validators["last_modified"]}},
+            {"status_code": 304},
+            {"text": "manual feed"},
+        ],
+    )
+
+    base_web_collector.configure_primary_http_resource({}, url, manual=False)
+    base_web_collector.send_get_request(url)
+    assert base_web_collector.http_validators == validators
+
+    next_collector = type(base_web_collector)()
+    next_collector.configure_primary_http_resource({"http_validators": validators}, url, manual=False)
+    with pytest.raises(NoChangeError):
+        next_collector.send_get_request(url)
+
+    request = requests_mock.request_history[-1]
+    assert request.headers["If-None-Match"] == validators["etag"]
+    assert request.headers["If-Modified-Since"] == validators["last_modified"]
+    assert next_collector.http_validators == validators
+
+    manual_collector = type(base_web_collector)()
+    manual_collector.configure_primary_http_resource({"http_validators": validators}, url, manual=True)
+    manual_collector.send_get_request(url)
+
+    request = requests_mock.request_history[-1]
+    assert "If-None-Match" not in request.headers
+    assert "If-Modified-Since" not in request.headers
+
+
+def test_rss_validators_are_not_sent_to_secondary_resources(rss_collector, requests_mock):
+    feed_url = "https://example.com/feed"
+    article_url = "https://example.com/article"
+    icon_url = "https://example.com/favicon.ico"
+    stored_validators = {
+        "url": feed_url,
+        "etag": 'W/"feed-only"',
+        "last_modified": "Tue, 11 Aug 2026 09:07:03 GMT",
+    }
+    rss_collector.configure_primary_http_resource({"http_validators": stored_validators}, feed_url, manual=False)
+    requests_mock.get(article_url, text="<article>article</article>")
+    requests_mock.get(icon_url, content=b"icon")
+
+    rss_collector.fetch_article_content(article_url)
+    rss_collector._fetch_icon(icon_url)
+
+    for request in requests_mock.request_history:
+        assert "If-None-Match" not in request.headers
+        assert "If-Modified-Since" not in request.headers
+
+
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
     from tests.testdata import rss_collector_source_data
 
@@ -147,12 +218,16 @@ def test_rss_collector_with_complex(rss_collector_mock, rss_collector):
     assert rss_collector.headers["Cookie"] == "firstcookie=1234; second-cookie=4321"
 
 
-def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collector):
-    from tests.testdata import web_collector_source_data
+def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collector, requests_mock):
+    from tests.testdata import web_collector_source_data, web_collector_url
+
+    requests_mock.head(web_collector_url, status_code=405)
 
     result = simple_web_collector.collect(web_collector_source_data)
 
     assert result is None
+    assert any(request.method == "GET" and request.url == web_collector_url for request in requests_mock.request_history)
+    assert all(request.method != "HEAD" for request in requests_mock.request_history)
 
 
 def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_web_collector_instance):

@@ -1,3 +1,6 @@
+from copy import deepcopy
+from unittest.mock import MagicMock
+
 import pytest
 
 from worker.collectors import collector_tasks
@@ -48,6 +51,11 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
 
     class FakeCollector:
         name = "RSS Collector"
+        http_validators = {
+            "url": "https://example.com/feed",
+            "etag": 'W/"opaque-etag"',
+            "last_modified": "Tue, 11 Aug 2026 09:07:03 GMT",
+        }
 
         def collect(self, source_data, manual):
             raise collector_tasks.NoChangeError("feed was not modified")
@@ -73,7 +81,11 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
             "message": result,
             "reason": "collector_not_modified",
             "retryable": False,
-            "data": {"source_id": "source-1", "manual": False},
+            "data": {
+                "source_id": "source-1",
+                "manual": False,
+                "http_validators": FakeCollector.http_validators,
+            },
         },
         "status": "NOT_MODIFIED",
     }
@@ -113,6 +125,31 @@ def test_empty_rss_feed_status_lifecycle(current_job, requests_mock, monkeypatch
     assert "attempt 2 of 3" in payloads[1]["result"]["message"]
     assert "after 3 collection attempts" in payloads[2]["result"]["message"]
     assert "after an earlier successful collection" in payloads[3]["result"]["message"]
+
+
+def test_rss_parse_failure_cleans_up_persists_failure_and_skips_bots(
+    current_job, requests_mock, monkeypatch, rss_collector_mock, rss_collector
+):
+    from tests.testdata import rss_collector_source_data
+
+    source = deepcopy(rss_collector_source_data)
+    source |= {"name": "Source 1", "type": "rss_collector"}
+    source["parameters"] |= {"BROWSER_MODE": "true", "DIGEST_SPLITTING": "false"}
+    playwright_manager = MagicMock()
+    monkeypatch.setattr("worker.collectors.rss_collector.PlaywrightManager", lambda *_: playwright_manager)
+    monkeypatch.setattr(rss_collector, "parse_feed_entry", MagicMock(side_effect=ValueError("RSS parsing failed")))
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    monkeypatch.setattr(collector_tasks.Collector, "get_collector", lambda self, source_data: rss_collector)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    with pytest.raises(RuntimeError, match="RSS parsing failed"):
+        collector_tasks.collector_task(source["id"], False)
+
+    task_requests = [request for request in requests_mock.request_history if request.url.endswith("/tasks")]
+    assert len(task_requests) == 1
+    assert task_requests[0].json()["status"] == "FAILURE"
+    playwright_manager.stop_playwright_if_needed.assert_called_once_with()
+    assert all(not request.url.endswith("/worker/post-collection-bots") for request in requests_mock.request_history)
 
 
 def test_fetch_single_news_item_accepts_simple_web_source_payload_and_persists_success_result(current_job, requests_mock, monkeypatch):
