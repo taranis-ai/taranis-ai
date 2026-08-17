@@ -25,6 +25,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Authentication Cookies](authentication-cookies.md) - JWT/CSRF cookie names, deployment suffixes, base-path scoping, and auth cookie consumers.
 - [Public Product Publishing](public-product-publishing.md) - Taranis publisher presets, persistent report files, and unauthenticated public report URLs.
 - [Scheduler Dashboard](scheduler-dashboard.md) - scheduler tabs, RQ-backed table data, granular refreshes, pagination and filtering, and task history.
+- [Collector HTTP State](collector-http-state.md) - persistent HTTP validators, primary-resource request scoping, manual bypass, 304 handling, and collector failure propagation.
 
 ## File Format
 

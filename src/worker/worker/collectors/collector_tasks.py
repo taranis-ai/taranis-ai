@@ -53,6 +53,13 @@ class Collector:
         raise ValueError(f"Source {source['id']} has no collector_type")
 
 
+def _collector_result_data(osint_source_id: str, manual: bool, collector: BaseCollector) -> dict[str, Any]:
+    data: dict[str, Any] = {"source_id": osint_source_id, "manual": manual}
+    if http_validators := getattr(collector, "http_validators", None):
+        data["http_validators"] = http_validators.copy()
+    return data
+
+
 def _persist_and_return_result(
     job,
     core_api: CoreApi,
@@ -150,7 +157,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 worker_type=worker_type,
                 meta_status="NOT_MODIFIED",
                 reason="collector_not_modified",
-                data={"source_id": osint_source_id, "manual": manual},
+                data=_collector_result_data(osint_source_id, manual, collector_impl),
             )
         except Exception as e:
             logger.error(f"Collector task failed: {task_description}")
@@ -168,7 +175,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
                     result=build_failure_task_result(
                         result_message,
                         reason="collection_failed",
-                        data={"source_id": osint_source_id, "manual": manual},
+                        data=_collector_result_data(osint_source_id, manual, collector_impl),
                     ),
                 )
 
@@ -187,7 +194,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
             worker_type=worker_type,
             result=build_success_task_result(
                 default_message=result_message,
-                data={"source_id": osint_source_id, "manual": manual},
+                data=_collector_result_data(osint_source_id, manual, collector_impl),
             ),
         )
 
