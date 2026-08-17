@@ -884,8 +884,8 @@ class Story(BaseModel):
         if "misp_auto_update" in data and data["misp_auto_update"] is not None:
             try:
                 StoryMispAutoUpdate.configure(story, data["misp_auto_update"])
-            except ValueError as exc:
-                return {"error": str(exc)}, 400
+            except ValueError:
+                return {"error": "Select a MISP connector for auto-update"}, 400
 
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
