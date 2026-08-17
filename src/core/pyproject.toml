@@ -32,6 +32,8 @@ dependencies = [
     "authlib",
     "setuptools",
     "taranis-models>=1.3.3.dev5",
+    "opentelemetry-exporter-otlp-proto-http",
+    "opentelemetry-instrumentation-flask",
     "sentry-sdk[flask]",
     "sentry-sdk[sqlalchemy]",
 ]

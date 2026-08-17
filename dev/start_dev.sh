@@ -7,6 +7,11 @@ cd "$(git rev-parse --show-toplevel)"
 source dev/env.dev
 export COMPOSE_PROJECT_NAME TARANIS_REDIS_PORT
 
+if [ -n "${WITH_TELEMETRY:-}" ]; then
+    export COMPOSE_PROFILES=telemetry
+    export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}"
+fi
+
 host_os="$(uname -s)"
 
 case "$host_os" in

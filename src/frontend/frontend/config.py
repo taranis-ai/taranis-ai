@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     CACHE_REDIS_PASSWORD: SecretStr | None = None
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
+    OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
+    OTEL_METRIC_EXPORT_INTERVAL: Annotated[float, Field(gt=0)] = 60_000
     TARANIS_FRONTEND_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False
     SENTRY_SEND_DEFAULT_PII: bool = False
@@ -72,6 +74,10 @@ class Settings(BaseSettings):
         return self.TARANIS_BASE_PATH
 
     JWT_ACCESS_CSRF_COOKIE_PATH = JWT_ACCESS_COOKIE_PATH
+
+    @field_validator("OTEL_EXPORTER_OTLP_ENDPOINT", "TARANIS_FRONTEND_SENTRY_DSN", mode="before")
+    def normalize_optional_telemetry_url(cls, value: str | None) -> str | None:
+        return value.strip().rstrip("/") or None if value else None
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:

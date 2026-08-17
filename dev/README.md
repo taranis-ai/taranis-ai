@@ -85,6 +85,18 @@ docker compose -f dev/compose.yml up -d
 This starts local Redis without authentication on `localhost:${TARANIS_REDIS_PORT:-6379}`.
 Queue state is not persisted across local Redis restarts in this dev setup.
 
+To start the optional Grafana LGTM telemetry stack as well:
+
+```bash
+docker compose -f dev/compose.yml --profile telemetry up -d
+```
+
+Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` in the core, frontend, and worker environments, then open Grafana at `http://localhost:3000`. The automated workflow bundles both steps:
+
+```bash
+WITH_TELEMETRY=1 ./dev/start_dev.sh
+```
+
 Setup nginx.
 Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
 Existing installed nginx configurations are not updated automatically when `dev/nginx.conf` changes. Public product publishing requires the active server block to include the tracked `/reports` proxy; recopy or update the installed configuration before validating that route.
@@ -281,5 +293,6 @@ The frontend is served by the [Flask & HTMX REST frontend](../src/frontend/READM
 
 * Docker: For containerization.
 * docker-compose: For managing multi-container Docker applications.
+* OpenTelemetry and Grafana LGTM: For request, RQ job, and metric observability.
 * Sentry: For error monitoring.
 * CI/CD: GitHub Actions

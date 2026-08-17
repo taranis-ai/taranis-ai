@@ -102,6 +102,12 @@ def test_core_sentry_dsn_is_read_from_settings():
     assert settings.TARANIS_CORE_SENTRY_DSN == "https://core@example.invalid/2"
 
 
+def test_core_otlp_endpoint_is_normalized():
+    settings = Settings(OTEL_EXPORTER_OTLP_ENDPOINT="  http://telemetry:4318/  ")
+
+    assert settings.OTEL_EXPORTER_OTLP_ENDPOINT == "http://telemetry:4318"
+
+
 def test_sqlalchemy_pool_timeout_from_env_var(monkeypatch, clear_pool_env_vars):
     """Test that SQLALCHEMY_POOL_TIMEOUT is correctly read from environment and added to engine options."""
     monkeypatch.setenv("SQLALCHEMY_POOL_TIMEOUT", "666")

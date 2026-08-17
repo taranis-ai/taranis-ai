@@ -489,6 +489,7 @@ def test_enqueue_task_passes_meta_to_rq_queue(monkeypatch):
 
     qm = _make_queue_manager()
     monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+    monkeypatch.setattr(qm_module, "inject", lambda carrier: carrier.update({"traceparent": "test-trace"}))
 
     result = qm.enqueue_task(
         "collectors",
@@ -507,7 +508,13 @@ def test_enqueue_task_passes_meta_to_rq_queue(monkeypatch):
             "job_id": "collect_rss_collector_source-1",
             "kwargs": {
                 "at_front": False,
-                "meta": {"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"},
+                "meta": {
+                    "task": "collector_task",
+                    "user_id": None,
+                    "worker_id": "source-1",
+                    "worker_type": "rss_collector",
+                    "traceparent": "test-trace",
+                },
             },
         }
     ]

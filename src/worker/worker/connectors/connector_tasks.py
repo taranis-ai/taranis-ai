@@ -12,8 +12,10 @@ from rq import get_current_job
 from worker.connectors import MispConnector
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import logger
+from worker.telemetry import instrument_job
 
 
+@instrument_job
 def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, Any]:
     """Push stories to an external connector system.
 

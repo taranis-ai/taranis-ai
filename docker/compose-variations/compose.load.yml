@@ -44,6 +44,9 @@ services:
       API_KEY: load_testing_api_key
       DEBUG: "true"
       DISABLE_SSE: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
+      OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
+      OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
       TARANIS_CORE_SENTRY_DSN: ""
     depends_on:
       database:
@@ -72,6 +75,9 @@ services:
       JWT_COOKIE_SUFFIX: ""
       REDIS_URL: redis://redis:6379/0
       REDIS_PASSWORD: ""
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
+      OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
+      OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
       DEBUG: "true"
     depends_on:
       core:
@@ -108,6 +114,20 @@ services:
       timeout: 5s
       retries: 20
       start_period: 10s
+
+  telemetry:
+    profiles: ["telemetry"]
+    image: "docker.io/grafana/otel-lgtm:${GRAFANA_OTEL_LGTM_TAG:-0.30.2}"
+    pull_policy: always
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+      - "${OTEL_GRPC_PORT:-4317}:4317"
+      - "${OTEL_HTTP_PORT:-4318}:4318"
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+    volumes:
+      - telemetry_data:/data
 
   seed:
     image: ghcr.io/taranis-ai/load-test:latest
@@ -163,3 +183,6 @@ services:
     depends_on:
       ingress:
         condition: service_healthy
+
+volumes:
+  telemetry_data:

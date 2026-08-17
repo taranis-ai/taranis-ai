@@ -1,6 +1,6 @@
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
-from pydantic import ValidationInfo, field_validator, model_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
     RQ_WORKER_CLASS: Literal["auto", "fork", "spawn"] = "auto"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
+    OTEL_METRIC_EXPORT_INTERVAL: Annotated[float, Field(gt=0)] = 60_000
     SUMMARY_API_ENDPOINT: str = "http://llm-bot:8000/summarize"
     TITLE_API_ENDPOINT: str | None = "http://llm-bot:8000/title"
     NLP_API_ENDPOINT: str = "http://llm-bot:8000/ner"
@@ -37,6 +39,12 @@ class Settings(BaseSettings):
     CYBERSEC_CLASSIFIER_API_ENDPOINT: str = "http://llm-bot:8000/cybersec-classification"
     CYBERSEC_CLASSIFIER_THRESHOLD: float = 0.65
     CRON_POLL_INTERVAL_SECONDS: float = 15.0
+
+    @field_validator("OTEL_EXPORTER_OTLP_ENDPOINT", mode="before")
+    def normalize_optional_telemetry_url(cls, value: str | None) -> str | None:
+        if not value:
+            return None
+        return value.strip().rstrip("/") or None
 
     @field_validator("TARANIS_BASE_PATH", mode="before")
     def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:
