@@ -58,6 +58,9 @@ class Story(BaseModel):
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
     search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), server_default="")
+    misp_auto_update: Mapped["StoryMispAutoUpdate | None"] = relationship(
+        "StoryMispAutoUpdate", uselist=False, cascade="all, delete-orphan", back_populates="story"
+    )
 
     def __init__(
         self,
@@ -862,11 +865,27 @@ class Story(BaseModel):
         return result, 200
 
     @classmethod
-    def update(cls, story_id: str, data, user=None, external: bool = False, actor: str | None = None) -> tuple[dict, int]:
+    def update(
+        cls,
+        story_id: str,
+        data: dict[str, Any],
+        user=None,
+        external: bool = False,
+        actor: str | None = None,
+    ) -> tuple[dict, int]:
         story: Story | None = cls.get(story_id)
         logger.debug(f"Updating story {story_id} with data: {data}")
         if not story:
             return {"error": "Story not found"}, 404
+
+        if "misp_auto_update" in data and (not user or "CONNECTOR_USER_ACCESS" not in user.get_permissions()):
+            return {"error": "forbidden"}, 403
+
+        if "misp_auto_update" in data and data["misp_auto_update"] is not None:
+            try:
+                StoryMispAutoUpdate.configure(story, data["misp_auto_update"])
+            except ValueError as exc:
+                return {"error": str(exc)}, 400
 
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
@@ -1104,7 +1123,12 @@ class Story(BaseModel):
         return any(ReportItemStory.is_assigned(story_id) for story_id in story_ids)
 
     @classmethod
-    def group_multiple_stories(cls, story_mappings: list[list[str]], user: User | None = None, actor: str | None = None):
+    def group_multiple_stories(
+        cls,
+        story_mappings: list[list[str]],
+        user: User | None = None,
+        actor: str | None = None,
+    ):
         results = [cls.group_stories(story_ids, user=user, actor=actor) for story_ids in story_mappings]
         if any(result[1] == 500 for result in results):
             return {"error": "grouping failed"}, 500
@@ -1141,7 +1165,12 @@ class Story(BaseModel):
             return {"error": "grouping failed"}, 500
 
     @classmethod
-    def group_stories(cls, story_ids: Sequence[str], user: User | None = None, actor: str | None = None):
+    def group_stories(
+        cls,
+        story_ids: Sequence[str],
+        user: User | None = None,
+        actor: str | None = None,
+    ):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
             if not isinstance(story_ids, list):
@@ -1418,6 +1447,8 @@ class Story(BaseModel):
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["links"] = self.links
+        if self.misp_auto_update:
+            data["misp_auto_update"] = self.misp_auto_update.to_dict()
         del data["search_vector"]
         return data
 
@@ -1435,6 +1466,8 @@ class Story(BaseModel):
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
         data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
+        if self.misp_auto_update:
+            data["misp_auto_update"] = self.misp_auto_update.to_dict()
         if attributes := self.attributes:
             data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
         del data["search_vector"]
@@ -1500,6 +1533,39 @@ class NewsItemVote(BaseModel):
         if vote := cls.get_by_filter(item_id, user_id):
             return {"like": vote.like, "dislike": vote.dislike}
         return {"like": False, "dislike": False}
+
+
+class StoryMispAutoUpdate(BaseModel):
+    __tablename__ = "story_misp_auto_update"
+
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
+    connector_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("connector.id", ondelete="CASCADE"), nullable=False)
+    enabled: Mapped[bool] = db.Column(db.Boolean, default=False, nullable=False)
+
+    story: Mapped[Story] = relationship("Story", back_populates="misp_auto_update")
+
+    @classmethod
+    def get_story_ids(cls, connector_id: str | None = None) -> list[str]:
+        query = db.select(cls.story_id)
+        if connector_id is not None:
+            query = query.where(cls.connector_id == connector_id)
+        return list(db.session.execute(query).scalars().all())
+
+    @classmethod
+    def configure(cls, story: Story, data: dict[str, Any]) -> None:
+        from core.model.connector import Connector
+
+        connector = Connector.get(data.get("connector_id")) if data.get("connector_id") else None
+        if not connector or str(connector.type.value).lower() != "misp_connector":
+            raise ValueError("Select a MISP connector for auto-update")
+        sync = story.misp_auto_update or cls()
+        sync.story_id = story.id
+        sync.connector_id = connector.id
+        sync.enabled = bool(data.get("enabled"))
+        story.misp_auto_update = sync
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"connector_id": self.connector_id, "enabled": self.enabled}
 
 
 class StoryNewsItemAttribute(BaseModel):

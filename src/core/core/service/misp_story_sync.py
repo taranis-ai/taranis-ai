@@ -18,10 +18,39 @@ def handle_misp_connector_result(result: dict[str, Any]) -> None:
         return
 
     for payload in sync_results:
-        apply_misp_sync_story_result(payload, connector_id=connector_id if isinstance(connector_id, str) else None)
+        if not isinstance(payload, dict):
+            logger.error(f"Invalid MISP sync payload type: {type(payload)}")
+            continue
+        if payload.get("type") == "misp_auto_update_blocked":
+            apply_misp_auto_update_blocked(payload)
+        else:
+            apply_misp_sync_story_result(
+                payload,
+                connector_id=connector_id if isinstance(connector_id, str) else None,
+                clear_auto_update_proposals=payload.get("auto_update") is True,
+                proposal_url=payload.get("proposal_url") if isinstance(payload.get("proposal_url"), str) else None,
+            )
 
 
-def apply_misp_sync_story_result(payload: dict[str, Any], connector_id: str | None = None) -> bool:
+def apply_misp_auto_update_blocked(payload: dict[str, Any]) -> bool:
+    story_id = payload.get("story_id")
+    proposal_url = payload.get("proposal_url")
+    if not isinstance(story_id, str) or not isinstance(proposal_url, str):
+        logger.error("Invalid MISP auto-update blocked payload")
+        return False
+    story = Story.get(story_id)
+    if not story:
+        return False
+    story.patch_attributes({"has_proposals": {"key": "has_proposals", "value": proposal_url}})
+    story.updated = story.utcnow()
+    story.record_revision(note="misp_sync_story")
+    db.session.commit()
+    return True
+
+
+def apply_misp_sync_story_result(
+    payload: dict[str, Any], connector_id: str | None = None, clear_auto_update_proposals: bool = False, proposal_url: str | None = None
+) -> bool:
     if not isinstance(payload, dict):
         logger.error(f"Invalid MISP sync payload type: {type(payload)}")
         return False
@@ -73,6 +102,15 @@ def apply_misp_sync_story_result(payload: dict[str, Any], connector_id: str | No
             news_item.last_change = connector_actor
             news_item.updated = news_item.utcnow()
             changed = True
+
+    if (
+        clear_auto_update_proposals
+        and proposal_url
+        and (proposal_attribute := story.find_attribute_by_key("has_proposals"))
+        and proposal_attribute.value == proposal_url
+    ):
+        story.remove_attributes(["has_proposals"])
+        changed = True
 
     if not changed:
         return True

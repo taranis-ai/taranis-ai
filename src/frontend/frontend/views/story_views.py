@@ -908,6 +908,19 @@ class StoryView(BaseView):
         story = context.get("story")
 
         if isinstance(story, Story):
+            context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
+            context["can_manage_connectors"] = "CONNECTOR_USER_ACCESS" in (current_user.permissions or [])
+            if context["can_manage_connectors"] and context["layout"] == "advanced":
+                try:
+                    context["misp_connectors"] = [
+                        item
+                        for item in DataPersistenceLayer().get_objects(Connector).items
+                        if str(item.type or "").lower() == "misp_connector"
+                    ]
+                except HTTPException:
+                    raise
+                except Exception:
+                    context["misp_connectors"] = []
             attributes = story.attributes or []
             context["has_rt_id"] = any(isinstance(attr, dict) and attr.get("key") == "rt_id" for attr in attributes)
 
@@ -923,7 +936,6 @@ class StoryView(BaseView):
             context["cyber_chip_class"] = cls._get_cyber_chip_class(context["story_cyber_status"])
             context["story_sentiment_status"] = cls._format_sentiment_status(sentiment_value)
             context["sentiment_chip_class"] = cls._get_sentiment_chip_class(context["story_sentiment_status"])
-            context["layout"] = request.args.get("layout", "advanced" if current_user.profile.advanced_story_options else "simple")
             sources = list(cls.get_filter_lists().sources)
             source_dict = {source.id: source for source in sources if source.id}
             cls._enhance_story_with_details(story, source_dict)
@@ -1485,11 +1497,15 @@ class StoryView(BaseView):
             if request.args.get("return_to_bookmark") == "1" and getattr(response, "ok", False):
                 cls.add_flash_notification(response)
                 return cls.redirect_htmx(url_for("assess.bookmark", bookmark_id=bookmark_id))
+        elif getattr(response, "ok", False):
+            DataPersistenceLayer().invalidate_model_cache_locally(Story, story_id)
+
         if not is_htmx_request():
             cls.add_flash_notification(response)
             if bookmark_id:
                 return cls.redirect_htmx(url_for("assess.bookmark", bookmark_id=bookmark_id))
             return cls.redirect_htmx(url_for("assess.story", story_id=story_id))
+
         notification_html = cls.get_notification_from_response(response)
 
         content = cls._get_action_response_content(story_id)

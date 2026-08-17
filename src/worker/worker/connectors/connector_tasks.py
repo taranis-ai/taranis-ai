@@ -14,7 +14,7 @@ from worker.core_api import CoreApi, build_failure_task_result, build_success_ta
 from worker.log import logger
 
 
-def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, Any]:
+def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: bool = False) -> dict[str, Any]:
     """Push stories to an external connector system.
 
     Args:
@@ -77,7 +77,7 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
 
     # Execute connector
     try:
-        connector_result = connector.execute(connector_data)
+        connector_result = connector.execute(connector_data, auto_update=auto_update)
         if not isinstance(connector_result, dict):
             raise TypeError(f"Connector {connector.type} returned an invalid result payload")
 
@@ -89,6 +89,7 @@ def connector_task(connector_id: str, story_ids: list[str] | None) -> dict[str, 
             "message": connector_result.get("message", "Connector executed successfully"),
             "sync_results": connector_result.get("sync_results", []),
             "story_ids": story_ids,
+            "auto_update": auto_update,
         }
         if job:
             core_api.save_task_result(

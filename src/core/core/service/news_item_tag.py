@@ -10,6 +10,7 @@ from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.model.news_item_tag import NewsItemTag, NewsItemTagCluster
 from core.model.story import Story
+from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 
 
 class NewsItemTagService:
@@ -109,19 +110,21 @@ class NewsItemTagService:
         return dict(sorted(largest_tag_types.items(), key=lambda item: item[1]["size"], reverse=True))
 
     @staticmethod
-    def set_found_bot_tags(found_tags: dict[str, Any], *, actor: str | None = None):
-        errors = {}
+    def set_found_bot_tags(found_tags: dict[str, Any], *, actor: str | None = None) -> set[str]:
+        story_ids = set()
         for news_item_id, tags in found_tags.items():
             if not tags:
                 continue
             news_item = NewsItem.get(news_item_id)
             if not news_item:
-                errors[news_item_id] = "News item not found"
                 continue
-            news_item.set_tags(tags, actor=actor, replace=False)
+            _, status = news_item.set_tags(tags, actor=actor, replace=False)
+            if status == 200 and news_item.story_id:
+                story_ids.add(news_item.story_id)
+        return story_ids
 
     @staticmethod
-    def set_worker_execution_attribute(*, worker_type: str, worker_id: str, found_tags: dict[str, Any]):
+    def set_worker_execution_attribute(*, worker_type: str, worker_id: str, found_tags: dict[str, Any]) -> set[str]:
         now = datetime.now(UTC).isoformat()
         tag_counts_by_story: dict[str, int] = {}
         stories_by_id: dict[str, Story] = {}
@@ -138,11 +141,24 @@ class NewsItemTagService:
             story.record_revision(note="set_worker_execution_attribute")
 
         db.session.commit()
+        return set(stories_by_id)
 
     @classmethod
     def delete_tags_by_name(cls, tag_name: str):
         # TODO: Record StoryRevision entries for affected stories before bulk tag deletion.
+        story_ids = (
+            db.session.execute(db.select(NewsItem.story_id).join(NewsItemTag).where(NewsItemTag.name == tag_name).distinct()).scalars().all()
+        )
         tag_keys = NewsItemTag.get_summary_keys_for_name(tag_name)
         db.session.execute(db.delete(NewsItemTag).where(NewsItemTag.name == tag_name))
         NewsItemTagCluster.refresh_for_keys(tag_keys)
         db.session.commit()
+        refresh_misp_auto_update_jobs(story_ids)
+
+    @classmethod
+    def delete_all(cls) -> tuple[dict[str, Any], int]:
+        story_ids = db.session.execute(db.select(NewsItem.story_id).join(NewsItemTag).distinct()).scalars().all()
+        result = NewsItemTag.delete_all()
+        if result[1] == 200:
+            refresh_misp_auto_update_jobs(story_ids)
+        return result
