@@ -2,7 +2,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from pymisp import exceptions
+from pymisp import MISPShadowAttribute, exceptions
 
 from worker.config import Config
 from worker.connectors import base_misp_builder, connector_tasks
@@ -324,41 +324,51 @@ def test_auto_update_unowned_event_is_skipped(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("response", "expected"),
+    ("org_ids", "expected"),
     [
-        ([{"org_id": "2"}], True),
-        ({"response": [{"org_id": "2"}]}, True),
-        ({"ShadowAttribute": [{"org_id": "1"}]}, False),
-        ({"response": {"ShadowAttribute": [{"org_id": "2"}]}}, True),
-        ({}, False),
+        (["2"], True),
+        (["1"], False),
+        ([], False),
     ],
 )
-def test_external_proposal_response_shapes(response, expected):
+def test_external_proposals(org_ids, expected):
     connector = MispConnector()
     connector.org_id = "1"
-    misp = SimpleNamespace(_prepare_request=lambda *args: object(), _check_json_response=lambda _: response)
+    proposals = []
+    for org_id in org_ids:
+        proposal = MISPShadowAttribute()
+        proposal.from_dict(org_id=org_id)
+        proposals.append(proposal)
+    misp = SimpleNamespace(attribute_proposals=lambda _, pythonify: proposals)
 
     assert connector.has_external_proposals(misp, "event-1") is expected
 
 
+def test_external_proposal_error():
+    connector = MispConnector()
+    response = {"errors": (403, {"message": "Forbidden"})}
+    misp = SimpleNamespace(attribute_proposals=lambda _, pythonify: response)
+
+    assert connector.has_external_proposals(misp, "event-1") is None
+
+
 @pytest.mark.parametrize(
-    ("failing_method", "error"),
+    "error",
     [
-        ("_prepare_request", OSError("connection failed")),
-        ("_check_json_response", exceptions.PyMISPUnexpectedResponse("invalid JSON")),
+        OSError("connection failed"),
+        exceptions.PyMISPUnexpectedResponse("invalid JSON"),
     ],
 )
-def test_auto_update_fails_closed_when_proposal_lookup_fails(monkeypatch, failing_method, error):
+def test_auto_update_fails_closed_when_proposal_lookup_fails(monkeypatch, error):
     connector = MispConnector()
     connector.org_id = "1"
     event = SimpleNamespace(to_dict=lambda: {"orgc_id": "1"})
     monkeypatch.setattr(connector, "get_event_by_uuid", lambda *args: event)
-    misp = SimpleNamespace(_prepare_request=lambda *args: object(), _check_json_response=lambda *args: [])
 
-    def fail(*args):
+    def fail(*args, **kwargs):
         raise error
 
-    monkeypatch.setattr(misp, failing_method, fail)
+    misp = SimpleNamespace(attribute_proposals=fail)
 
     assert connector.update_misp_event(misp, {}, "event-1", auto_update=True) == ("failed",)
 

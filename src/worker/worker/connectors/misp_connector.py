@@ -1,6 +1,6 @@
 import contextlib
 from datetime import datetime, timezone
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal, TypeAlias, cast
 
 from pymisp import MISPAttribute, MISPEvent, MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, exceptions
 
@@ -198,22 +198,15 @@ class MispConnector:
 
     def has_external_proposals(self, misp: PyMISP, event_uuid: str) -> bool | None:
         try:
-            response = misp._prepare_request("GET", f"shadow_attributes/index/{event_uuid}")
-            data = misp._check_json_response(response)
+            proposals = misp.attribute_proposals(event_uuid, pythonify=True)
         except (exceptions.PyMISPError, OSError) as error:
             logger.error(f"Could not check proposals for MISP event {event_uuid}: {error}")
             return None
 
-        if not data:
-            return False
-        if isinstance(data, dict):
-            data = data.get("response", data.get("ShadowAttribute", []))
-            if isinstance(data, dict):
-                data = data.get("ShadowAttribute", data.get("response", []))
-        if not isinstance(data, list):
-            logger.error(f"Unexpected proposal response for MISP event {event_uuid}")
+        if isinstance(proposals, dict):
+            logger.error(f"Could not check proposals for MISP event {event_uuid}: {proposals.get('errors', proposals)}")
             return None
-        return any(str(proposal.get("org_id", "")) != str(self.org_id) for proposal in data if isinstance(proposal, dict))
+        return any(str(proposal.get("org_id", "")) != str(self.org_id) for proposal in cast(list[MISPShadowAttribute], proposals))
 
     def update_misp_event(self, misp: PyMISP, story: dict, misp_event_uuid: str, auto_update: bool = False) -> MispSendResult:
         if event := self.get_event_by_uuid(misp, story, misp_event_uuid):
