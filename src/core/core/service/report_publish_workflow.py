@@ -46,6 +46,7 @@ class ReportPublishWorkflowService:
             return {"error": "Failed to create report and product"}, 500
 
         asset_manager.report_item_changed(report_item)
+        ReportStorySyncService.refresh_auto_update_jobs(report_item.stories)
         if user and user.organization_id:
             realtime_publisher.report_item_changed(report_item.id, user.organization_id, "created")
 

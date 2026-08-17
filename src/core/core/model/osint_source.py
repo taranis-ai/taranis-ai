@@ -39,6 +39,50 @@ class InvalidOSINTSourceIconError(ValueError):
         self.public_message = public_message
 
 
+class CollectorHTTPState(BaseModel):
+    __tablename__ = "collector_http_state"
+
+    osint_source_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True
+    )
+    url: Mapped[str] = db.Column(db.Text, nullable=False)
+    etag: Mapped[str | None] = db.Column(db.Text, nullable=True)
+    last_modified: Mapped[str | None] = db.Column(db.Text, nullable=True)
+
+    def __init__(self, osint_source_id: str, url: str, etag: str | None = None, last_modified: str | None = None):
+        self.osint_source_id = osint_source_id
+        self.url = url
+        self.etag = etag
+        self.last_modified = last_modified
+
+    @classmethod
+    def update_from_task_result(cls, source_id: str, data: Any) -> None:
+        if not isinstance(data, dict) or not isinstance(validators := data.get("http_validators"), dict):
+            return
+        url = validators.get("url")
+        etag = validators.get("etag")
+        last_modified = validators.get("last_modified")
+        if (
+            not isinstance(url, str)
+            or not url
+            or (etag is not None and not isinstance(etag, str))
+            or (last_modified is not None and not isinstance(last_modified, str))
+            or OSINTSource.get(source_id) is None
+        ):
+            return
+
+        if state := db.session.get(cls, source_id):
+            state.url = url
+            state.etag = etag
+            state.last_modified = last_modified
+        else:
+            db.session.add(cls(source_id, url, etag, last_modified))
+        db.session.commit()
+
+    def to_worker_dict(self) -> dict[str, str | None]:
+        return {"url": self.url, "etag": self.etag, "last_modified": self.last_modified}
+
+
 class OSINTSource(BaseModel):
     __tablename__ = "osint_source"
 
@@ -53,6 +97,9 @@ class OSINTSource(BaseModel):
         "ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete"
     )
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
+    http_state: Mapped[CollectorHTTPState | None] = relationship(
+        CollectorHTTPState, cascade="all, delete-orphan", passive_deletes=True, uselist=False
+    )
 
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
@@ -305,6 +352,8 @@ class OSINTSource(BaseModel):
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         if self.status:
             data["status"] = self.status
+        if self.http_state:
+            data["http_validators"] = self.http_state.to_worker_dict()
 
         # Include refresh schedule for worker self-rescheduling
         data["refresh"] = self.get_schedule_with_default()
@@ -499,6 +548,8 @@ class OSINTSource(BaseModel):
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
         from core.managers import queue_manager
+        from core.model.story import Story
+        from core.service.misp_auto_update import refresh_misp_auto_update_jobs
         from core.service.story import StoryService
 
         if not (source := cls.get(source_id)):
@@ -506,6 +557,7 @@ class OSINTSource(BaseModel):
         if source.key == "manual":
             return {"error": "The manual source cannot be deleted"}, 400
 
+        affected_story_ids = []
         try:
             source.unschedule_osint_source()
             queue_manager.queue_manager.purge_job_artifacts(
@@ -515,10 +567,20 @@ class OSINTSource(BaseModel):
             if force:
                 news_item_table = db.metadata.tables.get("news_item")
                 if news_item_table is not None:
+                    affected_story_ids = (
+                        db.session.execute(
+                            db.select(news_item_table.c.story_id).where(news_item_table.c.osint_source_id == source_id).distinct()
+                        )
+                        .scalars()
+                        .all()
+                    )
                     db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
                 StoryService.delete_stories_with_no_items()
             db.session.delete(source)
             db.session.commit()
+            if affected_story_ids:
+                surviving_story_ids = db.session.execute(db.select(Story.id).where(Story.id.in_(affected_story_ids))).scalars().all()
+                refresh_misp_auto_update_jobs(surviving_story_ids)
             return {"message": "OSINT Source deleted", "id": source.id}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")

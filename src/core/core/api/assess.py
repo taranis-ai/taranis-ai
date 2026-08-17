@@ -4,7 +4,13 @@ from urllib.parse import unquote, urlparse
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.assess import StoryBookmarkCreatePayload, StoryBookmarkOrderPayload, StoryBookmarkStoryPayload, StoryBookmarkUpdatePayload
+from models.assess import (
+    StoryBookmarkCreatePayload,
+    StoryBookmarkOrderPayload,
+    StoryBookmarkStoryPayload,
+    StoryBookmarkUpdatePayload,
+    StoryUpdatePayload,
+)
 from pydantic import ValidationError
 
 from core.api.utils import request_id_list
@@ -138,7 +144,7 @@ class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self, news_item_id: str):
         actor = story.Story.last_change_for_user(current_user)
-        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=actor)
+        response, status = NewsItemService.update_attributes(news_item_id, request.json, actor=actor)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
         return response, status
 
@@ -157,7 +163,7 @@ class UpdateNewsItemTags(MethodView):
         if not isinstance(tags, (list, dict)):
             return {"error": "Tags must be a list or object"}, 400
 
-        response, status = item.set_tags(tags, user=current_user)
+        response, status = NewsItemService.update_tags(item, tags, user=current_user)
         invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"), object_ids={"news_item": news_item_id})
         return response, status
 
@@ -210,6 +216,14 @@ class Stories(MethodView):
         if payload is not None and not isinstance(payload, dict):
             return {"error": "Invalid payload provided"}, 400
 
+        if payload is not None:
+            try:
+                payload = StoryUpdatePayload.model_validate(payload).model_dump(mode="json", exclude_unset=True)
+            except ValidationError as exc:
+                return _validation_error_response(exc)
+        else:
+            payload = {}
+
         result_dict: dict[str, Any] = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
         for story_id in story_ids:
             if not story_id:
@@ -217,7 +231,7 @@ class Stories(MethodView):
             s = story.Story.get(story_id)
             if s is None:
                 return {"error": "Story not found"}, 404
-            response, code = story.Story.update(s.id, payload, current_user)
+            response, code = StoryService.update(s.id, payload, current_user)
             if code != 200:
                 result_dict["errors"].append({"story_id": s.id, "response": response})
             else:
@@ -251,7 +265,11 @@ class Story(MethodView):
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self, story_id):
-        response, code = story.Story.update(story_id, request.json, current_user)
+        try:
+            payload = StoryUpdatePayload.model_validate(request.json).model_dump(mode="json", exclude_unset=True)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        response, code = StoryService.update(story_id, payload, current_user)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
@@ -259,7 +277,7 @@ class Story(MethodView):
 
     @auth_required("ASSESS_DELETE")
     def delete(self, story_id):
-        response, code = story.Story.delete_by_id(story_id, current_user)
+        response, code = StoryService.delete(story_id, current_user)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(
@@ -270,7 +288,11 @@ class Story(MethodView):
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def patch(self, story_id):
-        response, code = story.Story.update(story_id, request.json, current_user)
+        try:
+            payload = StoryUpdatePayload.model_validate(request.json).model_dump(mode="json", exclude_unset=True)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        response, code = StoryService.update(story_id, payload, current_user)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
@@ -290,7 +312,7 @@ class UnGroupNewsItem(MethodView):
         if not (newsitem_ids := request.json):
             return {"error": "No news item ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
-        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user, actor=actor)
+        response, code = StoryService.ungroup_news_items(newsitem_ids, current_user, actor=actor)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
@@ -303,7 +325,7 @@ class UnGroupStories(MethodView):
     def put(self):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
-        response, code = story.Story.ungroup_multiple_stories(story_ids, current_user)
+        response, code = StoryService.ungroup_stories(story_ids, current_user)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
@@ -317,7 +339,7 @@ class GroupAction(MethodView):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
-        response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
+        response, code = StoryService.group_stories(story_ids, current_user, actor=actor)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
@@ -329,7 +351,7 @@ class GroupAction(MethodView):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
-        response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
+        response, code = StoryService.group_stories(story_ids, current_user, actor=actor)
         if 200 <= code < 300:
             realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))

@@ -16,8 +16,9 @@ services:
       REDIS_PASSWORD: ""
       PRE_SEED_PASSWORD_ADMIN: admin
       PRE_SEED_PASSWORD_USER: test
+      SKIP_INITIAL_USER_ONBOARDING: "false"
       TARANIS_AUTHENTICATOR: database
-      PRESERVE_CONTEXT_ON_EXCEPTION: "False"
+      PRESERVE_CONTEXT_ON_EXCEPTION: "false"
       REALTIME_ENABLED: "false"
       SERVER_NAME: localhost
       TARANIS_CORE_SENTRY_DSN: ""

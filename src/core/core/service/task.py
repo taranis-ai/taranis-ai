@@ -7,11 +7,13 @@ from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission,
 from core.config import Config
 from core.log import logger
 from core.managers.realtime_publisher import realtime_publisher
+from core.model.osint_source import CollectorHTTPState
 from core.model.product import Product
 from core.model.task import Task as TaskModel
 from core.model.token_blacklist import TokenBlacklist
 from core.model.word_list import WordList
 from core.service import cache_invalidation as cache_invalidation_module
+from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 from core.service.misp_story_sync import handle_misp_connector_result
 from core.service.news_item_tag import NewsItemTagService
 
@@ -80,6 +82,8 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
+        if task_kind == "collector_task" and submission.worker_id:
+            CollectorHTTPState.update_from_task_result(submission.worker_id, result_payload.get("data"))
         if (
             submission.user_id
             and submission.task == "collector_preview"
@@ -146,6 +150,15 @@ class TaskService:
                 logger.error("Invalid connector task result payload")
                 return
             handle_misp_connector_result(result_data)
+            realtime_publisher.assess_changed()
+            cache_invalidation_module.invalidate_frontend_cache_on_success(
+                200,
+                scopes=(
+                    cache_invalidation_module.SCOPE_ASSESS_VIEWS,
+                    cache_invalidation_module.SCOPE_STORY_REPORT_VIEWS,
+                    cache_invalidation_module.SCOPE_SCHEDULE,
+                ),
+            )
             return
 
         if task_kind == "gather_word_list":
@@ -192,13 +205,18 @@ class TaskService:
             logger.error("Invalid bot task result data payload")
             return
 
+        affected_story_ids = set()
         if worker_type in TAGGING_BOTS:
-            NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
+            affected_story_ids = NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
 
         if worker_type == "INTEL_OWL_BOT":
             TaskService._handle_intelowl_bot_result(bot_result, worker_id)
         else:
-            NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
+            affected_story_ids.update(
+                NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
+            )
+
+        refresh_misp_auto_update_jobs(affected_story_ids)
 
         if result_data.get("trigger_dependents", True):
             from core.managers import queue_manager

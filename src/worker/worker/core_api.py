@@ -479,11 +479,10 @@ class CoreApi:
             return None
 
     def add_news_items(self, news_items) -> dict | None:
-        try:
-            return self.api_post(url="/worker/news-items", json_data=news_items)
-        except Exception:
-            logger.exception("Cannot add Newsitem")
-            return None
+        response = self.api_post(url="/worker/news-items", json_data=news_items)
+        if response is None:
+            raise RuntimeError("Cannot add news items")
+        return response
 
     def add_or_update_story(self, story: dict):
         """
