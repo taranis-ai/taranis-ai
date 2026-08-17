@@ -541,6 +541,8 @@ class OSINTSource(BaseModel):
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
         from core.managers import queue_manager
+        from core.model.story import Story
+        from core.service.misp_auto_update import refresh_misp_auto_update_jobs
         from core.service.story import StoryService
 
         if not (source := cls.get(source_id)):
@@ -548,6 +550,7 @@ class OSINTSource(BaseModel):
         if source.key == "manual":
             return {"error": "The manual source cannot be deleted"}, 400
 
+        affected_story_ids = []
         try:
             source.unschedule_osint_source()
             queue_manager.queue_manager.purge_job_artifacts(
@@ -557,10 +560,20 @@ class OSINTSource(BaseModel):
             if force:
                 news_item_table = db.metadata.tables.get("news_item")
                 if news_item_table is not None:
+                    affected_story_ids = (
+                        db.session.execute(
+                            db.select(news_item_table.c.story_id).where(news_item_table.c.osint_source_id == source_id).distinct()
+                        )
+                        .scalars()
+                        .all()
+                    )
                     db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
                 StoryService.delete_stories_with_no_items()
             db.session.delete(source)
             db.session.commit()
+            if affected_story_ids:
+                surviving_story_ids = db.session.execute(db.select(Story.id).where(Story.id.in_(affected_story_ids))).scalars().all()
+                refresh_misp_auto_update_jobs(surviving_story_ids)
             return {"message": "OSINT Source deleted", "id": source.id}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")

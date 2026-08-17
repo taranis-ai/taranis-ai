@@ -11,6 +11,7 @@ from core.model.news_item_conflict import NewsItemConflict
 from core.model.story import Story
 from core.model.story_conflict import StoryConflict
 from core.service.cache_invalidation import SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS, invalidate_frontend_cache_on_success
+from core.service.news_item_conflict import NewsItemConflictService
 
 
 class StoryConflicts(MethodView):
@@ -40,7 +41,7 @@ class StoryConflicts(MethodView):
         if code != 200:
             Story.add_or_update(incoming_story_original)
         else:
-            NewsItemConflict.reevaluate_conflicts()
+            NewsItemConflictService.reevaluate_conflicts()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"story": story_id})
         return response, code
 
@@ -58,7 +59,7 @@ class NewsItemConflicts(MethodView):
         if not data_json:
             return {"error": "No NewsItems in JSON Body"}, 422
 
-        result, code = NewsItemConflict.add_news_items_and_clear_from_store(data_json)
+        result, code = NewsItemConflictService.add_news_items_and_clear_from_store(data_json)
         if code != 200:
             return result, code
 
@@ -72,7 +73,7 @@ class NewsItemConflicts(MethodView):
         data = request.json
         if not data:
             return {"error": "Missing story_ids or news_item_ids"}, 400
-        result, code = NewsItemConflict.ingest_incoming_ungroup_internal_clear_store(data, current_user)
+        result, code = NewsItemConflictService.ingest_incoming_ungroup_internal_clear_store(data, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return result, code
