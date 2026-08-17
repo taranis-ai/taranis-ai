@@ -46,6 +46,7 @@ class ReportPublishWorkflowService:
             return {"error": "Failed to create report and product"}, 500
 
         asset_manager.report_item_changed(report_item)
+        ReportStorySyncService.refresh_auto_update_jobs(report_item.stories)
         sse_manager.report_item_updated(report_item.id)
 
         publisher_id = product.default_publisher

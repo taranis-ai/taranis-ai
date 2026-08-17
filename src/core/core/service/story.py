@@ -15,6 +15,7 @@ from core.model.revision import StoryRevision
 from core.model.story import Story
 from core.model.user import User
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
+from core.service.misp_auto_update import cancel_misp_auto_update_jobs, refresh_misp_auto_update_jobs
 
 
 if TYPE_CHECKING:
@@ -22,6 +23,71 @@ if TYPE_CHECKING:
 
 
 class StoryService:
+    @staticmethod
+    def _refresh_auto_update_jobs_on_success(result: tuple[dict, int], story_ids: Sequence[str]) -> tuple[dict, int]:
+        if result[1] == 200:
+            refresh_misp_auto_update_jobs(story_ids)
+        return result
+
+    @classmethod
+    def update(
+        cls,
+        story_id: str,
+        data: dict[str, Any],
+        user: User | None = None,
+        actor: str | None = None,
+    ) -> tuple[dict, int]:
+        return cls._refresh_auto_update_jobs_on_success(Story.update(story_id, data, user=user, actor=actor), [story_id])
+
+    @classmethod
+    def delete(cls, story_id: str, user: User) -> tuple[dict, int]:
+        result = Story.delete_by_id(story_id, user)
+        if result[1] == 200:
+            cancel_misp_auto_update_jobs([story_id])
+        return result
+
+    @classmethod
+    def delete_all(cls) -> tuple[dict, int]:
+        story_ids = db.session.execute(db.select(Story.id)).scalars().all()
+        result = Story.delete_all()
+        if result[1] == 200:
+            cancel_misp_auto_update_jobs(story_ids)
+        return result
+
+    @classmethod
+    def group_stories(cls, story_ids: list[str], user: User | None = None, actor: str | None = None) -> tuple[dict, int]:
+        return cls._refresh_auto_update_jobs_on_success(Story.group_stories(story_ids, user=user, actor=actor), story_ids)
+
+    @classmethod
+    def group_multiple_stories(
+        cls,
+        story_mappings: list[list[str]],
+        user: User | None = None,
+        actor: str | None = None,
+    ) -> tuple[dict, int]:
+        story_ids = [story_id for mapping in story_mappings for story_id in mapping]
+        return cls._refresh_auto_update_jobs_on_success(
+            Story.group_multiple_stories(story_mappings, user=user, actor=actor),
+            story_ids,
+        )
+
+    @classmethod
+    def ungroup_stories(cls, story_ids: list[str], user: User | None = None) -> tuple[dict, int]:
+        return cls._refresh_auto_update_jobs_on_success(Story.ungroup_multiple_stories(story_ids, user), story_ids)
+
+    @classmethod
+    def ungroup_news_items(
+        cls,
+        news_item_ids: list[str],
+        user: User | None = None,
+        actor: str | None = None,
+    ) -> tuple[dict, int]:
+        story_ids = [item.story_id for item_id in news_item_ids if (item := NewsItem.get(item_id))]
+        result = Story.ungroup_news_items_from_story(news_item_ids, user=user, actor=actor)
+        if result[1] == 200 and result[0].get("new_stories_ids"):
+            refresh_misp_auto_update_jobs(story_ids)
+        return result
+
     @classmethod
     def extract_stories(cls, result: Sequence[Row]) -> list[dict]:
         stories: dict[str, dict] = {}
@@ -154,6 +220,7 @@ class StoryService:
         result = db.session.execute(query)
         deleted_ids = result.scalars().all()
         db.session.commit()
+        cancel_misp_auto_update_jobs(deleted_ids)
 
         return len(deleted_ids)
 
@@ -164,6 +231,15 @@ class StoryService:
     @staticmethod
     def remove_report_attribute(story: Story, report_id: str) -> None:
         story.remove_attributes([f"report_{report_id}"])
+
+    @staticmethod
+    def update_attributes(story: Story, attributes: Any, actor: str | None = None) -> None:
+        story.patch_attributes(attributes)
+        story.updated = story.utcnow()
+        story.update_status(change=actor)
+        story.record_revision(note="update_story_attributes")
+        db.session.commit()
+        refresh_misp_auto_update_jobs([story.id])
 
     @staticmethod
     def fetch_and_create_story(parameters: dict[str, Any], user_id: str | None = None) -> tuple[dict[str, Any], int]:
