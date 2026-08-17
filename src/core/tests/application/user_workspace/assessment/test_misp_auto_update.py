@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -7,6 +8,7 @@ from core.model.connector import Connector
 from core.model.report_item import ReportItem
 from core.model.report_item_type import ReportItemType
 from core.model.story import Story, StoryMispAutoUpdate
+from core.service.misp_auto_update import DEBOUNCE_MINUTES, refresh_misp_auto_update_job
 from core.service.misp_story_sync import apply_misp_auto_update_blocked, apply_misp_sync_story_result, handle_misp_connector_result
 from core.service.news_item_tag import NewsItemTagService
 from core.service.story import StoryService
@@ -22,6 +24,24 @@ def _misp_connector(name: str) -> Connector:
 
 def _story():
     return create_story(news_items=[build_news_item_payload()])
+
+
+@pytest.mark.usefixtures("session")
+def test_misp_auto_update_is_scheduled_with_aware_utc(monkeypatch):
+    story = _story()
+    connector = _misp_connector("MISP")
+    StoryMispAutoUpdate.configure(story, {"connector_id": connector.id, "enabled": True})
+    db.session.commit()
+    scheduled = []
+    monkeypatch.setattr("core.service.misp_auto_update.queue_manager.queue_manager.cancel_job", lambda job_id: None)
+    monkeypatch.setattr(
+        "core.service.misp_auto_update.queue_manager.queue_manager.enqueue_at", lambda *args, **kwargs: scheduled.append(args[2])
+    )
+    earliest = datetime.now(timezone.utc) + timedelta(minutes=DEBOUNCE_MINUTES)
+
+    refresh_misp_auto_update_job(story.id)
+
+    assert earliest <= scheduled[0] <= datetime.now(timezone.utc) + timedelta(minutes=DEBOUNCE_MINUTES)
 
 
 @pytest.mark.usefixtures("session")
