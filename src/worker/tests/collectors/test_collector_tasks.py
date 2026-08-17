@@ -152,6 +152,44 @@ def test_rss_parse_failure_cleans_up_persists_failure_and_skips_bots(
     assert all(not request.url.endswith("/worker/post-collection-bots") for request in requests_mock.request_history)
 
 
+def test_rss_parse_failure_is_not_reclassified_as_not_modified(current_job, requests_mock, monkeypatch):
+    feed_url = "https://example.com/not-a-feed"
+    source = {
+        "id": "source-1",
+        "name": "Invalid RSS source",
+        "type": "rss_collector",
+        "parameters": {"FEED_URL": feed_url},
+    }
+
+    monkeypatch.setattr(collector_tasks.Collector, "get_source", lambda self, osint_source_id: source)
+    requests_mock.get(
+        feed_url,
+        [
+            {"text": "<html><body>Not a feed</body></html>", "headers": {"ETag": '"invalid-feed"'}},
+            {"status_code": 304},
+        ],
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+    with pytest.raises(RuntimeError, match="No parseable RSS or Atom feed was detected"):
+        collector_tasks.collector_task("source-1", False)
+
+    task_requests = [request for request in requests_mock.request_history if request.method == "POST"]
+    first_result = task_requests[-1].json()
+    assert first_result["status"] == "FAILURE"
+    assert first_result["result"]["data"]["http_validators"]["etag"] == '"invalid-feed"'
+
+    source["status"] = {"last_success": None, "status": "FAILURE", "result": first_result["result"]}
+    source["http_validators"] = first_result["result"]["data"]["http_validators"]
+
+    collector_tasks.collector_task("source-1", False)
+
+    feed_requests = [request for request in requests_mock.request_history if request.method == "GET" and request.url == feed_url]
+    assert feed_requests[-1].headers["If-None-Match"] == '"invalid-feed"'
+    task_requests = [request for request in requests_mock.request_history if request.method == "POST"]
+    assert task_requests[-1].json()["status"] == "FAILURE"
+
+
 def test_fetch_single_news_item_accepts_simple_web_source_payload_and_persists_success_result(current_job, requests_mock, monkeypatch):
     captured_parameters = {}
 
