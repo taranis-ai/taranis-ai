@@ -6,7 +6,7 @@ import feedparser
 import niquests as requests
 from models.assess import NewsItem
 
-from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError, parse_datetime
+from worker.collectors.base_web_collector import BaseWebCollector, parse_datetime
 from worker.collectors.playwright_manager import PlaywrightManager
 from worker.core_api import IconFile
 from worker.log import logger
@@ -243,11 +243,7 @@ class RSSCollector(BaseWebCollector):
 
     def parse_feed(self, feed_entries: list[feedparser.FeedParserDict], source: dict) -> list[NewsItem]:
         for feed_entry in feed_entries:
-            try:
-                self.news_items.append(self.parse_feed_entry(feed_entry, source))
-            except Exception as e:
-                logger.warning(f"Error parsing feed entry: {str(e)}")
-                continue
+            self.news_items.append(self.parse_feed_entry(feed_entry, source))
         return self.news_items
 
     def gather_news_items(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
@@ -259,7 +255,7 @@ class RSSCollector(BaseWebCollector):
             if self.playwright_manager:
                 self.playwright_manager.stop_playwright_if_needed()
 
-            return self.news_items
+        return self.news_items
 
     def collect_news(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
         if self.digest_splitting == "true":
@@ -283,28 +279,26 @@ class RSSCollector(BaseWebCollector):
     def get_feed(self, manual: bool = False) -> feedparser.FeedParserDict:
         """Send GET request to URL of RSS feed."""
 
-        # if manual flag is set, ignore if the feed was not modified
-        modified_since = None if manual else self.last_attempted
-        self.feed_content = self.send_get_request(self.feed_url, modified_since)
+        self.feed_content = self.send_get_request(self.feed_url)
 
         return feedparser.parse(self.feed_content.content)
 
     def preview_collector(self, source: dict):
         self.parse_source(source)
+        self.configure_primary_http_resource(source, self.feed_url, manual=True)
         feed = self.get_feed(manual=True)
         self.news_items = self.gather_news_items(feed, source)
         return self.preview(self.news_items, source)
 
     def rss_collector(self, source: dict, manual: bool = False):
         self.last_attempted = self.get_last_attempted(source)
+        self.configure_primary_http_resource(source, self.feed_url, manual=manual)
         feed = self.get_feed(manual)
         self.language = feed.feed.get("language", feed.feed.get("lang", ""))  # type: ignore
 
-        if not self.last_attempted:
+        if not self.last_attempted and not source.get("http_validators"):
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
         self.last_modified = self.get_last_modified_feed(self.feed_content, feed)
-        if self.last_modified and self.last_attempted and self.last_modified < self.last_attempted and not manual:
-            raise NoChangeError(f"Last-Modified: {self.last_modified} < Last-Attempted {self.last_attempted} skipping")
 
         logger.info(f"RSS-Feed {self.feed_url} returned feed with {len(feed['entries'])} entries")
 

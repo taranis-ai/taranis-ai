@@ -7,6 +7,7 @@ from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission,
 from core.config import Config
 from core.log import logger
 from core.managers.sse_manager import sse_manager
+from core.model.osint_source import CollectorHTTPState
 from core.model.product import Product
 from core.model.task import Task as TaskModel
 from core.model.token_blacklist import TokenBlacklist
@@ -81,6 +82,8 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
+        if task_kind == "collector_task" and submission.worker_id:
+            CollectorHTTPState.update_from_task_result(submission.worker_id, result_payload.get("data"))
         if submission.status == "SUCCESS" and submission.result is not None:
             cls._handle_success_result(submission)
         elif task_kind in {"collector_task", "bot_task"}:

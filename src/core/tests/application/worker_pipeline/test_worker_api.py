@@ -850,11 +850,17 @@ class TestWorkerTaskResults:
                 if Task.get(task_id):
                     Task.delete(task_id)
 
-    def test_collector_not_modified_updates_last_success_and_task_statistics(self, client, api_header, app):
+    def test_collector_not_modified_updates_last_success_and_task_statistics(self, client, api_header, app, fake_source):
+        from core.model.osint_source import CollectorHTTPState
         from core.model.task import Task
 
-        source_id = f"source-{uuid.uuid4().hex}"
+        source_id = fake_source
         task_id = f"collect_rss_collector_{source_id}"
+        validators = {
+            "url": "https://example.com/feed",
+            "etag": 'W/"opaque-etag"',
+            "last_modified": "Tue, 11 Aug 2026 09:07:03 GMT",
+        }
         payload = {
             "id": task_id,
             "task": "collector_task",
@@ -864,7 +870,7 @@ class TestWorkerTaskResults:
                 "message": "No changes: feed was not modified",
                 "reason": "collector_not_modified",
                 "retryable": False,
-                "data": {"source_id": source_id},
+                "data": {"source_id": source_id, "http_validators": validators},
             },
             "status": "NOT_MODIFIED",
         }
@@ -879,6 +885,13 @@ class TestWorkerTaskResults:
                 assert stored.status == "NOT_MODIFIED"
                 assert stored.last_run is not None
                 assert stored.last_success is not None
+                state = CollectorHTTPState.query.get(source_id)
+                assert state is not None
+                assert state.to_worker_dict() == validators
+
+            source_response = client.get(f"/api/worker/osint-sources/{source_id}", headers=api_header)
+            assert source_response.status_code == 200
+            assert source_response.get_json()["http_validators"] == validators
 
             history_response = client.get("/api/tasks", headers=api_header)
             assert history_response.status_code == 200
