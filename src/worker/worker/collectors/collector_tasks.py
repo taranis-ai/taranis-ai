@@ -167,6 +167,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
             collection_result = collector_impl.collect(source, manual)
             result_message = f"'{source.get('name')}': {collection_result}"
         except EmptyRSSFeedError as e:
+            result_data = _collector_result_data(osint_source_id, manual, collector_impl)
             previous_status = source.get("status")
             if isinstance(previous_status, dict) and previous_status.get("last_success"):
                 result_message = f"No new items: RSS feed {e.feed_url} returned no news items after an earlier successful collection"
@@ -179,7 +180,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
                     worker_type=worker_type,
                     meta_status="NOT_MODIFIED",
                     reason="collector_not_modified",
-                    data={"source_id": osint_source_id, "manual": manual},
+                    data=result_data,
                 )
 
             attempt = _next_empty_feed_attempt(source)
@@ -196,6 +197,12 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 )
                 logger.warning(result_message)
 
+            result_data.update(
+                {
+                    "empty_collection_attempts": attempt,
+                    "failure_threshold": RSS_EMPTY_FEED_FAILURE_ATTEMPTS,
+                }
+            )
             _persist_and_return_result(
                 job,
                 core_api,
@@ -204,18 +211,30 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 worker_type=worker_type,
                 meta_status="FAILURE" if is_failure else "PENDING",
                 reason="rss_feed_empty",
-                data={
-                    "source_id": osint_source_id,
-                    "manual": manual,
-                    "empty_collection_attempts": attempt,
-                    "failure_threshold": RSS_EMPTY_FEED_FAILURE_ATTEMPTS,
-                },
+                data=result_data,
             )
             if is_failure:
                 raise RuntimeError(result_message) from e
             return result_message
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
+            previous_status = source.get("status")
+            if isinstance(previous_status, dict) and previous_status.get("status") in {"PENDING", "FAILURE"}:
+                previous_result = previous_status.get("result")
+                previous_result = previous_result if isinstance(previous_result, dict) else {}
+                previous_data = previous_result.get("data")
+                result_data = dict(previous_data) if isinstance(previous_data, dict) else {}
+                result_data.update(_collector_result_data(osint_source_id, manual, collector_impl))
+                return _persist_and_return_result(
+                    job,
+                    core_api,
+                    str(previous_result.get("message") or f"No changes: {e}"),
+                    worker_id=osint_source_id,
+                    worker_type=worker_type,
+                    meta_status=previous_status["status"],
+                    reason=previous_result.get("reason"),
+                    data=result_data,
+                )
             result_message = f"No changes: {e}"
             return _persist_and_return_result(
                 job,
