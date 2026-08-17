@@ -885,6 +885,7 @@ class Story(BaseModel):
             try:
                 StoryMispAutoUpdate.configure(story, data["misp_auto_update"])
             except ValueError:
+                logger.exception("Failed to configure MISP auto-update")
                 return {"error": "Select a MISP connector for auto-update"}, 400
 
         if "vote" in data and user:
