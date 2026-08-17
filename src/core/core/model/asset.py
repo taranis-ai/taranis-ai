@@ -175,8 +175,8 @@ class Asset(BaseModel):
     def add(cls, organization: Organization, data) -> tuple[dict, int]:
         try:
             asset = cls.from_dict(data)
-        except ValueError as exc:
-            return {"error": str(exc)}, 400
+        except ValueError:
+            return {"error": "Invalid asset data"}, 400
         if not AssetGroup.access_allowed(organization, asset.asset_group_id):
             return {"error": "Access Denied"}, 403
 
@@ -199,8 +199,8 @@ class Asset(BaseModel):
                     asset.asset_observables = cls._load_observables(value)
                 elif hasattr(asset, key) and key != "id":
                     setattr(asset, key, value)
-        except ValueError as exc:
-            return {"error": str(exc)}, 400
+        except ValueError:
+            return {"error": "Invalid asset data"}, 400
         asset.update_vulnerabilities()
         db.session.commit()
         return {"message": "Asset updated", "id": asset.id}, 201
