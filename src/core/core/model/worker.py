@@ -117,15 +117,16 @@ class Worker(BaseModel):
         from core.model.settings import Settings
 
         parameters = data["parameters"]
-        settings = Settings.get_settings()
+        use_global_proxy = str(parameters.get("USE_GLOBAL_PROXY", "false")).lower() == "true"
+        default_proxy = Settings.get_settings().get("default_collector_proxy", "") if use_global_proxy else ""
         if cls._normalize_worker_type_key(data.get("type", "")) in {"misp_collector", "misp_connector"}:
             data["parameters"] = MISPParameters.normalize(
                 parameters,
                 request_timeout=Config.REQUESTS_TIMEOUT,
-                default_proxy=settings.get("default_collector_proxy", ""),
+                default_proxy=default_proxy,
             )
-        elif str(parameters.get("USE_GLOBAL_PROXY", "false")).lower() == "true":
-            parameters["PROXY_SERVER"] = settings.get("default_collector_proxy", "")
+        elif use_global_proxy:
+            parameters["PROXY_SERVER"] = default_proxy
         return data
 
     @classmethod

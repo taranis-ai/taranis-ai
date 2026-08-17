@@ -97,18 +97,23 @@ class Connector(BaseModel):
         connector = cls.get(connector_id)
         if not connector:
             return None
-        if name := data.get("name"):
-            connector.name = name
-        connector.description = data.get("description", "")
-        if "state" in data and data["state"] is not None:
-            connector.state = data["state"]
-        icon_str = data.get("icon")
-        if icon_str is not None and (icon := connector.is_valid_base64(icon_str)):
-            connector.icon = icon
-        if parameters := data.get("parameters"):
-            update_parameter = ParameterValue.get_or_create_from_list(parameters)
-            connector.parameters = ParameterValue.get_update_values(connector.parameters, update_parameter)
-        db.session.commit()
+        try:
+            if name := data.get("name"):
+                connector.name = name
+            connector.description = data.get("description", "")
+            if "state" in data and data["state"] is not None:
+                connector.state = data["state"]
+            icon_str = data.get("icon")
+            if icon_str is not None and (icon := connector.is_valid_base64(icon_str)):
+                connector.icon = icon
+            if parameters := data.get("parameters"):
+                update_parameter = ParameterValue.get_or_create_from_list(parameters)
+                connector.parameters = ParameterValue.get_update_values(connector.parameters, update_parameter)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
         connector.schedule_connector()
         return connector
 

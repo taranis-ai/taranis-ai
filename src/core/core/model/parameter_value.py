@@ -82,7 +82,7 @@ class ParameterValue(BaseModel):
                 base_parameters.append(update_parameter)
 
         for parameter in base_parameters:
-            parameter.check_rules()
+            parameter.check_value_rules(parameter.value)
 
         return base_parameters
 
@@ -90,8 +90,6 @@ class ParameterValue(BaseModel):
     def from_parameter_list(cls, parameters: list[str]) -> list["ParameterValue"]:
         return [cls(parameter=parameter) for parameter in parameters]
 
-    def check_rules(self) -> bool:
-        if not self.rules:
-            return True
-        ParameterValueModel.validate_rules(self.value, self.rules.split(","))
-        return True
+    def check_value_rules(self, value: Any) -> None:
+        if self.rules:
+            ParameterValueModel.validate_rules(value, self.rules.split(","))

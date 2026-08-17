@@ -177,7 +177,6 @@ class ParameterValue(TaranisBaseModel):
     id: str | None = None
     parameter: str = ""
     value: str | None = ""
-    rules: list[str] = Field(default_factory=list, exclude=True)
 
     @classmethod
     def validate_rules(cls, value: str | None, rules: list[str]) -> None:
@@ -187,7 +186,10 @@ class ParameterValue(TaranisBaseModel):
             if rule == "tlp" and value not in ["red", "amber", "amber+strict", "green", "clear", None, ""]:
                 raise ValueError("Invalid TLP allowed values: red, amber, amber+strict, green, clear")
             if rule == "json" and value:
-                json_value = json.loads(value)
+                try:
+                    json_value = json.loads(value)
+                except TypeError:
+                    raise ValueError('Input has to be a json of format \'{"<str>": "<str>"}\'') from None
                 if not isinstance(json_value, dict):
                     raise ValueError('Input has to be a json of format \'{"<str>": "<str>"}\'')
             if rule == "positive_int" and value:
@@ -196,11 +198,6 @@ class ParameterValue(TaranisBaseModel):
                         raise ValueError
                 except (TypeError, ValueError):
                     raise ValueError("Input has to be a positive integer") from None
-
-    @model_validator(mode="after")
-    def validate_parameter_rules(self):
-        self.validate_rules(self.value, self.rules)
-        return self
 
 
 class MISPParameters(TaranisBaseModel):

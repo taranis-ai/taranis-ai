@@ -1142,6 +1142,16 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
 class TestConnectorConfigApi(BaseTest):
     base_uri = "/api/config"
 
+    def test_update_connector_rejects_object_additional_headers(self, client, auth_header, cleanup_connector):
+        response = client.put(
+            self.concat_url(f"connectors/{cleanup_connector['id']}"),
+            json={"parameters": {"ADDITIONAL_HEADERS": {"X-Test": "value"}}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json == {"error": "Invalid connector update payload"}
+
     def test_patch_connector_state_persists(self, client, auth_header, cleanup_connector):
         connector_id = cleanup_connector["id"]
 
