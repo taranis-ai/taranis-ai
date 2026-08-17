@@ -18,7 +18,7 @@ ReportStoryAction = Literal["attach", "detach", "retag"]
 
 class ReportStorySyncService:
     @staticmethod
-    def refresh_auto_update_jobs(stories: Iterable["Story"]) -> None:
+    def refresh_auto_update_jobs(stories: Iterable[Story]) -> None:
         refresh_misp_auto_update_jobs(story.id for story in stories)
 
     @classmethod
