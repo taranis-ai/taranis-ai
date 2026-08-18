@@ -17,8 +17,6 @@ class BearerAuth(AuthBase):
 
 
 class TAXIIPublisher(BasePublisher):
-    REQUIRED_PARAMETERS = ("TAXII_COLLECTION_ID", "AUTH_TYPE")
-
     def __init__(self):
         super().__init__()
         self.type = "TAXII_PUBLISHER"

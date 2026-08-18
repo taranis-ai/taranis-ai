@@ -173,7 +173,11 @@ def test_connector_task_unknown_type_persists_failure(requests_mock, mock_job, m
 def test_connector_task_story_load_failure_persists_failure(requests_mock, mock_job, monkeypatch):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
-        json={"id": "connector-1", "type": "misp_connector"},
+        json={
+            "id": "connector-1",
+            "type": "misp_connector",
+            "parameters": {"URL": "https://misp.test", "API_KEY": "secret", "ORGANISATION_ID": "1"},
+        },
     )
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
     monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
@@ -291,10 +295,20 @@ def test_blocked_results_are_counted_in_execution_summary():
     )
 
 
-@pytest.mark.parametrize(("request_timeout", "expected"), [("", 5), ("42", 42)])
-def test_pymisp_uses_configured_timeout(monkeypatch, request_timeout, expected):
+@pytest.mark.parametrize(("request_timeout", "expected"), [("", 5), ("invalid", 5), ("42", 42)])
+def test_pymisp_uses_registered_parameters(monkeypatch, request_timeout, expected):
     connector = MispConnector()
-    connector.parse_parameters({"URL": "https://misp.example", "API_KEY": "key", "REQUEST_TIMEOUT": request_timeout})
+    connector.parse_parameters(
+        {
+            "URL": "https://misp.example",
+            "API_KEY": "key",
+            "REQUEST_TIMEOUT": request_timeout,
+            "SSL_CHECK": "true",
+            "PROXY_SERVER": "http://proxy.example:8080",
+            "ADDITIONAL_HEADERS": '{"X-Test":"1"}',
+            "USER_AGENT": "TaranisAI/test",
+        }
+    )
     captured = {}
 
     monkeypatch.setattr("worker.connectors.misp_connector.PyMISP", lambda **kwargs: captured.update(kwargs) or object())
@@ -302,7 +316,18 @@ def test_pymisp_uses_configured_timeout(monkeypatch, request_timeout, expected):
 
     connector.send_event_to_misp({})
 
-    assert captured["timeout"] == expected
+    assert captured == {
+        "url": "https://misp.example",
+        "key": "key",
+        "ssl": True,
+        "proxies": {
+            "http": "http://proxy.example:8080",
+            "https": "http://proxy.example:8080",
+            "ftp": "http://proxy.example:8080",
+        },
+        "http_headers": {"X-Test": "1", "User-Agent": "TaranisAI/test"},
+        "timeout": expected,
+    }
 
 
 def test_auto_update_unowned_event_is_skipped(monkeypatch):

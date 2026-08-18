@@ -34,7 +34,7 @@ def test_update_object_does_not_invalidate_local_cache(app, monkeypatch, test_ca
     response = Mock()
     response.ok = True
     api = Mock()
-    api.api_put.return_value = response
+    api.api_patch.return_value = response
 
     with app.test_request_context():
         monkeypatch.setattr(data_persistence_module, "get_jwt_identity", lambda: "user1")
@@ -53,6 +53,9 @@ def test_update_object_does_not_invalidate_local_cache(app, monkeypatch, test_ca
         )
 
         persistence.update_object(source, "source-1")
+
+        api.api_patch.assert_called_once()
+        api.api_put.assert_not_called()
 
         assert cache.get(story_cache_key) == {"items": []}
         assert cache.get(worker_cache_key) == {"items": []}

@@ -12,8 +12,6 @@ from .base_publisher import BasePublisher
 
 
 class SFTPPublisher(BasePublisher):
-    REQUIRED_PARAMETERS = ("SFTP_URL",)
-
     def __init__(self):
         super().__init__()
         self.ftp_url = None

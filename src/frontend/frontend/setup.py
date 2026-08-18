@@ -1,4 +1,3 @@
-import re
 from typing import Any, cast
 
 import sentry_sdk
@@ -53,37 +52,6 @@ def index_redirect():
     return redirect(Config.APPLICATION_ROOT, code=302)
 
 
-def get_html5_pattern_from_rule(rules: list[str]) -> tuple[bool, str, str]:
-    if not rules:
-        return (False, "", "")
-
-    html5_patterns = {
-        "json": (r"\{[^\{\}]*\}", "Input has to be a valid JSON object"),
-        "tlp": (r"clear|green|amber|amber\+strict|red", "Input has to be a valid TLP value (clear, green, amber, amber+strict, red)"),
-        "ip": (r"(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}", "Input has to be a valid IP address"),
-        "positive_int": (r"^[1-9][0-9]*$", "Input has to be a positive integer greater than 0"),
-    }
-
-    if len(rules) > 1:
-        logger.warning(f"Multiple rules provided: {rules}. Only the first rule will be considered for pattern generation.")
-
-    rule = rules[0]
-    if rule.startswith("one_of:"):
-        values = rule[len("one_of:") :].split("|")
-        escaped_values = [re.escape(v.strip()) for v in values]
-        pattern = f"^({'|'.join(escaped_values)})$"
-        return (False, pattern, f"Input must be one of: {', '.join(values)}")
-
-    if rule == "required":
-        return (True, "", "")
-
-    if rule in html5_patterns:
-        pattern, msg = html5_patterns[rule]
-        return (False, pattern, msg)
-
-    return (False, "", "")
-
-
 def jinja_setup(app: Flask):
     for name in filters_module.__all__:
         app.jinja_env.filters[name] = getattr(filters_module, name)
@@ -101,7 +69,6 @@ def jinja_setup(app: Flask):
             "heroicon_solid": heroicon_solid,
             "views": all_views,
             "admin_views": admin_views,
-            "get_html5_pattern_from_rule": get_html5_pattern_from_rule,
             "get_locale": get_locale,
             "get_timezone": get_timezone,
             "pending_onboarding_tasks_for_template": pending_onboarding_tasks_for_template,

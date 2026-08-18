@@ -19,14 +19,13 @@ from core.log import logger
 from core.managers import queue_manager
 from core.managers.db_manager import db
 from core.model.base_model import DB_INTEGER_MAX, UUID_STR_LENGTH, BaseModel
-from core.model.parameter_value import ParameterValue
 from core.model.role import TLPLevel
 from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.model.settings import Settings
 from core.model.task import Task as TaskModel
 from core.model.word_list import WordList
-from core.model.worker import Worker
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.service.worker_parameters import configured_parameters, effective_parameters, set_parameters
 
 
 if TYPE_CHECKING:
@@ -94,9 +93,7 @@ class OSINTSource(BaseModel):
     rank: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
     type: Mapped[COLLECTOR_TYPES] = db.Column(db.Enum(COLLECTOR_TYPES))
-    parameters: Mapped[list["ParameterValue"]] = relationship(
-        "ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete"
-    )
+    parameters: Mapped[dict[str, str]] = db.Column(db.JSON, nullable=False, default=dict)
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
     http_state: Mapped[CollectorHTTPState | None] = relationship(
         CollectorHTTPState, cascade="all, delete-orphan", passive_deletes=True, uselist=False
@@ -140,11 +137,19 @@ class OSINTSource(BaseModel):
         self.description = payload.description
         self.rank = payload.rank
         self.type = payload.type if payload.type is not None else COLLECTOR_TYPES.MANUAL_COLLECTOR
+        if self.type == COLLECTOR_TYPES.PPN_COLLECTOR and Config.DISABLE_PPN_COLLECTOR:
+            raise ValueError("PPN collector is disabled in this deployment")
         self.icon = None
         if payload.icon is not None:
             self.icon = self._parse_icon(payload.icon)
         self.enabled = True if payload.enabled is None else payload.enabled
-        self.parameters = Worker.parse_parameters(self.type, payload.parameters)
+        self.parameters = set_parameters(
+            self.type,
+            {},
+            payload.parameters,
+            patch=False,
+            complete=self.enabled,
+        )
 
     @classmethod
     def get(cls, item_id: str | None) -> "OSINTSource | None":
@@ -191,7 +196,7 @@ class OSINTSource(BaseModel):
 
     @property
     def tlp_level(self) -> TLPLevel:
-        if value := ParameterValue.find_value_by_parameter(self.parameters, "TLP_LEVEL"):
+        if value := self.parameters.get("TLP_LEVEL"):
             return TLPLevel(value)
         return TLPLevel(Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value))
 
@@ -219,8 +224,6 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
-        data = dict(data)
-        data.pop("enabled", None)
         return cls.from_payload(OSINTSourceModel.model_validate(data))
 
     @classmethod
@@ -265,6 +268,8 @@ class OSINTSource(BaseModel):
                 TaskModel.last_run.asc().nulls_first(),
             )
         )
+        if Config.DISABLE_PPN_COLLECTOR:
+            query = query.where(cls.type != COLLECTOR_TYPES.PPN_COLLECTOR)
         return db.session.execute(query).scalars().all()
 
     @classmethod
@@ -337,7 +342,7 @@ class OSINTSource(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
+        data["parameters"] = configured_parameters(self.type, self.parameters)
         data["icon"] = base64.b64encode(self.icon).decode("utf-8") if self.icon else None
         if self.status:
             data["status"] = self.status
@@ -349,7 +354,7 @@ class OSINTSource(BaseModel):
         data["word_lists"] = []
         for group in self.groups:
             data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists if word_list])
-        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
+        data["parameters"] = effective_parameters(self.type, self.parameters)
         if self.status:
             data["status"] = self.status
         if self.http_state:
@@ -383,7 +388,7 @@ class OSINTSource(BaseModel):
 
     def get_schedule(self) -> str:
         """Return only the explicit REFRESH_INTERVAL; empty string if unset."""
-        return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+        return self.parameters.get("REFRESH_INTERVAL", "")
 
     @staticmethod
     def get_default_schedule() -> str:
@@ -455,6 +460,9 @@ class OSINTSource(BaseModel):
 
         if state == "enabled":
             logger.debug(f"Enabling OSINT Source: {osint_source.name}")
+            if osint_source.type == COLLECTOR_TYPES.PPN_COLLECTOR and Config.DISABLE_PPN_COLLECTOR:
+                return {"error": "PPN collector is disabled in this deployment"}, 400
+            osint_source.parameters = set_parameters(osint_source.type, osint_source.parameters, {}, patch=True, complete=True)
             osint_source.enabled = True
             osint_source.schedule_osint_source()
         elif state == "disabled":
@@ -469,12 +477,40 @@ class OSINTSource(BaseModel):
         return {"message": "OSINT Source state updated", "id": osint_source.id}, 200
 
     @classmethod
-    def update(cls, osint_source_id: str, data: dict[str, Any]) -> "OSINTSource|None":
+    def update(cls, osint_source_id: str, data: dict[str, Any], *, patch: bool = False) -> "OSINTSource|None":
         osint_source = cls.get(osint_source_id)
         if not osint_source:
             return None
         validated_update = OSINTSourceUpdateModel.model_validate(data)
         update_fields = validated_update.model_fields_set
+
+        if "type" in update_fields and validated_update.type is not None and validated_update.type != osint_source.type:
+            raise ValueError("Worker type is immutable")
+        target_enabled = (
+            validated_update.enabled if "enabled" in update_fields and validated_update.enabled is not None else osint_source.enabled
+        )
+        if target_enabled and osint_source.type == COLLECTOR_TYPES.PPN_COLLECTOR and Config.DISABLE_PPN_COLLECTOR:
+            raise ValueError("PPN collector is disabled in this deployment")
+        target_parameters = osint_source.parameters
+        if "parameters" in update_fields and validated_update.parameters is not None:
+            target_parameters = set_parameters(
+                osint_source.type,
+                osint_source.parameters,
+                validated_update.parameters,
+                patch=patch,
+                complete=target_enabled,
+            )
+        elif target_enabled:
+            target_parameters = set_parameters(
+                osint_source.type,
+                osint_source.parameters,
+                {},
+                patch=True,
+                complete=True,
+            )
+        parsed_icon = (
+            osint_source._parse_icon(validated_update.icon) if "icon" in update_fields and validated_update.icon is not None else None
+        )
 
         if "name" in update_fields and validated_update.name is not None:
             osint_source.name = validated_update.name
@@ -482,10 +518,10 @@ class OSINTSource(BaseModel):
             osint_source.description = validated_update.description
         if "rank" in update_fields and validated_update.rank is not None:
             osint_source.rank = validated_update.rank
-        if "icon" in update_fields and validated_update.icon is not None:
-            osint_source.icon = osint_source._parse_icon(validated_update.icon)
-        if "parameters" in update_fields and validated_update.parameters is not None:
-            osint_source.parameters = Worker.parse_parameters(osint_source.type, validated_update.parameters)
+        if parsed_icon is not None:
+            osint_source.icon = parsed_icon
+        osint_source.enabled = target_enabled
+        osint_source.parameters = target_parameters
         db.session.commit()
 
         if "parameters" in update_fields and validated_update.parameters is not None:
@@ -540,8 +576,7 @@ class OSINTSource(BaseModel):
         cls._normalize_icon_image(icon_bytes)
 
     def update_parameters(self, parameters: dict[str, Any]):
-        update_parameter = ParameterValue.get_or_create_from_list(parameters)
-        self.parameters = ParameterValue.get_update_values(self.parameters, update_parameter)
+        self.parameters = set_parameters(self.type, self.parameters, parameters, patch=True, complete=self.enabled)
         db.session.commit()
 
     @classmethod
@@ -676,13 +711,9 @@ class OSINTSource(BaseModel):
         return json.dumps(export_data).encode("utf-8")
 
     def get_export_parameters(self, with_secrets: bool = False) -> dict[str, str]:
-        parameters: dict[str, str] = {}
-        for parameter in self.parameters:
-            if not with_secrets and parameter.parameter == "PROXY_SERVER" and parameter.value:
-                parameters[parameter.parameter] = "<REDACTED>"
-                continue
-            if parameter.value:
-                parameters[parameter.parameter] = parameter.value
+        parameters = dict(self.parameters) if with_secrets else configured_parameters(self.type, self.parameters)
+        if not with_secrets and parameters.get("PROXY_SERVER"):
+            parameters["PROXY_SERVER"] = "<REDACTED>"
         return parameters
 
     @classmethod
@@ -772,25 +803,36 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def add_multiple_with_group(cls, sources, groups) -> list[str]:
-        index_to_id_mapping = {}
-        items_to_schedule: list[OSINTSource] = []
-        for data in sources:
+        normalized_sources = []
+        for source in sources:
+            data = dict(source)
             idx = data.pop("group_idx", None)
-            item = cls.from_dict(data)
-            db.session.add(item)
-            items_to_schedule.append(item)
-            OSINTSourceGroup.add_source_to_default(item)
+            normalized_sources.append((idx, cls.from_dict(data)))
 
-            index_to_id_mapping[idx or item.id] = item.id
+        index_to_source: dict[Any, OSINTSource] = {}
+        items_to_schedule: list[OSINTSource] = []
+        try:
+            default_group = OSINTSourceGroup.get_default()
+            for idx, item in normalized_sources:
+                db.session.add(item)
+                items_to_schedule.append(item)
+                if default_group:
+                    default_group.osint_sources.append(item)
+                index_to_source[idx if idx is not None else item.id] = item
 
-        for group in groups:
-            group["osint_sources"] = [index_to_id_mapping.get(idx) for idx in group["osint_sources"] if idx]
-            OSINTSourceGroup.add(group)
-
-        db.session.commit()
+            for source_group in groups:
+                group = dict(source_group)
+                source_indexes = group.pop("osint_sources", [])
+                imported_group = OSINTSourceGroup(**group)
+                imported_group.osint_sources = [index_to_source[idx] for idx in source_indexes if idx in index_to_source]
+                db.session.add(imported_group)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
         for item in items_to_schedule:
             item.schedule_osint_source()
-        return list(index_to_id_mapping.values())
+        return [item.id for item in items_to_schedule]
 
     @classmethod
     def import_osint_sources(cls, file) -> list[str]:
@@ -851,15 +893,6 @@ class OSINTSource(BaseModel):
         db.session.commit()
         logger.debug(f"All {cls.__name__} deleted")
         return {"message": f"All {cls.__name__} deleted"}, 200
-
-
-class OSINTSourceParameterValue(BaseModel):
-    osint_source_id: Mapped[str] = db.Column(
-        db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True
-    )
-    parameter_value_id: Mapped[str] = db.Column(
-        db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True
-    )
 
 
 class OSINTSourceGroup(BaseModel):
@@ -943,12 +976,6 @@ class OSINTSourceGroup(BaseModel):
         if not key:
             return None
         return cls.get_first(db.select(cls).filter_by(key=key))
-
-    @classmethod
-    def add_source_to_default(cls, osint_source: OSINTSource):
-        if default_group := cls.get_default():
-            default_group.osint_sources.append(osint_source)
-        db.session.commit()
 
     def to_export_dict(self, source_mapping: dict) -> dict[str, Any]:
         return {

@@ -4,6 +4,7 @@ from flask import render_template
 from models.admin import Connector
 from models.types import CONNECTOR_TYPES
 
+from frontend.config import Config
 from frontend.filters import render_icon, render_source_parameter, render_truncated, render_worker_status
 from frontend.log import logger
 from frontend.views.admin_views.admin_base_view import AdminBaseView
@@ -32,6 +33,11 @@ class ConnectorView(AdminBaseView):
         base_context["parameters"] = parameters
         base_context["parameter_values"] = parameter_values
         base_context["connector_types"] = cls.connector_types.values()
+        base_context["secret_reveal_url"] = (
+            f"{Config.TARANIS_BASE_PATH.rstrip('/')}/api/config/parameter-secrets/connectors/{connector.id}"
+            if connector and connector.id
+            else ""
+        )
         return base_context
 
     @classmethod

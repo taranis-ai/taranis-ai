@@ -6,8 +6,6 @@ from .base_publisher import BasePublisher
 
 
 class WORDPRESSPublisher(BasePublisher):
-    REQUIRED_PARAMETERS = ("WP_USER", "WP_PYTHON_APP_SECRET", "WP_URL")
-
     def __init__(self):
         super().__init__()
         self.type = "WORDPRESS_PUBLISHER"

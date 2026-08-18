@@ -46,6 +46,7 @@ def test_osint_source_creation_normalizes_png_icon(session):
         name="Test Source",
         description="A test",
         type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        parameters={"FEED_URL": "https://example.test/feed"},
         icon=_VALID_PNG_BASE64,
     )
     session.add(source)
@@ -61,6 +62,7 @@ def test_osint_source_creation_normalizes_jpeg_to_png(session):
         name="JPEG Source",
         description="A test",
         type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        parameters={"FEED_URL": "https://example.test/feed"},
         icon=_VALID_JPEG_BASE64,
     )
     session.add(source)
@@ -76,6 +78,7 @@ def test_osint_source_creation_contains_non_square_icon(session):
         name="Wide Source",
         description="A test",
         type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        parameters={"FEED_URL": "https://example.test/feed"},
         icon=_WIDE_PNG_BASE64,
     )
     session.add(source)
@@ -100,6 +103,7 @@ def test_osint_source_creation_with_invalid_icon_raises():
             name="Invalid",
             description="A test",
             type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            parameters={"FEED_URL": "https://example.test/feed"},
             icon=_INVALID_BASE64_IMAGE,
         )
 
@@ -110,6 +114,7 @@ def test_update_icon_rejects_invalid_image(session):
         name="Source",
         description="Desc",
         type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        parameters={"FEED_URL": "https://example.test/feed"},
     )
     session.add(source)
     session.commit()
@@ -124,6 +129,7 @@ def test_update_icon_can_clear_icon(session):
         name="Clearable",
         description="Desc",
         type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        parameters={"FEED_URL": "https://example.test/feed"},
     )
     session.add(source)
     session.commit()
@@ -145,6 +151,7 @@ def test_pre_seed_update_removes_invalid_icons(session):
         name="PreSeed",
         description="Desc",
         type=COLLECTOR_TYPES.RSS_COLLECTOR,
+        parameters={"FEED_URL": "https://example.test/feed"},
         icon=_VALID_PNG_BASE64,
     )
     session.add(source)
@@ -171,6 +178,7 @@ def test_osint_source_creation_rejects_oversized_icon():
             name="Too Large",
             description="A test",
             type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            parameters={"FEED_URL": "https://example.test/feed"},
             icon=oversized_icon,
         )
 
@@ -182,6 +190,7 @@ def test_osint_source_creation_rejects_svg_icon():
             name="SVG Icon",
             description="A test",
             type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            parameters={"FEED_URL": "https://example.test/feed"},
             icon=_SVG_BASE64,
         )
 
@@ -193,6 +202,7 @@ def test_osint_source_creation_rejects_unsupported_image_format():
             name="BMP Icon",
             description="A test",
             type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            parameters={"FEED_URL": "https://example.test/feed"},
             icon=_VALID_BMP_BASE64,
         )
 
@@ -209,5 +219,6 @@ def test_osint_source_creation_converts_decompression_bomb_to_value_error(monkey
             name="Bomb Icon",
             description="A test",
             type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            parameters={"FEED_URL": "https://example.test/feed"},
             icon=_VALID_PNG_BASE64,
         )

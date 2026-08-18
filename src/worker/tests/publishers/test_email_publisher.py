@@ -17,13 +17,6 @@ def test_email_publisher_publish_pdf(email_publisher, get_product_pdf_mock, smtp
     smtp_mock.sendmail.assert_called()
 
 
-def test_publish_without_smtp_address(email_publisher, get_product_mock):
-    from tests.publishers.publishers_data import email_publisher_admin_input_no_smtp_address, product_text
-
-    with pytest.raises(ValueError, match=r"Missing required parameters for EMAIL Publisher: SMTP_SERVER_ADDRESS"):
-        email_publisher.publish(email_publisher_admin_input_no_smtp_address, product_text, get_product_mock)
-
-
 def test_publish_without_user_input(email_publisher):
     from tests.publishers.publishers_data import email_publisher_admin_input
 

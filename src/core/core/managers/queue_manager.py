@@ -796,6 +796,14 @@ class QueueManager:
     def collect_osint_source(self, source_id: str, task_id: str, user_id: str | None = None):
         """Trigger OSINT source collection"""
         from core.model.osint_source import OSINTSource
+        from core.service.worker_parameters import effective_parameters
+
+        if not (source := OSINTSource.get(source_id)):
+            return {"error": "OSINT source not found"}, 404
+        try:
+            effective_parameters(source.type, source.parameters)
+        except ValueError as exc:
+            return {"error": f"Invalid OSINT source configuration: {exc}"}, 400
 
         if self.enqueue_task(
             "collectors",
@@ -822,6 +830,14 @@ class QueueManager:
     def preview_osint_source(self, source_id: str, user_id: str | None = None):
         """Preview OSINT source collection"""
         from core.model.osint_source import OSINTSource
+        from core.service.worker_parameters import effective_parameters
+
+        if not (source := OSINTSource.get(source_id)):
+            return {"error": "OSINT source not found"}, 404
+        try:
+            effective_parameters(source.type, source.parameters)
+        except ValueError as exc:
+            return {"error": f"Invalid OSINT source configuration: {exc}"}, 400
 
         task_id = f"source_preview_{source_id}"
         self.purge_job_artifacts(exact_ids={task_id})
@@ -907,11 +923,17 @@ class QueueManager:
     def collect_all_osint_sources(self, user_id: str | None = None):
         """Trigger collection for all enabled sources"""
         from core.model.osint_source import OSINTSource
+        from core.service.worker_parameters import effective_parameters
 
         if self.error:
             return {"error": "Could not reach Redis"}, 500
 
         sources = OSINTSource.get_all_for_collector()
+        try:
+            for source in sources:
+                effective_parameters(source.type, source.parameters)
+        except ValueError as exc:
+            return {"error": f"Invalid OSINT source configuration: {exc}"}, 400
         for source in sources:
             self.enqueue_task(
                 "collectors",
@@ -932,6 +954,14 @@ class QueueManager:
     def push_to_connector(self, connector_id: str, story_ids: list, user_id: str | None = None):
         """Push stories to connector"""
         from core.model.connector import Connector
+        from core.service.worker_parameters import effective_parameters
+
+        if not (connector := Connector.get(connector_id)):
+            return {"error": "Connector not found"}, 404
+        try:
+            effective_parameters(connector.type, connector.parameters)
+        except ValueError as exc:
+            return {"error": f"Invalid connector configuration: {exc}"}, 400
 
         if self.enqueue_task(
             "connectors",
@@ -956,6 +986,14 @@ class QueueManager:
     def pull_from_connector(self, connector_id: str, user_id: str | None = None):
         """Pull from connector"""
         from core.model.connector import Connector
+        from core.service.worker_parameters import effective_parameters
+
+        if not (connector := Connector.get(connector_id)):
+            return {"error": "Connector not found"}, 404
+        try:
+            effective_parameters(connector.type, connector.parameters)
+        except ValueError as exc:
+            return {"error": f"Invalid connector configuration: {exc}"}, 400
 
         if self.enqueue_task(
             "connectors",
@@ -1003,9 +1041,16 @@ class QueueManager:
         trigger_dependents: bool = True,
     ):
         from core.model.bot import Bot
+        from core.service.worker_parameters import effective_parameters
 
         if not isinstance(bot_id, str) or not RQ_JOB_ID_COMPONENT_RE.fullmatch(bot_id):
             return {"error": "Invalid bot_id"}, 400
+        if not (bot := Bot.get(bot_id)):
+            return {"error": "Bot not found"}, 404
+        try:
+            effective_parameters(bot.type, bot.parameters)
+        except ValueError as exc:
+            return {"error": f"Invalid bot configuration: {exc}"}, 400
 
         bot_args: dict[str, str | dict | bool] = {"bot_id": bot_id, "trigger_dependents": trigger_dependents}
         if filter:
@@ -1035,6 +1080,16 @@ class QueueManager:
     def generate_product(self, product_id: str, countdown: int = 0, user_id: str | None = None):
         """Generate product"""
         from datetime import timedelta
+
+        from core.model.product import Product
+        from core.service.worker_parameters import effective_parameters
+
+        if not (product := Product.get(product_id)) or not product.product_type:
+            return {"error": "Product not found"}, 404
+        try:
+            effective_parameters(product.product_type.type, product.product_type.parameters)
+        except ValueError as exc:
+            return {"error": f"Invalid product type configuration: {exc}"}, 400
 
         if countdown > 0:
             scheduled_time = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=countdown)
@@ -1073,6 +1128,14 @@ class QueueManager:
     def publish_product(self, product_id: str, publisher_id: str, user_id: str | None = None):
         """Publish product"""
         from core.model.publisher_preset import PublisherPreset
+        from core.service.worker_parameters import effective_parameters
+
+        if not (publisher := PublisherPreset.get(publisher_id)):
+            return {"error": "Publisher preset not found"}, 404
+        try:
+            effective_parameters(publisher.type, publisher.parameters)
+        except ValueError as exc:
+            return {"error": f"Invalid publisher configuration: {exc}"}, 400
 
         if self.enqueue_task(
             "publishers",
@@ -1145,6 +1208,11 @@ class QueueManager:
         user_id: str | None,
         trigger_dependents: bool,
     ) -> bool:
+        from core.service.worker_parameters import effective_parameters
+
+        for bot in bots:
+            effective_parameters(bot.type, bot.parameters)
+
         jobs_by_bot_id: dict[str, Any] = {}
         for bot in bots:
             dependency_ids = dependencies_by_id.get(bot.id, [])
@@ -1628,11 +1696,23 @@ class QueueManager:
 
     def autopublish_product(self, product_id: str, auto_publisher_id: str, user_id: str | None = None) -> tuple[dict[str, Any], int]:
         """Render a product and publish it once rendering finishes."""
+        from core.model.product import Product
         from core.model.publisher_preset import PublisherPreset
+        from core.service.worker_parameters import effective_parameters
 
         if self.error or not self._redis:
             logger.error("QueueManager not initialized, cannot autopublish product %s", product_id)
             return {"error": "QueueManager not initialized"}, 500
+
+        if not (product := Product.get(product_id)) or not product.product_type:
+            return {"error": "Product not found"}, 404
+        if not (publisher := PublisherPreset.get(auto_publisher_id)):
+            return {"error": "Publisher preset not found"}, 404
+        try:
+            effective_parameters(product.product_type.type, product.product_type.parameters)
+            effective_parameters(publisher.type, publisher.parameters)
+        except ValueError as exc:
+            return {"error": f"Invalid autopublish configuration: {exc}"}, 400
 
         presenter_job_id = self._build_unique_job_id("presenter_task", product_id)
         presenter_job = self.enqueue_task(

@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
     OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
     OSINT_SOURCE_ICON_ALLOWED_MIMETYPES: str = "image/png,image/jpeg,image/webp,image/gif"
+    DISABLE_PPN_COLLECTOR: bool = True
 
     BABEL_DEFAULT_LOCALE: str = "en"
     BABEL_DEFAULT_TIMEZONE: str = "UTC"
