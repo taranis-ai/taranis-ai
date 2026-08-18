@@ -461,7 +461,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             {
                 "url": "https://example.com",
                 "api_key": "secret",
-                "proxies": {"ftp": "http://proxy:8080", "http": "http://proxy:8080", "https": "http://proxy:8080"},
+                "proxies": {"http": "http://proxy:8080", "https": "http://proxy:8080"},
                 "headers": {"User-Agent": "TaranisAI/1.0", "X-Test": "1"},
                 "ssl": True,
                 "sharing_group_id": 42,

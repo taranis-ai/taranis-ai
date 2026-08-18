@@ -10,5 +10,6 @@ def parse_misp_runtime_parameters(parameters: dict[str, Any]) -> tuple[bool, dic
         headers["User-Agent"] = user_agent
 
     proxy_server = parameters.get("PROXY_SERVER")
-    proxies = {protocol: proxy_server for protocol in ("http", "https", "ftp")} if proxy_server else None
+    # PyMISP only communicates over HTTP(S); generic web collectors may support additional schemes.
+    proxies = {protocol: proxy_server for protocol in ("http", "https")} if proxy_server else None
     return parameters["SSL_CHECK"] == "true", proxies, headers, int(parameters["REQUEST_TIMEOUT"])
