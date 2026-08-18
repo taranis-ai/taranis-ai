@@ -1,6 +1,7 @@
 import copy
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, Iterable
+from typing import Any, ClassVar
 
 from models.dashboard import NewsItemConflict as NewsItemConflictModel
 
@@ -16,8 +17,8 @@ class NewsItemConflict:
     incoming_story: dict[str, Any]
     misp_address: str | None = None
 
-    conflict_store: ClassVar[Dict[str, "NewsItemConflict"]] = {}
-    story_index: ClassVar[Dict[str, dict[str, Any]]] = {}
+    conflict_store: ClassVar[dict[str, "NewsItemConflict"]] = {}
+    story_index: ClassVar[dict[str, dict[str, Any]]] = {}
 
     @classmethod
     def register(

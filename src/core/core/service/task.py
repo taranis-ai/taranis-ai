@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from models.task import Task as TaskResponseModel
@@ -54,7 +54,7 @@ class TaskService:
     @staticmethod
     def cleanup_history() -> tuple[dict[str, Any], int]:
         retention_days = Config.TASK_HISTORY_RETENTION_DAYS
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
+        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=retention_days)
         deleted = TaskModel.delete_older_than_last_run(cutoff)
         return {
             "message": "Task history cleanup completed",
@@ -122,7 +122,7 @@ class TaskService:
             return
 
         if task_kind == "cleanup_token_blacklist":
-            check_time = datetime.now(timezone.utc).replace(tzinfo=None) - Config.JWT_ACCESS_TOKEN_EXPIRES
+            check_time = datetime.now(UTC).replace(tzinfo=None) - Config.JWT_ACCESS_TOKEN_EXPIRES
             TokenBlacklist.delete_older(check_time)
             return
 

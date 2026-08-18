@@ -21,7 +21,6 @@ def test_timeout_exception_persists_synthetic_failure(monkeypatch):
     class FakeCoreApi:
         def api_get(self, url):
             captured["read_url"] = url
-            return None
 
         def save_task_result(self, *args, **kwargs):
             captured["args"] = args

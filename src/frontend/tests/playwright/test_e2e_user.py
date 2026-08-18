@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import json
 import re
 import uuid
@@ -727,6 +726,9 @@ class TestEndToEndUser(BaseE2ETest):
                 expect(page.get_by_role("textbox", name="Date", exact=True)).to_be_visible()
                 expect(page.get_by_role("textbox", name="Time", exact=True)).to_be_visible()
                 expect(page.get_by_role("textbox", name="Date Time")).to_be_visible()
+                expect(page.get_by_role("textbox", name="Date", exact=True)).to_have_attribute("type", "date")
+                expect(page.get_by_role("textbox", name="Time", exact=True)).to_have_attribute("type", "time")
+                expect(page.get_by_role("textbox", name="Date Time")).to_have_attribute("type", "datetime-local")
                 expect(page.get_by_label("TLP Level Clear Green Amber")).to_be_visible()
                 expect(page.get_by_role("heading", name="Technical References and")).to_be_visible()
                 expect(page.get_by_text('Unsupported attribute type "')).to_be_visible()
@@ -772,8 +774,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("RICH_TEXT field").click()
                 page.get_by_placeholder("RICH_TEXT field").fill("rich text")
                 page.get_by_role("textbox", name="Date", exact=True).fill("2026-02-05")
-                page.get_by_role("textbox", name="Time", exact=True).fill("111111-11-11")
-                page.get_by_role("textbox", name="Date Time").fill("111111-11-11")
+                page.get_by_role("textbox", name="Time", exact=True).fill("11:11")
+                page.get_by_role("textbox", name="Date Time").fill("2026-02-05T11:11")
                 # page.get_by_label("TLP Level Clear Green Amber").select_option("red")
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field").fill("CVE-2026-24888")
@@ -845,18 +847,6 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("save-report").click()
                 expect(page.get_by_text("Report item updated")).not_to_be_visible()
                 page.get_by_placeholder("CVSS field").fill("")
-                with pytest.raises(Error, match=r"Malformed value"):
-                    page.get_by_role("textbox", name="Date", exact=True).fill("xxxx-xx-xx")
-                    page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
-
-                    page.get_by_role("textbox", name="Time", exact=True).fill("xxxx-xx-xx")
-                    page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
-
-                    page.get_by_role("textbox", name="Date Time").fill("xxxx-xx-xx")
-                    page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
 
             def delete_new_report():
                 page.get_by_role("link", name="Analyze").click()
@@ -924,8 +914,8 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_placeholder("TEXT field*", exact=True).fill("text")
                 page.get_by_placeholder("RICH_TEXT field*").fill("rich text")
                 page.get_by_role("textbox", name="Date *", exact=True).fill("2026-02-05")
-                page.get_by_role("textbox", name="Time *", exact=True).fill("111111-11-11")
-                page.get_by_role("textbox", name="Date Time *").fill("111111-11-11")
+                page.get_by_role("textbox", name="Time *", exact=True).fill("11:11")
+                page.get_by_role("textbox", name="Date Time *").fill("2026-02-05T11:11")
                 page.get_by_label("TLP Level * Clear Green Amber").select_option("clear")
                 page.locator("div").filter(has_text="Stories Remove all Report").nth(4).click()
                 page.get_by_placeholder("CVE field*").fill("CVE-2026-24888")
@@ -948,18 +938,6 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("save-report").click()
                 expect(page.get_by_text("Report item updated")).not_to_be_visible()
                 page.get_by_placeholder("CVSS field*").fill("")
-                with pytest.raises(Error, match=r"Malformed value"):
-                    page.get_by_role("textbox", name="Date *", exact=True).fill("xxxx-xx-xx")
-                    page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
-
-                    page.get_by_role("textbox", name="Time *", exact=True).fill("xxxx-xx-xx")
-                    page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
-
-                    page.get_by_role("textbox", name="Date Time *").fill("xxxx-xx-xx")
-                    page.get_by_test_id("save-report").click()
-                    expect(page.get_by_text("Report item updated")).not_to_be_visible()
 
             def delete_new_report_required():
                 page.get_by_role("link", name="Analyze").click()

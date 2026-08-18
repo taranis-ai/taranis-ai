@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 from flask import render_template, request
 from models.admin import ProductType, PublisherPreset, ReportItemType, Template
@@ -17,7 +17,7 @@ class PublisherView(AdminBaseView):
     icon = "envelope-open"
     _index = 140
 
-    publisher_types = {
+    publisher_types: ClassVar[dict[str, dict[str, str]]] = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in PUBLISHER_TYPES
     }
@@ -61,7 +61,7 @@ class ProductTypeView(AdminBaseView):
     icon = "envelope"
     _index = 150
 
-    presenter_types = {
+    presenter_types: ClassVar[dict[str, dict[str, str]]] = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in PRESENTER_TYPES
     }

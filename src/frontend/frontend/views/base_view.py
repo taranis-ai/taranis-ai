@@ -1,4 +1,5 @@
-from typing import Any, Callable, ClassVar
+from collections.abc import Callable
+from typing import Any, ClassVar
 
 from flask import abort, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
@@ -136,7 +137,7 @@ class BaseView(MethodView):
         except HTTPException:
             raise
         except Exception as exc:
-            logger.error(f"Error storing form data: {str(exc)}")
+            logger.error(f"Error storing form data: {exc!s}")
             return None, str(exc)
 
     @staticmethod
@@ -156,7 +157,7 @@ class BaseView(MethodView):
         except HTTPException:
             raise
         except Exception as exc:
-            logger.error(f"Error storing form data: {str(exc)}")
+            logger.error(f"Error storing form data: {exc!s}")
             return None, str(exc)
 
     @classmethod

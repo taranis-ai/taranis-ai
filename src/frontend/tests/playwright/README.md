@@ -51,7 +51,6 @@ To use the preseeded test instance for writing tests, place:
 
 ```python
 page.pause()
-
 ```
 
 Where desired, to stop the test execution and allow to connect to the instance with Codegen tool.

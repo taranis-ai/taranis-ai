@@ -53,7 +53,7 @@ def create_or_update_template(template_id, base64_content):
         save_template_content(template_id, template_content)
     except InvalidPresenterTemplatePathError:
         return {"error": "Invalid presenter template path"}, 400
-    except Exception:
+    except OSError:
         logger.exception("Failed to save template %s", template_id)
         return {"error": "Failed to save template"}, 500
 

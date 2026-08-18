@@ -44,7 +44,7 @@ class StoryBookmarkView(BaseView):
             raise
         except ValueError as exc:
             logger.exception(f"Failed to invalidate local story bookmark cache: {exc}")
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("Failed to invalidate local story bookmark cache")
             return
 

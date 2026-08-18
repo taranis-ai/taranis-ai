@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-import worker.bots as bots
+from worker import bots
 
 
 pytestmark = pytest.mark.usefixtures("set_transformers_offline")

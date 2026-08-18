@@ -76,7 +76,7 @@ class EMAILPublisher(BasePublisher):
             server.login(self.smtp_username, self.smtp_password)
         except (SMTPAuthenticationError, SMTPException, Exception) as e:
             error_message = "SMTP authentication error" if isinstance(e, SMTPAuthenticationError) else "An SMTP error occurred"
-            logger.error(f"{error_message}: {str(e)}")
+            logger.error(f"{error_message}: {e!s}")
             raise RuntimeError({"error": error_message}) from e
 
     def send_with_tls(self, context) -> str:
@@ -88,7 +88,7 @@ class EMAILPublisher(BasePublisher):
             server = smtplib.SMTP(self.smtp_address, self.smtp_port)
             return self.send_mail(server)
         except Exception as e:
-            logger.error(f"Your SMTP server throws an error: {str(e)}")
+            logger.error(f"Your SMTP server throws an error: {e!s}")
             raise RuntimeError("An SMTP error occurred") from e
 
     def send_mail(self, server) -> str:
@@ -97,7 +97,7 @@ class EMAILPublisher(BasePublisher):
         try:
             server.sendmail(self.msg.get("From"), self.msg.get("To"), self.msg.as_string())
         except SMTPException as e:
-            logger.error(f"Your SMTP server throws an error: {str(e)}")
+            logger.error(f"Your SMTP server throws an error: {e!s}")
             raise RuntimeError("An SMTP error occurred") from e
         finally:
             server.quit()

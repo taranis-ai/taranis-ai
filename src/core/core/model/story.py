@@ -708,7 +708,7 @@ class Story(BaseModel):
         skipped = []
         added = []
         for news_item in data.get("news_items", []):
-            result, code = cls.add_single_news_item(news_item)
+            result, _code = cls.add_single_news_item(news_item)
             if skipped_id := result.get("skipped_news_item_story_id"):
                 skipped.append(skipped_id)
             if story_id := result.get("story_id"):
@@ -873,7 +873,7 @@ class Story(BaseModel):
         external: bool = False,
         actor: str | None = None,
     ) -> tuple[dict, int]:
-        story: "Story | None" = cls.get(story_id)
+        story: Story | None = cls.get(story_id)
         logger.debug(f"Updating story {story_id} with data: {data}")
         if not story:
             return {"error": "Story not found"}, 404
@@ -976,17 +976,16 @@ class Story(BaseModel):
 
         entries: list[dict] = []
         for news_item in news_items:
-            if news_item_id := news_item.get("id"):
-                if existing_item := NewsItem.get(news_item_id):
-                    existing_story_id = existing_item.story_id
+            if (news_item_id := news_item.get("id")) and (existing_item := NewsItem.get(news_item_id)):
+                existing_story_id = existing_item.story_id
 
-                    entries.append(
-                        {
-                            "news_item_id": news_item_id,
-                            "existing_story_id": existing_story_id,
-                            "incoming_story_data": data,
-                        }
-                    )
+                entries.append(
+                    {
+                        "news_item_id": news_item_id,
+                        "existing_story_id": existing_story_id,
+                        "incoming_story_data": data,
+                    }
+                )
 
         count = NewsItemConflict.set_for_story(incoming_story_id, entries)
 
@@ -1227,9 +1226,10 @@ class Story(BaseModel):
                 return {"error": "Story not found"}, 404
             new_story_ids: list[str] = []
             for news_item in story.news_items[:]:
-                if user is None or news_item.allowed_with_acl(user, True):
-                    if new_story_id := cls.create_from_item(news_item, commit=False, actor=actor):
-                        new_story_ids.append(new_story_id)
+                if (user is None or news_item.allowed_with_acl(user, True)) and (
+                    new_story_id := cls.create_from_item(news_item, commit=False, actor=actor)
+                ):
+                    new_story_ids.append(new_story_id)
             StoryBookmark.replace_story_after_ungroup(story, new_story_ids)
             story.update_status(change=actor)
             story.record_revision(user, note="ungroup_story")
@@ -1326,9 +1326,8 @@ class Story(BaseModel):
     @classmethod
     def create_from_item(cls, news_item: NewsItem, commit: bool = True, actor: str | None = None) -> str | None:
         change = actor or news_item.last_change or "internal"
-        if source_story := cls.get(news_item.story_id):
-            if news_item in source_story.news_items:
-                source_story.news_items.remove(news_item)
+        if (source_story := cls.get(news_item.story_id)) and news_item in source_story.news_items:
+            source_story.news_items.remove(news_item)
 
         new_story = Story(
             title=news_item.title,
@@ -1743,7 +1742,7 @@ class StoryBookmark(BaseModel):
         bookmarks = cls.get_filtered(db.select(cls).where(cls.user_id == user.id)) or []
         bookmarks_by_id = {bookmark.id: bookmark for bookmark in bookmarks if bookmark.id}
         if missing_ids := set(normalized_ids) - set(bookmarks_by_id):
-            return {"error": f"Bookmark collection not found: {sorted(missing_ids)[0]}"}, 404
+            return {"error": f"Bookmark collection not found: {min(missing_ids)}"}, 404
 
         ordered_bookmarks = [bookmarks_by_id[bookmark_id] for bookmark_id in normalized_ids]
         remaining_bookmarks = sorted(

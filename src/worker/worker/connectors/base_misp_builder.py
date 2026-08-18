@@ -44,7 +44,6 @@ def set_misp_event_uuid_attribute(story: dict) -> None:
             "key": "misp_event_uuid",
             "value": story.get("id", ""),
         }
-    return None
 
 
 def add_attributes_from_story(story: dict) -> list[str]:
@@ -73,8 +72,6 @@ def init_misp_event(event: MISPEvent, data: dict, sharing_group_id: int | None =
     if distribution:
         event.distribution = distribution
 
-    return None
-
 
 def add_news_item_objects(news_items: list[dict], event: MISPEvent, misp_objects_path_custom: str = DEFAULT_MISP_OBJECTS_PATH) -> None:
     for news_item in news_items:
@@ -88,8 +85,6 @@ def add_news_item_objects(news_items: list[dict], event: MISPEvent, misp_objects
             misp_objects_path_custom=misp_objects_path_custom,
         )
         event.add_object(news_item_object_dict)
-
-    return None
 
 
 def get_story_object_dict(story: dict) -> dict:

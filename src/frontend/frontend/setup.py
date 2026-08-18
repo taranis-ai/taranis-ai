@@ -18,7 +18,7 @@ from models.user import UserProfile
 from pydantic import BaseModel
 
 import frontend.filters as filters_module
-import frontend.i18n as i18n
+from frontend import i18n
 from frontend.auth import user_has_admin_permissions
 from frontend.config import Config
 from frontend.log import logger
