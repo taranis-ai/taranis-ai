@@ -13,7 +13,7 @@ MISP collector and connector worker payloads use the same schema keys and defaul
 - Worker runtime conversion: `src/worker/worker/misp_parameters.py`
 
 ## Data Flow
-Core serializes collector or connector parameters, applies the configured timeout default, and resolves the global proxy only when enabled. The worker converts `PROXY_SERVER` into HTTP and HTTPS proxy entries because PyMISP only uses those protocols; generic web collectors handle their proxy map separately.
+Core serializes collector or connector parameters, applies the configured timeout default, and resolves the global proxy only when enabled. The worker converts `PROXY_SERVER` into HTTP and HTTPS proxy entries because PyMISP only uses those protocols; generic web collectors handle their proxy map separately. MISP headers start empty so PyMISP retains its own User-Agent unless `ADDITIONAL_HEADERS` or `USER_AGENT` explicitly overrides it.
 
 ## Testing
 - Core validation and normalization: `src/core/tests/unit/test_misp_parameters.py`

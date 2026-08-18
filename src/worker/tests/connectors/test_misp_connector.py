@@ -317,7 +317,7 @@ def test_connector_ignores_legacy_parameter_keys():
 
     assert connector.ssl is False
     assert connector.proxies is None
-    assert connector.headers == {"User-Agent": "TaranisAI/1.0"}
+    assert connector.headers == {}
 
 
 def test_auto_update_blocked_result_includes_event_url(monkeypatch):

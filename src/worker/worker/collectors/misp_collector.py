@@ -17,7 +17,7 @@ class MispCollector(BaseCollector):
         self.description: str = "Connector for MISP"
 
         self.proxies: dict[str, Any] | None = None
-        self.headers: dict[str, Any] = {"User-Agent": "TaranisAI/1.0"}
+        self.headers: dict[str, Any] = {}
         self.connector_id: str
 
         self.url: str = ""

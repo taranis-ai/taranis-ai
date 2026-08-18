@@ -3,7 +3,7 @@ from typing import Any
 
 
 def parse_misp_runtime_parameters(parameters: dict[str, Any]) -> tuple[bool, dict[str, str] | None, dict[str, Any], int]:
-    headers: dict[str, Any] = {"User-Agent": "TaranisAI/1.0"}
+    headers: dict[str, Any] = {}
     if additional_headers := parameters.get("ADDITIONAL_HEADERS"):
         headers.update(json.loads(additional_headers))
     if user_agent := parameters.get("USER_AGENT"):

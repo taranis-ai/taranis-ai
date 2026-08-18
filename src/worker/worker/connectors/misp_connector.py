@@ -26,14 +26,14 @@ class MispConnector:
         self.description = "Connector for MISP"
 
         self.proxies = None
-        self.headers = {"User-Agent": "TaranisAI/1.0"}
+        self.headers = {}
         self.connector_id: str = ""
 
         self.url: str = ""
         self.api_key: str = ""
         self.org_id: str = ""
         self.ssl: bool = False
-        self.request_timeout: int = 0
+        self.request_timeout: int | None = None
         self.sharing_group_id: int | None = None
         self.distribution: int | None = None
 
