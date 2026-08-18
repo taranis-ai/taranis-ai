@@ -159,7 +159,7 @@ class UserTaskView(MethodView):
 
 
 class UserNotificationView(MethodView):
-    decorators = [auth_required()]
+    decorators: ClassVar[list[Any]] = [auth_required()]
 
     def get(self) -> ResponseReturnValue:
         return render_template("user_notifications/index.html"), 200
