@@ -53,7 +53,10 @@ line-length = 142
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F"]
+ignore = ["BLE001", "PYI001"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["RUF012"]
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2

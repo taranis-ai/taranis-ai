@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 from flask import render_template, request
 from flask.typing import ResponseReturnValue
@@ -101,7 +101,7 @@ class UserProfileView(BaseView):
         except HTTPException:
             raise
         except Exception as exc:
-            logger.error(f"Error storing form data: {str(exc)}")
+            logger.error(f"Error storing form data: {exc!s}")
             return None, str(exc)
 
     @classmethod
@@ -142,7 +142,7 @@ class UserProfileView(BaseView):
 
 
 class UserTaskView(MethodView):
-    decorators = [auth_required()]
+    decorators: ClassVar[list[Any]] = [auth_required()]
 
     def get(self) -> ResponseReturnValue:
         try:

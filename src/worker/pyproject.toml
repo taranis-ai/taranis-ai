@@ -94,10 +94,13 @@ root = "../.."
 
 [tool.ruff]
 line-length = 142
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F"]
+ignore = ["BLE001"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["BLE001", "RUF012", "DTZ001"]
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2

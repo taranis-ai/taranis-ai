@@ -63,13 +63,14 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
         rss_collector_url_not_modified,
     )
     from worker.collectors.base_web_collector import NoChangeError
+    from worker.collectors.rss_collector import RSSCollectorError
 
     with pytest.raises(NoChangeError) as exception:
-        result = rss_collector.collect(rss_collector_source_data_not_modified)
+        rss_collector.collect(rss_collector_source_data_not_modified)
     assert str(exception.value) == f"{rss_collector_url_not_modified} was not modified"
 
-    result = rss_collector.collect(rss_collector_source_data_no_content)
-    assert result is None
+    with pytest.raises(RSSCollectorError, match="No parseable RSS or Atom feed was detected"):
+        rss_collector.collect(rss_collector_source_data_no_content)
 
 
 def test_rss_publish_error_propagates(rss_collector, requests_mock):
@@ -122,7 +123,7 @@ def test_primary_http_validator_lifecycle(base_web_collector, requests_mock):
     assert "If-Modified-Since" not in request.headers
 
 
-def test_rss_validators_are_not_sent_to_secondary_resources(rss_collector, requests_mock):
+def test_rss_last_modified_validator_is_sent_to_secondary_resources(rss_collector, requests_mock):
     feed_url = "https://example.com/feed"
     article_url = "https://example.com/article"
     icon_url = "https://example.com/favicon.ico"
@@ -140,7 +141,7 @@ def test_rss_validators_are_not_sent_to_secondary_resources(rss_collector, reque
 
     for request in requests_mock.request_history:
         assert "If-None-Match" not in request.headers
-        assert "If-Modified-Since" not in request.headers
+        assert request.headers["If-Modified-Since"] == stored_validators["last_modified"]
 
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
@@ -235,10 +236,23 @@ def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_w
     from tests.testdata import web_collector_result_content, web_collector_result_title
 
     browser_web_collector_instance.web_url = "https://raw.example.com/testweb.html"
+    last_modified = "Tue, 11 Aug 2026 09:07:03 GMT"
+    browser_web_collector_instance.configure_primary_http_resource(
+        {
+            "http_validators": {
+                "url": browser_web_collector_instance.web_url,
+                "etag": None,
+                "last_modified": last_modified,
+            }
+        },
+        browser_web_collector_instance.web_url,
+        manual=False,
+    )
     browser_web_collector_instance.xpath = ""
     items = browser_web_collector_instance.gather_news_items()
     browser_web_collector_mock.fetch_content_with_js.assert_called_once_with(browser_web_collector_instance.web_url, "")
     browser_web_collector_mock.stop_playwright_if_needed.assert_called_once()
+    assert browser_web_collector_mock.request_headers["If-Modified-Since"] == last_modified
 
     story = items[0]
     assert isinstance(items, list)
@@ -292,14 +306,14 @@ def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple
 
 
 def test_rt_collector_collect(rt_mock, rt_collector):
-    import tests.collectors.rt_testdata as rt_testdata
+    from tests.collectors import rt_testdata
 
     result = rt_collector.collect(rt_testdata.rt_collector_source_data)
     assert result is None
 
 
 def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
-    import tests.collectors.rt_testdata as rt_testdata
+    from tests.collectors import rt_testdata
 
     # query did not return tickets
     error_msg = f"No tickets available for {rt_testdata.rt_base_url}"
@@ -312,7 +326,7 @@ def test_rt_collector_no_tickets_error(rt_mock, rt_collector):
 def test_rt_collector_malformed_json_error(rt_mock, rt_collector):
     import json
 
-    import tests.collectors.rt_testdata as rt_testdata
+    from tests.collectors import rt_testdata
 
     # query response contains malformed json
     error_msg = "Expecting ':' delimiter: line 1 column 13 (char 12)"
@@ -486,21 +500,6 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             },
             Config.REQUESTS_TIMEOUT,
         ),
-        # Edge: REQUEST_TIMEOUT missing, should use default
-        (
-            {"URL": "u", "API_KEY": "k"},
-            {
-                "url": "u",
-                "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
-                "headers": {"User-Agent": "TaranisAI/1.0"},
-                "ssl": False,
-                "sharing_group_id": None,
-                "org_id": "",
-                "days_without_change": "",
-            },
-            Config.REQUESTS_TIMEOUT,
-        ),
         # Edge: SHARING_GROUP_ID not convertible to int
         (
             {"URL": "u", "API_KEY": "k", "SHARING_GROUP_ID": "not-an-int"},
@@ -521,7 +520,6 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
         "all_fields_typical",
         "minimal_required",
         "sharing_group_id_int",
-        "request_timeout_default",
         "sharing_group_id_invalid",
     ],
 )

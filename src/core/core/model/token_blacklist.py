@@ -11,7 +11,7 @@ class TokenBlacklist(BaseModel):
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     token: Mapped[str] = db.Column(db.String(), nullable=False)
-    created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
 
     def __init__(self, token):
         self.id = self.uuid7_str()

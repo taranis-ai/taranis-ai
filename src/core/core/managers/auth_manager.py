@@ -1,9 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import wraps
 from hmac import compare_digest
 
 from flask import Flask, Response, g, make_response, request
 from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, verify_jwt_in_request
+from flask_jwt_extended.exceptions import JWTExtendedException
+from jwt.exceptions import PyJWTError
 
 from core.auth.database_authenticator import DatabaseAuthenticator
 from core.auth.dev_authenticator import DevAuthenticator
@@ -22,12 +24,11 @@ AUTH_ERROR = ({"error": "not authorized"}, 401)
 
 def cleanup_token_blacklist(app):
     with app.app_context():
-        TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
+        TokenBlacklist.delete_older(TokenBlacklist.utcnow() - timedelta(days=1))
 
 
 def initialize(app: Flask):
     global current_authenticator
-    global jwt
 
     jwt.init_app(app)
 
@@ -124,7 +125,7 @@ def _has_valid_api_key(*, log_failures: bool = False) -> bool:
 def _jwt_authorize(permissions_set: set[str]) -> tuple[dict[str, str], int] | None:
     try:
         verify_jwt_in_request()
-    except Exception as ex:
+    except (JWTExtendedException, PyJWTError) as ex:
         logger.exception(str(ex))
         return AUTH_ERROR
 

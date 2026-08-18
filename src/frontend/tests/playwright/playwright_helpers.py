@@ -37,7 +37,7 @@ class PlaywrightHelpers:
         .highlight-element { background-color: yellow !important; outline: 4px solid red !important; }
         """
 
-        wait_duration = self.wait_duration if transition else 1  #
+        wait_duration = self.wait_duration if transition else 1
 
         if scroll:
             self.smooth_scroll(locator)

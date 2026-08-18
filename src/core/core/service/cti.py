@@ -1,5 +1,6 @@
 from collections import defaultdict
-from typing import Any, Iterable, Literal
+from collections.abc import Iterable
+from typing import Any, Literal
 
 from models.cti import CanonicalIOCType, CTIItem, CTIResponse, normalize_ioc_type, normalize_ioc_value
 from sqlalchemy.orm import selectinload

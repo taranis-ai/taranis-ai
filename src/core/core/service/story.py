@@ -1,6 +1,7 @@
 import json
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from flask import Response, abort, jsonify
 from flask_jwt_extended import current_user
@@ -140,7 +141,7 @@ class StoryService:
 
     @classmethod
     def get_story_clusters(cls, days: int = 7, limit: int = 10):
-        start_date = datetime.now() - timedelta(days=days)
+        start_date = Story.utcnow() - timedelta(days=days)
         if clusters := Story.get_filtered(
             db.select(Story)
             .join(NewsItem)

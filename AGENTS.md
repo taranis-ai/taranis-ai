@@ -18,3 +18,7 @@ taranis.ai is an OSINT application. See [README.md](README.md) for product conte
 - For an application feature, workflow, route, model, template, or user-facing behavior, first inspect [Agent Memory](docs/agents/README.md) and read every matching memory before planning or editing.
 
 Memory files provide expected behavior, code paths, tests, and known pitfalls; implementation remains the source of truth. Update a matching memory when behavior, code paths, cache behavior, validation, or test strategy changes. Add and index a memory for substantial recurring workflows.
+
+## Test Discipline
+
+Review every newly added test against the existing test suite. Remove tests that duplicate existing coverage or rely so heavily on mocking that they do not meaningfully exercise behavior. Keep a new test only when it adds necessary, effective coverage—the best code is no code, and that applies to test code too.

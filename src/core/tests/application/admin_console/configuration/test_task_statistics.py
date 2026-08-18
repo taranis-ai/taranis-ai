@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -24,8 +24,8 @@ def test_build_task_status_badge(stats, expected_label, expected_variant):
 
 
 def test_get_task_statistics_includes_worker_metadata(monkeypatch):
-    last_run = datetime(2026, 4, 13, 12, 30, tzinfo=timezone.utc)
-    last_success = datetime(2026, 4, 13, 11, 45, tzinfo=timezone.utc)
+    last_run = datetime(2026, 4, 13, 12, 30, tzinfo=UTC)
+    last_success = datetime(2026, 4, 13, 11, 45, tzinfo=UTC)
 
     monkeypatch.setattr(
         Task,

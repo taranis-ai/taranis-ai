@@ -31,6 +31,6 @@ class BasePresenter:
             undefined=jinja2.StrictUndefined,
         )
         tmpl = env.from_string(template)
-        product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
+        product["current_date"] = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
 
         return tmpl.render(data=product)

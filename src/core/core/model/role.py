@@ -1,6 +1,5 @@
 import contextlib
 from enum import StrEnum
-from typing import Optional
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Mapped, relationship
@@ -64,7 +63,7 @@ class Role(BaseModel):
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
-    tlp_level: Mapped[Optional[TLPLevel]] = db.Column(db.Enum(TLPLevel), nullable=False, default=TLPLevel.CLEAR)
+    tlp_level: Mapped[TLPLevel | None] = db.Column(db.Enum(TLPLevel), nullable=False, default=TLPLevel.CLEAR)
     permissions: Mapped[list["Permission"]] = relationship("Permission", secondary="role_permission", back_populates="roles")
     acls = relationship("RoleBasedAccess", secondary="rbac_role")
 

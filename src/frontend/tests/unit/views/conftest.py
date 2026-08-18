@@ -8,7 +8,6 @@ from models.types import BOT_TYPES
 from polyfactory.exceptions import ParameterException
 from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel
-from pydantic.fields import FieldInfo
 
 from frontend.config import Config
 from frontend.log import logger
@@ -114,9 +113,6 @@ def form_formats_from_models(worker_parameter_data: dict[str, Any]):
                 continue
             if field_name == "status":
                 continue
-
-            field_info: FieldInfo = field_info
-            field_name: str = field_name
 
             ann = field_info.annotation
             field_required = True
@@ -361,7 +357,7 @@ def mock_core_get_item_endpoints(responses_mock, core_payloads, mock_core_get_it
             content_type="application/json",
         )
 
-    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+    for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
@@ -373,7 +369,7 @@ def mock_core_get_item_endpoints(responses_mock, core_payloads, mock_core_get_it
 
 @pytest.fixture
 def mock_core_delete_endpoints(responses_mock, mock_core_get_item_endpoint_data):
-    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+    for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
@@ -384,7 +380,7 @@ def mock_core_delete_endpoints(responses_mock, mock_core_get_item_endpoint_data)
 
 @pytest.fixture
 def mock_core_create_endpoints(responses_mock, mock_core_get_item_endpoint_data):
-    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+    for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
@@ -395,7 +391,7 @@ def mock_core_create_endpoints(responses_mock, mock_core_get_item_endpoint_data)
 
 @pytest.fixture
 def mock_core_update_endpoints(responses_mock, mock_core_get_item_endpoint_data):
-    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+    for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:

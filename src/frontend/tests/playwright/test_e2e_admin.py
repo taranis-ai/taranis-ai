@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -55,7 +54,7 @@ def start_admin_onboarding_from_dashboard(page: Page):
 def remove_tz(date_time: str) -> str:
     dt = datetime.fromisoformat(date_time)
     if dt.tzinfo is not None and dt.utcoffset() is not None:
-        dt = dt.astimezone(timezone.utc)
+        dt = dt.astimezone(UTC)
     dt = dt.replace(tzinfo=None)
     return dt.isoformat()
 
