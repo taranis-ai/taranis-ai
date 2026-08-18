@@ -13,3 +13,10 @@ def test_config_api_masks_and_explicitly_reveals_connector_secret(client, auth_h
     assert revealed.json == {"value": "super-secret-api-key"}
     assert "no-store" in revealed.headers["Cache-Control"]
     assert revealed.headers["Pragma"] == "no-cache"
+
+    invalid = client.post(
+        f"/api/config/parameter-secrets/connectors/{connector_id}/NAME/reveal",
+        headers=auth_header,
+    )
+    assert invalid.status_code == 400
+    assert invalid.json == {"error": "Invalid parameter secret request"}

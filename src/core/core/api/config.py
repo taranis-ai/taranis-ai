@@ -661,7 +661,7 @@ class Connectors(MethodView):
         try:
             if source := connector.Connector.add(request.json):
                 _invalidate_admin_cache(201)
-                return {"id": source.id, "message": "Connector created successfully"}, 201
+                return jsonify({"id": source.id, "message": "Connector created successfully"}), 201
         except ValueError as exc:
             db.session.rollback()
             logger.warning("Invalid connector create payload: %s", exc)
@@ -1095,8 +1095,9 @@ class ParameterSecrets(MethodView):
             return {"error": "Parameter resource not found"}, 404
         try:
             value = reveal_parameter(item.type, item.parameters, parameter)
-        except ValueError as exc:
-            return {"error": str(exc)}, 400
+        except ValueError:
+            logger.warning("Invalid parameter secret reveal request", exc_info=True)
+            return {"error": "Invalid parameter secret request"}, 400
         response = jsonify({"value": value})
         response.cache_control.no_store = True
         response.cache_control.private = True

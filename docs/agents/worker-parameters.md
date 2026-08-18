@@ -28,6 +28,7 @@ Frontend imports the registry and renders `model_json_schema(mode="validation", 
 POST creates a full configuration. `PUT.parameters` replaces non-secret configuration while preserving omitted configured secrets. `PATCH.parameters` merges keys; `null` removes a configured value and omitted keys remain unchanged. Worker type is immutable. Sources and bots may be incomplete only while disabled, and enabling or executing them performs full validation.
 
 Secret inputs are not submitted until Replace or Clear is selected. Reveal is an audited POST authorized by the resource's update permission and is non-cacheable. Audit records remain metadata-only.
+Invalid reveal requests are logged server-side and return a static `400` error without exception-derived text.
 
 ## Testing
 
