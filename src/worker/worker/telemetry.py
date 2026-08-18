@@ -56,7 +56,7 @@ def _initialize() -> bool:
     return True
 
 
-def instrument_job(func: Callable[P, R]) -> Callable[P, R]:
+def instrument_job[**P, R](func: Callable[P, R]) -> Callable[P, R]:
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         try:
