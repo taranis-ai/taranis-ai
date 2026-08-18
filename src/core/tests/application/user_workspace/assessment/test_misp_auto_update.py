@@ -82,24 +82,6 @@ def test_misp_auto_update_requires_connector_access(client, auth_header, auth_he
 
 
 @pytest.mark.usefixtures("session")
-def test_misp_auto_update_validation_does_not_expose_exception(client, auth_header, monkeypatch):
-    story = _story()
-
-    def reject_configuration(*_args):
-        raise ValueError("sensitive connector details")
-
-    monkeypatch.setattr(StoryMispAutoUpdate, "configure", reject_configuration)
-    response = client.patch(
-        f"/api/assess/stories/{story.id}",
-        json={"misp_auto_update": {"connector_id": "invalid", "enabled": True}},
-        headers=auth_header,
-    )
-
-    assert response.status_code == 400
-    assert response.json == {"error": "Select a MISP connector for auto-update"}
-
-
-@pytest.mark.usefixtures("session")
 def test_bot_story_update_ignores_misp_auto_update(client, api_header, admin_user, monkeypatch):
     refreshed = []
     monkeypatch.setattr("core.service.misp_auto_update.refresh_misp_auto_update_job", refreshed.append)

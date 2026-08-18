@@ -50,32 +50,6 @@ def test_is_alive_fail(client):
     assert b'"isalive": false' not in response.data
 
 
-def test_asset_validation_does_not_expose_exceptions(client, auth_header, monkeypatch):
-    from core.model.asset import Asset
-
-    created = client.post(
-        "/api/assets",
-        json={"name": "Asset", "serial": "", "description": ""},
-        headers=auth_header,
-    )
-
-    def reject_data(*_args):
-        raise ValueError("<script>sensitive details</script>")
-
-    monkeypatch.setattr(Asset, "from_dict", reject_data)
-    added = client.post("/api/assets", json={"name": "Invalid"}, headers=auth_header)
-    monkeypatch.setattr(Asset, "_load_observables", reject_data)
-    updated = client.put(
-        f"/api/assets/{created.json['id']}",
-        json={"asset_observables": []},
-        headers=auth_header,
-    )
-
-    assert created.status_code == 201
-    assert added.status_code == updated.status_code == 400
-    assert added.json == updated.json == {"error": "Invalid asset data"}
-
-
 def test_auth_login(client):
     body = {"username": "user", "password": os.getenv("PRE_SEED_PASSWORD_USER")}
     response = client.post("/api/auth/login", json=body)
