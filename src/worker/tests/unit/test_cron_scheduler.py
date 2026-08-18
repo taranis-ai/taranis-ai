@@ -6,7 +6,7 @@ import pytest
 from models.task import CronTaskSpec
 from pydantic import ValidationError
 
-import worker.cron_scheduler as cron_scheduler
+from worker import cron_scheduler
 from worker.cron_scheduler import DEFS_KEY, NEXT_KEY, _decode, _enqueue_due_job, _enqueue_key, _normalize_spec, _sync_next_index
 
 

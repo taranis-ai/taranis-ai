@@ -1,6 +1,6 @@
 import contextlib
-from datetime import datetime, timezone
-from typing import Any, Literal, TypeAlias, cast
+from datetime import UTC, datetime
+from typing import Any, Literal, cast
 
 from pymisp import MISPAttribute, MISPEvent, MISPEventReport, MISPObject, MISPObjectAttribute, MISPShadowAttribute, PyMISP, exceptions
 
@@ -10,7 +10,7 @@ from worker.log import logger
 from worker.misp_parameters import parse_misp_runtime_parameters
 
 
-MispSendResult: TypeAlias = (
+type MispSendResult = (
     tuple[Literal["updated"], MISPEvent]
     | tuple[Literal["proposed"], list[MISPShadowAttribute]]
     | tuple[Literal["blocked"], str]
@@ -113,7 +113,7 @@ class MispConnector:
         new_report = MISPEventReport()
         if existing_uuid:
             new_report.uuid = existing_uuid
-        new_report.from_dict(name=report_title, content=content, timestamp=datetime.now(timezone.utc))
+        new_report.from_dict(name=report_title, content=content, timestamp=datetime.now(UTC))
         return new_report
 
     def get_event_by_uuid(self, misp: PyMISP, story: dict, event_uuid: str) -> MISPEvent | None:
@@ -234,9 +234,10 @@ class MispConnector:
 
             self.remove_missing_objects_from_misp(misp, event, story)
             ids_in_misp = self.get_event_object_ids(event)
-            if story_prepared := self.drop_existing_news_items(story, ids_in_misp):
-                if updated_event := self._update_event(story_prepared, misp_event_uuid, event, misp):
-                    return "updated", updated_event
+            if (story_prepared := self.drop_existing_news_items(story, ids_in_misp)) and (
+                updated_event := self._update_event(story_prepared, misp_event_uuid, event, misp)
+            ):
+                return "updated", updated_event
         return ("failed",)
 
     def add_story_proposal(self, existing_event: MISPEvent, event_to_add: MISPEvent, misp: PyMISP) -> list[MISPShadowAttribute]:

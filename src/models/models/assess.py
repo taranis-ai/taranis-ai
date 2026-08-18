@@ -1,7 +1,7 @@
 import contextlib
 import hashlib
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, Any, Literal, Self
 from urllib.parse import quote, unquote
 
@@ -62,7 +62,7 @@ def _dump_core_fields(model: TaranisBaseModel, allowed_fields: frozenset[str]) -
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _normalize_datetime(value: str | datetime | None) -> datetime | None:
@@ -75,7 +75,7 @@ def _normalize_datetime(value: str | datetime | None) -> datetime | None:
             return None
     if value.tzinfo is None or value.utcoffset() is None:
         return value
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value.astimezone(UTC).replace(tzinfo=None)
 
 
 def validate_bcp47(value: str | None) -> str | None:
@@ -217,7 +217,7 @@ class Story(TaranisBaseModel):
     read: bool | None = None
     likes: int | None = None
     dislikes: int | None = None
-    user_vote: Literal["like", "dislike", "", None] = None
+    user_vote: Literal["like", "dislike", ""] | None = None
     summary: str | None = None
     relevance: int | None = None
     relevance_override: int | None = None
@@ -355,5 +355,5 @@ class StoryUpdatePayload(TaranisBaseModel):
 
 
 class BulkAction(TaranisBaseModel):
-    story_ids: list[str] = []
+    story_ids: list[str] = Field(default_factory=list)
     payload: StoryUpdatePayload | None = None

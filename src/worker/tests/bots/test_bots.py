@@ -9,7 +9,7 @@ pytestmark = pytest.mark.usefixtures("set_transformers_offline")
 
 
 def test_initalize_bots():
-    import worker.bots as bots
+    from worker import bots
 
     bots.AnalystBot()
     bots.IOCBot()
@@ -34,7 +34,7 @@ def test_filter_timefrom_is_forwarded_to_story_query(parameters):
 
 
 def test_ioc_bot(story_get_mock):
-    import worker.bots as bots
+    from worker import bots
 
     ioc_bot = bots.IOCBot()
     ioc_bot.execute()
@@ -43,7 +43,7 @@ def test_ioc_bot(story_get_mock):
 
 
 def test_analyst_bot_returns_meaningful_result_when_no_stories(monkeypatch):
-    import worker.bots as bots
+    from worker import bots
 
     analyst_bot = bots.AnalystBot()
     monkeypatch.setattr(analyst_bot, "get_stories", lambda parameters: [])
@@ -61,7 +61,7 @@ def test_news_item_content_for_tagging_handles_nullable_fields():
 
 
 def test_nlp_bot(story_get_mock, ner_bot_mock):
-    import worker.bots as bots
+    from worker import bots
 
     nlp_bot = bots.NLPBot()
     ner_bot_result = nlp_bot.execute()
@@ -74,7 +74,7 @@ def test_nlp_bot(story_get_mock, ner_bot_mock):
 
 
 def test_nlp_bot_uses_requests_timeout_parameter(story_get_mock, ner_bot_mock):
-    import worker.bots as bots
+    from worker import bots
 
     nlp_bot = bots.NLPBot()
     nlp_bot.execute({"REQUESTS_TIMEOUT": "17"})
@@ -89,7 +89,7 @@ def test_summary_bot_uses_configured_summary_and_default_title_endpoints(
     requests_mock,
     monkeypatch,
 ):
-    import worker.bots as bots
+    from worker import bots
 
     story = {**stories[0], "news_items": [stories[0]["news_items"][0], stories[1]["news_items"][0]]}
     story_get_mock = requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
@@ -125,7 +125,7 @@ def test_summary_bot_skips_title_generation_when_title_endpoint_is_unset(
     story_attribute_update_mock,
     requests_mock,
 ):
-    import worker.bots as bots
+    from worker import bots
 
     requests_mock.post(
         Config.SUMMARY_API_ENDPOINT,
@@ -147,7 +147,7 @@ def test_summary_bot_skips_title_generation_when_title_endpoint_is_unset(
 
 
 def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_mock, story_attribute_update_mock, cybersec_classifier_mock):
-    import worker.bots as bots
+    from worker import bots
 
     def extract_attributes(request_json):
         if isinstance(request_json, dict):
@@ -211,7 +211,7 @@ def test_sentiment_analysis_bot_accepts_flat_response_and_normalizes_label(
     news_item_attribute_update_mock,
     requests_mock,
 ):
-    import worker.bots as bots
+    from worker import bots
 
     requests_mock.post(
         f"{Config.SENTIMENT_ANALYSIS_API_ENDPOINT}/",

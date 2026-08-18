@@ -131,8 +131,7 @@ def cleanup_invalid_source_icons():
     removed_icons = 0
 
     for source in sources:
-        icon_bytes = getattr(source, "icon", None)
-        if icon_bytes:
+        if icon_bytes := getattr(source, "icon", None):
             try:
                 OSINTSource._probe_icon_image(icon_bytes)
             except ValueError:
@@ -490,8 +489,7 @@ def _resolve_seed_product_type_report_types(product_type: dict) -> dict:
     resolved_report_type_ids = []
 
     for report_type_ref in report_type_refs:
-        report_type = ReportItemType.get_by_title(report_type_ref)
-        if report_type:
+        if report_type := ReportItemType.get_by_title(report_type_ref):
             resolved_report_type_ids.append(report_type.id)
 
     product_type_data["report_types"] = resolved_report_type_ids
@@ -517,32 +515,33 @@ def pre_seed_default_user():
             }
         )
 
-    if not User.find_by_name(username="admin") and not User.find_by_role_name(role_name="Admin"):
-        if admin_role := Role.filter_by_name("Admin"):
-            User.add(
-                {
-                    "username": "admin",
-                    "name": "Arthur Dent",
-                    "roles": [admin_role.id],
-                    "organization": {"id": admin_organization.id},
-                    "password": Config.PRE_SEED_PASSWORD_ADMIN,
-                }
-            )
-
-    user_organization = Organization.find_by_name("The Clacks")
-    if not user_organization:
-        user_organization = Organization.add(
+    if (
+        not User.find_by_name(username="admin")
+        and not User.find_by_role_name(role_name="Admin")
+        and (admin_role := Role.filter_by_name("Admin"))
+    ):
+        User.add(
             {
-                "name": "The Clacks",
-                "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
-                "address": {
-                    "street": "Cherry Tree Rd",
-                    "city": "Beaconsfield, Buckinghamshire",
-                    "zip": "HP9 1BH",
-                    "country": "United Kingdom",
-                },
+                "username": "admin",
+                "name": "Arthur Dent",
+                "roles": [admin_role.id],
+                "organization": {"id": admin_organization.id},
+                "password": Config.PRE_SEED_PASSWORD_ADMIN,
             }
         )
+
+    user_organization = Organization.find_by_name("The Clacks") or Organization.add(
+        {
+            "name": "The Clacks",
+            "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
+            "address": {
+                "street": "Cherry Tree Rd",
+                "city": "Beaconsfield, Buckinghamshire",
+                "zip": "HP9 1BH",
+                "country": "United Kingdom",
+            },
+        }
+    )
 
     if not User.find_by_name(username="user"):
         user_role = Role.filter_by_name("User").id  # type: ignore

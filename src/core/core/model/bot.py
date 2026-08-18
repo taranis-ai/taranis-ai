@@ -1,10 +1,12 @@
-from datetime import datetime
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from graphlib import CycleError, TopologicalSorter
-from typing import Any, Sequence
+from typing import Any
 
 from models.admin import CronSpec
 from models.types import BOT_TYPES
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
@@ -101,9 +103,8 @@ class Bot(BaseModel):
             if parameters := data.get("parameters"):
                 update_parameter = ParameterValue.get_or_create_from_list(parameters)
                 bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
-            if index := data.get("index"):
-                if not Bot.index_exists(index):
-                    bot.index = index
+            if (index := data.get("index")) and not Bot.index_exists(index):
+                bot.index = index
             cls.validate_dependency_config()
             db.session.commit()
         except Exception:
@@ -132,7 +133,7 @@ class Bot(BaseModel):
             return None
         try:
             return db.session.execute(db.select(cls).where(cls.type == bot_type).order_by(cls.index)).scalars().first()
-        except Exception:
+        except SQLAlchemyError:
             logger.exception(f"Error filtering bots by type: {filter_type}")
             return None
 
@@ -289,7 +290,7 @@ class Bot(BaseModel):
 
         parameters = candidate.get("parameters", {})
         if not isinstance(parameters, dict):
-            raise ValueError("Bot DAG preview parameters must be an object")
+            raise TypeError("Bot DAG preview parameters must be an object")
         if unexpected_parameters := set(parameters) - {RUN_AFTER_COLLECTOR, RUN_AFTER_BOTS}:
             raise ValueError(f"Unexpected bot DAG preview parameters: {', '.join(sorted(unexpected_parameters))}")
 
@@ -450,12 +451,11 @@ class Bot(BaseModel):
 
         Note: All times are calculated in UTC for consistency across the system.
         """
-        from datetime import timezone
 
         from core.managers import queue_manager as queue_manager_module
         from core.managers.queue_manager import QueueManager
 
-        now = now or datetime.now(timezone.utc).replace(tzinfo=None)
+        now = now or datetime.now(UTC).replace(tzinfo=None)
         entries: list[dict[str, Any]] = []
 
         bots = cls.get_all_for_collector()

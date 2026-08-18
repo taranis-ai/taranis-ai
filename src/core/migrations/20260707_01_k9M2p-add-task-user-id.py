@@ -5,6 +5,7 @@ add triggering user to task records
 
 from yoyo import step
 
+
 __depends__ = {"20260611_01_w4R9m-purge-task-history"}
 
 steps = [

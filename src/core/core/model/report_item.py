@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from datetime import datetime, timedelta
-from typing import Any, Literal, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, Literal
 
 from sqlalchemy import inspect, or_
 from sqlalchemy.orm import Mapped, relationship
@@ -35,16 +35,16 @@ class ReportItem(BaseModel):
     revision: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
     user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id"), nullable=True)
-    user: Mapped["User"] = relationship("User")
+    user: Mapped[User] = relationship("User")
 
     report_item_type_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item_type.id"), nullable=True)
-    report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
+    report_item_type: Mapped[ReportItemType] = relationship("ReportItemType")
 
-    stories: Mapped[list["Story"]] = relationship(
+    stories: Mapped[list[Story]] = relationship(
         "Story", secondary="report_item_story", cascade="save-update, merge", passive_deletes=True, single_parent=False
     )
 
-    attributes: Mapped[list["ReportItemAttribute"]] = relationship(
+    attributes: Mapped[list[ReportItemAttribute]] = relationship(
         "ReportItemAttribute",
         back_populates="report_item",
         cascade="all, delete-orphan",
@@ -52,9 +52,7 @@ class ReportItem(BaseModel):
         lazy="selectin",
     )
 
-    report_item_cpes: Mapped[list["ReportItemCpe"]] = relationship(
-        "ReportItemCpe", cascade="all, delete-orphan", back_populates="report_item"
-    )
+    report_item_cpes: Mapped[list[ReportItemCpe]] = relationship("ReportItemCpe", cascade="all, delete-orphan", back_populates="report_item")
 
     def __init__(
         self,
@@ -138,7 +136,7 @@ class ReportItem(BaseModel):
         return attributes
 
     @staticmethod
-    def _get_used_story_ids(attributes: list["ReportItemAttribute"]) -> list[str]:
+    def _get_used_story_ids(attributes: list[ReportItemAttribute]) -> list[str]:
         used_story_ids: list[str] = []
         for attribute in attributes:
             if attribute.attribute_type != AttributeType.STORY:
@@ -280,11 +278,11 @@ class ReportItem(BaseModel):
 
         return sanitized, None
 
-    def clone_report(self, user: User | None = None) -> "ReportItem":
+    def clone_report(self, user: User | None = None) -> ReportItem:
         attributes = [a.clone_attribute() for a in self.attributes]
 
         report = ReportItem(
-            title=f"{self.title} ({datetime.now().isoformat()})",
+            title=f"{self.title} ({datetime.now(UTC).isoformat()})",
             report_item_type_id=self.report_item_type_id,
             attributes=attributes,
             completed=self.completed,
@@ -314,11 +312,11 @@ class ReportItem(BaseModel):
         }, 200
 
     @classmethod
-    def load_multiple(cls, data: list[dict[str, Any]]) -> list["ReportItem"]:
+    def load_multiple(cls, data: list[dict[str, Any]]) -> list[ReportItem]:
         return [cls.from_dict(report_item) for report_item in data]
 
     @classmethod
-    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem", Literal[200]] | tuple[dict[str, Any], int]:
+    def add(cls, report_item_data: dict, user: User | None = None) -> tuple[ReportItem, Literal[200]] | tuple[dict[str, Any], int]:
         sanitized_data, error = cls._sanitize_create_payload(report_item_data)
         if error:
             return error[0], error[1]
@@ -415,7 +413,7 @@ class ReportItem(BaseModel):
             query = query.where(or_(ReportItemType.title.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%")))
 
         if filter_range := filter_args.get("range"):
-            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            date_limit = cls.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
             if filter_range.upper() == "WEEK":
                 date_limit -= timedelta(days=date_limit.weekday())
@@ -461,7 +459,7 @@ class ReportItem(BaseModel):
         return cls.get_filtered(query)
 
     @classmethod
-    def get_report_item_and_check_permission(cls, report_id: str, user: User) -> tuple[Optional["ReportItem"], dict, int]:
+    def get_report_item_and_check_permission(cls, report_id: str, user: User) -> tuple[ReportItem | None, dict, int]:
         if not (report_item := cls.get(report_id)):
             return None, {"error": "Report Item not Found"}, 404
 
@@ -657,7 +655,7 @@ class ReportItemAttribute(BaseModel):
         self.group_title = group_title or ""
 
     @classmethod
-    def find_attribute_by_title(cls, report_item_id, title: str) -> "ReportItemAttribute | None":
+    def find_attribute_by_title(cls, report_item_id, title: str) -> ReportItemAttribute | None:
         query = db.select(cls).filter_by(report_item_id=report_item_id, title=title)
         return cls.get_first(query)
 
@@ -703,7 +701,7 @@ class ReportItemCpe(BaseModel):
     value: Mapped[str] = db.Column(db.String())
 
     report_item_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("report_item.id", ondelete="CASCADE"))
-    report_item: Mapped["ReportItem"] = relationship("ReportItem")
+    report_item: Mapped[ReportItem] = relationship("ReportItem")
 
     def __init__(self, value):
         self.id = self.uuid7_str()

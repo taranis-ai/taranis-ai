@@ -7,7 +7,7 @@ from flask import Response, g
 
 @pytest.fixture
 def audit_events(monkeypatch):
-    import core.audit as audit
+    from core import audit
     from core.config import Config
 
     events = []
@@ -64,7 +64,7 @@ def test_authenticated_get_emits_no_audit_event(client, auth_header, audit_event
 
 
 def test_get_authenticated_user_prefers_authenticated_user(app):
-    import core.audit as audit
+    from core import audit
 
     organization = SimpleNamespace(id=123)
     fake_user = SimpleNamespace(id="fake-user-id", username="fake-user", organization=organization)
@@ -80,7 +80,7 @@ def test_get_authenticated_user_prefers_authenticated_user(app):
 
 
 def test_get_authenticated_user_runtime_error_emits_no_audit_event(app, monkeypatch):
-    import core.audit as audit
+    from core import audit
 
     def raise_runtime_error():
         raise RuntimeError("forced failure")
@@ -182,7 +182,7 @@ def test_disabled_audit_emits_no_event(client, auth_header, monkeypatch, audit_e
 
 
 def test_audit_failure_does_not_change_response(client, auth_header, monkeypatch):
-    import core.audit as audit
+    from core import audit
     from core.config import Config
 
     monkeypatch.setattr(Config, "AUDIT_LOG_ENABLED", True)

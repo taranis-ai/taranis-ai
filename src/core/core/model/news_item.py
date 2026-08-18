@@ -1,6 +1,7 @@
 import hashlib
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as AssessStory
@@ -435,13 +436,12 @@ class NewsItem(BaseModel):
         except ValidationError as exc:
             return AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data"), 400
 
-        if duplicate_item := self.get_by_hash(payload.hash):
-            if duplicate_item.id != self.id:
-                return {
-                    "error": "Identical news item found. Skipping...",
-                    "conflicting_news_item_id": duplicate_item.id,
-                    "story_id": duplicate_item.story_id,
-                }, 409
+        if (duplicate_item := self.get_by_hash(payload.hash)) and duplicate_item.id != self.id:
+            return {
+                "error": "Identical news item found. Skipping...",
+                "conflicting_news_item_id": duplicate_item.id,
+                "story_id": duplicate_item.story_id,
+            }, 409
 
         self.title = payload.title or ""
         self.review = payload.review or ""

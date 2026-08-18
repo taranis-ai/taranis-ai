@@ -90,7 +90,7 @@ def get_template_content(template_id: str) -> str | bytes | None:
         except UnicodeDecodeError as e:
             logger.error(f"Template {path.name} is not valid UTF-8: {e}")
             return path.read_bytes()
-    except Exception as e:
+    except (InvalidPresenterTemplatePathError, OSError) as e:
         logger.error(f"Error reading template {template_id}: {e}")
         return None
 
@@ -102,7 +102,7 @@ def list_templates() -> list[str]:
         if not templates_dir.exists():
             return []
         return [file.name for file in templates_dir.iterdir() if file.is_file() and is_valid_presenter_template_id(file.name)]
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Error listing templates: {e}")
         return []
 
@@ -126,7 +126,7 @@ def delete_template(template_id: str) -> bool:
         return True
     except InvalidPresenterTemplatePathError:
         return False
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Error deleting template {template_id}: {e}")
         return False
 
@@ -152,7 +152,7 @@ def get_template_as_base64(presenter_template: str) -> str:
         path = _resolve_presenter_template_path(presenter_template, must_exist=True)
         filepath = path.as_posix()
         return base64.b64encode(path.read_bytes()).decode("utf-8")
-    except Exception as e:
+    except (InvalidPresenterTemplatePathError, OSError) as e:
         logger.error(f"An error occurred while converting file: {filepath} to base64: {e}")
         return ""
 

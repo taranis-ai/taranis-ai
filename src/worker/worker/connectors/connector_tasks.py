@@ -79,7 +79,7 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
     try:
         connector_result = connector.execute(connector_data, auto_update=auto_update)
         if not isinstance(connector_result, dict):
-            raise RuntimeError(f"Connector {connector.type} returned an invalid result payload")
+            raise TypeError(f"Connector {connector.type} returned an invalid result payload")
 
         logger.info(f"Connector with id: {connector_id} executed successfully")
         result = {

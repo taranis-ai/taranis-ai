@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 import redis
+import requests
 import responses
 
 from tests.core_requests import CoreRequestClient
@@ -43,7 +44,7 @@ def _wait_for_admin_login(core_url: str, timeout_seconds: int = 30, poll_interva
             )
             if response.json().get("access_token"):
                 return
-        except Exception as exc:  # pragma: no cover - readiness polling
+        except (requests.JSONDecodeError, requests.RequestException) as exc:  # pragma: no cover - readiness polling
             last_exc = exc
             time.sleep(poll_interval)
     raise RuntimeError(f"Timed out waiting for admin login at {core_url}: {last_exc}")
@@ -57,7 +58,7 @@ def _wait_for_redis(port: int, timeout_seconds: int = 15) -> None:
         try:
             if client.ping():
                 return
-        except Exception as exc:  # pragma: no cover - readiness polling
+        except redis.exceptions.RedisError as exc:  # pragma: no cover - readiness polling
             last_exc = exc
             time.sleep(0.5)
     raise RuntimeError(f"Timed out waiting for redis on port {port}: {last_exc}")
@@ -129,7 +130,7 @@ def core_process(
     docker_compose_command: str,
     docker_compose_file: str,
     docker_compose_project_name: str,
-) -> Generator[str, None, None]:
+) -> Generator[str]:
     core_port = docker_services.port_for("core", 8080)
     base_url = f"http://127.0.0.1:{core_port}/api"
 
@@ -155,7 +156,7 @@ def redis_backend(
     docker_compose_command: str,
     docker_compose_file: str,
     docker_compose_project_name: str,
-) -> Generator[dict[str, str], None, None]:
+) -> Generator[dict[str, str]]:
     redis_port = docker_services.port_for("redis", 6379)
     try:
         _wait_for_redis(redis_port)
@@ -176,7 +177,7 @@ def worker_process(
     docker_compose_command: str,
     docker_compose_file: str,
     docker_compose_project_name: str,
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     try:
         _wait_for_worker_registration(core_process, timeout_seconds=180)
         yield
@@ -199,7 +200,7 @@ def cron_process(
     docker_compose_command: str,
     docker_compose_file: str,
     docker_compose_project_name: str,
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     try:
         _wait_for_cron_leader(redis_backend["url"], timeout_seconds=120)
         yield
@@ -216,10 +217,10 @@ def cron_process(
 
 
 @pytest.fixture(scope="session")
-def wordlist_server() -> Generator[str, None, None]:
+def wordlist_server() -> Generator[str]:
     yield "http://testdata/wordlist.csv"
 
 
 @pytest.fixture(scope="session")
-def rss_server() -> Generator[str, None, None]:
+def rss_server() -> Generator[str]:
     yield "http://testdata/feed.xml"

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -37,11 +37,11 @@ def test_misp_auto_update_is_scheduled_with_aware_utc(monkeypatch):
     monkeypatch.setattr(
         "core.service.misp_auto_update.queue_manager.queue_manager.enqueue_at", lambda *args, **kwargs: scheduled.append(args[2])
     )
-    earliest = datetime.now(timezone.utc) + timedelta(minutes=DEBOUNCE_MINUTES)
+    earliest = datetime.now(UTC) + timedelta(minutes=DEBOUNCE_MINUTES)
 
     refresh_misp_auto_update_job(story.id)
 
-    assert earliest <= scheduled[0] <= datetime.now(timezone.utc) + timedelta(minutes=DEBOUNCE_MINUTES)
+    assert earliest <= scheduled[0] <= datetime.now(UTC) + timedelta(minutes=DEBOUNCE_MINUTES)
 
 
 @pytest.mark.usefixtures("session")

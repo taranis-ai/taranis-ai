@@ -40,7 +40,7 @@ def test_marking_story_important_adds_relevance_bonus(
 ):
     story = create_story(story_relevance_story_payload_factory([story_relevance_news_item_payload_factory("manual")]))
 
-    response, status = Story.update(story.id, {"important": True})
+    _response, status = Story.update(story.id, {"important": True})
     assert status == 200
 
     updated_story = Story.get(story.id)

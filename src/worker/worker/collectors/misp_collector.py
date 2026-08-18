@@ -240,7 +240,7 @@ class MispCollector(BaseCollector):
     def get_extended_event_news_items(self, event: dict, misp, source) -> list:
         all_news_items = []
         if extending_events := event.get("Event", {}).get("extensionEvents", {}):
-            for extended_event_id, _ in extending_events.items():
+            for extended_event_id in extending_events:
                 logger.debug(f"Extending event with ID: {extended_event_id}")
                 extended_event = misp.get_event(extended_event_id, pythonify=False)
                 if not self.is_sharing_group_match(extended_event):
@@ -327,4 +327,3 @@ class MispCollector(BaseCollector):
         self.set_story_proposal_status(misp, story_dicts)
 
         self.publish_or_update_stories(story_dicts, source, story_attribute_key="misp_event_uuid")
-        return None

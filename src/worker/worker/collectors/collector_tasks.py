@@ -10,6 +10,7 @@ from rq import get_current_job
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
+from worker.collectors.rss_collector import EmptyRSSFeedError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
 
@@ -146,8 +147,43 @@ def collector_task(osint_source_id: str, manual: bool = False):
         try:
             collection_result = collector_impl.collect(source, manual)
             result_message = f"'{source.get('name')}': {collection_result}"
+        except EmptyRSSFeedError as e:
+            result_message = f"RSS feed {e.feed_url} is valid but currently contains no entries"
+            logger.info(result_message)
+            return _persist_and_return_result(
+                job,
+                core_api,
+                result_message,
+                worker_id=osint_source_id,
+                worker_type=worker_type,
+                meta_status="NOT_MODIFIED",
+                reason="rss_feed_empty",
+                data=_collector_result_data(osint_source_id, manual, collector_impl),
+            )
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
+            previous_status = source.get("status")
+            if isinstance(previous_status, dict):
+                previous_result = previous_status.get("result")
+                previous_result = previous_result if isinstance(previous_result, dict) else {}
+                previous_task_status = previous_status.get("status")
+                preserve_previous_result = previous_task_status == "FAILURE" or (
+                    previous_task_status == "NOT_MODIFIED" and previous_result.get("reason") == "rss_feed_empty"
+                )
+                if preserve_previous_result:
+                    previous_data = previous_result.get("data")
+                    result_data = dict(previous_data) if isinstance(previous_data, dict) else {}
+                    result_data.update(_collector_result_data(osint_source_id, manual, collector_impl))
+                    return _persist_and_return_result(
+                        job,
+                        core_api,
+                        str(previous_result.get("message") or f"No changes: {e}"),
+                        worker_id=osint_source_id,
+                        worker_type=worker_type,
+                        meta_status=previous_task_status,
+                        reason=previous_result.get("reason"),
+                        data=result_data,
+                    )
             result_message = f"No changes: {e}"
             return _persist_and_return_result(
                 job,
@@ -162,7 +198,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
         except Exception as e:
             logger.error(f"Collector task failed: {task_description}")
             task_status = "FAILURE"
-            result_message = f"Error: {str(e)}"
+            result_message = f"Error: {e!s}"
 
             # Save failure to database
             if job:

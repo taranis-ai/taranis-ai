@@ -1,6 +1,6 @@
 import pytest
 
-import worker.healthcheck as healthcheck
+from worker import healthcheck
 
 
 class FakeRedis:

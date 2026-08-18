@@ -28,36 +28,36 @@ class StoryOperationsService:
         return 0
 
     @classmethod
-    def get_initial_relevance_for_news_item(cls, news_item: "NewsItem | AssessNewsItem | dict[str, Any]") -> int:
+    def get_initial_relevance_for_news_item(cls, news_item: NewsItem | AssessNewsItem | dict[str, Any]) -> int:
         if isinstance(news_item, dict):
             return cls.get_initial_relevance_for_source(news_item.get("osint_source_id"))
         return cls.get_initial_relevance_for_source(getattr(news_item, "osint_source_id", None))
 
     @classmethod
-    def calculate_source_relevance(cls, story: "Story") -> int:
+    def calculate_source_relevance(cls, story: Story) -> int:
         return max((cls.get_initial_relevance_for_news_item(news_item) for news_item in story.news_items), default=0)
 
     @staticmethod
-    def calculate_vote_score(story: "Story") -> int:
+    def calculate_vote_score(story: Story) -> int:
         return (story.likes or 0) - (story.dislikes or 0)
 
     @classmethod
-    def calculate_important_bonus(cls, story: "Story") -> int:
+    def calculate_important_bonus(cls, story: Story) -> int:
         return cls.IMPORTANT_RELEVANCE_BONUS if story.important else 0
 
     @classmethod
-    def calculate_in_report_bonus(cls, story: "Story", in_reports_count: int | None = None) -> int:
+    def calculate_in_report_bonus(cls, story: Story, in_reports_count: int | None = None) -> int:
         from core.model.story import ReportItemStory
 
         report_count = in_reports_count if in_reports_count is not None else ReportItemStory.count(story.id)
         return cls.IN_REPORT_RELEVANCE_BONUS if report_count > 0 else 0
 
     @classmethod
-    def calculate_relevance_feedback(cls, story: "Story", in_reports_count: int | None = None) -> int:
+    def calculate_relevance_feedback(cls, story: Story, in_reports_count: int | None = None) -> int:
         return cls.calculate_vote_score(story) + cls.calculate_important_bonus(story) + cls.calculate_in_report_bonus(story, in_reports_count)
 
     @classmethod
-    def recompute_relevance(cls, story: "Story", in_reports_count: int | None = None) -> int:
+    def recompute_relevance(cls, story: Story, in_reports_count: int | None = None) -> int:
         story.relevance = (
             cls.calculate_source_relevance(story)
             + cls.calculate_relevance_feedback(story, in_reports_count)
@@ -66,7 +66,7 @@ class StoryOperationsService:
         return story.relevance
 
     @staticmethod
-    def sync_vote_counts(story: "Story") -> None:
+    def sync_vote_counts(story: Story) -> None:
         from core.model.story import NewsItemVote
 
         votes = list(db.session.execute(db.select(NewsItemVote).filter(NewsItemVote.item_id == story.id)).scalars())
@@ -78,7 +78,7 @@ class StoryOperationsService:
         return (vote.user_id is None, vote.user_id if vote.user_id is not None else vote.id)
 
     @classmethod
-    def merge_votes_into_story(cls, target_story: "Story", absorbed_story_ids: list[str]) -> None:
+    def merge_votes_into_story(cls, target_story: Story, absorbed_story_ids: list[str]) -> None:
         if not absorbed_story_ids:
             return
 
@@ -129,10 +129,10 @@ class StoryOperationsService:
 
     @staticmethod
     def transfer_news_item_to_story(
-        target_story: "Story",
-        news_item: "NewsItem | None",
-        source_stories_by_id: dict[str, "Story"],
-        user: "User | None" = None,
+        target_story: Story,
+        news_item: NewsItem | None,
+        source_stories_by_id: dict[str, Story],
+        user: User | None = None,
     ) -> None:
         story_cls = type(target_story)
         if not news_item or (user is not None and not news_item.allowed_with_acl(user, True)) or news_item.story_id == target_story.id:
@@ -148,10 +148,10 @@ class StoryOperationsService:
     @classmethod
     def finalize_story_merge(
         cls,
-        target_story: "Story",
-        source_stories: list["Story"],
+        target_story: Story,
+        source_stories: list[Story],
         actor: str | None = None,
-    ) -> set["Story"]:
+    ) -> set[Story]:
         processed_stories = {target_story, *source_stories}
         absorbed_story_ids: list[str] = []
         absorbed_overrides = [target_story.relevance_override or 0]
