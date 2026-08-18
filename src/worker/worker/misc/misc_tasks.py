@@ -3,7 +3,7 @@
 Miscellaneous worker tasks including cleanup and wordlist updates.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from croniter import croniter
 from rq import get_current_job
@@ -76,7 +76,7 @@ def _reschedule_cleanup():
 
         # Calculate next run time from cron expression
         cron_expr = "0 2 * * *"  # Daily at 2 AM
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cron = croniter(cron_expr, now)
         next_run = cron.get_next(datetime)
         if not isinstance(next_run, datetime):

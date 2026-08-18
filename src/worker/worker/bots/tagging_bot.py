@@ -32,9 +32,8 @@ class TaggingBot(BaseBot):
                 analyzed_content = set(_news_item_content_for_tagging(news_item).split())
 
                 for element in analyzed_content:
-                    if finding := re.search(f"({regexp})", element.strip(".,")):
-                        if finding[1] not in existing_tags:
-                            findings.add(finding[1])
+                    if (finding := re.search(f"({regexp})", element.strip(".,"))) and finding[1] not in existing_tags:
+                        findings.add(finding[1])
                 found_tags[news_item["id"]] = sorted(findings)
 
         logger.info({"message": f"Extracted {len(found_tags)} tags"})

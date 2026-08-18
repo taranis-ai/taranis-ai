@@ -2,6 +2,7 @@
 
 # pyright: reportMissingParameterType=false
 import pytest
+from niquests.exceptions import RequestException
 
 import worker.bots
 from worker.bots.bot_tasks import bot_task
@@ -272,7 +273,7 @@ class TestSaveTaskResult:
 
     def test_save_task_result_handles_api_failure_gracefully(self, requests_mock, caplog):
         """Test that save_task_result handles API call failures without raising."""
-        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", exc=Exception("API connection failed"))
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", exc=RequestException("API connection failed"))
 
         # Should not raise, just log
         CoreApi().save_task_result("job-789", "bot_error", "SUCCESS", message="data")

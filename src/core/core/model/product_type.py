@@ -2,6 +2,7 @@ import os
 from typing import Any
 
 from models.types import PRESENTER_TYPES
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.expression import Select
 
@@ -73,7 +74,7 @@ class ProductType(BaseModel):
     def filter_by_title(cls, title: str) -> "ProductType | None":
         try:
             return db.session.execute(db.select(cls).where(cls.title == title)).scalar_one_or_none()
-        except Exception:
+        except SQLAlchemyError:
             logger.exception(f"Error filtering product types by title: {title}")
             return None
 

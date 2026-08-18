@@ -88,73 +88,73 @@
   {# djlint:on #}
   {% if headline %}<h4 class="text-l font-bold mb-1 mt-5">{{ headline }}</h4>{% endif %}
   <input x-model.debounce="searchInput" type="text" class="w-full input" placeholder="Search..." />
-</div>
-<table class="table table-sm" id="{{ table_id }}">
-  <thead>
-    <tr>
-      {% if selectable %}
-        <th>
-          <input type="checkbox" class="checkbox" @click="toggleSelectAll" :checked="checkAllSelected()" />
-        </th>
-      {% endif %}
-      {% for col in columns %}{{ datatable_header(col.title, col.sortable) }}{% endfor %}
-    </tr>
-  </thead>
-  <tbody>
-    <template x-for="(item, index) in items" :key="index">
-      <tr class="hover:bg-base-200 text-base-900 text-xs">
+  </div>
+  <table class="table table-sm" id="{{ table_id }}">
+    <thead>
+      <tr>
         {% if selectable %}
-          <td>
-            <input type="checkbox" class="checkbox checkbox-sm" :value="item.id" :checked="selectedItems.includes(item.id)" @change="toggleItem(item.id)" />
-          </td>
+          <th>
+            <input type="checkbox" class="checkbox" @click="toggleSelectAll" :checked="checkAllSelected()" />
+          </th>
         {% endif %}
-
-        {% for col in columns %}
-          <td>
-            <span x-text="item.{{ col.field }}"></span>
-          </td>
-        {% endfor %}
+        {% for col in columns %}{{ datatable_header(col.title, col.sortable) }}{% endfor %}
       </tr>
-    </template>
-    <tr x-show="isEmpty()">
-      <td colspan="5" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
-    </tr>
-  </tbody>
-  <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
-    <tr>
-      <td colspan="{{ (columns|length + (1 if selectable else 0)) }}">
-        <div class="flex justify-center">
-          <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
-            <div class="items-center gap-2">
-              <span class="text-sm font-medium">Items per page:</span>
-              <select x-model.number="view" @change="updateView" class="select select-bordered w-18">
-                {% set current_limit = request.args.get('limit', 5) %}
-                {% for option in [5, 20, 50, 100, 500] %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
-              </select>
-            </div>
+    </thead>
+    <tbody>
+      <template x-for="(item, index) in items" :key="index">
+        <tr class="hover:bg-base-200 text-base-900 text-xs">
+          {% if selectable %}
+            <td>
+              <input type="checkbox" class="checkbox checkbox-sm" :value="item.id" :checked="selectedItems.includes(item.id)" @change="toggleItem(item.id)" />
+            </td>
+          {% endif %}
 
-            <div class="flex items-center gap-2">
-              <a class="btn btn-sm h-8" @click="changePage(1)">«</a>
-              <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage - 1)">‹</a>
+          {% for col in columns %}
+            <td>
+              <span x-text="item.{{ col.field }}"></span>
+            </td>
+          {% endfor %}
+        </tr>
+      </template>
+      <tr x-show="isEmpty()">
+        <td colspan="5" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
+      </tr>
+    </tbody>
+    <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
+      <tr>
+        <td colspan="{{ (columns|length + (1 if selectable else 0)) }}">
+          <div class="flex justify-center">
+            <div class="flex items-center justify-between gap-8 bg-base-100 w-fit">
+              <div class="items-center gap-2">
+                <span class="text-sm font-medium">Items per page:</span>
+                <select x-model.number="view" @change="updateView" class="select select-bordered w-18">
+                  {% set current_limit = request.args.get('limit', 5) %}
+                  {% for option in [5, 20, 50, 100, 500] %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
+                </select>
+              </div>
 
-              <span class="flex px-3 py-1 h-8 items-center bg-base-200 rounded-md text-sm font-semibold"
-                    x-text="'Page ' + pagination.currentPage + ' of ' + pagination.lastPage"></span>
+              <div class="flex items-center gap-2">
+                <a class="btn btn-sm h-8" @click="changePage(1)">«</a>
+                <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage - 1)">‹</a>
 
-              <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage + 1)">›</a>
-              <a class="btn btn-sm h-8" @click="changePage(pagination.lastPage)">»</a>
+                <span class="flex px-3 py-1 h-8 items-center bg-base-200 rounded-md text-sm font-semibold"
+                      x-text="'Page ' + pagination.currentPage + ' of ' + pagination.lastPage"></span>
+
+                <a class="btn btn-sm h-8" @click="changePage(pagination.currentPage + 1)">›</a>
+                <a class="btn btn-sm h-8" @click="changePage(pagination.lastPage)">»</a>
+              </div>
             </div>
           </div>
-        </div>
-      </td>
-    </tr>
-  </tfoot>
-</table>
-{% if selectable %}
-  <template x-for="item in selectedItems" :key="item">
-    <input type="hidden" name="{{ input_name }}" :value="item" />
-  </template>
-{% endif %}
-</div>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+  {% if selectable %}
+    <template x-for="item in selectedItems" :key="item">
+      <input type="hidden" name="{{ input_name }}" :value="item" />
+    </template>
+  {% endif %}
+  </div>
 {% endmacro %}
 
 {% macro datatable_header(title, sortable=false) %}

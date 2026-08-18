@@ -1,6 +1,7 @@
 from unittest.mock import Mock, patch
 
 from flask import Response, url_for
+from requests import RequestException
 
 import frontend.views.auth_views as auth_views_module
 from frontend.views.auth_views import AuthView
@@ -9,13 +10,12 @@ from frontend.views.auth_views import AuthView
 def test_external_login_with_retries_handles_exception_then_succeeds(app, monkeypatch):
     mock_api = Mock()
     successful_core_response = object()
-    mock_api.external_login.side_effect = [Exception("core unavailable"), None, successful_core_response]
+    mock_api.external_login.side_effect = [RequestException("core unavailable"), None, successful_core_response]
     monkeypatch.setattr(auth_views_module, "CoreApi", lambda: mock_api)
 
     view = AuthView()
-    with app.test_request_context("/login"):
-        with patch.object(view, "login_flow", return_value=Response(status=302)) as login_flow:
-            response = view._external_login_with_retries({"X-USER": "demo"}, attempts=3)
+    with app.test_request_context("/login"), patch.object(view, "login_flow", return_value=Response(status=302)) as login_flow:
+        response = view._external_login_with_retries({"X-USER": "demo"}, attempts=3)
 
     assert response.status_code == 302
     assert mock_api.external_login.call_count == 3
@@ -46,9 +46,8 @@ def test_external_login_with_retries_handles_falsy_response_object(app, monkeypa
     monkeypatch.setattr(auth_views_module, "CoreApi", lambda: mock_api)
 
     view = AuthView()
-    with app.test_request_context("/login"):
-        with patch.object(view, "login_flow", return_value=Response(status=401)) as login_flow:
-            response = view._external_login_with_retries({"X-USER": "demo"}, attempts=1)
+    with app.test_request_context("/login"), patch.object(view, "login_flow", return_value=Response(status=401)) as login_flow:
+        response = view._external_login_with_retries({"X-USER": "demo"}, attempts=1)
 
     assert response.status_code == 401
     login_flow.assert_called_once_with(core_response)

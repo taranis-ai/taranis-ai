@@ -60,9 +60,9 @@
           </div>
 
           <div class="mt-4 grid gap-3 md:grid-cols-3">
-            {{ metric("Attack vector", cvss_data.get("attackVector") ) }}
-            {{ metric("Privileges", cvss_data.get("privilegesRequired") ) }}
-            {{ metric("User interaction", cvss_data.get("userInteraction") ) }}
+            {{ metric("Attack vector", cvss_data.get("attackVector")) }}
+            {{ metric("Privileges", cvss_data.get("privilegesRequired")) }}
+            {{ metric("User interaction", cvss_data.get("userInteraction")) }}
           </div>
 
           {% if cvss_data.get("vectorString") %}<div class="mt-3 font-mono text-xs break-all">{{ cvss_data.get("vectorString") }}</div>{% endif %}
@@ -139,10 +139,10 @@
   {% set result_link = report.get("link") or data_links.get("self") %}
   <div class="space-y-4">
     <div class="grid gap-3 md:grid-cols-4">
-      {{ metric("Type", data.get("type") ) }}
-      {{ metric("Reputation", attrs.get("reputation") ) }}
-      {{ metric("Title", attrs.get("title") ) }}
-      {{ metric("Category", attrs.get("web_category") ) }}
+      {{ metric("Type", data.get("type")) }}
+      {{ metric("Reputation", attrs.get("reputation")) }}
+      {{ metric("Title", attrs.get("title")) }}
+      {{ metric("Category", attrs.get("web_category")) }}
     </div>
 
     {% if attrs.get("url") or attrs.get("last_final_url") %}
@@ -162,8 +162,8 @@
         {{ metric("Malicious", stats.get("malicious", 0) , "text-error") }}
         {{ metric("Suspicious", stats.get("suspicious", 0) , "text-warning") }}
         {{ metric("Harmless", stats.get("harmless", 0) , "text-success") }}
-        {{ metric("Undetected", stats.get("undetected", 0) ) }}
-        {{ metric("Timeout", stats.get("timeout", 0) ) }}
+        {{ metric("Undetected", stats.get("undetected", 0)) }}
+        {{ metric("Timeout", stats.get("timeout", 0)) }}
       </div>
     {% endif %}
 
@@ -185,7 +185,7 @@
             {% for engine, result in results.items() if result.get("category") in ["malicious", "suspicious"] %}
               <tr>
                 <td>{{ engine }}</td>
-                <td>{{ status_badge(result.get("category") ) }}</td>
+                <td>{{ status_badge(result.get("category")) }}</td>
                 <td>{{ result.get('result', 'n/a') }}</td>
               </tr>
             {% else %}
@@ -207,8 +207,8 @@
   {% else %}
     <div class="grid gap-3 md:grid-cols-3">
       {{ metric("Query status", query_status) }}
-      {{ metric("URL status", report.get("url_status") ) }}
-      {{ metric("Threat", report.get("threat") ) }}
+      {{ metric("URL status", report.get("url_status")) }}
+      {{ metric("Threat", report.get("threat")) }}
     </div>
     {{ raw_json(report) }}
   {% endif %}

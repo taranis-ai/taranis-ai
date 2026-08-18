@@ -1,5 +1,5 @@
 # pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import fakeredis
@@ -91,7 +91,7 @@ class _FailedJob:
         self.func_name = "other.task"
         self.args = []
         self.meta = {}
-        self.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+        self.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
 
     @staticmethod
     def latest_result():
@@ -155,7 +155,7 @@ def test_filter_sort_paginate_jobs_uses_defaults_for_invalid_paging(filter_args)
 
 
 def test_annotate_jobs_ignores_scheduled_lateness(monkeypatch):
-    fixed_now = datetime(2025, 12, 12, 8, 10, tzinfo=timezone.utc)
+    fixed_now = datetime(2025, 12, 12, 8, 10, tzinfo=UTC)
 
     class _FixedDateTime(datetime):
         @classmethod
@@ -178,7 +178,7 @@ def test_annotate_jobs_ignores_scheduled_lateness(monkeypatch):
 
 
 def test_annotate_jobs_marks_first_cron_run_pending(monkeypatch):
-    fixed_now = datetime(2025, 12, 12, 8, 0, tzinfo=timezone.utc)
+    fixed_now = datetime(2025, 12, 12, 8, 0, tzinfo=UTC)
 
     class _FixedDateTime(datetime):
         @classmethod
@@ -250,7 +250,7 @@ def test_cancel_job_cancels_instance_and_cron(monkeypatch):
 
 def test_cancel_job_returns_false_when_not_found(monkeypatch):
     def fake_fetch(job_id, connection=None):
-        raise Exception("missing")
+        raise qm_module.NoSuchJobError("missing")
 
     monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
 
@@ -349,7 +349,7 @@ def test_get_active_jobs_uses_registry(monkeypatch):
             self.func_name = "other.task"
             self.args = []
             self.meta = {}
-            self.started_at = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+            self.started_at = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
 
     class FakeRegistry:
         def __init__(self, queue=None):
@@ -649,7 +649,7 @@ def test_enqueue_at_preserves_user_priority(monkeypatch):
 
     qm = _make_queue_manager()
     monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
-    scheduled_time = datetime(2026, 7, 23, tzinfo=timezone.utc)
+    scheduled_time = datetime(2026, 7, 23, tzinfo=UTC)
 
     qm.enqueue_at(
         "presenters",
@@ -686,7 +686,7 @@ def test_enqueue_at_keeps_background_job_at_normal_priority(monkeypatch):
 
     qm = _make_queue_manager()
     monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
-    scheduled_time = datetime(2026, 7, 23, tzinfo=timezone.utc)
+    scheduled_time = datetime(2026, 7, 23, tzinfo=UTC)
 
     qm.enqueue_at(
         "presenters",

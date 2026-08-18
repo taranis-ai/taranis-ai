@@ -32,9 +32,8 @@ def test_set_user_roles_replaces_existing_roles(app, session):
 
 
 def test_set_user_roles_rejects_missing_role(app, session):
-    with app.app_context():
-        with pytest.raises(click.ClickException, match=r"Role 'missing-role' not found"):
-            set_user_roles("user", ("missing-role",))
+    with app.app_context(), pytest.raises(click.ClickException, match=r"Role 'missing-role' not found"):
+        set_user_roles("user", ("missing-role",))
 
 
 def test_set_password_stdin_rejects_empty_input():

@@ -11,14 +11,14 @@ from worker.publishers.wordpress_publisher import WORDPRESSPublisher
 
 
 __all__ = [
-    "EMAILPublisher",
-    "MISPPublisher",
-    "WORDPRESSPublisher",
     "BasePublisher",
+    "EMAILPublisher",
     "FTPPublisher",
-    "SFTPPublisher",
-    "S3Publisher",
     "KafkaPublisher",
+    "MISPPublisher",
+    "S3Publisher",
+    "SFTPPublisher",
     "TAXIIPublisher",
     "TaranisPublisher",
+    "WORDPRESSPublisher",
 ]

@@ -247,7 +247,7 @@ class Attribute(BaseModel):
                         block_item_count = 0
                         db.session.commit()
 
-        logger.debug(f"Processed CPE items: {str(item_count)}")
+        logger.debug(f"Processed CPE items: {item_count!s}")
         db.session.commit()
 
     @classmethod

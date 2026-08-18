@@ -65,7 +65,7 @@ class SchedulerView(AdminBaseView):
     base_route = "admin.scheduler"
     _read_only = True
     _index = 61
-    allowed_tabs = {"scheduled", "active", "failed", "history"}
+    allowed_tabs = frozenset({"scheduled", "active", "failed", "history"})
 
     @classmethod
     def _resolve_tab(cls, initial_tab: str | None) -> str:

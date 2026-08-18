@@ -191,14 +191,14 @@ class RTCollector(BaseWebCollector):
         icon_url = f"{urlparse(self.base_url).scheme}://{urlparse(self.base_url).netloc}/static/images/favicon.png"
         r = self._fetch_icon(icon_url)
         if not r.ok or not (content := r.content):
-            return None
+            return
 
         filename = r.headers.get("content-disposition")
         if not isinstance(filename, str):
             filename = "file"
         icon_content: IconFile = {"file": (filename, content)}
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
-        return None
+        return
 
     def rt_collector(self, source: dict) -> list[dict]:
         self.last_attempted = self.get_last_attempted(source)

@@ -153,12 +153,12 @@ class NewsItemTag(BaseModel):
                 name = tag_key
                 tag_type = tag_data
             else:
-                raise ValueError(f"Invalid tag format for key '{tag_key}': {type(tag_data).__name__} - must be str or dict")
+                raise TypeError(f"Invalid tag format for key '{tag_key}': {type(tag_data).__name__} - must be str or dict")
 
             if not isinstance(name, str) or not name.strip():
                 continue
             name = name.strip()
-            tag_type = tag_type if tag_type else "misc"
+            tag_type = tag_type or "misc"
             parsed_tags[name] = NewsItemTag(name=name, tag_type=tag_type)
 
         return parsed_tags

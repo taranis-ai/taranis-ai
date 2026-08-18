@@ -1,6 +1,6 @@
 import json
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from misp_stix_converter import MISPtoSTIX21Parser
@@ -124,7 +124,7 @@ class STIXPresenter(BasePresenter):
         base_misp_builder.init_misp_event(event, report_item, sharing_group_id=None, distribution=1)
 
         event.published = True
-        event.publish_timestamp = int(datetime.now(timezone.utc).timestamp())
+        event.publish_timestamp = int(datetime.now(UTC).timestamp())
 
         for group_title, attributes in report_item.get("attributes", {}).items():
             if not attributes:
@@ -166,7 +166,7 @@ class STIXPresenter(BasePresenter):
         if not product or not report_refs:
             return None
 
-        now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        now = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
         product_title = str(product.get("title") or "Taranis Product")
 
         grouping_object = {
