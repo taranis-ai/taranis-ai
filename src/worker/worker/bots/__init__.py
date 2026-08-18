@@ -13,14 +13,14 @@ from worker.bots.wordlist_bot import WordlistBot
 
 __all__ = [
     "AnalystBot",
+    "CyberSecClassifierBot",
     "GroupingBot",
-    "NLPBot",
-    "TaggingBot",
-    "WordlistBot",
-    "StoryBot",
     "IOCBot",
     "IntelOwlBot",
-    "SummaryBot",
+    "NLPBot",
     "SentimentAnalysisBot",
-    "CyberSecClassifierBot",
+    "StoryBot",
+    "SummaryBot",
+    "TaggingBot",
+    "WordlistBot",
 ]

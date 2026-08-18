@@ -1,8 +1,9 @@
 import base64
 import json
-from datetime import datetime
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from models.admin import CronSpec, OSINTSourceUpdateModel
 from models.admin import OSINTSource as OSINTSourceModel
@@ -104,7 +105,7 @@ class OSINTSource(BaseModel):
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
-    _ALLOWED_ICON_FORMATS = {"GIF", "ICO", "PNG", "JPEG", "WEBP"}
+    _ALLOWED_ICON_FORMATS = frozenset({"GIF", "ICO", "PNG", "JPEG", "WEBP"})
 
     def __init__(
         self,
@@ -156,9 +157,8 @@ class OSINTSource(BaseModel):
             normalized_id = cls.normalize_uuid_id(item_id)
         except (TypeError, ValueError):
             normalized_id = None
-        if normalized_id and normalized_id != lookup_id:
-            if osint_source := super().get(normalized_id):
-                return osint_source
+        if normalized_id and normalized_id != lookup_id and (osint_source := super().get(normalized_id)):
+            return osint_source
         if lookup_id:
             return cls.get_by_key(lookup_id)
         return None
@@ -400,12 +400,11 @@ class OSINTSource(BaseModel):
 
         Note: All times are calculated in UTC for consistency across the system.
         """
-        from datetime import timezone
 
         from core.managers import queue_manager as queue_manager_module
         from core.managers.queue_manager import QueueManager
 
-        now = now or datetime.now(timezone.utc).replace(tzinfo=None)
+        now = now or datetime.now(UTC).replace(tzinfo=None)
         schedule_entries: list[dict[str, Any]] = []
 
         sources = cls.get_all_for_collector()
@@ -933,9 +932,8 @@ class OSINTSourceGroup(BaseModel):
             normalized_id = cls.normalize_uuid_id(item_id)
         except (TypeError, ValueError):
             normalized_id = None
-        if normalized_id and normalized_id != lookup_id:
-            if osint_source_group := super().get(normalized_id):
-                return osint_source_group
+        if normalized_id and normalized_id != lookup_id and (osint_source_group := super().get(normalized_id)):
+            return osint_source_group
         if lookup_id:
             return cls.get_by_key(lookup_id)
         return None

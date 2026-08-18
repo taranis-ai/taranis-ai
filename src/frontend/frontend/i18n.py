@@ -99,9 +99,8 @@ def select_timezone() -> str:
         return _default_timezone()
 
     user = _current_request_user()
-    if user:
-        if timezone_name := _valid_timezone(_profile_value(user, "timezone")):
-            return timezone_name
+    if user and (timezone_name := _valid_timezone(_profile_value(user, "timezone"))):
+        return timezone_name
 
     return _default_timezone()
 

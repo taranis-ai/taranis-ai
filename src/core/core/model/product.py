@@ -1,6 +1,7 @@
+import binascii
 import mimetypes
 from base64 import b64decode
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Mapped, deferred, relationship
@@ -24,7 +25,7 @@ class Product(BaseModel):
     title: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
-    created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
     auto_publish: Mapped[bool] = db.Column(db.Boolean, default=False)
 
     product_type_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("product_type.id"))
@@ -86,7 +87,7 @@ class Product(BaseModel):
 
         if filter_range := filter_args.get("range"):
             filter_range = filter_range.upper()
-            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            date_limit = BaseModel.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
             if filter_range == "WEEK":
                 date_limit -= timedelta(days=date_limit.weekday())
@@ -140,13 +141,13 @@ class Product(BaseModel):
         try:
             b64decode(render_result)
             return True
-        except Exception:
+        except (binascii.Error, TypeError, ValueError):
             logger.exception()
             return False
 
     def update_render(self, render_result: str) -> bool:
         if self.test_if_valid_render_result(render_result):
-            self.last_rendered = datetime.now()
+            self.last_rendered = self.utcnow()
             self.render_result = render_result
             db.session.commit()
             return True
@@ -169,13 +170,12 @@ class Product(BaseModel):
         file_extension = mimetypes.guess_extension(mime_type, strict=False)
         if file_extension == ".stix":
             file_extension = ".json"
-        return f"{product_title}_{datetime.now().strftime('%d-%m-%Y_%H-%M')}{file_extension}"
+        return f"{product_title}_{datetime.now(UTC).strftime('%d-%m-%Y_%H-%M')}{file_extension}"
 
     @classmethod
     def get_render(cls, product_id: str):
-        if product := cls.get(product_id):
-            if product.render_result:
-                return {"mime_type": product.product_type.get_mimetype(), "blob": product.render_result, "filename": product.get_file_name()}
+        if (product := cls.get(product_id)) and product.render_result:
+            return {"mime_type": product.product_type.get_mimetype(), "blob": product.render_result, "filename": product.get_file_name()}
         return None
 
     @classmethod

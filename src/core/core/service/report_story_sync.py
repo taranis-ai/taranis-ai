@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Literal
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Literal
 
 from core.managers.db_manager import db
 from core.service.misp_auto_update import refresh_misp_auto_update_jobs
@@ -17,11 +18,11 @@ ReportStoryAction = Literal["attach", "detach", "retag"]
 
 class ReportStorySyncService:
     @staticmethod
-    def refresh_auto_update_jobs(stories: Iterable["Story"]) -> None:
+    def refresh_auto_update_jobs(stories: Iterable[Story]) -> None:
         refresh_misp_auto_update_jobs(story.id for story in stories)
 
     @classmethod
-    def update_affected_stories(cls, stories: Iterable["Story"], flush: bool = True) -> list["Story"]:
+    def update_affected_stories(cls, stories: Iterable[Story], flush: bool = True) -> list[Story]:
         stories = list(stories)
         if not stories:
             return []
@@ -35,7 +36,7 @@ class ReportStorySyncService:
         return stories
 
     @classmethod
-    def sync_report_membership(cls, report: "ReportItem", stories: Iterable["Story"], action: ReportStoryAction) -> list["Story"]:
+    def sync_report_membership(cls, report: ReportItem, stories: Iterable[Story], action: ReportStoryAction) -> list[Story]:
         stories = list(stories)
         if not stories:
             return []

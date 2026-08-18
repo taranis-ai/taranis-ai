@@ -54,12 +54,12 @@ class Settings(BaseModel):
             return {"error": "settings must be a JSON object"}, 400
         try:
             update_data = cls._normalize_update_data(dict(raw_update_data))
-        except ValueError:
+        except (TypeError, ValueError):
             return {"error": "Invalid timezone"}, 400
         if "default_bot_lookback_days" in update_data:
             try:
                 update_data["default_bot_lookback_days"] = cls._validate_non_negative_int(update_data["default_bot_lookback_days"])
-            except ValueError:
+            except (TypeError, ValueError):
                 return {"error": "Invalid bot lookback setting"}, 400
         if "onboarding_enabled" in update_data:
             try:
@@ -121,7 +121,7 @@ class Settings(BaseModel):
         if value is None:
             return None
         if not isinstance(value, str):
-            raise ValueError("Invalid timezone: must be a string")
+            raise TypeError("Invalid timezone: must be a string")
         timezone_name = value.strip()
         if not timezone_name:
             return None
@@ -142,7 +142,7 @@ class Settings(BaseModel):
     @staticmethod
     def _validate_non_negative_int(value: Any) -> int:
         if isinstance(value, bool):
-            raise ValueError("Invalid non-negative integer")
+            raise TypeError("Invalid non-negative integer")
         if isinstance(value, int):
             normalized = value
         elif isinstance(value, str) and value.strip().isdecimal():

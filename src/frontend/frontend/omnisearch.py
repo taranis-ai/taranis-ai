@@ -566,9 +566,8 @@ def _item_description(scope: OmniSearchScope, item: TaranisBaseModel) -> str:
         if completed is not None:
             parts.append("completed" if completed else "incomplete")
         return " - ".join(parts)
-    if scope == "product":
-        if description := getattr(item, "description", None):
-            return str(description)
+    if scope == "product" and (description := getattr(item, "description", None)):
+        return str(description)
     return ""
 
 

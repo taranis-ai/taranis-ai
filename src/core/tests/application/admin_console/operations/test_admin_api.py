@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from tests.application.support.api_test_base import BaseTest
 
@@ -233,7 +233,7 @@ def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
 
 
 def test_export_stories_rejects_future_datetime_filters(client, auth_header):
-    future_time = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    future_time = (datetime.now(UTC) + timedelta(days=1)).isoformat()
 
     r = client.get(f"/api/settings/export-stories?timeto={future_time}", headers=auth_header)
 

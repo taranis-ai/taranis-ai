@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func
@@ -125,15 +125,14 @@ class NewsItemTagService:
 
     @staticmethod
     def set_worker_execution_attribute(*, worker_type: str, worker_id: str, found_tags: dict[str, Any]) -> set[str]:
-        now = datetime.now().isoformat()
+        now = datetime.now(UTC).isoformat()
         tag_counts_by_story: dict[str, int] = {}
         stories_by_id: dict[str, Story] = {}
 
         for news_item_id, tags in found_tags.items():
-            if news_item := NewsItem.get(news_item_id):
-                if story := news_item.story:
-                    stories_by_id[story.id] = story
-                    tag_counts_by_story[story.id] = tag_counts_by_story.get(story.id, 0) + len(tags)
+            if (news_item := NewsItem.get(news_item_id)) and (story := news_item.story):
+                stories_by_id[story.id] = story
+                tag_counts_by_story[story.id] = tag_counts_by_story.get(story.id, 0) + len(tags)
 
         for story_id, tag_count in tag_counts_by_story.items():
             story = stories_by_id[story_id]

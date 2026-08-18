@@ -1,5 +1,5 @@
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from flask import Response, send_file
@@ -14,7 +14,7 @@ from core.service.story import StoryService
 class AdminService:
     @staticmethod
     def _build_export_filename() -> str:
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         return f"story_export_{timestamp}.json"
 
     @classmethod

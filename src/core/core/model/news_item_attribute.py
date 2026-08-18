@@ -19,7 +19,7 @@ class NewsItemAttribute(BaseModel):
     value: Mapped[str] = db.Column(db.String(), nullable=False)
     binary_mime_type: Mapped[str] = db.Column(db.String())
     binary_data: Mapped = deferred(db.Column(db.LargeBinary))
-    created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
 
     def __init__(self, key, value, binary_mime_type=None, binary_value=None, id=None):
         self.id = self.normalize_uuid_id(id)

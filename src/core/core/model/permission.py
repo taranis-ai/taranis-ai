@@ -52,9 +52,8 @@ class Permission(BaseModel):
             normalized_id = cls.normalize_uuid_id(item_id)
         except (TypeError, ValueError):
             normalized_id = None
-        if normalized_id and normalized_id != lookup_id:
-            if permission := super().get(normalized_id):
-                return permission
+        if normalized_id and normalized_id != lookup_id and (permission := super().get(normalized_id)):
+            return permission
         if lookup_id:
             return cls.get_by_code(lookup_id)
         return None

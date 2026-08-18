@@ -20,4 +20,8 @@ Memory files provide expected behavior, code paths, tests, and known pitfalls; i
 
 ## Exception Handling
 
-- Never expose `str(exc)`, `repr(exc)`, tracebacks, or other exception-derived text in HTTP responses, rendered UI, or worker results. Log the exception server-side and return a static message, an explicitly curated `public_message`, or the project's validation-error formatter; add a regression test with sensitive sentinel text for boundary fixes.
+- Never expose `str(exc)`, `repr(exc)`, tracebacks, or other exception-derived text in HTTP responses, rendered UI, or worker results. Log the exception server-side and return a static message, an explicitly curated `public_message`, or the project's validation-error formatter.
+
+## Test Discipline
+
+Review every newly added test against the existing test suite. Remove tests that duplicate existing coverage or rely so heavily on mocking that they do not meaningfully exercise behavior. Keep a new test only when it adds necessary, effective coverage—the best code is no code, and that applies to test code too.
