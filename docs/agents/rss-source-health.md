@@ -6,9 +6,9 @@ RSS collectors, Atom feeds, feedparser validation, empty feeds, OSINT source sta
 
 ## Expected Behavior
 
-An RSS source fails immediately when feedparser cannot identify the response as RSS or Atom. A conditional 304 after that failure keeps the source failed because the unchanged response cannot prove that the feed became valid. A newly configured, parseable feed that produces no news items remains `PENDING` for its first two consecutive collection attempts and changes to `FAILURE` on the third. If the source has already completed successfully, a later empty feed is `NOT_MODIFIED` instead of restarting the pending sequence.
+An RSS source fails immediately when feedparser cannot identify the response as RSS or Atom. A conditional 304 after that failure keeps the source failed because the unchanged response cannot prove that the feed became valid. A parseable feed with no entries is `NOT_MODIFIED` with the `rss_feed_empty` reason and a message explaining that the feed is valid but empty.
 
-Each state includes a user-facing message. Pending and terminal empty-feed results use the `rss_feed_empty` reason and persist the current attempt plus the failure threshold in result data.
+Each state includes a user-facing message. Empty-feed results persist the current HTTP validators but do not count collection attempts or become failures.
 
 ## Code Paths
 
@@ -19,7 +19,7 @@ Each state includes a user-facing message. Pending and terminal empty-feed resul
 
 ## Data Flow
 
-Core includes the latest persisted collector task in the worker's OSINT source payload. The RSS collector rejects responses without a detected feed version and reports parseable feeds that produce no items separately. The collector task reads the preceding `rss_feed_empty` result, increments its persisted attempt count, and writes `PENDING` or `FAILURE`. Empty-feed results persist the current HTTP validators. A successful collection resets the sequence naturally because its result no longer has the empty-feed reason; a 304 preserves a preceding unsuccessful result instead of marking it successful.
+Core includes the latest persisted collector task in the worker's OSINT source payload. The RSS collector rejects responses without a detected feed version and reports parseable feeds that produce no items separately. The collector task records an empty feed as `NOT_MODIFIED` with the `rss_feed_empty` reason. A later 304 preserves that reason and message so the user continues to see that the unchanged feed is empty. A 304 also preserves a preceding failure instead of marking it successful.
 
 ## Testing
 
@@ -27,4 +27,4 @@ Run `cd src/worker && uv run pytest tests/collectors/test_collector.py tests/col
 
 ## Pitfalls
 
-Do not reject a feed solely because feedparser sets `bozo`; malformed feeds can still be identifiable and usable. Empty means the parsed feed has no entries, not that filters or digest processing produced no publishable items. Empty-feed attempts are stored in task result data rather than a source column, so scheduled and manual collections share the same source status flow without a migration. Do not count a later empty response as a new-source failure when the preceding source status has a successful run.
+Do not reject a feed solely because feedparser sets `bozo`; malformed feeds can still be identifiable and usable. Empty means the parsed feed has no entries, not that filters or digest processing produced no publishable items. Do not add an empty-feed retry counter: repeated emptiness cannot distinguish a dormant valid feed from a broken one.

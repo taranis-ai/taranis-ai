@@ -91,10 +91,10 @@ def test_collector_task_no_change_persists_not_modified_status(current_job, requ
     }
 
 
-def test_empty_rss_feed_status_lifecycle(current_job, requests_mock, monkeypatch):
+def test_empty_rss_feed_result_is_preserved_after_not_modified_response(current_job, requests_mock, monkeypatch):
     feed_url = "https://example.com/feed"
     empty_feed = "<rss version='2.0'><channel><title>Empty</title><link>https://example.com/</link></channel></rss>"
-    replacement_validators = {
+    validators = {
         "url": feed_url,
         "etag": '"empty-feed"',
         "last_modified": "Mon, 17 Aug 2026 10:00:00 GMT",
@@ -110,41 +110,38 @@ def test_empty_rss_feed_status_lifecycle(current_job, requests_mock, monkeypatch
     requests_mock.get(
         feed_url,
         [
-            {"text": empty_feed},
-            {"text": empty_feed},
-            {"text": empty_feed},
             {
                 "text": empty_feed,
-                "headers": {"ETag": replacement_validators["etag"], "Last-Modified": replacement_validators["last_modified"]},
+                "headers": {"ETag": validators["etag"], "Last-Modified": validators["last_modified"]},
             },
+            {"status_code": 304},
         ],
     )
     requests_mock.get("https://example.com/favicon.ico", status_code=404)
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
-    for _ in range(2):
-        collector_tasks.collector_task("source-1", False)
-        payload = requests_mock.request_history[-1].json()
-        source["status"] = {"last_success": None, "result": payload["result"]}
-
-    with pytest.raises(RuntimeError, match="after 3 collection attempts"):
-        collector_tasks.collector_task("source-1", False)
-
-    source["status"] = {"last_success": "2026-08-14T10:00:00"}
-    source["http_validators"] = {
-        "url": feed_url,
-        "etag": '"previous-feed"',
-        "last_modified": "Sun, 16 Aug 2026 10:00:00 GMT",
+    result = collector_tasks.collector_task("source-1", False)
+    first_payload = [request.json() for request in requests_mock.request_history if request.method == "POST"][-1]
+    source["status"] = {
+        "status": first_payload["status"],
+        "last_success": "2026-08-18T10:00:00",
+        "result": first_payload["result"],
     }
-    collector_tasks.collector_task("source-1", False)
+    source["http_validators"] = first_payload["result"]["data"]["http_validators"]
+
+    unchanged_result = collector_tasks.collector_task("source-1", False)
 
     payloads = [request.json() for request in requests_mock.request_history if request.method == "POST"]
-    assert [payload["status"] for payload in payloads] == ["PENDING", "PENDING", "FAILURE", "NOT_MODIFIED"]
-    assert "attempt 1 of 3" in payloads[0]["result"]["message"]
-    assert "attempt 2 of 3" in payloads[1]["result"]["message"]
-    assert "after 3 collection attempts" in payloads[2]["result"]["message"]
-    assert "after an earlier successful collection" in payloads[3]["result"]["message"]
-    assert payloads[3]["result"]["data"]["http_validators"] == replacement_validators
+    expected_message = f"RSS feed {feed_url} is valid but currently contains no entries"
+    assert result == unchanged_result == expected_message
+    assert [payload["status"] for payload in payloads] == ["NOT_MODIFIED", "NOT_MODIFIED"]
+    assert [payload["result"]["reason"] for payload in payloads] == ["rss_feed_empty", "rss_feed_empty"]
+    assert [payload["result"]["message"] for payload in payloads] == [expected_message, expected_message]
+    assert payloads[0]["result"]["data"]["http_validators"] == validators
+    assert payloads[1]["result"]["data"]["http_validators"] == validators
+
+    feed_requests = [request for request in requests_mock.request_history if request.method == "GET" and request.url == feed_url]
+    assert feed_requests[-1].headers["If-None-Match"] == validators["etag"]
 
 
 def test_rss_parse_failure_cleans_up_persists_failure_and_skips_bots(

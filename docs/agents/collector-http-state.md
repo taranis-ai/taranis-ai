@@ -6,7 +6,7 @@ RSS Collector, Simple Web Collector, conditional HTTP requests, ETag, Last-Modif
 ## Expected Behavior
 Scheduled RSS and Simple Web collections send the server's previously stored ETag and Last-Modified values as `If-None-Match` and `If-Modified-Since`. Manual collections bypass conditional request headers. ETags are opaque strings, including weak ETags.
 
-ETags belong only to the configured primary feed or web URL. The primary resource's Last-Modified value is sent as `If-Modified-Since` on every direct or browser-backed collector request, including article, digest, attachment, and icon URLs. Only a 200 response from the primary resource replaces the stored validator values. A 304 response preserves the validators and is recorded as `NOT_MODIFIED` unless the preceding collection is still `PENDING` or `FAILURE`; unchanged content cannot establish recovery, so that status and result remain in place.
+ETags belong only to the configured primary feed or web URL. The primary resource's Last-Modified value is sent as `If-Modified-Since` on every direct or browser-backed collector request, including article, digest, attachment, and icon URLs. Only a 200 response from the primary resource replaces the stored validator values. A 304 response preserves the validators and is recorded as `NOT_MODIFIED`. If the preceding collection failed, unchanged content cannot establish recovery, so the failure remains in place. If the preceding result reported an empty feed, its `rss_feed_empty` reason and message remain in place.
 
 Collector fetch, parse, and publish failures propagate to `collector_task`, which persists `FAILURE` and does not schedule post-collection bots. Playwright cleanup still runs on failures.
 
@@ -19,7 +19,7 @@ Collector fetch, parse, and publish failures propagate to `collector_task`, whic
 - Task-result state update: `src/core/core/service/task.py`
 
 ## Data Flow
-Core returns a source's `collector_http_state` as `http_validators` in worker-only source data. The collector matches the stored URL to its configured primary URL before replaying the ETag to that URL and Last-Modified to all collector GETs. Collector task results, including empty-feed and preserved unsuccessful results, carry the current validator state back to core, where it updates the source-keyed runtime-state row independently of task-history retention.
+Core returns a source's `collector_http_state` as `http_validators` in worker-only source data. The collector matches the stored URL to its configured primary URL before replaying the ETag to that URL and Last-Modified to all collector GETs. Collector task results, including empty-feed and preserved failure results, carry the current validator state back to core, where it updates the source-keyed runtime-state row independently of task-history retention.
 
 ## Testing
 - Worker collector and task regressions: `src/worker/tests/collectors/test_collector.py`, `src/worker/tests/collectors/test_collector_tasks.py`

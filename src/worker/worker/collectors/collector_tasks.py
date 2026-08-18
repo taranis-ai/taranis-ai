@@ -15,9 +15,6 @@ from worker.core_api import CoreApi, build_failure_task_result, build_success_ta
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
 
 
-RSS_EMPTY_FEED_FAILURE_ATTEMPTS = 3
-
-
 @contextmanager
 def collector_log_fmt(logger: TaranisLogger, collector_formatter: TaranisLogFormatter):
     stream_handler = logger.get_stream_handler()
@@ -100,22 +97,6 @@ def _persist_and_return_result(
     return result_message
 
 
-def _next_empty_feed_attempt(source: dict[str, Any]) -> int:
-    status = source.get("status")
-    if not isinstance(status, dict):
-        return 1
-
-    result = status.get("result")
-    if not isinstance(result, dict) or result.get("reason") != "rss_feed_empty":
-        return 1
-
-    data = result.get("data")
-    previous_attempt = data.get("empty_collection_attempts") if isinstance(data, dict) else None
-    if not isinstance(previous_attempt, int) or previous_attempt < 1:
-        return 1
-    return min(previous_attempt + 1, RSS_EMPTY_FEED_FAILURE_ATTEMPTS)
-
-
 def collector_task(osint_source_id: str, manual: bool = False):
     """Collect news from an OSINT source.
 
@@ -167,74 +148,42 @@ def collector_task(osint_source_id: str, manual: bool = False):
             collection_result = collector_impl.collect(source, manual)
             result_message = f"'{source.get('name')}': {collection_result}"
         except EmptyRSSFeedError as e:
-            result_data = _collector_result_data(osint_source_id, manual, collector_impl)
-            previous_status = source.get("status")
-            if isinstance(previous_status, dict) and previous_status.get("last_success"):
-                result_message = f"No new items: RSS feed {e.feed_url} returned no news items after an earlier successful collection"
-                logger.info(result_message)
-                return _persist_and_return_result(
-                    job,
-                    core_api,
-                    result_message,
-                    worker_id=osint_source_id,
-                    worker_type=worker_type,
-                    meta_status="NOT_MODIFIED",
-                    reason="collector_not_modified",
-                    data=result_data,
-                )
-
-            attempt = _next_empty_feed_attempt(source)
-            is_failure = attempt >= RSS_EMPTY_FEED_FAILURE_ATTEMPTS
-            if is_failure:
-                result_message = (
-                    f"Error: RSS feed {e.feed_url} returned no news items after {RSS_EMPTY_FEED_FAILURE_ATTEMPTS} collection attempts"
-                )
-                logger.error(result_message)
-            else:
-                result_message = (
-                    f"RSS feed {e.feed_url} returned no news items on collection attempt "
-                    f"{attempt} of {RSS_EMPTY_FEED_FAILURE_ATTEMPTS}; source remains PENDING"
-                )
-                logger.warning(result_message)
-
-            result_data.update(
-                {
-                    "empty_collection_attempts": attempt,
-                    "failure_threshold": RSS_EMPTY_FEED_FAILURE_ATTEMPTS,
-                }
-            )
-            _persist_and_return_result(
+            result_message = f"RSS feed {e.feed_url} is valid but currently contains no entries"
+            logger.info(result_message)
+            return _persist_and_return_result(
                 job,
                 core_api,
                 result_message,
                 worker_id=osint_source_id,
                 worker_type=worker_type,
-                meta_status="FAILURE" if is_failure else "PENDING",
+                meta_status="NOT_MODIFIED",
                 reason="rss_feed_empty",
-                data=result_data,
+                data=_collector_result_data(osint_source_id, manual, collector_impl),
             )
-            if is_failure:
-                raise RuntimeError(result_message) from e
-            return result_message
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             previous_status = source.get("status")
-            if isinstance(previous_status, dict) and previous_status.get("status") in {"PENDING", "FAILURE"}:
+            if isinstance(previous_status, dict):
                 previous_result = previous_status.get("result")
                 previous_result = previous_result if isinstance(previous_result, dict) else {}
-                previous_data = previous_result.get("data")
-                result_data = dict(previous_data) if isinstance(previous_data, dict) else {}
-                result_data.update(_collector_result_data(osint_source_id, manual, collector_impl))
-                return _persist_and_return_result(
-                    job,
-                    core_api,
-                    str(previous_result.get("message") or f"No changes: {e}"),
-                    worker_id=osint_source_id,
-                    worker_type=worker_type,
-                    meta_status=previous_status["status"],
-                    reason=previous_result.get("reason"),
-                    data=result_data,
+                previous_task_status = previous_status.get("status")
+                preserve_previous_result = previous_task_status == "FAILURE" or (
+                    previous_task_status == "NOT_MODIFIED" and previous_result.get("reason") == "rss_feed_empty"
                 )
+                if preserve_previous_result:
+                    previous_data = previous_result.get("data")
+                    result_data = dict(previous_data) if isinstance(previous_data, dict) else {}
+                    result_data.update(_collector_result_data(osint_source_id, manual, collector_impl))
+                    return _persist_and_return_result(
+                        job,
+                        core_api,
+                        str(previous_result.get("message") or f"No changes: {e}"),
+                        worker_id=osint_source_id,
+                        worker_type=worker_type,
+                        meta_status=previous_task_status,
+                        reason=previous_result.get("reason"),
+                        data=result_data,
+                    )
             result_message = f"No changes: {e}"
             return _persist_and_return_result(
                 job,
