@@ -2,11 +2,12 @@ from typing import Any, ClassVar, Literal
 
 from flask import render_template, request, url_for
 from markupsafe import Markup, escape
-from models.admin import AdminMenuBadges, Bot
+from models.admin import AdminMenuBadges, Bot, WordList
 from models.types import BOT_TYPES
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import admin_required
+from frontend.config import Config
 from frontend.core_api import CoreApi
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_item_type, render_worker_status
@@ -133,7 +134,11 @@ class BotView(AdminBaseView):
             "selected_run_after": _split_run_after_bots(parameter_values.get("RUN_AFTER_BOTS", "")),
             "dag_preview": dag_preview,
             "optional_parameters": OPTIONAL_BOT_PARAMETERS,
+            "word_list_options": cls.get_word_list_options(),
             "actions": bot_actions + cls.get_default_actions(),
+            "secret_reveal_url": (
+                f"{Config.TARANIS_BASE_PATH.rstrip('/')}/api/config/parameter-secrets/bots/{bot.id}" if bot and bot.id else ""
+            ),
         }
         return base_context
 
@@ -155,6 +160,7 @@ class BotView(AdminBaseView):
             bot_id=bot_id,
             dag_preview=cls.get_dag_preview({"type": bot_type}) if bot_type else {"order": [], "edges": [], "nodes": [], "warnings": []},
             optional_parameters=OPTIONAL_BOT_PARAMETERS,
+            word_list_options=cls.get_word_list_options(),
         )
 
     @classmethod
@@ -191,7 +197,7 @@ class BotView(AdminBaseView):
 
     @classmethod
     def _filter_run_order_parameters(cls, parameters: list[Any]) -> list[Any]:
-        return [parameter for parameter in parameters if parameter.name not in RUN_ORDER_PARAMETERS]
+        return [parameter for parameter in parameters if parameter["name"] not in RUN_ORDER_PARAMETERS]
 
     @classmethod
     def get_run_after_options(cls, current_bot_id: str = "") -> list[dict[str, str]]:
@@ -211,6 +217,20 @@ class BotView(AdminBaseView):
             for bot in bots
             if bot.id and bot.id != current_bot_id
         ]
+
+    @classmethod
+    def get_word_list_options(cls) -> list[dict[str, str]]:
+        try:
+            return [
+                {"id": word_list.id, "name": word_list.name}
+                for word_list in DataPersistenceLayer().get_objects(WordList).items
+                if word_list.id
+            ]
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to load tagging word-list options")
+            return []
 
     @classmethod
     def get_dag_preview(cls, payload: dict[str, Any]) -> dict[str, Any]:

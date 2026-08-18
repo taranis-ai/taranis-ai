@@ -89,7 +89,9 @@ class Presenters(MethodView):
 class Publishers(MethodView):
     @api_key_required
     def get(self, publisher: str):
-        return PublisherPreset.get_for_api(publisher)
+        if preset := PublisherPreset.get(publisher):
+            return preset.to_worker_dict(), 200
+        return {"error": "Publisher preset not found"}, 404
 
 
 class Sources(MethodView):
@@ -284,10 +286,14 @@ class BotInfo(MethodView):
     @extract_args("search", "fetch_all")
     def get(self, bot_id=None, filter_args=None):
         if not bot_id:
-            return Bot.get_all_for_api(filter_args)
+            response, status = Bot.get_all_for_api(filter_args)
+            for item in response.get("items", []):
+                if stored := Bot.get(item.get("id")):
+                    item.update(stored.to_worker_dict())
+            return response, status
 
         if result := Bot.get(bot_id):
-            return result.to_dict(), 200
+            return result.to_worker_dict(), 200
         return {"error": "Bot not found"}, 404
 
     @api_key_required
@@ -296,7 +302,7 @@ class BotInfo(MethodView):
         if not isinstance(data, dict) or not data:
             return {"error": "No data provided"}, 400
         if bot := Bot.update(bot_id, data):
-            return bot.to_dict(), 200
+            return bot.to_worker_dict(), 200
         return {"error": "Bot not found"}, 404
 
 
@@ -339,7 +345,7 @@ class Connectors(MethodView):
     @api_key_required
     def get(self, connector_id: str):
         if connector := Connector.get(connector_id):
-            return connector.to_dict(), 200
+            return connector.to_worker_dict(), 200
         return {"error": "Connector not found"}, 404
 
 

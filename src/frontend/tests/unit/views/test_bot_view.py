@@ -9,9 +9,6 @@ from models.types import BOT_TYPES
 from frontend.views.admin_views.bot_views import BotView
 
 
-pytestmark = pytest.mark.usefixtures("mock_worker_parameters_get")
-
-
 @pytest.mark.parametrize(
     "bot_type",
     [
@@ -36,10 +33,11 @@ def test_bot_parameters_include_optional_positive_integer_requests_timeout(authe
     assert len(requests_timeout_fields) == 1
     assert len(item_filter_fields) == 1
     assert len(refresh_interval_fields) == 1
-    assert requests_timeout_fields[0].get("type") == "text"
-    assert requests_timeout_fields[0].get("pattern") == "^[1-9][0-9]*$"
+    assert requests_timeout_fields[0].get("type") == "number"
+    assert requests_timeout_fields[0].get("min") == "1"
     assert requests_timeout_fields[0].get("required") is None
     assert refresh_interval_fields[0].get("required") is None
+    assert tree.xpath('//*[@title="LLM request timeout in seconds."]')
     assert response.text.index('name="parameters[ITEM_FILTER]"') < response.text.index('name="parameters[REQUESTS_TIMEOUT]"')
 
 
@@ -59,8 +57,7 @@ def test_summary_bot_parameters_include_split_summary_and_title_endpoints(authen
     assert summary_endpoint_fields[0].get("required") is None
     assert title_endpoint_fields[0].get("required") is None
 
-    # Ensure ordering matches Worker._order_parameters: BOT_API_KEY, SUMMARY_ENDPOINT,
-    # TITLE_ENDPOINT, RUN_AFTER_COLLECTOR
+    # Field order comes directly from the shared Pydantic parameter model.
     bot_api_key_index = response.text.index('name="parameters[BOT_API_KEY]"')
     summary_endpoint_index = response.text.index('name="parameters[SUMMARY_ENDPOINT]"')
     title_endpoint_index = response.text.index('name="parameters[TITLE_ENDPOINT]"')

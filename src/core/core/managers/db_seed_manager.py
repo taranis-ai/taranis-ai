@@ -35,8 +35,8 @@ def pre_seed():
         sync_presenter_templates()
         logger.debug("Presenter templates seeded")
 
-        pre_seed_workers()
-        logger.debug("Workers seeded")
+        pre_seed_configured_defaults()
+        logger.debug("Configured defaults seeded")
 
         pre_seed_default_publisher()
         logger.debug("Default publisher seeded")
@@ -50,29 +50,23 @@ def pre_seed():
 
 
 def sync_enums(db_engine: Engine):
-    from models.types import BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES, WORKER_CATEGORY, WORKER_TYPES
-
-    from core.model.parameter_value import PARAMETER_TYPES
+    from models.types import BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
 
     with db_engine.connect() as connection:
         if connection.dialect.name == "sqlite":
             return
-        sync_enum_with_db(enum_type=WORKER_CATEGORY, connection=connection, table_column="worker.category")
-        sync_enum_with_db(enum_type=WORKER_TYPES, connection=connection, table_column="worker.type")
         sync_enum_with_db(enum_type=BOT_TYPES, connection=connection, table_column="bot.type")
         sync_enum_with_db(enum_type=COLLECTOR_TYPES, connection=connection, table_column="osint_source.type")
         sync_enum_with_db(enum_type=PRESENTER_TYPES, connection=connection, table_column="product_type.type")
         sync_enum_with_db(enum_type=PUBLISHER_TYPES, connection=connection, table_column="publisher_preset.type")
-        sync_enum_with_db(enum_type=PARAMETER_TYPES, connection=connection, table_column="parameter_value.type")
 
 
 def pre_seed_update(db_engine: Engine):
-    from core.managers.pre_seed_data import bots, product_types, report_types, workers
+    from core.managers.pre_seed_data import bots, product_types, report_types
     from core.model.bot import Bot
     from core.model.product_type import ProductType
     from core.model.report_item import ReportItemType
     from core.model.settings import Settings
-    from core.model.worker import Worker
 
     pre_seed_source_groups()
     pre_seed_manual_source()
@@ -88,15 +82,6 @@ def pre_seed_update(db_engine: Engine):
         rebuild_story_search_vectors()
 
     pre_seed_attributes()
-
-    for w in workers:
-        w = cast(dict[str, Any], w)
-        worker_type = str(w["type"])
-        w["type"] = worker_type
-        if worker := Worker.filter_by_type(worker_type):
-            worker.update(w)
-        else:
-            Worker.add(w)
 
     pre_seed_default_publisher()
 
@@ -152,9 +137,9 @@ def cleanup_intelowl_email_enrichment_parameter():
 
     changed = False
     for bot in Bot.get_all_by_type(BOT_TYPES.INTEL_OWL_BOT):
-        current_count = len(bot.parameters)
-        bot.parameters = [parameter for parameter in bot.parameters if parameter.parameter != "INTEL_OWL_EMAIL_ENRICHMENT"]
-        changed |= len(bot.parameters) != current_count
+        if "INTEL_OWL_EMAIL_ENRICHMENT" in bot.parameters:
+            bot.parameters = {key: value for key, value in bot.parameters.items() if key != "INTEL_OWL_EMAIL_ENRICHMENT"}
+            changed = True
     if changed:
         db.session.commit()
 
@@ -284,44 +269,35 @@ def migrate_refresh_intervals():
     sources = OSINTSource.get_all_for_collector()
 
     for source in sources:
-        for param in source.parameters:
-            if param.parameter == "REFRESH_INTERVAL":
-                try:
-                    interval = int(param.value)
-                except ValueError:
-                    continue
-
-                new_cron = convert_interval_to_cron(interval)
-                logger.info(f"Updating OSINTSource {source.id}: {interval} minutes -> cron '{new_cron}'")
-                source.update_parameters({"REFRESH_INTERVAL": new_cron})
+        try:
+            interval = int(source.parameters.get("REFRESH_INTERVAL", ""))
+        except ValueError:
+            continue
+        new_cron = convert_interval_to_cron(interval)
+        logger.info(f"Updating OSINTSource {source.id}: {interval} minutes -> cron '{new_cron}'")
+        source.update_parameters({"REFRESH_INTERVAL": new_cron})
 
 
 def migrate_use_feed_content():
     from core.managers.db_manager import db
     from core.model.osint_source import OSINTSource
-    from core.model.parameter_value import ParameterValue
 
     rss_sources = OSINTSource.get_filtered(OSINTSource.get_filter_query({"type": "rss_collector"})) or []
     updated_sources = 0
     created_parameters = 0
 
     for source in rss_sources:
-        content_location = ParameterValue.find_by_parameter(source.parameters, "CONTENT_LOCATION")
-        use_feed_content = ParameterValue.find_by_parameter(source.parameters, "USE_FEED_CONTENT")
+        content_location = source.parameters.get("CONTENT_LOCATION", "")
+        use_feed_content = source.parameters.get("USE_FEED_CONTENT")
 
         # Only migrate sources that haven't been migrated yet and are not a boolean
-        if use_feed_content and use_feed_content.value in ["true", "false"]:
+        if use_feed_content in ["true", "false"]:
             continue
 
-        target_value = "true" if content_location and content_location.value.strip() else "false"
-
-        if use_feed_content:
-            if use_feed_content.value != target_value:
-                use_feed_content.value = target_value
-                updated_sources += 1
-        else:
-            source.parameters.append(ParameterValue(parameter="USE_FEED_CONTENT", value=target_value, type="switch"))
-            updated_sources += 1
+        target_value = "true" if content_location.strip() else "false"
+        source.parameters = {**source.parameters, "USE_FEED_CONTENT": target_value}
+        updated_sources += 1
+        if use_feed_content is None:
             created_parameters += 1
 
     if updated_sources:
@@ -356,15 +332,11 @@ def pre_seed_manual_source():
     OSINTSource.create_manual_source()
 
 
-def pre_seed_workers():
+def pre_seed_configured_defaults():
     from core.managers.db_manager import db
-    from core.managers.pre_seed_data import bots, product_types, workers
+    from core.managers.pre_seed_data import bots, product_types
     from core.model.bot import RUN_AFTER_BOTS, Bot
     from core.model.product_type import ProductType
-    from core.model.worker import Worker
-
-    for w in workers:
-        Worker.add(w)
 
     seeded_bots = {bot_data["type"]: Bot.add(bot_data) for bot_data in bots}
     for bot_type, parent_types in {
@@ -374,9 +346,10 @@ def pre_seed_workers():
         "SUMMARY_BOT": ("NLP_BOT", "STORY_BOT"),
     }.items():
         bot = seeded_bots[bot_type]
-        next(parameter for parameter in bot.parameters if parameter.parameter == RUN_AFTER_BOTS).value = ",".join(
-            seeded_bots[parent_type].id for parent_type in parent_types
-        )
+        bot.parameters = {
+            **bot.parameters,
+            RUN_AFTER_BOTS: ",".join(seeded_bots[parent_type].id for parent_type in parent_types),
+        }
     Bot.validate_dependency_config()
     db.session.commit()
 

@@ -279,7 +279,12 @@ def test_fetch_single_news_item_persists_failure_result(current_job, requests_mo
 
 
 def test_collector_preview_persists_with_preview_status(current_job, requests_mock, monkeypatch):
-    source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {}}
+    source = {
+        "id": "source-1",
+        "name": "Source 1",
+        "type": "rss_collector",
+        "parameters": {"FEED_URL": "https://example.test/feed"},
+    }
     preview_items = [{"title": "Item 1"}, {"title": "Item 2"}]
 
     class FakeCollector:
@@ -312,7 +317,12 @@ def test_collector_preview_persists_with_preview_status(current_job, requests_mo
 
 
 def test_collector_preview_persists_failure_on_exception(current_job, requests_mock, monkeypatch):
-    source = {"id": "source-1", "name": "Source 1", "type": "rss_collector", "parameters": {}}
+    source = {
+        "id": "source-1",
+        "name": "Source 1",
+        "type": "rss_collector",
+        "parameters": {"FEED_URL": "https://example.test/feed"},
+    }
 
     class FakeCollector:
         name = "RSS Collector"

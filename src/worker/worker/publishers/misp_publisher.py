@@ -9,8 +9,6 @@ from .base_publisher import BasePublisher
 
 
 class MISPPublisher(BasePublisher):
-    REQUIRED_PARAMETERS = ("MISP_URL", "MISP_API_KEY")
-
     def __init__(self):
         super().__init__()
         self.type = "MISP_PUBLISHER"

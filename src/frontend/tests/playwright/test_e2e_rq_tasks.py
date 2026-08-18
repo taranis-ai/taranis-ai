@@ -215,7 +215,7 @@ class RqE2EHarness:
         return self.create("/config/osint-sources", payload, "osint source")
 
     def update_osint_source(self, source_id: str, payload: JsonDict) -> JsonDict:
-        response_payload = self.core_client.json_request("PUT", f"/config/osint-sources/{source_id}", json_data=payload)
+        response_payload = self.core_client.json_request("PATCH", f"/config/osint-sources/{source_id}", json_data=payload)
         assert isinstance(response_payload, dict), "Expected osint source update response to be a dict"
         return response_payload
 

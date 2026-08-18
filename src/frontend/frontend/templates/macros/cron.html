@@ -1,5 +1,5 @@
 
-{% macro form_cron(label, name, value, error, required=True, width='w-full', input_class='') %}
+{% macro form_cron(label, name, value, error, required=True, width='w-full', input_class='', pattern='') %}
   <div class="mb-5 {{ width }}"
        x-data="{ cron: '{{ value|default('') }}', setCron(val) { this.cron = val; $nextTick(() => this.validate()); }, validate() { const input = document.getElementById('{{ name }}'); input.setCustomValidity(''); if (!input.validity.valid) { input.setCustomValidity('Input must be a valid cron expression'); } } }">
     <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border px-4 py-2">
@@ -14,7 +14,7 @@
              placeholder="0 */8 * * *"
              class="input input-sm w-full validator{% if error %} input-error{% endif %} {{ input_class }}"
              name="{{ name }}"
-             pattern="([^\s]+\s){4}[^\s]+"
+             {% if pattern %}pattern="{{ pattern }}"{% endif %}
              @input="validate();"
              {% if required %}required{% endif %}
              :value="cron"

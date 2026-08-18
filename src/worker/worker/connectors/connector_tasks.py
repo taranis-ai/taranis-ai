@@ -7,6 +7,7 @@ import json
 import re
 from typing import Any
 
+from models.worker_parameters import effective_parameter_values
 from rq import get_current_job
 
 from worker.connectors import MispConnector
@@ -37,6 +38,7 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
     try:
         connector_config = _get_connector_config(core_api, connector_id)
         connector = _get_connector(connector_config.get("type", ""))
+        connector_config["parameters"] = effective_parameter_values(connector_config["type"], connector_config.get("parameters", {}))
     except Exception as e:
         if job:
             connector_type = connector_config.get("type", "connector_task") if "connector_config" in locals() else "connector_task"

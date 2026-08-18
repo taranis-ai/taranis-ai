@@ -946,7 +946,7 @@ class TestBotConfigApi(BaseTest):
             "name": cleanup_bot["name"],
             "type": cleanup_bot["type"],
             "description": "Boty McBotFace",
-            "parameters": {"REFRESH_INTERVAL": "0 */8 * * *"},
+            "parameters": {"REGULAR_EXPRESSION": r"\btest\b", "REFRESH_INTERVAL": "0 */8 * * *"},
         }
         bot_id = cleanup_bot["id"]
         response = self.assert_put_ok(client, uri=f"bots/{bot_id}", json_data=bot_data, auth_header=auth_header)
@@ -991,6 +991,7 @@ class TestBotConfigApi(BaseTest):
                 "type": cleanup_bot["type"],
                 "enabled": True,
                 "parameters": {
+                    "REGULAR_EXPRESSION": r"\btest\b",
                     "RUN_AFTER_COLLECTOR": "true",
                     "REFRESH_INTERVAL": "0 */8 * * *",
                 },
@@ -1038,7 +1039,7 @@ class TestBotConfigApi(BaseTest):
                 "name": cleanup_bot["name"],
                 "type": cleanup_bot["type"],
                 "description": "Boty McBotFace",
-                "parameters": {"REFRESH_INTERVAL": "0 */8 * * *"},
+                "parameters": {"REGULAR_EXPRESSION": r"\btest\b", "REFRESH_INTERVAL": "0 */8 * * *"},
             },
             auth_header=auth_header,
         )
@@ -1368,25 +1369,3 @@ class TestAttributes(BaseTest):
                 Attribute.add(cleanup_attribute.copy())
         response = self.assert_delete_ok(client, uri=f"attributes/{attribute_id}", auth_header=auth_header)
         assert response.json["message"] == "Attribute deleted"
-
-
-class TestWorkerTypes(BaseTest):
-    base_uri = "/api/config"
-
-    def test_get_worker_types(self, client, cleanup_worker_types, auth_header):
-        response = self.assert_get_ok(client, uri=f"worker-types?search={cleanup_worker_types['name']}", auth_header=auth_header)
-        assert response.json["items"][0]["name"] == cleanup_worker_types["name"]
-        assert response.json["items"][0]["description"] == cleanup_worker_types["description"]
-        assert response.json["items"][0]["type"] == cleanup_worker_types["type"]
-        assert response.json["items"][0]["parameters"] == cleanup_worker_types["parameters"]
-
-    def test_patch_worker_types(self, client, cleanup_worker_types, auth_header):
-        update_data = {"name": "Worky McWorkerFace"}
-
-        response = self.assert_patch_ok(
-            client, uri=f"worker-types/{cleanup_worker_types['id']}", json_data=update_data, auth_header=auth_header
-        )
-        assert response.json["name"] == update_data["name"]
-        assert response.json["description"] == cleanup_worker_types["description"]
-        assert response.json["type"] == cleanup_worker_types["type"]
-        assert response.json["parameters"] == cleanup_worker_types["parameters"]

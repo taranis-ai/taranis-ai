@@ -7,7 +7,7 @@ misp_connector = {
     "last_error_message": None,
     "name": "test connector",
     "parameters": {
-        "ADDITIONAL_HEADERS": "",
+        "ADDITIONAL_HEADERS": "{}",
         "API_KEY": "test_api_key",
         "DISTRIBUTION": "",
         "ORGANISATION_ID": "1",
@@ -15,7 +15,7 @@ misp_connector = {
         "REFRESH_INTERVAL": "",
         "REQUEST_TIMEOUT": "",
         "SHARING_GROUP_ID": "",
-        "SSL_CHECK": "",
+        "SSL_CHECK": "false",
         "URL": "https://test.misp.test",
         "USER_AGENT": "",
     },
