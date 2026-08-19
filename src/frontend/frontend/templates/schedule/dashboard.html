@@ -5,11 +5,15 @@
   <div class="p-4" id="scheduler-dashboard">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl font-bold">Scheduler Dashboard</h1>
-      <div class="badge badge-lg badge-primary">Auto-refresh: 10s</div>
+      <button id="scheduler-auto-refresh"
+              type="button"
+              class="badge badge-lg badge-outline cursor-pointer"
+              aria-pressed="false"
+              title="Enable auto-refresh">Auto-refresh: 10s</button>
     </div>
 
     <!-- Queue Status Cards -->
-    <div id="queue-cards" hx-get="{{ url_for('admin.scheduler_queue_cards') }}" hx-trigger="every 10s" hx-swap="innerHTML">
+    <div id="queue-cards" hx-get="{{ url_for('admin.scheduler_queue_cards') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
       {% include "schedule/queue_cards.html" %}
     </div>
 
@@ -17,7 +21,7 @@
     <div class="tabs tabs-border tabs-boxed mt-6 mb-4">
       <a class="tab {% if current_tab == 'scheduled' %}tab-active{% endif %}" data-tab="scheduled">Scheduled Jobs</a>
       <a class="tab {% if current_tab == 'active' %}tab-active{% endif %}" data-tab="active">Active Jobs</a>
-      <a class="tab {% if current_tab == 'failed' %}tab-active{% endif %}" data-tab="failed">Failed Jobs</a>
+      <a class="tab {% if current_tab == 'failed' %}tab-active{% endif %}" data-tab="failed">Queue Failures</a>
       <a class="tab {% if current_tab == 'history' %}tab-active{% endif %}" data-tab="history">Execution History</a>
     </div>
 
@@ -69,8 +73,9 @@
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
               </svg>
-              Failed Jobs
+              Queue Failures
             </h2>
+            <p class="text-sm opacity-70">Jobs currently held in the RQ failed-job registry.</p>
             {% if current_tab == 'failed' %}
               {% include "schedule/failed_jobs.html" %}
             {% else %}
@@ -131,6 +136,7 @@
       history: { id: 'execution-history', intervalMs: null },
     };
     let activeRefreshTimer = null;
+    let autoRefreshEnabled = false;
 
     const updateTabInUrl = (tabName) => {
       try {
@@ -165,20 +171,44 @@
       }
     };
 
+    const triggerQueueCardsRefresh = () => {
+      const queueCards = document.getElementById('queue-cards');
+      if (queueCards && window.htmx) {
+        window.htmx.trigger(queueCards, 'scheduler:refresh');
+      }
+    };
+
     const startTabRefreshLoop = (tabName) => {
       stopTabRefreshLoop();
 
       const config = schedulerRefreshTargets[tabName];
-      if (!config) {
+      if (!config || !autoRefreshEnabled) {
         return;
       }
 
-      if (config.intervalMs !== null) {
-        activeRefreshTimer = window.setInterval(() => {
+      activeRefreshTimer = window.setInterval(() => {
+        triggerQueueCardsRefresh();
+        if (config.intervalMs !== null) {
           triggerSchedulerRefresh(tabName);
-        }, config.intervalMs);
-      }
+        }
+      }, 10000);
     };
+
+    const autoRefreshButton = document.getElementById('scheduler-auto-refresh');
+    autoRefreshButton?.addEventListener('click', () => {
+      autoRefreshEnabled = !autoRefreshEnabled;
+      autoRefreshButton.setAttribute('aria-pressed', String(autoRefreshEnabled));
+      autoRefreshButton.title = autoRefreshEnabled ? 'Disable auto-refresh' : 'Enable auto-refresh';
+      autoRefreshButton.classList.toggle('badge-primary', autoRefreshEnabled);
+      autoRefreshButton.classList.toggle('badge-outline', !autoRefreshEnabled);
+
+      const activeTab = document.querySelector('.tab.tab-active')?.dataset.tab || 'scheduled';
+      if (autoRefreshEnabled) {
+        startTabRefreshLoop(activeTab);
+      } else {
+        stopTabRefreshLoop();
+      }
+    });
 
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
