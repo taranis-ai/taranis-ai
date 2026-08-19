@@ -9,7 +9,7 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - The admin scheduler dashboard shows queue and worker status plus tabs for scheduled jobs, active jobs, Queue Failures, and execution history.
 - Each tab uses the standard Taranis table appearance and supports search, sorting, page size selection, and pagination.
 - Only the selected tab is loaded during the initial page render. Other tabs load their first page when selected.
-- Scheduled, active, and failed lists refresh every ten seconds only while their respective tabs are active. A refresh preserves each tab's current table query.
+- Auto-refresh is disabled by default and can be toggled from the dashboard header. When enabled, queue cards refresh every ten seconds, as do scheduled, active, and failed lists while their respective tabs are active. A refresh preserves each tab's current table query.
 - Switching tabs clears table-specific query parameters and reloads the selected tab from its first page. Execution history loads when selected but does not poll.
 - Direct links to a scheduler tab render the full dashboard with that tab selected. HTMX requests render only the requested table.
 - Malformed or non-positive scheduler page and limit parameters fall back to the first page and default page size.
@@ -62,6 +62,5 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Runtime RQ registry data is not SQL-backed, so scheduler list filtering, ordering, and pagination are applied after collecting and annotating the registry entries.
 - Do not use Queue Failures to explain sidebar badges: that tab is transient RQ state, while badge counts use the latest result for each configured worker.
 - One-off `simple_web_collector` URL fetches are not synthetic rows in the configured OSINT Source table and do not affect its badge count.
-- Keep the task worker/type/run-time index aligned with the correlated latest-status queries used by the worker lists and sidebar counts.
 - Core owns the `rq:cron:def` Redis hash. Startup reconciliation treats the current source, bot, and housekeeping specifications as an allowlist and removes every other persisted definition and its artifacts.
 - Execution-history totals and per-worker statistics describe the full matching dataset, not only the visible page.

@@ -14,7 +14,6 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
 class Task(BaseModel):
     __tablename__ = "task"
-    __table_args__ = (db.Index("ix_task_worker_task_last_run", "worker_id", "task", "last_run"),)
 
     SUCCESS_STATUSES = frozenset({"SUCCESS", "NOT_MODIFIED"})
     FAILURE_STATUSES = frozenset({"FAILURE"})

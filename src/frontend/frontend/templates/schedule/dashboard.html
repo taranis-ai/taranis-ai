@@ -5,11 +5,15 @@
   <div class="p-4" id="scheduler-dashboard">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl font-bold">Scheduler Dashboard</h1>
-      <div class="badge badge-lg badge-primary">Auto-refresh: 10s</div>
+      <button id="scheduler-auto-refresh"
+              type="button"
+              class="badge badge-lg badge-outline cursor-pointer"
+              aria-pressed="false"
+              title="Enable auto-refresh">Auto-refresh: 10s</button>
     </div>
 
     <!-- Queue Status Cards -->
-    <div id="queue-cards" hx-get="{{ url_for('admin.scheduler_queue_cards') }}" hx-trigger="every 10s" hx-swap="innerHTML">
+    <div id="queue-cards" hx-get="{{ url_for('admin.scheduler_queue_cards') }}" hx-trigger="scheduler:refresh" hx-swap="innerHTML">
       {% include "schedule/queue_cards.html" %}
     </div>
 
@@ -132,6 +136,7 @@
       history: { id: 'execution-history', intervalMs: null },
     };
     let activeRefreshTimer = null;
+    let autoRefreshEnabled = false;
 
     const updateTabInUrl = (tabName) => {
       try {
@@ -166,20 +171,44 @@
       }
     };
 
+    const triggerQueueCardsRefresh = () => {
+      const queueCards = document.getElementById('queue-cards');
+      if (queueCards && window.htmx) {
+        window.htmx.trigger(queueCards, 'scheduler:refresh');
+      }
+    };
+
     const startTabRefreshLoop = (tabName) => {
       stopTabRefreshLoop();
 
       const config = schedulerRefreshTargets[tabName];
-      if (!config) {
+      if (!config || !autoRefreshEnabled) {
         return;
       }
 
-      if (config.intervalMs !== null) {
-        activeRefreshTimer = window.setInterval(() => {
+      activeRefreshTimer = window.setInterval(() => {
+        triggerQueueCardsRefresh();
+        if (config.intervalMs !== null) {
           triggerSchedulerRefresh(tabName);
-        }, config.intervalMs);
-      }
+        }
+      }, 10000);
     };
+
+    const autoRefreshButton = document.getElementById('scheduler-auto-refresh');
+    autoRefreshButton?.addEventListener('click', () => {
+      autoRefreshEnabled = !autoRefreshEnabled;
+      autoRefreshButton.setAttribute('aria-pressed', String(autoRefreshEnabled));
+      autoRefreshButton.title = autoRefreshEnabled ? 'Disable auto-refresh' : 'Enable auto-refresh';
+      autoRefreshButton.classList.toggle('badge-primary', autoRefreshEnabled);
+      autoRefreshButton.classList.toggle('badge-outline', !autoRefreshEnabled);
+
+      const activeTab = document.querySelector('.tab.tab-active')?.dataset.tab || 'scheduled';
+      if (autoRefreshEnabled) {
+        startTabRefreshLoop(activeTab);
+      } else {
+        stopTabRefreshLoop();
+      }
+    });
 
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -212,11 +241,7 @@
 
       jobNameEl.textContent = job?.name || 'Unknown job';
       jobIdEl.textContent = job?.id || 'N/A';
-      const details = [job?.error || 'No error details available.'];
-      if (job?.reason) details.push(`Reason: ${job.reason}`);
-      if (job?.worker_id) details.push(`Worker: ${job.worker_id}`);
-      if (job?.user_id) details.push(`Triggered by user: ${job.user_id}`);
-      jobErrorEl.textContent = details.join('\n\n');
+      jobErrorEl.textContent = job?.error || 'No error details available.';
 
       dialog.showModal();
     };

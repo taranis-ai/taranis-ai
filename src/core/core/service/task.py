@@ -49,9 +49,16 @@ class TaskService:
 
     @staticmethod
     def delete_task(task_id: str) -> tuple[dict[str, Any], int]:
+        task = TaskModel.get(task_id)
+        task_kind = TaskService._resolve_task_kind(task.job_id, task.task) if task else None
+        worker_id = task.worker_id if task else None
         result, status = TaskModel.delete(task_id)
         if status == 200:
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
+            if task_kind == "collector_task":
+                cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", worker_id)
+            elif task_kind == "bot_task":
+                cache_invalidation_module.cache_invalidation_service.invalidate_model("bot", worker_id)
         return result, status
 
     @staticmethod

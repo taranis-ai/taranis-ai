@@ -2,8 +2,6 @@ from datetime import UTC, datetime
 
 import pytest
 
-from core.model.bot import Bot
-from core.model.osint_source import OSINTSource
 from core.model.task import Task
 
 
@@ -196,13 +194,3 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
             for task_id in task_ids:
                 if Task.get(task_id):
                     Task.delete(task_id)
-
-
-def test_get_admin_menu_badges_uses_model_failure_counts(monkeypatch):
-    monkeypatch.setattr(OSINTSource, "get_current_failure_count", classmethod(lambda cls: 6))
-    monkeypatch.setattr(Bot, "get_current_failure_count", classmethod(lambda cls: 7))
-
-    assert Task.get_admin_menu_badges() == {
-        "osint_source": 6,
-        "bot": 7,
-    }

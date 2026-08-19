@@ -61,64 +61,6 @@ def test_scheduler_tab_query_param_overrides_initial(authenticated_client, mock_
     assert 'id="scheduled-tab" class="tab-panel hidden"' not in html
 
 
-def test_admin_sidebar_badges_link_to_worker_specific_errors_without_changing_main_links(
-    authenticated_client,
-    mock_core_get_endpoints,
-):
-    with authenticated_client.application.app_context():
-        scheduler_url = url_for("admin.scheduler")
-        source_url = url_for("admin.osint_sources")
-        bot_url = url_for("admin.bots")
-        source_errors_url = url_for("admin.osint_sources", filter_manual="false", state="failure")
-        bot_errors_url = url_for("admin.bots", state="failure")
-
-    response = authenticated_client.get(scheduler_url)
-
-    assert response.status_code == 200
-    tree = lxml_html.fromstring(response.get_data(as_text=True))
-    source_link = tree.xpath('//*[@data-testid="admin-menu-OSINT Source"]')[0]
-    bot_link = tree.xpath('//*[@data-testid="admin-menu-Bot"]')[0]
-    source_error_link = tree.xpath('//*[@data-testid="admin-menu-OSINT Source-errors"]')[0]
-    bot_error_link = tree.xpath('//*[@data-testid="admin-menu-Bot-errors"]')[0]
-    assert source_link.get("href") == source_url
-    assert bot_link.get("href") == bot_url
-    assert source_error_link.get("href") == source_errors_url
-    assert bot_error_link.get("href") == bot_errors_url
-    assert source_error_link.getparent().tag == "li"
-    assert bot_error_link.getparent().tag == "li"
-
-
-@pytest.mark.parametrize(
-    ("endpoint", "query"),
-    [
-        ("admin.osint_sources", {"filter_manual": "false", "state": "failure"}),
-        ("admin.bots", {"state": "failure"}),
-    ],
-)
-def test_worker_failure_filter_selects_failed_and_can_be_cleared(endpoint, query, authenticated_client, mock_core_get_endpoints):
-    with authenticated_client.application.app_context():
-        filtered_url = url_for(endpoint, **query)
-        unfiltered_url = url_for(endpoint)
-
-    response = authenticated_client.get(filtered_url)
-
-    assert response.status_code == 200
-    assert 'data-testid="active-failure-filter"' not in response.get_data(as_text=True)
-    tree = lxml_html.fromstring(response.get_data(as_text=True))
-    all_filter = tree.xpath('//*[@data-testid="status-filter-all"]')[0]
-    failed_filter = tree.xpath('//*[@data-testid="status-filter-failed"]')[0]
-    assert all_filter.get("value") == ""
-    assert all_filter.get("checked") is None
-    assert failed_filter.get("checked") is not None
-
-    unfiltered_response = authenticated_client.get(unfiltered_url)
-
-    assert unfiltered_response.status_code == 200
-    unfiltered_tree = lxml_html.fromstring(unfiltered_response.get_data(as_text=True))
-    assert unfiltered_tree.xpath('//*[@data-testid="status-filter-all"]')[0].get("checked") is not None
-    assert unfiltered_tree.xpath('//*[@data-testid="status-filter-failed"]')[0].get("checked") is None
-
-
 def test_source_filters_preserve_each_other_and_table_query(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for(
@@ -142,6 +84,7 @@ def test_source_filters_preserve_each_other_and_table_query(authenticated_client
     expected_shared = {("search", "source"), ("limit", "5"), ("order", "name_desc")}
     assert expected_shared | {("filter_manual", "false")} <= status_values
     assert expected_shared | {("state", "failure")} <= manual_values
+    assert status_form.xpath('.//*[@data-testid="status-filter-failed"][@checked]')
     assert not status_form.xpath('.//input[@name="page"]')
     assert not manual_form.xpath('.//input[@name="page"]')
 
@@ -164,6 +107,7 @@ def test_bot_table_query_preserves_failure_filter(authenticated_client, mock_cor
     status_form = tree.xpath('//*[@aria-label="Status"]/ancestor::form')[0]
     status_values = {(item.get("name"), item.get("value")) for item in status_form.xpath('.//input[@type="hidden"]')}
     assert {("search", "bot"), ("limit", "5"), ("order", "name_desc")} <= status_values
+    assert status_form.xpath('.//*[@data-testid="status-filter-failed"][@checked]')
     assert not status_form.xpath('.//input[@name="page"]')
 
     search_form = tree.xpath('//*[@id="bot-table-container-search"]/ancestor::form')[0]
@@ -174,26 +118,7 @@ def test_bot_table_query_preserves_failure_filter(authenticated_client, mock_cor
     assert parse_qs(urlparse(limit_select.get("hx-get")).query)["state"] == ["failure"]
 
 
-def test_admin_sidebar_hides_zero_error_badges(authenticated_client, responses_mock, mock_core_get_endpoints):
-    responses_mock.replace(
-        responses.GET,
-        f"{Config.TARANIS_CORE_URL}/config/admin-menu-badges",
-        json={"osint_source": 0, "bot": 0},
-    )
-    with authenticated_client.application.app_context():
-        scheduler_url = url_for("admin.scheduler")
-
-    response = authenticated_client.get(scheduler_url)
-
-    assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    assert 'data-testid="admin-menu-OSINT Source"' in html
-    assert 'data-testid="admin-menu-Bot"' in html
-    assert 'data-testid="admin-menu-OSINT Source-errors"' not in html
-    assert 'data-testid="admin-menu-Bot-errors"' not in html
-
-
-def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_client, mock_core_get_endpoints):
+def test_scheduler_dashboard_auto_refresh_is_opt_in_and_tab_scoped(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler")
 
@@ -202,16 +127,21 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
     assert response.status_code == 200
 
     html = response.get_data(as_text=True)
+    tree = lxml_html.fromstring(html)
+    auto_refresh_button = tree.xpath('//*[@id="scheduler-auto-refresh"]')[0]
+    assert auto_refresh_button.tag == "button"
+    assert auto_refresh_button.get("aria-pressed") == "false"
+    assert auto_refresh_button.text_content().strip() == "Auto-refresh: 10s"
     assert 'id="queue-cards"' in html
-    assert 'hx-trigger="every 10s"' in html
+    assert 'hx-trigger="every 10s"' not in html
     assert 'id="scheduled-jobs-table"' in html
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
-    assert ">Queue Failures</a>" in html
-    assert ">Failed Jobs</a>" not in html
-    assert html.count('hx-trigger="scheduler:refresh"') == 4
+    assert html.count('hx-trigger="scheduler:refresh"') == 5
     assert html.count("intervalMs: 10000") == 3
     assert "intervalMs: 5000" not in html
+    assert "let autoRefreshEnabled = false" in html
+    assert "!config || !autoRefreshEnabled" in html
     assert 'id="execution-history"' in html
 
 

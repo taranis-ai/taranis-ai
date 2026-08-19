@@ -1,14 +1,11 @@
-{% macro admin_menu_badge(view, view_name) %}
-  {% if view.get_admin_menu_badge %}
-    {% set badge = view.get_admin_menu_badge() %}
-    {% if badge > 0 and view.get_admin_menu_badge_route %}
-      <a href="{{ view.get_admin_menu_badge_route() }}"
-         class="group badge badge-error badge-sm absolute right-3 top-1/2 z-10 -translate-y-1/2 gap-1"
-         aria-label="View {{ badge }} current {{ view_name }} errors"
-         data-testid="admin-menu-{{ view_name }}-errors">
-        <span>{{ badge }}</span>
-        <span class="w-0 overflow-hidden opacity-0 transition-all group-hover:w-3 group-hover:opacity-100 group-focus-visible:w-3 group-focus-visible:opacity-100">{{ heroicon_outline("link", class="h-3 w-3") }}</span>
-      </a>
-    {% endif %}
+{% macro admin_menu_badge(view, view_name, badge) %}
+  {% if badge > 0 and view.get_admin_menu_badge_route %}
+    <a href="{{ view.get_admin_menu_badge_route() }}"
+       class="group badge badge-error badge-sm absolute right-3 top-1/2 z-10 -translate-y-1/2 gap-1"
+       aria-label="View {{ badge }} current {{ view_name }} errors"
+       data-testid="admin-menu-{{ view_name }}-errors">
+      <span>{{ badge }}</span>
+      <span class="w-0 overflow-hidden opacity-0 transition-all group-hover:w-3 group-hover:opacity-100 group-focus-visible:w-3 group-focus-visible:opacity-100">{{ heroicon_outline("link", class="h-3 w-3") }}</span>
+    </a>
   {% endif %}
 {% endmacro %}
