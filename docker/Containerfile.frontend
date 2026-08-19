@@ -50,6 +50,10 @@ COPY --from=builder --chown=user:user /app/.venv /app/.venv
 COPY --chown=user:user ./src/frontend/app.py /app/app.py
 COPY --from=builder --chown=user:user /app/frontend /app/frontend
 
+ARG build_date
+RUN printf 'BUILD_DATE=%s\n' "${build_date:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" > /app/.env && \
+    chown user:user /app/.env
+
 USER user
 
 ENV PYTHONOPTIMIZE=1
