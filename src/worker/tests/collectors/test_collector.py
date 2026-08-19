@@ -73,6 +73,22 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
         rss_collector.collect(rss_collector_source_data_no_content)
 
 
+def test_rss_published_date_uses_first_parseable_value(rss_collector):
+    import datetime
+
+    import feedparser
+
+    entry = feedparser.FeedParserDict(
+        published="not a date",
+        pubDate="   ",
+        created="",
+        updated="2026-08-19T12:34:56Z",
+        modified="2026-08-20T12:34:56Z",
+    )
+
+    assert rss_collector.get_published_date(entry) == datetime.datetime(2026, 8, 19, 12, 34, 56)
+
+
 def test_rss_publish_error_propagates(rss_collector, requests_mock):
     from models.assess import NewsItem
 
