@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from models.task import Task as TaskResponseModel
-from models.task import TaskError, TaskHistoryResponse, TaskResultEnvelope, TaskSubmission, UserTaskFilter, UserTaskList
+from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission, UserTaskFilter, UserTaskList
 
 from core.config import Config
 from core.log import logger
@@ -40,29 +40,6 @@ class TaskService:
         return validated.model_dump(mode="json", exclude_none=False), status
 
     @staticmethod
-    def get_errors(filter_args: dict[str, Any] | None = None) -> tuple[dict[str, Any], int]:
-        tasks, total_count = TaskModel.get_errors(filter_args)
-        worker_ids = {task.worker_id for task in tasks if task.worker_id}
-        worker_names: dict[str, str] = {}
-        if worker_ids:
-            from core.model.bot import Bot
-            from core.model.osint_source import OSINTSource
-
-            worker_names.update({source.id: source.name for source in OSINTSource.get_bulk(list(worker_ids))})
-            worker_names.update({bot.id: bot.name for bot in Bot.get_bulk(list(worker_ids))})
-
-        items = []
-        for task in tasks:
-            task_type = (task.worker_type or task.task or "").lower()
-            category = "collector" if "collector" in task_type else "bot" if "bot" in task_type else "other"
-            payload = task.to_dict() | {
-                "category": category,
-                "worker_name": worker_names.get(task.worker_id or "") or task.worker_id,
-            }
-            items.append(TaskError.model_validate(payload).model_dump(mode="json", exclude_none=False))
-        return {"items": items, "total_count": total_count}, 200
-
-    @staticmethod
     def get_user_tasks(user_id: str, filters: UserTaskFilter) -> tuple[dict[str, Any], int]:
         result, status = TaskModel.get_user_tasks_for_api(user_id, filters)
         if status != 200:
@@ -75,7 +52,6 @@ class TaskService:
         result, status = TaskModel.delete(task_id)
         if status == 200:
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
-            cache_invalidation_module.cache_invalidation_service.invalidate_model("task_error")
         return result, status
 
     @staticmethod
@@ -109,7 +85,6 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
-        cache_invalidation_module.cache_invalidation_service.invalidate_model("task_error")
         if task_kind == "collector_task" and submission.worker_id:
             CollectorHTTPState.update_from_task_result(submission.worker_id, result_payload.get("data"))
         if submission.status == "SUCCESS" and submission.result is not None:

@@ -14,6 +14,7 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 
 class Task(BaseModel):
     __tablename__ = "task"
+    __table_args__ = (db.Index("ix_task_worker_task_last_run", "worker_id", "task", "last_run"),)
 
     SUCCESS_STATUSES = frozenset({"SUCCESS", "NOT_MODIFIED"})
     FAILURE_STATUSES = frozenset({"FAILURE"})
@@ -232,119 +233,6 @@ class Task(BaseModel):
             "osint_source": OSINTSource.get_current_failure_count(),
             "bot": Bot.get_current_failure_count(),
         }
-
-    @classmethod
-    def _latest_worker_rows(cls):
-        task_label = func.coalesce(cls.worker_type, cls.task)
-        worker_key = func.coalesce(cls.worker_id, cls.id)
-        return (
-            db.select(
-                cls.id.label("task_id"),
-                task_label.label("task_type"),
-                worker_key.label("worker_key"),
-                func.row_number()
-                .over(
-                    partition_by=(task_label, worker_key),
-                    order_by=(cls.last_run.desc(), cls.last_success.desc(), cls.id.desc()),
-                )
-                .label("row_number"),
-            )
-            .where(or_(cls.worker_type.is_not(None), cls.task.is_not(None)))
-            .subquery()
-        )
-
-    @staticmethod
-    def _error_category_condition(task_type, category: str):
-        normalized_type = func.lower(task_type)
-        if category == "collector":
-            return normalized_type.like("%collector%")
-        if category == "bot":
-            return normalized_type.like("%bot%")
-        return None
-
-    @classmethod
-    def get_current_error_counts(cls) -> dict[str, int]:
-        latest_rows = cls._latest_worker_rows()
-        task_type = latest_rows.c.task_type
-        collector_condition = cls._error_category_condition(task_type, "collector")
-        bot_condition = cls._error_category_condition(task_type, "bot")
-        assert collector_condition is not None
-        assert bot_condition is not None
-        stmt = (
-            db.select(
-                func.count().filter(collector_condition).label("collector"),
-                func.count().filter(bot_condition).label("bot"),
-            )
-            .select_from(latest_rows)
-            .join(cls, cls.id == latest_rows.c.task_id)
-            .where(latest_rows.c.row_number == 1, cls.status == "FAILURE")
-        )
-        row = db.session.execute(stmt).one()
-        return {"collector": int(row.collector or 0), "bot": int(row.bot or 0)}
-
-    @classmethod
-    def get_errors(cls, filter_args: dict[str, Any] | None = None) -> tuple[list["Task"], int]:
-        filter_args = dict(filter_args or {})
-        scope = filter_args.get("scope") if filter_args.get("scope") in {"current", "history"} else "current"
-        category = filter_args.get("category") if filter_args.get("category") in {"all", "collector", "bot"} else "all"
-
-        if scope == "current":
-            latest_rows = cls._latest_worker_rows()
-            query = db.select(cls).join(latest_rows, cls.id == latest_rows.c.task_id).where(latest_rows.c.row_number == 1)
-            task_type = latest_rows.c.task_type
-        else:
-            query = db.select(cls)
-            task_type = func.coalesce(cls.worker_type, cls.task)
-
-        query = query.where(cls.status == "FAILURE")
-        category_condition = cls._error_category_condition(task_type, category)
-        if category_condition is not None:
-            query = query.where(category_condition)
-
-        if search := str(filter_args.get("search") or "").strip():
-            pattern = f"%{search}%"
-            from core.model.bot import Bot
-            from core.model.osint_source import OSINTSource
-
-            named_worker_ids = set(db.session.execute(db.select(OSINTSource.id).where(OSINTSource.name.ilike(pattern))).scalars())
-            named_worker_ids.update(db.session.execute(db.select(Bot.id).where(Bot.name.ilike(pattern))).scalars())
-            query = query.where(
-                or_(
-                    cls.id.ilike(pattern),
-                    cls.job_id.ilike(pattern),
-                    cls.task.ilike(pattern),
-                    cls.worker_id.ilike(pattern),
-                    cls.worker_type.ilike(pattern),
-                    cls.result.ilike(pattern),
-                    cls.worker_id.in_(named_worker_ids),
-                )
-            )
-
-        total_count = cls.get_filtered_count(query)
-        order = str(filter_args.get("order") or "last_run_desc")
-        sort_name, separator, direction = order.rpartition("_")
-        sort_columns = {
-            "last_run": cls.last_run,
-            "task": cls.task,
-            "worker_type": cls.worker_type,
-            "worker_id": cls.worker_id,
-        }
-        if not separator or sort_name not in sort_columns or direction not in {"asc", "desc"}:
-            sort_name, direction = "last_run", "desc"
-        sort_column = sort_columns[sort_name]
-        query = query.order_by(sort_column.desc() if direction == "desc" else sort_column.asc(), cls.id.desc())
-        try:
-            page = int(filter_args.get("page", 1))
-        except (TypeError, ValueError):
-            page = 1
-        try:
-            limit = int(filter_args.get("limit", 20))
-        except (TypeError, ValueError):
-            limit = 20
-        filter_args["page"] = page if page > 0 else 1
-        filter_args["limit"] = limit if limit > 0 else 20
-        query = cls._add_paging_to_query(filter_args, query)
-        return list(db.session.execute(query).scalars().all()), total_count
 
     @classmethod
     def get_status_counts_by_task(

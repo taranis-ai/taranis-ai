@@ -56,9 +56,6 @@ class SourceView(AdminBaseView):
         parameters = {}
         parameter_values = {}
 
-        if request.args.get("state", "").strip().lower() == "failure":
-            base_context["active_filter"] = {"label": "Showing failed OSINT sources only", "clear_url": cls.get_base_route()}
-
         osint_source_actions = [
             {
                 "label": "Preview",

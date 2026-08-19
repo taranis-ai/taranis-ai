@@ -163,6 +163,39 @@
 
 {% from "macros/htmx.html" import search_trigger %}
 
+{% macro failure_state_filter(base_url, table_container) %}
+  {% set current_state = request.args.get("state", "") | lower %}
+  <form class="inline-flex flex-col items-center gap-1"
+        hx-get="{{ base_url }}"
+        hx-target="#{{ table_container }}"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-trigger="change">
+    {% for key, values in request.args.lists() %}
+      {% if key not in ["state", "page"] %}
+        {% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+      {% endif %}
+    {% endfor %}
+    <div class="join" role="radiogroup" aria-label="Status">
+      <input class="join-item btn btn-sm"
+             type="radio"
+             name="state"
+             value=""
+             aria-label="All"
+             data-testid="status-filter-all"
+             {% if current_state != "failure" %}checked{% endif %} />
+      <input class="join-item btn btn-sm"
+             type="radio"
+             name="state"
+             value="failure"
+             aria-label="Failed"
+             data-testid="status-filter-failed"
+             {% if current_state == "failure" %}checked{% endif %} />
+    </div>
+    <span class="label-text text-sm">Status</span>
+  </form>
+{% endmacro %}
+
 {% macro table_search_bar(table_id, base_url) %}
   {% set current_search = request.args.get('search', '') %}
   <div class="grow">

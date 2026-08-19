@@ -42,13 +42,6 @@ class Task(MethodView):
         return TaskService.delete_task(task_id)
 
 
-class TaskErrors(MethodView):
-    @api_key_or_auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("scope", "category", "search", "page", "limit", "order")
-    def get(self, filter_args: dict[str, Any]):
-        return TaskService.get_errors(filter_args)
-
-
 class UserTasks(MethodView):
     @auth_required()
     @extract_args("search", "page", "limit", "order")
@@ -60,7 +53,6 @@ class UserTasks(MethodView):
 def initialize(app: Flask):
     task_bp = Blueprint("tasks", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/tasks")
     task_bp.add_url_rule("", view_func=Task.as_view("tasks"))
-    task_bp.add_url_rule("/errors", view_func=TaskErrors.as_view("task_errors"))
     task_bp.add_url_rule("/user", view_func=UserTasks.as_view("user_tasks"), methods=["GET"])
     task_bp.add_url_rule("/<string:task_id>", view_func=Task.as_view("task"), methods=["GET", "DELETE"])
     app.register_blueprint(task_bp)

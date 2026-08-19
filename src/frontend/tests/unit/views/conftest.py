@@ -247,35 +247,6 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
         content_type="application/json",
     )
     responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/tasks/errors",
-        json={
-            "items": [
-                {
-                    "id": "task-error-1",
-                    "job_id": "fetch_single_news_item_error",
-                    "task": "collector_task",
-                    "user_id": "user-1",
-                    "worker_id": "https://example.invalid/missing",
-                    "worker_type": "simple_web_collector",
-                    "worker_name": "https://example.invalid/missing",
-                    "category": "collector",
-                    "status": "FAILURE",
-                    "result": {
-                        "message": "404 Client Error",
-                        "reason": "collection_failed",
-                        "retryable": False,
-                        "data": {"source_id": "https://example.invalid/missing"},
-                    },
-                    "last_run": "2026-08-05T07:29:53Z",
-                    "last_success": None,
-                }
-            ],
-            "total_count": 1,
-        },
-        status=200,
-        content_type="application/json",
-    )
-    responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/config/workers/tasks",
         json=[
             {"name": "collectors", "messages": 1},

@@ -1,4 +1,4 @@
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import responses
@@ -31,7 +31,6 @@ pytestmark = pytest.mark.usefixtures("_clear_scheduler_cache")
         ("admin.scheduler_jobs_table", "scheduled"),
         ("admin.scheduler_active_jobs", "active"),
         ("admin.scheduler_failed_jobs", "failed"),
-        ("admin.scheduler_errors", "errors"),
         ("admin.scheduler_history", "history"),
     ],
 )
@@ -90,13 +89,13 @@ def test_admin_sidebar_badges_link_to_worker_specific_errors_without_changing_ma
 
 
 @pytest.mark.parametrize(
-    ("endpoint", "query", "message"),
+    ("endpoint", "query"),
     [
-        ("admin.osint_sources", {"filter_manual": "false", "state": "failure"}, "Showing failed OSINT sources only"),
-        ("admin.bots", {"state": "failure"}, "Showing failed bots only"),
+        ("admin.osint_sources", {"filter_manual": "false", "state": "failure"}),
+        ("admin.bots", {"state": "failure"}),
     ],
 )
-def test_worker_failure_filter_can_be_cleared(endpoint, query, message, authenticated_client, mock_core_get_endpoints):
+def test_worker_failure_filter_selects_failed_and_can_be_cleared(endpoint, query, authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         filtered_url = url_for(endpoint, **query)
         unfiltered_url = url_for(endpoint)
@@ -104,17 +103,75 @@ def test_worker_failure_filter_can_be_cleared(endpoint, query, message, authenti
     response = authenticated_client.get(filtered_url)
 
     assert response.status_code == 200
+    assert 'data-testid="active-failure-filter"' not in response.get_data(as_text=True)
     tree = lxml_html.fromstring(response.get_data(as_text=True))
-    banner = tree.xpath('//*[@data-testid="active-failure-filter"]')[0]
-    clear_link = tree.xpath('//*[@data-testid="clear-failure-filter"]')[0]
-    assert banner.text_content().strip().startswith(message)
-    assert clear_link.get("href") == unfiltered_url
-    assert clear_link.get("hx-get") == unfiltered_url
+    all_filter = tree.xpath('//*[@data-testid="status-filter-all"]')[0]
+    failed_filter = tree.xpath('//*[@data-testid="status-filter-failed"]')[0]
+    assert all_filter.get("value") == ""
+    assert all_filter.get("checked") is None
+    assert failed_filter.get("checked") is not None
 
     unfiltered_response = authenticated_client.get(unfiltered_url)
 
     assert unfiltered_response.status_code == 200
-    assert 'data-testid="active-failure-filter"' not in unfiltered_response.get_data(as_text=True)
+    unfiltered_tree = lxml_html.fromstring(unfiltered_response.get_data(as_text=True))
+    assert unfiltered_tree.xpath('//*[@data-testid="status-filter-all"]')[0].get("checked") is not None
+    assert unfiltered_tree.xpath('//*[@data-testid="status-filter-failed"]')[0].get("checked") is None
+
+
+def test_source_filters_preserve_each_other_and_table_query(authenticated_client, mock_core_get_endpoints):
+    with authenticated_client.application.app_context():
+        url = url_for(
+            "admin.osint_sources",
+            filter_manual="false",
+            state="failure",
+            search="source",
+            page=3,
+            limit=5,
+            order="name_desc",
+        )
+
+    response = authenticated_client.get(url)
+
+    assert response.status_code == 200
+    tree = lxml_html.fromstring(response.get_data(as_text=True))
+    status_form = tree.xpath('//*[@aria-label="Status"]/ancestor::form')[0]
+    manual_form = tree.xpath('//*[@aria-label="Manual sources"]/ancestor::form')[0]
+    status_values = {(item.get("name"), item.get("value")) for item in status_form.xpath('.//input[@type="hidden"]')}
+    manual_values = {(item.get("name"), item.get("value")) for item in manual_form.xpath('.//input[@type="hidden"]')}
+    expected_shared = {("search", "source"), ("limit", "5"), ("order", "name_desc")}
+    assert expected_shared | {("filter_manual", "false")} <= status_values
+    assert expected_shared | {("state", "failure")} <= manual_values
+    assert not status_form.xpath('.//input[@name="page"]')
+    assert not manual_form.xpath('.//input[@name="page"]')
+
+    search_form = tree.xpath('//*[@id="osint_source-table-container-search"]/ancestor::form')[0]
+    assert search_form.xpath('.//input[@type="hidden"][@name="state"][@value="failure"]')
+    order_link = tree.xpath('//a[contains(@href, "order=")]')[0]
+    limit_select = tree.xpath('//select[@name="limit"]')[0]
+    assert parse_qs(urlparse(order_link.get("href")).query)["state"] == ["failure"]
+    assert parse_qs(urlparse(limit_select.get("hx-get")).query)["state"] == ["failure"]
+
+
+def test_bot_table_query_preserves_failure_filter(authenticated_client, mock_core_get_endpoints):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.bots", state="failure", search="bot", page=3, limit=5, order="name_desc")
+
+    response = authenticated_client.get(url)
+
+    assert response.status_code == 200
+    tree = lxml_html.fromstring(response.get_data(as_text=True))
+    status_form = tree.xpath('//*[@aria-label="Status"]/ancestor::form')[0]
+    status_values = {(item.get("name"), item.get("value")) for item in status_form.xpath('.//input[@type="hidden"]')}
+    assert {("search", "bot"), ("limit", "5"), ("order", "name_desc")} <= status_values
+    assert not status_form.xpath('.//input[@name="page"]')
+
+    search_form = tree.xpath('//*[@id="bot-table-container-search"]/ancestor::form')[0]
+    assert search_form.xpath('.//input[@type="hidden"][@name="state"][@value="failure"]')
+    order_link = tree.xpath('//a[contains(@href, "order=")]')[0]
+    limit_select = tree.xpath('//select[@name="limit"]')[0]
+    assert parse_qs(urlparse(order_link.get("href")).query)["state"] == ["failure"]
+    assert parse_qs(urlparse(limit_select.get("hx-get")).query)["state"] == ["failure"]
 
 
 def test_admin_sidebar_hides_zero_error_badges(authenticated_client, responses_mock, mock_core_get_endpoints):
@@ -150,12 +207,10 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
     assert 'id="scheduled-jobs-table"' in html
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
-    assert 'id="task-errors-panel"' in html
     assert ">Queue Failures</a>" in html
-    assert ">Task Errors</a>" in html
     assert ">Failed Jobs</a>" not in html
-    assert html.count('hx-trigger="scheduler:refresh"') == 5
-    assert html.count("intervalMs: 10000") == 4
+    assert html.count('hx-trigger="scheduler:refresh"') == 4
+    assert html.count("intervalMs: 10000") == 3
     assert "intervalMs: 5000" not in html
     assert 'id="execution-history"' in html
 
@@ -179,14 +234,9 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
             {"/config/schedule", "/config/workers/active", "/tasks"},
         ),
         (
-            "admin.scheduler_errors",
-            "/tasks/errors",
-            {"/config/schedule", "/config/workers/active", "/config/workers/failed", "/tasks"},
-        ),
-        (
             "admin.scheduler_history",
             "/tasks",
-            {"/config/schedule", "/config/workers/active", "/config/workers/failed", "/tasks/errors"},
+            {"/config/schedule", "/config/workers/active", "/config/workers/failed"},
         ),
     ],
 )
@@ -223,9 +273,8 @@ def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated
     assert 'data-testid="scheduled-jobs"' in html
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
-    assert 'id="task-errors-panel"' in html
     assert 'id="execution-history"' in html
-    assert html.count("Loading...</p>") == 4
+    assert html.count("Loading...</p>") == 3
     assert 'data-testid="active-jobs"' not in html
     assert 'data-testid="failed-jobs"' not in html
     assert 'data-testid="execution-history-jobs"' not in html
@@ -238,7 +287,6 @@ def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated
         ("admin.scheduler_queue_cards", ["/config/workers/tasks", "/config/workers/stats"], "Collectors"),
         ("admin.scheduler_active_jobs", ["/config/workers/active"], "Running Bot"),
         ("admin.scheduler_failed_jobs", ["/config/workers/failed"], "Failed Connector"),
-        ("admin.scheduler_errors", ["/tasks/errors"], "404 Client Error"),
         ("admin.scheduler_history", ["/tasks"], "Success Rate"),
     ],
 )
@@ -313,7 +361,6 @@ def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(
         ("admin.scheduler_jobs_table", "scheduled-jobs", "scheduled-jobs-table"),
         ("admin.scheduler_active_jobs", "active-jobs", "active-jobs-table"),
         ("admin.scheduler_failed_jobs", "failed-jobs", "failed-jobs-table"),
-        ("admin.scheduler_errors", "task-errors", "task-errors-table"),
         ("admin.scheduler_history", "execution-history-jobs", "execution-history-table"),
     ],
 )
@@ -392,29 +439,6 @@ def test_scheduler_history_filters_aggregate_rows(
     html = response.get_data(as_text=True)
     assert "WORDLIST_BOT" in html
     assert "rss_collector" not in html
-
-
-def test_scheduler_errors_forwards_filters_and_renders_persisted_error(
-    authenticated_client,
-    responses_mock,
-    mock_core_get_endpoints,
-    htmx_header,
-):
-    with authenticated_client.application.app_context():
-        url = url_for("admin.scheduler_errors", scope="history", category="collector", search="missing")
-
-    response = authenticated_client.get(url, headers=htmx_header)
-
-    assert response.status_code == 200
-    assert responses_mock.calls[-1].request.params == {
-        "scope": "history",
-        "category": "collector",
-        "search": "missing",
-    }
-    html = response.get_data(as_text=True)
-    assert "https://example.invalid/missing" in html
-    assert "404 Client Error" in html
-    assert 'aria-label="Error scope"' in html
 
 
 @pytest.mark.parametrize("order", ["successes_asc", "failures_asc", "success_pct_asc"])
