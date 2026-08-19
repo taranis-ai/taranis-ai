@@ -283,14 +283,22 @@ def test_terminal_disconnect_closes_without_reconnecting(page: Page):
     assert page.evaluate("() => EventSource.instances.length") == 1
 
 
-def test_assess_event_offers_filtered_htmx_refresh(page: Page):
+def test_htmx_refresh_in_assess(page: Page):
     _load_realtime(page, page_target="assess")
     page.evaluate("""
         () => {
-          window.htmxCalls = [];
           window.htmx = {
             ajax(method, url, options) {
-              window.htmxCalls.push({ method, url, options });
+              const refreshedAssess = document.createElement("div");
+              refreshedAssess.id = "assess";
+              refreshedAssess.innerHTML = `
+                <div id="assess-top-bar">2 / 5 Stories</div>
+                <div id="story-list">
+                  <article>New story one</article>
+                  <article>New story two</article>
+                </div>
+              `;
+              document.querySelector(options.target).replaceWith(refreshedAssess);
               return Promise.resolve();
             },
           };
@@ -313,14 +321,9 @@ def test_assess_event_offers_filtered_htmx_refresh(page: Page):
     assert notice.locator("[data-realtime-refresh]").inner_text() == "Load new stories"
 
     notice.locator("[data-realtime-refresh]").click()
-    page.wait_for_function("() => window.htmxCalls.length === 1")
+    page.wait_for_function("() => document.querySelectorAll('#story-list article').length === 2")
 
-    expected_url = page.evaluate("() => location.pathname + location.search")
-    assert page.evaluate("() => window.htmxCalls[0]") == {
-        "method": "GET",
-        "url": expected_url,
-        "options": {"target": "#assess", "select": "#assess", "swap": "outerHTML"},
-    }
+    assert page.locator("#assess").inner_text() == "2 / 5 Stories\nNew story one\nNew story two"
     assert "hidden" in notice.get_attribute("class").split()
 
 

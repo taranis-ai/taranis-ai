@@ -9,6 +9,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Development Workflow](development-workflow.md) - environment setup, startup choices, validation commands, test conventions, and development rules. Read before application changes or validation.
 - [Architecture and Boundaries](architecture-and-boundaries.md) - component roles, RQ tasks, frontend/API boundaries, migrations, and UTC datetime handling. Read before component, API, persistence, queue, or datetime changes.
 - [Frontend Development](frontend-development.md) - mandatory HTMX-first, Alpine-second, minimal event-driven JavaScript rules. Read before every frontend change.
+- [Test Design](test-design.md) - stable functionality coverage, workflow-level assertions, and the prohibition on branch-regression or migration tests. Read before adding or changing tests.
 
 ## Feature Memories
 
