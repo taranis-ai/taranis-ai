@@ -262,6 +262,7 @@ def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_w
     assert story.content.startswith(web_collector_result_content)
     assert story.link == browser_web_collector_instance.web_url
     assert story.source == browser_web_collector_instance.web_url
+    assert story.published.isoformat() == "2026-08-11T09:07:03"
 
 
 def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collector):

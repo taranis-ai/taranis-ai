@@ -151,7 +151,8 @@ class BaseWebCollector(BaseCollector):
 
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:
         if self.browser_mode == "true" and self.playwright_manager:
-            return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
+            web_content, last_modified = self.playwright_manager.fetch_content_with_js(web_url, xpath)
+            return web_content, parse_datetime(last_modified) if last_modified else None
 
         modified_since = None if self.http_validators is not None else self.last_attempted
         response = self.send_get_request(web_url, modified_since)
