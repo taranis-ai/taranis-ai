@@ -4,18 +4,17 @@ from flask.views import MethodView
 from core.config import Config
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
-from core.model.news_item_tag import NewsItemTag
 from core.model.settings import Settings
-from core.model.story import Story
 from core.service.admin import AdminService
 from core.service.cache_invalidation import cache_invalidation_service, invalidate_frontend_cache_on_success
+from core.service.news_item_tag import NewsItemTagService
 from core.service.story import StoryService
 
 
 class DeleteTags(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
-        response, status = NewsItemTag.delete_all()
+        response, status = NewsItemTagService.delete_all()
         invalidate_frontend_cache_on_success(status, full=True)
         return response, status
 
@@ -23,7 +22,7 @@ class DeleteTags(MethodView):
 class DeleteStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
-        response, status = Story.delete_all()
+        response, status = StoryService.delete_all()
         invalidate_frontend_cache_on_success(status, full=True)
         return response, status
 

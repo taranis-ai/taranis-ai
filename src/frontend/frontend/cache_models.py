@@ -1,4 +1,4 @@
-from typing import Generic, SupportsIndex, TypeVar, overload
+from typing import SupportsIndex, TypeVar, overload
 
 from models.base import TaranisBaseModel
 from pydantic import BaseModel
@@ -17,13 +17,13 @@ class PagingData(BaseModel):
     fetch_all: bool | None = None
     query_params: dict[str, str | list[str]] | None = None
 
-    def set_fetch_all(self) -> "PagingData":
+    def set_fetch_all(self) -> PagingData:
         params = dict(self.query_params or {})
         params["fetch_all"] = "true"
         return self.model_copy(update={"fetch_all": True, "query_params": params})
 
 
-class CacheObject(list[T], Generic[T]):
+class CacheObject[T: "TaranisBaseModel"](list[T]):
     def __init__(
         self,
         iterable: list[T] | None = None,
@@ -47,9 +47,9 @@ class CacheObject(list[T], Generic[T]):
     def __getitem__(self, item: SupportsIndex) -> T: ...
 
     @overload
-    def __getitem__(self, item: slice) -> "CacheObject[T]": ...
+    def __getitem__(self, item: slice) -> CacheObject[T]: ...
 
-    def __getitem__(self, item: SupportsIndex | slice) -> T | "CacheObject[T]":
+    def __getitem__(self, item: SupportsIndex | slice) -> T | CacheObject[T]:
         if isinstance(item, slice):
             return CacheObject(
                 super().__getitem__(item),

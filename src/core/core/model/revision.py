@@ -16,10 +16,10 @@ if TYPE_CHECKING:
     from core.model.user import User
 
 
-def _increment_parent_revision(item: "Story | ReportItem") -> int:
+def _increment_parent_revision(item: Story | ReportItem) -> int:
     db.session.flush()
 
-    table = getattr(item, "__table__")
+    table = getattr(item, "__table__")  # noqa: B009
     next_revision = cast(
         int,
         db.session.execute(
@@ -38,18 +38,18 @@ class StoryRevision(BaseModel):
     revision: Mapped[int] = db.Column(db.Integer, nullable=False)
     created_at: Mapped[datetime] = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     created_by_id: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    created_by: Mapped["User | None"] = relationship("User")
+    created_by: Mapped[User | None] = relationship("User")
     note: Mapped[str | None] = db.Column(db.Text)
     data: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False)
 
     __table_args__ = (UniqueConstraint("story_id", "revision", name="uq_story_revision_story_rev"),)
 
     @staticmethod
-    def snapshot_story(story: "Story") -> dict[str, Any]:
+    def snapshot_story(story: Story) -> dict[str, Any]:
         return story.to_detail_dict()
 
     @classmethod
-    def create_from_story(cls, story: "Story", created_by_id: str | None = None, note: str | None = None) -> "StoryRevision":
+    def create_from_story(cls, story: Story, created_by_id: str | None = None, note: str | None = None) -> StoryRevision:
         next_revision = _increment_parent_revision(story)
         revision = cls()
         revision.story_id = story.id
@@ -71,18 +71,18 @@ class ReportRevision(BaseModel):
     revision: Mapped[int] = db.Column(db.Integer, nullable=False)
     created_at: Mapped[datetime] = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     created_by_id: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    created_by: Mapped["User | None"] = relationship("User")
+    created_by: Mapped[User | None] = relationship("User")
     note: Mapped[str | None] = db.Column(db.Text)
     data: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False)
 
     __table_args__ = (UniqueConstraint("report_item_id", "revision", name="uq_report_revision_report_rev"),)
 
     @staticmethod
-    def snapshot_report(report: "ReportItem") -> dict[str, Any]:
+    def snapshot_report(report: ReportItem) -> dict[str, Any]:
         return report.to_detail_dict()
 
     @classmethod
-    def create_from_report(cls, report: "ReportItem", created_by_id: str | None = None, note: str | None = None) -> "ReportRevision":
+    def create_from_report(cls, report: ReportItem, created_by_id: str | None = None, note: str | None = None) -> ReportRevision:
         next_revision = _increment_parent_revision(report)
         revision = cls()
         revision.report_item_id = report.id

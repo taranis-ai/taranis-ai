@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from flask import Blueprint, Flask, Response, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from werkzeug.datastructures import FileStorage
@@ -18,7 +20,8 @@ from core.model.product import Product
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
 from core.model.report_item import ReportItem
-from core.model.story import Story
+from core.model.settings import Settings
+from core.model.story import Story, StoryMispAutoUpdate
 from core.model.word_list import WordList
 from core.service.cache_invalidation import (
     SCOPE_ASSESS_VIEWS,
@@ -26,6 +29,9 @@ from core.service.cache_invalidation import (
     SCOPE_STORY_REPORT_VIEWS,
     invalidate_frontend_cache_on_success,
 )
+from core.service.misp_auto_update import cancel_misp_auto_update_jobs
+from core.service.news_item import NewsItemService
+from core.service.news_item_tag import NewsItemTagService
 from core.service.product import ProductService
 from core.service.task import TaskService
 
@@ -72,9 +78,8 @@ class Presenters(MethodView):
     @api_key_required
     def get(self, presenter: str):
         try:
-            if pres := ProductType.get(presenter):
-                if tmpl := pres.get_template():
-                    return send_file(tmpl)
+            if (pres := ProductType.get(presenter)) and (tmpl := pres.get_template()):
+                return send_file(tmpl)
             return {"error": "Presenter not found"}, 404
         except Exception:
             logger.exception("Failed to get presenter %s", presenter)
@@ -139,6 +144,17 @@ class SourceIcon(MethodView):
             return {"error": "Internal server error"}, 500
 
 
+def _configured_misp_story_ids() -> set[str]:
+    return set(StoryMispAutoUpdate.get_story_ids())
+
+
+def _cancel_deleted_misp_story_jobs(story_ids: set[str]) -> None:
+    if not story_ids:
+        return
+    surviving_ids = {story.id for story in Story.get_bulk(list(story_ids))}
+    cancel_misp_auto_update_jobs(story_ids - surviving_ids)
+
+
 class Stories(MethodView):
     @api_key_required
     def get(self):
@@ -162,13 +178,22 @@ class Stories(MethodView):
         for key in filter_list_keys:
             filter_args[key] = request.args.getlist(key)
 
+        is_bot_query = str(filter_args.get("worker", "")).lower() == "true"
+        targets_stories = filter_args.get("story_id") or filter_args.get("story_ids")
+        if is_bot_query and not targets_stories and "timefrom" not in filter_args:
+            default_lookback_days = Settings.get_settings()["default_bot_lookback_days"]
+            if default_lookback_days > 0:
+                filter_args["timefrom"] = (Story.utcnow() - timedelta(days=default_lookback_days)).isoformat()
+
         if story := Story.get_for_worker(filter_args):
             return jsonify(story), 200
         return {"error": "No stories found"}, 404
 
     @api_key_required
     def post(self):
+        configured_story_ids = _configured_misp_story_ids()
         response, status = Story.add_or_update(request.json)
+        _cancel_deleted_misp_story_jobs(configured_story_ids)
         return make_response(jsonify(response), status)
 
 
@@ -179,7 +204,9 @@ class MISPStories(MethodView):
             return {"error": "No data provided"}, 400
         if not isinstance(data, list):
             return {"error": "Expected a list of stories"}, 400
+        configured_story_ids = _configured_misp_story_ids()
         result, status = Story.add_or_update_for_misp(data)
+        _cancel_deleted_misp_story_jobs(configured_story_ids)
         sse_manager.news_items_updated()
         return make_response(jsonify(result), status)
 
@@ -222,7 +249,7 @@ class Tags(MethodView):
                 errors[news_item_id] = "News item not found"
                 continue
             actor = Story.resolve_actor(actor=news_item.story.last_change) if news_item.story else None
-            result, status = news_item.set_tags(tags, actor=actor)
+            result, status = NewsItemService.update_tags(news_item, tags, actor=actor)
             if status != 200:
                 errors[news_item_id] = result.get("error", status)
         if errors:
@@ -233,7 +260,7 @@ class Tags(MethodView):
 class DropTags(MethodView):
     @api_key_required
     def post(self):
-        return NewsItemTag.delete_all()
+        return NewsItemTagService.delete_all()
 
 
 class IOCs(MethodView):

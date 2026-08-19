@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from core.config import Config
 from core.model.task import Task as TaskModel
@@ -49,9 +49,9 @@ def test_task_history_cleanup_deletes_old_rows_regardless_of_type(app, client, a
             assert old_task is not None
             assert new_task is not None
             assert null_task is not None
-            old_task.last_run = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=8)
-            new_task.last_run = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=6)
-            setattr(null_task, "last_run", None)
+            old_task.last_run = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=8)
+            new_task.last_run = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=6)
+            null_task.last_run = None
             from core.managers.db_manager import db
 
             db.session.commit()

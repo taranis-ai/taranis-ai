@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import cast
 
 from redis import Redis
@@ -68,7 +68,7 @@ def test_get_scheduled_jobs_skips_zero_count_registry_debug_logs(monkeypatch, ca
 
 
 def test_annotate_jobs_does_not_mark_late_cron_runs_as_missed(monkeypatch):
-    fixed_now = datetime(2025, 12, 12, 12, 40, tzinfo=timezone.utc)
+    fixed_now = datetime(2025, 12, 12, 12, 40, tzinfo=UTC)
 
     class _FixedDateTime(datetime):
         @classmethod
@@ -93,7 +93,7 @@ def test_annotate_jobs_does_not_mark_late_cron_runs_as_missed(monkeypatch):
 
 
 def test_annotate_jobs_does_not_mark_future_slot(monkeypatch):
-    fixed_now = datetime(2025, 12, 12, 7, 59, tzinfo=timezone.utc)
+    fixed_now = datetime(2025, 12, 12, 7, 59, tzinfo=UTC)
 
     class _FixedDateTime(datetime):
         @classmethod
@@ -116,7 +116,7 @@ def test_annotate_jobs_does_not_mark_future_slot(monkeypatch):
 
 
 def test_annotate_jobs_pending_first_run(monkeypatch):
-    fixed_now = datetime(2025, 12, 12, 7, 59, tzinfo=timezone.utc)
+    fixed_now = datetime(2025, 12, 12, 7, 59, tzinfo=UTC)
 
     class _FixedDateTime(datetime):
         @classmethod
@@ -142,7 +142,7 @@ def test_annotate_jobs_pending_first_run(monkeypatch):
 
 
 def test_annotate_jobs_ignores_many_missed_cron_slots(monkeypatch):
-    fixed_now = datetime(2026, 4, 29, 10, 34, 4, tzinfo=timezone.utc)
+    fixed_now = datetime(2026, 4, 29, 10, 34, 4, tzinfo=UTC)
 
     class _FixedDateTime(datetime):
         @classmethod
@@ -167,7 +167,7 @@ def test_annotate_jobs_ignores_many_missed_cron_slots(monkeypatch):
 
 
 def test_annotate_jobs_normalizes_aware_timestamps_to_utc(monkeypatch):
-    fixed_now = datetime(2025, 12, 12, 12, 40, tzinfo=timezone.utc)
+    fixed_now = datetime(2025, 12, 12, 12, 40, tzinfo=UTC)
 
     class _FixedDateTime(datetime):
         @classmethod

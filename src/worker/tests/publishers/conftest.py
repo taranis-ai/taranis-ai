@@ -2,9 +2,8 @@ from unittest.mock import patch
 
 import mockssh
 import pytest
-from pytest import yield_fixture
 
-import worker.publishers as publishers
+from worker import publishers
 
 
 class MockProduct:
@@ -170,7 +169,7 @@ def smtp_mock():
         yield smtp_instance
 
 
-@yield_fixture()
+@pytest.fixture
 def sftp_mock(request):
     import glob
     import os

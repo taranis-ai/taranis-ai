@@ -57,13 +57,11 @@ class Worker(BaseModel):
                 )
             )
 
-        if category := filter_args.get("category"):
-            if bool(WORKER_CATEGORY(category)):
-                query = query.where(Worker.category == category)
+        if (category := filter_args.get("category")) and bool(WORKER_CATEGORY(category)):
+            query = query.where(Worker.category == category)
 
-        if type := filter_args.get("type"):
-            if bool(WORKER_TYPES(type)):
-                query = query.where(Worker.type == type)
+        if (type := filter_args.get("type")) and bool(WORKER_TYPES(type)):
+            query = query.where(Worker.type == type)
 
         if exclude := filter_args.get("exclude"):
             query = query.where(

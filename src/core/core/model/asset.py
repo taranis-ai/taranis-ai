@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.organization import Organization
@@ -166,17 +167,17 @@ class Asset(BaseModel):
 
     @classmethod
     def get_for_api(cls, item_id, organization: Organization) -> tuple[dict[str, Any], int]:
-        if item := cls.get(item_id):
-            if AssetGroup.access_allowed(organization, item.asset_group_id):
-                return item.to_dict(), 200
+        if (item := cls.get(item_id)) and AssetGroup.access_allowed(organization, item.asset_group_id):
+            return item.to_dict(), 200
         return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def add(cls, organization: Organization, data) -> tuple[dict, int]:
         try:
             asset = cls.from_dict(data)
-        except ValueError as exc:
-            return {"error": str(exc)}, 400
+        except ValueError:
+            logger.exception("Failed to add asset")
+            return {"error": "Invalid asset data"}, 400
         if not AssetGroup.access_allowed(organization, asset.asset_group_id):
             return {"error": "Access Denied"}, 403
 
@@ -199,8 +200,9 @@ class Asset(BaseModel):
                     asset.asset_observables = cls._load_observables(value)
                 elif hasattr(asset, key) and key != "id":
                     setattr(asset, key, value)
-        except ValueError as exc:
-            return {"error": str(exc)}, 400
+        except ValueError:
+            logger.exception("Failed to update asset")
+            return {"error": "Invalid asset data"}, 400
         asset.update_vulnerabilities()
         db.session.commit()
         return {"message": "Asset updated", "id": asset.id}, 201
@@ -297,7 +299,7 @@ class AssetGroup(BaseModel):
         if default_group := cls.get_by_key("default"):
             return default_group
         if not (org := Organization.find_by_name("The Earth")):
-            raise Exception("Default organization (id=1) not found. Cannot create default asset group.")
+            raise RuntimeError("Default organization (id=1) not found. Cannot create default asset group.")
         return AssetGroup.add(
             {
                 "name": "Default",
@@ -318,9 +320,8 @@ class AssetGroup(BaseModel):
             normalized_id = cls.normalize_uuid_id(item_id)
         except (TypeError, ValueError):
             normalized_id = None
-        if normalized_id and normalized_id != lookup_id:
-            if asset_group := super().get(normalized_id):
-                return asset_group
+        if normalized_id and normalized_id != lookup_id and (asset_group := super().get(normalized_id)):
+            return asset_group
         if lookup_id:
             return cls.get_by_key(lookup_id)
         return None

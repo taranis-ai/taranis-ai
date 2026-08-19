@@ -2,7 +2,7 @@ import inspect
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from croniter import croniter
@@ -88,7 +88,7 @@ def _sync_next_index(redis: Redis, base_ts: float) -> dict[str, dict[str, Any]]:
 
 def compute_next(spec: dict[str, Any], base_ts: float) -> float:
     if spec.get("cron"):
-        dt = datetime.fromtimestamp(base_ts, tz=timezone.utc)
+        dt = datetime.fromtimestamp(base_ts, tz=UTC)
         next_run = croniter(spec["cron"], dt).get_next(datetime)
         if not isinstance(next_run, datetime):
             raise ValueError("croniter did not return a datetime")

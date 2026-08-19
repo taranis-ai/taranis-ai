@@ -20,7 +20,7 @@
           <fieldset class="fieldset bg-base-100 flex-none w-1/4">
             <legend class="fieldset-legend">Recent activity window</legend>
             {{ form_input_content(label="Activity Window Days", name="dashboard[trending_cluster_days]",
-                        value=dashboard.trending_cluster_days , type='number') }}
+              value=dashboard.trending_cluster_days , type='number') }}
           </fieldset>
 
           {{ form_switch(label="Show Trending Clusters", name="dashboard[show_trending_clusters]", value=dashboard.show_trending_clusters, yes_val=true, no_val=false, required=False, width='w-1/4') }}

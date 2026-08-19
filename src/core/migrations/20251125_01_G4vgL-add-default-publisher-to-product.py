@@ -4,6 +4,7 @@ Add default_publisher to product
 
 from yoyo import step
 
+
 __depends__ = {"20251106_01_U7YeD-migrate-search-vector"}
 
 steps = [

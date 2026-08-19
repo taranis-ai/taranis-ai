@@ -33,10 +33,10 @@ import hashlib
 import json
 import re
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from copy import copy
-from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any, cast
 
 from croniter import croniter
 from flask import Flask
@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from core.model.task import Task
 from models.admin import CronSpec
 from redis import Redis
+from redis.exceptions import RedisError
 from rq import Queue
 from rq.exceptions import NoSuchJobError
 from rq.job import Dependency, Job
@@ -150,7 +151,7 @@ def _as_naive_utc(value: datetime | None) -> datetime | None:
         return None
     if value.tzinfo is None or value.utcoffset() is None:
         return value
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value.astimezone(UTC).replace(tzinfo=None)
 
 
 def _task_result_reason(task_result: "Task | None") -> str | None:
@@ -176,7 +177,7 @@ def _format_utc_timestamp(value: datetime | None) -> str | None:
 
 
 def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     for job in jobs:
         last_run_dt = _as_naive_utc(job.get("last_run"))
         next_run_dt = _as_naive_utc(job.get("next_run_time"))
@@ -212,7 +213,7 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _compute_next_timestamp(cron: str | None, interval: int | None, base_ts: float) -> float:
     if cron:
-        dt = datetime.fromtimestamp(base_ts, tz=timezone.utc)
+        dt = datetime.fromtimestamp(base_ts, tz=UTC)
         return cast(datetime, croniter(cron, dt).get_next(datetime)).timestamp()
     if interval is not None:
         return base_ts + int(interval)
@@ -244,9 +245,8 @@ class QueueManager:
         self.redis_url = Config.REDIS_URL
         self.redis_password: str | None = None
         self.queue_names = ["misc", "bots", "collectors", "presenters", "publishers", "connectors"]
-        if redis_password_value := Config.REDIS_PASSWORD:
-            if secret := redis_password_value.get_secret_value():
-                self.redis_password = secret
+        if (redis_password_value := Config.REDIS_PASSWORD) and (secret := redis_password_value.get_secret_value()):
+            self.redis_password = secret
 
         try:
             self.init_app(app)
@@ -391,7 +391,7 @@ class QueueManager:
 
         try:
             raw_ids = self._redis.hkeys(CRON_DEFS_KEY)
-        except Exception:
+        except RedisError:
             return set()
 
         return {_decode_redis_value(raw_id) for raw_id in raw_ids}
@@ -492,7 +492,7 @@ class QueueManager:
         if self.error:
             return
         try:
-            for queue_name, queue in self._queues.items():
+            for queue in self._queues.values():
                 queue.empty()
             logger.info("All queues cleared")
         except Exception as e:
@@ -1037,7 +1037,7 @@ class QueueManager:
         from datetime import timedelta
 
         if countdown > 0:
-            scheduled_time = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=countdown)
+            scheduled_time = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=countdown)
             job = self.enqueue_at(
                 "presenters",
                 "presenter_task",
@@ -1190,7 +1190,7 @@ class QueueManager:
     ) -> dict[str, Any]:
         """Build a normalized cron schedule entry."""
         if now is None:
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            now = datetime.now(UTC).replace(tzinfo=None)
 
         cron = croniter(cron_schedule, now)
         next_run = cron.get_next(datetime)
@@ -1336,9 +1336,7 @@ class QueueManager:
 
                         scheduled_for: datetime | None = None
                         if isinstance(scheduled_time, datetime):
-                            scheduled_for = (
-                                scheduled_time.astimezone(timezone.utc).replace(tzinfo=None) if scheduled_time.tzinfo else scheduled_time
-                            )
+                            scheduled_for = scheduled_time.astimezone(UTC).replace(tzinfo=None) if scheduled_time.tzinfo else scheduled_time
 
                         # Get human-readable name from job args
                         job_name = self._get_job_display_name(job)

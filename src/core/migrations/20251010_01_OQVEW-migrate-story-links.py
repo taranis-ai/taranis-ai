@@ -4,6 +4,7 @@ migrate story links
 
 from yoyo import step
 
+
 __depends__ = {"20250820_01_H1Omd-worker-status"}
 
 steps = [

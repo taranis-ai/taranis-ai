@@ -16,7 +16,7 @@ def wait_for_http_ok(url: str, timeout_seconds: int = 20, poll_interval: float =
             resp = requests.get(url, timeout=2)
             resp.raise_for_status()
             return
-        except Exception as exc:  # pragma: no cover - readiness polling
+        except requests.RequestException as exc:  # pragma: no cover - readiness polling
             last_exc = exc
             time.sleep(poll_interval)
     raise RuntimeError(f"Timed out waiting for {url}: {last_exc}")
@@ -33,9 +33,13 @@ def _docker_is_podman(docker_bin: str) -> bool:
 
 def require_docker_compose_command() -> str:
     docker_bin = shutil.which("docker")
-    if docker_bin and not _docker_is_podman(docker_bin):
-        if _command_succeeds([docker_bin, "compose", "version"]) and _command_succeeds([docker_bin, "info"]):
-            return "docker compose"
+    if (
+        docker_bin
+        and not _docker_is_podman(docker_bin)
+        and _command_succeeds([docker_bin, "compose", "version"])
+        and _command_succeeds([docker_bin, "info"])
+    ):
+        return "docker compose"
 
     podman_bin = shutil.which("podman")
     if podman_bin and _command_succeeds([podman_bin, "info"]):

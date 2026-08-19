@@ -9,7 +9,7 @@ pytestmark = pytest.mark.usefixtures("set_transformers_offline")
 
 
 def test_initalize_bots():
-    import worker.bots as bots
+    from worker import bots
 
     bots.AnalystBot()
     bots.IOCBot()
@@ -27,14 +27,14 @@ def test_initalize_bots():
         {"filter": {"timefrom": "2026-07-01T00:00:00"}},
     ],
 )
-def test_filter_timefrom_is_not_replaced_by_the_default_window(parameters):
+def test_filter_timefrom_is_forwarded_to_story_query(parameters):
     filter_dict = BaseBot().get_filter_dict(parameters)
 
     assert filter_dict["timefrom"] == "2026-07-01T00:00:00"
 
 
 def test_ioc_bot(story_get_mock):
-    import worker.bots as bots
+    from worker import bots
 
     ioc_bot = bots.IOCBot()
     ioc_bot.execute()
@@ -42,15 +42,15 @@ def test_ioc_bot(story_get_mock):
     assert story_get_mock.call_count == 1
 
 
-def test_analyst_bot_returns_meaningful_result_when_no_news_items(monkeypatch):
-    import worker.bots as bots
+def test_analyst_bot_returns_meaningful_result_when_no_stories(monkeypatch):
+    from worker import bots
 
     analyst_bot = bots.AnalystBot()
-    monkeypatch.setattr(analyst_bot.core_api, "get_news_items", lambda limit: None)
+    monkeypatch.setattr(analyst_bot, "get_stories", lambda parameters: [])
 
     result = analyst_bot.execute({"REGULAR_EXPRESSION": "tag", "ATTRIBUTE_NAME": "label"})
 
-    assert result == {"message": "No news items found", "result": {}}
+    assert result == {"message": "No new stories found", "result": {}}
 
 
 def test_news_item_content_for_tagging_handles_nullable_fields():
@@ -61,7 +61,7 @@ def test_news_item_content_for_tagging_handles_nullable_fields():
 
 
 def test_nlp_bot(story_get_mock, ner_bot_mock):
-    import worker.bots as bots
+    from worker import bots
 
     nlp_bot = bots.NLPBot()
     ner_bot_result = nlp_bot.execute()
@@ -74,7 +74,7 @@ def test_nlp_bot(story_get_mock, ner_bot_mock):
 
 
 def test_nlp_bot_uses_requests_timeout_parameter(story_get_mock, ner_bot_mock):
-    import worker.bots as bots
+    from worker import bots
 
     nlp_bot = bots.NLPBot()
     nlp_bot.execute({"REQUESTS_TIMEOUT": "17"})
@@ -82,42 +82,40 @@ def test_nlp_bot_uses_requests_timeout_parameter(story_get_mock, ner_bot_mock):
     assert nlp_bot.bot_api.timeout == 17
 
 
-def test_summary_bot_uses_configured_summary_endpoint_and_optional_title_endpoint(
+def test_summary_bot_uses_configured_summary_and_default_title_endpoints(
     stories,
-    story_get_mock,
     story_update_mock,
     story_attribute_update_mock,
     requests_mock,
+    monkeypatch,
 ):
-    import worker.bots as bots
+    from worker import bots
 
+    story = {**stories[0], "news_items": [stories[0]["news_items"][0], stories[1]["news_items"][0]]}
+    story_get_mock = requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories", json=[story])
     requests_mock.post("http://summary-bot.test/summary", json={"summary": "Configured summary"})
     requests_mock.post("http://summary-bot.test/title", json={"title": "Configured title"})
+    monkeypatch.setattr(Config, "TITLE_API_ENDPOINT", "http://summary-bot.test/title")
 
     summary_bot = bots.SummaryBot()
-    result_msg = summary_bot.execute(
-        {
-            "SUMMARY_ENDPOINT": "http://summary-bot.test/summary",
-            "TITLE_ENDPOINT": "http://summary-bot.test/title",
-        }
-    )
+    result_msg = summary_bot.execute({"SUMMARY_ENDPOINT": "http://summary-bot.test/summary"})
 
-    assert result_msg == {"message": f"Summarized {len(stories)} stories"}
+    assert result_msg == {"message": "Summarized 1 stories"}
     assert story_get_mock.call_count == 1
 
     summary_calls = [req for req in requests_mock.request_history if req.url == "http://summary-bot.test/summary"]
     title_calls = [req for req in requests_mock.request_history if req.url == "http://summary-bot.test/title"]
     update_calls = [req for req in story_update_mock.request_history if req.method == "PUT"]
 
-    assert len(summary_calls) == len(stories)
-    assert not title_calls
-    assert len(update_calls) == len(stories)
+    assert len(summary_calls) == 1
+    assert len(title_calls) == 1
+    assert len(update_calls) == 1
     assert all("news_items" in call.json() for call in summary_calls)
     assert all("news_items" in call.json() for call in title_calls)
     assert all(all(set(item.keys()) == {"title", "content"} for item in call.json()["news_items"]) for call in summary_calls + title_calls)
     assert all("summary" in call.json() for call in update_calls)
-    assert not any("title" in call.json() for call in update_calls)
-    assert story_attribute_update_mock.call_count >= len(stories)
+    assert all("title" in call.json() for call in update_calls)
+    assert story_attribute_update_mock.call_count == 1
 
 
 def test_summary_bot_skips_title_generation_when_title_endpoint_is_unset(
@@ -127,7 +125,7 @@ def test_summary_bot_skips_title_generation_when_title_endpoint_is_unset(
     story_attribute_update_mock,
     requests_mock,
 ):
-    import worker.bots as bots
+    from worker import bots
 
     requests_mock.post(
         Config.SUMMARY_API_ENDPOINT,
@@ -149,7 +147,7 @@ def test_summary_bot_skips_title_generation_when_title_endpoint_is_unset(
 
 
 def test_cybersec_class_bot(stories, story_get_mock, news_item_attribute_update_mock, story_attribute_update_mock, cybersec_classifier_mock):
-    import worker.bots as bots
+    from worker import bots
 
     def extract_attributes(request_json):
         if isinstance(request_json, dict):
@@ -213,7 +211,7 @@ def test_sentiment_analysis_bot_accepts_flat_response_and_normalizes_label(
     news_item_attribute_update_mock,
     requests_mock,
 ):
-    import worker.bots as bots
+    from worker import bots
 
     requests_mock.post(
         f"{Config.SENTIMENT_ANALYSIS_API_ENDPOINT}/",

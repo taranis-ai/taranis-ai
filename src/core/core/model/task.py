@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from models.task import UserTaskFilter
 from sqlalchemy import func, or_
@@ -14,10 +14,15 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 class Task(BaseModel):
     __tablename__ = "task"
 
-    SUCCESS_STATUSES = {"SUCCESS", "NOT_MODIFIED"}
-    FAILURE_STATUSES = {"FAILURE"}
+    SUCCESS_STATUSES = frozenset({"SUCCESS", "NOT_MODIFIED"})
+    FAILURE_STATUSES = frozenset({"FAILURE"})
     USER_TASK_TERMINAL_STATUSES = SUCCESS_STATUSES | FAILURE_STATUSES | {"PREVIEW"}
-    DEFAULT_RESULT = {"message": "No task result was recorded", "reason": "missing_result", "retryable": False, "data": None}
+    DEFAULT_RESULT: ClassVar[dict[str, object]] = {
+        "message": "No task result was recorded",
+        "reason": "missing_result",
+        "retryable": False,
+        "data": None,
+    }
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     job_id: Mapped[str] = db.Column(db.String, unique=True, nullable=False)
@@ -124,9 +129,8 @@ class Task(BaseModel):
             normalized_id = cls.normalize_uuid_id(item_id)
         except (TypeError, ValueError):
             normalized_id = None
-        if normalized_id and normalized_id != lookup_id:
-            if task := super().get(normalized_id):
-                return task
+        if normalized_id and normalized_id != lookup_id and (task := super().get(normalized_id)):
+            return task
         if lookup_id:
             return cls.get_by_job_id(lookup_id)
         return None

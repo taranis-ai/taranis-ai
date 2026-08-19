@@ -11,7 +11,6 @@ class TLPLevel(StrEnum):
         """
         Return the list of TLPLevel members this level can access.
         """
-        ...
 
     @classmethod
     def get_most_restrictive_tlp(cls, tlp_levels: list[TLPLevel]) -> TLPLevel:
@@ -19,7 +18,6 @@ class TLPLevel(StrEnum):
         Get the most restrictive TLP level from a list of TLP levels.
         If the list is empty, return the default TLP level (CLEAR).
         """
-        ...
 
     @classmethod
     def get_tlp_level(cls, tlp_level: str) -> TLPLevel | None: ...

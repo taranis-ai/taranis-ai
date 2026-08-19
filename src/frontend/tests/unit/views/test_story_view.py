@@ -491,6 +491,64 @@ def test_story_edit_advanced_view_renders_sentiment_status_chip(authenticated_cl
     assert "Sentiment · Negative" in response.text
 
 
+def test_story_edit_misp_auto_update_is_advanced_only(authenticated_client, responses_mock):
+    story_payload = story_with_news_item_tags()
+    story_payload["misp_auto_update"] = {"connector_id": "connector-1", "enabled": True}
+    story_payload["attributes"] = [{"key": "has_proposals", "value": "https://misp.example/event-1"}]
+    assert Story(**story_payload).misp_auto_update.connector_id == "connector-1"
+    mock_story_for_edit(responses_mock, story_payload)
+
+    simple_response = authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"], layout="simple"))
+    advanced_response = authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"], layout="advanced"))
+
+    assert "MISP auto-update" not in simple_response.text
+    assert "MISP auto-update" in advanced_response.text
+    assert "Blocked by MISP proposal" in advanced_response.text
+    assert "misp_auto_update[connector_id]" not in advanced_response.text
+    assert "You do not have permission to change MISP auto-update settings." in advanced_response.text
+    assert not any(urlparse(call.request.url).path.endswith("/assess/connectors") for call in responses_mock.calls)
+
+
+def test_story_action_response_refreshes_updated_story(authenticated_client, responses_mock, htmx_header):
+    story_payload = story_with_news_item_tags()
+    updated_story = story_with_news_item_tags()
+    updated_story["summary"] = ""
+    updated_story["news_items"][0]["content"] = "Updated replacement content"
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
+        json={"tags": [], "sources": [{"id": "manual", "name": "Updated source"}], "groups": []},
+    )
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/assess/bookmarks", json={"items": [], "total_count": 0})
+    story_url = f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}"
+    responses_mock.get(story_url, json=story_payload)
+    responses_mock.patch(f"{Config.TARANIS_CORE_URL}/assess/stories/{story_payload['id']}", json={"story": updated_story})
+
+    authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"]))
+    responses_mock.replace("GET", story_url, json=updated_story)
+    response = authenticated_client.post(url_for("assess.story_update", story_id=story_payload["id"]), headers=htmx_header)
+
+    assert "Updated replacement content" in response.text
+    assert "Updated source" in response.text
+
+
+def test_story_edit_misp_auto_update_controls_require_connector_access(authenticated_client, auth_user, responses_mock):
+    story_payload = story_with_news_item_tags()
+    mock_story_for_edit(responses_mock, story_payload)
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/connectors",
+        json={"total_count": 1, "items": [{"id": "connector-1", "name": "MISP", "type": "misp_connector"}]},
+    )
+
+    connector_user = auth_user.model_copy(deep=True)
+    connector_user.permissions = ["CONNECTOR_USER_ACCESS"]
+    add_user_to_cache(connector_user.model_dump(mode="json"))
+
+    response = authenticated_client.get(url_for("assess.story_edit", story_id=story_payload["id"], layout="advanced"))
+
+    assert 'name="misp_auto_update[connector_id]"' in response.text
+    assert 'form="story-edit-form"' in response.text
+
+
 def test_update_news_item_tags_posts_to_news_item_endpoint_and_rerenders_card(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
     responses_mock.put(
@@ -637,6 +695,7 @@ def test_story_read_action_replaces_story_card(app):
 
 def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticated_client, responses_mock):
     story_payload = story_with_news_item_tags()
+    story_payload["misp_auto_update"] = {"connector_id": "connector-1", "enabled": True}
     bookmark_payloads = [_bookmark_collection_payload(f"bookmark-{index}", f"Bookmark {index}", index, index - 1) for index in range(1, 8)]
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
@@ -654,6 +713,7 @@ def test_assess_bookmarks_bar_renders_first_six_ordered_collections(authenticate
     response = authenticated_client.get(url_for("assess.assess"))
 
     assert response.status_code == 200
+    assert "MISP auto-update" in response.text
     tree = html.fromstring(response.text)
     bar = tree.xpath('//*[@data-testid="assess-bookmarks-bar"]')[0]
     assert bar.xpath('.//*[@data-testid="assess-bookmark-bookmark-1"]')
