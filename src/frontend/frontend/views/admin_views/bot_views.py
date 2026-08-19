@@ -102,6 +102,9 @@ class BotView(AdminBaseView):
         parameter_values = {}
         dag_preview = {"order": [], "edges": [], "nodes": [], "warnings": []}
 
+        if request.args.get("state", "").strip().lower() == "failure":
+            base_context["active_filter"] = {"label": "Showing failed bots only", "clear_url": cls.get_base_route()}
+
         bot_actions = [
             {
                 "label": "Run Bot",

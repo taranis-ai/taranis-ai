@@ -18,6 +18,7 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Failed-job error text is displayed through the scheduler error dialog and must be passed to the browser through Jinja JSON encoding.
 - The Task Errors tab reads persisted task failures rather than the RQ failed registry. Current errors are latest failed outcomes per worker identity; All history contains every retained failure.
 - The OSINT Source and Bot sidebar badges count failed configured workers and link to their respective lists filtered to failed states; one-off URL failures remain in Task Errors.
+- Worker lists opened from an error badge show an active failure-filter banner. Its Show all link returns to the unfiltered worker list and works with or without HTMX.
 
 ## Code Paths
 

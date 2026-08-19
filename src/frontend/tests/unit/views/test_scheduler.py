@@ -89,6 +89,34 @@ def test_admin_sidebar_badges_link_to_worker_specific_errors_without_changing_ma
     assert bot_error_link.getparent().tag == "li"
 
 
+@pytest.mark.parametrize(
+    ("endpoint", "query", "message"),
+    [
+        ("admin.osint_sources", {"filter_manual": "false", "state": "failure"}, "Showing failed OSINT sources only"),
+        ("admin.bots", {"state": "failure"}, "Showing failed bots only"),
+    ],
+)
+def test_worker_failure_filter_can_be_cleared(endpoint, query, message, authenticated_client, mock_core_get_endpoints):
+    with authenticated_client.application.app_context():
+        filtered_url = url_for(endpoint, **query)
+        unfiltered_url = url_for(endpoint)
+
+    response = authenticated_client.get(filtered_url)
+
+    assert response.status_code == 200
+    tree = lxml_html.fromstring(response.get_data(as_text=True))
+    banner = tree.xpath('//*[@data-testid="active-failure-filter"]')[0]
+    clear_link = tree.xpath('//*[@data-testid="clear-failure-filter"]')[0]
+    assert banner.text_content().strip().startswith(message)
+    assert clear_link.get("href") == unfiltered_url
+    assert clear_link.get("hx-get") == unfiltered_url
+
+    unfiltered_response = authenticated_client.get(unfiltered_url)
+
+    assert unfiltered_response.status_code == 200
+    assert 'data-testid="active-failure-filter"' not in unfiltered_response.get_data(as_text=True)
+
+
 def test_admin_sidebar_hides_zero_error_badges(authenticated_client, responses_mock, mock_core_get_endpoints):
     responses_mock.replace(
         responses.GET,
