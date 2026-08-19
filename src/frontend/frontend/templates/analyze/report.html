@@ -138,7 +138,7 @@
               <div class="space-y-3" data-testid="report-stories">
                 {% for story in stories %}
                   <input type="hidden" name="stories[]" value="{{ story.id }}">
-                  {{ analyze_story_card(story, report.used_story_ids | default([]) ) }}
+                  {{ analyze_story_card(story, report.used_story_ids | default([])) }}
                 {% endfor %}
               </div>
             {% else %}

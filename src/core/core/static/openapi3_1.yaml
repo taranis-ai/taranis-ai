@@ -580,21 +580,21 @@ paths:
                 value:
                   report:
                     title: CERT advisory for ACME VPN
-                    report_item_type_id: 4
+                    report_item_type_id: '4'
                     story_ids:
                     - story-100
                     - story-101
                   product:
                     title: CERT Daily Report - ACME VPN
                     description: Daily delivery for the ACME VPN advisory
-                    product_type_id: 7
+                    product_type_id: '7'
                     default_publisher: publisher-preset-42
               success_with_overrides:
                 summary: Override generated report fields after default population
                 value:
                   report:
                     title: ACME VPN incident brief
-                    report_item_type_id: 4
+                    report_item_type_id: '4'
                     story_ids:
                     - story-100
                     attribute_overrides:
@@ -604,7 +604,7 @@ paths:
                   product:
                     title: ACME VPN HTML briefing
                     description: HTML export for the ACME VPN incident brief
-                    product_type_id: 7
+                    product_type_id: '7'
                     default_publisher: publisher-preset-42
       responses:
         '201':
@@ -2489,61 +2489,6 @@ paths:
                 $ref: '#/components/schemas/user_task_list'
         '401':
           $ref: '#/components/responses/401Unauthorized'
-  /bots/news-item:
-    get:
-      security:
-      - APIKey: []
-      tags:
-      - bots
-      description: get all news items
-      operationId: bots.bots_news_item.get
-      parameters:
-      - name: limit
-        in: query
-        schema:
-          type: string
-          format: date
-      responses:
-        '200':
-          description: the news items
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/news_item'
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    put:
-      security:
-      - APIKey: []
-      tags:
-      - bots
-      description: update news item
-      operationId: bots.bots_news_item.put
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /bots/news-item/{news_item_id}/attributes:
     parameters:
     - name: news_item_id
@@ -10220,6 +10165,7 @@ components:
           $ref: '#/components/schemas/report_item'
     report_publish_attribute_override:
       type: object
+      additionalProperties: false
       required:
       - group_title
       - title
@@ -10236,6 +10182,7 @@ components:
           description: Replacement value applied after report defaults are generated
     report_publish_product_request.report:
       type: object
+      additionalProperties: false
       required:
       - title
       - report_item_type_id
@@ -10258,6 +10205,7 @@ components:
             $ref: '#/components/schemas/report_publish_attribute_override'
     report_publish_product_request.product:
       type: object
+      additionalProperties: false
       required:
       - title
       - product_type_id
@@ -10407,6 +10355,7 @@ components:
           type: string
     report_publish_product_request:
       type: object
+      additionalProperties: false
       required:
       - report
       - product

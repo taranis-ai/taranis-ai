@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import pytest
 from flask import url_for
 from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID, ONBOARDING_COMPLETED_STATUS

@@ -1,12 +1,10 @@
 import datetime
 import logging
 
-import niquests as requests
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.collectors.playwright_manager import PlaywrightManager
-from worker.config import Config
 from worker.log import logger
 
 
@@ -37,6 +35,7 @@ class SimpleWebCollector(BaseWebCollector):
 
     def preview_collector(self, source: dict) -> list[dict]:
         self.parse_source(source)
+        self.configure_primary_http_resource(source, self.web_url, manual=True)
         self.news_items = self.gather_news_items()
         return self.preview(self.news_items, source)
 
@@ -56,7 +55,7 @@ class SimpleWebCollector(BaseWebCollector):
 
     def gather_news_items(self) -> list[NewsItem]:
         if self.browser_mode == "true":
-            self.playwright_manager = PlaywrightManager(self.proxies, self.headers)
+            self.playwright_manager = PlaywrightManager(self.proxies, self._request_headers(""))
         try:
             self.news_items = self.collect_news()
         finally:
@@ -72,15 +71,9 @@ class SimpleWebCollector(BaseWebCollector):
         return [self.news_item_from_article(self.web_url, self.xpath)]
 
     def web_collector(self, source: dict, manual: bool = False):
-        with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
-            response = session.head(self.web_url, headers=self.headers, proxies=self.proxies, timeout=30)
-
-        if response.status_code == 429:
-            raise requests.exceptions.HTTPError(f"{self.web_url} returned 429 Too Many Requests. Consider decreasing the REFRESH_INTERVAL")
-        response.raise_for_status()
-
         self.last_attempted = self.get_last_attempted(source)
-        if not self.last_attempted:
+        self.configure_primary_http_resource(source, self.web_url, manual=manual)
+        if not self.last_attempted and not source.get("http_validators"):
             self.update_favicon(self.web_url, self.osint_source_id)
         self.news_items = self.gather_news_items()
         return self.publish(self.news_items, source)

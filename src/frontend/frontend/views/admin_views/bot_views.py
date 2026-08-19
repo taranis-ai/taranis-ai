@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from flask import render_template, request, url_for
 from markupsafe import Markup, escape
@@ -23,16 +23,15 @@ def render_bot_run_order(item: Bot, bot_names: dict[str, str]) -> Markup:
     parts = []
     if parameters.get("RUN_AFTER_COLLECTOR") == "true":
         parts.append('<span class="badge badge-primary badge-sm">Collector</span>')
-    for bot_id in _split_run_after_bots(parameters.get("RUN_AFTER_BOTS", "")):
-        parts.append(f'<span class="badge badge-outline badge-sm">{escape(bot_names.get(bot_id, bot_id))}</span>')
+    parts.extend(
+        f'<span class="badge badge-outline badge-sm">{escape(bot_names.get(bot_id, bot_id))}</span>'
+        for bot_id in _split_run_after_bots(parameters.get("RUN_AFTER_BOTS", ""))
+    )
     return Markup('<div class="flex flex-wrap gap-1">' + "".join(parts or ['<span class="text-base-content/50">Manual</span>']) + "</div>")
 
 
 def _split_run_after_bots(value: Any) -> list[str]:
-    if isinstance(value, list):
-        values = value
-    else:
-        values = str(value or "").split(",")
+    values = value if isinstance(value, list) else str(value or "").split(",")
     return [str(item).strip() for item in values if str(item).strip()]
 
 
@@ -56,7 +55,7 @@ class BotView(AdminBaseView):
     icon = "calculator"
     _index = 110
 
-    bot_types = {
+    bot_types: ClassVar[dict[str, dict[str, str]]] = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in BOT_TYPES
     }

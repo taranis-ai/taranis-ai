@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 def _task_payload(job_id: str, *, user_id: str | None, status: str = "SUCCESS", worker_type: str = "presenter_task"):
@@ -117,8 +117,8 @@ def test_user_tasks_supports_search_sorting_and_paging(app, client, api_header, 
             newer = Task.get(newer_job_id)
             assert older is not None
             assert newer is not None
-            older.last_run = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
-            newer.last_run = datetime.now(timezone.utc).replace(tzinfo=None)
+            older.last_run = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1)
+            newer.last_run = datetime.now(UTC).replace(tzinfo=None)
             db.session.commit()
 
         paged = client.get(

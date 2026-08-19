@@ -62,7 +62,7 @@ def test_scheduler_tab_query_param_overrides_initial(authenticated_client, mock_
     assert 'id="scheduled-tab" class="tab-panel hidden"' not in html
 
 
-def test_admin_sidebar_badges_link_to_filtered_errors_without_changing_main_links(
+def test_admin_sidebar_badges_link_to_worker_specific_errors_without_changing_main_links(
     authenticated_client,
     mock_core_get_endpoints,
 ):
@@ -70,8 +70,8 @@ def test_admin_sidebar_badges_link_to_filtered_errors_without_changing_main_link
         scheduler_url = url_for("admin.scheduler")
         source_url = url_for("admin.osint_sources")
         bot_url = url_for("admin.bots")
-        source_errors_url = url_for("admin.scheduler", tab="errors", scope="current", category="collector")
-        bot_errors_url = url_for("admin.scheduler", tab="errors", scope="current", category="bot")
+        source_errors_url = url_for("admin.osint_sources", filter_manual="false", state="failure")
+        bot_errors_url = url_for("admin.bots", state="failure")
 
     response = authenticated_client.get(scheduler_url)
 

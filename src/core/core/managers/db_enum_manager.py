@@ -1,5 +1,4 @@
 from enum import StrEnum
-from typing import Type
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
@@ -7,7 +6,7 @@ from sqlalchemy.engine import Connection
 from core.log import logger
 
 
-def sync_enum_with_db(enum_type: Type[StrEnum], connection: Connection, table_column: str | None = None) -> None:
+def sync_enum_with_db(enum_type: type[StrEnum], connection: Connection, table_column: str | None = None) -> None:
     enum_name = enum_type.__name__.lower()
     if table_column:
         table_name, column_name = table_column.split(".")

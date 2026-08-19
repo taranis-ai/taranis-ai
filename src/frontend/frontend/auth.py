@@ -1,7 +1,8 @@
 import contextlib
-from datetime import datetime, timedelta, timezone
+from collections.abc import Callable, Iterable
+from datetime import UTC, datetime, timedelta
 from functools import wraps
-from typing import Any, Callable, Iterable, ParamSpec, TypeVar, cast
+from typing import Any, ParamSpec, TypeVar, cast
 from urllib.parse import unquote, urlsplit
 
 from flask import Flask, Response, abort, current_app, g, make_response, redirect, render_template, request, url_for
@@ -41,7 +42,7 @@ def init(app: Flask) -> None:
 def refresh_expiring_jwts(response: Response) -> Response:
     try:
         exp_timestamp = get_jwt()["exp"]
-        target_timestamp = datetime.timestamp(datetime.now(timezone.utc) + timedelta(minutes=30))
+        target_timestamp = datetime.timestamp(datetime.now(UTC) + timedelta(minutes=30))
         if get_jwt_request_location() == "cookies" and target_timestamp > exp_timestamp and current_user:
             core_response = CoreApi().refresh()
             if core_response.ok:
@@ -153,7 +154,7 @@ def logout() -> tuple[str, int] | Response:
         core_response: ReqResponse = CoreApi().logout()
     except HTTPException:
         raise
-    except Exception as exc:
+    except RequestException as exc:
         # If the core isn't reachable, fall back to the login page without crashing.
         logger.error(f"Core logout failed: {exc}")
         return render_login_page(login_error="Logout failed"), 500
@@ -262,7 +263,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
 
 
 @jwt.user_identity_loader
-def user_identity_lookup(user: "UserProfile") -> str:
+def user_identity_lookup(user: UserProfile) -> str:
     return user.username
 
 

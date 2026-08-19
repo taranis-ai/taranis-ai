@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from models.cti import CTIEnrichment, normalize_ioc_type, normalize_ioc_value
@@ -115,5 +115,5 @@ class IOC(BaseModel):
                 parsed = datetime.fromisoformat(value)
             except ValueError:
                 return None
-            return parsed.astimezone(timezone.utc).replace(tzinfo=None) if parsed.tzinfo else parsed
+            return parsed.astimezone(UTC).replace(tzinfo=None) if parsed.tzinfo else parsed
         return None

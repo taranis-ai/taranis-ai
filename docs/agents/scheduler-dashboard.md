@@ -17,7 +17,7 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Datetimes are stored and returned as UTC values and displayed in the profile timezone through the frontend `format_datetime` filter.
 - Failed-job error text is displayed through the scheduler error dialog and must be passed to the browser through Jinja JSON encoding.
 - The Task Errors tab reads persisted task failures rather than the RQ failed registry. Current errors are latest failed outcomes per worker identity; All history contains every retained failure.
-- The OSINT Source sidebar badge counts failed configured sources and links to the source list filtered to failed states; one-off URL failures remain in Task Errors. The Bot badge links to Current Task Errors filtered to bots.
+- The OSINT Source and Bot sidebar badges count failed configured workers and link to their respective lists filtered to failed states; one-off URL failures remain in Task Errors.
 
 ## Code Paths
 

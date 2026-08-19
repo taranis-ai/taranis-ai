@@ -1,7 +1,9 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
+from core.model.bot import Bot
+from core.model.osint_source import OSINTSource
 from core.model.task import Task
 
 
@@ -24,8 +26,8 @@ def test_build_task_status_badge(stats, expected_label, expected_variant):
 
 
 def test_get_task_statistics_includes_worker_metadata(monkeypatch):
-    last_run = datetime(2026, 4, 13, 12, 30, tzinfo=timezone.utc)
-    last_success = datetime(2026, 4, 13, 11, 45, tzinfo=timezone.utc)
+    last_run = datetime(2026, 4, 13, 12, 30, tzinfo=UTC)
+    last_success = datetime(2026, 4, 13, 11, 45, tzinfo=UTC)
 
     monkeypatch.setattr(
         Task,
@@ -196,12 +198,9 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
                     Task.delete(task_id)
 
 
-def test_get_admin_menu_badges_sums_failures_by_category(monkeypatch):
-    monkeypatch.setattr(
-        Task,
-        "get_current_error_counts",
-        classmethod(lambda cls: {"collector": 6, "bot": 7}),
-    )
+def test_get_admin_menu_badges_uses_model_failure_counts(monkeypatch):
+    monkeypatch.setattr(OSINTSource, "get_current_failure_count", classmethod(lambda cls: 6))
+    monkeypatch.setattr(Bot, "get_current_failure_count", classmethod(lambda cls: 7))
 
     assert Task.get_admin_menu_badges() == {
         "osint_source": 6,

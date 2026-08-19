@@ -923,6 +923,16 @@ class TestBotConfigApi(BaseTest):
         assert response.json["error"] == "Invalid bot DAG preview payload"
         assert "SECRET_BOT_TYPE" not in response.text
 
+    def test_bot_dag_preview_rejects_non_object_parameters(self, client, auth_header):
+        response = client.post(
+            self.concat_url("bots/dag-preview"),
+            json={"type": "WORDLIST_BOT", "parameters": []},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid bot DAG preview payload"
+
     def test_modify_bot(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot
 
@@ -1096,33 +1106,40 @@ class TestBotConfigApi(BaseTest):
 class TestAdminMenuBadgesConfigApi(BaseTest):
     base_uri = "/api/config"
 
-    def test_get_admin_menu_badges(self, client, auth_header, app):
+    def test_get_admin_menu_badges(self, client, auth_header, app, cleanup_sources, cleanup_bot):
+        from core.model.bot import Bot
+        from core.model.osint_source import OSINTSource
         from core.model.task import Task
 
-        task_ids = [
-            f"admin-menu-badge-collector-{uuid.uuid4().hex}",
-            f"admin-menu-badge-bot-{uuid.uuid4().hex}",
-        ]
+        source_id = cleanup_sources["id"]
+        bot_id = cleanup_bot["id"]
+        task_ids = [f"collect_rss_collector_{source_id}", f"bot_{bot_id}"]
 
         with app.app_context():
+            if OSINTSource.get(source_id):
+                OSINTSource.delete(source_id)
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+            OSINTSource.add(cleanup_sources)
+            Bot.add(cleanup_bot)
             Task.add(
                 {
                     "id": task_ids[0],
                     "task": "collector_task",
-                    "worker_id": "source-1",
+                    "worker_id": source_id,
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": "source-1"}},
+                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": source_id}},
                 }
             )
             Task.add(
                 {
                     "id": task_ids[1],
-                    "task": "bot_task",
-                    "worker_id": "bot-1",
-                    "worker_type": "WORDLIST_BOT",
+                    "task": f"bot_{bot_id}",
+                    "worker_id": bot_id,
+                    "worker_type": cleanup_bot["type"].upper(),
                     "status": "FAILURE",
-                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": "bot-1"}},
+                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": bot_id}},
                 }
             )
 
@@ -1132,11 +1149,20 @@ class TestAdminMenuBadgesConfigApi(BaseTest):
             cache_control = response.headers["Cache-Control"].lower()
             assert "private" in cache_control
             assert "max-age=300" in cache_control
+
+            failed_sources = self.assert_get_ok(client, uri="osint-sources?state=failure", auth_header=auth_header)
+            failed_bots = self.assert_get_ok(client, uri="bots?state=failure", auth_header=auth_header)
+            assert [item["id"] for item in failed_sources.json["items"]] == [source_id]
+            assert [item["id"] for item in failed_bots.json["items"]] == [bot_id]
         finally:
             with app.app_context():
                 for task_id in task_ids:
                     if Task.get(task_id):
                         Task.delete(task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
+                if Bot.get(bot_id):
+                    Bot.delete(bot_id)
 
 
 class TestConnectorConfigApi(BaseTest):

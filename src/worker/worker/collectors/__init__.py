@@ -5,4 +5,4 @@ from worker.collectors.rt_collector import RTCollector
 from worker.collectors.simple_web_collector import SimpleWebCollector
 
 
-__all__ = ["RSSCollector", "SimpleWebCollector", "RTCollector", "MispCollector", "PPNCollector"]
+__all__ = ["MispCollector", "PPNCollector", "RSSCollector", "RTCollector", "SimpleWebCollector"]

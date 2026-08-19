@@ -43,7 +43,7 @@
   columns,
   url_for('admin.scheduler_jobs_table'),
   'No scheduled jobs'
-  ) %}
+) %}
   <tr class="hover:bg-info {% if job.is_overdue %}bg-error/5{% endif %}">
     <td>
       <div class="font-medium">{{ job.name }}</div>

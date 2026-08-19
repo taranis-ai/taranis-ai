@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from tests.application.support.api_test_base import BaseTest
 
@@ -58,6 +58,26 @@ class TestAdminApi(BaseTest):
         response_settings = response.get_json()["settings"]
         assert response_settings["default_collector_proxy"] == "http://patched-proxy.test:2222"
         assert response_settings["default_collector_interval"] == initial_settings["settings"]["default_collector_interval"]
+
+    def test_settings_accepts_zero_bot_lookback(self, client, auth_header):
+        response = self.assert_put_ok(
+            client,
+            "settings",
+            {"settings": {"default_bot_lookback_days": "0"}},
+            auth_header,
+        )
+
+        assert response.get_json()["settings"]["default_bot_lookback_days"] == 0
+
+    def test_settings_rejects_negative_bot_lookback(self, client, auth_header):
+        response = client.put(
+            self.concat_url("settings"),
+            json={"settings": {"default_bot_lookback_days": -1}},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "Invalid bot lookback setting"
 
     def test_settings_rejects_invalid_default_timezone(self, client, auth_header):
         response = client.put(
@@ -213,7 +233,7 @@ def test_export_stories_rejects_invalid_datetime_filters(client, auth_header):
 
 
 def test_export_stories_rejects_future_datetime_filters(client, auth_header):
-    future_time = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    future_time = (datetime.now(UTC) + timedelta(days=1)).isoformat()
 
     r = client.get(f"/api/settings/export-stories?timeto={future_time}", headers=auth_header)
 

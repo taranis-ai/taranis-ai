@@ -323,14 +323,16 @@ class TestSourceView:
         max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
         oversized_icon = b"\x00" * (max_bytes + 1)
 
-        with patch.object(SourceView, "store_form_data") as mock_store:
-            with app.test_request_context(
+        with (
+            patch.object(SourceView, "store_form_data") as mock_store,
+            app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
                 data={"icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
                 content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data("0")
+            ),
+        ):
+            response, error = SourceView.process_form_data("0")
 
         assert response is None
         assert error == f"Icon file exceeds maximum size of {max_bytes} bytes."

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -21,13 +21,13 @@ from models.types import (
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _normalize_datetime(value: datetime | None) -> datetime | None:
     if value is None or value.tzinfo is None or value.utcoffset() is None:
         return value
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value.astimezone(UTC).replace(tzinfo=None)
 
 
 class ExportStoriesQuery(TaranisBaseModel):
@@ -237,6 +237,7 @@ class User(TaranisBaseModel):
 class TaranisConfig(TaranisBaseModel):
     default_collector_proxy: AnyUrl | Literal[""] = ""
     default_collector_interval: str = ""
+    default_bot_lookback_days: int = Field(default=7, ge=0)
     default_tlp_level: TLPLevel = TLPLevel.CLEAR
     default_story_conflict_retention: str = "200"
     default_news_item_conflict_retention: str = "200"

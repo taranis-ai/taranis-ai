@@ -82,7 +82,7 @@
       <label class="input w-full">
         <span class="label">{{ label }}{% if required %}<span class="text-error text-sm">*</span>{% endif %}
         </span>
-        <input type="date"
+        <input type="{{ {'DATE': 'date', 'TIME': 'time', 'DATE_TIME': 'datetime-local'}[attr.type] }}"
                name="{{ base_name }}"
                value="{{ value }}"
                placeholder="{{ description or 'Enter a date' }}"

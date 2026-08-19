@@ -1,10 +1,11 @@
 import datetime
 import os
+import re
 from unittest.mock import MagicMock
 
 import pytest
 
-import worker.collectors as collectors
+from worker import collectors
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.config import Config
 
@@ -63,16 +64,16 @@ def news_item_upload_mock(requests_mock):
 
 @pytest.fixture
 def web_collector_url_mock(requests_mock):
-    from tests.testdata import head_request, web_collector_ref_url, web_collector_url
+    from tests.testdata import web_collector_ref_url, web_collector_url
 
-    requests_mock.head(web_collector_url, json=head_request)
     requests_mock.get(web_collector_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
     requests_mock.get(web_collector_ref_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
 
 
 @pytest.fixture
-def collectors_mock(osint_source_update_mock, news_item_upload_mock):
-    pass
+def collectors_mock(requests_mock, osint_source_update_mock, news_item_upload_mock):
+    icon_endpoint = re.compile(rf"{re.escape(Config.TARANIS_CORE_URL)}/worker/osint-sources/[^/]+/icon$")
+    requests_mock.put(icon_endpoint, json={})
 
 
 @pytest.fixture
@@ -119,6 +120,7 @@ def browser_web_collector_mock(monkeypatch) -> MagicMock:
     mock_manager.stop_playwright_if_needed.return_value = None
 
     def fake_playwright_manager_ctor(proxies, headers):
+        mock_manager.request_headers = headers
         return mock_manager
 
     monkeypatch.setattr(
@@ -144,7 +146,7 @@ def browser_web_collector_instance(simple_web_collector):
 
 @pytest.fixture
 def rt_mock(requests_mock, collectors_mock):
-    import tests.collectors.rt_testdata as rt_testdata
+    from tests.collectors import rt_testdata
 
     requests_mock.get(rt_testdata.rt_ticket_search_url, json=rt_testdata.rt_ticket_search_result)
     requests_mock.get(rt_testdata.rt_no_tickets_url, json={"items": []})
@@ -154,6 +156,7 @@ def rt_mock(requests_mock, collectors_mock):
     requests_mock.get(rt_testdata.rt_attachment_1_url, json=rt_testdata.rt_ticket_attachment_1)
     requests_mock.get(rt_testdata.worker_stories_url, json={})
     requests_mock.get(rt_testdata.favicon_url, json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", json={})
 
 
 @pytest.fixture
@@ -168,6 +171,7 @@ def misp_collector_mock(requests_mock):
     requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/stories?story_id=320d4589-cd71-4722-aa28-ea5530e99830", json={})
     requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/b583f4ae-7ec3-492a-a36d-ed9cfc0b4a28", json={})
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/stories", json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/misp/stories", json={})
 
     requests_mock.get(
         "https://test.misp.test/users/view/me",

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 from flask import render_template
 from models.admin import ACL, OSINTSource, OSINTSourceGroup, ProductType, ReportItemType, Role, WordList
@@ -13,7 +13,7 @@ class ACLView(AdminBaseView):
     _index = 50
     icon = "lock-closed"
 
-    item_types = {
+    item_types: ClassVar[dict[str, dict[str, Any]]] = {
         "osint_source": {"id": "osint_source", "name": "OSINT Source", "model": OSINTSource},
         "osint_source_group": {"id": "osint_source_group", "name": "OSINT Source Group", "model": OSINTSourceGroup},
         "product_type": {"id": "product_type", "name": "Product Type", "model": ProductType},

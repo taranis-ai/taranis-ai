@@ -53,6 +53,12 @@
             {{ form_input('Default Collector Interval', 'settings[default_collector_interval]', current_settings.default_collector_interval, preserve=False, data_testid='settings-default-collector-interval') }}
           </div>
 
+          <div class="p-4 border rounded-lg hover:bg-base-200 transition">
+            <h3 class="font-semibold text-lg mb-2">Default Bot Lookback</h3>
+            <p class="text-sm text-gray-500 mb-3">Set how many days bots process when no explicit start time is provided. Set to 0 to process all available stories.</p>
+            {{ form_input('Default Bot Lookback Days', 'settings[default_bot_lookback_days]', current_settings.default_bot_lookback_days, type='number', preserve=False, data_testid='settings-default-bot-lookback-days', min_value=0) }}
+          </div>
+
           <!-- Setting 4 -->
           <div class="p-4 border rounded-lg hover:bg-base-200 transition">
             <h3 class="font-semibold text-lg mb-2">Default Conflict Retention Settings</h3>

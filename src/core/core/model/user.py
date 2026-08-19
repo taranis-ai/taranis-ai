@@ -1,6 +1,7 @@
 import json
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, Sequence
+from typing import Any
 
 from models.user import (
     ADMIN_ADVANCED_TOUR_ID,

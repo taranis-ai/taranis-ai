@@ -37,7 +37,7 @@
             {% if current_tab == 'scheduled' %}
               {% include "schedule/jobs_table.html" %}
             {% else %}
-              {{ refreshable_table_placeholder('scheduled-jobs-table', url_for('admin.scheduler_jobs_table') ) }}
+              {{ refreshable_table_placeholder('scheduled-jobs-table', url_for('admin.scheduler_jobs_table')) }}
             {% endif %}
           </div>
         </div>
@@ -56,7 +56,7 @@
             {% if current_tab == 'active' %}
               {% include "schedule/active_jobs.html" %}
             {% else %}
-              {{ refreshable_table_placeholder('active-jobs-table', url_for('admin.scheduler_active_jobs') ) }}
+              {{ refreshable_table_placeholder('active-jobs-table', url_for('admin.scheduler_active_jobs')) }}
             {% endif %}
           </div>
         </div>
@@ -76,7 +76,7 @@
             {% if current_tab == 'failed' %}
               {% include "schedule/failed_jobs.html" %}
             {% else %}
-              {{ refreshable_table_placeholder('failed-jobs-table', url_for('admin.scheduler_failed_jobs') ) }}
+              {{ refreshable_table_placeholder('failed-jobs-table', url_for('admin.scheduler_failed_jobs')) }}
             {% endif %}
           </div>
         </div>
@@ -93,7 +93,7 @@
             {% if current_tab == 'errors' %}
               {% include "schedule/task_errors.html" %}
             {% else %}
-              {{ refreshable_table_placeholder('task-errors-panel', url_for('admin.scheduler_errors') ) }}
+              {{ refreshable_table_placeholder('task-errors-panel', url_for('admin.scheduler_errors')) }}
             {% endif %}
           </div>
         </div>
@@ -112,7 +112,7 @@
             {% if current_tab == 'history' %}
               {% include "schedule/execution_history.html" %}
             {% else %}
-              {{ refreshable_table_placeholder('execution-history', url_for('admin.scheduler_history') ) }}
+              {{ refreshable_table_placeholder('execution-history', url_for('admin.scheduler_history')) }}
             {% endif %}
           </div>
         </div>

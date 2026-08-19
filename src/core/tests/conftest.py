@@ -1,8 +1,10 @@
 import contextlib
 import os
 import sys
+from unittest.mock import patch
 from urllib.parse import urlparse
 
+import fakeredis
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -27,16 +29,22 @@ def app():
         print(f"Cleaning up database file at {parsed_uri.path} before tests")
         os.remove(f"{parsed_uri.path}")
 
-    app = create_app()
-    app.config.update(
-        {
-            "TESTING": True,
-            "DEBUG": True,
-            "SERVER_NAME": "localhost",
-        }
-    )
+    redis_server = fakeredis.FakeServer()
 
-    yield app
+    def isolated_redis_from_url(url, *args, **kwargs):
+        return fakeredis.FakeRedis.from_url(url, *args, server=redis_server, **kwargs)
+
+    with patch("redis.Redis.from_url", side_effect=isolated_redis_from_url):
+        app = create_app()
+        app.config.update(
+            {
+                "TESTING": True,
+                "DEBUG": True,
+                "SERVER_NAME": "localhost",
+            }
+        )
+
+        yield app
 
     with contextlib.suppress(Exception):
         parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))

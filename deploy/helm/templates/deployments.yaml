@@ -421,25 +421,25 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nlp-bot
+  name: llm-bot
   labels:
     {{- include "taranis.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicas.nlp }}
+  replicas: {{ .Values.replicas.llmBot }}
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: nlp-bot
+      app: llm-bot
   template:
     metadata:
       labels:
-        app: nlp-bot
+        app: llm-bot
     spec:
       restartPolicy: Always
       containers:
-        - name: nlp-bot
-          image: {{ include "taranis.image" .Values.images.nlp | quote }}
+        - name: llm-bot
+          image: {{ include "taranis.image" .Values.images.llmBot | quote }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           env:
             - name: DEBUG
@@ -447,23 +447,35 @@ spec:
                 configMapKeyRef:
                   name: taranis-config
                   key: DEBUG
+                  optional: true
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
                   name: taranis-secrets
                   key: BOT_API_KEY
-            - name: HF_HUB_OFFLINE
-              value: "1"
-            - name: GRANIAN_BLOCKING_THREADS
-              value: "1"
-            - name: GRANIAN_INTERFACE
-              value: "asgi"
-            - name: GRANIAN_WORKERS
-              value: "2"
-            - name: GRANIAN_WORKERS_MAX_RSS
-              value: "5500"
-            - name: HF_HOME
-              value: /app/.cache/huggingface
+            - name: LLM_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: LLM_BASE_URL
+            - name: LLM_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: LLM_MODEL
+                  optional: true
+            - name: LLM_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: taranis-config
+                  key: LLM_TIMEOUT
+                  optional: true
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-secrets
+                  key: LLM_API_KEY
+                  optional: true
           ports:
             - containerPort: 8000
               name: http
@@ -480,112 +492,4 @@ spec:
             initialDelaySeconds: 40
             periodSeconds: 30
           resources:
-            {{- toYaml .Values.resources.nlp | nindent 12 }}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: summary-bot
-  labels:
-    {{- include "taranis.labels" . | nindent 4 }}
-spec:
-  replicas: {{ .Values.replicas.summary }}
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: summary-bot
-  template:
-    metadata:
-      labels:
-        app: summary-bot
-    spec:
-      restartPolicy: Always
-      containers:
-        - name: summary-bot
-          image: {{ include "taranis.image" .Values.images.summary | quote }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-          env:
-            - name: DEBUG
-              valueFrom:
-                configMapKeyRef:
-                  name: taranis-config
-                  key: DEBUG
-            - name: API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: taranis-secrets
-                  key: BOT_API_KEY
-            - name: HF_HUB_OFFLINE
-              value: "1"
-            - name: HF_HOME
-              value: /app/.cache/huggingface
-          ports:
-            - containerPort: 8000
-              name: http
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 8000
-            initialDelaySeconds: 20
-            periodSeconds: 15
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8000
-            initialDelaySeconds: 40
-            periodSeconds: 30
-          resources:
-            {{- toYaml .Values.resources.summary | nindent 12 }}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: story-bot
-  labels:
-    {{- include "taranis.labels" . | nindent 4 }}
-spec:
-  replicas: {{ .Values.replicas.story }}
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: story-bot
-  template:
-    metadata:
-      labels:
-        app: story-bot
-    spec:
-      restartPolicy: Always
-      containers:
-        - name: story-bot
-          image: {{ include "taranis.image" .Values.images.story | quote }}
-          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-          env:
-            - name: DEBUG
-              valueFrom:
-                configMapKeyRef:
-                  name: taranis-config
-                  key: DEBUG
-            - name: API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: taranis-secrets
-                  key: BOT_API_KEY
-          ports:
-            - containerPort: 8000
-              name: http
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 8000
-            initialDelaySeconds: 20
-            periodSeconds: 15
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8000
-            initialDelaySeconds: 40
-            periodSeconds: 30
-          resources:
-            {{- toYaml .Values.resources.story | nindent 12 }}
+            {{- toYaml .Values.resources.llmBot | nindent 12 }}
