@@ -214,7 +214,11 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_role("button", name="Save changes").click()
             page.get_by_role("link", name="Assess").click()
 
-            page.get_by_role("link", name="Next").click()
+            with_htmx_wait(page, lambda: page.get_by_role("link", name="Next").click())
+            expect(page.locator("#assess-top-bar")).to_be_visible()
+            expect(page.get_by_test_id("assess_story_count")).to_be_visible()
+            expect(page.locator("#story-pagination")).to_contain_text("Page 2 of")
+            page.wait_for_function("() => window.scrollY === 0")
 
             with page.expect_navigation(wait_until="load"):
                 page.get_by_role("checkbox", name="Compact view").uncheck()
