@@ -156,3 +156,10 @@ class UserTaskView(MethodView):
             if is_htmx_request():
                 return BaseView.render_response_notification({"error": "Failed to load tasks."}), 500
             raise
+
+
+class UserNotificationView(MethodView):
+    decorators: ClassVar[list[Any]] = [auth_required()]
+
+    def get(self) -> ResponseReturnValue:
+        return render_template("user_notifications/index.html"), 200

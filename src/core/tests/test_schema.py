@@ -6,6 +6,7 @@ import schemathesis
 from dotenv import load_dotenv
 from flask_jwt_extended import create_access_token
 from hypothesis import HealthCheck, settings
+from pydantic import SecretStr
 from schemathesis.checks import CHECKS, load_all_checks
 from schemathesis.config import (
     CoveragePhaseConfig,
@@ -16,6 +17,7 @@ from schemathesis.config import (
     ProjectsConfig,
 )
 
+from core.config import Config
 from core.model.user import User
 
 
@@ -130,7 +132,17 @@ def test_dashboard_schema(case):
     case.validate_response(response, checks=response_checks, additional_checks=[check_401])
 
 
-@schema.include(path_regex=r"^/(?!auth|isalive|health|analyze|assess|assets|worker|bots|tasks)").parametrize()
+@schema.include(path_regex="^/realtime/connect$").parametrize()
+@settings(max_examples=2, suppress_health_check=(HealthCheck.function_scoped_fixture,))
+def test_realtime_connect_schema(case, monkeypatch):
+    proxy_secret = "schema-test-connect-proxy-secret"
+    monkeypatch.setattr(Config, "CENTRIFUGO_CONNECT_PROXY_SECRET", SecretStr(proxy_secret))
+
+    response = case.call(headers={"X-Realtime-Proxy-Key": proxy_secret})
+    case.validate_response(response, checks=response_checks)
+
+
+@schema.include(path_regex=r"^/(?!auth|isalive|health|analyze|assess|assets|worker|bots|tasks|realtime/connect)").parametrize()
 @settings(max_examples=2, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_schema_no_auth(case, auth_header_no_permissions, caplog):
     with caplog.at_level(logging.CRITICAL):

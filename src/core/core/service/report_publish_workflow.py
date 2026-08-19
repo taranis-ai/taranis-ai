@@ -5,7 +5,7 @@ from typing import Any, cast
 from core.log import logger
 from core.managers import asset_manager, queue_manager
 from core.managers.db_manager import db
-from core.managers.sse_manager import sse_manager
+from core.managers.realtime_publisher import realtime_publisher
 from core.model.product import Product
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
@@ -47,7 +47,8 @@ class ReportPublishWorkflowService:
 
         asset_manager.report_item_changed(report_item)
         ReportStorySyncService.refresh_auto_update_jobs(report_item.stories)
-        sse_manager.report_item_updated(report_item.id)
+        if user and user.organization_id:
+            realtime_publisher.report_item_changed(report_item.id, user.organization_id, "created")
 
         publisher_id = product.default_publisher
         if not publisher_id:

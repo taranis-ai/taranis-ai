@@ -33,7 +33,7 @@ def test_user_cache_round_trips_user_profile(app, test_cache_backend):
         "username": "admin",
         "name": "Arthur Dent",
         "organization": {"id": "1", "name": "Galactic Government"},
-        "permissions": ["ALL"],
+        "permissions": ["ADMIN_OPERATIONS"],
         "profile": {},
         "pending_onboarding_tasks": [{"id": USER_PRODUCT_OVERVIEW_TASK_ID, "scope": "user"}],
         "roles": [{"id": "1", "name": "Admin"}],
