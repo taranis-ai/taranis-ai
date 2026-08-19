@@ -121,6 +121,7 @@ jobs:
         run: |
           echo "GIT_INFO=$(./docker/git_info.sh)" >>${GITHUB_ENV}
           echo "BUILD_VERSION=$(./docker/git_info.sh build-version)" >>${GITHUB_ENV}
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>${GITHUB_ENV}
 
       - name: Set metadata for container build
         id: meta
@@ -144,6 +145,7 @@ jobs:
           build-args: |
             git_info=${{ env.GIT_INFO }}
             build_version=${{ env.BUILD_VERSION }}
+            build_date=${{ env.BUILD_DATE }}
           cache-from: type=registry,ref=${{ env.GHCR_IMAGE }}-cache-${{ matrix.arch }}:latest
           cache-to: type=registry,ref=${{ env.GHCR_IMAGE }}-cache-${{ matrix.arch }}:latest,mode=max
           outputs: type=image,"name=${{ env.GHCR_IMAGE }}",push-by-digest=true,name-canonical=true,push=true,compression=zstd
