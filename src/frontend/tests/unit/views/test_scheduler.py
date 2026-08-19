@@ -85,6 +85,8 @@ def test_admin_sidebar_badges_link_to_worker_specific_errors_without_changing_ma
     assert bot_link.get("href") == bot_url
     assert source_error_link.get("href") == source_errors_url
     assert bot_error_link.get("href") == bot_errors_url
+    assert source_error_link.getparent().tag == "li"
+    assert bot_error_link.getparent().tag == "li"
 
 
 def test_admin_sidebar_hides_zero_error_badges(authenticated_client, responses_mock, mock_core_get_endpoints):
