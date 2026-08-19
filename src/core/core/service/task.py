@@ -114,10 +114,7 @@ class TaskService:
             return "collector_task"
         if task_name == "bot_task" or task_name.startswith("bot_") or task_id.startswith("bot"):
             return "bot_task"
-        if task_name == "connector_task":
-            return "connector_task"
-
-        return None
+        return "connector_task" if task_name == "connector_task" else None
 
     @classmethod
     def _handle_success_result(cls, submission: TaskSubmission) -> None:
