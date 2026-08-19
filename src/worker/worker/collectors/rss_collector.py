@@ -133,11 +133,8 @@ class RSSCollector(BaseWebCollector):
         for field in ("published", "pubDate", "created", "updated", "modified", "dc:date"):
             if not (published := str(feed_entry.get(field) or "").strip()):
                 continue
-            try:
-                if parsed := parse_datetime(published):
-                    return parsed
-            except (TypeError, ValueError, OverflowError):
-                continue
+            if parsed := parse_datetime(published):
+                return parsed
 
         logger.info("Could not parse published date from feed")
         return None

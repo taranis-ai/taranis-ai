@@ -48,6 +48,13 @@ def test_base_web_collector_http3_config(base_web_collector_mock, base_web_colle
     assert session_options == [{"disable_http3": disable_http3}]
 
 
+def test_malformed_last_modified_is_ignored(base_web_collector, requests_mock):
+    url = "https://example.com/article"
+    requests_mock.get(url, text="article", headers={"Last-Modified": "not a date"})
+
+    assert base_web_collector.fetch_article_content(url) == ("article", None)
+
+
 def test_rss_collector(rss_collector_mock, rss_collector):
     from tests.testdata import rss_collector_source_data
 
