@@ -159,8 +159,11 @@ def test_connector_task_execution_failure_is_persisted_safely(requests_mock, moc
     monkeypatch.setattr(MispConnector, "execute", fail_execution)
     caplog.set_level(logging.ERROR)
 
-    with pytest.raises(RuntimeError, match="Connector task failed"):
+    with pytest.raises(ConnectorError, match="Connector task failed") as exc_info:
         connector_tasks.connector_task("connector-1", ["story-1"])
+
+    assert exc_info.value.public_message == "Connector task failed"
+    assert exc_info.value.reason == "connector_execution_failed"
 
     post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
     assert len(post_calls) == 1
