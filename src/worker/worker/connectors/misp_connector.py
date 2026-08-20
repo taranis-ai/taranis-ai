@@ -6,6 +6,7 @@ from pymisp import MISPAttribute, MISPEvent, MISPEventReport, MISPObject, MISPOb
 
 from worker.connectors import base_misp_builder
 from worker.connectors.definitions.misp_objects import BaseMispObject
+from worker.connectors.exceptions import ConnectorError
 from worker.log import logger
 
 
@@ -74,7 +75,10 @@ class MispConnector:
         for story in stories:
             misp_event_uuid = self.get_uuid_if_story_was_shared_to_misp(story)
             story_results.append(self.misp_sender(story, misp_event_uuid, auto_update=auto_update))
-        return self._build_execution_result(story_results)
+        result = self._build_execution_result(story_results)
+        if result["action"] == "failed":
+            raise ConnectorError("Story was not synchronized with MISP", "misp_sync_failed")
+        return result
 
     def get_uuid_if_story_was_shared_to_misp(self, story: dict) -> str | None:
         story_attributes: dict = story.get("attributes", {})
