@@ -1,4 +1,5 @@
 import json
+import logging
 from types import SimpleNamespace
 
 import pytest
@@ -143,7 +144,7 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, cap
     assert sync_result["news_item_ids_to_mark_external"] == ["06cc6fd0-a775-4923-bdef-8cd5381164ce"]
 
 
-def test_connector_task_execution_failure_is_persisted_safely(requests_mock, mock_job, monkeypatch):
+def test_connector_task_execution_failure_is_persisted_safely(requests_mock, mock_job, monkeypatch, caplog):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
         json={"id": "connector-1", "type": "misp_connector"},
@@ -156,6 +157,7 @@ def test_connector_task_execution_failure_is_persisted_safely(requests_mock, moc
         raise RuntimeError("API_KEY=secret")
 
     monkeypatch.setattr(MispConnector, "execute", fail_execution)
+    caplog.set_level(logging.ERROR)
 
     with pytest.raises(RuntimeError, match="Connector task failed"):
         connector_tasks.connector_task("connector-1", ["story-1"])
@@ -171,6 +173,7 @@ def test_connector_task_execution_failure_is_persisted_safely(requests_mock, moc
         "data": {"connector_id": "connector-1", "story_ids": ["story-1"]},
     }
     assert "secret" not in json.dumps(payload)
+    assert "API_KEY=secret" not in caplog.text
 
 
 def test_connector_task_unknown_type_persists_failure(requests_mock, mock_job, monkeypatch):

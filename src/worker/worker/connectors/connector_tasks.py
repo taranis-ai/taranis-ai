@@ -69,7 +69,7 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
         return result
     except Exception as e:
         error = e if isinstance(e, ConnectorError) else ConnectorError(failure_message, "connector_execution_failed")
-        logger.exception(failure_message)
+        logger.error(f"{error.public_message} (reason={error.reason}, exception_type={type(e).__name__})")
         if job:
             core_api.save_task_result(
                 job.id,
