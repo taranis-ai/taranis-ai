@@ -34,6 +34,7 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
     logger.info(f"Running connector with id: {connector_id}, job id: {job.id if job else 'manual'}")
 
     connector_config: dict[str, Any] = {}
+    connector: MispConnector | None = None
     failure_message = "Connector task failed"
     try:
         connector_config = _get_connector_config(core_api, connector_id)
@@ -70,13 +71,14 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
     except Exception as e:
         error = e if isinstance(e, ConnectorError) else ConnectorError(failure_message, "connector_execution_failed")
         logger.error(f"{error.public_message} (reason={error.reason}, exception_type={type(e).__name__})")
+        worker_type = connector.type if connector else connector_config.get("type", "connector_task")
         if job:
             core_api.save_task_result(
                 job.id,
                 "connector_task",
                 "FAILURE",
                 worker_id=connector_id,
-                worker_type=connector_config.get("type", "connector_task"),
+                worker_type=worker_type,
                 result=build_failure_task_result(
                     error.public_message,
                     reason=error.reason,

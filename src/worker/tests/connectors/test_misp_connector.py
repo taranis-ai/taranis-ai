@@ -169,6 +169,7 @@ def test_connector_task_execution_failure_is_persisted_safely(requests_mock, moc
     assert len(post_calls) == 1
     payload = post_calls[0].json()
     assert payload["status"] == "FAILURE"
+    assert payload["worker_type"] == "MISP_CONNECTOR"
     assert payload["result"] == {
         "message": "Connector task failed",
         "reason": "connector_execution_failed",
