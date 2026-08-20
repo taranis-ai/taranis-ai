@@ -201,6 +201,7 @@ class OSINTSource(BaseModel):
             exact_ids={self.task_id},
             prefixes=[self.cron_run_prefix],
             task_name="collector_task",
+            worker_id=self.id,
         ):
             return task_result.to_dict()
         return None
@@ -272,8 +273,8 @@ class OSINTSource(BaseModel):
         filter_args = dict(filter_args or {})
         filter_args["filter_manual"] = cls._filter_manual_enabled(filter_args.get("filter_manual", True))
         status_order = filter_args.get("order") in {"status_asc", "status_desc"}
-        paginate_after_sorting = status_order and not cls._should_fetch_all(filter_args)
-        query_args = {**filter_args, "fetch_all": "true"} if paginate_after_sorting else filter_args
+        paginate_after_status = status_order and not cls._should_fetch_all(filter_args)
+        query_args = {**filter_args, "fetch_all": "true"} if status_order else filter_args
 
         response, status_code = super().get_all_for_api(filter_args=query_args, with_count=with_count, user=user)
         items = response.get("items", [])
@@ -282,7 +283,7 @@ class OSINTSource(BaseModel):
         elif filter_args.get("order") == "status_desc":
             items.sort(key=lambda item: (item.get("status") or {}).get("status", ""), reverse=True)
 
-        if paginate_after_sorting:
+        if paginate_after_status:
             limit = min(int(filter_args.get("limit", 20)), DB_INTEGER_MAX)
             offset = filter_args.get("offset")
             if offset is None:
@@ -292,6 +293,27 @@ class OSINTSource(BaseModel):
             response["items"] = items[offset : offset + limit]
 
         return response, status_code
+
+    @classmethod
+    def get_current_failure_count(cls) -> int:
+        query = db.select(func.count()).select_from(cls).where(cls._latest_task_status() == "FAILURE")
+        return db.session.execute(query).scalar_one()
+
+    @classmethod
+    def _latest_task_status(cls):
+        task_id = func.concat(literal("collect_"), func.lower(cast(cls.type, String)), literal("_"), cls.id)
+        cron_prefix = func.concat(literal("cron_osint_source_"), cls.id, literal("_%"))
+        return (
+            db.select(TaskModel.status)
+            .where(
+                TaskModel.task == "collector_task",
+                db.or_(TaskModel.job_id == task_id, TaskModel.job_id.like(cron_prefix), TaskModel.worker_id == cls.id),
+            )
+            .order_by(TaskModel.last_run.desc(), TaskModel.last_success.desc(), TaskModel.job_id.desc())
+            .limit(1)
+            .correlate(cls)
+            .scalar_subquery()
+        )
 
     @staticmethod
     def _filter_manual_enabled(value: Any) -> bool:
@@ -322,6 +344,9 @@ class OSINTSource(BaseModel):
         if filter_args.get("filter_manual"):
             query = query.where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
 
+        if str(filter_args.get("state") or "").strip().lower() == "failure":
+            query = query.where(cls._latest_task_status() == "FAILURE")
+
         return query
 
     @classmethod
@@ -339,8 +364,8 @@ class OSINTSource(BaseModel):
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         data["icon"] = base64.b64encode(self.icon).decode("utf-8") if self.icon else None
-        if self.status:
-            data["status"] = self.status
+        if status := self.status:
+            data["status"] = status
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
