@@ -5,6 +5,7 @@ Worker-backed frontend actions, task queue notifications, OSINT source collect, 
 
 ## Expected Behavior
 Worker-backed actions still report queue success when core accepts the job. If core health reports `workers: down`, the frontend shows a warning that the task was queued but may not be processed until a worker starts. Final task failures are not pushed into that enqueue notification, but persisted task/status views reflect actual RQ-level failures such as exceptions, timeouts, and killed workhorses. For user-triggered runs, the persisted task row also carries the authenticated `user_id`; scheduler-driven runs leave it empty.
+MISP connector outcomes are persisted according to the completed operation rather than successful worker dispatch: synchronized stories and submitted proposals are successes, while an entirely failed execution raises into the connector task's single failure path. Expected connector errors carry a curated public message and stable reason code; unexpected errors use a generic fallback.
 Task history is retained globally by the daily `cleanup_task_history` housekeeping job. The retention window comes from the core `TASK_HISTORY_RETENTION_DAYS` environment variable and does not vary by task type or worker family.
 The My Tasks page lists only completed persisted results belonging to the authenticated user, including successful OSINT source previews with `PREVIEW` status. It does not query Redis or display queued and running jobs; enqueue notifications remain the immediate acknowledgement for those states.
 
@@ -20,6 +21,7 @@ The frontend posts the worker-backed action to core. On a successful response, i
 ## Testing
 Use `cd src/frontend && uv run pytest tests/unit/views/test_worker_task_notifications.py` for focused coverage.
 Use `cd src/frontend && uv run pytest tests/unit/views/test_user_task_view.py` and the core user-task tests for the completed-results view.
+Use `cd src/worker && uv run pytest tests/connectors/test_misp_connector.py` for MISP connector result and persistence coverage.
 
 ## Pitfalls
 Do not change core queue endpoint status codes for this behavior. A missing or failed health check should keep the original task notification. The enqueue notification is still only about scheduling; failure visibility for admin/source/bot/render status comes from persisted task rows, not a second frontend polling path.
