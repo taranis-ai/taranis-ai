@@ -22,8 +22,8 @@
     "codemirror": "npm:codemirror@^6.0.2"
   },
   "tasks": {
-    "tw:build": "deno run -A npm:@tailwindcss/cli -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --minify",
-    "tw:watch": "deno run -A npm:@tailwindcss/cli -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch",
+    "tw:build": "deno run -A npm:@tailwindcss/cli@4.3.0 -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --minify",
+    "tw:watch": "deno run -A npm:@tailwindcss/cli@4.3.0 -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch",
     "vendor:bundle": "deno bundle --sourcemap=inline --platform=browser --minify --output frontend/static/vendor/vendor.bundle.js vendor.js",
     "vendor:bundle:codemirror": "deno bundle --sourcemap=inline --platform=browser --minify --output frontend/static/vendor/codemirror.js vendor_codemirror.js"
   }
