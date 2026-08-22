@@ -1,7 +1,7 @@
 from flask import Flask
 
 from core.config import Config
-from core.managers import api_manager, auth_manager, db_manager, queue_manager, sentry_manager
+from core.managers import api_manager, auth_manager, db_manager, queue_manager, telemetry_manager
 
 
 def granian_app() -> Flask:
@@ -28,7 +28,7 @@ def initilize_database(app: Flask):
 
 
 def initialize_managers(app: Flask, initial_setup: bool = True):
-    sentry_manager.initialize()
+    telemetry_manager.initialize(app)
     db_manager.initialize(app, initial_setup)
     queue_manager.initialize(app, initial_setup)
     auth_manager.initialize(app)

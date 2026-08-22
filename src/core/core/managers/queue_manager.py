@@ -45,6 +45,7 @@ from flask import Flask
 if TYPE_CHECKING:
     from core.model.task import Task
 from models.admin import CronSpec
+from opentelemetry.propagate import inject
 from redis import Redis
 from redis.exceptions import RedisError
 from rq import Queue
@@ -654,6 +655,7 @@ class QueueManager:
 
             if meta:
                 kwargs["meta"] = dict(meta)
+                inject(kwargs["meta"])
 
             user_triggered = self._prepare_user_priority(meta, kwargs)
             return queue.enqueue(task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
@@ -703,6 +705,7 @@ class QueueManager:
 
             if meta:
                 kwargs["meta"] = dict(meta)
+                inject(kwargs["meta"])
 
             user_triggered = self._prepare_user_priority(meta, kwargs)
             logger.info(f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}")

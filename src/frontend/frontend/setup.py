@@ -15,6 +15,15 @@ from heroicons.jinja import (
     heroicon_solid,
 )
 from models.user import UserProfile
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import BaseModel
 
 import frontend.filters as filters_module
@@ -142,9 +151,13 @@ def inject_current_user() -> dict[str, Any]:
     return {"current_user": None, "authenticated_user": None, "is_admin": False}
 
 
-def setup_sentry():
-    dsn = (Config.TARANIS_FRONTEND_SENTRY_DSN or "").strip()
-    if not dsn:
+def setup_telemetry(app: Flask):
+    _setup_sentry()
+    _setup_opentelemetry(app)
+
+
+def _setup_sentry():
+    if not (dsn := Config.TARANIS_FRONTEND_SENTRY_DSN):
         return
 
     sentry_options: dict[str, Any] = {
@@ -160,8 +173,28 @@ def setup_sentry():
     sentry_sdk.init(**sentry_options)
 
 
+def _setup_opentelemetry(app: Flask):
+    if not (endpoint := Config.OTEL_EXPORTER_OTLP_ENDPOINT):
+        return
+
+    resource = Resource.create({SERVICE_NAME: "taranis-frontend"})
+    tracer_provider = TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces")))
+    meter_provider = MeterProvider(
+        resource=resource,
+        metric_readers=[
+            PeriodicExportingMetricReader(
+                OTLPMetricExporter(endpoint=f"{endpoint}/v1/metrics"),
+                export_interval_millis=Config.OTEL_METRIC_EXPORT_INTERVAL,
+            )
+        ],
+    )
+    FlaskInstrumentor().instrument_app(app, tracer_provider=tracer_provider, meter_provider=meter_provider)
+    RequestsInstrumentor().instrument(tracer_provider=tracer_provider, meter_provider=meter_provider)
+
+
 def init(app: Flask):
-    setup_sentry()
+    setup_telemetry(app)
     i18n.init(app)
     app.json_provider_class = TaranisJSONProvider
     app.json = app.json_provider_class(app)

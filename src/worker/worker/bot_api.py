@@ -1,6 +1,7 @@
 from urllib.parse import urlencode
 
 import niquests as requests
+from opentelemetry.propagate import inject
 
 from worker.config import Config
 from worker.log import logger
@@ -23,6 +24,11 @@ class BotApi:
         if not self.api_key:
             return {}
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
+
+    def get_request_headers(self) -> dict[str, str]:
+        headers = self.headers.copy()
+        inject(headers)
+        return headers
 
     def update_parameters(self, api_url: str, api_key: str | None = None):
         self.api_url = api_url
@@ -51,12 +57,12 @@ class BotApi:
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        response = requests.post(url=url, headers=self.get_request_headers(), verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
     def api_get(self, url: str, params: dict | None = None):
         url = f"{self.api_url}{url}"
         if params:
             url += f"?{urlencode(params)}"
-        response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+        response = requests.get(url=url, headers=self.get_request_headers(), verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)

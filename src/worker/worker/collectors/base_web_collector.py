@@ -38,7 +38,7 @@ class BaseWebCollector(BaseCollector):
         self.proxies: dict | None = None
         self.timeout: int = 60
         self.last_attempted: datetime.datetime | None = None
-        self.headers: dict = {"User-Agent": "TaranisAI/1.0"}
+        self.headers: dict[str, str] = {"User-Agent": "TaranisAI/1.0"}
         self.osint_source_id: str
 
         self.digest_splitting_limit: int

@@ -10,8 +10,10 @@ import worker.publishers
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import logger
 from worker.publishers.base_publisher import BasePublisher
+from worker.telemetry import instrument_job
 
 
+@instrument_job
 def publisher_task(product_id: str, publisher_id: str):
     """Publish a product to an external system.
 
