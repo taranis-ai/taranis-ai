@@ -130,19 +130,14 @@ class RSSCollector(BaseWebCollector):
         return ""
 
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime | None:
-        published: str = str(
-            feed_entry.get(
-                "published",
-                feed_entry.get(
-                    "pubDate", feed_entry.get("created", feed_entry.get("updated", feed_entry.get("modified", feed_entry.get("dc:date", ""))))
-                ),
-            )
-        )
-        try:
-            return parse_datetime(published) if published else None
-        except (TypeError, ValueError, OverflowError):
-            logger.info("Could not parse published date from feed")
-            return None
+        for field in ("published", "pubDate", "created", "updated", "modified", "dc:date"):
+            if not (published := str(feed_entry.get(field) or "").strip()):
+                continue
+            if parsed := parse_datetime(published):
+                return parsed
+
+        logger.info("Could not parse published date from feed")
+        return None
 
     def link_transformer(self, link: str, transform_str: str = "") -> str:
         parsed_url = urlparse(link)

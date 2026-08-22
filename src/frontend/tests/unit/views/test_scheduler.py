@@ -1,8 +1,9 @@
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import responses
 from flask import url_for
+from lxml import html as lxml_html
 from models.user import ProfileSettings
 
 from frontend.cache import add_user_to_cache, cache
@@ -60,7 +61,64 @@ def test_scheduler_tab_query_param_overrides_initial(authenticated_client, mock_
     assert 'id="scheduled-tab" class="tab-panel hidden"' not in html
 
 
-def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_client, mock_core_get_endpoints):
+def test_source_filters_preserve_each_other_and_table_query(authenticated_client, mock_core_get_endpoints):
+    with authenticated_client.application.app_context():
+        url = url_for(
+            "admin.osint_sources",
+            filter_manual="false",
+            state="failure",
+            search="source",
+            page=3,
+            limit=5,
+            order="name_desc",
+        )
+
+    response = authenticated_client.get(url)
+
+    assert response.status_code == 200
+    tree = lxml_html.fromstring(response.get_data(as_text=True))
+    status_form = tree.xpath('//*[@aria-label="Status"]/ancestor::form')[0]
+    manual_form = tree.xpath('//*[@aria-label="Manual sources"]/ancestor::form')[0]
+    status_values = {(item.get("name"), item.get("value")) for item in status_form.xpath('.//input[@type="hidden"]')}
+    manual_values = {(item.get("name"), item.get("value")) for item in manual_form.xpath('.//input[@type="hidden"]')}
+    expected_shared = {("search", "source"), ("limit", "5"), ("order", "name_desc")}
+    assert expected_shared | {("filter_manual", "false")} <= status_values
+    assert expected_shared | {("state", "failure")} <= manual_values
+    assert status_form.xpath('.//*[@data-testid="status-filter-failed"][@checked]')
+    assert not status_form.xpath('.//input[@name="page"]')
+    assert not manual_form.xpath('.//input[@name="page"]')
+
+    search_form = tree.xpath('//*[@id="osint_source-table-container-search"]/ancestor::form')[0]
+    assert search_form.xpath('.//input[@type="hidden"][@name="state"][@value="failure"]')
+    order_link = tree.xpath('//a[contains(@href, "order=")]')[0]
+    limit_select = tree.xpath('//select[@name="limit"]')[0]
+    assert parse_qs(urlparse(order_link.get("href")).query)["state"] == ["failure"]
+    assert parse_qs(urlparse(limit_select.get("hx-get")).query)["state"] == ["failure"]
+
+
+def test_bot_table_query_preserves_failure_filter(authenticated_client, mock_core_get_endpoints):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.bots", state="failure", search="bot", page=3, limit=5, order="name_desc")
+
+    response = authenticated_client.get(url)
+
+    assert response.status_code == 200
+    tree = lxml_html.fromstring(response.get_data(as_text=True))
+    status_form = tree.xpath('//*[@aria-label="Status"]/ancestor::form')[0]
+    status_values = {(item.get("name"), item.get("value")) for item in status_form.xpath('.//input[@type="hidden"]')}
+    assert {("search", "bot"), ("limit", "5"), ("order", "name_desc")} <= status_values
+    assert status_form.xpath('.//*[@data-testid="status-filter-failed"][@checked]')
+    assert not status_form.xpath('.//input[@name="page"]')
+
+    search_form = tree.xpath('//*[@id="bot-table-container-search"]/ancestor::form')[0]
+    assert search_form.xpath('.//input[@type="hidden"][@name="state"][@value="failure"]')
+    order_link = tree.xpath('//a[contains(@href, "order=")]')[0]
+    limit_select = tree.xpath('//select[@name="limit"]')[0]
+    assert parse_qs(urlparse(order_link.get("href")).query)["state"] == ["failure"]
+    assert parse_qs(urlparse(limit_select.get("hx-get")).query)["state"] == ["failure"]
+
+
+def test_scheduler_dashboard_auto_refresh_is_opt_in_and_tab_scoped(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler")
 
@@ -69,14 +127,21 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
     assert response.status_code == 200
 
     html = response.get_data(as_text=True)
+    tree = lxml_html.fromstring(html)
+    auto_refresh_button = tree.xpath('//*[@id="scheduler-auto-refresh"]')[0]
+    assert auto_refresh_button.tag == "button"
+    assert auto_refresh_button.get("aria-pressed") == "false"
+    assert auto_refresh_button.text_content().strip() == "Auto-refresh: 10s"
     assert 'id="queue-cards"' in html
-    assert 'hx-trigger="every 10s"' in html
+    assert 'hx-trigger="every 10s"' not in html
     assert 'id="scheduled-jobs-table"' in html
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
-    assert html.count('hx-trigger="scheduler:refresh"') == 4
+    assert html.count('hx-trigger="scheduler:refresh"') == 5
     assert html.count("intervalMs: 10000") == 3
     assert "intervalMs: 5000" not in html
+    assert "let autoRefreshEnabled = false" in html
+    assert "!config || !autoRefreshEnabled" in html
     assert 'id="execution-history"' in html
 
 

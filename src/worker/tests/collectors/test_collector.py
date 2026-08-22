@@ -48,6 +48,13 @@ def test_base_web_collector_http3_config(base_web_collector_mock, base_web_colle
     assert session_options == [{"disable_http3": disable_http3}]
 
 
+def test_malformed_last_modified_is_ignored(base_web_collector, requests_mock):
+    url = "https://example.com/article"
+    requests_mock.get(url, text="article", headers={"Last-Modified": "not a date"})
+
+    assert base_web_collector.fetch_article_content(url) == ("article", None)
+
+
 def test_rss_collector(rss_collector_mock, rss_collector):
     from tests.testdata import rss_collector_source_data
 
@@ -71,6 +78,22 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
 
     with pytest.raises(RSSCollectorError, match="No parseable RSS or Atom feed was detected"):
         rss_collector.collect(rss_collector_source_data_no_content)
+
+
+def test_rss_published_date_uses_first_parseable_value(rss_collector):
+    import datetime
+
+    import feedparser
+
+    entry = feedparser.FeedParserDict(
+        published="not a date",
+        pubDate="   ",
+        created="",
+        updated="2026-08-19T12:34:56Z",
+        modified="2026-08-20T12:34:56Z",
+    )
+
+    assert rss_collector.get_published_date(entry) == datetime.datetime(2026, 8, 19, 12, 34, 56)
 
 
 def test_rss_publish_error_propagates(rss_collector, requests_mock):
@@ -262,6 +285,7 @@ def test_gather_news_items_uses_playwright(browser_web_collector_mock, browser_w
     assert story.content.startswith(web_collector_result_content)
     assert story.link == browser_web_collector_instance.web_url
     assert story.source == browser_web_collector_instance.web_url
+    assert story.published.isoformat() == "2026-08-11T09:07:03"
 
 
 def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collector):

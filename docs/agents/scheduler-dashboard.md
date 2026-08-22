@@ -6,16 +6,19 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 
 ## Expected Behavior
 
-- The admin scheduler dashboard shows queue and worker status plus tabs for scheduled, active, failed, and historical jobs.
+- The admin scheduler dashboard shows queue and worker status plus tabs for scheduled jobs, active jobs, Queue Failures, and execution history.
 - Each tab uses the standard Taranis table appearance and supports search, sorting, page size selection, and pagination.
 - Only the selected tab is loaded during the initial page render. Other tabs load their first page when selected.
-- Scheduled, active, and failed job lists refresh every ten seconds only while their respective tabs are active. A refresh preserves each tab's current table query.
+- Auto-refresh is disabled by default and can be toggled from the dashboard header. When enabled, queue cards refresh every ten seconds, as do scheduled, active, and failed lists while their respective tabs are active. A refresh preserves each tab's current table query.
 - Switching tabs clears table-specific query parameters and reloads the selected tab from its first page. Execution history loads when selected but does not poll.
 - Direct links to a scheduler tab render the full dashboard with that tab selected. HTMX requests render only the requested table.
 - Malformed or non-positive scheduler page and limit parameters fall back to the first page and default page size.
 - The Admin Dashboard schedule count includes housekeeping jobs and matches the full Scheduled Jobs dataset.
 - Datetimes are stored and returned as UTC values and displayed in the profile timezone through the frontend `format_datetime` filter.
 - Failed-job error text is displayed through the scheduler error dialog and must be passed to the browser through Jinja JSON encoding.
+- The OSINT Source and Bot sidebar badges count failed configured workers and link to their respective lists filtered to failed states.
+- Bot and OSINT Source lists expose an All/Failed status control using the same HTMX filter pattern as the OSINT Source manual-source control. Changing a filter preserves the other table query and resets pagination.
+- Failure counts and filtered worker queries select the latest matching task status in SQL before counting or pagination; they do not serialize the complete worker list.
 
 ## Code Paths
 
@@ -57,5 +60,7 @@ Load this memory when working on the scheduler dashboard, scheduled jobs, active
 - Do not carry `search`, `page`, `limit`, or `order` from one scheduler tab into another.
 - Auto-refresh must not reset an active search, sort, page, or page-size selection.
 - Runtime RQ registry data is not SQL-backed, so scheduler list filtering, ordering, and pagination are applied after collecting and annotating the registry entries.
+- Do not use Queue Failures to explain sidebar badges: that tab is transient RQ state, while badge counts use the latest result for each configured worker.
+- One-off `simple_web_collector` URL fetches are not synthetic rows in the configured OSINT Source table and do not affect its badge count.
 - Core owns the `rq:cron:def` Redis hash. Startup reconciliation treats the current source, bot, and housekeeping specifications as an allowlist and removes every other persisted definition and its artifacts.
 - Execution-history totals and per-worker statistics describe the full matching dataset, not only the visible page.
