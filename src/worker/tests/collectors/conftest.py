@@ -116,7 +116,7 @@ def browser_web_collector_mock(monkeypatch) -> MagicMock:
     mock_manager = MagicMock(name="PlaywrightManagerMock")
     html = file_loader("testweb.html")
 
-    mock_manager.fetch_content_with_js.return_value = html
+    mock_manager.fetch_content_with_js.return_value = html, "Tue, 11 Aug 2026 09:07:03 GMT"
     mock_manager.stop_playwright_if_needed.return_value = None
 
     def fake_playwright_manager_ctor(proxies, headers):

@@ -5,6 +5,7 @@ from typing import Any, ClassVar
 from models.task import UserTaskFilter
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Mapped
+from sqlalchemy.sql.elements import ColumnElement
 
 from core.log import logger
 from core.managers.db_manager import db
@@ -174,8 +175,9 @@ class Task(BaseModel):
         exact_ids: set[str] | None = None,
         prefixes: list[str] | None = None,
         task_name: str | None = None,
+        worker_id: str | None = None,
     ) -> "Task | None":
-        conditions = []
+        conditions: list[ColumnElement[bool]] = []
 
         exact_ids = {task_id for task_id in (exact_ids or set()) if task_id}
         prefixes = [prefix for prefix in (prefixes or []) if prefix]
@@ -183,6 +185,8 @@ class Task(BaseModel):
         if exact_ids:
             conditions.append(cls.job_id.in_(exact_ids))
         conditions.extend(cls.job_id.like(f"{prefix}%") for prefix in prefixes)
+        if worker_id:
+            conditions.append(cls.worker_id == worker_id)
 
         if not conditions:
             return None
@@ -221,14 +225,12 @@ class Task(BaseModel):
     @classmethod
     def get_admin_menu_badges(cls) -> dict[str, int]:
         """Return the failure counts needed for the admin sidebar badges."""
-        task_stats = cls.get_status_counts_by_task()
-
-        def sum_failures(task_name_filter: str) -> int:
-            return sum(int(stats.get("failures", 0) or 0) for task_name, stats in task_stats.items() if task_name_filter in task_name.lower())
+        from core.model.bot import Bot
+        from core.model.osint_source import OSINTSource
 
         return {
-            "osint_source": sum_failures("collector"),
-            "bot": sum_failures("bot"),
+            "osint_source": OSINTSource.get_current_failure_count(),
+            "bot": Bot.get_current_failure_count(),
         }
 
     @classmethod

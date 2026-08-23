@@ -18,7 +18,11 @@ from worker.log import logger
 
 
 def parse_datetime(value: str) -> datetime.datetime | None:
-    parsed = dateparser.parse(value, ignoretz=True)
+    try:
+        parsed = dateparser.parse(value, ignoretz=True)
+    except (TypeError, ValueError, OverflowError):
+        logger.info("Could not parse datetime value")
+        return None
     if isinstance(parsed, datetime.datetime):
         return parsed
     return None
@@ -125,10 +129,7 @@ class BaseWebCollector(BaseCollector):
 
     def get_last_attempted(self, source: dict) -> datetime.datetime | None:
         if last_attempted := source.get("last_attempted"):
-            try:
-                return parse_datetime(last_attempted)
-            except (TypeError, ValueError, OverflowError):
-                return None
+            return parse_datetime(last_attempted)
         return None
 
     def _fetch_icon(self, icon_url: str) -> requests.Response:
@@ -151,7 +152,9 @@ class BaseWebCollector(BaseCollector):
 
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:
         if self.browser_mode == "true" and self.playwright_manager:
-            return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
+            web_content, last_modified = self.playwright_manager.fetch_content_with_js(web_url, xpath)
+            published_date = parse_datetime(last_modified) if last_modified else None
+            return web_content, published_date
 
         modified_since = None if self.http_validators is not None else self.last_attempted
         response = self.send_get_request(web_url, modified_since)

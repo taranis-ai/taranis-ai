@@ -1065,22 +1065,56 @@ class TestWorkerTaskResults:
         response = client.get(self.base_uri, headers=api_header)
         assert response.status_code == 200
 
-    def test_tasks_delete_allows_jwt_auth(self, client, auth_header, app):
+    def test_tasks_delete_allows_jwt_auth_and_invalidates_worker_status_caches(self, client, auth_header, app, monkeypatch):
+        import fakeredis
+
         from core.model.task import Task
+        from core.service import cache_invalidation as cache_invalidation_module
 
         task_id = f"delete-task-{uuid.uuid4().hex}"
-        with app.app_context():
-            Task.add(
-                {
-                    "id": task_id,
-                    "task": "collector_task",
-                    "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
-                    "status": "SUCCESS",
-                }
-            )
+        source_id = f"source-{uuid.uuid4().hex}"
+        redis_client = fakeredis.FakeRedis(decode_responses=True)
+        cached_keys = {
+            "taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton",
+            "taranis_frontend:user:alice:model:bot:list:default",
+            "taranis_frontend:user:alice:model:osint_source:list:default",
+            f"taranis_frontend:user:alice:model:osint_source:detail:{source_id}",
+            "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+        }
+        redis_client.mset(dict.fromkeys(cached_keys, "1"))
 
-        response = client.delete(f"{self.base_uri}/{task_id}", headers=auth_header)
-        assert response.status_code == 200
+        service = cache_invalidation_module.FrontendCacheInvalidationService()
+        service._client = redis_client
+        monkeypatch.setattr(cache_invalidation_module, "cache_invalidation_service", service)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_ENABLED", True)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_KEY_PREFIX", "taranis_frontend")
+
+        try:
+            with app.app_context():
+                Task.add(
+                    {
+                        "id": task_id,
+                        "task": "collector_task",
+                        "worker_id": source_id,
+                        "worker_type": "rss_collector",
+                        "result": {"message": "failed", "retryable": False, "data": {"source_id": source_id}},
+                        "status": "FAILURE",
+                    }
+                )
+
+            response = client.delete(f"{self.base_uri}/{task_id}", headers=auth_header)
+
+            assert response.status_code == 200
+            with app.app_context():
+                assert Task.get(task_id) is None
+            assert set(redis_client.scan_iter(match="*")) == {
+                "taranis_frontend:user:alice:model:bot:list:default",
+                "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+            }
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
 
 
 class TestConnector:
