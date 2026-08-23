@@ -6,7 +6,7 @@ import plotly.express as px
 from flask import abort, make_response, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
-from models.dashboard import Cluster, Dashboard, NewsItemConflict, StoryConflict, TrendingCluster
+from models.dashboard import Cluster, Dashboard, NewsItemConflict, PizzintStatus, StoryConflict, TrendingCluster
 from models.user import ProfileSettingsDashboard
 from werkzeug.exceptions import HTTPException
 
@@ -121,6 +121,18 @@ class DashboardView(BaseView):
             trending_clusters = []
 
         return render_template("dashboard/edit.html", dashboard=current_user.profile.dashboard, clusters=trending_clusters)
+
+    @classmethod
+    @auth_required()
+    def pizzint_card(cls):
+        try:
+            status = DataPersistenceLayer().get_object(PizzintStatus) or PizzintStatus()
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to load PizzINT dashboard status")
+            status = PizzintStatus()
+        return render_template("dashboard/pizzint_card.html", pizzint=status)
 
     @classmethod
     @auth_required()

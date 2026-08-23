@@ -122,6 +122,101 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
     assert delete_button.get("hx-swap") == "delete"
     assert saved_filter_url.path == url_for("assess.assess")
     assert parse_qs(saved_filter_url.query) == {"search": ["incident"], "tags": ["alpha"], "sort": ["date_desc"]}
+    assert not tree.xpath('//*[@data-testid="dashboard-external-signals"]')
+
+
+def test_dashboard_opt_in_lazy_loads_pizzint_card(authenticated_client, auth_user, responses_mock, mock_core_get_endpoints):
+    _ = mock_core_get_endpoints
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.timezone = "Europe/Vienna"
+    saved_user.profile.dashboard.show_pizzint = True
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/dashboard/trending-clusters",
+        json={"items": [], "total_count": 0},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/dashboard/pizzint",
+        json={
+            "state": "fresh",
+            "level": 4,
+            "smoothed_index": 42.5,
+            "observed_at": "2026-08-23T09:00:00Z",
+            "fetched_at": "2026-08-23T09:42:39Z",
+            "reason": "compute_doughcon_v9: elevated",
+        },
+    )
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard/cluster-names", json={"items": []})
+
+    dashboard_response = authenticated_client.get("/")
+    dashboard_tree = html.fromstring(dashboard_response.text)
+    placeholder = dashboard_tree.xpath('//*[@data-testid="pizzint-card-placeholder"]')[0]
+
+    assert dashboard_response.status_code == 200
+    assert placeholder.get("hx-get") == url_for("base.pizzint_card")
+    assert placeholder.get("hx-trigger") == "load"
+
+    edit_response = authenticated_client.get("/dashboard/edit")
+    edit_tree = html.fromstring(edit_response.text)
+    toggle = edit_tree.xpath('//input[@name="dashboard[show_pizzint]"][@type="checkbox"]')[0]
+    assert toggle.get("checked") is not None
+
+    card_response = authenticated_client.get("/dashboard/pizzint")
+    card_tree = html.fromstring(card_response.text)
+    card_text = card_tree.text_content()
+    source_link = card_tree.xpath('//a[normalize-space()="PizzINT"]')[0]
+
+    assert card_response.status_code == 200
+    assert "DOUGHCON 4" in card_text
+    assert "42.5/100" in card_text
+    assert "23. August 2026 11:00" in card_text
+    assert "DOUBLE TAKE • INCREASED INTELLIGENCE WATCH" in card_text
+    assert "compute_doughcon_v9: elevated" not in card_text
+    assert "One place spiking doesn't raise DOUGHCON" in card_text
+    assert "DOUGHCON 1: Maximum Readiness" in " ".join(card_text.split())
+    assert "Data correlation does not imply causation" in card_text
+    assert source_link.get("target") == "_blank"
+    assert source_link.get("rel") == "noopener noreferrer"
+    assert card_tree.xpath('//summary[@aria-label="About DOUGHCON"]')
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_text", "unexpected_text"),
+    [
+        (
+            {
+                "state": "stale",
+                "level": 5,
+                "smoothed_index": 6.97,
+                "observed_at": "2026-08-23T09:00:00Z",
+                "fetched_at": "2026-08-23T09:42:39Z",
+                "reason": "compute_doughcon_v9: quiet",
+            },
+            "Stale",
+            "PizzINT data unavailable",
+        ),
+        (
+            {
+                "state": "unavailable",
+                "level": None,
+                "smoothed_index": None,
+                "observed_at": None,
+                "fetched_at": None,
+                "reason": None,
+            },
+            "PizzINT data unavailable",
+            "Smoothed index",
+        ),
+    ],
+)
+def test_pizzint_card_fallback_states(authenticated_client, responses_mock, payload, expected_text, unexpected_text):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard/pizzint", json=payload)
+
+    response = authenticated_client.get("/dashboard/pizzint")
+
+    assert response.status_code == 200
+    assert expected_text in response.text
+    assert unexpected_text not in response.text
 
 
 @pytest.mark.parametrize("view_name,view_cls", ADMIN_VIEWS, ids=ADMIN_IDS)

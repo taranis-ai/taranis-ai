@@ -1,0 +1,77 @@
+{% set badge_class = {
+  1: "badge-error",
+  2: "badge-warning",
+  3: "badge-accent",
+  4: "badge-info",
+  5: "badge-success"
+}.get(pizzint.level, "badge-neutral") %}
+{% set level_description = {
+  1: "EXERCISE TERM • MAXIMUM READINESS",
+  2: "FAST PACE • NEXT STEP TO MAXIMUM READINESS",
+  3: "ROUND HOUSE • INCREASE IN FORCE READINESS",
+  4: "DOUBLE TAKE • INCREASED INTELLIGENCE WATCH",
+  5: "FADE OUT • LOWEST STATE OF READINESS"
+}.get(pizzint.level) %}
+
+<article class="bg-base-100 border p-4 w-full min-w-0" data-testid="pizzint-card">
+  <div class="flex items-start justify-between gap-2">
+    <a href="https://www.pizzint.watch/" class="truncate underline text-xl" target="_blank" rel="noopener noreferrer" title="PizzINT">PizzINT</a>
+
+    <details class="dropdown dropdown-end shrink-0">
+      <summary class="btn btn-ghost btn-xs btn-circle" aria-label="About DOUGHCON">{{ heroicon_outline("information-circle", size=20) }}</summary>
+      <div class="dropdown-content z-30 mt-2 w-80 max-w-[80vw] rounded-box bg-base-100 border p-4 shadow text-sm" tabindex="0">
+        <h3 class="font-bold text-base mb-2">DOUGHCON Levels</h3>
+        <p class="mb-2">
+          DOUGHCON measures whether multiple pizza places are unusually busy at the same time, especially at night. One place spiking doesn't raise DOUGHCON—it needs several places busy together, and that pattern needs to last a few hours.
+        </p>
+        <p class="mb-3">
+          If this happens multiple nights in a row, DOUGHCON stays elevated longer because it looks like a real pattern, not just a random busy night.
+        </p>
+        <ul class="space-y-1">
+          <li><strong>DOUGHCON 1:</strong> Maximum Readiness</li>
+          <li><strong>DOUGHCON 2:</strong> Next Step to Maximum Readiness</li>
+          <li><strong>DOUGHCON 3:</strong> Increase in Force Readiness</li>
+          <li><strong>DOUGHCON 4:</strong> Increased Intelligence Watch</li>
+          <li><strong>DOUGHCON 5:</strong> Lowest State of Readiness</li>
+        </ul>
+        <p class="mt-3 text-xs text-base-content/70">
+          Source: <a href="https://www.pizzint.watch/" target="_blank" rel="noopener noreferrer" class="underline">PizzINT.watch</a>. For informational and educational purposes only. Data correlation does not imply causation.
+        </p>
+      </div>
+    </details>
+  </div>
+
+  <div class="divider"></div>
+
+  {% if pizzint.state == "unavailable" %}
+    <p class="text-base-content/70">PizzINT data unavailable</p>
+  {% else %}
+    <div class="flex items-center gap-2 mb-3">
+      <span class="badge {{ badge_class }} font-semibold">DOUGHCON {{ pizzint.level }}</span>
+      {% if pizzint.state == "stale" %}<span class="badge badge-warning badge-outline">Stale</span>{% endif %}
+    </div>
+    <dl class="space-y-1 text-sm">
+      <div class="flex justify-between gap-3">
+        <dt class="text-base-content/70">Smoothed index</dt>
+        <dd class="font-medium">
+          {{ pizzint.smoothed_index }}/100
+        </dd>
+      </div>
+      <div class="flex justify-between gap-3">
+        <dt class="text-base-content/70">Observed</dt>
+        <dd class="text-right">
+          {{ pizzint.observed_at | format_datetime }}
+        </dd>
+      </div>
+      {% if pizzint.state == "stale" %}
+        <div class="flex justify-between gap-3">
+          <dt class="text-base-content/70">Fetched</dt>
+          <dd class="text-right">
+            {{ pizzint.fetched_at | format_datetime }}
+          </dd>
+        </div>
+      {% endif %}
+    </dl>
+    <p class="mt-3 text-sm font-semibold">{{ level_description }}</p>
+  {% endif %}
+</article>
