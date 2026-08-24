@@ -479,7 +479,16 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
     }
 
 
-def test_enqueue_task_passes_meta_to_rq_queue(monkeypatch):
+@pytest.mark.parametrize(
+    "meta",
+    [
+        None,
+        {},
+        {"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"},
+    ],
+    ids=["none", "empty", "existing"],
+)
+def test_enqueue_task_injects_trace_context(monkeypatch, meta):
     queue_calls = []
 
     class FakeQueue:
@@ -490,6 +499,7 @@ def test_enqueue_task_passes_meta_to_rq_queue(monkeypatch):
     qm = _make_queue_manager()
     monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
     monkeypatch.setattr(qm_module, "inject", lambda carrier: carrier.update({"traceparent": "test-trace"}))
+    expected_meta = dict(meta or {}) | {"traceparent": "test-trace"}
 
     result = qm.enqueue_task(
         "collectors",
@@ -497,7 +507,7 @@ def test_enqueue_task_passes_meta_to_rq_queue(monkeypatch):
         "source-1",
         True,
         job_id="collect_rss_collector_source-1",
-        meta={"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"},
+        meta=meta,
     )
 
     assert result is True
@@ -508,13 +518,7 @@ def test_enqueue_task_passes_meta_to_rq_queue(monkeypatch):
             "job_id": "collect_rss_collector_source-1",
             "kwargs": {
                 "at_front": False,
-                "meta": {
-                    "task": "collector_task",
-                    "user_id": None,
-                    "worker_id": "source-1",
-                    "worker_type": "rss_collector",
-                    "traceparent": "test-trace",
-                },
+                "meta": expected_meta,
             },
         }
     ]
@@ -686,6 +690,7 @@ def test_enqueue_at_keeps_background_job_at_normal_priority(monkeypatch):
 
     qm = _make_queue_manager()
     monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+    monkeypatch.setattr(qm_module, "inject", lambda carrier: carrier.update({"traceparent": "test-trace"}))
     scheduled_time = datetime(2026, 7, 23, tzinfo=UTC)
 
     qm.enqueue_at(
@@ -695,11 +700,12 @@ def test_enqueue_at_keeps_background_job_at_normal_priority(monkeypatch):
         "product-1",
         job_id="presenter_task_product-1",
         depends_on="collector-job",
-        meta={"task": "presenter_task", "user_id": None, "worker_id": "product-1", "worker_type": "presenter_task"},
+        meta=None,
     )
 
     assert queue_calls[0]["kwargs"]["at_front"] is False
     assert queue_calls[0]["kwargs"]["depends_on"] == "collector-job"
+    assert queue_calls[0]["kwargs"]["meta"] == {"traceparent": "test-trace"}
 
 
 def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypatch):

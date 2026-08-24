@@ -39,12 +39,12 @@ def _initialize() -> bool:
 
     resource = Resource.create({SERVICE_NAME: "taranis-worker"})
     _tracer_provider = TracerProvider(resource=resource)
-    _tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces")))
+    _tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces", timeout=1)))
     _meter_provider = MeterProvider(
         resource=resource,
         metric_readers=[
             PeriodicExportingMetricReader(
-                OTLPMetricExporter(endpoint=f"{endpoint}/v1/metrics"),
+                OTLPMetricExporter(endpoint=f"{endpoint}/v1/metrics", timeout=1),
                 export_interval_millis=Config.OTEL_METRIC_EXPORT_INTERVAL,
             )
         ],
