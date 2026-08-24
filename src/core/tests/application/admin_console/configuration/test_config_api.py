@@ -1107,47 +1107,94 @@ class TestBotConfigApi(BaseTest):
 class TestAdminMenuBadgesConfigApi(BaseTest):
     base_uri = "/api/config"
 
-    def test_get_admin_menu_badges(self, client, auth_header, app):
+    def test_get_admin_menu_badges(self, client, auth_header, app, cleanup_sources, cleanup_bot):
+        from core.model.bot import Bot
+        from core.model.osint_source import OSINTSource
         from core.model.task import Task
 
+        source_id = cleanup_sources["id"]
+        bot_id = cleanup_bot["id"]
         task_ids = [
-            f"admin-menu-badge-collector-{uuid.uuid4().hex}",
-            f"admin-menu-badge-bot-{uuid.uuid4().hex}",
+            f"collect_rss_collector_{source_id}",
+            f"bot_{bot_id}",
+            f"cron_osint_source_{source_id}_success",
+            f"cron_bot_{bot_id}_success",
         ]
 
         with app.app_context():
+            if OSINTSource.get(source_id):
+                OSINTSource.delete(source_id)
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+            OSINTSource.add(cleanup_sources)
+            Bot.add(cleanup_bot)
             Task.add(
                 {
                     "id": task_ids[0],
                     "task": "collector_task",
-                    "worker_id": "source-1",
+                    "worker_id": source_id,
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": "source-1"}},
+                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": source_id}},
                 }
             )
             Task.add(
                 {
                     "id": task_ids[1],
-                    "task": "bot_task",
-                    "worker_id": "bot-1",
-                    "worker_type": "WORDLIST_BOT",
+                    "task": f"bot_{bot_id}",
+                    "worker_id": bot_id,
+                    "worker_type": cleanup_bot["type"].upper(),
                     "status": "FAILURE",
-                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": "bot-1"}},
+                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": bot_id}},
                 }
             )
-
         try:
             response = self.assert_get_ok(client, uri="admin-menu-badges", auth_header=auth_header)
             assert response.json == {"osint_source": 1, "bot": 1}
             cache_control = response.headers["Cache-Control"].lower()
             assert "private" in cache_control
             assert "max-age=300" in cache_control
+
+            failed_sources = self.assert_get_ok(client, uri="osint-sources?state=failure", auth_header=auth_header)
+            failed_bots = self.assert_get_ok(client, uri="bots?state=failure", auth_header=auth_header)
+            assert [item["id"] for item in failed_sources.json["items"]] == [source_id]
+            assert [item["id"] for item in failed_bots.json["items"]] == [bot_id]
+
+            with app.app_context():
+                Task.add(
+                    {
+                        "id": task_ids[2],
+                        "task": "collector_task",
+                        "worker_id": source_id,
+                        "worker_type": "rss_collector",
+                        "status": "SUCCESS",
+                        "result": {"message": "ok", "retryable": False, "data": {"source_id": source_id}},
+                    }
+                )
+                Task.add(
+                    {
+                        "id": task_ids[3],
+                        "task": f"bot_{bot_id}",
+                        "worker_id": bot_id,
+                        "worker_type": cleanup_bot["type"].upper(),
+                        "status": "SUCCESS",
+                        "result": {"message": "ok", "retryable": False, "data": {"bot_id": bot_id, "result": {}}},
+                    }
+                )
+
+            resolved_response = self.assert_get_ok(client, uri="admin-menu-badges", auth_header=auth_header)
+            assert resolved_response.json == {"osint_source": 0, "bot": 0}
+            assert self.assert_get_ok(client, uri="osint-sources?state=failure", auth_header=auth_header).json["items"] == []
+            assert self.assert_get_ok(client, uri="bots?state=failure", auth_header=auth_header).json["items"] == []
         finally:
             with app.app_context():
                 for task_id in task_ids:
                     if Task.get(task_id):
                         Task.delete(task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
+                if Bot.get(bot_id):
+                    Bot.delete(bot_id)
 
 
 class TestConnectorConfigApi(BaseTest):

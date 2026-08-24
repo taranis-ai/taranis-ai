@@ -5,7 +5,7 @@ from typing import Any
 
 from models.admin import CronSpec
 from models.types import BOT_TYPES
-from sqlalchemy import func
+from sqlalchemy import func, literal
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import Select
@@ -56,6 +56,7 @@ class Bot(BaseModel):
             exact_ids={self.task_id},
             prefixes=[self.cron_run_prefix],
             task_name=self.task_id,
+            worker_id=self.id,
         ):
             return task_result.to_dict()
         return None
@@ -401,9 +402,30 @@ class Bot(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = configured_parameters(self.type, self.parameters)
-        if self.status:
-            data["status"] = self.status
+        if status := self.status:
+            data["status"] = status
         return data
+
+    @classmethod
+    def _latest_task_status(cls):
+        task_name = func.concat(literal("bot_"), cls.id)
+        cron_prefix = func.concat(literal("cron_bot_"), cls.id, literal("_%"))
+        return (
+            db.select(TaskModel.status)
+            .where(
+                TaskModel.task == task_name,
+                db.or_(TaskModel.job_id == task_name, TaskModel.job_id.like(cron_prefix), TaskModel.worker_id == cls.id),
+            )
+            .order_by(TaskModel.last_run.desc(), TaskModel.last_success.desc(), TaskModel.job_id.desc())
+            .limit(1)
+            .correlate(cls)
+            .scalar_subquery()
+        )
+
+    @classmethod
+    def get_current_failure_count(cls) -> int:
+        query = db.select(func.count()).select_from(cls).where(cls._latest_task_status() == "FAILURE")
+        return db.session.execute(query).scalar_one()
 
     @classmethod
     def delete(cls, id: str) -> tuple[dict[str, Any], int]:
@@ -510,6 +532,9 @@ class Bot(BaseModel):
 
         if search := filter_args.get("search"):
             query = query.filter(db.or_(Bot.name.ilike(f"%{search}%"), Bot.description.ilike(f"%{search}%")))
+
+        if str(filter_args.get("state") or "").strip().lower() == "failure":
+            query = query.where(cls._latest_task_status() == "FAILURE")
 
         return query
 

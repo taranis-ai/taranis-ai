@@ -49,7 +49,17 @@ class TaskService:
 
     @staticmethod
     def delete_task(task_id: str) -> tuple[dict[str, Any], int]:
-        return TaskModel.delete(task_id)
+        task = TaskModel.get(task_id)
+        task_kind = TaskService._resolve_task_kind(task.job_id, task.task) if task else None
+        worker_id = task.worker_id if task else None
+        result, status = TaskModel.delete(task_id)
+        if status == 200:
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
+            if task_kind == "collector_task":
+                cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", worker_id)
+            elif task_kind == "bot_task":
+                cache_invalidation_module.cache_invalidation_service.invalidate_model("bot", worker_id)
+        return result, status
 
     @staticmethod
     def cleanup_history() -> tuple[dict[str, Any], int]:
@@ -90,6 +100,8 @@ class TaskService:
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
             if task_kind == "collector_task":
                 cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
+            elif task_kind == "bot_task":
+                cache_invalidation_module.cache_invalidation_service.invalidate_model("bot", submission.worker_id)
         validated = TaskResponseModel.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), 200
 
@@ -109,10 +121,7 @@ class TaskService:
             return "collector_task"
         if task_name == "bot_task" or task_name.startswith("bot_") or task_id.startswith("bot"):
             return "bot_task"
-        if task_name == "connector_task":
-            return "connector_task"
-
-        return None
+        return "connector_task" if task_name == "connector_task" else None
 
     @classmethod
     def _handle_success_result(cls, submission: TaskSubmission) -> None:
