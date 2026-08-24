@@ -23,6 +23,8 @@ Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark
 
 Bookmark detail views also reuse the Assess selection hotkey bar except for `Shift+B`. Bookmark actions re-render the bookmark detail instead of navigating back to Assess, Read/Important actions stay at the top level alongside Remove selected, and story cards expose Read, Important, and In Reports state even when the user's compact-card preference is enabled. The clustering dialog still offers `Cluster and Open`; choosing it intentionally navigates to the resulting primary story.
 
+Without JavaScript, bookmark detail views hide the shared selection bar through the base template's global `<noscript>` rule.
+
 Selecting a Bookmark story card checks its native `story_ids` input and updates both the selection count and the card's selected styling (`aria-selected`, primary background/border, and shadow). Bookmark actions submit those checked inputs directly; JavaScript only adapts the HTML-backed selection to the shared Assess toolbar interface. Assess and Bookmark use the same card-state synchronizer so their selected cards cannot diverge visually.
 
 Per-card Ungroup requests carry the bookmark ID and re-render the current collection for both success and error responses. Core rejects ungrouping stories assigned to reports, so Bookmark must show that error without redirecting to Assess.
@@ -52,7 +54,7 @@ When an eligible bookmarked story is ungrouped, core replaces its bookmark relat
 - Frontend views: `src/frontend/frontend/views/story_bookmark_views.py`, `src/frontend/frontend/views/story_views.py`
 - Frontend selection adapter: `src/frontend/frontend/templates/bookmarks/bookmark_detail.html`
 - Frontend routes: `src/frontend/frontend/router/assess.py`
-- Templates: `src/frontend/frontend/templates/bookmarks/`, `src/frontend/frontend/templates/assess/bookmarks_bar.html`, `src/frontend/frontend/templates/assess/story_actions.html`
+- Templates: `src/frontend/frontend/templates/base.html`, `src/frontend/frontend/templates/bookmarks/`, `src/frontend/frontend/templates/assess/bookmarks_bar.html`, `src/frontend/frontend/templates/assess/story_actions.html`
 - Tests:
   - `src/core/tests/application/user_workspace/assessment/test_story_bookmarks.py`
   - `src/frontend/tests/unit/views/test_story_bookmark_view.py`
