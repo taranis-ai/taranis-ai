@@ -65,5 +65,5 @@ class TemplateView(AdminBaseView):
         except HTTPException:
             raise
         except Exception as exc:
-            logger.error(f"Error storing form data: {str(exc)}")
+            logger.error(f"Error storing form data: {exc!s}")
             return None, str(exc)

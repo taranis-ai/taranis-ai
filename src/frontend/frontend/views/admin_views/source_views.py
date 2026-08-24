@@ -1,6 +1,6 @@
 import base64
 import json
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from flask import render_template, request, url_for
 from models.admin import AdminMenuBadges, OSINTSource
@@ -27,7 +27,7 @@ class SourceView(AdminBaseView):
     import_route = "admin.import_osint_sources"
     _index = 63
 
-    collector_types = {
+    collector_types: ClassVar[dict[str, dict[str, str]]] = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in COLLECTOR_TYPES
     }
@@ -46,6 +46,10 @@ class SourceView(AdminBaseView):
             logger.exception("Error retrieving source admin menu badge")
 
         return 0
+
+    @classmethod
+    def get_admin_menu_badge_route(cls) -> str:
+        return url_for("admin.osint_sources", filter_manual="false", state="failure")
 
     @classmethod
     def get_extra_context(cls, base_context: dict[str, Any]) -> dict[str, Any]:

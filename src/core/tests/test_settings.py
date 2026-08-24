@@ -96,6 +96,12 @@ def test_skip_initial_user_onboarding_from_env(monkeypatch):
     assert settings.SKIP_INITIAL_USER_ONBOARDING is True
 
 
+def test_core_sentry_dsn_is_read_from_settings():
+    settings = Settings(TARANIS_CORE_SENTRY_DSN="https://core@example.invalid/2")
+
+    assert settings.TARANIS_CORE_SENTRY_DSN == "https://core@example.invalid/2"
+
+
 def test_sqlalchemy_pool_timeout_from_env_var(monkeypatch, clear_pool_env_vars):
     """Test that SQLALCHEMY_POOL_TIMEOUT is correctly read from environment and added to engine options."""
     monkeypatch.setenv("SQLALCHEMY_POOL_TIMEOUT", "666")

@@ -3,16 +3,57 @@ from typing import Any
 from flask import render_template, request
 from flask.typing import ResponseReturnValue
 from flask.views import MethodView
-from models.admin import ActiveJob, FailedJob, Job, QueueStatus, SchedulerDashboardData, WorkerStats
+from models.admin import ActiveJob, FailedJob, Job, QueueStatus, WorkerStats
 from models.task import TaskHistoryResponse
 from werkzeug.exceptions import HTTPException
 
 from frontend.auth import auth_required
+from frontend.cache_models import CacheObject
 from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
-from frontend.utils.router_helpers import is_htmx_request
+from frontend.utils.router_helpers import is_htmx_request, parse_paging_data
 from frontend.views.admin_views.admin_base_view import AdminBaseView
 from frontend.views.base_view import BaseView
+
+
+def _task_stats_page(task_history: TaskHistoryResponse) -> CacheObject:
+    paging_data = parse_paging_data()
+    rows = [
+        {
+            "id": task_id,
+            "task": stats.worker_type or task_id,
+            "worker_id": stats.worker_id or "unknown",
+            "status_badge": stats.status_badge,
+            "last_run": stats.last_run,
+            "last_success": stats.last_success,
+            "successes": stats.successes,
+            "failures": stats.failures,
+            "success_pct": stats.success_pct,
+        }
+        for task_id, stats in task_history.task_stats.items()
+    ]
+    if search := (paging_data.search or "").strip().lower():
+        rows = [row for row in rows if any(search in str(row.get(field) or "").lower() for field in ("id", "task", "worker_id"))]
+
+    order = paging_data.order or "last_run_desc"
+    field, separator, direction = order.rpartition("_")
+    if (
+        not separator
+        or field not in {"task", "last_run", "last_success", "successes", "failures", "success_pct"}
+        or direction not in {"asc", "desc"}
+    ):
+        field, direction = "last_run", "desc"
+    order = f"{field}_{direction}"
+    if field in {"successes", "failures", "success_pct"}:
+        rows.sort(key=lambda row: row.get(field) or 0, reverse=direction == "desc")
+    else:
+        rows.sort(key=lambda row: str(row.get(field) or "").lower(), reverse=direction == "desc")
+    rows.sort(key=lambda row: row.get(field) is None)
+
+    page = paging_data.page if paging_data.page and paging_data.page > 0 else 1
+    limit = paging_data.limit if paging_data.limit and paging_data.limit > 0 else 20
+    offset = (page - 1) * limit
+    return CacheObject(rows[offset : offset + limit], total_count=len(rows), page=page, limit=limit, order=order)
 
 
 class SchedulerView(AdminBaseView):
@@ -24,11 +65,7 @@ class SchedulerView(AdminBaseView):
     base_route = "admin.scheduler"
     _read_only = True
     _index = 61
-    allowed_tabs = {"scheduled", "active", "failed", "history"}
-
-    @staticmethod
-    def _get_dashboard_data() -> SchedulerDashboardData | None:
-        return DataPersistenceLayer().get_object(SchedulerDashboardData)
+    allowed_tabs = frozenset({"scheduled", "active", "failed", "history"})
 
     @classmethod
     def _resolve_tab(cls, initial_tab: str | None) -> str:
@@ -43,29 +80,41 @@ class SchedulerView(AdminBaseView):
         """Render the main scheduler dashboard"""
         try:
             selected_tab = self._resolve_tab(initial_tab)
-            dashboard_data = self._get_dashboard_data()
-            if dashboard_data is None:
-                raise ValueError("Failed to load scheduler dashboard data")
+            persistence = DataPersistenceLayer()
+            queues = persistence.get_objects(QueueStatus)
+            worker_stats = persistence.get_object(WorkerStats)
+            jobs = active_jobs = failed_jobs = task_stats = None
+            total_successes = total_failures = overall_success_rate = 0
 
-            jobs = list(dashboard_data.scheduled_jobs)
-            jobs.sort(key=lambda job: (job.next_run_time is None, job.next_run_time or ""))
+            paging_data = parse_paging_data()
+            match selected_tab:
+                case "scheduled":
+                    jobs = persistence.get_objects(Job, paging_data)
+                case "active":
+                    active_jobs = persistence.get_objects(ActiveJob, paging_data)
+                case "failed":
+                    failed_jobs = persistence.get_objects(FailedJob, paging_data)
+                case "history":
+                    history = persistence.get_object(TaskHistoryResponse)
+                    if history is None:
+                        raise ValueError("Failed to load scheduler execution history")
+                    task_stats = _task_stats_page(history)
+                    total_successes = history.totals.successes
+                    total_failures = history.totals.failures
+                    overall_success_rate = history.totals.overall_success_rate
 
-            history = DataPersistenceLayer().get_object(TaskHistoryResponse)
-            if history is None:
-                raise ValueError("Failed to load scheduler execution history")
-
-            # Get base context with sidebar and admin layout
             context = self._common_context()
             context.update(
                 {
                     "jobs": jobs,
-                    "queues": dashboard_data.queues,
-                    "worker_stats": dashboard_data.worker_stats,
-                    "task_results": history.items,
-                    "task_stats": history.task_stats,
-                    "total_successes": history.totals.successes,
-                    "total_failures": history.totals.failures,
-                    "overall_success_rate": history.totals.overall_success_rate,
+                    "queues": queues,
+                    "worker_stats": worker_stats,
+                    "active_jobs": active_jobs,
+                    "failed_jobs": failed_jobs,
+                    "task_stats": task_stats,
+                    "total_successes": total_successes,
+                    "total_failures": total_failures,
+                    "overall_success_rate": overall_success_rate,
                     "initial_tab": selected_tab,
                 }
             )
@@ -89,8 +138,7 @@ class ScheduleJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="scheduled")
         try:
-            jobs = DataPersistenceLayer().get_objects(Job)
-            jobs.sort(key=lambda job: (job.next_run_time is None, job.next_run_time or ""))
+            jobs = DataPersistenceLayer().get_objects(Job, parse_paging_data())
             return render_template("schedule/jobs_table.html", jobs=jobs)
         except HTTPException:
             raise
@@ -124,8 +172,7 @@ class ScheduleActiveJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="active")
         try:
-            active_jobs = DataPersistenceLayer().get_objects(ActiveJob)
-            active_jobs.sort(key=lambda job: job.started_at or "")
+            active_jobs = DataPersistenceLayer().get_objects(ActiveJob, parse_paging_data())
             return render_template("schedule/active_jobs.html", active_jobs=active_jobs)
         except HTTPException:
             raise
@@ -141,8 +188,7 @@ class ScheduleFailedJobsAPI(MethodView):
         if not is_htmx_request():
             return SchedulerView().get(initial_tab="failed")
         try:
-            failed_jobs = DataPersistenceLayer().get_objects(FailedJob)
-            failed_jobs.sort(key=lambda job: job.failed_at or "", reverse=True)
+            failed_jobs = DataPersistenceLayer().get_objects(FailedJob, parse_paging_data())
             return render_template("schedule/failed_jobs.html", failed_jobs=failed_jobs)
         except HTTPException:
             raise
@@ -162,18 +208,9 @@ class ScheduleHistoryAPI(MethodView):
             if task_history is None:
                 raise ValueError("Failed to load task history")
 
-            task_stats = dict(
-                sorted(
-                    task_history.task_stats.items(),
-                    key=lambda item: item[1].last_run or "",
-                    reverse=True,
-                )
-            )
-
             return render_template(
                 "schedule/execution_history.html",
-                task_results=task_history.items,
-                task_stats=task_stats,
+                task_stats=_task_stats_page(task_history),
                 total_successes=task_history.totals.successes,
                 total_failures=task_history.totals.failures,
                 overall_success_rate=task_history.totals.overall_success_rate,

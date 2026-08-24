@@ -21,7 +21,7 @@ class AssetView(BaseView):
     edit_route = "assets.asset"
     _read_only = True
     _show_sidebar = False
-    observable_types = ["cve", "email", "ip", "domain", "url", "hash"]
+    observable_types = ("cve", "email", "ip", "domain", "url", "hash")
 
     @classmethod
     def _normalize_form_data(cls, form_data: dict[str, Any]) -> dict[str, Any]:

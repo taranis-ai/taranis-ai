@@ -14,6 +14,7 @@ from worker.log import logger
 
 
 _MISSING_RESULT = object()
+IconFile = dict[str, tuple[str, bytes | None]]
 
 
 def build_task_result(
@@ -110,7 +111,7 @@ class CoreApi:
         try:
             if response.ok:
                 return response.json()
-        except Exception:
+        except requests.exceptions.JSONDecodeError:
             logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
@@ -207,7 +208,7 @@ class CoreApi:
         except ValidationError as exc:
             logger.error(f"Invalid task payload for {job_id}: {exc}")
             return False
-        except Exception as exc:
+        except (ValueError, requests.exceptions.RequestException) as exc:
             logger.error(f"Failed to save task result for {job_id}: {exc}")
             return False
 
@@ -234,7 +235,7 @@ class CoreApi:
             if response and "sources" in response:
                 return response["sources"]
             return None
-        except Exception:
+        except requests.exceptions.RequestException:
             logger.exception("Can't get all OSINT sources")
             return None
 
@@ -250,10 +251,8 @@ class CoreApi:
             if response and isinstance(response, dict) and "items" in response:
                 return response["items"]
             # Fallback for direct list format (backwards compatibility)
-            if response and isinstance(response, list):
-                return response
-            return None
-        except Exception:
+            return response if response and isinstance(response, list) else None
+        except requests.exceptions.RequestException:
             logger.exception("Can't get all bots")
             return None
 
@@ -265,17 +264,36 @@ class CoreApi:
         """
         try:
             response = self.api_get("/worker/cron-jobs")
-            if response and "cron_jobs" in response:
-                return response["cron_jobs"]
-            return None
-        except Exception:
+            return response["cron_jobs"] if response and "cron_jobs" in response else None
+        except requests.exceptions.RequestException:
             logger.exception("Can't get cron job configurations")
             return None
+
+    def cleanup_task_history(self) -> dict | None:
+        url = f"{self.api_url}/worker/tasks/history/cleanup"
+        try:
+            response = requests.post(url=url, headers=self.headers, verify=self.verify, json={}, timeout=self.timeout)
+        except requests.exceptions.RequestException:
+            logger.exception("Can't cleanup task history")
+            return None
+        if response.ok:
+            return response.json()
+        try:
+            response_data = response.json()
+        except requests.exceptions.JSONDecodeError:
+            response_data = response.text
+        status_code = response.status_code or 0
+        return {
+            "error": response_data.get("error", response.text) if isinstance(response_data, dict) else str(response_data),
+            "reason": "core_http_error",
+            "retryable": status_code >= 500,
+            "data": {"status_code": status_code, "response": response_data},
+        }
 
     def get_bot_config(self, bot_id: str) -> dict | None:
         try:
             return self.api_get(f"/worker/bots/{bot_id}")
-        except Exception:
+        except requests.exceptions.RequestException:
             logger.exception("Can't get Bot Config")
             return None
 
@@ -299,7 +317,7 @@ class CoreApi:
             if isinstance(mime_type, bytes):
                 mime_type = mime_type.decode()
             return Product(data=response.content, mime_type=mime_type)
-        except Exception:
+        except (requests.exceptions.RequestException, UnicodeDecodeError, ValidationError):
             logger.exception("Can't get Product Render")
             return None
 
@@ -349,14 +367,8 @@ class CoreApi:
                 return None
 
             return self.check_response(response, url)
-        except Exception as e:
+        except requests.exceptions.RequestException as e:
             logger.exception(f"Failed to update word list {word_list_id}: {e}")
-            return None
-
-    def get_news_items(self, limit) -> dict | None:
-        try:
-            return self.api_get("/bots/news-item", params={"limit": limit})
-        except Exception:
             return None
 
     def get_stories(self, filter_dict: dict) -> list | None:
@@ -368,33 +380,33 @@ class CoreApi:
     def get_words_for_tagging_bot(self) -> dict | None:
         try:
             return self.api_get(url="/worker/word-lists?usage=4&with_entries=true")
-        except Exception:
+        except requests.exceptions.RequestException:
             return None
 
     def get_iocs(self, iocs: list[dict[str, str]]) -> dict[str, Any] | None:
         try:
             return self.api_post(url="/worker/iocs", json_data={"iocs": iocs})
-        except Exception:
+        except requests.exceptions.RequestException:
             logger.exception("Can't get IOCs")
             return None
 
     def update_news_item(self, news_id: str, data) -> dict | None:
         try:
             return self.api_put(url=f"/bots/news-item/{news_id}", json_data=dict(data))
-        except Exception:
+        except (TypeError, ValueError, requests.exceptions.RequestException):
             return None
 
     def update_story(self, story_id: str, data: dict) -> dict | None:
         try:
             return self.api_put(url=f"/bots/story/{story_id}", json_data=dict(data))
-        except Exception:
+        except requests.exceptions.RequestException:
             return None
 
     def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
-            payload = dict(attributes=attributes) if not isinstance(attributes, dict) else dict(attributes)
+            payload = {"attributes": attributes} if not isinstance(attributes, dict) else dict(attributes)
             return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=payload)
-        except Exception:
+        except (TypeError, ValueError, requests.exceptions.RequestException):
             return None
 
     def update_story_attributes(self, story_id: str, attributes: list[dict]) -> dict | None:
@@ -407,27 +419,35 @@ class CoreApi:
         """
         try:
             return self.api_patch(url=f"/bots/story/{story_id}/attributes", json_data={"attributes": attributes})
-        except Exception:
+        except requests.exceptions.RequestException:
             return None
 
     def run_post_collection_bots(self, source_id) -> dict | None:
         try:
-            return self.api_put("/worker/post-collection-bots", json_data={"source_id": source_id})
-        except Exception:
+            return self.api_put(
+                "/worker/post-collection-bots",
+                json_data={"source_id": source_id, "user_id": self._get_current_job_user_id()},
+            )
+        except requests.exceptions.RequestException:
             logger.exception("Can't run Post Collection Bots")
             return None
 
-    def update_osint_source_icon(self, osint_source_id: str, icon: MultiPartFilesAltType) -> dict[str, Any] | None:
+    def update_osint_source_icon(self, osint_source_id: str, icon: IconFile) -> dict[str, Any] | None:
         try:
-            file_entry = icon.get("file") if isinstance(icon, dict) else None
-            if isinstance(file_entry, tuple) and len(file_entry) > 1 and not file_entry[1]:
+            file_entry = icon.get("file")
+            if file_entry is None:
+                logger.warning(f"Skipping empty icon upload for OSINT source {osint_source_id}")
+                return None
+            filename, content = file_entry
+            if not content:
                 logger.warning(f"Skipping empty icon upload for OSINT source {osint_source_id}")
                 return None
             url = f"{self.api_url}/worker/osint-sources/{osint_source_id}/icon"
             headers = self.headers.copy()
             headers.pop("Content-type", None)
-            return self.check_response(requests.put(url=url, files=icon, headers=headers, verify=self.verify, timeout=self.timeout), url)
-        except Exception:
+            files: MultiPartFilesAltType = {"file": (filename, content)}
+            return self.check_response(requests.put(url=url, files=files, headers=headers, verify=self.verify, timeout=self.timeout), url)
+        except (TypeError, ValueError, requests.exceptions.RequestException):
             return None
 
     def news_items_grouping(self, data):
@@ -439,7 +459,7 @@ class CoreApi:
                 timeout=self.timeout,
             )
             return response.status_code
-        except Exception:
+        except requests.exceptions.RequestException:
             return None
 
     def news_items_grouping_multiple(self, data):
@@ -451,15 +471,14 @@ class CoreApi:
                 timeout=self.timeout,
             )
             return response.status_code
-        except Exception:
+        except requests.exceptions.RequestException:
             return None
 
     def add_news_items(self, news_items) -> dict | None:
-        try:
-            return self.api_post(url="/worker/news-items", json_data=news_items)
-        except Exception:
-            logger.exception("Cannot add Newsitem")
-            return None
+        response = self.api_post(url="/worker/news-items", json_data=news_items)
+        if response is None:
+            raise RuntimeError("Cannot add news items")
+        return response
 
     def add_or_update_story(self, story: dict):
         """
@@ -471,7 +490,7 @@ class CoreApi:
                 url="/worker/stories",
                 json_data=story,
             )
-        except Exception:
+        except requests.exceptions.RequestException:
             logger.exception("Cannot add or update story.")
             return None
 
@@ -484,6 +503,6 @@ class CoreApi:
                 url="/worker/misp/stories",
                 json_data=stories,
             )
-        except Exception:
+        except requests.exceptions.RequestException:
             logger.exception("Cannot add or update story.")
             return None

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from secrets import token_urlsafe
 from typing import Annotated, Any
 
@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     JWT_COOKIE_SECURE: bool = True
     JWT_CSRF_METHODS: list[str] = ["POST", "PUT", "PATCH", "DELETE"]
     COLORED_LOGS: bool = True
-    BUILD_DATE: datetime = datetime.now()
+    BUILD_DATE: datetime = datetime.now(UTC)
     GIT_INFO: dict[str, str] | None = None
     TARANIS_CORE_URL: str = "http://local.taranis.ai/api"
     TARANIS_CORE_HOST: str = "http://local.taranis.ai"
@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     CACHE_REDIS_PASSWORD: SecretStr | None = None
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
-    TARANIS_SENTRY_DSN: str | None = None
+    TARANIS_FRONTEND_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False
     SENTRY_SEND_DEFAULT_PII: bool = False
 

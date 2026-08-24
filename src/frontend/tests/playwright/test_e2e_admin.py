@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -19,8 +18,6 @@ DASHBOARD_HEALTH_SERVICES = {
     "Redis": "up",
     "Workers": "up",
 }
-SCHEDULER_BASELINE_TOTAL_TEXT_PREFIX = "Total:"
-SCHEDULER_BASELINE_TOTAL_TEXT_SUFFIX = "scheduled jobs"
 
 
 def reset_admin_onboarding_tours(page: Page):
@@ -57,7 +54,7 @@ def start_admin_onboarding_from_dashboard(page: Page):
 def remove_tz(date_time: str) -> str:
     dt = datetime.fromisoformat(date_time)
     if dt.tzinfo is not None and dt.utcoffset() is not None:
-        dt = dt.astimezone(timezone.utc)
+        dt = dt.astimezone(UTC)
     dt = dt.replace(tzinfo=None)
     return dt.isoformat()
 
@@ -163,9 +160,31 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         expect(page).to_have_url(url_for("admin.scheduler", _external=True))
         expect(page.locator("#scheduler-dashboard")).to_be_visible()
-        scheduled_jobs_total = page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")
-        expect(scheduled_jobs_total).to_contain_text(SCHEDULER_BASELINE_TOTAL_TEXT_PREFIX)
-        expect(scheduled_jobs_total).to_contain_text(SCHEDULER_BASELINE_TOTAL_TEXT_SUFFIX)
+        expect(page.get_by_test_id("scheduled-jobs")).to_be_visible()
+        expect(page.locator("#scheduled-jobs-table-search")).to_be_visible()
+        expect(page.locator("#scheduled-jobs-table")).to_contain_text("Page 1 of")
+
+        page.goto(
+            url_for(
+                "admin.scheduler",
+                page=2,
+                limit=5,
+                order="name_desc",
+                search="collector",
+                _external=True,
+            )
+        )
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="active"]').click())
+        expect(page).to_have_url(url_for("admin.scheduler", tab="active", _external=True))
+        expect(page.locator("#active-jobs-table-search")).to_have_value("")
+        expect(page.locator("#active-jobs-table")).to_contain_text("No jobs currently running")
+
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
+        expect(page.locator("#execution-history-table")).to_be_visible()
+        expect(page.locator("#history-tab .stats")).to_have_count(1)
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="scheduled"]').click())
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
+        expect(page.locator("#history-tab .stats")).to_have_count(1)
 
     def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
         page = logged_in_page

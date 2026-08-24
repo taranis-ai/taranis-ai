@@ -1,24 +1,24 @@
-import { EditorState } from "npm:@codemirror/state";
+import { EditorState } from "@codemirror/state";
 import {
   EditorView,
   highlightActiveLine,
   keymap,
   lineNumbers,
-} from "npm:@codemirror/view";
+} from "@codemirror/view";
 import {
   defaultKeymap,
   history,
   historyKeymap,
   indentWithTab,
-} from "npm:@codemirror/commands";
+} from "@codemirror/commands";
 import {
   StreamLanguage,
   bracketMatching,
   defaultHighlightStyle,
   indentUnit,
   syntaxHighlighting,
-} from "npm:@codemirror/language";
-import { jinja2 } from "npm:@codemirror/legacy-modes/mode/jinja2";
+} from "@codemirror/language";
+import { jinja2 } from "@codemirror/legacy-modes/mode/jinja2";
 import { unifiedMergeView } from "@codemirror/merge";
 
 window.EditorView = EditorView;

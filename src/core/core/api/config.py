@@ -7,9 +7,9 @@ from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.admin import OSINTSource as OSINTSourceModel
-from psycopg.errors import NotNullViolation, UniqueViolation  # noqa: F401
+from psycopg.errors import NotNullViolation, UniqueViolation
 from pydantic import ValidationError
-from sqlalchemy.exc import IntegrityError  # noqa: F401
+from sqlalchemy.exc import IntegrityError
 
 from core.config import Config
 from core.log import logger
@@ -509,7 +509,7 @@ class Users(MethodView):
 
 class Bots(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all", "state")
     def get(self, bot_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if bot_id:
             return bot.Bot.get_for_api(bot_id)
@@ -561,7 +561,7 @@ class BotDagPreview(MethodView):
     def post(self):
         try:
             return bot.Bot.get_dag_preview(request.json or {}), 200
-        except ValueError as exc:
+        except (TypeError, ValueError) as exc:
             logger.warning("Invalid bot DAG preview payload: %s", exc)
             return {"error": "Invalid bot DAG preview payload"}, 400
 
@@ -580,14 +580,16 @@ class QueueTasks(MethodView):
 
 class ActiveJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        return queue_manager.queue_manager.get_active_jobs()
+    @extract_args("search", "page", "limit", "order")
+    def get(self, filter_args: dict[str, Any]):
+        return queue_manager.queue_manager.get_active_jobs(filter_args)
 
 
 class FailedJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        return queue_manager.queue_manager.get_failed_jobs()
+    @extract_args("search", "page", "limit", "order")
+    def get(self, filter_args: dict[str, Any]):
+        return queue_manager.queue_manager.get_failed_jobs(filter_args)
 
 
 class WorkerStats(MethodView):
@@ -605,41 +607,6 @@ class AdminMenuBadges(MethodView):
         return response
 
 
-class SchedulerDashboard(MethodView):
-    @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        scheduled_jobs, scheduled_status = queue_manager.queue_manager.get_scheduled_jobs()
-        if scheduled_status != 200:
-            return scheduled_jobs, scheduled_status
-
-        queues, queue_status = queue_manager.queue_manager.get_queued_tasks()
-        if queue_status != 200:
-            return queues, queue_status
-
-        worker_stats, worker_stats_status = queue_manager.queue_manager.get_worker_stats()
-        if worker_stats_status != 200:
-            return worker_stats, worker_stats_status
-
-        active_jobs, active_status = queue_manager.queue_manager.get_active_jobs()
-        if active_status != 200:
-            return active_jobs, active_status
-
-        failed_jobs, failed_status = queue_manager.queue_manager.get_failed_jobs()
-        if failed_status != 200:
-            return failed_jobs, failed_status
-
-        return {
-            "scheduled_jobs": scheduled_jobs.get("items", []),
-            "scheduled_total_count": scheduled_jobs.get("total_count", 0),
-            "queues": queues if isinstance(queues, list) else [],
-            "worker_stats": worker_stats if isinstance(worker_stats, dict) else {},
-            "active_jobs": active_jobs.get("items", []),
-            "active_total_count": active_jobs.get("total_count", 0),
-            "failed_jobs": failed_jobs.get("items", []),
-            "failed_total_count": failed_jobs.get("total_count", 0),
-        }, 200
-
-
 class CronJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
@@ -648,12 +615,13 @@ class CronJobs(MethodView):
 
 class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self, task_id: str | None = None):
+    @extract_args("search", "page", "limit", "order")
+    def get(self, filter_args: dict[str, Any], task_id: str | None = None):
         try:
             if task_id:
                 return queue_manager.queue_manager.get_scheduled_job(task_id)
 
-            return queue_manager.queue_manager.get_scheduled_jobs()
+            return queue_manager.queue_manager.get_scheduled_jobs(filter_args)
         except Exception:
             logger.exception("Failed to get schedules")
             return {"error": "Failed to get schedules"}, 500
@@ -733,7 +701,7 @@ class ConnectorsPull(MethodView):
 
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all", "filter_manual")
+    @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all", "filter_manual", "state")
     def get(self, source_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if source_id:
             return osint_source.OSINTSource.get_for_api(source_id)
@@ -1157,7 +1125,6 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view(f"{name}_failed_jobs"))
     config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view(f"{name}_worker_stats"))
     config_bp.add_url_rule("/admin-menu-badges", view_func=AdminMenuBadges.as_view(f"{name}_admin_menu_badges"))
-    config_bp.add_url_rule("/workers/dashboard", view_func=SchedulerDashboard.as_view(f"{name}_scheduler_dashboard"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view(f"{name}_queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view(f"{name}_queue_schedule_task"))
     config_bp.add_url_rule("/worker-types", view_func=Workers.as_view(f"{name}_worker_types"))

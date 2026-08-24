@@ -4,6 +4,7 @@ refactor organization
 
 from yoyo import step
 
+
 __depends__ = {"20250207_01_QyCEn-remove-obsolte-column-from-product"}
 
 steps = [

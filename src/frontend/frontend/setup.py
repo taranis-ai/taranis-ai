@@ -18,7 +18,7 @@ from models.user import UserProfile
 from pydantic import BaseModel
 
 import frontend.filters as filters_module
-import frontend.i18n as i18n
+from frontend import i18n
 from frontend.auth import user_has_admin_permissions
 from frontend.config import Config
 from frontend.log import logger
@@ -144,11 +144,12 @@ def inject_current_user() -> dict[str, Any]:
 
 
 def setup_sentry():
-    if not Config.TARANIS_SENTRY_DSN:
+    dsn = (Config.TARANIS_FRONTEND_SENTRY_DSN or "").strip()
+    if not dsn:
         return
 
     sentry_options: dict[str, Any] = {
-        "dsn": Config.TARANIS_SENTRY_DSN,
+        "dsn": dsn,
         "traces_sample_rate": 1.0,
         "profiles_sample_rate": 1.0,
     }

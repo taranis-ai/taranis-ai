@@ -29,7 +29,7 @@ class AuthView(MethodView):
                 core_response = CoreApi().external_login(auth_headers)
             except HTTPException:
                 raise
-            except Exception as exc:
+            except requests.RequestException as exc:
                 logger.warning(f"External login request failed on attempt {attempt}: {exc}")
 
             if core_response is not None:

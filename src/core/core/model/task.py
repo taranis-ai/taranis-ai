@@ -1,9 +1,11 @@
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
+from models.task import UserTaskFilter
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Mapped
+from sqlalchemy.sql.elements import ColumnElement
 
 from core.log import logger
 from core.managers.db_manager import db
@@ -13,9 +15,15 @@ from core.model.base_model import UUID_STR_LENGTH, BaseModel
 class Task(BaseModel):
     __tablename__ = "task"
 
-    SUCCESS_STATUSES = {"SUCCESS", "NOT_MODIFIED"}
-    FAILURE_STATUSES = {"FAILURE"}
-    DEFAULT_RESULT = {"message": "No task result was recorded", "reason": "missing_result", "retryable": False, "data": None}
+    SUCCESS_STATUSES = frozenset({"SUCCESS", "NOT_MODIFIED"})
+    FAILURE_STATUSES = frozenset({"FAILURE"})
+    USER_TASK_TERMINAL_STATUSES = SUCCESS_STATUSES | FAILURE_STATUSES | {"PREVIEW"}
+    DEFAULT_RESULT: ClassVar[dict[str, object]] = {
+        "message": "No task result was recorded",
+        "reason": "missing_result",
+        "retryable": False,
+        "data": None,
+    }
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     job_id: Mapped[str] = db.Column(db.String, unique=True, nullable=False)
@@ -122,9 +130,8 @@ class Task(BaseModel):
             normalized_id = cls.normalize_uuid_id(item_id)
         except (TypeError, ValueError):
             normalized_id = None
-        if normalized_id and normalized_id != lookup_id:
-            if task := super().get(normalized_id):
-                return task
+        if normalized_id and normalized_id != lookup_id and (task := super().get(normalized_id)):
+            return task
         if lookup_id:
             return cls.get_by_job_id(lookup_id)
         return None
@@ -134,14 +141,43 @@ class Task(BaseModel):
         return cls.get_first(db.select(cls).where(cls.job_id == job_id))
 
     @classmethod
+    def get_user_tasks_for_api(cls, user_id: str, filters: UserTaskFilter) -> tuple[dict[str, Any], int]:
+        query = db.select(cls).where(
+            cls.user_id == user_id,
+            cls.status.in_(cls.USER_TASK_TERMINAL_STATUSES),
+            cls.last_run.is_not(None),
+        )
+
+        if filters.search:
+            pattern = f"%{filters.search}%"
+            query = query.where(
+                or_(
+                    cls.job_id.ilike(pattern),
+                    cls.task.ilike(pattern),
+                    cls.worker_id.ilike(pattern),
+                    cls.worker_type.ilike(pattern),
+                    cls.status.ilike(pattern),
+                )
+            )
+
+        filter_args = filters.model_dump()
+
+        count = cls.get_filtered_count(query)
+        query = cls._add_paging_to_query(filter_args, query)
+        query = cls._add_sorting_to_query(filter_args, query)
+        items = cls.get_filtered(query) or []
+        return {"items": cls.to_list(items), "total_count": count}, 200
+
+    @classmethod
     def get_latest_matching(
         cls,
         *,
         exact_ids: set[str] | None = None,
         prefixes: list[str] | None = None,
         task_name: str | None = None,
+        worker_id: str | None = None,
     ) -> "Task | None":
-        conditions = []
+        conditions: list[ColumnElement[bool]] = []
 
         exact_ids = {task_id for task_id in (exact_ids or set()) if task_id}
         prefixes = [prefix for prefix in (prefixes or []) if prefix]
@@ -149,6 +185,8 @@ class Task(BaseModel):
         if exact_ids:
             conditions.append(cls.job_id.in_(exact_ids))
         conditions.extend(cls.job_id.like(f"{prefix}%") for prefix in prefixes)
+        if worker_id:
+            conditions.append(cls.worker_id == worker_id)
 
         if not conditions:
             return None
@@ -187,14 +225,12 @@ class Task(BaseModel):
     @classmethod
     def get_admin_menu_badges(cls) -> dict[str, int]:
         """Return the failure counts needed for the admin sidebar badges."""
-        task_stats = cls.get_status_counts_by_task()
-
-        def sum_failures(task_name_filter: str) -> int:
-            return sum(int(stats.get("failures", 0) or 0) for task_name, stats in task_stats.items() if task_name_filter in task_name.lower())
+        from core.model.bot import Bot
+        from core.model.osint_source import OSINTSource
 
         return {
-            "osint_source": sum_failures("collector"),
-            "bot": sum_failures("bot"),
+            "osint_source": OSINTSource.get_current_failure_count(),
+            "bot": Bot.get_current_failure_count(),
         }
 
     @classmethod
@@ -362,3 +398,9 @@ class Task(BaseModel):
                 "overall_success_rate": totals["success_pct"],
             },
         }
+
+    @classmethod
+    def delete_older_than_last_run(cls, cutoff: datetime) -> int:
+        result = db.session.execute(db.delete(cls).where(or_(cls.last_run < cutoff, cls.last_run.is_(None))))
+        db.session.commit()
+        return int(getattr(result, "rowcount", 0) or 0)

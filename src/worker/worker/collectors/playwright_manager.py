@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 
-from playwright.sync_api import Browser, BrowserContext, Page, Playwright, TimeoutError, sync_playwright
+from playwright.sync_api import Browser, BrowserContext, Error, Page, Playwright, TimeoutError, sync_playwright
 
 from worker.log import logger
 
@@ -59,25 +59,28 @@ class PlaywrightManager:
         else:
             logger.debug("No Playwright to stop")
 
-    def fetch_content_with_js(self, url: str, xpath: str = "") -> str:
+    def fetch_content_with_js(self, url: str, xpath: str = "") -> tuple[str, str | None]:
         logger.debug(f"Getting web content with JS for {url} - {xpath=}")
         self._ensure_started()
         page = self.page
         if page is None:
             raise RuntimeError("Playwright page is not started")
+        last_modified = None
         try:
-            page.goto(url)
+            response = page.goto(url)
+            if response:
+                last_modified = response.header_value("Last-Modified")
 
             if xpath:
                 locator = page.locator(f"xpath={xpath}")
                 locator.wait_for(state="visible")
-                return page.content() or ""
+                return page.content() or "", last_modified
 
             page.wait_for_load_state("networkidle")
         except TimeoutError as e:
             logger.error(
-                f"Fetching content with JS for {url} with {xpath=} has timed out, invalid XPath could be the reason, check for details. \nDetails: \n{str(e)}"
+                f"Fetching content with JS for {url} with {xpath=} has timed out, invalid XPath could be the reason, check for details. \nDetails: \n{e!s}"
             )
-        except Exception as e:
-            logger.error(f"Error fetching content with JS: {str(e)}")
-        return page.content() or ""
+        except Error as e:
+            logger.error(f"Error fetching content with JS: {e!s}")
+        return page.content() or "", last_modified

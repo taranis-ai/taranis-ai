@@ -9,6 +9,7 @@ from models.cache_contract import (
     get_secret_value,
 )
 from redis import Redis
+from redis.exceptions import RedisError
 
 from core.config import Config
 from core.log import logger
@@ -32,12 +33,10 @@ SCOPE_MODEL_NAMES: dict[str, tuple[str, ...]] = {
         "failed_job",
         "queue_status",
         "worker_stats",
-        "scheduler_dashboard",
         "task_history_response",
     ),
     SCOPE_SCHEDULE_STATUS: (
         "job",
-        "scheduler_dashboard",
         "task_history_response",
     ),
     SCOPE_TRENDING_CLUSTERS: ("trending_clusters",),
@@ -86,7 +85,7 @@ class FrontendCacheInvalidationService:
             redis_password = get_secret_value(Config.CACHE_REDIS_PASSWORD) or get_secret_value(Config.REDIS_PASSWORD)
             self._client = Redis.from_url(redis_url, password=redis_password, decode_responses=True)
             self._client.ping()
-        except Exception:
+        except (RedisError, ValueError):
             logger.exception("Failed to initialize frontend cache invalidation Redis client")
             self._disabled = True
             self._client = None

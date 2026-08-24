@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 from flask import render_template
 from models.admin import Connector
@@ -14,7 +14,7 @@ class ConnectorView(AdminBaseView):
     icon = "link"
     _index = 115
 
-    connector_types = {
+    connector_types: ClassVar[dict[str, dict[str, str]]] = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in CONNECTOR_TYPES
     }

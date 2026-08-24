@@ -462,8 +462,8 @@ class DashboardView(BaseView):
         df = pd.DataFrame(country_data)
 
         fig = px.scatter_geo(df, locations="name", locationmode="country names", size="size", hover_name="name", projection="natural earth")
-        fig.update_traces(marker=dict(sizemode="area", sizemin=4))
-        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+        fig.update_traces(marker={"sizemode": "area", "sizemin": 4})
+        fig.update_layout(margin={"l": 0, "r": 0, "t": 0, "b": 0})
 
         # Return only the div/JS part so it can be used in Jinja directly
         return fig.to_html(full_html=False, include_plotlyjs="cdn")

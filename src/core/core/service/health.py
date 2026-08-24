@@ -1,5 +1,6 @@
 from typing import Literal
 
+from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -49,7 +50,7 @@ def check_seed_data() -> HealthStatus:
         manual_source_exists = OSINTSource.get_by_key("manual") is not None
         product_type_exists = ProductType.get_first(db.select(ProductType)) is not None
         return "up" if manual_source_exists and product_type_exists else "down"
-    except Exception:
+    except SQLAlchemyError:
         return "down"
 
 
@@ -61,7 +62,7 @@ def check_broker() -> HealthStatus:
     try:
         qm._redis.ping()
         return "up"
-    except Exception:
+    except RedisError:
         return "down"
 
 
@@ -75,5 +76,5 @@ def check_workers() -> HealthStatus:
 
         workers = Worker.all(connection=qm._redis)
         return "up" if workers else "down"
-    except Exception:
+    except (RedisError, ValueError):
         return "down"

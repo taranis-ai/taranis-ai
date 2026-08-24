@@ -1,16 +1,19 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from models.task import Task as TaskResponseModel
-from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission
+from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission, UserTaskFilter, UserTaskList
 
 from core.config import Config
 from core.log import logger
+from core.managers.sse_manager import sse_manager
+from core.model.osint_source import CollectorHTTPState
 from core.model.product import Product
 from core.model.task import Task as TaskModel
 from core.model.token_blacklist import TokenBlacklist
 from core.model.word_list import WordList
 from core.service import cache_invalidation as cache_invalidation_module
+from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 from core.service.misp_story_sync import handle_misp_connector_result
 from core.service.news_item_tag import NewsItemTagService
 
@@ -37,8 +40,38 @@ class TaskService:
         return validated.model_dump(mode="json", exclude_none=False), status
 
     @staticmethod
+    def get_user_tasks(user_id: str, filters: UserTaskFilter) -> tuple[dict[str, Any], int]:
+        result, status = TaskModel.get_user_tasks_for_api(user_id, filters)
+        if status != 200:
+            return result, status
+        validated = UserTaskList.model_validate(result)
+        return validated.model_dump(mode="json", exclude_none=False), status
+
+    @staticmethod
     def delete_task(task_id: str) -> tuple[dict[str, Any], int]:
-        return TaskModel.delete(task_id)
+        task = TaskModel.get(task_id)
+        task_kind = TaskService._resolve_task_kind(task.job_id, task.task) if task else None
+        worker_id = task.worker_id if task else None
+        result, status = TaskModel.delete(task_id)
+        if status == 200:
+            cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
+            if task_kind == "collector_task":
+                cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", worker_id)
+            elif task_kind == "bot_task":
+                cache_invalidation_module.cache_invalidation_service.invalidate_model("bot", worker_id)
+        return result, status
+
+    @staticmethod
+    def cleanup_history() -> tuple[dict[str, Any], int]:
+        retention_days = Config.TASK_HISTORY_RETENTION_DAYS
+        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=retention_days)
+        deleted = TaskModel.delete_older_than_last_run(cutoff)
+        return {
+            "message": "Task history cleanup completed",
+            "deleted": deleted,
+            "cutoff": cutoff.isoformat(),
+            "retention_days": retention_days,
+        }, 200
 
     @classmethod
     def save_task_result(cls, submission: TaskSubmission) -> tuple[dict[str, Any], int]:
@@ -59,12 +92,16 @@ class TaskService:
             payload["worker_type"] = submission.worker_type
 
         result, _ = TaskModel.add_or_update(payload)
+        if task_kind == "collector_task" and submission.worker_id:
+            CollectorHTTPState.update_from_task_result(submission.worker_id, result_payload.get("data"))
         if submission.status == "SUCCESS" and submission.result is not None:
             cls._handle_success_result(submission)
         elif task_kind in {"collector_task", "bot_task"}:
             cache_invalidation_module.cache_invalidation_service.invalidate_model("admin_menu_badges")
             if task_kind == "collector_task":
                 cache_invalidation_module.cache_invalidation_service.invalidate_model("osint_source", submission.worker_id)
+            elif task_kind == "bot_task":
+                cache_invalidation_module.cache_invalidation_service.invalidate_model("bot", submission.worker_id)
         validated = TaskResponseModel.model_validate(result)
         return validated.model_dump(mode="json", exclude_none=False), 200
 
@@ -76,16 +113,15 @@ class TaskService:
             return "gather_word_list"
         if task_name == "cleanup_token_blacklist" or task_id.startswith("cleanup_token_blacklist"):
             return "cleanup_token_blacklist"
+        if task_name == "cleanup_task_history" or task_id.startswith("cleanup_task_history"):
+            return "cleanup_task_history"
         if task_name == "presenter_task" or task_id.startswith("presenter_task"):
             return "presenter_task"
         if task_name == "collector_task" or task_name.startswith("collect_") or task_id.startswith("collect_"):
             return "collector_task"
         if task_name == "bot_task" or task_name.startswith("bot_") or task_id.startswith("bot"):
             return "bot_task"
-        if task_name == "connector_task":
-            return "connector_task"
-
-        return None
+        return "connector_task" if task_name == "connector_task" else None
 
     @classmethod
     def _handle_success_result(cls, submission: TaskSubmission) -> None:
@@ -95,7 +131,7 @@ class TaskService:
             return
 
         if task_kind == "cleanup_token_blacklist":
-            check_time = datetime.now(timezone.utc).replace(tzinfo=None) - Config.JWT_ACCESS_TOKEN_EXPIRES
+            check_time = datetime.now(UTC).replace(tzinfo=None) - Config.JWT_ACCESS_TOKEN_EXPIRES
             TokenBlacklist.delete_older(check_time)
             return
 
@@ -112,6 +148,15 @@ class TaskService:
                 logger.error("Invalid connector task result payload")
                 return
             handle_misp_connector_result(result_data)
+            sse_manager.news_items_updated()
+            cache_invalidation_module.invalidate_frontend_cache_on_success(
+                200,
+                scopes=(
+                    cache_invalidation_module.SCOPE_ASSESS_VIEWS,
+                    cache_invalidation_module.SCOPE_STORY_REPORT_VIEWS,
+                    cache_invalidation_module.SCOPE_SCHEDULE,
+                ),
+            )
             return
 
         if task_kind == "gather_word_list":
@@ -156,13 +201,18 @@ class TaskService:
             logger.error("Invalid bot task result data payload")
             return
 
+        affected_story_ids = set()
         if worker_type in TAGGING_BOTS:
-            NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
+            affected_story_ids = NewsItemTagService.set_found_bot_tags(bot_result, actor="bot")
 
         if worker_type == "INTEL_OWL_BOT":
             TaskService._handle_intelowl_bot_result(bot_result, worker_id)
         else:
-            NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
+            affected_story_ids.update(
+                NewsItemTagService.set_worker_execution_attribute(worker_type=worker_type, worker_id=worker_id, found_tags=bot_result)
+            )
+
+        refresh_misp_auto_update_jobs(affected_story_ids)
 
         if result_data.get("trigger_dependents", True):
             from core.managers import queue_manager

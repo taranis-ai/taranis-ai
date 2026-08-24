@@ -9,14 +9,16 @@ REPO_NAMESPACE=${GITHUB_REPOSITORY_OWNER:-"taranis-ai"}
 REPO="${IMAGE_REGISTRY}/${REPO_NAMESPACE}"
 GIT_INFO=$(./docker/git_info.sh)
 BUILD_VERSION=${BUILD_VERSION:-$(./docker/git_info.sh build-version)}
+BUILD_DATE=${BUILD_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD | sed 's/[^a-zA-Z0-9_.-]/_/g')
 
-echo "Building containers for branch ${CURRENT_BRANCH} on ${REPO} with git info ${GIT_INFO} and build version ${BUILD_VERSION}"
+echo "Building containers for branch ${CURRENT_BRANCH} on ${REPO} with git info ${GIT_INFO}, build version ${BUILD_VERSION}, and build date ${BUILD_DATE}"
 
 build_core() {
   docker buildx build --file docker/Containerfile.core \
     --build-arg "git_info=${GIT_INFO}" \
     --build-arg "build_version=${BUILD_VERSION}" \
+    --build-arg "build_date=${BUILD_DATE}" \
     --tag "${REPO}/taranis-core:latest" \
     --tag "${REPO}/taranis-core:${CURRENT_BRANCH}" \
     --load .
@@ -43,6 +45,7 @@ build_frontend() {
   docker buildx build --file docker/Containerfile.frontend \
     --build-arg "git_info=${GIT_INFO}" \
     --build-arg "build_version=${BUILD_VERSION}" \
+    --build-arg "build_date=${BUILD_DATE}" \
     --tag "${REPO}/taranis-frontend:latest" \
     --tag "${REPO}/taranis-frontend:${CURRENT_BRANCH}" \
     --load .

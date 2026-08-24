@@ -18,6 +18,8 @@ Before suggesting local startup, ask which workflow the developer wants:
 - Manual non-tmux startup: `docker compose -f dev/compose.yml up -d`, then run `./install_and_run_dev.sh` in `src/core`, `src/frontend`, and `src/worker` in separate terminals
 - Manual tmux workflow from `dev/README.md`
 
+`./dev/start_dev.sh` supports macOS with Homebrew and Podman, Ubuntu, and Debian 13.
+
 Do not assume tmux.
 
 ## Validation
@@ -30,8 +32,9 @@ See `.github/workflows` for CI behavior. Run commands from the relevant componen
 - Lint each changed component with `uv run ruff check`; use `uv run ruff check --fix` and `uv run ruff format` where appropriate.
 - After touching Python files, run `./dev/check_pyrefly.sh` to check changed files.
 - E2E tests start and stop a dedicated Docker/Podman Compose test stack automatically for the session; you mainly need Docker/Podman Compose available locally (see `src/frontend/tests/playwright/README.md`).
-- If VS Code supplies `DEBUG=release`, unset it or use a boolean value such as `DEBUG=true` before starting frontend or core tests.
+- The project-scoped Codex configuration filters inherited `DEBUG` values from shell commands. This prevents the VS Code Codex extension's `DEBUG=release` value from overriding the boolean values in the component `.env` files.
 - Models has no unit tests. Worker browser-scraping tests install Playwright browsers.
+- Core tests replace Redis connections with an in-process fake so test queues and cache invalidations cannot affect a running local instance.
 - E2E admin tests on `master` intentionally keep many functions commented out; do not uncomment them without proving they pass.
 
 ## Test Conventions

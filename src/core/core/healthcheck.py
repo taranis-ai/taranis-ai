@@ -14,6 +14,6 @@ def main() -> int:
     try:
         requests.get(url, timeout=5).raise_for_status()
         return 0
-    except Exception as exc:
+    except requests.RequestException as exc:
         print(f"core healthcheck failed: {exc}", file=sys.stderr)
         return 1

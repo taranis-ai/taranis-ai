@@ -57,6 +57,7 @@ jobs:
           images=("taranis-core" "taranis-worker" "taranis-ingress" "taranis-frontend")
           short_sha=$(printf '%.7s' "${GITHUB_SHA}")
           git_info=$(printf '{"branch":"master","HEAD":"%s","tag":"%s"}' "${short_sha}" "${TAG}")
+          build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
           for image in "${images[@]}"; do
             case "${image}" in
@@ -65,6 +66,7 @@ jobs:
                 build_args=(
                   --build-arg "git_info=${git_info}"
                   --build-arg "build_version=${TAG}"
+                  --build-arg "build_date=${build_date}"
                 )
                 ;;
               taranis-worker)
@@ -85,6 +87,7 @@ jobs:
                 build_args=(
                   --build-arg "git_info=${git_info}"
                   --build-arg "build_version=${TAG}"
+                  --build-arg "build_date=${build_date}"
                 )
                 ;;
             esac

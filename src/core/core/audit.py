@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from flask import Flask, Response, g, request
@@ -46,7 +46,7 @@ def build_event(response: Response) -> dict[str, Any]:
 def base_event(response: Response, user: Any) -> dict[str, Any]:
     return {
         "event": "audit",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "method": request.method,
         "path": request.path,
         "endpoint": request.endpoint,

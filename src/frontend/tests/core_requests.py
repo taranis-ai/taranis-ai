@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
-from typing import Any, Mapping
+from typing import Any
 
 import requests
 
@@ -15,7 +16,7 @@ class CoreRequestClient:
     default_headers: dict[str, str] = field(default_factory=dict)
     timeout_seconds: int | float = DEFAULT_CORE_REQUEST_TIMEOUT_SECONDS
 
-    def with_access_token(self, access_token: str | None) -> "CoreRequestClient":
+    def with_access_token(self, access_token: str | None) -> CoreRequestClient:
         return replace(self, access_token=access_token)
 
     def build_headers(
@@ -44,7 +45,7 @@ class CoreRequestClient:
         headers: Mapping[str, str] | None = None,
         authenticated: bool | None = None,
         raise_for_status: bool = True,
-        timeout_seconds: int | float | None = None,
+        timeout_seconds: float | None = None,
     ) -> requests.Response:
         response = requests.request(
             method,

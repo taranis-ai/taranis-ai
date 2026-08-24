@@ -27,6 +27,23 @@
         x-data="{ sidebarOpen: {{ 'true' if _show_sidebar and templates and templates.get('sidebar_template') else 'false' }}, init() { if (window.self !== window.top) this.sidebarOpen = false } }">
     {% include "partials/viewport_notice.html" %}
     {% include "partials/sidebar.html" %}
+    <noscript>
+      <style>
+        {% if _show_sidebar and templates and templates.get('sidebar_template') %}
+          #sidebar {
+            width: 16rem;
+          }
+
+          #sidebar ~ main {
+            margin-left: 16rem;
+            max-width: calc(100vw - 16rem);
+          }
+        {% endif %}
+        #assess-top-bar {
+          display: none;
+        }
+      </style>
+    </noscript>
 
     <header id="navbar"
             class="fixed left-0 right-0 h-16 bg-base-200 flex items-center justify-between px-4 z-30 navbar"

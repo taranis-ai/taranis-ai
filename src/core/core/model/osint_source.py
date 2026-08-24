@@ -1,8 +1,9 @@
 import base64
 import json
-from datetime import datetime
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from models.admin import CronSpec, OSINTSourceUpdateModel
 from models.admin import OSINTSource as OSINTSourceModel
@@ -39,6 +40,50 @@ class InvalidOSINTSourceIconError(ValueError):
         self.public_message = public_message
 
 
+class CollectorHTTPState(BaseModel):
+    __tablename__ = "collector_http_state"
+
+    osint_source_id: Mapped[str] = db.Column(
+        db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True
+    )
+    url: Mapped[str] = db.Column(db.Text, nullable=False)
+    etag: Mapped[str | None] = db.Column(db.Text, nullable=True)
+    last_modified: Mapped[str | None] = db.Column(db.Text, nullable=True)
+
+    def __init__(self, osint_source_id: str, url: str, etag: str | None = None, last_modified: str | None = None):
+        self.osint_source_id = osint_source_id
+        self.url = url
+        self.etag = etag
+        self.last_modified = last_modified
+
+    @classmethod
+    def update_from_task_result(cls, source_id: str, data: Any) -> None:
+        if not isinstance(data, dict) or not isinstance(validators := data.get("http_validators"), dict):
+            return
+        url = validators.get("url")
+        etag = validators.get("etag")
+        last_modified = validators.get("last_modified")
+        if (
+            not isinstance(url, str)
+            or not url
+            or (etag is not None and not isinstance(etag, str))
+            or (last_modified is not None and not isinstance(last_modified, str))
+            or OSINTSource.get(source_id) is None
+        ):
+            return
+
+        if state := db.session.get(cls, source_id):
+            state.url = url
+            state.etag = etag
+            state.last_modified = last_modified
+        else:
+            db.session.add(cls(source_id, url, etag, last_modified))
+        db.session.commit()
+
+    def to_worker_dict(self) -> dict[str, str | None]:
+        return {"url": self.url, "etag": self.etag, "last_modified": self.last_modified}
+
+
 class OSINTSource(BaseModel):
     __tablename__ = "osint_source"
 
@@ -53,11 +98,14 @@ class OSINTSource(BaseModel):
         "ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete"
     )
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
+    http_state: Mapped[CollectorHTTPState | None] = relationship(
+        CollectorHTTPState, cascade="all, delete-orphan", passive_deletes=True, uselist=False
+    )
 
     icon: Any = deferred(db.Column(db.LargeBinary))
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem", back_populates="osint_source")
-    _ALLOWED_ICON_FORMATS = {"GIF", "ICO", "PNG", "JPEG", "WEBP"}
+    _ALLOWED_ICON_FORMATS = frozenset({"GIF", "ICO", "PNG", "JPEG", "WEBP"})
 
     def __init__(
         self,
@@ -109,9 +157,8 @@ class OSINTSource(BaseModel):
             normalized_id = cls.normalize_uuid_id(item_id)
         except (TypeError, ValueError):
             normalized_id = None
-        if normalized_id and normalized_id != lookup_id:
-            if osint_source := super().get(normalized_id):
-                return osint_source
+        if normalized_id and normalized_id != lookup_id and (osint_source := super().get(normalized_id)):
+            return osint_source
         if lookup_id:
             return cls.get_by_key(lookup_id)
         return None
@@ -154,6 +201,7 @@ class OSINTSource(BaseModel):
             exact_ids={self.task_id},
             prefixes=[self.cron_run_prefix],
             task_name="collector_task",
+            worker_id=self.id,
         ):
             return task_result.to_dict()
         return None
@@ -225,8 +273,8 @@ class OSINTSource(BaseModel):
         filter_args = dict(filter_args or {})
         filter_args["filter_manual"] = cls._filter_manual_enabled(filter_args.get("filter_manual", True))
         status_order = filter_args.get("order") in {"status_asc", "status_desc"}
-        paginate_after_sorting = status_order and not cls._should_fetch_all(filter_args)
-        query_args = {**filter_args, "fetch_all": "true"} if paginate_after_sorting else filter_args
+        paginate_after_status = status_order and not cls._should_fetch_all(filter_args)
+        query_args = {**filter_args, "fetch_all": "true"} if status_order else filter_args
 
         response, status_code = super().get_all_for_api(filter_args=query_args, with_count=with_count, user=user)
         items = response.get("items", [])
@@ -235,7 +283,7 @@ class OSINTSource(BaseModel):
         elif filter_args.get("order") == "status_desc":
             items.sort(key=lambda item: (item.get("status") or {}).get("status", ""), reverse=True)
 
-        if paginate_after_sorting:
+        if paginate_after_status:
             limit = min(int(filter_args.get("limit", 20)), DB_INTEGER_MAX)
             offset = filter_args.get("offset")
             if offset is None:
@@ -245,6 +293,27 @@ class OSINTSource(BaseModel):
             response["items"] = items[offset : offset + limit]
 
         return response, status_code
+
+    @classmethod
+    def get_current_failure_count(cls) -> int:
+        query = db.select(func.count()).select_from(cls).where(cls._latest_task_status() == "FAILURE")
+        return db.session.execute(query).scalar_one()
+
+    @classmethod
+    def _latest_task_status(cls):
+        task_id = func.concat(literal("collect_"), func.lower(cast(cls.type, String)), literal("_"), cls.id)
+        cron_prefix = func.concat(literal("cron_osint_source_"), cls.id, literal("_%"))
+        return (
+            db.select(TaskModel.status)
+            .where(
+                TaskModel.task == "collector_task",
+                db.or_(TaskModel.job_id == task_id, TaskModel.job_id.like(cron_prefix), TaskModel.worker_id == cls.id),
+            )
+            .order_by(TaskModel.last_run.desc(), TaskModel.last_success.desc(), TaskModel.job_id.desc())
+            .limit(1)
+            .correlate(cls)
+            .scalar_subquery()
+        )
 
     @staticmethod
     def _filter_manual_enabled(value: Any) -> bool:
@@ -275,6 +344,9 @@ class OSINTSource(BaseModel):
         if filter_args.get("filter_manual"):
             query = query.where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
 
+        if str(filter_args.get("state") or "").strip().lower() == "failure":
+            query = query.where(cls._latest_task_status() == "FAILURE")
+
         return query
 
     @classmethod
@@ -292,8 +364,8 @@ class OSINTSource(BaseModel):
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         data["icon"] = base64.b64encode(self.icon).decode("utf-8") if self.icon else None
-        if self.status:
-            data["status"] = self.status
+        if status := self.status:
+            data["status"] = status
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
@@ -305,6 +377,8 @@ class OSINTSource(BaseModel):
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         if self.status:
             data["status"] = self.status
+        if self.http_state:
+            data["http_validators"] = self.http_state.to_worker_dict()
 
         # Include refresh schedule for worker self-rescheduling
         data["refresh"] = self.get_schedule_with_default()
@@ -351,12 +425,11 @@ class OSINTSource(BaseModel):
 
         Note: All times are calculated in UTC for consistency across the system.
         """
-        from datetime import timezone
 
         from core.managers import queue_manager as queue_manager_module
         from core.managers.queue_manager import QueueManager
 
-        now = now or datetime.now(timezone.utc).replace(tzinfo=None)
+        now = now or datetime.now(UTC).replace(tzinfo=None)
         schedule_entries: list[dict[str, Any]] = []
 
         sources = cls.get_all_for_collector()
@@ -499,6 +572,8 @@ class OSINTSource(BaseModel):
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
         from core.managers import queue_manager
+        from core.model.story import Story
+        from core.service.misp_auto_update import refresh_misp_auto_update_jobs
         from core.service.story import StoryService
 
         if not (source := cls.get(source_id)):
@@ -506,6 +581,7 @@ class OSINTSource(BaseModel):
         if source.key == "manual":
             return {"error": "The manual source cannot be deleted"}, 400
 
+        affected_story_ids = []
         try:
             source.unschedule_osint_source()
             queue_manager.queue_manager.purge_job_artifacts(
@@ -515,10 +591,20 @@ class OSINTSource(BaseModel):
             if force:
                 news_item_table = db.metadata.tables.get("news_item")
                 if news_item_table is not None:
+                    affected_story_ids = (
+                        db.session.execute(
+                            db.select(news_item_table.c.story_id).where(news_item_table.c.osint_source_id == source_id).distinct()
+                        )
+                        .scalars()
+                        .all()
+                    )
                     db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
                 StoryService.delete_stories_with_no_items()
             db.session.delete(source)
             db.session.commit()
+            if affected_story_ids:
+                surviving_story_ids = db.session.execute(db.select(Story.id).where(Story.id.in_(affected_story_ids))).scalars().all()
+                refresh_misp_auto_update_jobs(surviving_story_ids)
             return {"message": "OSINT Source deleted", "id": source.id}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
@@ -871,9 +957,8 @@ class OSINTSourceGroup(BaseModel):
             normalized_id = cls.normalize_uuid_id(item_id)
         except (TypeError, ValueError):
             normalized_id = None
-        if normalized_id and normalized_id != lookup_id:
-            if osint_source_group := super().get(normalized_id):
-                return osint_source_group
+        if normalized_id and normalized_id != lookup_id and (osint_source_group := super().get(normalized_id)):
+            return osint_source_group
         if lookup_id:
             return cls.get_by_key(lookup_id)
         return None

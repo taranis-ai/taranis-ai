@@ -3,6 +3,7 @@ from core.managers.db_manager import db
 from core.model.news_item import NewsItem
 from core.model.story import Story
 from core.model.user import User
+from core.service.misp_auto_update import refresh_misp_auto_update_jobs
 
 
 class NewsItemService:
@@ -21,6 +22,7 @@ class NewsItemService:
         if story := Story.get(news_item.story_id):
             story.record_revision(user, note="update_news_item")
             db.session.commit()
+            refresh_misp_auto_update_jobs([story.id])
             return {"message": "Successfully updated News Item", "story_id": story.id, "news_item_id": news_item.id}, 200
 
         db.session.rollback()
@@ -55,8 +57,37 @@ class NewsItemService:
         story.update_status(change=story_actor)
         story.record_revision(user, note="delete_news_item")
         db.session.commit()
+        refresh_misp_auto_update_jobs([story.id])
         logger.debug(f"NewsItem with id: {news_item_id} deleted")
         return {"message": "News Item deleted", "id": news_item.id, "story_id": story.id}, 200
+
+    @staticmethod
+    def update_language(news_item_id: str, language, actor: str | None = None) -> tuple[dict, int]:
+        item = NewsItem.get(news_item_id)
+        response, status = NewsItem.update_news_item_lang(news_item_id, language, actor=actor)
+        if status == 200 and item:
+            refresh_misp_auto_update_jobs([item.story_id])
+        return response, status
+
+    @staticmethod
+    def update_attributes(news_item_id: str, attributes, actor: str | None = None) -> tuple[dict, int]:
+        item = NewsItem.get(news_item_id)
+        response, status = NewsItem.update_attributes(news_item_id, attributes, actor=actor)
+        if status == 200 and item:
+            refresh_misp_auto_update_jobs([item.story_id])
+        return response, status
+
+    @staticmethod
+    def update_tags(
+        news_item: NewsItem,
+        tags: list | dict,
+        user: User | None = None,
+        actor: str | None = None,
+    ) -> tuple[dict, int]:
+        response, status = news_item.set_tags(tags, user=user, actor=actor)
+        if status == 200:
+            refresh_misp_auto_update_jobs([news_item.story_id])
+        return response, status
 
     @classmethod
     def has_related_news_items(cls, osint_source_id: str) -> bool:

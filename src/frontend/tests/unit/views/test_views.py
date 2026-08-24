@@ -323,14 +323,16 @@ class TestSourceView:
         max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
         oversized_icon = b"\x00" * (max_bytes + 1)
 
-        with patch.object(SourceView, "store_form_data") as mock_store:
-            with app.test_request_context(
+        with (
+            patch.object(SourceView, "store_form_data") as mock_store,
+            app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
                 data={"icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
                 content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data("0")
+            ),
+        ):
+            response, error = SourceView.process_form_data("0")
 
         assert response is None
         assert error == f"Icon file exceeds maximum size of {max_bytes} bytes."
@@ -657,7 +659,10 @@ def test_analyze_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client,
     response = authenticated_client.get(ReportItemView.get_base_route())
 
     assert response.status_code == 200
-    assert 'aria-label="Toggle sidebar"' not in response.get_data(as_text=True)
+    html = response.get_data(as_text=True)
+    assert 'aria-label="Toggle sidebar"' not in html
+    assert "#sidebar {" not in html
+    assert "#sidebar ~ main {" not in html
 
 
 def test_publish_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints, responses_mock):
@@ -689,7 +694,14 @@ def test_assess_page_shows_sidebar_toggle_when_sidebar_exists(authenticated_clie
     response = authenticated_client.get("/assess")
 
     assert response.status_code == 200
-    assert 'aria-label="Toggle sidebar"' in response.get_data(as_text=True)
+    html = response.get_data(as_text=True)
+    assert 'aria-label="Toggle sidebar"' in html
+    assert "<noscript>" in html
+    assert "#sidebar {" in html
+    assert "width: 16rem;" in html
+    assert "#sidebar ~ main {" in html
+    assert "margin-left: 16rem;" in html
+    assert "max-width: calc(100vw - 16rem);" in html
 
 
 def test_admin_dashboard_renders_frontend_release_info_when_core_build_info_fails(

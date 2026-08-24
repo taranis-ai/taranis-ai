@@ -6,8 +6,9 @@ import feedparser
 import niquests as requests
 from models.assess import NewsItem
 
-from worker.collectors.base_web_collector import BaseWebCollector, NoChangeError, parse_datetime
+from worker.collectors.base_web_collector import BaseWebCollector, parse_datetime
 from worker.collectors.playwright_manager import PlaywrightManager
+from worker.core_api import IconFile
 from worker.log import logger
 
 
@@ -19,6 +20,12 @@ class RSSCollectorError(Exception):
         logger.info(message)
 
 
+class EmptyRSSFeedError(RSSCollectorError):
+    def __init__(self, feed_url: str):
+        self.feed_url = feed_url
+        super().__init__(f"RSS feed {feed_url} returned no news items")
+
+
 class RSSCollector(BaseWebCollector):
     def __init__(self):
         super().__init__()
@@ -27,11 +34,8 @@ class RSSCollector(BaseWebCollector):
         self.description: str = "Collector for gathering data from RSS feeds"
 
         self.news_items: list[NewsItem] = []
-        self.timeout: int = 60
         self.feed_url: str = ""
         self.feed_content: requests.Response
-        self.last_modified: datetime.datetime | None = None
-        self.last_attempted: datetime.datetime | None = None
         self.language: str = ""
         self.use_feed_content: bool = False
 
@@ -58,7 +62,6 @@ class RSSCollector(BaseWebCollector):
         if not self.feed_url:
             raise ValueError("No FEED_URL set in source")
 
-        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.use_feed_content = self._determine_use_feed_content(params)
 
     def collect(self, source: dict, manual: bool = False):
@@ -118,30 +121,23 @@ class RSSCollector(BaseWebCollector):
 
             if isinstance(value, list) and value:
                 first = value[0]
-                if isinstance(first, dict) and "value" in first:
-                    if content := str(first["value"]).strip():
-                        return content
-
-            if isinstance(value, str):
-                if content := value.strip():
+                if isinstance(first, dict) and "value" in first and (content := str(first["value"]).strip()):
                     return content
+
+            if isinstance(value, str) and (content := value.strip()):
+                return content
 
         return ""
 
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime | None:
-        published: str = str(
-            feed_entry.get(
-                "published",
-                feed_entry.get(
-                    "pubDate", feed_entry.get("created", feed_entry.get("updated", feed_entry.get("modified", feed_entry.get("dc:date", ""))))
-                ),
-            )
-        )
-        try:
-            return parse_datetime(published) if published else None
-        except Exception:
-            logger.info("Could not parse published date from feed")
-            return None
+        for field in ("published", "pubDate", "created", "updated", "modified", "dc:date"):
+            if not (published := str(feed_entry.get(field) or "").strip()):
+                continue
+            if parsed := parse_datetime(published):
+                return parsed
+
+        logger.info("Could not parse published date from feed")
+        return None
 
     def link_transformer(self, link: str, transform_str: str = "") -> str:
         parsed_url = urlparse(link)
@@ -164,15 +160,15 @@ class RSSCollector(BaseWebCollector):
         if self.use_feed_content:
             content = self.extract_content_from_feed(feed_entry, source)
 
-            if self.xpath and content:
-                if extracted := self.xpath_extraction(content, self.xpath):
-                    content = extracted
+            if self.xpath and content and (extracted := self.xpath_extraction(content, self.xpath)):
+                content = extracted
         elif link:
             web_content = self.extract_web_content(link, self.xpath)
             content = str(web_content.get("content"))
             author = author or str(web_content.get("author"))
             title = title or str(web_content.get("title"))
-            published = published or web_content.get("published_date") or self.last_modified
+            validator_date = self.http_validators.get("last_modified") if self.http_validators else None
+            published = published or web_content.get("published_date") or (parse_datetime(validator_date) if validator_date else None)
 
         else:
             logger.warning(f"No content could be extracted for RSS entry {feed_entry.get('id', link or title)}")
@@ -191,19 +187,6 @@ class RSSCollector(BaseWebCollector):
             language=self.language,
         )
 
-    # TODO: This function is renamed because of inheritance issues.
-    def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
-        if last_modified := feed_content.headers.get("Last-Modified"):
-            return parse_datetime(last_modified)
-        elif last_modified := feed.get(
-            "updated", feed.get("modified", feed.get("created", feed.get("pubDate", feed.get("lastBuildDate", None))))
-        ):
-            try:
-                return parse_datetime(str(last_modified))
-            except Exception:
-                return None
-        return None
-
     def update_favicon_from_feed(self, feed: feedparser.FeedParserDict, source_id: str):
         logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
 
@@ -219,43 +202,41 @@ class RSSCollector(BaseWebCollector):
             r = self._fetch_icon(icon_url)
             if not r.ok:
                 logger.warning(f"Failed to fetch icon from {icon_url}, status: {r.status_code}")
-                return None
+                return
 
             content_type = (r.headers.get("content-type") or "").lower()
             if not content_type.startswith("image/"):
                 logger.warning(f"URL {icon_url} did not return an image (content-type: {content_type})")
-                return None
+                return
+            if not (content := r.content):
+                logger.warning(f"URL {icon_url} returned no content")
+                return
 
             parsed = urlparse(icon_url)
             filename = parsed.path.rsplit("/", 1)[-1] or "favicon.ico"
-            icon_content = {"file": (filename, r.content)}
+            icon_content: IconFile = {"file": (filename, content)}
 
             self.core_api.update_osint_source_icon(source_id, icon_content)
 
-        except Exception as e:
+        except (ValueError, requests.exceptions.RequestException) as e:
             logger.error(f"Exception while fetching icon from {icon_url}: {e}")
 
-        return None
+        return
 
     def parse_feed(self, feed_entries: list[feedparser.FeedParserDict], source: dict) -> list[NewsItem]:
         for feed_entry in feed_entries:
-            try:
-                self.news_items.append(self.parse_feed_entry(feed_entry, source))
-            except Exception as e:
-                logger.warning(f"Error parsing feed entry: {str(e)}")
-                continue
+            self.news_items.append(self.parse_feed_entry(feed_entry, source))
         return self.news_items
 
     def gather_news_items(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
         if self.browser_mode == "true":
-            self.playwright_manager = PlaywrightManager(self.proxies, self.headers)
+            self.playwright_manager = PlaywrightManager(self.proxies, self._request_headers(""))
         try:
             self.news_items = self.collect_news(feed, source)
         finally:
             if self.playwright_manager:
                 self.playwright_manager.stop_playwright_if_needed()
-
-            return self.news_items
+        return self.news_items
 
     def collect_news(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
         if self.digest_splitting == "true":
@@ -276,34 +257,38 @@ class RSSCollector(BaseWebCollector):
             for result in self.get_urls(self.feed_url, feed_entry.get("summary"))  # type: ignore
         ]  # Flat list of URLs
 
-    def get_feed(self, manual: bool = False) -> feedparser.FeedParserDict:
+    def get_feed(self) -> feedparser.FeedParserDict:
         """Send GET request to URL of RSS feed."""
 
-        # if manual flag is set, ignore if the feed was not modified
-        modified_since = None if manual else self.last_attempted
-        self.feed_content = self.send_get_request(self.feed_url, modified_since)
+        self.feed_content = self.send_get_request(self.feed_url)
 
-        return feedparser.parse(self.feed_content.content)
+        feed = feedparser.parse(self.feed_content.content)
+        if not feed.get("version"):
+            parser_error = feed.get("bozo_exception")
+            error_detail = f": {parser_error}" if parser_error else ""
+            raise RSSCollectorError(f"No parseable RSS or Atom feed was detected at {self.feed_url}{error_detail}")
+        return feed
 
     def preview_collector(self, source: dict):
         self.parse_source(source)
-        feed = self.get_feed(manual=True)
+        self.configure_primary_http_resource(source, self.feed_url, manual=True)
+        feed = self.get_feed()
         self.news_items = self.gather_news_items(feed, source)
         return self.preview(self.news_items, source)
 
     def rss_collector(self, source: dict, manual: bool = False):
         self.last_attempted = self.get_last_attempted(source)
-        feed = self.get_feed(manual)
+        self.configure_primary_http_resource(source, self.feed_url, manual=manual)
+        feed = self.get_feed()
         self.language = feed.feed.get("language", feed.feed.get("lang", ""))  # type: ignore
 
-        if not self.last_attempted:
+        if not self.last_attempted and not source.get("http_validators"):
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
-        self.last_modified = self.get_last_modified_feed(self.feed_content, feed)
-        if self.last_modified and self.last_attempted and self.last_modified < self.last_attempted and not manual:
-            raise NoChangeError(f"Last-Modified: {self.last_modified} < Last-Attempted {self.last_attempted} skipping")
 
         logger.info(f"RSS-Feed {self.feed_url} returned feed with {len(feed['entries'])} entries")
 
+        if not feed["entries"]:
+            raise EmptyRSSFeedError(self.feed_url)
         self.news_items = self.gather_news_items(feed, source)
 
         return self.publish(self.news_items, source)

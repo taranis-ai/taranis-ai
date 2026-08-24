@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -24,8 +24,8 @@ def test_build_task_status_badge(stats, expected_label, expected_variant):
 
 
 def test_get_task_statistics_includes_worker_metadata(monkeypatch):
-    last_run = datetime(2026, 4, 13, 12, 30, tzinfo=timezone.utc)
-    last_success = datetime(2026, 4, 13, 11, 45, tzinfo=timezone.utc)
+    last_run = datetime(2026, 4, 13, 12, 30, tzinfo=UTC)
+    last_success = datetime(2026, 4, 13, 11, 45, tzinfo=UTC)
 
     monkeypatch.setattr(
         Task,
@@ -194,23 +194,3 @@ def test_get_status_totals_counts_latest_worker_statuses(app):
             for task_id in task_ids:
                 if Task.get(task_id):
                     Task.delete(task_id)
-
-
-def test_get_admin_menu_badges_sums_failures_by_category(monkeypatch):
-    monkeypatch.setattr(
-        Task,
-        "get_status_counts_by_task",
-        classmethod(
-            lambda cls: {
-                "rss_collector": {"failures": 4},
-                "manual_collector": {"failures": 2},
-                "WORDLIST_BOT": {"failures": 7},
-                "not_relevant": {"failures": 11},
-            }
-        ),
-    )
-
-    assert Task.get_admin_menu_badges() == {
-        "osint_source": 6,
-        "bot": 7,
-    }
