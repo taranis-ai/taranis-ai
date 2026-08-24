@@ -702,7 +702,8 @@ def test_analyze_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client,
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'aria-label="Toggle sidebar"' not in html
-    assert "<noscript>" not in html
+    assert "#sidebar {" not in html
+    assert "#sidebar ~ main {" not in html
 
 
 def test_publish_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints, responses_mock):

@@ -63,6 +63,18 @@ class TestNoJavaScriptLayout:
             story_card.get_by_test_id("toggle-read").click()
             page.wait_for_url("**/story/**", wait_until="domcontentloaded")
             expect(page.get_by_test_id(f"story-card-{story_id}")).to_have_attribute("data-story-read", "true")
+
+            page.goto(url_for("assess.assess", _external=True))
+            story_card = page.get_by_test_id(f"story-card-{story_id}")
+            story_card.get_by_test_id("story-actions-menu").click()
+            story_card.get_by_test_id("bookmark-story").click()
+            page.wait_for_url("**/story/**", wait_until="domcontentloaded")
+
+            page.goto(url_for("assess.bookmarks", _external=True))
+            page.locator('[data-testid^="open-bookmark-"]').first.click()
+            page.wait_for_url("**/bookmarks/**", wait_until="domcontentloaded")
+            expect(page.get_by_test_id("bookmark-detail")).to_be_visible()
+            expect(page.locator("#assess-top-bar")).to_be_hidden()
         finally:
             page.close()
             context.close()
