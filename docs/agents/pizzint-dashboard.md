@@ -10,6 +10,7 @@ PizzINT, DOUGHCON, external dashboard signals, `/dashboard/pizzint`, or the `sho
 - The card shows the DOUGHCON level, its named readiness state, smoothed index, and observation time. The API retains the compact upstream reason, but the card does not render it.
 - The card loads through HTMX after the main dashboard so an upstream timeout cannot delay the page.
 - The information popover attributes PizzINT, explains all five DOUGHCON levels, and includes the informational-use disclaimer.
+- Only explicit `fresh` and `stale` upstream freshness values are accepted; unknown values use the unavailable or last-good fallback.
 - Upstream or cache failures render a static unavailable state and never expose exception-derived text.
 
 ## Code Paths

@@ -69,7 +69,7 @@ def _fetch_status(now: datetime) -> PizzintStatus:
     details = payload["defcon_details"]
 
     return PizzintStatus(
-        state="fresh" if payload.get("data_freshness") == "fresh" else "stale",
+        state=payload["data_freshness"],
         level=payload["defcon_level"],
         smoothed_index=details["smoothed_index"],
         observed_at=details["at_time"],

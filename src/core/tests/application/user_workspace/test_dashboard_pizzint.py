@@ -51,8 +51,9 @@ def test_pizzint_status_is_validated_and_cached(app, pizzint_request):
     )
 
 
-def test_invalid_pizzint_status_is_unavailable(app, pizzint_request):
-    pizzint_request.return_value.json.return_value = PAYLOAD | {"defcon_level": 8}
+@pytest.mark.parametrize(("field", "value"), [("defcon_level", 8), ("data_freshness", "unknown")])
+def test_invalid_pizzint_status_is_unavailable(app, pizzint_request, field, value):
+    pizzint_request.return_value.json.return_value = PAYLOAD | {field: value}
 
     with app.app_context():
         assert pizzint.get_pizzint_status() == PizzintStatus()
