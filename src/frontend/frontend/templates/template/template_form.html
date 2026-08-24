@@ -11,7 +11,7 @@
       action="{{ form_action }}"
       data-template-editor-sync="syncEditorContent"
       onsubmit="return syncEditorContent()">
-  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+  <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
   <label class="tooltip floating-label w-3/4 mb-5" {% if template.id != '0' %}data-tip="Filename can't be changed, create a new template"{% endif %}>
     <span class="label">Filename
       <span aria-hidden="true" class="text-error">*</span>

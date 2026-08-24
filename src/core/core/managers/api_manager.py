@@ -2,6 +2,7 @@ from flask import jsonify, request
 from flask_cors import CORS
 
 import core.api as core_api
+from core.audit import init_app as init_audit
 from core.log import logger
 
 
@@ -29,6 +30,7 @@ def initialize(app):
     core_api.task.initialize(app)
     core_api.worker.initialize(app)
     core_api.static.initialize(app)
+    init_audit(app)
 
 
 def handle_bad_request(e):

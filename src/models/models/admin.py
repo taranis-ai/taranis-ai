@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -21,13 +21,13 @@ from models.types import (
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _normalize_datetime(value: datetime | None) -> datetime | None:
     if value is None or value.tzinfo is None or value.utcoffset() is None:
         return value
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value.astimezone(UTC).replace(tzinfo=None)
 
 
 class ExportStoriesQuery(TaranisBaseModel):
@@ -111,22 +111,6 @@ class WorkerStats(TaranisBaseModel):
     total_workers: int = 0
     busy_workers: int = 0
     idle_workers: int = 0
-
-
-class SchedulerDashboardData(TaranisBaseModel):
-    _core_endpoint = "/config/workers/dashboard"
-    _cache_timeout = 1
-    _model_name = "scheduler_dashboard"
-    _pretty_name = "Scheduler Dashboard"
-
-    scheduled_jobs: list[Job] = Field(default_factory=list)
-    scheduled_total_count: int = 0
-    queues: list[QueueStatus] = Field(default_factory=list)
-    worker_stats: WorkerStats | None = None
-    active_jobs: list[ActiveJob] = Field(default_factory=list)
-    active_total_count: int = 0
-    failed_jobs: list[FailedJob] = Field(default_factory=list)
-    failed_total_count: int = 0
 
 
 class AdminMenuBadges(TaranisBaseModel):
@@ -239,14 +223,26 @@ class User(TaranisBaseModel):
             return v.get_secret_value()
         return v
 
+    @field_validator("profile", mode="after")
+    @classmethod
+    def normalize_onboarding_enabled(cls, profile: dict | None) -> dict | None:
+        if not profile or "onboarding_enabled" not in profile:
+            return profile
+        value = profile["onboarding_enabled"]
+        if isinstance(value, str) and value.lower() in {"true", "false"}:
+            return {**profile, "onboarding_enabled": value.lower() == "true"}
+        return profile
+
 
 class TaranisConfig(TaranisBaseModel):
     default_collector_proxy: AnyUrl | Literal[""] = ""
     default_collector_interval: str = ""
+    default_bot_lookback_days: int = Field(default=7, ge=0)
     default_tlp_level: TLPLevel = TLPLevel.CLEAR
     default_story_conflict_retention: str = "200"
     default_news_item_conflict_retention: str = "200"
     default_timezone: str | None = None
+    onboarding_enabled: bool = True
 
     @field_validator("default_timezone", mode="after")
     @classmethod

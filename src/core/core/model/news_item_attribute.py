@@ -19,7 +19,7 @@ class NewsItemAttribute(BaseModel):
     value: Mapped[str] = db.Column(db.String(), nullable=False)
     binary_mime_type: Mapped[str] = db.Column(db.String())
     binary_data: Mapped = deferred(db.Column(db.LargeBinary))
-    created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    created: Mapped[datetime] = db.Column(db.DateTime, default=BaseModel.utcnow)
 
     def __init__(self, key, value, binary_mime_type=None, binary_value=None, id=None):
         self.id = self.normalize_uuid_id(id)
@@ -51,7 +51,9 @@ class NewsItemAttribute(BaseModel):
 
     @classmethod
     def get_tlp_level(cls, attributes: list["NewsItemAttribute"]) -> TLPLevel | None:
-        return TLPLevel(cls.get_by_key(attributes, "TLP"))
+        if attribute := cls.get_by_key(attributes, "TLP"):
+            return TLPLevel(attribute.value)
+        return None
 
     @classmethod
     def parse_attributes(cls, attributes: list | dict) -> dict[str, "NewsItemAttribute"]:
@@ -68,12 +70,12 @@ class NewsItemAttribute(BaseModel):
         - Old: {"APT75": "UNKNOWN"}
         - New: {"APT75": {"key": "APT75", "value": "UNKNOWN"}}
         """
-        parsed_attributes = {}
+        parsed_attributes: dict[str, NewsItemAttribute] = {}
 
         for attr_key, attr_value in attributes.items():
             if isinstance(attr_value, dict):
-                key = attr_value.get("key", attr_key)
-                value = attr_value.get("value", "")
+                key = str(attr_value.get("key", attr_key))
+                value = str(attr_value.get("value", ""))
             elif isinstance(attr_value, str):
                 key = attr_key
                 value = attr_value

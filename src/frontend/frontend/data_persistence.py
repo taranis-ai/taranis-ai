@@ -1,12 +1,13 @@
 import hashlib
 import json
-from typing import Any, Type
+from typing import Any
 
 from flask import request
 from flask_jwt_extended import get_jwt_identity
 from models.base import T, TaranisBaseModel
 from models.cache_contract import CACHE_DEFAULT_LIST_SUFFIX, build_model_pattern
 from models.dashboard import CoreHealth
+from pydantic import ValidationError
 from requests import Response
 
 from frontend.cache import cache
@@ -31,7 +32,7 @@ class DataPersistenceLayer:
     def get_cache_username(self) -> str:
         try:
             identity = get_jwt_identity()
-        except Exception:
+        except RuntimeError:
             identity = None
         return str(identity or "anonymous")
 
@@ -52,7 +53,7 @@ class DataPersistenceLayer:
     def _load_cached_object(
         self,
         cache_key: str,
-        object_model: Type[T],
+        object_model: type[T],
         paging_data: PagingData | None = None,
         *,
         collection: bool = False,
@@ -67,7 +68,7 @@ class DataPersistenceLayer:
             if paging_data is None:
                 return self._deserialize_object(object_model, cached_payload)
             return self._build_cache_object(object_model, cached_payload, paging_data)
-        except Exception:
+        except AttributeError, TypeError, ValidationError:
             logger.exception(f"Failed to deserialize cached data for {cache_key}")
             cache.delete(cache_key)
             return None
@@ -89,10 +90,10 @@ class DataPersistenceLayer:
     def get_jwt_from_request(self):
         return request.cookies.get(Config.JWT_ACCESS_COOKIE_NAME)
 
-    def get_endpoint(self, object_model: Type[TaranisBaseModel] | TaranisBaseModel) -> str:
+    def get_endpoint(self, object_model: type[TaranisBaseModel] | TaranisBaseModel) -> str:
         return object_model._core_endpoint
 
-    def get_first(self, object_model: Type[T]) -> T | None:
+    def get_first(self, object_model: type[T]) -> T | None:
         objects = self.get_objects(object_model).items
         return None if len(objects) < 1 else objects[0]
 
@@ -102,18 +103,18 @@ class DataPersistenceLayer:
             return {"items": result, "total_count": len(result)}
         return result
 
-    def make_list_cache_key(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> str:
+    def make_list_cache_key(self, object_model: type[T], endpoint: str, paging_data: PagingData | None = None) -> str:
         suffix = self._build_list_cache_suffix(endpoint, paging_data)
         return cache.model_list_key(self.get_cache_username(), object_model._model_name, suffix)
 
-    def make_detail_cache_key(self, object_model: Type[T], object_id: str | None = None) -> str:
+    def make_detail_cache_key(self, object_model: type[T], object_id: str | None = None) -> str:
         return cache.model_detail_key(self.get_cache_username(), object_model._model_name, object_id)
 
     @staticmethod
-    def _deserialize_object(object_model: Type[T], payload: dict[str, Any]) -> T:
+    def _deserialize_object(object_model: type[T], payload: dict[str, Any]) -> T:
         return object_model(**payload)
 
-    def _build_cache_object(self, object_model: Type[T], result: dict[str, Any], paging_data: PagingData | None) -> CacheObject[T]:
+    def _build_cache_object(self, object_model: type[T], result: dict[str, Any], paging_data: PagingData | None) -> CacheObject[T]:
         items = result.get("items", [])
         result_object = [object_model(**object_data) for object_data in items]
         total_count = result.get("total_count", result.get("counts", {}).get("total_count", len(result_object)))
@@ -128,7 +129,7 @@ class DataPersistenceLayer:
             links=links,
         )
 
-    def get_object(self, object_model: Type[T], object_id: str | None = None) -> T | None:
+    def get_object(self, object_model: type[T], object_id: str | None = None) -> T | None:
         endpoint = self.get_endpoint(object_model)
         cache_key = self.make_detail_cache_key(object_model, object_id)
         cached_object = self._load_cached_object(cache_key, object_model)
@@ -163,21 +164,21 @@ class DataPersistenceLayer:
             return self._post_cache_invalidation(CACHE_INVALIDATION_MODE_ALL)
         return self._post_cache_invalidation(CACHE_INVALIDATION_MODE_MODEL, model=suffix)
 
-    def invalidate_cache_by_object(self, object_model: TaranisBaseModel | Type[TaranisBaseModel]) -> Response:
+    def invalidate_cache_by_object(self, object_model: TaranisBaseModel | type[TaranisBaseModel]) -> Response:
         return self._post_cache_invalidation(CACHE_INVALIDATION_MODE_MODEL, model=object_model._model_name)
 
-    def invalidate_cache_by_object_id(self, object_model: TaranisBaseModel | Type[TaranisBaseModel], object_id: str) -> Response:
+    def invalidate_cache_by_object_id(self, object_model: TaranisBaseModel | type[TaranisBaseModel], object_id: str) -> Response:
         return self._post_cache_invalidation(
             CACHE_INVALIDATION_MODE_MODEL,
             model=object_model._model_name,
             object_id=object_id,
         )
 
-    def invalidate_model_cache_locally(self, object_model: TaranisBaseModel | Type[TaranisBaseModel], _object_id: str | None = None) -> int:
+    def invalidate_model_cache_locally(self, object_model: TaranisBaseModel | type[TaranisBaseModel], _object_id: str | None = None) -> int:
         pattern = build_model_pattern(Config.CACHE_KEY_PREFIX, object_model._model_name)
         return sum(cache.delete(key) for key in cache.scan_keys(pattern))
 
-    def get_objects_by_endpoint(self, object_model: Type[T], endpoint: str, paging_data: PagingData | None = None) -> CacheObject[T]:
+    def get_objects_by_endpoint(self, object_model: type[T], endpoint: str, paging_data: PagingData | None = None) -> CacheObject[T]:
         cache_key = self.make_list_cache_key(object_model, endpoint, paging_data)
         cached_payload = self._load_cached_object(cache_key, object_model, paging_data, collection=True)
         if cached_payload is not None:
@@ -192,9 +193,9 @@ class DataPersistenceLayer:
                 endpoint,
                 paging_data,
             )
-        raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
+        raise ValueError(f"Failed to fetch {object_model._model_name} from: {endpoint}")
 
-    def get_objects(self, object_model: Type[T], paging_data: PagingData | None = None) -> CacheObject[T]:
+    def get_objects(self, object_model: type[T], paging_data: PagingData | None = None) -> CacheObject[T]:
         if paging_data is None:
             paging_data = PagingData().set_fetch_all()
         endpoint = self.get_endpoint(object_model)
@@ -212,12 +213,12 @@ class DataPersistenceLayer:
                 endpoint,
                 paging_data,
             )
-        raise ValueError(f"Failed to fetch {object_model.__name__} from: {endpoint}")
+        raise ValueError(f"Failed to fetch {object_model._model_name} from: {endpoint}")
 
     def _cache_and_paginate_objects(
         self,
         result: dict[str, Any],
-        object_model: Type[T],
+        object_model: type[T],
         endpoint: str,
         paging_data: PagingData | None,
     ) -> CacheObject[T]:
@@ -232,7 +233,7 @@ class DataPersistenceLayer:
         store_object = object.model_dump(mode="json")
         return self.api.api_post(object._core_endpoint, json_data=store_object)
 
-    def delete_object(self, object_model: Type[TaranisBaseModel], object_id: str, params: dict[str, Any] | None = None) -> Response:
+    def delete_object(self, object_model: type[TaranisBaseModel], object_id: str, params: dict[str, Any] | None = None) -> Response:
         endpoint = self.get_endpoint(object_model)
         return self.api.api_delete(f"{endpoint}/{object_id}", params=params)
 

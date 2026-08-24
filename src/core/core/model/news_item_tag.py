@@ -153,12 +153,12 @@ class NewsItemTag(BaseModel):
                 name = tag_key
                 tag_type = tag_data
             else:
-                raise ValueError(f"Invalid tag format for key '{tag_key}': {type(tag_data).__name__} - must be str or dict")
+                raise TypeError(f"Invalid tag format for key '{tag_key}': {type(tag_data).__name__} - must be str or dict")
 
             if not isinstance(name, str) or not name.strip():
                 continue
             name = name.strip()
-            tag_type = tag_type if tag_type else "misc"
+            tag_type = tag_type or "misc"
             parsed_tags[name] = NewsItemTag(name=name, tag_type=tag_type)
 
         return parsed_tags
@@ -228,6 +228,22 @@ class NewsItemTagCluster(BaseModel):
     news_item_count: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     story_count: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
     last_story_created: Mapped[datetime | None] = db.Column(db.DateTime, nullable=True)
+
+    def __init__(
+        self,
+        name: str,
+        tag_type_key: str,
+        tag_type: str | None = None,
+        news_item_count: int = 0,
+        story_count: int = 0,
+        last_story_created: datetime | None = None,
+    ):
+        self.name = name
+        self.tag_type_key = tag_type_key
+        self.tag_type = tag_type
+        self.news_item_count = news_item_count
+        self.story_count = story_count
+        self.last_story_created = last_story_created
 
     @classmethod
     def refresh_for_keys(cls, keys: set[tuple[str, str]], session=None) -> None:

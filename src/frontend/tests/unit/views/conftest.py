@@ -1,13 +1,13 @@
 import uuid
-from typing import get_origin
+from typing import Any, get_origin
 
 import pytest
 import responses
 from faker import Faker
+from models.types import BOT_TYPES
 from polyfactory.exceptions import ParameterException
 from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel
-from pydantic.fields import FieldInfo
 
 from frontend.config import Config
 from frontend.log import logger
@@ -87,8 +87,8 @@ def core_payloads():
     yield payloads
 
 
-@pytest.fixture(scope="class")
-def form_formats_from_models():
+@pytest.fixture
+def form_formats_from_models(worker_parameter_data: dict[str, Any]):
     """
     Returns mapping:
        view_name -> {
@@ -111,9 +111,6 @@ def form_formats_from_models():
                 continue
             if field_name == "status":
                 continue
-
-            field_info: FieldInfo = field_info
-            field_name: str = field_name
 
             ann = field_info.annotation
             field_required = True
@@ -144,6 +141,22 @@ def form_formats_from_models():
         if view_name == "OSINT Source":
             allowed_keys.add("delete_icon")
             allowed_keys.add("rank")
+        if view_name == "Bot":
+            allowed_keys.add("id")
+            allowed_keys.add("parameters[RUN_AFTER_BOTS][]")
+            bot_type_ids = {member.value for member in BOT_TYPES}
+            allowed_keys.update(
+                f"parameters[{parameter['name']}]"
+                for worker in worker_parameter_data["items"]
+                if worker["id"] in bot_type_ids
+                for parameter in worker["parameters"]
+                if parameter.get("parent") == "parameters"
+                and parameter.get("type") in {"text", "number", "textarea", "switch", "cron_interval"}
+            )
+            allowed_keys.discard("enabled")
+            required_keys.discard("enabled")
+        if view_name == "User":
+            allowed_keys.add("profile[onboarding_enabled]")
 
         payloads[view_name] = {
             "allowed": allowed_keys,
@@ -168,40 +181,6 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
             content_type="application/json",
         )
 
-    scheduler_expect_object = str(core_payloads.get("Scheduler", {}).get("_expect_object") or "Scheduler Job")
-
-    # Provide scheduler-specific endpoints so the dashboard renders during tests
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/config/workers/dashboard",
-        json={
-            "scheduled_jobs": [
-                {
-                    "id": "test-scheduler-job",
-                    "name": scheduler_expect_object,
-                    "queue": "collectors",
-                    "type": "cron",
-                    "schedule": "*/15 * * * *",
-                    "next_run_time": "2025-01-01T12:00:00",
-                }
-            ],
-            "scheduled_total_count": 1,
-            "queues": [
-                {"name": "collectors", "messages": 0},
-                {"name": "bots", "messages": 2},
-            ],
-            "worker_stats": {
-                "total_workers": 3,
-                "busy_workers": 1,
-                "idle_workers": 2,
-            },
-            "active_jobs": [],
-            "active_total_count": 0,
-            "failed_jobs": [],
-            "failed_total_count": 0,
-        },
-        status=200,
-        content_type="application/json",
-    )
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/config/admin-menu-badges",
         json={"osint_source": 2, "bot": 3},
@@ -366,7 +345,7 @@ def mock_core_get_item_endpoints(responses_mock, core_payloads, mock_core_get_it
             content_type="application/json",
         )
 
-    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+    for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
@@ -378,7 +357,7 @@ def mock_core_get_item_endpoints(responses_mock, core_payloads, mock_core_get_it
 
 @pytest.fixture
 def mock_core_delete_endpoints(responses_mock, mock_core_get_item_endpoint_data):
-    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+    for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
@@ -389,7 +368,7 @@ def mock_core_delete_endpoints(responses_mock, mock_core_get_item_endpoint_data)
 
 @pytest.fixture
 def mock_core_create_endpoints(responses_mock, mock_core_get_item_endpoint_data):
-    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+    for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
@@ -400,7 +379,7 @@ def mock_core_create_endpoints(responses_mock, mock_core_get_item_endpoint_data)
 
 @pytest.fixture
 def mock_core_update_endpoints(responses_mock, mock_core_get_item_endpoint_data):
-    for view_name, view_data in mock_core_get_item_endpoint_data.items():
+    for view_data in mock_core_get_item_endpoint_data.values():
         url = view_data.pop("_url", None)
         data_id = view_data.get("id", None)
         if not url or not data_id:
@@ -413,7 +392,17 @@ def mock_core_update_endpoints(responses_mock, mock_core_get_item_endpoint_data)
 
 
 @pytest.fixture
-def users_get_mock(responses_mock, organizations_get_mock, roles_get_mock):
+def settings_get_mock(responses_mock):
+    mock_data = {
+        "items": [{"settings": {"default_collector_proxy": "", "onboarding_enabled": True}}],
+        "total_count": 1,
+    }
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/settings/settings", json=mock_data)
+    yield mock_data
+
+
+@pytest.fixture
+def users_get_mock(responses_mock, organizations_get_mock, roles_get_mock, settings_get_mock):
     mock_data = {
         "items": [
             {

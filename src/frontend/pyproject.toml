@@ -55,7 +55,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-flask", "pytest-docker", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pyright", "pytest-responses", "lxml", "rq>=2.5"]
+dev = ["ruff", "pytest", "pytest-flask", "pytest-docker", "build", "wheel", "setuptools_scm", "pytest-playwright", "playwright", "djlint", "pyright", "pytest-responses", "lxml", "rq>=2.5", "pyrefly>=1.1.1"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -66,6 +66,12 @@ taranis-frontend-healthcheck = "frontend.healthcheck:main"
 [tool.ruff]
 line-length = 142
 target-version = "py314"
+
+[tool.ruff.lint]
+ignore = ["BLE001"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["BLE001", "DTZ", "RUF012", "SIM117"]
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
@@ -135,3 +141,9 @@ required-environments = [
 
 [tool.uv.sources]
 taranis-models = { path = "../models", editable = true }
+
+[tool.pyrefly]
+project-excludes = [
+    "**/__main__.py",
+    "**/tests/",
+]

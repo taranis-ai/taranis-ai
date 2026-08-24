@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.orm import Mapped
 
+from core.config import Config
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
@@ -27,13 +28,15 @@ class Settings(BaseModel):
 
     @classmethod
     def with_defaults(cls, settings: Mapping[str, Any] | None = None) -> dict[str, Any]:
-        merged = dict(settings) if isinstance(settings, Mapping) else {}
+        merged: dict[str, Any] = dict(settings) if isinstance(settings, Mapping) else {}
         merged.setdefault("default_collector_proxy", "")
         merged.setdefault("default_collector_interval", "0 */8 * * *")
+        merged.setdefault("default_bot_lookback_days", 7)
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
         merged.setdefault("default_story_conflict_retention", "200")
         merged.setdefault("default_news_item_conflict_retention", "200")
         merged.setdefault("default_timezone", None)
+        merged.setdefault("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING)
         return merged
 
     @classmethod
@@ -51,15 +54,32 @@ class Settings(BaseModel):
             return {"error": "settings must be a JSON object"}, 400
         try:
             update_data = cls._normalize_update_data(dict(raw_update_data))
-        except ValueError:
+        except (TypeError, ValueError):
             return {"error": "Invalid timezone"}, 400
+        if "default_bot_lookback_days" in update_data:
+            try:
+                update_data["default_bot_lookback_days"] = cls._validate_non_negative_int(update_data["default_bot_lookback_days"])
+            except (TypeError, ValueError):
+                return {"error": "Invalid bot lookback setting"}, 400
+        if "onboarding_enabled" in update_data:
+            try:
+                update_data["onboarding_enabled"] = cls._validate_bool(update_data["onboarding_enabled"])
+            except ValueError:
+                return {"error": "Invalid onboarding setting"}, 400
 
         if update_data:
             logger.debug(f"Settings update data: {update_data}")
             logger.debug(f"Settings before update: {settings.settings}")
             current_settings = cls.with_defaults(settings.settings)
+            onboarding_changed = (
+                "onboarding_enabled" in update_data and update_data["onboarding_enabled"] != current_settings["onboarding_enabled"]
+            )
             current_settings.update(update_data)
             settings.settings = current_settings
+            if onboarding_changed:
+                from core.model.user import User
+
+                User.set_onboarding_enabled_for_all(current_settings["onboarding_enabled"])
         db.session.commit()
         logger.debug(f"Settings after update: {settings.settings}")
         return {"message": "Successfully updated settings", "settings": settings.settings}, 200
@@ -67,9 +87,17 @@ class Settings(BaseModel):
     @classmethod
     def initialize(cls):
         if settings := cls.get_settings_entry():
+            onboarding_missing = "onboarding_enabled" not in (settings.settings or {})
             settings.settings = cls.with_defaults(settings.settings)
         else:
-            db.session.add(Settings())
+            settings = cls()
+            onboarding_missing = True
+            db.session.add(settings)
+
+        if onboarding_missing:
+            from core.model.user import User
+
+            User.set_onboarding_enabled_for_all(settings.settings["onboarding_enabled"])
 
         db.session.commit()
 
@@ -93,7 +121,7 @@ class Settings(BaseModel):
         if value is None:
             return None
         if not isinstance(value, str):
-            raise ValueError("Invalid timezone: must be a string")
+            raise TypeError("Invalid timezone: must be a string")
         timezone_name = value.strip()
         if not timezone_name:
             return None
@@ -102,6 +130,28 @@ class Settings(BaseModel):
         except ZoneInfoNotFoundError:
             raise ValueError(f"Invalid timezone: {timezone_name}") from None
         return timezone_name
+
+    @staticmethod
+    def _validate_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str) and value.strip().lower() in {"true", "false"}:
+            return value.strip().lower() == "true"
+        raise ValueError("Invalid boolean")
+
+    @staticmethod
+    def _validate_non_negative_int(value: Any) -> int:
+        if isinstance(value, bool):
+            raise TypeError("Invalid non-negative integer")
+        if isinstance(value, int):
+            normalized = value
+        elif isinstance(value, str) and value.strip().isdecimal():
+            normalized = int(value.strip())
+        else:
+            raise ValueError("Invalid non-negative integer")
+        if normalized < 0:
+            raise ValueError("Invalid non-negative integer")
+        return normalized
 
     @classmethod
     def get_settings_entry(cls) -> "Settings | None":

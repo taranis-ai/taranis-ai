@@ -30,7 +30,7 @@ class BotApi:
 
     @staticmethod
     def _resolve_timeout(timeout_value: int | str | None) -> int:
-        if timeout_value in [None, ""]:
+        if timeout_value is None or timeout_value == "":
             return Config.REQUESTS_TIMEOUT
         try:
             timeout = int(timeout_value)
@@ -42,19 +42,19 @@ class BotApi:
         try:
             if response.ok:
                 return response.json()
-        except Exception:
+        except requests.exceptions.JSONDecodeError:
             logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
-    def api_post(self, url, json_data=None):
+    def api_post(self, url: str, json_data: dict | None = None):
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
         response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
-    def api_get(self, url: str, params=None):
+    def api_get(self, url: str, params: dict | None = None):
         url = f"{self.api_url}{url}"
         if params:
             url += f"?{urlencode(params)}"

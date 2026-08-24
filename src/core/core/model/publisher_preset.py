@@ -1,6 +1,7 @@
 from typing import Any
 
 from models.types import PUBLISHER_TYPES
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.expression import Select
 
@@ -13,6 +14,7 @@ from core.model.worker import Worker
 
 class PublisherPreset(BaseModel):
     __tablename__ = "publisher_preset"
+    DEFAULT_TARANIS_ID = "00000000-0000-4000-8000-000000000001"
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
@@ -70,6 +72,31 @@ class PublisherPreset(BaseModel):
             preset.parameters = ParameterValue.get_update_values(preset.parameters, updated_preset)
         db.session.commit()
         return {"message": "Successfully updated", "id": preset.id}, 200
+
+    @classmethod
+    def ensure_default_taranis(cls) -> "PublisherPreset":
+        if preset := cls.get(cls.DEFAULT_TARANIS_ID):
+            return preset
+        try:
+            return cls.add(
+                {
+                    "id": cls.DEFAULT_TARANIS_ID,
+                    "name": "Taranis Publisher",
+                    "description": "Publisher for making products publicly available in Taranis",
+                    "type": PUBLISHER_TYPES.TARANIS_PUBLISHER,
+                }
+            )
+        except IntegrityError:
+            db.session.rollback()
+            if preset := cls.get(cls.DEFAULT_TARANIS_ID):
+                return preset
+            raise
+
+    @classmethod
+    def delete(cls, preset_id: str) -> tuple[dict[str, Any], int]:
+        if preset_id == cls.DEFAULT_TARANIS_ID:
+            return {"error": "The default Taranis publisher cannot be deleted"}, 400
+        return super().delete(preset_id)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

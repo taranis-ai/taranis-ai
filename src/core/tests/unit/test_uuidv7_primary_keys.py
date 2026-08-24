@@ -1,5 +1,7 @@
 import uuid
+from unittest.mock import patch
 
+from core.managers.db_manager import db
 from core.model.asset import AssetGroup
 from core.model.base_model import BaseModel
 from core.model.osint_source import OSINTSource, OSINTSourceGroup
@@ -34,6 +36,47 @@ def test_new_model_defaults_generate_uuidv7():
     assert_uuid7(story.id)
     assert_uuid7(task.id)
     assert task.job_id == "legacy-job-reference"
+
+
+def test_task_without_result_uses_result_envelope():
+    task = Task(id="missing-result")
+
+    assert task.to_dict()["result"] == {
+        "message": "No task result was recorded",
+        "reason": "missing_result",
+        "retryable": False,
+        "data": None,
+    }
+
+
+def test_task_timestamps_are_naive_utc(app):
+    with app.app_context():
+        task = Task(id="naive-task-timestamps", status="SUCCESS")
+        db.session.add(task)
+        db.session.commit()
+        try:
+            Task.add_or_update({"id": task.job_id, "result": {}, "status": "SUCCESS"})
+
+            assert task.last_run.tzinfo is None
+            assert task.last_success.tzinfo is None
+        finally:
+            Task.delete(task.id)
+
+
+def test_task_preserves_non_dict_results_and_logs_corrupt_stored_results():
+    assert Task(id="string-result", result="done").to_dict()["result"]["data"] == "done"
+    assert Task(id="list-result", result=["done"]).to_dict()["result"]["data"] == ["done"]
+
+    task = Task(id="corrupt-result")
+    task.result = "not-json"
+    with patch("core.model.task.logger.warning") as warning:
+        assert task.to_dict()["result"] == Task.DEFAULT_RESULT
+    warning.assert_called_once_with("Task %s has malformed result JSON", "corrupt-result")
+
+    task.result = '["legacy"]'
+    with patch("core.model.task.logger.warning") as warning:
+        assert task.to_dict()["result"] == Task.DEFAULT_RESULT
+    warning.assert_called_once_with("Task %s has a non-object result payload", "corrupt-result")
 
 
 def test_explicit_canonical_uuid_is_preserved():
@@ -77,7 +120,7 @@ def test_seeded_semantic_records_keep_string_ids_and_lookup_aliases(app):
         assert settings is not None
         assert settings.singleton_key == "settings"
         assert_string_id(settings.id)
-        assert Settings.get(1) == settings
+        assert Settings.get(1) == settings  # type: ignore[arg-type]
         assert Settings.get("settings") == settings
 
 

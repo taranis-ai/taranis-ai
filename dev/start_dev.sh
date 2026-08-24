@@ -7,14 +7,45 @@ cd "$(git rev-parse --show-toplevel)"
 source dev/env.dev
 export COMPOSE_PROJECT_NAME TARANIS_REDIS_PORT
 
-# Check if this is executed on ubuntu
-if [ -f /etc/lsb-release ]; then
-    ./dev/install_dependencies.sh
-else
-    echo "This script is only supported on Ubuntu."
-    echo "See README.md for manual installation instructions."
-    exit 1
-fi
+host_os="$(uname -s)"
+
+case "$host_os" in
+    Darwin)
+        ;;
+    Linux)
+        if [ ! -r /etc/os-release ]; then
+            echo "Unable to determine the Linux distribution."
+            echo "See dev/README.md for manual installation instructions."
+            exit 1
+        fi
+
+        . /etc/os-release
+
+        case "$ID" in
+            ubuntu)
+                ;;
+            debian)
+                if [ "${VERSION_ID:-}" != "13" ]; then
+                    echo "This script supports Debian 13, but Debian ${VERSION_ID:-unknown} was detected."
+                    echo "See dev/README.md for manual installation instructions."
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "This script is only supported on macOS, Ubuntu, and Debian 13."
+                echo "See dev/README.md for manual installation instructions."
+                exit 1
+                ;;
+        esac
+        ;;
+    *)
+        echo "This script is only supported on macOS, Ubuntu, and Debian 13."
+        echo "See dev/README.md for manual installation instructions."
+        exit 1
+        ;;
+esac
+
+./dev/install_dependencies.sh
 
 if [ ! -f "src/core/.env" ]; then
     cp dev/env.dev src/core/.env
@@ -30,6 +61,10 @@ if [ ! -f "src/frontend/.env" ]; then
     echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 fi
 
-docker compose -f dev/compose.yml up -d
+if [ "$host_os" = "Darwin" ]; then
+    podman compose -f dev/compose.yml up -d
+else
+    docker compose -f dev/compose.yml up -d
+fi
 
 ./dev/start_tmux.sh

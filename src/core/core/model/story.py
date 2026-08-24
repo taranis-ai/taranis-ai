@@ -1,5 +1,6 @@
 import re
 from collections import Counter
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -57,6 +58,9 @@ class Story(BaseModel):
         "NewsItemAttribute", secondary="story_news_item_attribute", cascade="all, delete"
     )
     search_vector = db.Column(db.Text().with_variant(TSVECTOR(), "postgresql"), server_default="")
+    misp_auto_update: Mapped["StoryMispAutoUpdate | None"] = relationship(
+        "StoryMispAutoUpdate", uselist=False, cascade="all, delete-orphan", back_populates="story"
+    )
 
     def __init__(
         self,
@@ -235,13 +239,13 @@ class Story(BaseModel):
     def load_news_items(self, news_items: list[dict[str, Any]] | list[str] | list[NewsItem] | None) -> list["NewsItem"]:
         if not news_items:
             return []
-        elif isinstance(news_items[0], dict):
-            return NewsItem.load_multiple(news_items)
-        elif isinstance(news_items[0], str):
-            news_items = [NewsItem.get(item_id) for item_id in news_items]
-            return [news_item for news_item in news_items if news_item]
-        elif isinstance(news_items[0], NewsItem):
-            return news_items
+        if isinstance(news_items[0], dict):
+            return NewsItem.load_multiple([item for item in news_items if isinstance(item, dict)])
+        if isinstance(news_items[0], str):
+            loaded_news_items = [NewsItem.get(item_id) for item_id in news_items if isinstance(item_id, str)]
+            return [news_item for news_item in loaded_news_items if news_item]
+        if isinstance(news_items[0], NewsItem):
+            return [item for item in news_items if isinstance(item, NewsItem)]
         return []
 
     @property
@@ -704,7 +708,7 @@ class Story(BaseModel):
         skipped = []
         added = []
         for news_item in data.get("news_items", []):
-            result, code = cls.add_single_news_item(news_item)
+            result, _code = cls.add_single_news_item(news_item)
             if skipped_id := result.get("skipped_news_item_story_id"):
                 skipped.append(skipped_id)
             if story_id := result.get("story_id"):
@@ -827,20 +831,20 @@ class Story(BaseModel):
     def add_news_items(cls, news_items_list: list[dict], user: User | None = None):
         story_ids = []
         news_item_ids = []
-        skipped_items = []
+        skipped_count = 0
         try:
             for news_item in news_items_list:
                 normalized_news_item, err = cls.check_news_item_data(news_item)
                 if err:
                     logger.warning(err)
-                    skipped_items.append(err)
+                    skipped_count += 1
                     continue
                 if normalized_news_item is None:
-                    skipped_items.append(news_item.get("title", "Unknown Title"))
+                    skipped_count += 1
                     continue
                 message, status = cls.add_from_news_item(normalized_news_item, user=user)
                 if status > 299:
-                    skipped_items.append(normalized_news_item.title or news_item.get("title", "Unknown Title"))
+                    skipped_count += 1
                     continue
                 story_ids.append(message["story_id"])
                 news_item_ids += message["news_item_ids"]
@@ -850,22 +854,39 @@ class Story(BaseModel):
             return {"error": "Failed to add news items"}, 400
 
         result = {"story_ids": story_ids, "news_item_ids": news_item_ids, "message": f"{len(news_item_ids)} News items added successfully"}
-        if len(skipped_items) == len(news_items_list):
+        if skipped_count == len(news_items_list):
             result["message"] = "All news items were skipped"
             logger.warning(result)
             return result, 200
-        if skipped_items:
-            result["warning"] = f"{len(skipped_items)} items were skipped"
+        if skipped_count:
+            result["warning"] = f"{skipped_count} items were skipped"
             logger.warning(result)
         logger.info(f"News items added successfully: {result}")
         return result, 200
 
     @classmethod
-    def update(cls, story_id: str, data, user=None, external: bool = False, actor: str | None = None) -> tuple[dict, int]:
-        story: "Story | None" = cls.get(story_id)
+    def update(
+        cls,
+        story_id: str,
+        data: dict[str, Any],
+        user=None,
+        external: bool = False,
+        actor: str | None = None,
+    ) -> tuple[dict, int]:
+        story: Story | None = cls.get(story_id)
         logger.debug(f"Updating story {story_id} with data: {data}")
         if not story:
             return {"error": "Story not found"}, 404
+
+        if "misp_auto_update" in data and (not user or "CONNECTOR_USER_ACCESS" not in user.get_permissions()):
+            return {"error": "forbidden"}, 403
+
+        if "misp_auto_update" in data and data["misp_auto_update"] is not None:
+            try:
+                StoryMispAutoUpdate.configure(story, data["misp_auto_update"])
+            except ValueError:
+                logger.exception("Failed to configure MISP auto-update")
+                return {"error": "Select a MISP connector for auto-update"}, 400
 
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
@@ -956,17 +977,16 @@ class Story(BaseModel):
 
         entries: list[dict] = []
         for news_item in news_items:
-            if news_item_id := news_item.get("id"):
-                if existing_item := NewsItem.get(news_item_id):
-                    existing_story_id = existing_item.story_id
+            if (news_item_id := news_item.get("id")) and (existing_item := NewsItem.get(news_item_id)):
+                existing_story_id = existing_item.story_id
 
-                    entries.append(
-                        {
-                            "news_item_id": news_item_id,
-                            "existing_story_id": existing_story_id,
-                            "incoming_story_data": data,
-                        }
-                    )
+                entries.append(
+                    {
+                        "news_item_id": news_item_id,
+                        "existing_story_id": existing_story_id,
+                        "incoming_story_data": data,
+                    }
+                )
 
         count = NewsItemConflict.set_for_story(incoming_story_id, entries)
 
@@ -1021,7 +1041,8 @@ class Story(BaseModel):
         return next((attribute for attribute in self.attributes if attribute.key == key), None)
 
     def vote(self, vote_data, user_id):
-        if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
+        vote = NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)
+        if vote is None:
             vote = self.create_new_vote(user_id)
 
         if vote.like and vote_data == "like":
@@ -1103,7 +1124,12 @@ class Story(BaseModel):
         return any(ReportItemStory.is_assigned(story_id) for story_id in story_ids)
 
     @classmethod
-    def group_multiple_stories(cls, story_mappings: list[list[str]], user: User | None = None, actor: str | None = None):
+    def group_multiple_stories(
+        cls,
+        story_mappings: list[list[str]],
+        user: User | None = None,
+        actor: str | None = None,
+    ):
         results = [cls.group_stories(story_ids, user=user, actor=actor) for story_ids in story_mappings]
         if any(result[1] == 500 for result in results):
             return {"error": "grouping failed"}, 500
@@ -1140,7 +1166,12 @@ class Story(BaseModel):
             return {"error": "grouping failed"}, 500
 
     @classmethod
-    def group_stories(cls, story_ids: list[str], user: User | None = None, actor: str | None = None):
+    def group_stories(
+        cls,
+        story_ids: Sequence[str],
+        user: User | None = None,
+        actor: str | None = None,
+    ):
         actor = cls.resolve_actor(user=user, actor=actor)
         try:
             if not isinstance(story_ids, list):
@@ -1149,7 +1180,7 @@ class Story(BaseModel):
             if len(story_ids) < 2 or any(not isinstance(a_id, str) or len(a_id) == 0 for a_id in story_ids):
                 return {"error": "at least two valid Story ids needed"}, 404
 
-            ordered_story_ids = [story_id for story_id in story_ids]
+            ordered_story_ids = list(story_ids)
             first_story = cls.get(ordered_story_ids[0])
             if not first_story:
                 return {"error": "Story not found"}, 404
@@ -1194,9 +1225,13 @@ class Story(BaseModel):
             story = cls.get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404
+            new_story_ids: list[str] = []
             for news_item in story.news_items[:]:
-                if user is None or news_item.allowed_with_acl(user, True):
-                    cls.create_from_item(news_item, commit=False, actor=actor)
+                if (user is None or news_item.allowed_with_acl(user, True)) and (
+                    new_story_id := cls.create_from_item(news_item, commit=False, actor=actor)
+                ):
+                    new_story_ids.append(new_story_id)
+            StoryBookmark.replace_story_after_ungroup(story, new_story_ids)
             story.update_status(change=actor)
             story.record_revision(user, note="ungroup_story")
             db.session.commit()
@@ -1292,9 +1327,8 @@ class Story(BaseModel):
     @classmethod
     def create_from_item(cls, news_item: NewsItem, commit: bool = True, actor: str | None = None) -> str | None:
         change = actor or news_item.last_change or "internal"
-        if source_story := cls.get(news_item.story_id):
-            if news_item in source_story.news_items:
-                source_story.news_items.remove(news_item)
+        if (source_story := cls.get(news_item.story_id)) and news_item in source_story.news_items:
+            source_story.news_items.remove(news_item)
 
         new_story = Story(
             title=news_item.title,
@@ -1395,7 +1429,7 @@ class Story(BaseModel):
         tlp_levels: list[TLPLevel] = []
         for news_item in self.news_items:
             if not news_item.tlp_level:
-                news_item.add_attribute(NewsItemAttribute("TLP", news_item.osint_source.tlp_level))
+                news_item.add_attribute(NewsItemAttribute("TLP", news_item.tlp_level))
             logger.debug(f"News item {news_item.id} has TLP level")
             tlp_levels.append(news_item.tlp_level)
         tlp_levels += [input_tlp] if input_tlp else []
@@ -1414,6 +1448,8 @@ class Story(BaseModel):
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["links"] = self.links
+        if self.misp_auto_update:
+            data["misp_auto_update"] = self.misp_auto_update.to_dict()
         del data["search_vector"]
         return data
 
@@ -1431,6 +1467,8 @@ class Story(BaseModel):
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
         data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
+        if self.misp_auto_update:
+            data["misp_auto_update"] = self.misp_auto_update.to_dict()
         if attributes := self.attributes:
             data["attributes"] = {attribute.key: attribute.to_small_dict() for attribute in attributes}
         del data["search_vector"]
@@ -1498,6 +1536,39 @@ class NewsItemVote(BaseModel):
         return {"like": False, "dislike": False}
 
 
+class StoryMispAutoUpdate(BaseModel):
+    __tablename__ = "story_misp_auto_update"
+
+    story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
+    connector_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("connector.id", ondelete="CASCADE"), nullable=False)
+    enabled: Mapped[bool] = db.Column(db.Boolean, default=False, nullable=False)
+
+    story: Mapped[Story] = relationship("Story", back_populates="misp_auto_update")
+
+    @classmethod
+    def get_story_ids(cls, connector_id: str | None = None) -> list[str]:
+        query = db.select(cls.story_id)
+        if connector_id is not None:
+            query = query.where(cls.connector_id == connector_id)
+        return list(db.session.execute(query).scalars().all())
+
+    @classmethod
+    def configure(cls, story: Story, data: dict[str, Any]) -> None:
+        from core.model.connector import Connector
+
+        connector = Connector.get(data.get("connector_id")) if data.get("connector_id") else None
+        if not connector or str(connector.type.value).lower() != "misp_connector":
+            raise ValueError("Select a MISP connector for auto-update")
+        sync = story.misp_auto_update or cls()
+        sync.story_id = story.id
+        sync.connector_id = connector.id
+        sync.enabled = bool(data.get("enabled"))
+        story.misp_auto_update = sync
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"connector_id": self.connector_id, "enabled": self.enabled}
+
+
 class StoryNewsItemAttribute(BaseModel):
     __tablename__ = "story_news_item_attribute"
 
@@ -1535,7 +1606,13 @@ class StoryBookmark(BaseModel):
     user_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
     user: Mapped["User"] = relationship("User")
     stories: Mapped[list["Story"]] = relationship(
-        "Story", secondary="story_bookmark_story", cascade="save-update, merge", passive_deletes=True, single_parent=False, lazy="selectin"
+        "Story",
+        secondary="story_bookmark_story",
+        cascade="save-update, merge",
+        passive_deletes=True,
+        single_parent=False,
+        lazy="selectin",
+        order_by=lambda: (Story.created.desc(), Story.title.desc()),
     )
 
     def __init__(self, name: str, user_id: str, bookmark_id: str | None = None, stories: list[str] | None = None, position: int = 0):
@@ -1556,6 +1633,20 @@ class StoryBookmark(BaseModel):
     @staticmethod
     def _dedupe_ids(ids: list[str]) -> list[str]:
         return list(dict.fromkeys(item_id for item_id in ids if isinstance(item_id, str) and item_id))
+
+    @classmethod
+    def replace_story_after_ungroup(cls, source_story: Story, new_story_ids: list[str]) -> None:
+        bookmarks = db.session.execute(db.select(cls).where(cls.stories.any(Story.id == source_story.id))).scalars().all()
+        if not bookmarks:
+            return
+
+        new_stories = Story.get_bulk(new_story_ids)
+        source_remains = bool(source_story.news_items)
+        for bookmark in bookmarks:
+            retained_stories = [story for story in bookmark.stories if story.id != source_story.id or source_remains]
+            retained_story_ids = {story.id for story in retained_stories}
+            bookmark.stories = [*retained_stories, *(story for story in new_stories if story.id not in retained_story_ids)]
+            bookmark.touch()
 
     @classmethod
     def _next_position(cls, user_id: str) -> int:
@@ -1652,7 +1743,7 @@ class StoryBookmark(BaseModel):
         bookmarks = cls.get_filtered(db.select(cls).where(cls.user_id == user.id)) or []
         bookmarks_by_id = {bookmark.id: bookmark for bookmark in bookmarks if bookmark.id}
         if missing_ids := set(normalized_ids) - set(bookmarks_by_id):
-            return {"error": f"Bookmark collection not found: {sorted(missing_ids)[0]}"}, 404
+            return {"error": f"Bookmark collection not found: {min(missing_ids)}"}, 404
 
         ordered_bookmarks = [bookmarks_by_id[bookmark_id] for bookmark_id in normalized_ids]
         remaining_bookmarks = sorted(
@@ -1675,23 +1766,28 @@ class StoryBookmark(BaseModel):
 
     @classmethod
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
+        if user is None:
+            return {"error": "Bookmark collection not found"}, 404
         if bookmark := cls.get_for_user(item_id, user):
             story_ids = [story.id for story in bookmark.stories if story and story.id]
-            accessible_query = db.select(Story).where(Story.id.in_(story_ids))
-            accessible_query = Story._add_ACL_check(accessible_query, user)
-            accessible_query = Story._add_TLP_check(accessible_query, user)
-            stories_by_id = {story.id: story for story in db.session.execute(accessible_query).scalars().all() if story}
-            visible_stories = [stories_by_id.get(story_id) for story_id in story_ids if story_id in stories_by_id]
+            stories_by_id = cls._get_accessible_stories_by_id(story_ids, user)
+            visible_stories = [stories_by_id[story_id] for story_id in story_ids if story_id in stories_by_id]
 
             return bookmark.to_detail_dict(stories=visible_stories), 200
         return {"error": "Bookmark collection not found"}, 404
 
     @classmethod
-    def _get_accessible_stories(cls, story_ids: list[str], user: User) -> list[Story] | None:
-        query = db.select(Story).where(Story.id.in_(story_ids))
+    def _get_accessible_stories_by_id(cls, story_ids: list[str], user: User) -> dict[str, Story]:
+        if not story_ids:
+            return {}
+        query = Story.get_filter_query({"story_ids": story_ids})
         query = Story._add_ACL_check(query, user)
         query = Story._add_TLP_check(query, user)
-        stories_by_id = {story.id: story for story in db.session.execute(query).scalars().all()}
+        return {story.id: story for story in db.session.execute(query).scalars().all()}
+
+    @classmethod
+    def _get_accessible_stories(cls, story_ids: list[str], user: User) -> list[Story] | None:
+        stories_by_id = cls._get_accessible_stories_by_id(story_ids, user)
         if set(story_ids) - set(stories_by_id):
             return None
         return [stories_by_id[story_id] for story_id in story_ids]

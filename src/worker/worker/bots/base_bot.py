@@ -1,4 +1,4 @@
-import datetime
+from typing import Any
 from urllib.parse import parse_qs
 
 from worker.core_api import CoreApi
@@ -11,9 +11,9 @@ class BaseBot:
         self.type = "BASE_BOT"
         self.name = "Base Bot"
         self.description = "Base abstract type for all bots"
-        self.language = None
-        self.model = None
-        self.bot_api = None
+        self.language: str | None = None
+        self.model: str | None = None
+        self.bot_api: Any = None
 
     def execute(self, parameters: dict | None = None) -> dict[str, dict[str, str] | str]:
         if not parameters:
@@ -28,13 +28,11 @@ class BaseBot:
         if param_filter := parameters.get("filter"):
             filter_dict |= {k.lower(): v for k, v in param_filter.items()}
 
-        if "story_id" in filter_dict:
+        if "story_id" in filter_dict or "story_ids" in filter_dict:
             return filter_dict
 
         if timefrom := parameters.get("timefrom"):
             filter_dict["timefrom"] = timefrom
-        else:
-            filter_dict["timefrom"] = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
 
         filter_dict["worker"] = True
         filter_dict["exclude_attr"] = self.type

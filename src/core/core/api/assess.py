@@ -1,19 +1,26 @@
+from typing import Any
 from urllib.parse import unquote, urlparse
 
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.assess import StoryBookmarkCreatePayload, StoryBookmarkOrderPayload, StoryBookmarkStoryPayload, StoryBookmarkUpdatePayload
+from models.assess import (
+    StoryBookmarkCreatePayload,
+    StoryBookmarkOrderPayload,
+    StoryBookmarkStoryPayload,
+    StoryBookmarkUpdatePayload,
+    StoryUpdatePayload,
+)
 from pydantic import ValidationError
 
-from core.audit import audit_logger
+from core.api.utils import request_id_list
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args, validate_json
 from core.managers.sse_manager import sse_manager
-from core.model import connector, news_item, news_item_tag, osint_source, story
+from core.model import connector, news_item, news_item_tag, osint_source, report_item, story
 from core.model.filter_data import FilterData
 from core.model.story_conflict import StoryConflict
 from core.service.cache_invalidation import (
@@ -22,6 +29,7 @@ from core.service.cache_invalidation import (
     SCOPE_STORY_VIEWS,
     invalidate_frontend_cache_on_success,
 )
+from core.service.cti import CTIService
 from core.service.news_item import NewsItemService
 from core.service.simple_web_collector import get_simple_web_collector_url
 from core.service.story import StoryService
@@ -53,7 +61,7 @@ class NewsItems(MethodView):
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 1000)
         page = int(request.args.get("page", 0))
         filter_args["offset"] = min(int(request.args.get("offset", page * filter_args["limit"])), (2**31) - 1)
-        return news_item.NewsItem.get_all_for_api(filter_args, current_user)
+        return news_item.NewsItem.get_all_for_api(filter_args, user=current_user)
 
     @auth_required("ASSESS_CREATE")
     @validate_json
@@ -86,7 +94,7 @@ class NewsItemFetch(MethodView):
         if not self._is_supported_web_url(url):
             return {"error": "A valid http or https URL is required"}, 400
 
-        response, status = StoryService.fetch_and_create_story(parameters)
+        response, status = StoryService.fetch_and_create_story(parameters, user_id=current_user.id)
         if 200 <= status < 300:
             sse_manager.news_items_updated()
             invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
@@ -122,11 +130,17 @@ class NewsItem(MethodView):
         return response, code
 
 
+class NewsItemCTI(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, item_id: str):
+        return CTIService.get_news_item_cti(item_id, current_user)
+
+
 class UpdateNewsItemAttributes(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self, news_item_id: str):
         actor = story.Story.last_change_for_user(current_user)
-        response, status = news_item.NewsItem.update_attributes(news_item_id, request.json, actor=actor)
+        response, status = NewsItemService.update_attributes(news_item_id, request.json, actor=actor)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS,), object_ids={"news_item": news_item_id})
         return response, status
 
@@ -145,7 +159,7 @@ class UpdateNewsItemTags(MethodView):
         if not isinstance(tags, (list, dict)):
             return {"error": "Tags must be a list or object"}, 400
 
-        response, status = item.set_tags(tags, user=current_user)
+        response, status = NewsItemService.update_tags(item, tags, user=current_user)
         invalidate_frontend_cache_on_success(status, models=("story", "news_item", "report_item"), object_ids={"news_item": news_item_id})
         return response, status
 
@@ -198,14 +212,22 @@ class Stories(MethodView):
         if payload is not None and not isinstance(payload, dict):
             return {"error": "Invalid payload provided"}, 400
 
-        result_dict = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
+        if payload is not None:
+            try:
+                payload = StoryUpdatePayload.model_validate(payload).model_dump(mode="json", exclude_unset=True)
+            except ValidationError as exc:
+                return _validation_error_response(exc)
+        else:
+            payload = {}
+
+        result_dict: dict[str, Any] = {"message": "Bulk action completed", "updated": 0, "success": [], "errors": []}
         for story_id in story_ids:
             if not story_id:
                 continue
             s = story.Story.get(story_id)
             if s is None:
                 return {"error": "Story not found"}, 404
-            response, code = story.Story.update(s.id, payload, current_user)
+            response, code = StoryService.update(s.id, payload, current_user)
             if code != 200:
                 result_dict["errors"].append({"story_id": s.id, "response": response})
             else:
@@ -239,14 +261,18 @@ class Story(MethodView):
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self, story_id):
-        response, code = story.Story.update(story_id, request.json, current_user)
+        try:
+            payload = StoryUpdatePayload.model_validate(request.json).model_dump(mode="json", exclude_unset=True)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        response, code = StoryService.update(story_id, payload, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return response, code
 
     @auth_required("ASSESS_DELETE")
     def delete(self, story_id):
-        response, code = story.Story.delete_by_id(story_id, current_user)
+        response, code = StoryService.delete(story_id, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(
             code, models=("story_bookmark",), scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id}
@@ -256,9 +282,19 @@ class Story(MethodView):
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def patch(self, story_id):
-        response, code = story.Story.update(story_id, request.json, current_user)
+        try:
+            payload = StoryUpdatePayload.model_validate(request.json).model_dump(mode="json", exclude_unset=True)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        response, code = StoryService.update(story_id, payload, current_user)
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return response, code
+
+
+class StoryCTI(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, story_id: str):
+        return CTIService.get_story_cti(story_id, current_user)
 
 
 class UnGroupNewsItem(MethodView):
@@ -268,7 +304,7 @@ class UnGroupNewsItem(MethodView):
         if not (newsitem_ids := request.json):
             return {"error": "No news item ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
-        response, code = story.Story.ungroup_news_items_from_story(newsitem_ids, current_user, actor=actor)
+        response, code = StoryService.ungroup_news_items(newsitem_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
@@ -280,7 +316,7 @@ class UnGroupStories(MethodView):
     def put(self):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
-        response, code = story.Story.ungroup_multiple_stories(story_ids, current_user)
+        response, code = StoryService.ungroup_stories(story_ids, current_user)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
@@ -293,7 +329,7 @@ class GroupAction(MethodView):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
-        response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
+        response, code = StoryService.group_stories(story_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
@@ -304,7 +340,7 @@ class GroupAction(MethodView):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
-        response, code = story.Story.group_stories(story_ids, current_user, actor=actor)
+        response, code = StoryService.group_stories(story_ids, current_user, actor=actor)
         sse_manager.news_items_updated()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
@@ -315,16 +351,39 @@ class BotActions(MethodView):
     @validate_json
     def post(self):
         if not request.json:
-            return {"error": "Please provide story_id & bot_id"}, 400
+            return {"error": "Please provide bot_id and at least one story_id or report_id"}, 400
         bot_id = request.json.get("bot_id")
         if not bot_id:
             return {"error": "No bot_id provided"}, 400
-        story_id = request.json.get("story_id")
-        if not story_id:
-            return {"error": "No story_id provided"}, 400
-        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter={"story_id": story_id})
-        sse_manager.news_items_updated()
-        invalidate_frontend_cache_on_success(code, models=("story",), object_ids={"story": story_id})
+        story_ids = request_id_list(request.json, "story_id", "story_ids")
+        report_ids = request_id_list(request.json, "report_id", "report_ids")
+        if not story_ids and not report_ids:
+            return {"error": "No story_id or report_id provided"}, 400
+        accessible_tlps = current_user.get_highest_tlp().get_accessible_levels()
+        for story_id in story_ids:
+            selected_story = story.Story.get(story_id)
+            if not selected_story or any(
+                not item.allowed_with_acl(current_user, require_write_access=True) or item.tlp_level.value not in accessible_tlps
+                for item in selected_story.news_items
+            ):
+                return {"error": "User does not have write access to all requested stories"}, 403
+        for report_id in report_ids:
+            report = report_item.ReportItem.get(report_id)
+            if not report or not report.access_allowed(current_user, require_write_access=True):
+                return {"error": "User does not have write access to all requested reports"}, 403
+
+        filter_data: dict[str, str | list[str]] = {}
+        if len(story_ids) == 1:
+            filter_data["story_id"] = story_ids[0]
+        elif story_ids:
+            filter_data["story_ids"] = story_ids
+        if report_ids:
+            filter_data["report_ids"] = report_ids
+
+        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
+        if code == 200:
+            sse_manager.news_items_updated()
+        invalidate_frontend_cache_on_success(code, models=("story", "report_item"))
         return response, code
 
 
@@ -350,7 +409,9 @@ class Connectors(MethodView):
             return {"error": "No story_id provided"}, 400
 
         try:
-            response, code = queue_manager.queue_manager.push_to_connector(connector_id=connector_id, story_ids=story_ids)
+            response, code = queue_manager.queue_manager.push_to_connector(
+                connector_id=connector_id, story_ids=story_ids, user_id=current_user.id
+            )
             return response, code
         except Exception:
             logger.exception("Failed to push stories to connector %s", connector_id)
@@ -491,6 +552,7 @@ def initialize(app: Flask):
         "/bookmarks/<string:bookmark_id>/stories/remove", view_func=StoryBookmarkStoryRemoval.as_view("bookmark_story_removal")
     )
     assess_bp.add_url_rule("/stories/<string:story_id>", view_func=Story.as_view("story_"))
+    assess_bp.add_url_rule("/stories/<string:story_id>/cti", view_func=StoryCTI.as_view("story_cti"))
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=Story.as_view("story"))
     assess_bp.add_url_rule("/story/<string:connector_id>/share", view_func=Connectors.as_view("share_to_connector"))
     assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
@@ -501,6 +563,7 @@ def initialize(app: Flask):
     assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
     assess_bp.add_url_rule("/news-items/fetch", view_func=NewsItemFetch.as_view("news_item_fetch"))
     assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
+    assess_bp.add_url_rule("/news-items/<string:item_id>/cti", view_func=NewsItemCTI.as_view("news_item_cti"))
     assess_bp.add_url_rule(
         "/news-items/<string:news_item_id>/attributes", view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes")
     )
@@ -518,5 +581,4 @@ def initialize(app: Flask):
         view_func=StoryRevisionData.as_view("story_revision_data"),
     )
 
-    assess_bp.after_request(audit_logger.after_request_audit_log)
     app.register_blueprint(assess_bp)

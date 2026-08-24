@@ -3,20 +3,21 @@
 Miscellaneous worker tasks including cleanup and wordlist updates.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from croniter import croniter
 from rq import get_current_job
 
-from worker.core_api import CoreApi, build_success_task_result
+from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import logger
 from worker.misc.wordlist_update import update_wordlist
 
 
 TOKEN_CLEANUP_TASK_ID = "cleanup_token_blacklist"
+TASK_HISTORY_CLEANUP_TASK_ID = "cleanup_task_history"
 
 
-def cleanup_token_blacklist(*args, reschedule: bool = False, **kwargs):
+def cleanup_token_blacklist(*_args: object, reschedule: bool = False, **_kwargs: object):
     """Clean up expired tokens from the blacklist.
 
     When executed by the RQ cron scheduler this task reports completion to
@@ -73,12 +74,22 @@ def _reschedule_cleanup():
 
         # Calculate next run time from cron expression
         cron_expr = "0 2 * * *"  # Daily at 2 AM
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cron = croniter(cron_expr, now)
         next_run = cron.get_next(datetime)
+        if not isinstance(next_run, datetime):
+            raise TypeError("croniter did not return a datetime")
 
         # Schedule the job
-        queue.enqueue_at(next_run, cleanup_token_blacklist)
+        queue.enqueue_at(
+            next_run,
+            cleanup_token_blacklist,
+            meta={
+                "task": TOKEN_CLEANUP_TASK_ID,
+                "worker_id": TOKEN_CLEANUP_TASK_ID,
+                "worker_type": TOKEN_CLEANUP_TASK_ID,
+            },
+        )
         logger.info(f"Re-scheduled token cleanup for {next_run.isoformat()}")
 
     except Exception as e:  # pragma: no cover - logging only
@@ -117,3 +128,40 @@ def gather_word_list(word_list_id: str):
             ),
         )
     return result
+
+
+def cleanup_task_history():
+    logger.info("Cleaning up task history")
+    job = get_current_job()
+    core_api = CoreApi()
+    payload = core_api.cleanup_task_history()
+    if payload is not None and "error" not in payload:
+        if job:
+            core_api.save_task_result(
+                job.id,
+                TASK_HISTORY_CLEANUP_TASK_ID,
+                "SUCCESS",
+                worker_id=TASK_HISTORY_CLEANUP_TASK_ID,
+                worker_type=TASK_HISTORY_CLEANUP_TASK_ID,
+                result=build_success_task_result(
+                    default_message=str(payload.get("message") or "Task history cleanup completed"),
+                    data=payload,
+                ),
+            )
+        return payload
+
+    if job:
+        core_api.save_task_result(
+            job.id,
+            TASK_HISTORY_CLEANUP_TASK_ID,
+            "FAILURE",
+            worker_id=TASK_HISTORY_CLEANUP_TASK_ID,
+            worker_type=TASK_HISTORY_CLEANUP_TASK_ID,
+            result=build_failure_task_result(
+                str(payload.get("error") if payload else "Task history cleanup request failed"),
+                reason=str(payload.get("reason") if payload else "core_transport_error"),
+                retryable=bool(payload.get("retryable") if payload else True),
+                data=payload.get("data") if payload else None,
+            ),
+        )
+    raise RuntimeError("Task history cleanup failed")

@@ -29,9 +29,9 @@ jobs:
         working-directory: src/core
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
           prune-cache: false
@@ -65,9 +65,9 @@ jobs:
         working-directory: src/core
     needs: test
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
           prune-cache: false
@@ -105,13 +105,13 @@ jobs:
             arch: arm64
             platform: linux/arm64
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -121,10 +121,11 @@ jobs:
         run: |
           echo "GIT_INFO=$(./docker/git_info.sh)" >>${GITHUB_ENV}
           echo "BUILD_VERSION=$(./docker/git_info.sh build-version)" >>${GITHUB_ENV}
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>${GITHUB_ENV}
 
       - name: Set metadata for container build
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.GHCR_IMAGE }}
           labels: |
@@ -144,6 +145,7 @@ jobs:
           build-args: |
             git_info=${{ env.GIT_INFO }}
             build_version=${{ env.BUILD_VERSION }}
+            build_date=${{ env.BUILD_DATE }}
           cache-from: type=registry,ref=${{ env.GHCR_IMAGE }}-cache-${{ matrix.arch }}:latest
           cache-to: type=registry,ref=${{ env.GHCR_IMAGE }}-cache-${{ matrix.arch }}:latest,mode=max
           outputs: type=image,"name=${{ env.GHCR_IMAGE }}",push-by-digest=true,name-canonical=true,push=true,compression=zstd
@@ -181,18 +183,18 @@ jobs:
           merge-multiple: true
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Set metadata for container build
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.GHCR_IMAGE }}
           tags: |

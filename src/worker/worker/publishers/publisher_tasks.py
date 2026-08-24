@@ -155,6 +155,7 @@ def _get_publisher_impl(pub_type: str) -> BasePublisher:
         ValueError: If publisher type not implemented
     """
     publishers = {
+        "taranis_publisher": worker.publishers.TaranisPublisher(),
         "email_publisher": worker.publishers.EMAILPublisher(),
         "wordpress_publisher": worker.publishers.WORDPRESSPublisher(),
         "ftp_publisher": worker.publishers.FTPPublisher(),

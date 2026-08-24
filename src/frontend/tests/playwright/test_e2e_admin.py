@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from base_e2e_test import BaseE2ETest
@@ -19,8 +18,6 @@ DASHBOARD_HEALTH_SERVICES = {
     "Redis": "up",
     "Workers": "up",
 }
-SCHEDULER_BASELINE_TOTAL_TEXT_PREFIX = "Total:"
-SCHEDULER_BASELINE_TOTAL_TEXT_SUFFIX = "scheduled jobs"
 
 
 def reset_admin_onboarding_tours(page: Page):
@@ -57,7 +54,7 @@ def start_admin_onboarding_from_dashboard(page: Page):
 def remove_tz(date_time: str) -> str:
     dt = datetime.fromisoformat(date_time)
     if dt.tzinfo is not None and dt.utcoffset() is not None:
-        dt = dt.astimezone(timezone.utc)
+        dt = dt.astimezone(UTC)
     dt = dt.replace(tzinfo=None)
     return dt.isoformat()
 
@@ -163,9 +160,31 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         expect(page).to_have_url(url_for("admin.scheduler", _external=True))
         expect(page.locator("#scheduler-dashboard")).to_be_visible()
-        scheduled_jobs_total = page.locator("#scheduled-jobs-table .text-sm.text-center.mt-4.opacity-70")
-        expect(scheduled_jobs_total).to_contain_text(SCHEDULER_BASELINE_TOTAL_TEXT_PREFIX)
-        expect(scheduled_jobs_total).to_contain_text(SCHEDULER_BASELINE_TOTAL_TEXT_SUFFIX)
+        expect(page.get_by_test_id("scheduled-jobs")).to_be_visible()
+        expect(page.locator("#scheduled-jobs-table-search")).to_be_visible()
+        expect(page.locator("#scheduled-jobs-table")).to_contain_text("Page 1 of")
+
+        page.goto(
+            url_for(
+                "admin.scheduler",
+                page=2,
+                limit=5,
+                order="name_desc",
+                search="collector",
+                _external=True,
+            )
+        )
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="active"]').click())
+        expect(page).to_have_url(url_for("admin.scheduler", tab="active", _external=True))
+        expect(page.locator("#active-jobs-table-search")).to_have_value("")
+        expect(page.locator("#active-jobs-table")).to_contain_text("No jobs currently running")
+
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
+        expect(page.locator("#execution-history-table")).to_be_visible()
+        expect(page.locator("#history-tab .stats")).to_have_count(1)
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="scheduled"]').click())
+        with_htmx_wait(page, lambda: page.locator('.tab[data-tab="history"]').click())
+        expect(page.locator("#history-tab .stats")).to_have_count(1)
 
     def test_manual_news_item_invalid_language_shows_notification(self, logged_in_page: Page):
         page = logged_in_page
@@ -898,15 +917,27 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             group_container.get_by_role("button", name="+ Add New Attribute").click()
             attribute_container = page.locator("#attribute-items-container-0")
-            expect(attribute_container.locator("input[name$='[title]']").first).to_be_visible()
-            expect(attribute_container.locator("input[name$='[title]']").first).to_have_attribute("required", "")
-            attribute_container.locator("input[name$='[title]']").first.fill(attribute_title)
+            first_attribute_title = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][0][title]']")
+            first_attribute_index = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][0][index]']")
+            expect(first_attribute_title).to_be_visible()
+            expect(first_attribute_title).to_have_attribute("required", "")
+            expect(first_attribute_index).to_have_value("0")
+            first_attribute_title.fill(attribute_title)
+
+            group_container.get_by_role("button", name="+ Add New Attribute").click()
+            second_attribute_title_input = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][1][title]']")
+            second_attribute_index = attribute_container.locator("input[name='attribute_groups[0][attribute_group_items][1][index]']")
+            expect(second_attribute_index).to_have_value("1")
+            second_attribute_title_input.fill("Secondary Attribute")
 
             attribute_select = attribute_container.locator("select[name$='[attribute_id]']").first
             expect(attribute_select).to_have_attribute("required", "")
             first_option_value = attribute_select.locator("option:not([disabled])").first.get_attribute("value")
             assert first_option_value, "Expected at least one attribute option"
             attribute_select.select_option(first_option_value)
+            attribute_container.locator("select[name='attribute_groups[0][attribute_group_items][1][attribute_id]']").select_option(
+                first_option_value
+            )
 
             attribute_container.locator("input[name$='[description]']").first.fill("Attribute description")
             attribute_required = attribute_container.locator("input[type='checkbox'][name$='[required]']").first
@@ -992,12 +1023,18 @@ class TestEndToEndAdmin(BaseE2ETest):
         update_product_type()
         remove_product_type()
 
-    def test_admin_bot(self, logged_in_page: Page, forward_console_and_page_errors):
+    def test_admin_bot(self, logged_in_page: Page, forward_console_and_page_errors: None):
         page = logged_in_page
+        bot_count = 0
+        bot_name = f"test bot {uuid.uuid4().hex[:6]}"
+        updated_bot_name = f"{bot_name} updated"
 
         def test_load_bots():
+            nonlocal bot_count
             page.goto(url_for("admin.bots", _external=True))
-            expect(page.get_by_test_id("bot-table")).to_be_visible()
+            bot_table = page.get_by_test_id("bot-table")
+            expect(bot_table).to_be_visible()
+            bot_count = bot_table.locator("tbody tr").count()
             page.screenshot(path="./tests/playwright/screenshots/docs_bots.png")
 
         def test_bot_create():
@@ -1006,32 +1043,31 @@ class TestEndToEndAdmin(BaseE2ETest):
             refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="Name").fill("test bot")
+            page.get_by_role("textbox", name="Name").fill(bot_name)
             expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").fill("test bot description")
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("21")
-            self.select_dynamic_type_and_wait(page, "nlp_bot", refresh_interval_input)
+            self.select_dynamic_type_and_wait(page, "analyst_bot", refresh_interval_input)
 
             page.get_by_role("textbox", name="ITEM_FILTER").fill("1")
-            page.get_by_role("textbox", name="BOT_API_KEY").fill("2")
-            page.get_by_role("textbox", name="REQUESTS_TIMEOUT").fill("30")
-            page.get_by_role("textbox", name="BOT_ENDPOINT").fill("http://test.url")
+            page.get_by_role("textbox", name="REGULAR_EXPRESSION").fill(".*")
+            page.get_by_role("textbox", name="ATTRIBUTE_NAME").fill("test_attribute")
 
             page.get_by_role("checkbox", name="run_after_collector").check()
             page.get_by_role("button", name="Create Bot").click()
 
         def test_bot_update():
-            page.get_by_role("link", name="test bot", exact=True).click()
+            page.get_by_role("link", name=bot_name, exact=True).click()
             expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
-            expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
-            page.get_by_role("textbox", name="Name").fill("test bot updated")
+            expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
+            page.get_by_role("textbox", name="Name", exact=True).fill(updated_bot_name)
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("12")
             page.get_by_role("button", name="Update Bot").click()
 
-            page.get_by_role("link", name="test bot updated").click()
+            page.get_by_role("link", name=updated_bot_name).click()
             expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
             page.get_by_role("button", name="Update Bot").click()
@@ -1039,8 +1075,8 @@ class TestEndToEndAdmin(BaseE2ETest):
         def test_remove_bot():
             bot_table = page.get_by_test_id("bot-table")
             all_rows = bot_table.locator("tbody tr")
-            expect(all_rows).to_have_count(8)
-            item_id = self.get_table_row_id_by_link_text(page, "bot-table", "test bot updated")
+            expect(all_rows).to_have_count(bot_count + 1)
+            item_id = self.get_table_row_id_by_link_text(page, "bot-table", updated_bot_name)
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             dismiss_notifications(page)
@@ -1148,11 +1184,13 @@ class TestEndToEndAdmin(BaseE2ETest):
         def publisher_presets_delete():
             publisher_table = page.get_by_test_id("publisher_preset-table")
             all_rows = publisher_table.locator("tbody tr")
-            expect(all_rows).to_have_count(1)
+            expect(all_rows).to_have_count(2)
             item_id = self.get_table_row_id_by_link_text(page, "publisher_preset-table", "publisher preset test updated")
             delete_button_test_id = f"action-delete-{item_id}"
             self.delete_table_row(page, delete_button_test_id)
             expect(publisher_table.get_by_role("link", name="publisher preset test updated")).not_to_be_visible()
+            expect(publisher_table.get_by_role("link", name="Taranis Publisher")).to_be_visible()
+            expect(all_rows).to_have_count(1)
 
         load_publisher_presets()
         publisher_presets_create()
@@ -1168,6 +1206,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         collector_interval_input = settings_form.get_by_test_id("settings-default-collector-interval").first
         story_conflict_input = settings_form.get_by_test_id("settings-default-story-conflict-retention").first
         news_conflict_input = settings_form.get_by_test_id("settings-default-news-item-conflict-retention").first
+        onboarding_switch = settings_form.locator("#settings-onboarding-enabled").first
         settings_submit = settings_form.get_by_test_id("settings-submit").first
         stories_import_url = url_for("assess.import_stories", _external=True)
 
@@ -1186,6 +1225,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(story_conflict_input).to_have_value("200")
             expect(news_conflict_input).to_have_attribute("required", "")
             expect(news_conflict_input).to_have_value("200")
+            expect(onboarding_switch).to_be_checked()
 
         def change_default_values():
             expect(collector_interval_input).to_be_visible()
@@ -1368,6 +1408,32 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.goto(url_for("admin_settings.settings", _external=True))
             page.get_by_role("button", name="Invalidate Cache").click()
 
+        def test_onboarding_controls() -> None:
+            reset_admin_onboarding_tours(page)
+            page.goto(url_for("admin_settings.settings", _external=True))
+            onboarding_switch.uncheck()
+            with page.expect_response(settings_update_url) as response_info:
+                settings_submit.click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+
+            page.goto(url_for("admin.dashboard", _external=True))
+            expect(page.locator("#onboarding-root")).to_have_count(0)
+
+            page.goto(url_for("admin.users", _external=True))
+            page.get_by_role("link", name="admin", exact=True).click()
+            page.locator("#user-onboarding-enabled").check()
+            page.locator('input[type="submit"]').click()
+            expect(page).to_have_url(url_for("admin.users", _external=True))
+
+            page.goto(url_for("admin.dashboard", _external=True))
+            expect(page.locator("#onboarding-root")).to_have_count(1)
+
+            page.goto(url_for("admin_settings.settings", _external=True))
+            onboarding_switch.check()
+            with page.expect_response(settings_update_url) as response_info:
+                settings_submit.click()
+            assert response_info.value.ok, f"Expected 2xx status, but got {response_info.value.status}"
+
         go_to_admin_settings()
         check_default_values()
         change_default_values()
@@ -1375,6 +1441,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         exported_stories_file = test_export_all_stories(pre_seed_stories)
         test_export_stories_metadata_time_filter(pre_seed_stories)
         import_stories_from_json(exported_stories_file)
+        test_onboarding_controls()
         revert_to_default_values()
         test_clear_cache()
 

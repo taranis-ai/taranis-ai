@@ -40,6 +40,30 @@ Release/container builds still use the packaged `taranis-models` from the lockfi
 taranis-ai
 ```
 
+## Operational CLI
+
+The core image also includes `taranis-cli` for direct administrative fixes from the core container.
+
+Set a local database-auth password for an existing user:
+
+```bash
+docker exec -it core taranis-cli set-password admin
+read -rsp "New password: " PASSWORD
+printf '\n'
+printf '%s\n' "$PASSWORD" | docker exec -i core taranis-cli set-password admin --password-stdin
+unset PASSWORD
+kubectl exec -it deploy/core -- taranis-cli set-password admin
+```
+
+Replace an existing user's roles. Role arguments are exact role names or role IDs:
+
+```bash
+docker exec -it core taranis-cli set-roles user Admin
+kubectl exec -it deploy/core -- taranis-cli set-roles user Admin User
+```
+
+`set-roles` replaces the user's full role list. Prefer the interactive prompt or `--password-stdin` for passwords so secrets do not land in shell history.
+
 ## Frontend Cache Invalidation
 
 Core owns frontend cache invalidation for write operations.
@@ -54,6 +78,19 @@ Core owns frontend cache invalidation for write operations.
 - admin configuration writes under `/api/config/*` currently invalidate the full frontend cache by design
 - the manual invalidation endpoint is `POST /api/admin/cache/invalidate`
 - `/api/assess/filter-lists` builds filter options from current database state on request; frontend caching may cache that response by user
+
+## Audit Logging
+
+Core writes v1 audit events as JSON lines to stdout.
+
+- `AUDIT_LOG_ENABLED=true|false` toggles audit logging; it defaults to `true`
+- audit events are emitted for human JWT-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` API requests
+- `/api/auth/login` is audited without a JWT actor and records only the attempted username and response status
+- audit records include timestamp, method, path, endpoint, status, user id, username, organization id, client IP, and route ids
+- client IP is read from Flask's trusted `request.remote_addr`; proxy middleware must normalize it before audit logging runs
+- request bodies, passwords, tokens, connector secrets, story content, and before/after values are not logged
+- API-key-only worker and bot routes, ordinary `GET` reads, and `GET` export endpoints are not audited in v1
+- audit retention, search, and forwarding belong to the deployment log collector
 
 ## Health Endpoints
 

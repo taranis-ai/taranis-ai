@@ -1,5 +1,5 @@
 import mimetypes
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from models.product import WorkerProduct as Product
@@ -15,10 +15,10 @@ class BasePublisher:
         self.type = "BASE_PUBLISHER"
         self.name = "Base Publisher"
         self.description = "Base abstract type for all publishers"
-        self.file_name: str = f"Taranis_product_{datetime.now().strftime('%d-%m-%Y_%H-%M')}"
+        self.file_name: str = f"Taranis_product_{datetime.now(UTC).strftime('%d-%m-%Y_%H-%M')}"
         self.core_api = CoreApi()
 
-    def publish(self, publisher: dict[str, Any], product: dict[str, Any], rendered_product: Product) -> str:
+    def publish(self, publisher: dict[str, Any], product: dict[str, Any], rendered_product: Product) -> Any:
         raise NotImplementedError
 
     def print_exception(self, error):
@@ -33,7 +33,7 @@ class BasePublisher:
         mime_type = product.get("mime_type")
 
         file_extension = mimetypes.guess_extension(mime_type, strict=False) or ""
-        return f"{product_title}_{datetime.now().strftime('%d-%m-%Y_%H-%M')}{file_extension}"
+        return f"{product_title}_{datetime.now(UTC).strftime('%d-%m-%Y_%H-%M')}{file_extension}"
 
     def _extract_parameters(self, publisher: dict[str, Any]) -> dict[str, Any]:
         parameters = publisher.get("parameters") or {}
@@ -42,3 +42,9 @@ class BasePublisher:
             missing_params = ", ".join(missing)
             raise ValueError(f"Missing required parameters for {self.name}: {missing_params}")
         return parameters
+
+    @staticmethod
+    def _require_rendered_data(rendered_product: Product) -> bytes:
+        if rendered_product.data is None:
+            raise ValueError("Rendered product data is required")
+        return rendered_product.data

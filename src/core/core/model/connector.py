@@ -1,5 +1,6 @@
+import builtins
 from datetime import datetime
-from typing import Any, Type
+from typing import Any
 
 from models.types import COLLECTOR_TYPES, CONNECTOR_TYPES
 from sqlalchemy.exc import IntegrityError
@@ -79,11 +80,9 @@ class Connector(BaseModel):
 
     def schedule_connector(self):
         """TODO: Lower priority"""
-        pass
 
     def unschedule_connector(self):
         """TODO: Lower priority"""
-        pass
 
     @classmethod
     def update(cls, connector_id: str, data: dict) -> "Connector | None":
@@ -107,20 +106,25 @@ class Connector(BaseModel):
 
     @classmethod
     def delete(cls, connector_id: str, force: bool = False) -> tuple[dict, int]:
+        from core.model.story import StoryMispAutoUpdate
+        from core.service.misp_auto_update import cancel_misp_auto_update_jobs
+
         if not (connector := cls.get(connector_id)):
             return {"error": "Connector not found"}, 404
 
+        configured_story_ids = StoryMispAutoUpdate.get_story_ids(connector_id)
         try:
             connector.unschedule_connector()
             db.session.delete(connector)
             db.session.commit()
+            cancel_misp_auto_update_jobs(configured_story_ids)
             return {"message": "Connector deleted", "id": connector.id}, 200
         except IntegrityError as e:
             logger.warning(f"IntegrityError: {e.orig}")
             return {"error": "Deleting Connector failed"}, 500
 
     @staticmethod
-    def _update_last_change(model_class: Type, data: dict[str, str]) -> tuple[dict[str, str], int]:
+    def _update_last_change(model_class: builtins.type, data: dict[str, str]) -> tuple[dict[str, str], int]:
         if not data:
             return {"error": "No data provided"}, 400
 

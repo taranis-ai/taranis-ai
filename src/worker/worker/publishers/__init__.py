@@ -5,18 +5,20 @@ from worker.publishers.kafka_publisher import KafkaPublisher
 from worker.publishers.misp_publisher import MISPPublisher
 from worker.publishers.s3_publisher import S3Publisher
 from worker.publishers.sftp_publisher import SFTPPublisher
+from worker.publishers.taranis_publisher import TaranisPublisher
 from worker.publishers.taxii_publisher import TAXIIPublisher
 from worker.publishers.wordpress_publisher import WORDPRESSPublisher
 
 
 __all__ = [
-    "EMAILPublisher",
-    "MISPPublisher",
-    "WORDPRESSPublisher",
     "BasePublisher",
+    "EMAILPublisher",
     "FTPPublisher",
-    "SFTPPublisher",
-    "S3Publisher",
     "KafkaPublisher",
+    "MISPPublisher",
+    "S3Publisher",
+    "SFTPPublisher",
     "TAXIIPublisher",
+    "TaranisPublisher",
+    "WORDPRESSPublisher",
 ]

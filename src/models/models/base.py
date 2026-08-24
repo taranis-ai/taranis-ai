@@ -1,6 +1,6 @@
-from typing import ClassVar, TypeVar
+from typing import Any, ClassVar, TypeVar
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict
 
 
 T = TypeVar("T", bound="TaranisBaseModel")
@@ -15,7 +15,7 @@ class TaranisBaseModel(BaseModel):
     model_config = ConfigDict(extra="allow", coerce_numbers_to_str=True)
 
     @classmethod
-    def extract_validation_errors(cls, exc: ValidationError) -> list[dict[str, str]]:
+    def extract_validation_errors(cls, exc: Any) -> list[dict[str, str]]:
         return [
             {
                 "model": cls.__name__,
@@ -27,7 +27,7 @@ class TaranisBaseModel(BaseModel):
         ]
 
     @classmethod
-    def format_validation_errors(cls, exc: ValidationError) -> str:
+    def format_validation_errors(cls, exc: Any) -> str:
         structured = cls.extract_validation_errors(exc)
         if not structured:
             return f"Validation failed for model {cls.__name__}, but no error details were extracted."
@@ -37,7 +37,7 @@ class TaranisBaseModel(BaseModel):
         return "\n".join(lines)
 
     @classmethod
-    def validation_error_response(cls, exc: ValidationError, prefix: str) -> dict[str, str]:
+    def validation_error_response(cls, exc: Any, prefix: str) -> dict[str, str]:
         errors = "; ".join(f"{err['field']}: {err['error']}" for err in cls.extract_validation_errors(exc))
         return {"error": f"{prefix}{f': {errors}' if errors else ''}"}
 

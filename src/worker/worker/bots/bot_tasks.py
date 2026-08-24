@@ -10,7 +10,7 @@ from worker.core_api import CoreApi, build_failure_task_result, build_success_ta
 from worker.log import logger
 
 
-def bot_task(bot_id: str, filter: dict | None = None):
+def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool = True):
     """Execute a bot to process news items.
 
     Args:
@@ -49,7 +49,7 @@ def bot_task(bot_id: str, filter: dict | None = None):
             result=build_success_task_result(
                 default_message=f"Bot {bot_id} executed successfully",
                 output=bot_result,
-                base_data={"bot_id": bot_id},
+                base_data={"bot_id": bot_id, "filter": filter, "trigger_dependents": trigger_dependents},
                 merge_dict_data=False,
             ),
         )
@@ -77,7 +77,7 @@ def bot_task(bot_id: str, filter: dict | None = None):
                     if str(exc) == f"Bot {bot_id} returned no result"
                     else "bot_execution_failed"
                 ),
-                data={"bot_id": bot_id},
+                data={"bot_id": bot_id, "filter": filter, "trigger_dependents": trigger_dependents},
             ),
         )
         raise
@@ -101,6 +101,7 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str
         "nlp_bot": worker.bots.NLPBot(),
         "story_bot": worker.bots.StoryBot(),
         "ioc_bot": worker.bots.IOCBot(),
+        "intel_owl_bot": worker.bots.IntelOwlBot(),
         "summary_bot": worker.bots.SummaryBot(),
         "sentiment_analysis_bot": worker.bots.SentimentAnalysisBot(),
         "cybersec_classifier_bot": worker.bots.CyberSecClassifierBot(),

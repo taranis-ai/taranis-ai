@@ -1,0 +1,40 @@
+services:
+  core:
+    environment:
+      SQLALCHEMY_DATABASE_URI: "postgresql+psycopg://${DB_USER:-taranis}:${POSTGRES_PASSWORD:-taranis}@database:5432/${DB_DATABASE:-taranis}?sslmode=require"
+      GRANIAN_WORKERS: "2"
+      APPLICATION_ROOT: "/"
+      PYTHONFAULTHANDLER: "1"
+      PYTHONUNBUFFERED: "1"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:${TARANIS_CORE_LISTEN_PORT:-8080}/api/isalive', timeout=5).read()\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  database:
+    entrypoint: ["/bin/sh", "/postgres-tls/postgres-entrypoint.sh"]
+    command:
+      [
+        "postgres",
+        "-c",
+        "shared_buffers=${DB_SHARED_BUFFERS:-64MB}",
+        "-c",
+        "max_connections=${DB_MAX_CONNECTIONS:-1000}",
+        "-c",
+        "ssl=on",
+        "-c",
+        "ssl_cert_file=/var/lib/postgresql/server.crt",
+        "-c",
+        "ssl_key_file=/var/lib/postgresql/server.key",
+      ]
+    volumes:
+      - "database_data:/var/lib/postgresql/data"
+      - "${TARANIS_POSTGRES_TLS_DIR:?set TARANIS_POSTGRES_TLS_DIR}/:/tls:ro"
+      - "./postgres-tls/001-require-ssl.sh:/docker-entrypoint-initdb.d/001-require-ssl.sh:ro"
+      - "./postgres-tls/postgres-entrypoint.sh:/postgres-tls/postgres-entrypoint.sh:ro"

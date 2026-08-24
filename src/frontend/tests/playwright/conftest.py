@@ -1,4 +1,5 @@
 import base64
+import contextlib
 import copy
 import multiprocessing
 import os
@@ -110,7 +111,7 @@ def docker_cleanup():
 def run_core_external():
     from frontend.config import Config
 
-    taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 120))
+    taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", "120"))
     external_core_url = external_core_api_url()
     if external_core_url is None:
         raise RuntimeError("External core URL is not configured")
@@ -126,7 +127,7 @@ def run_core_external():
 def run_core_local(docker_services):
     from frontend.config import Config
 
-    taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", 180))
+    taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", "180"))
     core_port = docker_services.port_for("core", 8080)
     core_url = f"http://127.0.0.1:{core_port}/api"
 
@@ -253,10 +254,8 @@ def setup_test_templates(core_request_client):
     yield
 
     for template_name in uploaded_templates:
-        try:
+        with contextlib.suppress(Exception):
             core_request_client.delete(f"/config/templates/{template_name}", timeout_seconds=30)
-        except Exception:
-            pass
 
 
 @pytest.fixture(scope="function")
@@ -383,10 +382,10 @@ def logged_in_page(authenticated_page_factory):
 
 
 def _token_from_response(token_response) -> str:
-    access_token = token_response.json().get("access_token")
-    if not access_token:
+    if access_token := token_response.json().get("access_token"):
+        return access_token
+    else:
         raise RuntimeError("Login response does not contain 'access_token'")
-    return access_token
 
 
 @pytest.fixture
@@ -509,8 +508,7 @@ def stories_date_descending_important(core_request_client):
 
     story_ids = []
     stories = core_request_client.json_request("GET", "/assess/stories", params={"important": "true"})
-    for story in stories.get("items", []):
-        story_ids.append(story.get("id"))
+    story_ids.extend(story.get("id") for story in stories.get("items", []))
     yield story_ids
 
 
@@ -528,9 +526,7 @@ def stories_date_descending(core_request_client, stories_session_wrapper):
 
     story_ids = []
     s = core_request_client.json_request("GET", "/assess/stories")
-    for story in s.get("items", []):
-        story_ids.append(story.get("id"))
-
+    story_ids.extend(story.get("id") for story in s.get("items", []))
     assert len(story_ids) > 0, "No stories found for stories_date_descending fixture"
 
     yield story_ids
@@ -541,8 +537,7 @@ def stories_date_descending_not_important(core_request_client, stories_session_w
     allow_requests_passthru()
     story_ids = []
     s = core_request_client.json_request("GET", "/assess/stories", params={"important": "false", "limit": 50})
-    for story in s.get("items"):
-        story_ids.append(story.get("id"))
+    story_ids.extend(story.get("id") for story in s.get("items"))
     yield story_ids
 
 
@@ -568,18 +563,14 @@ def stories_function_wrapper(api_header, fake_source, core_request_client):
 
     news_item_ids_created = []
     for news_item_ids in request_responses:
-        try:
+        with contextlib.suppress(Exception):
             news_item_ids_created.extend(news_item_ids.json().get("news_item_ids", []))
-        except Exception:
-            continue
     for news_item_id in news_item_ids_created:
-        try:
+        with contextlib.suppress(Exception):
             core_request_client.delete(f"/assess/news-items/{news_item_id}")
-        except Exception:
-            pass
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def stories_session_wrapper(api_header, fake_source, core_request_client):
     stories_list, _ = stories(core_request_client, api_header, fake_source)
     yield stories_list
@@ -637,7 +628,7 @@ def stories(core_request_client, api_header, fake_source):
     ]
 
     for group in story_groups:
-        group_ids = [story_id for story_id in group]
+        group_ids = list(group)
         r = core_request_client.put("/assess/stories/group", json_data=group_ids)
         print(f"Grouped stories {group_ids} -> {r.status_code}")
 
@@ -724,13 +715,11 @@ def pre_seed_stories(news_items_list, core_request_client):  # noqa: F811
     yield story_list
 
     for news_item_id in news_item_ids_created:
-        try:
+        with contextlib.suppress(Exception):
             core_request_client.delete(f"/assess/news-items/{news_item_id}")
-        except Exception:
-            pass
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pre_seed_stories_enriched(story_list_enriched, api_header, core_request_client):  # noqa: F811
     allow_requests_passthru()
 
@@ -741,7 +730,7 @@ def pre_seed_stories_enriched(story_list_enriched, api_header, core_request_clie
     yield []
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pre_seed_report_stories(story_item_list, api_header, core_request_client):
     allow_requests_passthru()
 
@@ -853,19 +842,15 @@ def test_batch_osint_sources(core_request_client, e2e_server, access_token_respo
 
     yield source_data
 
-    try:
+    with contextlib.suppress(Exception):
         list_response = core_request_client.get("/config/osint-sources")
         for source in list_response.json().get("items", []):
             if source_id := source.get("id"):
-                try:
+                with contextlib.suppress(Exception):
                     core_request_client.delete(
                         f"/config/osint-sources/{source_id}",
                         params={"force": "true"},
                     )
-                except Exception:
-                    pass
-    except Exception:
-        pass
     invalidate_osint_source_caches()
 
 
@@ -915,7 +900,7 @@ def report_item_dict(story_item_list):
     }
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def fake_source(core_request_client):
     allow_requests_passthru()
 
@@ -931,8 +916,10 @@ def fake_source(core_request_client):
 
     yield source_data["id"]
 
+    core_request_client.delete(f"/config/osint-sources/{source_data['id']}", params={"force": "true"})
 
-@pytest.fixture(scope="session")
+
+@pytest.fixture(scope="module")
 def story_item_list(fake_source):
     yield [
         {

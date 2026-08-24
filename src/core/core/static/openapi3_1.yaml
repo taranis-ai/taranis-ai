@@ -85,10 +85,12 @@ paths:
       tags:
       - auth
       operationId: auth.refresh.get
-      description: refresh an API token
+      description: refresh an access token for CLI and other non-browser clients
+      security:
+      - UserAuth: []
       responses:
         '200':
-          description: refreshed API token
+          description: refreshed access token
           content:
             application/json:
               schema:
@@ -477,6 +479,46 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /analyze/report-items/botactions:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - analyze
+      description: queue a bot action for one or more report items
+      operationId: analyze.report_bot_actions.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bot_id
+              properties:
+                bot_id:
+                  type: string
+                report_id:
+                  type: string
+                report_ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /analyze/report-items/publish-product:
     post:
       security:
@@ -538,21 +580,21 @@ paths:
                 value:
                   report:
                     title: CERT advisory for ACME VPN
-                    report_item_type_id: 4
+                    report_item_type_id: '4'
                     story_ids:
                     - story-100
                     - story-101
                   product:
                     title: CERT Daily Report - ACME VPN
                     description: Daily delivery for the ACME VPN advisory
-                    product_type_id: 7
+                    product_type_id: '7'
                     default_publisher: publisher-preset-42
               success_with_overrides:
                 summary: Override generated report fields after default population
                 value:
                   report:
                     title: ACME VPN incident brief
-                    report_item_type_id: 4
+                    report_item_type_id: '4'
                     story_ids:
                     - story-100
                     attribute_overrides:
@@ -562,7 +604,7 @@ paths:
                   product:
                     title: ACME VPN HTML briefing
                     description: HTML export for the ACME VPN incident brief
-                    product_type_id: 7
+                    product_type_id: '7'
                     default_publisher: publisher-preset-42
       responses:
         '201':
@@ -619,6 +661,7 @@ paths:
                       description: Daily delivery for the ACME VPN advisory
                       created: '2026-03-30T16:00:00'
                       last_rendered: null
+                      last_published_url: null
                       auto_publish: true
                       product_type_id: 7
                       default_publisher: publisher-preset-42
@@ -763,6 +806,33 @@ paths:
           description: invalid request
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /analyze/report-items/{report_item_id}/cti:
+    parameters:
+    - name: report_item_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - analyze
+      description: get CTI information for all IOC tags in stories attached to the report item
+      operationId: analyze.report_item_cti.get
+      responses:
+        '200':
+          description: CTI information for the report item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
   /analyze/report-items/{report_item_id}/locks:
@@ -1427,7 +1497,32 @@ paths:
                 type: object
         "404":
           $ref: "#/components/responses/404NotFound"
-
+  /assess/news-items/{item_id}/cti:
+    parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      security:
+        - UserAuth: []
+      tags: [assess]
+      description: get CTI information for IOC tags on the specified news item
+      operationId: assess.news_item_cti.get
+      responses:
+        "200":
+          description: CTI information for the news item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/cti_response"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "403":
+          description: read access denied
+        "404":
+          $ref: "#/components/responses/404NotFound"
   /assess/news-items/{item_id}/tags:
     parameters:
       - name: item_id
@@ -1995,6 +2090,16 @@ paths:
       - APIKey: []
       description: Get stories
       operationId: worker.stories_worker.get
+      parameters:
+      - name: story_ids
+        in: query
+        description: Filter to one or more story IDs. Repeat the query parameter for multiple stories.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
       responses:
         '200':
           description: OK
@@ -2069,6 +2174,40 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/iocs:
+    post:
+      security:
+      - APIKey: []
+      description: get IOC enrichment rows for observable keys
+      operationId: worker.iocs_worker.post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                iocs:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      ioc_type:
+                        type: string
+                      value:
+                        type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /tasks:
     post:
       tags:
@@ -2228,61 +2367,57 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
-  /bots/news-item:
+  /tasks/user:
     get:
-      security:
-      - APIKey: []
       tags:
-      - bots
-      description: get all news items
-      operationId: bots.bots_news_item.get
+      - tasks
+      operationId: tasks.user_tasks.get
+      description: list completed tasks triggered by the authenticated user
+      security:
+      - UserAuth: []
       parameters:
-      - name: limit
+      - name: search
         in: query
+        required: false
+        description: searches task identifiers, worker identifiers and types, task names, and statuses
         schema:
           type: string
-          format: date
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 20
+      - name: order
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - worker_type_asc
+          - worker_type_desc
+          - status_asc
+          - status_desc
+          - last_run_asc
+          - last_run_desc
+          default: last_run_desc
       responses:
         '200':
-          description: the news items
+          description: user task results
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/news_item'
+                $ref: '#/components/schemas/user_task_list'
         '401':
           $ref: '#/components/responses/401Unauthorized'
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    put:
-      security:
-      - APIKey: []
-      tags:
-      - bots
-      description: update news item
-      operationId: bots.bots_news_item.put
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /bots/news-item/{news_item_id}/attributes:
     parameters:
     - name: news_item_id
@@ -3885,6 +4020,58 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /config/bots/dag-preview:
+    post:
+      tags:
+      - config
+      description: preview a bot run-order DAG
+      operationId: config.config_bot_dag_preview.post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - type
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                type:
+                  type: string
+                index:
+                  oneOf:
+                  - type: integer
+                  - type: string
+                enabled:
+                  oneOf:
+                  - type: boolean
+                  - type: string
+                parameters:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    RUN_AFTER_COLLECTOR:
+                      type: string
+                    RUN_AFTER_BOTS:
+                      type: string
+                      description: comma-separated bot instance IDs
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
   /config/bots/{bot_id}/execute:
     parameters:
     - name: bot_id
@@ -5766,7 +5953,7 @@ paths:
       - UserAuth: []
       tags:
       - assess
-      description: run bot actions
+      description: queue a bot action for one or more stories or reports
       operationId: assess.bot_actions.post
       requestBody:
         required: true
@@ -5774,6 +5961,23 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+              - bot_id
+              properties:
+                bot_id:
+                  type: string
+                story_id:
+                  type: string
+                story_ids:
+                  type: array
+                  items:
+                    type: string
+                report_id:
+                  type: string
+                report_ids:
+                  type: array
+                  items:
+                    type: string
       responses:
         '200':
           description: success
@@ -5947,6 +6151,33 @@ paths:
             application/json:
               schema:
                 type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /assess/stories/{story_id}/cti:
+    parameters:
+    - name: story_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: get CTI information for IOC tags on news items in the story
+      operationId: assess.story_cti.get
+      responses:
+        '200':
+          description: CTI information for the story
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -6199,6 +6430,27 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assets/cti:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      description: get CTI information for all readable assets
+      operationId: assets_cti.get
+      responses:
+        '200':
+          description: CTI information for all readable assets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /assets/{asset_id}:
     parameters:
     - name: asset_id
@@ -6268,6 +6520,33 @@ paths:
             application/json:
               schema:
                 type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+  /assets/{asset_id}/cti:
+    parameters:
+    - name: asset_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assets
+      description: get CTI information for readable vulnerability reports linked to the asset
+      operationId: asset_cti.get
+      responses:
+        '200':
+          description: CTI information for the asset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cti_response'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -7307,6 +7586,23 @@ paths:
       - config
       description: get schedule
       operationId: config.config_queue_schedule.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success
@@ -7752,6 +8048,23 @@ paths:
       - config
       description: get workers active
       operationId: config.config_active_jobs.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success
@@ -7786,27 +8099,6 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
-  /config/workers/dashboard:
-    get:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: get workers dashboard
-      operationId: config.config_scheduler_dashboard.get
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /config/workers/failed:
     get:
       security:
@@ -7815,6 +8107,23 @@ paths:
       - config
       description: get workers failed
       operationId: config.config_failed_jobs.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success
@@ -7836,6 +8145,23 @@ paths:
       - config
       description: get workers schedule
       operationId: config.config_queue_schedule_config.get
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+      - name: order
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: success
@@ -8793,6 +9119,25 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/tasks/history/cleanup:
+    post:
+      security:
+      - APIKey: []
+      description: clean up persisted task history older than the configured retention window
+      operationId: worker.task_history_cleanup_worker.post
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /worker/misp/last-change:
     post:
       security:
@@ -9090,6 +9435,34 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /worker/products/{product_id}/publish:
+    parameters:
+    - name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      security:
+      - APIKey: []
+      description: store a rendered product as a public Taranis report
+      operationId: worker.products_publish_worker.post
+      responses:
+        '200':
+          description: product published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  url:
+                    type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
   /worker/publishers/{publisher}:
     parameters:
     - name: publisher
@@ -9258,6 +9631,69 @@ components:
       properties:
         access_token:
           type: string
+    cti_enrichment:
+      type: object
+      properties:
+        ioc_type:
+          type: string
+          enum: [cve, email, ip, domain, url, hash]
+        value:
+          type: string
+        status:
+          type:
+          - string
+          - 'null'
+        analyzers:
+          type: array
+          items:
+            type: object
+        errors:
+          type: array
+          items:
+            type: object
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    cti_item:
+      type: object
+      properties:
+        ioc_type:
+          type: string
+          enum: [cve, email, ip, domain, url, hash]
+        value:
+          type: string
+        news_item_ids:
+          type: array
+          items:
+            type: string
+        enrichment:
+          oneOf:
+          - $ref: '#/components/schemas/cti_enrichment'
+          - type: 'null'
+    cti_response:
+      type: object
+      properties:
+        item_type:
+          type: string
+          enum: [news_item, story, report, asset]
+        item_id:
+          type: string
+        iocs:
+          type: array
+          items:
+            $ref: '#/components/schemas/cti_item'
     presentation:
       type: object
       properties:
@@ -9658,6 +10094,7 @@ components:
           $ref: '#/components/schemas/report_item'
     report_publish_attribute_override:
       type: object
+      additionalProperties: false
       required:
       - group_title
       - title
@@ -9674,6 +10111,7 @@ components:
           description: Replacement value applied after report defaults are generated
     report_publish_product_request.report:
       type: object
+      additionalProperties: false
       required:
       - title
       - report_item_type_id
@@ -9696,6 +10134,7 @@ components:
             $ref: '#/components/schemas/report_publish_attribute_override'
     report_publish_product_request.product:
       type: object
+      additionalProperties: false
       required:
       - title
       - product_type_id
@@ -9797,6 +10236,11 @@ components:
           - string
           - 'null'
           format: date-time
+        last_published_url:
+          type:
+          - string
+          - 'null'
+          description: Safe URL of the product's most recent successful publication
         auto_publish:
           type: boolean
         product_type_id:
@@ -9840,6 +10284,7 @@ components:
           type: string
     report_publish_product_request:
       type: object
+      additionalProperties: false
       required:
       - report
       - product
@@ -10285,6 +10730,20 @@ components:
           type: array
           items:
             type: string
+        asset_observables:
+          type: array
+          items:
+            $ref: '#/components/schemas/asset_observable'
+    asset_observable:
+      type: object
+      properties:
+        id:
+          type: string
+        ioc_type:
+          type: string
+          enum: [cve, email, ip, domain, url, hash]
+        value:
+          type: string
     report_item_vulnerability:
       allOf:
       - $ref: '#/components/schemas/report_item.base'
@@ -10389,6 +10848,11 @@ components:
           type: array
           items:
             type: string
+        last_published_url:
+          type:
+          - string
+          - 'null'
+          description: Safe URL of the product's most recent successful publication
       required:
       - title
       - product_type_id
@@ -10634,6 +11098,69 @@ components:
       required:
       - message
       - retryable
+    user_task_result:
+      type: object
+      additionalProperties: false
+      properties:
+        message:
+          type: string
+        reason:
+          type:
+          - string
+          - 'null'
+        retryable:
+          type: boolean
+          default: false
+      required:
+      - message
+      - retryable
+    user_task:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        job_id:
+          type:
+          - string
+          - 'null'
+        task:
+          type:
+          - string
+          - 'null'
+        worker_id:
+          type:
+          - string
+          - 'null'
+        worker_type:
+          type:
+          - string
+          - 'null'
+        result:
+          $ref: '#/components/schemas/user_task_result'
+        status:
+          type: string
+        last_run:
+          type: string
+          format: date-time
+      required:
+      - id
+      - result
+      - status
+      - last_run
+    user_task_list:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/user_task'
+        total_count:
+          type: integer
+      required:
+      - items
+      - total_count
     task_history_stats:
       type: object
       properties:

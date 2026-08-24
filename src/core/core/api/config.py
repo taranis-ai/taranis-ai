@@ -3,13 +3,13 @@ import binascii
 import io
 from typing import Any
 
-from flask import Blueprint, Flask, jsonify, request, send_file
+from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.admin import OSINTSource as OSINTSourceModel
-from psycopg.errors import NotNullViolation, UniqueViolation  # noqa: F401
+from psycopg.errors import NotNullViolation, UniqueViolation
 from pydantic import ValidationError
-from sqlalchemy.exc import IntegrityError  # noqa: F401
+from sqlalchemy.exc import IntegrityError
 
 from core.config import Config
 from core.log import logger
@@ -173,7 +173,7 @@ class ReportItemTypes(MethodView):
     def get(self, type_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if type_id:
             return report_item_type.ReportItemType.get_for_api(type_id)
-        return report_item_type.ReportItemType.get_all_for_api(filter_args, True, current_user)
+        return report_item_type.ReportItemType.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
@@ -209,7 +209,7 @@ class ProductTypes(MethodView):
     def get(self, type_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if type_id:
             return product_type.ProductType.get_for_api(type_id)
-        return product_type.ProductType.get_all_for_api(filter_args, True, current_user)
+        return product_type.ProductType.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self):
@@ -234,7 +234,7 @@ class ProductTypes(MethodView):
         if type_id is None:
             return {"error": "No type_id provided"}, 400
         try:
-            response, status = product_type.ProductType.update(type_id, request.json, current_user)
+            response, status = product_type.ProductType.update(type_id, request.json)
             _invalidate_admin_cache(status)
             return response, status
         except InvalidPresenterTemplatePathError as e:
@@ -338,9 +338,7 @@ class Templates(MethodView):
         base64_content = request.json.get("content")
         response, status = create_or_update_template(template_id, base64_content)
         _invalidate_admin_cache(status)
-        json_response = jsonify(response)
-        json_response.status_code = status
-        return json_response
+        return make_response(jsonify(response), status)
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def put(self, template_path: str | None = None):
@@ -352,9 +350,7 @@ class Templates(MethodView):
         base64_content = request.json.get("content")
         response, status = create_or_update_template(template_path, base64_content)
         _invalidate_admin_cache(status)
-        json_response = jsonify(response)
-        json_response.status_code = status
-        return json_response
+        return make_response(jsonify(response), status)
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, template_path: str | None = None):
@@ -513,7 +509,7 @@ class Users(MethodView):
 
 class Bots(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
+    @extract_args("search", "page", "limit", "sort", "order", "fetch_all", "state")
     def get(self, bot_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if bot_id:
             return bot.Bot.get_for_api(bot_id)
@@ -537,9 +533,13 @@ class Bots(MethodView):
 
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):
-        new_bot = bot.Bot.add(request.json)
-        _invalidate_admin_cache(201)
-        return jsonify({"message": "Bot created", "id": new_bot.id}), 201
+        try:
+            new_bot = bot.Bot.add(request.json)
+            _invalidate_admin_cache(201)
+            return jsonify({"message": "Bot created", "id": new_bot.id}), 201
+        except ValueError as e:
+            logger.warning("Invalid bot create payload: %s", e)
+            return {"error": "Invalid bot create payload"}, 400
 
     @auth_required("CONFIG_BOT_DELETE")
     def delete(self, bot_id: str | None = None):
@@ -553,7 +553,17 @@ class Bots(MethodView):
 class BotExecute(MethodView):
     @auth_required("BOT_EXECUTE")
     def post(self, bot_id: str):
-        return queue_manager.queue_manager.execute_bot_task(bot_id)
+        return queue_manager.queue_manager.execute_bot_task(bot_id, user_id=current_user.id)
+
+
+class BotDagPreview(MethodView):
+    @auth_required("CONFIG_BOT_ACCESS")
+    def post(self):
+        try:
+            return bot.Bot.get_dag_preview(request.json or {}), 200
+        except (TypeError, ValueError) as exc:
+            logger.warning("Invalid bot DAG preview payload: %s", exc)
+            return {"error": "Invalid bot DAG preview payload"}, 400
 
 
 class QueueStatus(MethodView):
@@ -570,14 +580,16 @@ class QueueTasks(MethodView):
 
 class ActiveJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        return queue_manager.queue_manager.get_active_jobs()
+    @extract_args("search", "page", "limit", "order")
+    def get(self, filter_args: dict[str, Any]):
+        return queue_manager.queue_manager.get_active_jobs(filter_args)
 
 
 class FailedJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        return queue_manager.queue_manager.get_failed_jobs()
+    @extract_args("search", "page", "limit", "order")
+    def get(self, filter_args: dict[str, Any]):
+        return queue_manager.queue_manager.get_failed_jobs(filter_args)
 
 
 class WorkerStats(MethodView):
@@ -595,41 +607,6 @@ class AdminMenuBadges(MethodView):
         return response
 
 
-class SchedulerDashboard(MethodView):
-    @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        scheduled_jobs, scheduled_status = queue_manager.queue_manager.get_scheduled_jobs()
-        if scheduled_status != 200:
-            return scheduled_jobs, scheduled_status
-
-        queues, queue_status = queue_manager.queue_manager.get_queued_tasks()
-        if queue_status != 200:
-            return queues, queue_status
-
-        worker_stats, worker_stats_status = queue_manager.queue_manager.get_worker_stats()
-        if worker_stats_status != 200:
-            return worker_stats, worker_stats_status
-
-        active_jobs, active_status = queue_manager.queue_manager.get_active_jobs()
-        if active_status != 200:
-            return active_jobs, active_status
-
-        failed_jobs, failed_status = queue_manager.queue_manager.get_failed_jobs()
-        if failed_status != 200:
-            return failed_jobs, failed_status
-
-        return {
-            "scheduled_jobs": scheduled_jobs.get("items", []),
-            "scheduled_total_count": scheduled_jobs.get("total_count", 0),
-            "queues": queues if isinstance(queues, list) else [],
-            "worker_stats": worker_stats if isinstance(worker_stats, dict) else {},
-            "active_jobs": active_jobs.get("items", []),
-            "active_total_count": active_jobs.get("total_count", 0),
-            "failed_jobs": failed_jobs.get("items", []),
-            "failed_total_count": failed_jobs.get("total_count", 0),
-        }, 200
-
-
 class CronJobs(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
@@ -638,12 +615,13 @@ class CronJobs(MethodView):
 
 class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self, task_id: str | None = None):
+    @extract_args("search", "page", "limit", "order")
+    def get(self, filter_args: dict[str, Any], task_id: str | None = None):
         try:
             if task_id:
                 return queue_manager.queue_manager.get_scheduled_job(task_id)
 
-            return queue_manager.queue_manager.get_scheduled_jobs()
+            return queue_manager.queue_manager.get_scheduled_jobs(filter_args)
         except Exception:
             logger.exception("Failed to get schedules")
             return {"error": "Failed to get schedules"}, 500
@@ -655,7 +633,7 @@ class Connectors(MethodView):
     def get(self, connector_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if connector_id:
             return connector.Connector.get_for_api(connector_id)
-        return connector.Connector.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        return connector.Connector.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_CONNECTOR_CREATE")
     def post(self):
@@ -713,7 +691,7 @@ class ConnectorsPull(MethodView):
     def post(self, connector_id: str):
         """Trigger collection of stories from the external system."""
         try:
-            collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id)
+            collected_stories = queue_manager.queue_manager.pull_from_connector(connector_id=connector_id, user_id=current_user.id)
 
             return {"message": "Stories successfully collected.", "data": collected_stories}, 200
         except Exception:
@@ -723,11 +701,11 @@ class ConnectorsPull(MethodView):
 
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all", "filter_manual")
+    @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all", "filter_manual", "state")
     def get(self, source_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if source_id:
             return osint_source.OSINTSource.get_for_api(source_id)
-        return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
@@ -801,18 +779,18 @@ class OSINTSourceCollect(MethodView):
     def post(self, source_id: str | None = None):
         if source_id:
             if source := osint_source.OSINTSource.get(source_id):
-                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id)
+                return queue_manager.queue_manager.collect_osint_source(source_id, task_id=source.task_id, user_id=current_user.id)
             return {"error": "OSINT Source not found"}, 404
-        return queue_manager.queue_manager.collect_all_osint_sources()
+        return queue_manager.queue_manager.collect_all_osint_sources(user_id=current_user.id)
 
 
 class OSINTSourcePreview(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def get(self, source_id: str):
-        return self.get_osint_source_preview_response(source_id)
+        return self.get_osint_source_preview_response(source_id, user_id=current_user.id)
 
     @classmethod
-    def get_osint_source_preview_response(cls, source_id: str):
+    def get_osint_source_preview_response(cls, source_id: str, user_id: str | None = None):
         task_id = f"source_preview_{source_id}"
 
         if result := task.Task.get(task_id):
@@ -820,11 +798,13 @@ class OSINTSourcePreview(MethodView):
         preview_result, status = queue_manager.queue_manager.get_task(task_id)
         if status == 202:
             return preview_result, status
-        return queue_manager.queue_manager.preview_osint_source(source_id)
+        if user_id is None:
+            return queue_manager.queue_manager.preview_osint_source(source_id)
+        return queue_manager.queue_manager.preview_osint_source(source_id, user_id=user_id)
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id: str):
-        return queue_manager.queue_manager.preview_osint_source(source_id)
+        return queue_manager.queue_manager.preview_osint_source(source_id, user_id=current_user.id)
 
 
 class OSINTSourcesExport(MethodView):
@@ -869,7 +849,7 @@ class OSINTSourceGroups(MethodView):
     def get(self, group_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if group_id:
             return osint_source.OSINTSourceGroup.get_for_api(group_id)
-        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
@@ -883,7 +863,7 @@ class OSINTSourceGroups(MethodView):
             return {"error": "No group_id provided"}, 400
         if not (data := request.json):
             return {"error": "No data provided"}, 400
-        response, status = osint_source.OSINTSourceGroup.update(group_id, data, user=current_user)
+        response, status = osint_source.OSINTSourceGroup.update(group_id, data)
         _invalidate_admin_cache(status)
         return response, status
 
@@ -951,7 +931,7 @@ class WordLists(MethodView):
     def get(self, word_list_id: str | None = None, filter_args: dict[str, Any] | None = None):
         if word_list_id:
             return word_list.WordList.get_for_api(word_list_id)
-        return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+        return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):
@@ -998,7 +978,7 @@ class WordListImport(MethodView):
                 return {"error": "Unable to import Word Lists"}, 400
 
             for wl in wls:
-                queue_manager.queue_manager.gather_word_list(wl.id)
+                queue_manager.queue_manager.gather_word_list(wl.id, user_id=current_user.id)
 
             _invalidate_admin_cache(200)
             return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
@@ -1029,8 +1009,8 @@ class WordListGather(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self, word_list_id: str | None = None):
         if not word_list_id:
-            return queue_manager.queue_manager.gather_all_word_lists()
-        return queue_manager.queue_manager.gather_word_list(word_list_id)
+            return queue_manager.queue_manager.gather_all_word_lists(user_id=current_user.id)
+        return queue_manager.queue_manager.gather_word_list(word_list_id, user_id=current_user.id)
 
 
 class WorkerInstances(MethodView):
@@ -1074,6 +1054,7 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/attributes/<string:attribute_id>", view_func=Attributes.as_view(f"{name}_attribute"), methods=crud_methods)
     config_bp.add_url_rule("/bots", view_func=Bots.as_view(f"{name}_bots_config"))
     config_bp.add_url_rule("/bots/<string:bot_id>", view_func=Bots.as_view(f"{name}_bot_config"), methods=crud_methods)
+    config_bp.add_url_rule("/bots/dag-preview", view_func=BotDagPreview.as_view(f"{name}_bot_dag_preview"))
     config_bp.add_url_rule("/bots/<string:bot_id>/execute", view_func=BotExecute.as_view(f"{name}_bot_execute"))
     config_bp.add_url_rule(
         "/dictionaries-reload/<string:dictionary_type>", view_func=DictionariesReload.as_view(f"{name}_dictionaries_reload")
@@ -1144,7 +1125,6 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/workers/failed", view_func=FailedJobs.as_view(f"{name}_failed_jobs"))
     config_bp.add_url_rule("/workers/stats", view_func=WorkerStats.as_view(f"{name}_worker_stats"))
     config_bp.add_url_rule("/admin-menu-badges", view_func=AdminMenuBadges.as_view(f"{name}_admin_menu_badges"))
-    config_bp.add_url_rule("/workers/dashboard", view_func=SchedulerDashboard.as_view(f"{name}_scheduler_dashboard"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view(f"{name}_queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view(f"{name}_queue_schedule_task"))
     config_bp.add_url_rule("/worker-types", view_func=Workers.as_view(f"{name}_worker_types"))

@@ -57,40 +57,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: nlp-bot
+  name: llm-bot
   labels:
     {{- include "taranis.labels" . | nindent 4 }}
 spec:
   selector:
-    app: nlp-bot
-  ports:
-    - name: http
-      port: 8000
-      targetPort: 8000
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: story-bot
-  labels:
-    {{- include "taranis.labels" . | nindent 4 }}
-spec:
-  selector:
-    app: story-bot
-  ports:
-    - name: http
-      port: 8000
-      targetPort: 8000
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: summary-bot
-  labels:
-    {{- include "taranis.labels" . | nindent 4 }}
-spec:
-  selector:
-    app: summary-bot
+    app: llm-bot
   ports:
     - name: http
       port: 8000

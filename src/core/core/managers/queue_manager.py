@@ -31,31 +31,90 @@ When a source/bot schedule is updated:
 import contextlib
 import hashlib
 import json
+import re
 import time
-from collections.abc import Iterable
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from collections.abc import Callable, Iterable, Sequence
+from copy import copy
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any, cast
 
-from croniter import CroniterBadCronError, CroniterBadDateError, croniter
+from croniter import croniter
 from flask import Flask
+
+
+if TYPE_CHECKING:
+    from core.model.task import Task
 from models.admin import CronSpec
 from redis import Redis
+from redis.exceptions import RedisError
 from rq import Queue
 from rq.exceptions import NoSuchJobError
-from rq.job import Job
+from rq.job import Dependency, Job
 
 from core.config import Config
 from core.log import logger
 from core.service.simple_web_collector import get_simple_web_collector_url
 
 
-OVERDUE_GRACE_PERIOD = timedelta(minutes=5)
 CRON_DEFS_KEY = "rq:cron:def"
 CRON_EVENTS_KEY = "rq:cron:events"
 CRON_NEXT_KEY = "rq:cron:next"
 TOKEN_CLEANUP_JOB_ID = "cleanup_token_blacklist"
 TOKEN_CLEANUP_CRON = "0 2 * * *"
 TOKEN_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Token Blacklist"
+TASK_HISTORY_CLEANUP_JOB_ID = "cleanup_task_history"
+TASK_HISTORY_CLEANUP_CRON = "0 3 * * *"
+TASK_HISTORY_CLEANUP_DISPLAY_NAME = "Maintenance: Cleanup Task History"
+RQ_JOB_ID_COMPONENT_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _positive_int(value: Any, default: int) -> int:
+    try:
+        parsed_value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed_value if parsed_value > 0 else default
+
+
+def _filter_sort_paginate_jobs(
+    jobs: list[dict[str, Any]],
+    filter_args: dict[str, Any],
+    *,
+    default_order: str,
+) -> dict[str, Any]:
+    if search := str(filter_args.get("search") or "").strip().lower():
+        jobs = [
+            job
+            for job in jobs
+            if any(search in str(job.get(field) or "").lower() for field in ("id", "name", "queue", "type", "schedule", "status", "error"))
+        ]
+
+    order = str(filter_args.get("order") or default_order)
+    field, separator, direction = order.rpartition("_")
+    if not separator or direction not in {"asc", "desc"}:
+        field, direction = default_order.rsplit("_", 1)
+    if field not in {
+        "id",
+        "name",
+        "queue",
+        "type",
+        "schedule",
+        "next_run_time",
+        "last_run",
+        "started_at",
+        "failed_at",
+        "status",
+    }:
+        field, direction = default_order.rsplit("_", 1)
+
+    jobs.sort(key=lambda job: str(job.get(field) or "").lower(), reverse=direction == "desc")
+    jobs.sort(key=lambda job: job.get(field) is None)
+
+    total_count = len(jobs)
+    page = _positive_int(filter_args.get("page"), 1)
+    limit = _positive_int(filter_args.get("limit"), 20)
+    offset = (page - 1) * limit
+    return {"items": jobs[offset : offset + limit], "total_count": total_count}
 
 
 def _decode_redis_value(value: bytes | str) -> str:
@@ -92,7 +151,22 @@ def _as_naive_utc(value: datetime | None) -> datetime | None:
         return None
     if value.tzinfo is None or value.utcoffset() is None:
         return value
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value.astimezone(UTC).replace(tzinfo=None)
+
+
+def _task_result_reason(task_result: "Task | None") -> str | None:
+    if task_result is None:
+        return None
+    if not task_result.result:
+        return None
+    try:
+        result = json.loads(task_result.result)
+    except (TypeError, ValueError):
+        return None
+    if isinstance(result, dict):
+        reason = result.get("reason")
+        return reason if isinstance(reason, str) else None
+    return None
 
 
 def _format_utc_timestamp(value: datetime | None) -> str | None:
@@ -102,21 +176,8 @@ def _format_utc_timestamp(value: datetime | None) -> str | None:
         return None
 
 
-def _cron_run_missed_since_last_run(job: dict[str, Any], now: datetime, last_run_dt: datetime | None) -> bool:
-    schedule = job.get("schedule")
-    if not schedule or last_run_dt is None:
-        return False
-
-    try:
-        next_expected_run = croniter(schedule, last_run_dt).get_next(datetime)
-    except (CroniterBadCronError, CroniterBadDateError):
-        return False
-
-    return now > (next_expected_run + OVERDUE_GRACE_PERIOD)
-
-
 def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     for job in jobs:
         last_run_dt = _as_naive_utc(job.get("last_run"))
         next_run_dt = _as_naive_utc(job.get("next_run_time"))
@@ -134,35 +195,15 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         variant = "ghost"
         label = "Queued" if job.get("type") == "scheduled" else "Pending"
         is_overdue = False
-
         if job.get("type") == "cron":
             if not last_run_dt:
                 label = "Pending first run"
                 job["status_badge"] = {"variant": variant, "label": label}
                 job["is_overdue"] = False
                 continue
-            elif _cron_run_missed_since_last_run(job, now, last_run_dt):
-                label = "Missed"
-                variant = "error"
-                is_overdue = True
             elif prev_run_dt and last_run_dt >= prev_run_dt or not prev_run_dt:
                 label = "On schedule"
                 variant = "success"
-            if prev_run_dt:
-                overdue_threshold = prev_run_dt + OVERDUE_GRACE_PERIOD
-                ran_current_window = bool(last_run_dt and last_run_dt >= prev_run_dt)
-                if now > overdue_threshold and not ran_current_window:
-                    label = "Missed"
-                    variant = "error"
-                    is_overdue = True
-                elif ran_current_window:
-                    label = "On schedule"
-                    variant = "success"
-
-        elif next_run_dt and now > (next_run_dt + OVERDUE_GRACE_PERIOD):
-            label = "Missed"
-            variant = "warning"
-            is_overdue = True
 
         job["status_badge"] = {"variant": variant, "label": label}
         job["is_overdue"] = is_overdue
@@ -172,8 +213,8 @@ def _annotate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _compute_next_timestamp(cron: str | None, interval: int | None, base_ts: float) -> float:
     if cron:
-        dt = datetime.fromtimestamp(base_ts, tz=timezone.utc)
-        return croniter(cron, dt).get_next(datetime).timestamp()
+        dt = datetime.fromtimestamp(base_ts, tz=UTC)
+        return cast(datetime, croniter(cron, dt).get_next(datetime)).timestamp()
     if interval is not None:
         return base_ts + int(interval)
     raise ValueError("CronSpec must provide either cron or interval")
@@ -191,6 +232,7 @@ TASK_MAP = {
     "connector_task": "worker.connectors.connector_tasks.connector_task",
     "gather_word_list": "worker.misc.misc_tasks.gather_word_list",
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
+    "cleanup_task_history": "worker.misc.misc_tasks.cleanup_task_history",
     "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
 }
 
@@ -203,9 +245,8 @@ class QueueManager:
         self.redis_url = Config.REDIS_URL
         self.redis_password: str | None = None
         self.queue_names = ["misc", "bots", "collectors", "presenters", "publishers", "connectors"]
-        if redis_password_value := Config.REDIS_PASSWORD:
-            if secret := redis_password_value.get_secret_value():
-                self.redis_password = secret
+        if (redis_password_value := Config.REDIS_PASSWORD) and (secret := redis_password_value.get_secret_value()):
+            self.redis_password = secret
 
         try:
             self.init_app(app)
@@ -249,11 +290,7 @@ class QueueManager:
             managed_specs = self._get_managed_cron_specs()
             desired_ids = set(managed_specs)
             current_ids = self._get_registered_cron_job_ids()
-            housekeeping_ids = set(self._get_housekeeping_cron_specs())
-            managed_current_ids = {
-                job_id for job_id in current_ids if job_id.startswith(("osint_source_", "bot_")) or job_id in housekeeping_ids
-            }
-            stale_ids = sorted(managed_current_ids - desired_ids)
+            stale_ids = sorted(current_ids - desired_ids)
 
             registered = 0
             source_count = 0
@@ -316,10 +353,33 @@ class QueueManager:
     def _get_housekeeping_cron_specs() -> dict[str, CronSpec]:
         specs = (
             CronSpec(
-                meta={"name": TOKEN_CLEANUP_DISPLAY_NAME},
+                meta={
+                    **QueueManager._build_task_meta(
+                        TOKEN_CLEANUP_JOB_ID,
+                        user_id=None,
+                        worker_id=TOKEN_CLEANUP_JOB_ID,
+                        worker_type=TOKEN_CLEANUP_JOB_ID,
+                    ),
+                    "name": TOKEN_CLEANUP_DISPLAY_NAME,
+                },
                 job_id=TOKEN_CLEANUP_JOB_ID,
                 cron=TOKEN_CLEANUP_CRON,
                 func_path="cleanup_token_blacklist",
+                queue_name="misc",
+            ),
+            CronSpec(
+                meta={
+                    **QueueManager._build_task_meta(
+                        TASK_HISTORY_CLEANUP_JOB_ID,
+                        user_id=None,
+                        worker_id=TASK_HISTORY_CLEANUP_JOB_ID,
+                        worker_type=TASK_HISTORY_CLEANUP_JOB_ID,
+                    ),
+                    "name": TASK_HISTORY_CLEANUP_DISPLAY_NAME,
+                },
+                job_id=TASK_HISTORY_CLEANUP_JOB_ID,
+                cron=TASK_HISTORY_CLEANUP_CRON,
+                func_path="cleanup_task_history",
                 queue_name="misc",
             ),
         )
@@ -331,7 +391,7 @@ class QueueManager:
 
         try:
             raw_ids = self._redis.hkeys(CRON_DEFS_KEY)
-        except Exception:
+        except RedisError:
             return set()
 
         return {_decode_redis_value(raw_id) for raw_id in raw_ids}
@@ -432,7 +492,7 @@ class QueueManager:
         if self.error:
             return
         try:
-            for queue_name, queue in self._queues.items():
+            for queue in self._queues.values():
                 queue.empty()
             logger.info("All queues cleared")
         except Exception as e:
@@ -451,6 +511,40 @@ class QueueManager:
         """Get a queue by name"""
         return self._queues.get(queue_name)
 
+    @staticmethod
+    def _is_user_triggered(meta: dict[str, Any] | None) -> bool:
+        return bool(meta and meta.get("user_id"))
+
+    @staticmethod
+    def _prioritize_dependencies(depends_on: Any) -> Dependency:
+        if isinstance(depends_on, Dependency):
+            prioritized = copy(depends_on)
+            prioritized.enqueue_at_front = True
+            return prioritized
+        return Dependency(depends_on, enqueue_at_front=True)
+
+    @classmethod
+    def _prepare_user_priority(cls, meta: dict[str, Any] | None, kwargs: dict[str, Any]) -> bool:
+        user_triggered = cls._is_user_triggered(meta)
+        if user_triggered and (depends_on := kwargs.get("depends_on")) is not None:
+            kwargs["depends_on"] = cls._prioritize_dependencies(depends_on)
+        return user_triggered
+
+    @staticmethod
+    def _build_task_meta(
+        task: str,
+        *,
+        user_id: str | None,
+        worker_id: str,
+        worker_type: str,
+    ) -> dict[str, str | None]:
+        return {
+            "task": task,
+            "user_id": user_id,
+            "worker_id": worker_id,
+            "worker_type": worker_type,
+        }
+
     def update_empty_word_lists(self):
         """Gather word lists that have no entries"""
         from core.model.word_list import WordList
@@ -461,10 +555,21 @@ class QueueManager:
         word_lists = WordList.get_all_empty() or []
         for word_list in word_lists:
             logger.debug(f"Gathering word_list {word_list.id}")
-            self.enqueue_task("misc", "gather_word_list", word_list.id, job_id=f"gather_word_list_{word_list.id}")
+            self.enqueue_task(
+                "misc",
+                "gather_word_list",
+                word_list.id,
+                job_id=f"gather_word_list_{word_list.id}",
+                meta=self._build_task_meta(
+                    "gather_word_list",
+                    user_id=None,
+                    worker_id=word_list.id,
+                    worker_type="gather_word_list",
+                ),
+            )
         logger.info(f"Gathering for {len(word_lists)} empty WordLists scheduled")
 
-    def gather_all_word_lists(self):
+    def gather_all_word_lists(self, user_id: str | None = None):
         """Gather all word lists"""
         from core.model.word_list import WordList
 
@@ -473,7 +578,18 @@ class QueueManager:
 
         word_lists = WordList.get_all_for_gathering() or []
         for word_list in word_lists:
-            self.enqueue_task("misc", "gather_word_list", word_list.id, job_id=f"gather_word_list_{word_list.id}")
+            self.enqueue_task(
+                "misc",
+                "gather_word_list",
+                word_list.id,
+                job_id=f"gather_word_list_{word_list.id}",
+                meta=self._build_task_meta(
+                    "gather_word_list",
+                    user_id=user_id,
+                    worker_id=word_list.id,
+                    worker_type="gather_word_list",
+                ),
+            )
         return {"message": "Gathering for all WordLists scheduled"}, 200
 
     def get_queued_tasks(self):
@@ -512,7 +628,15 @@ class QueueManager:
             self.error = "Could not reach Redis"
             return {"error": "Could not reach Redis"}, 500
 
-    def enqueue_task(self, queue_name: str, task_name: str, *args, job_id: str | None = None, **kwargs):
+    def enqueue_task(
+        self,
+        queue_name: str,
+        task_name: str,
+        *args,
+        job_id: str | None = None,
+        meta: dict[str, Any] | None = None,
+        **kwargs,
+    ):
         """Enqueue a task immediately"""
         if self.error:
             return False
@@ -528,7 +652,11 @@ class QueueManager:
                 logger.error(f"Unknown task: {task_name}")
                 return False
 
-            return queue.enqueue(task_func, *args, job_id=job_id, **kwargs)
+            if meta:
+                kwargs["meta"] = dict(meta)
+
+            user_triggered = self._prepare_user_priority(meta, kwargs)
+            return queue.enqueue(task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
         except Exception as e:
             logger.error(f"Failed to enqueue task {task_name}: {e}")
             return False
@@ -545,8 +673,20 @@ class QueueManager:
                 raise TimeoutError("Job result timed out")
             time.sleep(poll_interval)
 
-    def enqueue_at(self, queue_name: str, task_name: str, scheduled_time: datetime, *args, job_id: str | None = None, **kwargs):
-        """Enqueue a task to run at a specific time"""
+    def enqueue_at(
+        self,
+        queue_name: str,
+        task_name: str,
+        scheduled_time: datetime,
+        *args,
+        job_id: str | None = None,
+        meta: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        """Enqueue a task to run at a specific time.
+
+        RQ promotes scheduled jobs at their due time without waiting for unfinished dependencies.
+        """
         if self.error:
             return False
 
@@ -561,10 +701,12 @@ class QueueManager:
                 logger.error(f"Unknown task: {task_name}")
                 return False
 
-            logger.info(
-                f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}, args={args}, kwargs={kwargs}"
-            )
-            job = queue.enqueue_at(scheduled_time, task_func, *args, job_id=job_id, **kwargs)
+            if meta:
+                kwargs["meta"] = dict(meta)
+
+            user_triggered = self._prepare_user_priority(meta, kwargs)
+            logger.info(f"enqueue_at: queue={queue_name}, func={task_func}, scheduled_time={scheduled_time}, job_id={job_id}")
+            job = queue.enqueue_at(scheduled_time, task_func, *args, job_id=job_id, at_front=user_triggered, **kwargs)
             logger.info(f"enqueue_at: created job {job.id} scheduled for {scheduled_time}")
             return job
         except Exception as e:
@@ -651,19 +793,54 @@ class QueueManager:
             logger.error(f"Failed to get task {task_id}: {e}")
             return {"status": "NOT_FOUND", "error": "Task not found"}, 404
 
-    def collect_osint_source(self, source_id: str, task_id: str):
+    def collect_osint_source(self, source_id: str, task_id: str, user_id: str | None = None):
         """Trigger OSINT source collection"""
-        if self.enqueue_task("collectors", "collector_task", source_id, True, job_id=task_id):
+        from core.model.osint_source import OSINTSource
+
+        if self.enqueue_task(
+            "collectors",
+            "collector_task",
+            source_id,
+            True,
+            job_id=task_id,
+            meta=self._build_task_meta(
+                "collector_task",
+                user_id=user_id,
+                worker_id=source_id,
+                worker_type=self._resolve_worker_type(
+                    OSINTSource.get,
+                    source_id,
+                    fallback="collector_task",
+                ),
+            ),
+        ):
             logger.info(f"Collect for source {source_id} scheduled")
             return {"message": "Refresh for source scheduled"}, 200
         logger.error(f"Could not schedule collection for source {source_id}")
         return {"error": "Could not reach Redis"}, 500
 
-    def preview_osint_source(self, source_id: str):
+    def preview_osint_source(self, source_id: str, user_id: str | None = None):
         """Preview OSINT source collection"""
+        from core.model.osint_source import OSINTSource
+
         task_id = f"source_preview_{source_id}"
         self.purge_job_artifacts(exact_ids={task_id})
-        if job := self.enqueue_task("collectors", "collector_preview", source_id, job_id=task_id):
+        if job := self.enqueue_task(
+            "collectors",
+            "collector_preview",
+            source_id,
+            job_id=task_id,
+            meta=self._build_task_meta(
+                "collector_preview",
+                user_id=user_id,
+                worker_id=source_id,
+                worker_type=self._resolve_worker_type(
+                    OSINTSource.get,
+                    source_id,
+                    fallback="collector_task",
+                ),
+            ),
+        ):
             logger.info(f"Preview for source {source_id} scheduled")
             return {"message": "Preview for source scheduled", "id": job.id, "status": "STARTED"}, 201
         return {"error": "Could not reach Redis"}, 500
@@ -700,13 +877,19 @@ class QueueManager:
         payload_hash = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
         return f"fetch_single_news_item_{payload_hash}"
 
-    def fetch_single_news_item(self, parameters: dict[str, Any]):
+    def fetch_single_news_item(self, parameters: dict[str, Any], user_id: str | None = None):
         url = get_simple_web_collector_url(parameters)
         job = self.enqueue_task(
             "collectors",
             "fetch_single_news_item",
             parameters,
             job_id=self._get_single_fetch_job_id(parameters),
+            meta=self._build_task_meta(
+                "collector_task",
+                user_id=user_id,
+                worker_id=self._get_single_fetch_url(parameters),
+                worker_type="simple_web_collector",
+            ),
         )
         if not job:
             logger.error("Could not schedule fetch_single_news_item task")
@@ -721,7 +904,7 @@ class QueueManager:
             logger.exception("Failed to fetch single news item")
         return {"error": "Failed to fetch single news item"}, 500
 
-    def collect_all_osint_sources(self):
+    def collect_all_osint_sources(self, user_id: str | None = None):
         """Trigger collection for all enabled sources"""
         from core.model.osint_source import OSINTSource
 
@@ -730,87 +913,264 @@ class QueueManager:
 
         sources = OSINTSource.get_all_for_collector()
         for source in sources:
-            self.enqueue_task("collectors", "collector_task", source.id, True, job_id=source.task_id)
+            self.enqueue_task(
+                "collectors",
+                "collector_task",
+                source.id,
+                True,
+                job_id=source.task_id,
+                meta=self._build_task_meta(
+                    "collector_task",
+                    user_id=user_id,
+                    worker_id=source.id,
+                    worker_type=source.type.value,
+                ),
+            )
             logger.info(f"Collect for source {source.id} scheduled")
         return {"message": f"Refresh for {len(sources)} sources scheduled"}, 200
 
-    def push_to_connector(self, connector_id: str, story_ids: list):
+    def push_to_connector(self, connector_id: str, story_ids: list, user_id: str | None = None):
         """Push stories to connector"""
-        if self.enqueue_task("connectors", "connector_task", connector_id, story_ids):
+        from core.model.connector import Connector
+
+        if self.enqueue_task(
+            "connectors",
+            "connector_task",
+            connector_id,
+            story_ids,
+            meta=self._build_task_meta(
+                "connector_task",
+                user_id=user_id,
+                worker_id=connector_id,
+                worker_type=self._resolve_worker_type(
+                    Connector.get,
+                    connector_id,
+                    fallback="connector_task",
+                ),
+            ),
+        ):
             logger.info(f"Connector with id: {connector_id} scheduled")
             return {"message": "Connector scheduled"}, 200
         return {"error": "Could not reach Redis"}, 500
 
-    def pull_from_connector(self, connector_id: str):
+    def pull_from_connector(self, connector_id: str, user_id: str | None = None):
         """Pull from connector"""
-        if self.enqueue_task("connectors", "connector_task", connector_id, None):
+        from core.model.connector import Connector
+
+        if self.enqueue_task(
+            "connectors",
+            "connector_task",
+            connector_id,
+            None,
+            meta=self._build_task_meta(
+                "connector_task",
+                user_id=user_id,
+                worker_id=connector_id,
+                worker_type=self._resolve_worker_type(
+                    Connector.get,
+                    connector_id,
+                    fallback="connector_task",
+                ),
+            ),
+        ):
             logger.info(f"Connector with id: {connector_id} scheduled")
             return {"message": "Connector scheduled"}, 200
         return {"error": "Could not reach Redis"}, 500
 
-    def gather_word_list(self, word_list_id: str):
+    def gather_word_list(self, word_list_id: str, user_id: str | None = None):
         """Gather word list"""
-        if self.enqueue_task("misc", "gather_word_list", word_list_id, job_id=f"gather_word_list_{word_list_id}"):
+        if self.enqueue_task(
+            "misc",
+            "gather_word_list",
+            word_list_id,
+            job_id=f"gather_word_list_{word_list_id}",
+            meta=self._build_task_meta(
+                "gather_word_list",
+                user_id=user_id,
+                worker_id=word_list_id,
+                worker_type="gather_word_list",
+            ),
+        ):
             logger.info(f"Gathering for WordList {word_list_id} scheduled")
             return {"message": "Gathering for WordList scheduled"}, 200
         return {"error": "Could not reach Redis"}, 500
 
-    def execute_bot_task(self, bot_id: str, filter: dict | None = None):
-        bot_args: dict[str, str | dict] = {"bot_id": bot_id}
+    def execute_bot_task(
+        self,
+        bot_id: str,
+        filter: dict | None = None,
+        user_id: str | None = None,
+        trigger_dependents: bool = True,
+    ):
+        from core.model.bot import Bot
+
+        if not isinstance(bot_id, str) or not RQ_JOB_ID_COMPONENT_RE.fullmatch(bot_id):
+            return {"error": "Invalid bot_id"}, 400
+
+        bot_args: dict[str, str | dict | bool] = {"bot_id": bot_id, "trigger_dependents": trigger_dependents}
         if filter:
             bot_args["filter"] = filter
 
-        if self.enqueue_task("bots", "bot_task", job_id=f"bot_{bot_id}", **bot_args):
+        if self.enqueue_task(
+            "bots",
+            "bot_task",
+            job_id=f"bot_{bot_id}",
+            meta=self._build_task_meta(
+                f"bot_{bot_id}",
+                user_id=user_id,
+                worker_id=bot_id,
+                worker_type=self._resolve_worker_type(
+                    Bot.get,
+                    bot_id,
+                    fallback="BOT_TASK",
+                    transform=lambda value: value.upper(),
+                ),
+            ),
+            **bot_args,
+        ):
             logger.info(f"Executing Bot {bot_id} scheduled")
             return {"message": "Executing Bot scheduled"}, 200
         return {"error": "Could not reach Redis"}, 500
 
-    def generate_product(self, product_id: str, countdown: int = 0):
+    def generate_product(self, product_id: str, countdown: int = 0, user_id: str | None = None):
         """Generate product"""
         from datetime import timedelta
 
         if countdown > 0:
-            scheduled_time = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=countdown)
-            job = self.enqueue_at("presenters", "presenter_task", scheduled_time, product_id, job_id=f"presenter_task_{product_id}")
+            scheduled_time = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=countdown)
+            job = self.enqueue_at(
+                "presenters",
+                "presenter_task",
+                scheduled_time,
+                product_id,
+                job_id=f"presenter_task_{product_id}",
+                meta=self._build_task_meta(
+                    "presenter_task",
+                    user_id=user_id,
+                    worker_id=product_id,
+                    worker_type="presenter_task",
+                ),
+            )
         else:
-            job = self.enqueue_task("presenters", "presenter_task", product_id, job_id=f"presenter_task_{product_id}")
+            job = self.enqueue_task(
+                "presenters",
+                "presenter_task",
+                product_id,
+                job_id=f"presenter_task_{product_id}",
+                meta=self._build_task_meta(
+                    "presenter_task",
+                    user_id=user_id,
+                    worker_id=product_id,
+                    worker_type="presenter_task",
+                ),
+            )
 
         if job:
             logger.info(f"Generating Product {product_id} scheduled")
             return {"message": "Generating Product scheduled"}, 200
         return {"error": "Could not reach Redis"}, 500
 
-    def publish_product(self, product_id: str, publisher_id: str):
+    def publish_product(self, product_id: str, publisher_id: str, user_id: str | None = None):
         """Publish product"""
-        if self.enqueue_task("publishers", "publisher_task", product_id, publisher_id, job_id=f"publisher_task_{product_id}"):
+        from core.model.publisher_preset import PublisherPreset
+
+        if self.enqueue_task(
+            "publishers",
+            "publisher_task",
+            product_id,
+            publisher_id,
+            job_id=f"publisher_task_{product_id}",
+            meta=self._build_task_meta(
+                "publisher_task",
+                user_id=user_id,
+                worker_id=publisher_id,
+                worker_type=self._resolve_worker_type(
+                    PublisherPreset.get,
+                    publisher_id,
+                    fallback="publisher_task",
+                ),
+            ),
+        ):
             logger.info(f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled")
             return {"message": "Publishing Product scheduled"}, 200
         logger.error(f"Could not schedule publishing for product {product_id} with publisher {publisher_id}")
         return {"error": "Could not reach Redis"}, 500
 
-    def post_collection_bots(self, source_id: str):
+    def post_collection_bots(self, source_id: str, user_id: str | None = None):
         """Run post-collection bots"""
         from core.model.bot import Bot
 
-        post_collection_bots = list(Bot.get_post_collection())
+        post_collection_bots, dependencies_by_id = Bot.get_collector_run_graph()
         if not post_collection_bots:
             return {"message": "No post collection bots found"}, 200
 
-        previous_job = None
-        for bot_id in post_collection_bots:
-            bot_args = {"bot_id": bot_id, "filter": {"SOURCE": source_id}}
+        if not self._enqueue_bot_graph(
+            post_collection_bots,
+            dependencies_by_id,
+            filter={"SOURCE": source_id},
+            job_suffix=source_id,
+            user_id=user_id,
+            trigger_dependents=False,
+        ):
+            return {"error": "Could not schedule post collection bot"}, 500
+
+        return {"message": "Post collection bots scheduled"}, 200
+
+    def schedule_bot_dependents(self, bot_id: str, filter: dict | None = None, user_id: str | None = None):
+        """Schedule bots that depend on a completed bot instance."""
+        from core.model.bot import Bot
+
+        dependent_bots, dependencies_by_id = Bot.get_dependent_run_graph(bot_id)
+        if not dependent_bots:
+            return {"message": "No dependent bots found"}, 200
+
+        if not self._enqueue_bot_graph(
+            dependent_bots,
+            dependencies_by_id,
+            filter=filter,
+            job_suffix=bot_id,
+            user_id=user_id,
+            trigger_dependents=False,
+        ):
+            return {"error": "Could not schedule dependent bot"}, 500
+        return {"message": "Dependent bots scheduled"}, 200
+
+    def _enqueue_bot_graph(
+        self,
+        bots: Sequence[Any],
+        dependencies_by_id: dict[str, list[str]],
+        *,
+        filter: dict | None,
+        job_suffix: str,
+        user_id: str | None,
+        trigger_dependents: bool,
+    ) -> bool:
+        jobs_by_bot_id: dict[str, Any] = {}
+        for bot in bots:
+            dependency_ids = dependencies_by_id.get(bot.id, [])
+            bot_type = getattr(bot, "type", None)
+            worker_type = getattr(bot_type, "value", bot_type)
+            bot_args: dict[str, str | dict | bool] = {"bot_id": bot.id, "trigger_dependents": trigger_dependents}
+            if filter:
+                bot_args["filter"] = filter
+            parent_jobs = [jobs_by_bot_id[dependency_id] for dependency_id in dependency_ids if dependency_id in jobs_by_bot_id]
             job = self.enqueue_task(
                 "bots",
                 "bot_task",
-                job_id=f"bot_{bot_id}_{source_id}",
-                depends_on=previous_job,
+                job_id=self._build_unique_job_id("bot", f"{bot.id}_{job_suffix}"),
+                depends_on=parent_jobs or None,
+                meta=self._build_task_meta(
+                    f"bot_{bot.id}",
+                    user_id=user_id,
+                    worker_id=bot.id,
+                    worker_type=str(worker_type).upper() if worker_type else "BOT_TASK",
+                ),
                 **bot_args,
             )
             if not job:
-                return {"error": "Could not schedule post collection bot"}, 500
-            previous_job = job
-
-        return {"message": "Post collection bots scheduled"}, 200
+                return False
+            jobs_by_bot_id[bot.id] = job
+        return True
 
     def _get_job_display_name(self, job: Job) -> str:
         """Get human-readable name for a job based on its function and args"""
@@ -830,7 +1190,7 @@ class QueueManager:
     ) -> dict[str, Any]:
         """Build a normalized cron schedule entry."""
         if now is None:
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            now = datetime.now(UTC).replace(tzinfo=None)
 
         cron = croniter(cron_schedule, now)
         next_run = cron.get_next(datetime)
@@ -864,24 +1224,20 @@ class QueueManager:
             all_jobs.extend(OSINTSource.get_enabled_schedule_entries())
             all_jobs.extend(Bot.get_enabled_schedule_entries())
 
-            cleanup_result = self._get_latest_task_result(
-                exact_ids={TOKEN_CLEANUP_JOB_ID},
-                prefixes=[f"cron_{TOKEN_CLEANUP_JOB_ID}_"],
-                task_name=TOKEN_CLEANUP_JOB_ID,
-            )
             all_jobs.append(
-                self.build_cron_schedule_entry(
+                self._build_housekeeping_schedule_entry(
                     job_id=TOKEN_CLEANUP_JOB_ID,
                     name=TOKEN_CLEANUP_DISPLAY_NAME,
-                    queue="misc",
                     cron_schedule=TOKEN_CLEANUP_CRON,
-                    task_id=TOKEN_CLEANUP_JOB_ID,
-                    last_run=cleanup_result.last_run if cleanup_result else None,
-                    last_success=cleanup_result.last_success if cleanup_result else None,
-                    last_status=cleanup_result.status if cleanup_result else None,
                 )
             )
-
+            all_jobs.append(
+                self._build_housekeeping_schedule_entry(
+                    job_id=TASK_HISTORY_CLEANUP_JOB_ID,
+                    name=TASK_HISTORY_CLEANUP_DISPLAY_NAME,
+                    cron_schedule=TASK_HISTORY_CLEANUP_CRON,
+                )
+            )
         except Exception as e:
             logger.warning(f"Failed to fetch cron schedules: {e}")
             # Don't fail the whole request if cron scheduler is not available
@@ -893,6 +1249,24 @@ class QueueManager:
         from core.model.task import Task as TaskModel
 
         return TaskModel.get_latest_matching(exact_ids=exact_ids, prefixes=prefixes, task_name=task_name)
+
+    def _build_housekeeping_schedule_entry(self, *, job_id: str, name: str, cron_schedule: str) -> dict[str, Any]:
+        result = self._get_latest_task_result(
+            exact_ids={job_id},
+            prefixes=[f"cron_{job_id}_"],
+            task_name=job_id,
+        )
+        return self.build_cron_schedule_entry(
+            job_id=job_id,
+            name=name,
+            queue="misc",
+            cron_schedule=cron_schedule,
+            task_id=job_id,
+            last_run=result.last_run if result else None,
+            last_success=result.last_success if result else None,
+            last_status=result.status if result else None,
+            last_reason=_task_result_reason(result),
+        )
 
     def get_scheduled_job(self, task_id: str) -> tuple[dict, int]:
         try:
@@ -915,7 +1289,22 @@ class QueueManager:
                     annotated_job[field] = value.isoformat()
             return annotated_job, 200
 
-    def get_scheduled_jobs(self) -> tuple[dict, int]:
+    def get_scheduled_job_count(self) -> int:
+        if self.error or not self._redis:
+            return 0
+
+        try:
+            from rq.registry import ScheduledJobRegistry
+
+            job_ids = set(self._get_managed_cron_specs())
+            for queue in self._queues.values():
+                job_ids.update(ScheduledJobRegistry(queue=queue).get_job_ids())
+            return len(job_ids)
+        except Exception:
+            logger.exception("Failed to count scheduled jobs")
+            return 0
+
+    def get_scheduled_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
         """Get all scheduled jobs across all queues
 
         Returns both:
@@ -947,15 +1336,24 @@ class QueueManager:
 
                         scheduled_for: datetime | None = None
                         if isinstance(scheduled_time, datetime):
-                            scheduled_for = (
-                                scheduled_time.astimezone(timezone.utc).replace(tzinfo=None) if scheduled_time.tzinfo else scheduled_time
-                            )
+                            scheduled_for = scheduled_time.astimezone(UTC).replace(tzinfo=None) if scheduled_time.tzinfo else scheduled_time
 
                         # Get human-readable name from job args
                         job_name = self._get_job_display_name(job)
+                        task_result = self._get_latest_task_result(exact_ids={job.id})
 
                         all_jobs.append(
-                            {"id": job.id, "name": job_name, "queue": queue_name, "next_run_time": scheduled_for, "type": "scheduled"}
+                            {
+                                "id": job.id,
+                                "name": job_name,
+                                "queue": queue_name,
+                                "next_run_time": scheduled_for,
+                                "type": "scheduled",
+                                "last_run": task_result.last_run if task_result else None,
+                                "last_success": task_result.last_success if task_result else None,
+                                "last_status": task_result.status if task_result else None,
+                                "last_reason": _task_result_reason(task_result),
+                            }
                         )
                     except Exception as e:
                         logger.error(f"Failed to fetch job {job_id} from queue {queue_name}: {e}")
@@ -971,8 +1369,9 @@ class QueueManager:
                     if isinstance(value, datetime):
                         job[field] = value.isoformat()
 
-            logger.info(f"get_scheduled_jobs: returning {len(annotated_jobs)} total jobs")
-            return {"items": annotated_jobs, "total_count": len(annotated_jobs)}, 200
+            result = _filter_sort_paginate_jobs(annotated_jobs, filter_args, default_order="next_run_time_asc")
+            logger.info(f"get_scheduled_jobs: returning {len(result['items'])} of {result['total_count']} jobs")
+            return result, 200
         except Exception as e:
             logger.exception(f"Failed to get scheduled jobs: {e}")
             return {"error": "Failed to get scheduled jobs"}, 500
@@ -1027,7 +1426,8 @@ class QueueManager:
             cron_jobs: list[dict[str, Any]] = []
 
             for source in OSINTSource.get_all_for_collector():
-                if not (cron_schedule := source.get_schedule_with_default()):
+                source_cron_schedule = source.get_schedule_with_default()
+                if not source_cron_schedule:
                     continue
 
                 cron_jobs.append(
@@ -1035,14 +1435,15 @@ class QueueManager:
                         "task": "collector_task",
                         "queue": "collectors",
                         "args": [source.id, False],
-                        "cron": cron_schedule,
+                        "cron": source_cron_schedule,
                         "task_id": source.task_id,
                         "name": source.name,
                     }
                 )
 
             for bot_item in Bot.get_all_for_collector():
-                if not (cron_schedule := bot_item.get_schedule()):
+                bot_cron_schedule = bot_item.get_schedule()
+                if not bot_cron_schedule:
                     continue
 
                 cron_jobs.append(
@@ -1050,7 +1451,7 @@ class QueueManager:
                         "task": "bot_task",
                         "queue": "bots",
                         "args": [bot_item.id],
-                        "cron": cron_schedule,
+                        "cron": bot_cron_schedule,
                         "task_id": bot_item.task_id,
                         "name": bot_item.name,
                     }
@@ -1066,12 +1467,22 @@ class QueueManager:
                     "name": "Cleanup Token Blacklist",
                 }
             )
+            cron_jobs.append(
+                {
+                    "task": TASK_HISTORY_CLEANUP_JOB_ID,
+                    "queue": "misc",
+                    "args": [],
+                    "cron": TASK_HISTORY_CLEANUP_CRON,
+                    "task_id": TASK_HISTORY_CLEANUP_JOB_ID,
+                    "name": "Cleanup Task History",
+                }
+            )
             return {"cron_jobs": cron_jobs}, 200
         except Exception:
             logger.exception("Failed to get cron job configurations")
             return {"error": "Failed to get cron job configurations"}, 500
 
-    def get_active_jobs(self) -> tuple[dict, int]:
+    def get_active_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
         """Get currently running jobs from StartedJobRegistry"""
         if self.error or not self._redis:
             return {"error": "QueueManager not initialized"}, 500
@@ -1102,12 +1513,12 @@ class QueueManager:
                         logger.error(f"Failed to fetch active job {job_id}: {e}")
                         continue
 
-            return {"items": active_jobs, "total_count": len(active_jobs)}, 200
+            return _filter_sort_paginate_jobs(active_jobs, filter_args, default_order="started_at_asc"), 200
         except Exception as e:
             logger.exception(f"Failed to get active jobs: {e}")
             return {"error": "Failed to get active jobs"}, 500
 
-    def get_failed_jobs(self) -> tuple[dict, int]:
+    def get_failed_jobs(self, filter_args: dict[str, Any]) -> tuple[dict, int]:
         """Get failed jobs from FailedJobRegistry"""
         if self.error or not self._redis:
             return {"error": "QueueManager not initialized"}, 500
@@ -1124,6 +1535,9 @@ class QueueManager:
                     try:
                         job = Job.fetch(job_id, connection=self._redis)
                         job_name = self._get_job_display_name(job)
+                        result = job.latest_result()
+                        error = getattr(result, "exc_string", "")
+                        error = error.strip().rsplit("\n", 1)[-1] if isinstance(error, str) else ""
 
                         failed_jobs.append(
                             {
@@ -1131,7 +1545,7 @@ class QueueManager:
                                 "name": job_name,
                                 "queue": queue_name,
                                 "failed_at": job.ended_at.isoformat() if job.ended_at else None,
-                                "error": "Task failed",
+                                "error": error or "Task failed",
                                 "status": "failed",
                             }
                         )
@@ -1146,7 +1560,7 @@ class QueueManager:
                         logger.debug(f"Skipping failed job {job_id}: {e}")
                         continue
 
-            return {"items": failed_jobs, "total_count": len(failed_jobs)}, 200
+            return _filter_sort_paginate_jobs(failed_jobs, filter_args, default_order="failed_at_desc"), 200
         except Exception as e:
             logger.exception(f"Failed to get failed jobs: {e}")
             return {"error": "Failed to get failed jobs"}, 500
@@ -1195,14 +1609,44 @@ class QueueManager:
     def _build_unique_job_id(task_name: str, product_id: str) -> str:
         return f"{task_name}_{product_id}_{time.time_ns()}"
 
-    def autopublish_product(self, product_id: str, auto_publisher_id: str) -> tuple[dict[str, Any], int]:
+    @staticmethod
+    def _resolve_worker_type(
+        getter: Callable[[str], Any],
+        item_id: str,
+        *,
+        fallback: str,
+        transform: Callable[[str], str] | None = None,
+    ) -> str:
+        try:
+            item = getter(item_id)
+        except Exception:
+            return fallback
+        if item and getattr(item, "type", None):
+            value = item.type.value
+            return transform(value) if transform else value
+        return fallback
+
+    def autopublish_product(self, product_id: str, auto_publisher_id: str, user_id: str | None = None) -> tuple[dict[str, Any], int]:
         """Render a product and publish it once rendering finishes."""
+        from core.model.publisher_preset import PublisherPreset
+
         if self.error or not self._redis:
             logger.error("QueueManager not initialized, cannot autopublish product %s", product_id)
             return {"error": "QueueManager not initialized"}, 500
 
         presenter_job_id = self._build_unique_job_id("presenter_task", product_id)
-        presenter_job = self.enqueue_task("presenters", "presenter_task", product_id, job_id=presenter_job_id)
+        presenter_job = self.enqueue_task(
+            "presenters",
+            "presenter_task",
+            product_id,
+            job_id=presenter_job_id,
+            meta=self._build_task_meta(
+                "presenter_task",
+                user_id=user_id,
+                worker_id=product_id,
+                worker_type="presenter_task",
+            ),
+        )
 
         if not presenter_job:
             logger.error("Could not schedule presenter job %s for product %s", presenter_job_id, product_id)
@@ -1216,6 +1660,16 @@ class QueueManager:
             auto_publisher_id,
             job_id=publisher_job_id,
             depends_on=presenter_job,
+            meta=self._build_task_meta(
+                "publisher_task",
+                user_id=user_id,
+                worker_id=auto_publisher_id,
+                worker_type=self._resolve_worker_type(
+                    PublisherPreset.get,
+                    auto_publisher_id,
+                    fallback="publisher_task",
+                ),
+            ),
         )
 
         if not publisher_job:

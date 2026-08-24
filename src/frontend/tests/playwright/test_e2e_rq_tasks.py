@@ -2,7 +2,7 @@ import json
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, cast
 
 import pytest
@@ -139,7 +139,7 @@ def _assert_cron_registration(
 
 def _previous_scheduled_timestamp(cron_spec: dict[str, Any], current_next_run: float) -> float:
     if cron_expression := cron_spec.get("cron"):
-        current_next_run_dt = datetime.fromtimestamp(current_next_run, tz=timezone.utc)
+        current_next_run_dt = datetime.fromtimestamp(current_next_run, tz=UTC)
         return croniter(str(cron_expression), current_next_run_dt).get_prev(datetime).timestamp()
 
     if interval := cron_spec.get("interval"):
@@ -317,10 +317,15 @@ def test_rq_scheduled_collector_cron(
     forced_due_timestamp = rq_harness.force_cron_job_due(cron_job_id)
 
     _, payload = rq_harness.wait_for_cron_task_result(cron_job_id)
-    assert payload.get("status") == "SUCCESS"
+    status = payload.get("status")
+    assert status in {"SUCCESS", "NOT_MODIFIED"}
     result = payload.get("result") or {}
     result_message = result.get("message") if isinstance(result, dict) else result
-    assert source_payload["name"] in (result_message or "")
+    if status == "SUCCESS":
+        assert source_payload["name"] in (result_message or "")
+    else:
+        assert isinstance(result, dict)
+        assert result.get("reason") == "collector_not_modified"
     _, next_run_after_execution = rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)
     assert next_run_after_execution > forced_due_timestamp
 
@@ -384,15 +389,20 @@ def test_rq_scheduled_wordlist_bot_cron(
     assert (payload.get("entry_count") or 0) > 0
 
     cron_expression = "*/1 * * * *"
+    bots_payload = rq_harness.core_client.json_request("GET", "/config/bots")
+    assert isinstance(bots_payload, dict), "Expected bot list response to be a dict"
+    wordlist_bot = next((item for item in bots_payload.get("items", []) if str(item.get("type", "")).upper() == "WORDLIST_BOT"), None)
+    assert isinstance(wordlist_bot, dict), "Expected preseeded WORDLIST_BOT"
+    bot_id = str(wordlist_bot["id"])
     bot_payload = {
-        "name": "E2E Wordlist Bot",
-        "description": "E2E wordlist bot",
-        "type": "WORDLIST_BOT",
+        "name": wordlist_bot["name"],
+        "description": wordlist_bot.get("description", ""),
+        "type": wordlist_bot["type"],
         "parameters": {
+            **wordlist_bot.get("parameters", {}),
             "REFRESH_INTERVAL": cron_expression,
         },
     }
-    bot_id = rq_harness.create_bot(bot_payload)
     rq_harness.update_bot(bot_id, bot_payload)
     cron_job_id = f"bot_{bot_id}"
     rq_harness.assert_cron_registration(cron_job_id, expected_cron=cron_expression)

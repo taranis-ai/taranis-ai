@@ -93,8 +93,8 @@ class ProductView(BaseView):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Download product failed: {str(e)}")
-            error = f"Failed to download product - {str(e)}"
+            logger.error(f"Download product failed: {e!s}")
+            error = f"Failed to download product - {e!s}"
 
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
@@ -110,8 +110,8 @@ class ProductView(BaseView):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Render product failed: {str(e)}")
-            error = f"Failed to render product - {str(e)}"
+            logger.error(f"Render product failed: {e!s}")
+            error = f"Failed to render product - {e!s}"
 
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
@@ -127,8 +127,8 @@ class ProductView(BaseView):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Publish product failed: {str(e)}")
-            error = f"Failed to publish product - {str(e)}"
+            logger.error(f"Publish product failed: {e!s}")
+            error = f"Failed to publish product - {e!s}"
 
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 

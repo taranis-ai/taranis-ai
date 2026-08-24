@@ -1,9 +1,11 @@
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from functools import wraps
 from hmac import compare_digest
 
-from flask import Flask, Response, g, jsonify, make_response, request
+from flask import Flask, Response, g, make_response, request
 from flask_jwt_extended import JWTManager, current_user, get_jwt, get_jwt_identity, verify_jwt_in_request
+from flask_jwt_extended.exceptions import JWTExtendedException
+from jwt.exceptions import PyJWTError
 
 from core.auth.database_authenticator import DatabaseAuthenticator
 from core.auth.dev_authenticator import DevAuthenticator
@@ -22,12 +24,11 @@ AUTH_ERROR = ({"error": "not authorized"}, 401)
 
 def cleanup_token_blacklist(app):
     with app.app_context():
-        TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
+        TokenBlacklist.delete_older(TokenBlacklist.utcnow() - timedelta(days=1))
 
 
 def initialize(app: Flask):
     global current_authenticator
-    global jwt
 
     jwt.init_app(app)
 
@@ -60,16 +61,6 @@ def change_password(old_password: str, new_password: str, confirm_password: str)
         return make_response({"error": "Internal server error"}, 500)
 
 
-def refresh(user: "User"):
-    exp_timestamp = get_jwt()["exp"]
-    now = datetime.now(timezone.utc)
-    target_timestamp = datetime.timestamp(now + timedelta(minutes=30))
-    if target_timestamp > exp_timestamp:
-        return current_authenticator.refresh(user)
-    encoded_token = request.cookies.get("access_token_cookie")
-    return jsonify({"access_token": encoded_token})
-
-
 def logout(jti):
     return current_authenticator.logout(jti)
 
@@ -96,7 +87,7 @@ def api_key_required(fn):
         if not _has_valid_api_key(log_failures=True):
             return AUTH_ERROR
 
-        # allow
+        g.authenticated_user = None
         return fn(*args, **kwargs)
 
     return wrapper
@@ -134,7 +125,7 @@ def _has_valid_api_key(*, log_failures: bool = False) -> bool:
 def _jwt_authorize(permissions_set: set[str]) -> tuple[dict[str, str], int] | None:
     try:
         verify_jwt_in_request()
-    except Exception as ex:
+    except (JWTExtendedException, PyJWTError) as ex:
         logger.exception(str(ex))
         return AUTH_ERROR
 

@@ -1,3 +1,5 @@
+from typing import cast
+
 from flask import render_template
 
 
@@ -44,7 +46,7 @@ def test_settings_export_error_returns_oob_notification(app, monkeypatch):
     )
 
     with app.test_request_context("/admin/settings/api/settings/export-stories"):
-        body, status = settings_views.SettingsView.settings_action("/settings/export-stories")
+        body, status = cast(tuple[str, int], settings_views.SettingsView.settings_action("/settings/export-stories"))
 
     assert status == 200
     assert 'hx-swap-oob="true"' in body
@@ -94,15 +96,15 @@ def test_settings_patch_action_sends_only_submitted_fields(app, monkeypatch):
     with app.test_request_context(
         "/admin/settings/settings",
         method="PATCH",
-        data={"settings[default_collector_proxy]": "http://proxy.test"},
+        data={"settings[default_collector_proxy]": "http://proxy.test", "settings[onboarding_enabled]": "false"},
     ):
-        body, status = settings_views.SettingsView.settings_action("/settings/settings", method="patch")
+        body, status = cast(tuple[str, int], settings_views.SettingsView.settings_action("/settings/settings", method="patch"))
 
     assert status == 200
     assert calls == [
         (
             "/settings/settings",
-            {"settings": {"default_collector_proxy": "http://proxy.test"}},
+            {"settings": {"default_collector_proxy": "http://proxy.test", "onboarding_enabled": False}},
         )
     ]
     assert '<span id="notification-message">Successfully updated settings</span>' in body

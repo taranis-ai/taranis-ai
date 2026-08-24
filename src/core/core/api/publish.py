@@ -63,7 +63,7 @@ class Products(MethodView):
 class PublishProduct(MethodView):
     @auth_required("PUBLISH_PRODUCT")
     def post(self, product_id: str, publisher_id: str):
-        response, status = queue_manager.queue_manager.publish_product(product_id, publisher_id)
+        response, status = queue_manager.queue_manager.publish_product(product_id, publisher_id, user_id=current_user.id)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status
 
@@ -71,7 +71,7 @@ class PublishProduct(MethodView):
 class ProductsRender(MethodView):
     @auth_required("PUBLISH_ACCESS")
     def post(self, product_id: str):
-        response, status = queue_manager.queue_manager.generate_product(product_id)
+        response, status = queue_manager.queue_manager.generate_product(product_id, user_id=current_user.id)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status
 
@@ -83,13 +83,19 @@ class ProductsRender(MethodView):
 class AutoRenderProducts(MethodView):
     @auth_required("PUBLISH_ACCESS")
     def get(self, report_item_id: str):
-        products = ProductService.autopublish_product(report_item_id)
+        products = ProductService.autopublish_product(report_item_id, user_id=current_user.id)
         product_list = [product.to_dict() for product in products]
         return {"products": product_list}, 200
 
 
+class PublishedReports(MethodView):
+    def get(self, product_id: str):
+        return ProductService.get_published_report(product_id)
+
+
 def initialize(app: Flask):
     publish_bp = Blueprint("publish", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/publish")
+    published_reports_bp = Blueprint("published_reports", __name__, url_prefix=f"{Config.APPLICATION_ROOT}reports")
 
     publish_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("render_product"))
     publish_bp.add_url_rule(
@@ -101,4 +107,6 @@ def initialize(app: Flask):
     publish_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view("publisher_presets"))
     publish_bp.add_url_rule("/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
     publish_bp.add_url_rule("/products/auto-render/<string:report_item_id>", view_func=AutoRenderProducts.as_view("auto_render_products"))
+    published_reports_bp.add_url_rule("/<string:product_id>", view_func=PublishedReports.as_view("published_report"))
     app.register_blueprint(publish_bp)
+    app.register_blueprint(published_reports_bp)

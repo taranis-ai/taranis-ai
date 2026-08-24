@@ -2,6 +2,7 @@ from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user, get_jwt, jwt_required
 
+from core.auth.base_authenticator import BaseAuthenticator
 from core.auth.external_authenticator import ExternalAuthenticator
 from core.config import Config
 from core.log import logger
@@ -12,11 +13,13 @@ class Login(MethodView):
     def post(self):
         if Config.TARANIS_AUTHENTICATOR == "external":
             return auth_manager.authenticate(ExternalAuthenticator.get_credentials(request.headers))
-        if not request.json and not request.form:
+        json_data = request.get_json(silent=True) if request.is_json else None
+        form_data = request.form
+        if not json_data and not form_data:
             return {"error": "No data provided"}, 400
 
-        username = request.json.get("username") if request.json else request.form.get("username")
-        password = request.json.get("password") if request.json else request.form.get("password")
+        username = json_data.get("username") if isinstance(json_data, dict) else form_data.get("username")
+        password = json_data.get("password") if isinstance(json_data, dict) else form_data.get("password")
 
         if not username or not password:
             return {"error": "Missing username or password"}, 400
@@ -26,9 +29,9 @@ class Login(MethodView):
 
 
 class Refresh(MethodView):
-    @jwt_required()
+    @jwt_required(locations=["headers"])
     def get(self):
-        return auth_manager.refresh(current_user)
+        return BaseAuthenticator.issue_access_token(current_user)
 
 
 class Logout(MethodView):

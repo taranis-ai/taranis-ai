@@ -8,24 +8,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 HTMX_WAIT_TIMEOUT_MS = 30000
 HTMX_QUIET_WINDOW_MS = 50
 
-_HTMX_TRIGGER_SELECTOR = ", ".join(
-    [
-        "[hx-get]",
-        "[hx-post]",
-        "[hx-put]",
-        "[hx-delete]",
-        "[hx-patch]",
-        "[hx-trigger]",
-        "[hx-boost]",
-        "[data-hx-get]",
-        "[data-hx-post]",
-        "[data-hx-put]",
-        "[data-hx-delete]",
-        "[data-hx-patch]",
-        "[data-hx-trigger]",
-        "[data-hx-boost]",
-    ]
-)
+_HTMX_TRIGGER_SELECTOR = "[hx-get], [hx-post], [hx-put], [hx-delete], [hx-patch], [hx-trigger], [hx-boost], [data-hx-get], [data-hx-post], [data-hx-put], [data-hx-delete], [data-hx-patch], [data-hx-trigger], [data-hx-boost]"
 
 _HTMX_SUPPORT_SCRIPT = r"""
 (() => {
@@ -211,7 +194,7 @@ def wait_for_htmx_settled(
     _raise_for_recorded_htmx_error(page)
 
 
-def with_htmx_wait(page: Page, action: Callable[[], T], timeout: int = HTMX_WAIT_TIMEOUT_MS) -> T:
+def with_htmx_wait[T](page: Page, action: Callable[[], T], timeout: int = HTMX_WAIT_TIMEOUT_MS) -> T:
     wait_for_htmx_settled(page, timeout=timeout)
     reset_htmx_state(page)
     result = action()

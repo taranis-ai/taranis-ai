@@ -20,7 +20,7 @@
           <fieldset class="fieldset bg-base-100 flex-none w-1/4">
             <legend class="fieldset-legend">Recent activity window</legend>
             {{ form_input_content(label="Activity Window Days", name="dashboard[trending_cluster_days]",
-                        value=dashboard.trending_cluster_days , type='number') }}
+              value=dashboard.trending_cluster_days , type='number') }}
           </fieldset>
 
           {{ form_switch(label="Show Trending Clusters", name="dashboard[show_trending_clusters]", value=dashboard.show_trending_clusters, yes_val=true, no_val=false, required=False, width='w-1/4') }}
@@ -40,7 +40,7 @@
           </select>
         </div>
 
-        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
         <input type="submit" class="btn btn-primary w-2/4 mt-4" value="Update Dashboard Settings" />
       </div>
     </form>

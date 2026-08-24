@@ -1,14 +1,20 @@
 # pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
+import fakeredis
+import pytest
 import rq.registry as rq_registry
+from rq import Queue
 
+import core.service.dashboard as dashboard_module
 from core.managers import queue_manager as qm_module
 from core.managers.queue_manager import QueueManager
 from core.model.bot import Bot
 from core.model.osint_source import OSINTSource
 from core.model.task import Task as TaskModel
+from core.service.dashboard import DashboardService
+from tests.application.support.builders import create_osint_source
 
 
 class _FakeRedis:
@@ -75,6 +81,23 @@ class _DummyQueue:
         self.connection = object()
 
 
+class _FailedResult:
+    exc_string = "Traceback (most recent call last):\nValueError: boom"
+
+
+class _FailedJob:
+    def __init__(self, job_id):
+        self.id = job_id
+        self.func_name = "other.task"
+        self.args = []
+        self.meta = {}
+        self.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
+
+    @staticmethod
+    def latest_result():
+        return _FailedResult()
+
+
 def _make_queue_manager() -> QueueManager:
     qm = QueueManager.__new__(QueueManager)
     qm.error = ""
@@ -83,8 +106,56 @@ def _make_queue_manager() -> QueueManager:
     return qm
 
 
-def test_annotate_jobs_marks_overdue_scheduled(monkeypatch):
-    fixed_now = datetime(2025, 12, 12, 8, 10, tzinfo=timezone.utc)
+def test_get_scheduled_job_count_includes_configured_and_housekeeping_jobs(monkeypatch):
+    qm = _make_queue_manager()
+    monkeypatch.setattr(
+        qm,
+        "_get_managed_cron_specs",
+        lambda: {
+            "collector-source-1": None,
+            qm_module.TASK_HISTORY_CLEANUP_JOB_ID: None,
+            qm_module.TOKEN_CLEANUP_JOB_ID: None,
+        },
+    )
+
+    assert qm.get_scheduled_job_count() == 3
+
+
+def test_dashboard_schedule_count_matches_scheduled_jobs_total_for_configured_sources(app, session, monkeypatch):
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm_module, "queue_manager", qm)
+    monkeypatch.setattr(dashboard_module, "get_health_response", lambda: ({"healthy": True}, 200))
+
+    with app.app_context():
+        create_osint_source(rank=1, name="Scheduled count consistency source")
+
+        schedules, status = qm.get_scheduled_jobs({})
+        dashboard = DashboardService.get_dashboard_data()["items"][0]
+
+    assert status == 200
+    assert dashboard["schedule_length"] > len(qm._get_housekeeping_cron_specs())
+    assert dashboard["schedule_length"] == schedules["total_count"]
+
+
+@pytest.mark.parametrize(
+    "filter_args",
+    [
+        {"page": "invalid", "limit": "invalid"},
+        {"page": "0", "limit": "0"},
+        {"page": "-2", "limit": "-5"},
+    ],
+)
+def test_filter_sort_paginate_jobs_uses_defaults_for_invalid_paging(filter_args):
+    jobs = [{"id": f"job-{index:02d}"} for index in range(25)]
+
+    result = qm_module._filter_sort_paginate_jobs(jobs, filter_args, default_order="id_asc")
+
+    assert [job["id"] for job in result["items"]] == [f"job-{index:02d}" for index in range(20)]
+    assert result["total_count"] == 25
+
+
+def test_annotate_jobs_ignores_scheduled_lateness(monkeypatch):
+    fixed_now = datetime(2025, 12, 12, 8, 10, tzinfo=UTC)
 
     class _FixedDateTime(datetime):
         @classmethod
@@ -101,13 +172,13 @@ def test_annotate_jobs_marks_overdue_scheduled(monkeypatch):
 
     annotated = qm_module._annotate_jobs([job])[0]
 
-    assert annotated["status_badge"]["variant"] == "warning"
-    assert annotated["is_overdue"] is True
+    assert annotated["status_badge"]["variant"] == "ghost"
+    assert annotated["is_overdue"] is False
     assert annotated["last_run_relative"].endswith("ago")
 
 
 def test_annotate_jobs_marks_first_cron_run_pending(monkeypatch):
-    fixed_now = datetime(2025, 12, 12, 8, 0, tzinfo=timezone.utc)
+    fixed_now = datetime(2025, 12, 12, 8, 0, tzinfo=UTC)
 
     class _FixedDateTime(datetime):
         @classmethod
@@ -127,6 +198,24 @@ def test_annotate_jobs_marks_first_cron_run_pending(monkeypatch):
 
     assert annotated["status_badge"]["label"] == "Pending first run"
     assert annotated["is_overdue"] is False
+
+
+def test_annotate_jobs_marks_completed_cron_run_on_schedule():
+    job = {
+        "type": "cron",
+        "last_run": datetime(2025, 12, 12, 8, 0, 0),
+        "previous_run_time": datetime(2025, 12, 12, 7, 0, 0),
+    }
+
+    annotated = qm_module._annotate_jobs([job])[0]
+
+    assert annotated["status_badge"] == {"variant": "success", "label": "On schedule"}
+
+
+def test_task_result_reason_ignores_invalid_json():
+    task = cast(Any, type("FakeTask", (), {"result": "{not json"})())
+
+    assert qm_module._task_result_reason(task) is None
 
 
 def test_cancel_job_cancels_instance_and_cron(monkeypatch):
@@ -161,7 +250,7 @@ def test_cancel_job_cancels_instance_and_cron(monkeypatch):
 
 def test_cancel_job_returns_false_when_not_found(monkeypatch):
     def fake_fetch(job_id, connection=None):
-        raise Exception("missing")
+        raise qm_module.NoSuchJobError("missing")
 
     monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
 
@@ -260,7 +349,7 @@ def test_get_active_jobs_uses_registry(monkeypatch):
             self.func_name = "other.task"
             self.args = []
             self.meta = {}
-            self.started_at = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+            self.started_at = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
 
     class FakeRegistry:
         def __init__(self, queue=None):
@@ -278,7 +367,7 @@ def test_get_active_jobs_uses_registry(monkeypatch):
     qm = _make_queue_manager()
     qm._queues = {"bots": _DummyQueue("bots")}  # type: ignore[assignment]
 
-    payload, status = qm.get_active_jobs()
+    payload, status = qm.get_active_jobs({})
 
     assert status == 200
     assert payload["items"][0]["id"] == "job-1"
@@ -286,15 +375,6 @@ def test_get_active_jobs_uses_registry(monkeypatch):
 
 
 def test_get_failed_jobs_uses_registry(monkeypatch):
-    class FakeJob:
-        def __init__(self, job_id):
-            self.id = job_id
-            self.func_name = "other.task"
-            self.args = []
-            self.meta = {}
-            self.ended_at = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
-            self.exc_info = "boom"
-
     class FakeRegistry:
         def __init__(self, queue=None):
             self.queue = queue
@@ -303,7 +383,7 @@ def test_get_failed_jobs_uses_registry(monkeypatch):
             return ["job-9"]
 
     def fake_fetch(job_id, connection=None):
-        return FakeJob(job_id)
+        return _FailedJob(job_id)
 
     monkeypatch.setattr(rq_registry, "FailedJobRegistry", FakeRegistry)
     monkeypatch.setattr(qm_module, "Job", type("Job", (), {"fetch": staticmethod(fake_fetch)}))
@@ -311,11 +391,12 @@ def test_get_failed_jobs_uses_registry(monkeypatch):
     qm = _make_queue_manager()
     qm._queues = {"misc": _DummyQueue("misc")}  # type: ignore[assignment]
 
-    payload, status = qm.get_failed_jobs()
+    payload, status = qm.get_failed_jobs({})
 
     assert status == 200
     assert payload["items"][0]["id"] == "job-9"
     assert payload["items"][0]["status"] == "failed"
+    assert payload["items"][0]["error"] == "ValueError: boom"
 
 
 def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
@@ -340,7 +421,7 @@ def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
     qm = _make_queue_manager()
     qm._queues = {"bots": _DummyQueue("bots")}  # type: ignore[assignment]
 
-    payload, status = qm.get_failed_jobs()
+    payload, status = qm.get_failed_jobs({})
 
     assert status == 200
     assert payload == {"items": [], "total_count": 0}
@@ -381,7 +462,10 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
         "queue_name": "presenters",
         "task_name": "presenter_task",
         "args": ("product-1",),
-        "kwargs": {"job_id": "presenter_task_product-1_101"},
+        "kwargs": {
+            "job_id": "presenter_task_product-1_101",
+            "meta": {"task": "presenter_task", "user_id": None, "worker_id": "product-1", "worker_type": "presenter_task"},
+        },
     }
     assert calls[1] == {
         "queue_name": "publishers",
@@ -390,8 +474,225 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
         "kwargs": {
             "job_id": "publisher_task_product-1_202",
             "depends_on": presenter_job,
+            "meta": {"task": "publisher_task", "user_id": None, "worker_id": "publisher-1", "worker_type": "publisher_task"},
         },
     }
+
+
+def test_enqueue_task_passes_meta_to_rq_queue(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue(self, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append({"task_func": task_func, "args": args, "job_id": job_id, "kwargs": kwargs})
+            return True
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+
+    result = qm.enqueue_task(
+        "collectors",
+        "collector_task",
+        "source-1",
+        True,
+        job_id="collect_rss_collector_source-1",
+        meta={"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"},
+    )
+
+    assert result is True
+    assert queue_calls == [
+        {
+            "task_func": "worker.collectors.collector_tasks.collector_task",
+            "args": ("source-1", True),
+            "job_id": "collect_rss_collector_source-1",
+            "kwargs": {
+                "at_front": False,
+                "meta": {"task": "collector_task", "user_id": None, "worker_id": "source-1", "worker_type": "rss_collector"},
+            },
+        }
+    ]
+
+
+def test_enqueue_task_places_user_triggered_job_at_front(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue(self, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append({"task_func": task_func, "args": args, "job_id": job_id, "kwargs": kwargs})
+            return object()
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "product-1",
+        job_id="presenter_task_product-1",
+        meta={"task": "presenter_task", "user_id": "user-1", "worker_id": "product-1", "worker_type": "presenter_task"},
+    )
+
+    assert queue_calls[0]["kwargs"]["at_front"] is True
+
+
+def test_user_triggered_jobs_run_lifo_ahead_of_background_jobs():
+    queue = Queue("presenters", connection=fakeredis.FakeRedis())
+    qm = _make_queue_manager()
+    qm._queues = {"presenters": queue}
+
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "background-product",
+        job_id="background-job",
+        meta={"task": "presenter_task", "user_id": None, "worker_id": "background-product", "worker_type": "presenter_task"},
+    )
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "first-user-product",
+        job_id="first-user-job",
+        meta={"task": "presenter_task", "user_id": "user-1", "worker_id": "first-user-product", "worker_type": "presenter_task"},
+    )
+    qm.enqueue_task(
+        "presenters",
+        "presenter_task",
+        "second-user-product",
+        job_id="second-user-job",
+        meta={"task": "presenter_task", "user_id": "user-2", "worker_id": "second-user-product", "worker_type": "presenter_task"},
+    )
+
+    assert queue.job_ids == ["second-user-job", "first-user-job", "background-job"]
+
+
+def test_enqueue_task_prioritizes_dependencies_for_user_triggered_job(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue(self, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append({"task_func": task_func, "args": args, "job_id": job_id, "kwargs": kwargs})
+            return object()
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+
+    qm.enqueue_task(
+        "publishers",
+        "publisher_task",
+        "product-1",
+        "publisher-1",
+        depends_on=["presenter-job-1", "presenter-job-2"],
+        meta={"task": "publisher_task", "user_id": "user-1", "worker_id": "publisher-1", "worker_type": "publisher_task"},
+    )
+
+    dependency = queue_calls[0]["kwargs"]["depends_on"]
+    assert isinstance(dependency, qm_module.Dependency)
+    assert dependency.dependencies == ["presenter-job-1", "presenter-job-2"]
+    assert dependency.allow_failure is False
+    assert dependency.enqueue_at_front is True
+
+
+def test_enqueue_task_preserves_existing_dependency_options(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue(self, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append({"task_func": task_func, "args": args, "job_id": job_id, "kwargs": kwargs})
+            return object()
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+    existing_dependency = qm_module.Dependency("presenter-job", allow_failure=True)
+    existing_dependency.custom_config = {"timeout": 120}
+
+    qm.enqueue_task(
+        "publishers",
+        "publisher_task",
+        "product-1",
+        "publisher-1",
+        depends_on=existing_dependency,
+        meta={"task": "publisher_task", "user_id": "user-1", "worker_id": "publisher-1", "worker_type": "publisher_task"},
+    )
+
+    dependency = queue_calls[0]["kwargs"]["depends_on"]
+    assert isinstance(dependency, qm_module.Dependency)
+    assert dependency is not existing_dependency
+    assert dependency.dependencies == ["presenter-job"]
+    assert dependency.allow_failure is True
+    assert dependency.enqueue_at_front is True
+    assert dependency.custom_config == {"timeout": 120}
+    assert existing_dependency.enqueue_at_front is False
+
+
+def test_enqueue_at_preserves_user_priority(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue_at(self, scheduled_time, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append(
+                {
+                    "scheduled_time": scheduled_time,
+                    "task_func": task_func,
+                    "args": args,
+                    "job_id": job_id,
+                    "kwargs": kwargs,
+                }
+            )
+            return object()
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+    scheduled_time = datetime(2026, 7, 23, tzinfo=UTC)
+
+    qm.enqueue_at(
+        "presenters",
+        "presenter_task",
+        scheduled_time,
+        "product-1",
+        job_id="presenter_task_product-1",
+        depends_on="collector-job",
+        meta={"task": "presenter_task", "user_id": "user-1", "worker_id": "product-1", "worker_type": "presenter_task"},
+    )
+
+    assert queue_calls[0]["kwargs"]["at_front"] is True
+    dependency = queue_calls[0]["kwargs"]["depends_on"]
+    assert isinstance(dependency, qm_module.Dependency)
+    assert dependency.dependencies == ["collector-job"]
+    assert dependency.enqueue_at_front is True
+
+
+def test_enqueue_at_keeps_background_job_at_normal_priority(monkeypatch):
+    queue_calls = []
+
+    class FakeQueue:
+        def enqueue_at(self, scheduled_time, task_func, *args, job_id=None, **kwargs):
+            queue_calls.append(
+                {
+                    "scheduled_time": scheduled_time,
+                    "task_func": task_func,
+                    "args": args,
+                    "job_id": job_id,
+                    "kwargs": kwargs,
+                }
+            )
+            return object()
+
+    qm = _make_queue_manager()
+    monkeypatch.setattr(qm, "get_queue", lambda _queue_name: FakeQueue())
+    scheduled_time = datetime(2026, 7, 23, tzinfo=UTC)
+
+    qm.enqueue_at(
+        "presenters",
+        "presenter_task",
+        scheduled_time,
+        "product-1",
+        job_id="presenter_task_product-1",
+        depends_on="collector-job",
+        meta={"task": "presenter_task", "user_id": None, "worker_id": "product-1", "worker_type": "presenter_task"},
+    )
+
+    assert queue_calls[0]["kwargs"]["at_front"] is False
+    assert queue_calls[0]["kwargs"]["depends_on"] == "collector-job"
 
 
 def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypatch):
@@ -410,7 +711,8 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
         def __init__(self):
             self.last_run = datetime(2025, 1, 1, 0, 0, 0)
             self.last_success = datetime(2025, 1, 1, 0, 0, 0)
-            self.status = "ok"
+            self.status = "FAILURE"
+            self.result = '{"reason":"job_timeout"}'
 
     class FakeSource:
         def __init__(self):
@@ -439,6 +741,7 @@ def test_osint_schedule_entries_include_metadata(monkeypatch):
     entry = entries[0]
     assert entry["id"] == "osint_source_source-1"
     assert entry["queue"] == "collectors"
+    assert entry["last_reason"] == "job_timeout"
     assert entry["previous_run_time"]
 
 
@@ -487,6 +790,38 @@ def test_bot_schedule_entries_skip_invalid_cron(monkeypatch):
     assert entries == []
 
 
+def test_bot_schedule_entries_include_last_reason(monkeypatch):
+    class FakeTask:
+        def __init__(self):
+            self.last_run = datetime(2025, 1, 1, 0, 0, 0)
+            self.last_success = datetime(2025, 1, 1, 0, 0, 0)
+            self.status = "FAILURE"
+            self.result = '{"reason":"job_failed"}'
+
+    class FakeBot:
+        def __init__(self):
+            self.id = "bot-1"
+            self.name = "Bot One"
+            self.task_id = "task-1"
+            self.cron_run_prefix = "cron_bot_bot-1_"
+            self.cron_job_id = "bot_bot-1"
+
+        def get_schedule(self):
+            return "0 * * * *"
+
+    monkeypatch.setattr(Bot, "get_all_for_collector", classmethod(lambda cls: [FakeBot()]))
+    monkeypatch.setattr(
+        TaskModel,
+        "get_latest_matching",
+        classmethod(lambda cls, exact_ids=None, prefixes=None, task_name=None: FakeTask()),
+    )
+
+    entries = Bot.get_enabled_schedule_entries(now=datetime(2025, 1, 1, 0, 0))
+
+    assert entries
+    assert entries[0]["last_reason"] == "job_failed"
+
+
 def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
     def fake_osint_entries():
         return [
@@ -494,7 +829,7 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
                 "id": f"osint_source_{i}",
                 "name": f"Collector {i}",
                 "queue": "collectors",
-                "next_run_time": datetime(2025, 1, 1, 0, 0, 0),
+                "next_run_time": datetime(2025, 1, 1, 0, 0, 0) + timedelta(minutes=120 - i),
                 "previous_run_time": datetime(2024, 12, 31, 23, 0, 0),
                 "schedule": "0 * * * *",
                 "type": "cron",
@@ -512,11 +847,66 @@ def test_get_scheduled_jobs_with_many_sources(app, monkeypatch):
     qm._redis = object()
 
     with app.app_context():
-        schedules, status = qm.get_scheduled_jobs()
+        schedules, status = qm.get_scheduled_jobs({})
 
     assert status == 200
-    # 120 OSINT cron jobs + cleanup housekeeping cron
-    assert schedules["total_count"] == 121
+    # 120 OSINT cron jobs + two housekeeping crons
+    assert schedules["total_count"] == 122
+    assert len(schedules["items"]) == 20
+    assert schedules["items"][0]["id"] == "osint_source_119"
+
+
+def test_get_scheduled_jobs_filters_sorts_and_paginates(app, monkeypatch):
+    def fake_osint_entries():
+        return [
+            {
+                "id": f"osint_source_{index}",
+                "name": name,
+                "queue": "collectors",
+                "next_run_time": datetime(2025, 1, 1, index, 0, 0),
+                "schedule": "0 * * * *",
+                "type": "cron",
+            }
+            for index, name in enumerate(["Alpha feed", "Beta feed", "Alpha archive"])
+        ]
+
+    monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: fake_osint_entries()))
+    monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
+
+    qm = _make_queue_manager()
+    qm._redis = object()
+
+    with app.app_context():
+        schedules, status = qm.get_scheduled_jobs(
+            {
+                "search": "alpha",
+                "order": "name_desc",
+                "page": "2",
+                "limit": "1",
+            }
+        )
+
+    assert status == 200
+    assert schedules["total_count"] == 2
+    assert [job["name"] for job in schedules["items"]] == ["Alpha archive"]
+
+
+def test_get_scheduled_jobs_uses_safe_paging_defaults(app, monkeypatch):
+    monkeypatch.setattr(OSINTSource, "get_enabled_schedule_entries", classmethod(lambda cls: []))
+    monkeypatch.setattr(Bot, "get_enabled_schedule_entries", classmethod(lambda cls: []))
+
+    qm = _make_queue_manager()
+    qm._redis = object()
+
+    with app.app_context():
+        schedules, status = qm.get_scheduled_jobs({"page": "invalid", "limit": "invalid"})
+
+    assert status == 200
+    assert schedules["total_count"] == 2
+    assert {job["id"] for job in schedules["items"]} == {
+        qm_module.TASK_HISTORY_CLEANUP_JOB_ID,
+        qm_module.TOKEN_CLEANUP_JOB_ID,
+    }
 
 
 def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
@@ -570,12 +960,14 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
     qm._redis.hashes["rq:cron:def"] = {  # type: ignore[attr-defined]
         "osint_source_stale": b'{"cron":"0 * * * *"}',
         "bot_stale": b'{"cron":"0 * * * *"}',
-        "custom_keep": b'{"cron":"0 * * * *"}',
+        "reconcile_task_failures": b'{"cron":"*/5 * * * *"}',
+        "unconfigured_job": b'{"cron":"0 * * * *"}',
     }
     qm._redis.zsets["rq:cron:next"] = {  # type: ignore[attr-defined]
         "osint_source_stale": 1234.0,
         "bot_stale": 1234.0,
-        "custom_keep": 1234.0,
+        "reconcile_task_failures": 1234.0,
+        "unconfigured_job": 1234.0,
     }
 
     purged_calls: list[tuple[set[str], list[str]]] = []
@@ -593,9 +985,17 @@ def test_reschedule_all_prunes_stale_managed_cron_jobs(monkeypatch):
     assert "osint_source_live-source" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "bot_live-bot" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "cleanup_token_blacklist" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert "cleanup_task_history" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "osint_source_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert "bot_stale" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
-    assert "custom_keep" in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert "reconcile_task_failures" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
+    assert "reconcile_task_failures" not in qm._redis.zsets["rq:cron:next"]  # type: ignore[index,attr-defined]
+    assert "unconfigured_job" not in qm._redis.hashes["rq:cron:def"]  # type: ignore[index,attr-defined]
     assert len(purged_calls) == 1
     assert purged_calls[0][0] == set()
-    assert set(purged_calls[0][1]) == {"cron_osint_source_stale_", "cron_bot_stale_"}
+    assert set(purged_calls[0][1]) == {
+        "cron_osint_source_stale_",
+        "cron_bot_stale_",
+        "cron_reconcile_task_failures_",
+        "cron_unconfigured_job_",
+    }

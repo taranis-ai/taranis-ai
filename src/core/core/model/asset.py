@@ -1,9 +1,11 @@
 from typing import Any
 
+from models.cti import normalize_ioc_type, normalize_ioc_value
 from sqlalchemy import or_
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.organization import Organization
@@ -22,13 +24,14 @@ class Asset(BaseModel):
     asset_group: Mapped["AssetGroup"] = relationship("AssetGroup")
 
     asset_cpes: Mapped[list["AssetCpe"]] = relationship("AssetCpe", cascade="all, delete-orphan", back_populates="asset")
+    asset_observables: Mapped[list["AssetObservable"]] = relationship("AssetObservable", cascade="all, delete-orphan", back_populates="asset")
 
     vulnerabilities: Mapped[list["AssetVulnerability"]] = relationship(
         "AssetVulnerability", cascade="all, delete-orphan", back_populates="asset"
     )
     vulnerabilities_count: Mapped[int] = db.Column(db.Integer, default=0)
 
-    def __init__(self, name, serial, description, group=None, asset_cpes=None, vulnerabilities=None, id=None):
+    def __init__(self, name, serial, description, group=None, asset_cpes=None, asset_observables=None, vulnerabilities=None, id=None):
         self.id = self.normalize_uuid_id(id)
         self.name = name
         self.serial = serial
@@ -38,7 +41,22 @@ class Asset(BaseModel):
         else:
             self.asset_group_id = AssetGroup.get_default_group().id
         self.asset_cpes = [a for a in (AssetCpe.get(cpe) for cpe in asset_cpes) if a] if asset_cpes else []
+        self.asset_observables = self._load_observables(asset_observables)
         self.vulnerabilities = [v for v in (AssetVulnerability.get(vuln) for vuln in vulnerabilities) if v] if vulnerabilities else []
+
+    @staticmethod
+    def _load_observables(observables: list[dict[str, Any]] | None) -> list["AssetObservable"]:
+        loaded: dict[tuple[str, str], AssetObservable] = {}
+        for observable in observables or []:
+            if not isinstance(observable, dict):
+                continue
+            raw_type = str(observable.get("ioc_type") or "").strip()
+            raw_value = str(observable.get("value") or "").strip()
+            if not raw_type and not raw_value:
+                continue
+            item = AssetObservable(raw_type, raw_value)
+            loaded.setdefault((item.ioc_type, item.value), item)
+        return list(loaded.values())
 
     @classmethod
     def get_by_cpe(cls, cpes):
@@ -85,7 +103,7 @@ class Asset(BaseModel):
             self.vulnerabilities.append(vulnerability)
 
     @classmethod
-    def solve_vulnerability(cls, organization: Organization, asset_id, report_item_id, solved):
+    def solve_vulnerability(cls, organization: Organization, asset_id, report_item_id, solved) -> tuple[dict, int]:
         asset = cls.get(asset_id)
         if not asset:
             return {"error": "Asset Not Found"}, 404
@@ -101,20 +119,29 @@ class Asset(BaseModel):
                         asset.vulnerabilities_count += 1
                 vulnerability.solved = solved
                 db.session.commit()
-                return
+                return {"message": "Asset vulnerability updated"}, 200
+
+        return {"error": "Asset Vulnerability Not Found"}, 404
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
         query = db.select(cls)
 
         if search := filter_args.get("search"):
-            query = query.join(AssetCpe, Asset.id == AssetCpe.asset_id).filter(
-                or_(
-                    Asset.name.ilike(f"%{search}%"),
-                    Asset.description.ilike(f"%{search}%"),
-                    Asset.serial.ilike(f"%{search}%"),
-                    AssetCpe.value.ilike(f"%{search}%"),
+            query = (
+                query.outerjoin(AssetCpe, Asset.id == AssetCpe.asset_id)
+                .outerjoin(AssetObservable, Asset.id == AssetObservable.asset_id)
+                .filter(
+                    or_(
+                        Asset.name.ilike(f"%{search}%"),
+                        Asset.description.ilike(f"%{search}%"),
+                        Asset.serial.ilike(f"%{search}%"),
+                        AssetCpe.value.ilike(f"%{search}%"),
+                        AssetObservable.ioc_type.ilike(f"%{search}%"),
+                        AssetObservable.value.ilike(f"%{search}%"),
+                    )
                 )
+                .distinct()
             )
 
         if group_id := filter_args.get("group"):
@@ -134,19 +161,23 @@ class Asset(BaseModel):
     def to_dict(self):
         data = super().to_dict()
         data["asset_cpes"] = [asset_cpe.id for asset_cpe in self.asset_cpes if asset_cpe]
+        data["asset_observables"] = [observable.to_dict() for observable in self.asset_observables]
         data["vulnerabilities"] = [vulnerability.id for vulnerability in self.vulnerabilities]
         return data
 
     @classmethod
     def get_for_api(cls, item_id, organization: Organization) -> tuple[dict[str, Any], int]:
-        if item := cls.get(item_id):
-            if AssetGroup.access_allowed(organization, item.asset_group_id):
-                return item.to_dict(), 200
+        if (item := cls.get(item_id)) and AssetGroup.access_allowed(organization, item.asset_group_id):
+            return item.to_dict(), 200
         return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def add(cls, organization: Organization, data) -> tuple[dict, int]:
-        asset = cls.from_dict(data)
+        try:
+            asset = cls.from_dict(data)
+        except ValueError:
+            logger.exception("Failed to add asset")
+            return {"error": "Invalid asset data"}, 400
         if not AssetGroup.access_allowed(organization, asset.asset_group_id):
             return {"error": "Access Denied"}, 403
 
@@ -163,9 +194,15 @@ class Asset(BaseModel):
 
         if not AssetGroup.access_allowed(organization, asset.asset_group_id):
             return {"error": "Access Denied"}, 403
-        for key, value in data.items():
-            if hasattr(asset, key) and key != "id":
-                setattr(asset, key, value)
+        try:
+            for key, value in data.items():
+                if key == "asset_observables":
+                    asset.asset_observables = cls._load_observables(value)
+                elif hasattr(asset, key) and key != "id":
+                    setattr(asset, key, value)
+        except ValueError:
+            logger.exception("Failed to update asset")
+            return {"error": "Invalid asset data"}, 400
         asset.update_vulnerabilities()
         db.session.commit()
         return {"message": "Asset updated", "id": asset.id}, 201
@@ -206,6 +243,28 @@ class AssetVulnerability(BaseModel):
         return cls.get_filtered(db.select(cls).filter_by(report_item_id=report_id))
 
 
+class AssetObservable(BaseModel):
+    __tablename__ = "asset_observable"
+
+    id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
+    ioc_type: Mapped[str] = db.Column(db.String(32), nullable=False)
+    value: Mapped[str] = db.Column(db.String(2048), nullable=False)
+
+    asset_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("asset.id"))
+    asset: Mapped["Asset"] = relationship("Asset", back_populates="asset_observables")
+
+    def __init__(self, ioc_type, value, id=None):
+        normalized_type = normalize_ioc_type(str(ioc_type or ""))
+        if not normalized_type:
+            raise ValueError("Observable type must be one of: cve, email, ip, domain, url, hash")
+        normalized_value = normalize_ioc_value(str(value or ""), normalized_type)
+        if not normalized_value:
+            raise ValueError("Observable value is required")
+        self.id = self.normalize_uuid_id(id)
+        self.ioc_type = normalized_type
+        self.value = normalized_value
+
+
 class AssetGroup(BaseModel):
     __tablename__ = "asset_group"
 
@@ -240,7 +299,7 @@ class AssetGroup(BaseModel):
         if default_group := cls.get_by_key("default"):
             return default_group
         if not (org := Organization.find_by_name("The Earth")):
-            raise Exception("Default organization (id=1) not found. Cannot create default asset group.")
+            raise RuntimeError("Default organization (id=1) not found. Cannot create default asset group.")
         return AssetGroup.add(
             {
                 "name": "Default",
@@ -251,7 +310,7 @@ class AssetGroup(BaseModel):
         )
 
     @classmethod
-    def get(cls, item_id: str) -> "AssetGroup | None":
+    def get(cls, item_id: str | None) -> "AssetGroup | None":
         if item_id is None:
             return None
         lookup_id = str(item_id)
@@ -261,9 +320,8 @@ class AssetGroup(BaseModel):
             normalized_id = cls.normalize_uuid_id(item_id)
         except (TypeError, ValueError):
             normalized_id = None
-        if normalized_id and normalized_id != lookup_id:
-            if asset_group := super().get(normalized_id):
-                return asset_group
+        if normalized_id and normalized_id != lookup_id and (asset_group := super().get(normalized_id)):
+            return asset_group
         if lookup_id:
             return cls.get_by_key(lookup_id)
         return None

@@ -1,11 +1,13 @@
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import responses
 from flask import url_for
+from lxml import html as lxml_html
 from models.user import ProfileSettings
 
 from frontend.cache import add_user_to_cache, cache
+from frontend.config import Config
 
 
 def _requested_core_paths(responses_mock):
@@ -59,7 +61,64 @@ def test_scheduler_tab_query_param_overrides_initial(authenticated_client, mock_
     assert 'id="scheduled-tab" class="tab-panel hidden"' not in html
 
 
-def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_client, mock_core_get_endpoints):
+def test_source_filters_preserve_each_other_and_table_query(authenticated_client, mock_core_get_endpoints):
+    with authenticated_client.application.app_context():
+        url = url_for(
+            "admin.osint_sources",
+            filter_manual="false",
+            state="failure",
+            search="source",
+            page=3,
+            limit=5,
+            order="name_desc",
+        )
+
+    response = authenticated_client.get(url)
+
+    assert response.status_code == 200
+    tree = lxml_html.fromstring(response.get_data(as_text=True))
+    status_form = tree.xpath('//*[@aria-label="Status"]/ancestor::form')[0]
+    manual_form = tree.xpath('//*[@aria-label="Manual sources"]/ancestor::form')[0]
+    status_values = {(item.get("name"), item.get("value")) for item in status_form.xpath('.//input[@type="hidden"]')}
+    manual_values = {(item.get("name"), item.get("value")) for item in manual_form.xpath('.//input[@type="hidden"]')}
+    expected_shared = {("search", "source"), ("limit", "5"), ("order", "name_desc")}
+    assert expected_shared | {("filter_manual", "false")} <= status_values
+    assert expected_shared | {("state", "failure")} <= manual_values
+    assert status_form.xpath('.//*[@data-testid="status-filter-failed"][@checked]')
+    assert not status_form.xpath('.//input[@name="page"]')
+    assert not manual_form.xpath('.//input[@name="page"]')
+
+    search_form = tree.xpath('//*[@id="osint_source-table-container-search"]/ancestor::form')[0]
+    assert search_form.xpath('.//input[@type="hidden"][@name="state"][@value="failure"]')
+    order_link = tree.xpath('//a[contains(@href, "order=")]')[0]
+    limit_select = tree.xpath('//select[@name="limit"]')[0]
+    assert parse_qs(urlparse(order_link.get("href")).query)["state"] == ["failure"]
+    assert parse_qs(urlparse(limit_select.get("hx-get")).query)["state"] == ["failure"]
+
+
+def test_bot_table_query_preserves_failure_filter(authenticated_client, mock_core_get_endpoints):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.bots", state="failure", search="bot", page=3, limit=5, order="name_desc")
+
+    response = authenticated_client.get(url)
+
+    assert response.status_code == 200
+    tree = lxml_html.fromstring(response.get_data(as_text=True))
+    status_form = tree.xpath('//*[@aria-label="Status"]/ancestor::form')[0]
+    status_values = {(item.get("name"), item.get("value")) for item in status_form.xpath('.//input[@type="hidden"]')}
+    assert {("search", "bot"), ("limit", "5"), ("order", "name_desc")} <= status_values
+    assert status_form.xpath('.//*[@data-testid="status-filter-failed"][@checked]')
+    assert not status_form.xpath('.//input[@name="page"]')
+
+    search_form = tree.xpath('//*[@id="bot-table-container-search"]/ancestor::form')[0]
+    assert search_form.xpath('.//input[@type="hidden"][@name="state"][@value="failure"]')
+    order_link = tree.xpath('//a[contains(@href, "order=")]')[0]
+    limit_select = tree.xpath('//select[@name="limit"]')[0]
+    assert parse_qs(urlparse(order_link.get("href")).query)["state"] == ["failure"]
+    assert parse_qs(urlparse(limit_select.get("hx-get")).query)["state"] == ["failure"]
+
+
+def test_scheduler_dashboard_auto_refresh_is_opt_in_and_tab_scoped(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler")
 
@@ -68,37 +127,93 @@ def test_scheduler_dashboard_uses_tab_scoped_refresh_triggers(authenticated_clie
     assert response.status_code == 200
 
     html = response.get_data(as_text=True)
+    tree = lxml_html.fromstring(html)
+    auto_refresh_button = tree.xpath('//*[@id="scheduler-auto-refresh"]')[0]
+    assert auto_refresh_button.tag == "button"
+    assert auto_refresh_button.get("aria-pressed") == "false"
+    assert auto_refresh_button.text_content().strip() == "Auto-refresh: 10s"
     assert 'id="queue-cards"' in html
-    assert 'hx-trigger="every 10s"' in html
+    assert 'hx-trigger="every 10s"' not in html
     assert 'id="scheduled-jobs-table"' in html
     assert 'id="active-jobs-table"' in html
     assert 'id="failed-jobs-table"' in html
-    assert html.count('hx-trigger="scheduler:refresh"') == 3
-    assert 'id="execution-history">' in html
-    assert "window.htmx.trigger(target, 'scheduler:refresh');" in html
+    assert html.count('hx-trigger="scheduler:refresh"') == 5
+    assert html.count("intervalMs: 10000") == 3
+    assert "intervalMs: 5000" not in html
+    assert "let autoRefreshEnabled = false" in html
+    assert "!config || !autoRefreshEnabled" in html
+    assert 'id="execution-history"' in html
 
 
-def test_scheduler_dashboard_initial_render_uses_aggregate_endpoints(authenticated_client, responses_mock, mock_core_get_endpoints):
+@pytest.mark.parametrize(
+    ("endpoint", "selected_path", "inactive_paths"),
+    [
+        (
+            "admin.scheduler",
+            "/config/schedule",
+            {"/config/workers/active", "/config/workers/failed", "/tasks"},
+        ),
+        (
+            "admin.scheduler_active_jobs",
+            "/config/workers/active",
+            {"/config/schedule", "/config/workers/failed", "/tasks"},
+        ),
+        (
+            "admin.scheduler_failed_jobs",
+            "/config/workers/failed",
+            {"/config/schedule", "/config/workers/active", "/tasks"},
+        ),
+        (
+            "admin.scheduler_history",
+            "/tasks",
+            {"/config/schedule", "/config/workers/active", "/config/workers/failed"},
+        ),
+    ],
+)
+def test_scheduler_dashboard_initial_render_loads_only_selected_tab(
+    endpoint,
+    selected_path,
+    inactive_paths,
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+):
+    with authenticated_client.application.app_context():
+        url = url_for(endpoint)
+
+    response = authenticated_client.get(url)
+
+    assert response.status_code == 200
+    requested_paths = _requested_core_paths(responses_mock)
+    assert "/config/workers/dashboard" not in requested_paths
+    assert "/config/workers/tasks" in requested_paths
+    assert "/config/workers/stats" in requested_paths
+    assert selected_path in requested_paths
+    assert inactive_paths.isdisjoint(requested_paths)
+
+
+def test_scheduler_dashboard_renders_inactive_tabs_as_placeholders(authenticated_client, mock_core_get_endpoints):
     with authenticated_client.application.app_context():
         url = url_for("admin.scheduler")
 
     response = authenticated_client.get(url)
 
     assert response.status_code == 200
-    requested_paths = _requested_core_paths(responses_mock)
-    assert "/config/workers/dashboard" in requested_paths
-    assert "/tasks" in requested_paths
-    assert "/config/schedule" not in requested_paths
-    assert "/config/workers/tasks" not in requested_paths
-    assert "/config/workers/stats" not in requested_paths
-    assert "/config/workers/active" not in requested_paths
-    assert "/config/workers/failed" not in requested_paths
+    html = response.get_data(as_text=True)
+    assert 'data-testid="scheduled-jobs"' in html
+    assert 'id="active-jobs-table"' in html
+    assert 'id="failed-jobs-table"' in html
+    assert 'id="execution-history"' in html
+    assert html.count("Loading...</p>") == 3
+    assert 'data-testid="active-jobs"' not in html
+    assert 'data-testid="failed-jobs"' not in html
+    assert 'data-testid="execution-history-jobs"' not in html
 
 
 @pytest.mark.parametrize(
     ("endpoint", "expected_paths", "expected_text"),
     [
-        ("admin.scheduler_jobs_table", ["/config/schedule"], "Total: 1 scheduled jobs"),
+        ("admin.scheduler_jobs_table", ["/config/schedule"], "Items per page:"),
         ("admin.scheduler_queue_cards", ["/config/workers/tasks", "/config/workers/stats"], "Collectors"),
         ("admin.scheduler_active_jobs", ["/config/workers/active"], "Running Bot"),
         ("admin.scheduler_failed_jobs", ["/config/workers/failed"], "Failed Connector"),
@@ -139,6 +254,16 @@ def test_scheduler_history_displays_worker_type_and_hover_worker_id(
     assert 'title="Worker ID: bot-1"' in html
 
 
+def test_scheduler_failed_jobs_renders_rq_error(authenticated_client, mock_core_get_endpoints, htmx_header):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_failed_jobs")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    assert "Boom" in response.get_data(as_text=True)
+
+
 def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(
     authenticated_client, responses_mock, mock_core_get_endpoints, htmx_header, auth_user
 ):
@@ -158,3 +283,203 @@ def test_scheduler_jobs_table_formats_next_run_in_profile_timezone(
 
     assert response.status_code == 200
     assert "01. January 2025 13:00" in response.get_data(as_text=True)
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "table_id", "container_id"),
+    [
+        ("admin.scheduler_jobs_table", "scheduled-jobs", "scheduled-jobs-table"),
+        ("admin.scheduler_active_jobs", "active-jobs", "active-jobs-table"),
+        ("admin.scheduler_failed_jobs", "failed-jobs", "failed-jobs-table"),
+        ("admin.scheduler_history", "execution-history-jobs", "execution-history-table"),
+    ],
+)
+def test_scheduler_tables_render_standard_controls(
+    endpoint,
+    table_id,
+    container_id,
+    authenticated_client,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    with authenticated_client.application.app_context():
+        url = url_for(endpoint)
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert f'data-testid="{table_id}"' in html
+    assert f'id="{container_id}"' in html
+    assert 'placeholder="Search..."' in html
+    assert "Items per page:" in html
+    assert "Page 1 of" in html
+    assert f'href="{url}?order=' in html
+
+
+def test_scheduler_table_forwards_query_to_core(
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_jobs_table", search="collector", page=2, limit=5, order="name_desc")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    request_query = responses_mock.calls[-1].request.params
+    assert request_query == {
+        "search": "collector",
+        "page": "2",
+        "limit": "5",
+        "order": "name_desc",
+    }
+    html = response.get_data(as_text=True)
+    assert 'value="collector"' in html
+
+
+def test_scheduler_table_leaves_default_order_to_core(
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_jobs_table")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    assert responses_mock.calls[-1].request.params == {}
+
+
+def test_scheduler_history_filters_aggregate_rows(
+    authenticated_client,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_history", search="wordlist")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "WORDLIST_BOT" in html
+    assert "rss_collector" not in html
+
+
+@pytest.mark.parametrize("order", ["successes_asc", "failures_asc", "success_pct_asc"])
+def test_scheduler_history_sorts_statistics_numerically(
+    order,
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    history = {
+        "items": [],
+        "total_count": 0,
+        "task_stats": {
+            "task-two": {
+                "worker_type": "Task Two",
+                "worker_id": "worker-two",
+                "last_run": "2026-01-01T00:00:00Z",
+                "successes": 2,
+                "failures": 2,
+                "total": 4,
+                "success_pct": 2,
+            },
+            "task-ten": {
+                "worker_type": "Task Ten",
+                "worker_id": "worker-ten",
+                "last_run": "2026-01-02T00:00:00Z",
+                "successes": 10,
+                "failures": 10,
+                "total": 20,
+                "success_pct": 10,
+            },
+        },
+        "totals": {"successes": 12, "failures": 12, "overall_success_rate": 50},
+    }
+    responses_mock.replace(responses.GET, f"{Config.TARANIS_CORE_URL}/tasks", json=history)
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_history", order=order)
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert html.index("Task Two") < html.index("Task Ten")
+
+
+def test_scheduler_history_uses_default_slice_for_negative_paging(
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    history = {
+        "items": [],
+        "total_count": 0,
+        "task_stats": {
+            f"task-{index:02d}": {
+                "worker_type": f"Task {index:02d}",
+                "worker_id": f"worker-{index:02d}",
+                "last_run": f"2026-01-{(index % 28) + 1:02d}T00:00:00Z",
+                "successes": index,
+                "failures": 0,
+                "total": index,
+                "success_pct": 100,
+            }
+            for index in range(21)
+        },
+        "totals": {"successes": 210, "failures": 0, "overall_success_rate": 100},
+    }
+    responses_mock.replace(responses.GET, f"{Config.TARANIS_CORE_URL}/tasks", json=history)
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_history", order="task_asc", page=-1, limit=-1)
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'title="Worker ID: worker-00"' in html
+    assert 'title="Worker ID: worker-19"' in html
+    assert 'title="Worker ID: worker-20"' not in html
+
+
+def test_scheduler_history_uses_default_order_for_invalid_direction(
+    authenticated_client,
+    responses_mock,
+    mock_core_get_endpoints,
+    htmx_header,
+):
+    history = {
+        "items": [],
+        "total_count": 0,
+        "task_stats": {
+            "older": {
+                "worker_type": "Older Task",
+                "worker_id": "older",
+                "last_run": "2026-01-01T00:00:00Z",
+            },
+            "newer": {
+                "worker_type": "Newer Task",
+                "worker_id": "newer",
+                "last_run": "2026-01-02T00:00:00Z",
+            },
+        },
+        "totals": {},
+    }
+    responses_mock.replace(responses.GET, f"{Config.TARANIS_CORE_URL}/tasks", json=history)
+    with authenticated_client.application.app_context():
+        url = url_for("admin.scheduler_history", order="successes_sideways")
+
+    response = authenticated_client.get(url, headers=htmx_header)
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert html.index("Newer Task") < html.index("Older Task")

@@ -5,7 +5,7 @@
   <p class="text-base-content/60 text-[0.7rem] mb-5 w-1/2 ml-[10%]">ID: {{ report_item_type.id }}</p>
 
   <form id="report_item_type-form" class="w-3/4 ml-[10%]" method="post" action="{{ form_action }}">
-    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
     {% include "partials/admin_form_error.html" %}
     {% set form_error = form_error | default({}) %}
     {{ form_input('Title', 'title', report_item_type.title, form_error.title, width="w-3/4") }}

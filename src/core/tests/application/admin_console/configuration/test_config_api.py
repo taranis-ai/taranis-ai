@@ -312,28 +312,22 @@ class TestSourcesConfigApi(BaseTest):
         from core.model.task import Task
 
         unique_suffix = uuid.uuid4().hex
-        failure_source_id = str(uuid.uuid7())
-        success_source_id = str(uuid.uuid7())
+        source_ids = [str(uuid.uuid7()) for _ in range(4)]
+        statuses = ["SUCCESS", "FAILURE", "SUCCESS", "FAILURE"]
 
         sources = [
             {
-                "id": failure_source_id,
+                "id": source_id,
                 "name": f"Status Ordered Source {unique_suffix}",
-                "description": "Failure source",
-                "parameters": {"FEED_URL": "https://example.invalid/failure.xml"},
+                "description": f"{status} source",
+                "parameters": {"FEED_URL": f"https://example.invalid/{source_id}.xml"},
                 "type": "rss_collector",
-            },
-            {
-                "id": success_source_id,
-                "name": f"Status Ordered Source {unique_suffix}",
-                "description": "Success source",
-                "parameters": {"FEED_URL": "https://example.invalid/success.xml"},
-                "type": "rss_collector",
-            },
+            }
+            for source_id, status in zip(source_ids, statuses, strict=True)
         ]
         tasks = [
-            {"id": f"collect_rss_collector_{failure_source_id}", "task": "collector_task", "status": "FAILURE"},
-            {"id": f"collect_rss_collector_{success_source_id}", "task": "collector_task", "status": "SUCCESS"},
+            {"id": f"collect_rss_collector_{source_id}", "task": "collector_task", "status": status}
+            for source_id, status in zip(source_ids, statuses, strict=True)
         ]
 
         with app.app_context():
@@ -343,23 +337,16 @@ class TestSourcesConfigApi(BaseTest):
                 Task.add(task)
 
         try:
-            asc_response = self.assert_get_ok(
-                client,
-                uri=f"osint-sources?search={unique_suffix}&order=status_asc&fetch_all=true",
-                auth_header=auth_header,
-            )
-            asc_payload = asc_response.get_json()
-            assert asc_payload["total_count"] == 2
-            assert [item["id"] for item in asc_payload["items"]] == [failure_source_id, success_source_id]
-
-            desc_response = self.assert_get_ok(
-                client,
-                uri=f"osint-sources?search={unique_suffix}&order=status_desc&fetch_all=true",
-                auth_header=auth_header,
-            )
-            desc_payload = desc_response.get_json()
-            assert desc_payload["total_count"] == 2
-            assert [item["id"] for item in desc_payload["items"]] == [success_source_id, failure_source_id]
+            for order, expected_statuses in (("status_asc", ["FAILURE", "SUCCESS"]), ("status_desc", ["SUCCESS", "FAILURE"])):
+                for page, expected_status in enumerate(expected_statuses, start=1):
+                    response = self.assert_get_ok(
+                        client,
+                        uri=f"osint-sources?search={unique_suffix}&order={order}&page={page}&limit=2",
+                        auth_header=auth_header,
+                    )
+                    payload = response.get_json()
+                    assert payload["total_count"] == 4
+                    assert [item["status"]["status"] for item in payload["items"]] == [expected_status] * 2
         finally:
             with app.app_context():
                 for task in tasks:
@@ -914,6 +901,38 @@ class TestBotConfigApi(BaseTest):
         assert response.json["message"] == "Bot created"
         assert response.json["id"] == cleanup_bot["id"]
 
+    def test_create_bot_rejects_invalid_payload_without_leaking_details(self, client, auth_header, cleanup_bot):
+        payload = copy.deepcopy(cleanup_bot)
+        payload["id"] = str(uuid.uuid7())
+        payload["type"] = "SECRET_BOT_TYPE"
+
+        response = client.post(self.concat_url("bots"), json=payload, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid bot create payload"
+        assert "SECRET_BOT_TYPE" not in response.text
+
+    def test_bot_dag_preview_rejects_invalid_payload_without_leaking_details(self, client, auth_header):
+        response = client.post(
+            self.concat_url("bots/dag-preview"),
+            json={"type": "SECRET_BOT_TYPE", "index": "not-an-index"},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid bot DAG preview payload"
+        assert "SECRET_BOT_TYPE" not in response.text
+
+    def test_bot_dag_preview_rejects_non_object_parameters(self, client, auth_header):
+        response = client.post(
+            self.concat_url("bots/dag-preview"),
+            json={"type": "WORDLIST_BOT", "parameters": []},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid bot DAG preview payload"
+
     def test_modify_bot(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot
 
@@ -932,6 +951,27 @@ class TestBotConfigApi(BaseTest):
         bot_id = cleanup_bot["id"]
         response = self.assert_put_ok(client, uri=f"bots/{bot_id}", json_data=bot_data, auth_header=auth_header)
         assert response.json["id"] == f"{bot_id}"
+
+    def test_modify_bot_rejects_invalid_payload_without_leaking_details(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+        bot_data = {
+            "name": cleanup_bot["name"],
+            "type": "SECRET_BOT_TYPE",
+            "description": "Boty McBotFace",
+        }
+
+        response = client.put(self.concat_url(f"bots/{bot_id}"), json=bot_data, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json["error"] == "Invalid bot update payload"
+        assert "SECRET_BOT_TYPE" not in response.text
 
     def test_modify_bot_can_disable_and_clear_schedule(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot
@@ -1066,47 +1106,94 @@ class TestBotConfigApi(BaseTest):
 class TestAdminMenuBadgesConfigApi(BaseTest):
     base_uri = "/api/config"
 
-    def test_get_admin_menu_badges(self, client, auth_header, app):
+    def test_get_admin_menu_badges(self, client, auth_header, app, cleanup_sources, cleanup_bot):
+        from core.model.bot import Bot
+        from core.model.osint_source import OSINTSource
         from core.model.task import Task
 
+        source_id = cleanup_sources["id"]
+        bot_id = cleanup_bot["id"]
         task_ids = [
-            f"admin-menu-badge-collector-{uuid.uuid4().hex}",
-            f"admin-menu-badge-bot-{uuid.uuid4().hex}",
+            f"collect_rss_collector_{source_id}",
+            f"bot_{bot_id}",
+            f"cron_osint_source_{source_id}_success",
+            f"cron_bot_{bot_id}_success",
         ]
 
         with app.app_context():
+            if OSINTSource.get(source_id):
+                OSINTSource.delete(source_id)
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+            OSINTSource.add(cleanup_sources)
+            Bot.add(cleanup_bot)
             Task.add(
                 {
                     "id": task_ids[0],
                     "task": "collector_task",
-                    "worker_id": "source-1",
+                    "worker_id": source_id,
                     "worker_type": "rss_collector",
                     "status": "FAILURE",
-                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": "source-1"}},
+                    "result": {"message": "boom", "reason": "collection_failed", "retryable": False, "data": {"source_id": source_id}},
                 }
             )
             Task.add(
                 {
                     "id": task_ids[1],
-                    "task": "bot_task",
-                    "worker_id": "bot-1",
-                    "worker_type": "WORDLIST_BOT",
+                    "task": f"bot_{bot_id}",
+                    "worker_id": bot_id,
+                    "worker_type": cleanup_bot["type"].upper(),
                     "status": "FAILURE",
-                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": "bot-1"}},
+                    "result": {"message": "boom", "reason": "bot_execution_failed", "retryable": False, "data": {"bot_id": bot_id}},
                 }
             )
-
         try:
             response = self.assert_get_ok(client, uri="admin-menu-badges", auth_header=auth_header)
             assert response.json == {"osint_source": 1, "bot": 1}
             cache_control = response.headers["Cache-Control"].lower()
             assert "private" in cache_control
             assert "max-age=300" in cache_control
+
+            failed_sources = self.assert_get_ok(client, uri="osint-sources?state=failure", auth_header=auth_header)
+            failed_bots = self.assert_get_ok(client, uri="bots?state=failure", auth_header=auth_header)
+            assert [item["id"] for item in failed_sources.json["items"]] == [source_id]
+            assert [item["id"] for item in failed_bots.json["items"]] == [bot_id]
+
+            with app.app_context():
+                Task.add(
+                    {
+                        "id": task_ids[2],
+                        "task": "collector_task",
+                        "worker_id": source_id,
+                        "worker_type": "rss_collector",
+                        "status": "SUCCESS",
+                        "result": {"message": "ok", "retryable": False, "data": {"source_id": source_id}},
+                    }
+                )
+                Task.add(
+                    {
+                        "id": task_ids[3],
+                        "task": f"bot_{bot_id}",
+                        "worker_id": bot_id,
+                        "worker_type": cleanup_bot["type"].upper(),
+                        "status": "SUCCESS",
+                        "result": {"message": "ok", "retryable": False, "data": {"bot_id": bot_id, "result": {}}},
+                    }
+                )
+
+            resolved_response = self.assert_get_ok(client, uri="admin-menu-badges", auth_header=auth_header)
+            assert resolved_response.json == {"osint_source": 0, "bot": 0}
+            assert self.assert_get_ok(client, uri="osint-sources?state=failure", auth_header=auth_header).json["items"] == []
+            assert self.assert_get_ok(client, uri="bots?state=failure", auth_header=auth_header).json["items"] == []
         finally:
             with app.app_context():
                 for task_id in task_ids:
                     if Task.get(task_id):
                         Task.delete(task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
+                if Bot.get(bot_id):
+                    Bot.delete(bot_id)
 
 
 class TestConnectorConfigApi(BaseTest):

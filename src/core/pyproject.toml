@@ -52,6 +52,7 @@ build-backend = "setuptools.build_meta"
 [project.scripts]
 taranis-ai = "core.granian:main"
 taranis-core-healthcheck = "core.healthcheck:main"
+taranis-cli = "core.cli:main"
 
 [tool.setuptools_scm]
 root = "../.."
@@ -70,6 +71,7 @@ dev = [
     "pytest-playwright",
     "playwright",
     "pyright",
+    "pyrefly>=1.1.1",
 ]
 
 [project.urls]
@@ -78,6 +80,12 @@ dev = [
 [tool.ruff]
 line-length = 142
 target-version = "py313"
+
+[tool.ruff.lint]
+ignore = ["BLE001"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["BLE001", "DTZ", "RUF012"]
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
@@ -140,3 +148,13 @@ required-environments = [
 
 [tool.uv.sources]
 taranis-models = { path = "../models", editable = true }
+
+[tool.pyrefly]
+project-excludes = [
+    "**/__main__.py",
+    "**/tests/",
+]
+
+[tool.pyrefly.errors]
+bad-override = false
+bad-param-name-override = false

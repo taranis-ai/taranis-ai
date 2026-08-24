@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 from flask import current_app
 from flask.typing import ResponseReturnValue
@@ -11,10 +11,13 @@ from frontend.views.base_view import BaseView
 
 
 class AdminBaseView(BaseView):
-    decorators = [admin_required()]
-    _is_admin = True
-    _show_sidebar = True
-    _read_only = False
+    decorators: ClassVar[list[Any]] = [admin_required()]
+    base_route: ClassVar[str] = ""
+    edit_route: ClassVar[str] = ""
+    import_route: ClassVar[str] = ""
+    _is_admin: ClassVar[bool] = True
+    _show_sidebar: ClassVar[bool] = True
+    _read_only: ClassVar[bool] = False
 
     @classmethod
     def get_sidebar_template(cls) -> str:
@@ -22,7 +25,7 @@ class AdminBaseView(BaseView):
 
     @classmethod
     def _common_context(cls, error: str | None = None, object_id: str = "0") -> dict[str, Any]:
-        return super(AdminBaseView, cls)._common_context(error=error, object_id=object_id)
+        return super()._common_context(error=error, object_id=object_id)
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -55,7 +58,7 @@ class AdminBaseView(BaseView):
     @classmethod
     def get_form_action(cls, object_id: str = "0") -> str:
         if not cls.submits_via_standard_form():
-            return super(AdminBaseView, cls).get_form_action(object_id)
+            return super().get_form_action(object_id)
         if cls.is_create_object_id(object_id):
             return cls.get_base_route()
         return cls.get_edit_route(**{cls._get_object_key(): object_id})
@@ -70,12 +73,12 @@ class AdminBaseView(BaseView):
     @classmethod
     def handle_submit_error(cls, object_id: str, error: str | None = None, resp_obj: dict | None = None) -> tuple[str, int]:
         if not cls.submits_via_standard_form():
-            return super(AdminBaseView, cls).handle_submit_error(object_id, error=error, resp_obj=resp_obj)
+            return super().handle_submit_error(object_id, error=error, resp_obj=resp_obj)
         return cls.render_submitted_form_error(object_id, error=error, resp_obj=resp_obj)
 
     @classmethod
     def handle_submit_success(cls, object_id: str, core_response: dict) -> ResponseReturnValue:
         if not cls.submits_via_standard_form():
-            return super(AdminBaseView, cls).handle_submit_success(object_id, core_response)
+            return super().handle_submit_success(object_id, core_response)
         cls.add_flash_notification(core_response)
         return cls.redirect_htmx(cls.get_submit_redirect_target(object_id, core_response))

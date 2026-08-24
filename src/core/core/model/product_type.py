@@ -2,6 +2,7 @@ import os
 from typing import Any
 
 from models.types import PRESENTER_TYPES
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.expression import Select
 
@@ -73,7 +74,7 @@ class ProductType(BaseModel):
     def filter_by_title(cls, title: str) -> "ProductType | None":
         try:
             return db.session.execute(db.select(cls).where(cls.title == title)).scalar_one_or_none()
-        except Exception:
+        except SQLAlchemyError:
             logger.exception(f"Error filtering product types by title: {title}")
             return None
 
@@ -111,18 +112,15 @@ class ProductType(BaseModel):
             logger.error(f"User {user} does not have write access to product type {product_type_id}")
             return {"error": "User does not have write access to this product type"}, 403
 
-        parsed_parameters = None
         if type := data.get("type"):
-            parsed_parameters = cls._parse_parameters(type, data.get("parameters", product_type.parameters))
+            product_type.type = type
+            product_type.parameters = cls._parse_parameters(type, data.get("parameters", product_type.parameters))
 
         if title := data.get("title"):
             product_type.title = title
 
         product_type.description = data.get("description")
 
-        if type:
-            product_type.type = type
-            product_type.parameters = parsed_parameters
         report_types = data.get("report_types", None)
         if report_types is not None:
             product_type.report_types = ReportItemType.get_bulk(report_types)

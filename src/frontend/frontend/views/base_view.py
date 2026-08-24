@@ -1,4 +1,5 @@
-from typing import Any, Callable, ClassVar
+from collections.abc import Callable
+from typing import Any, ClassVar
 
 from flask import abort, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
@@ -44,7 +45,7 @@ class BaseView(MethodView):
 
     @classmethod
     def _common_context(cls, error: str | None = None, object_id: str = "0") -> dict[str, Any]:
-        context = {
+        context: dict[str, Any] = {
             "name": cls.pretty_name(),
             "templates": cls.get_template_urls(),
             "columns": cls.get_columns(),
@@ -136,7 +137,7 @@ class BaseView(MethodView):
         except HTTPException:
             raise
         except Exception as exc:
-            logger.error(f"Error storing form data: {str(exc)}")
+            logger.error(f"Error storing form data: {exc!s}")
             return None, str(exc)
 
     @staticmethod
@@ -156,7 +157,7 @@ class BaseView(MethodView):
         except HTTPException:
             raise
         except Exception as exc:
-            logger.error(f"Error storing form data: {str(exc)}")
+            logger.error(f"Error storing form data: {exc!s}")
             return None, str(exc)
 
     @classmethod
@@ -500,7 +501,7 @@ class BaseView(MethodView):
 
         category = "error" if notification.get("error") else "success"
         if message := notification.get("message"):
-            flash(message, category)
+            flash(str(message), category)
 
     @classmethod
     def redirect_htmx(cls, target: str) -> ResponseReturnValue:

@@ -9,13 +9,22 @@ data:
   GRANIAN_HOST: {{ .Values.config.granianHost | quote }}
   GRANIAN_PORT: {{ .Values.config.granianPort | quote }}
   TARANIS_BASE_PATH: {{ .Values.config.taranisBasePath | quote }}
+  JWT_COOKIE_SUFFIX: {{ .Values.config.jwtCookieSuffix | quote }}
   SSE_PATH: {{ .Values.config.ssePath | quote }}
   TARANIS_PORT: {{ .Values.config.taranisPort | quote }}
   REQUESTS_TIMEOUT: {{ .Values.config.requestsTimeout | quote }}
+  DISABLE_HTTP3: {{ .Values.config.disableHttp3 | quote }}
   SQLALCHEMY_POOL_TIMEOUT: {{ .Values.config.sqlalchemyPoolTimeout | quote }}
   SQLALCHEMY_POOL_RECYCLE: {{ .Values.config.sqlalchemyPoolRecycle | quote }}
   TARANIS_AUTHENTICATOR: {{ .Values.config.authenticator | quote }}
+  SKIP_INITIAL_USER_ONBOARDING: {{ .Values.config.skipInitialUserOnboarding | quote }}
   SUMMARY_API_ENDPOINT: {{ .Values.config.summaryApiEndpoint | quote }}
+  TITLE_API_ENDPOINT: {{ .Values.config.titleApiEndpoint | quote }}
   NLP_API_ENDPOINT: {{ .Values.config.nlpApiEndpoint | quote }}
   STORY_API_ENDPOINT: {{ .Values.config.storyApiEndpoint | quote }}
+  SENTIMENT_ANALYSIS_API_ENDPOINT: {{ .Values.config.sentimentAnalysisApiEndpoint | quote }}
+  CYBERSEC_CLASSIFIER_API_ENDPOINT: {{ .Values.config.cybersecClassifierApiEndpoint | quote }}
+  LLM_BASE_URL: {{ .Values.config.llmBaseUrl | quote }}
+  LLM_MODEL: {{ .Values.config.llmModel | quote }}
+  LLM_TIMEOUT: {{ .Values.config.llmTimeout | quote }}
   CACHE_DEFAULT_TIMEOUT: {{ .Values.config.cacheDefaultTimeout | quote }}

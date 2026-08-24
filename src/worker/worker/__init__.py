@@ -8,22 +8,24 @@ This module sets up RQ workers for different job types:
 - connectors: Handle external integrations
 
 Usage:
-    rq worker collectors bots presenters publishers connectors
+    rq worker presenters publishers connectors misc bots collectors
 """
 
 import sys
+from typing import Any
 
 import redis
 from rq import Queue, SpawnWorker, Worker
 
-from worker.config import Config
+from worker.config import WORKER_TYPE_PRIORITIES, Config
 from worker.core_api import CoreApi
 from worker.log import logger
+from worker.rq_failure_bridge import rq_failure_exception_handler, rq_work_horse_killed_handler
 
 
 def get_redis_connection(*, spawn_safe: bool = False):
     """Get Redis connection from config."""
-    redis_kwargs = {
+    redis_kwargs: dict[str, Any] = {
         "password": Config.REDIS_PASSWORD,
         "decode_responses": False,
     }
@@ -34,24 +36,9 @@ def get_redis_connection(*, spawn_safe: bool = False):
 
 
 def get_queues():
-    """Get list of queue names based on configured worker types."""
-    queue_names = []
+    """Get enabled queue names in dequeue-priority order."""
     worker_types = Config.WORKER_TYPES
-
-    if "Collectors" in worker_types:
-        queue_names.append("collectors")
-    if "Bots" in worker_types:
-        queue_names.append("bots")
-    if "Presenters" in worker_types:
-        queue_names.append("presenters")
-    if "Publishers" in worker_types:
-        queue_names.append("publishers")
-    if "Connectors" in worker_types:
-        queue_names.append("connectors")
-    if "Misc" in worker_types:
-        queue_names.append("misc")
-
-    return queue_names
+    return [worker_type.lower() for worker_type in WORKER_TYPE_PRIORITIES if worker_type in worker_types]
 
 
 def register_task_modules():
@@ -98,5 +85,10 @@ def start_worker():
     logger.info(f"Starting RQ worker for queues: {', '.join(queue_names)}")
     logger.info(f"Using RQ worker class: {worker_class.__name__} (RQ_WORKER_CLASS={Config.RQ_WORKER_CLASS}, platform={sys.platform})")
 
-    worker = worker_class(queues, connection=redis_conn)
+    worker = worker_class(
+        queues,
+        connection=redis_conn,
+        exception_handlers=[rq_failure_exception_handler],
+        work_horse_killed_handler=rq_work_horse_killed_handler,
+    )
     worker.work(with_scheduler=True)

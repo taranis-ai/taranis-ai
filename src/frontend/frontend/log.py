@@ -3,7 +3,6 @@ import logging.handlers
 import socket
 import sys
 import traceback
-from typing import Optional
 
 from flask import request
 
@@ -11,7 +10,7 @@ from frontend.config import Config
 
 
 class TaranisLogger:
-    def __init__(self, module: str, debug: bool, colored: bool, syslog_address: Optional[tuple[str, int]]):
+    def __init__(self, module: str, debug: bool, colored: bool, syslog_address: tuple[str, int] | None):
         stream_handler = logging.StreamHandler(stream=sys.stdout)
         if colored:
             stream_handler.setFormatter(TaranisLogFormatter(module))
@@ -21,7 +20,7 @@ class TaranisLogger:
         if syslog_address:
             try:
                 sys_log_handler = logging.handlers.SysLogHandler(address=syslog_address, socktype=socket.SOCK_STREAM)
-            except Exception:
+            except OSError:
                 print("Unable to connect to syslog server!")
 
         self.logger = logging.getLogger(module)

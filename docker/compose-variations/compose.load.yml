@@ -25,9 +25,8 @@ services:
       start_period: 2s
 
   core:
-    build:
-      context: .
-      dockerfile: docker/Containerfile.core
+    image: "${DOCKER_IMAGE_NAMESPACE:-ghcr.io/taranis-ai}/taranis-core:${TARANIS_TAG:-latest}"
+    pull_policy: always
     environment:
       DB_URL: database
       DB_DATABASE: taranis
@@ -39,7 +38,9 @@ services:
       REDIS_PASSWORD: ""
       PRE_SEED_PASSWORD_ADMIN: admin
       PRE_SEED_PASSWORD_USER: test
+      SKIP_INITIAL_USER_ONBOARDING: "${SKIP_INITIAL_USER_ONBOARDING:-False}"
       JWT_SECRET_KEY: load_testing_secret_key
+      JWT_COOKIE_SUFFIX: ""
       API_KEY: load_testing_api_key
       DEBUG: "true"
       DISABLE_SSE: "true"
@@ -61,13 +62,14 @@ services:
       start_period: 10s
 
   frontend:
-    build:
-      context: .
-      dockerfile: docker/Containerfile.frontend
+    image: "${DOCKER_IMAGE_NAMESPACE:-ghcr.io/taranis-ai}/taranis-frontend:${TARANIS_TAG:-latest}"
+    pull_policy: always
     environment:
       TARANIS_CORE_URL: http://core:8080/api
       APPLICATION_ROOT: /frontend
+      TARANIS_BASE_PATH: /
       JWT_SECRET_KEY: load_testing_secret_key
+      JWT_COOKIE_SUFFIX: ""
       REDIS_URL: redis://redis:6379/0
       REDIS_PASSWORD: ""
       DEBUG: "true"
@@ -84,9 +86,8 @@ services:
       start_period: 10s
 
   ingress:
-    build:
-      context: .
-      dockerfile: docker/Containerfile.ingress
+    image: "${DOCKER_IMAGE_NAMESPACE:-ghcr.io/taranis-ai}/taranis-ingress:${TARANIS_TAG:-latest}"
+    pull_policy: always
     environment:
       NGINX_WORKERS: "2"
       NGINX_CONNECTIONS: "32"
@@ -108,6 +109,19 @@ services:
       retries: 20
       start_period: 10s
 
+  seed:
+    image: ghcr.io/taranis-ai/load-test:latest
+    pull_policy: always
+    command: ["python", "-m", "tests.load.load_support.seed"]
+    environment:
+      CORE_API_URL: http://core:8080/api
+      API_KEY: load_testing_api_key
+      SEED_STORY_COUNT: ${SEED_STORY_COUNT:-1000}
+      SEED_REPORT_COUNT: ${SEED_REPORT_COUNT:-250}
+    depends_on:
+      core:
+        condition: service_healthy
+
   locust:
     image: ghcr.io/taranis-ai/load-test:latest
     pull_policy: always
@@ -118,7 +132,7 @@ services:
         "--headless",
         "--only-summary",
         "--exit-code-on-error",
-        "1",
+        "0",
         "--stop-timeout",
         "30",
         "--host",

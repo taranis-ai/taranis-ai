@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Any, cast
 
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import selectinload
@@ -36,6 +37,9 @@ def pre_seed():
 
         pre_seed_workers()
         logger.debug("Workers seeded")
+
+        pre_seed_default_publisher()
+        logger.debug("Default publisher seeded")
 
         pre_seed_assets()
         logger.debug("Assets seeded")
@@ -79,24 +83,34 @@ def pre_seed_update(db_engine: Engine):
     migrate_user_profiles()
     cleanup_empty_stories()
     migrate_missing_initial_revisions()
+    cleanup_intelowl_email_enrichment_parameter()
     if db_engine.dialect.name == "postgresql":
         rebuild_story_search_vectors()
 
+    pre_seed_attributes()
+
     for w in workers:
-        if worker := Worker.filter_by_type(w["type"]):
+        w = cast(dict[str, Any], w)
+        worker_type = str(w["type"])
+        w["type"] = worker_type
+        if worker := Worker.filter_by_type(worker_type):
             worker.update(w)
         else:
             Worker.add(w)
 
+    pre_seed_default_publisher()
+
     for b in bots:
-        bot = Bot.filter_by_type(b["type"])
+        b = cast(dict[str, Any], b)
+        bot = Bot.filter_by_type(str(b["type"]))
         if not bot:
             b["enabled"] = False
             logger.debug(f"Adding new bot type '{b['type']}' in disabled state")
             Bot.add(b)
 
     for r in report_types:
-        rt = ReportItemType.filter_by_title(r["title"])
+        r = cast(dict[str, Any], r)
+        rt = ReportItemType.filter_by_title(str(r["title"]))
         if not rt:
             ReportItemType.add(r)
 
@@ -117,8 +131,7 @@ def cleanup_invalid_source_icons():
     removed_icons = 0
 
     for source in sources:
-        icon_bytes = getattr(source, "icon", None)
-        if icon_bytes:
+        if icon_bytes := getattr(source, "icon", None):
             try:
                 OSINTSource._probe_icon_image(icon_bytes)
             except ValueError:
@@ -129,6 +142,21 @@ def cleanup_invalid_source_icons():
     if removed_icons:
         db.session.commit()
         logger.info(f"Removed invalid icons from {removed_icons} OSINT sources")
+
+
+def cleanup_intelowl_email_enrichment_parameter():
+    from models.types import BOT_TYPES
+
+    from core.managers.db_manager import db
+    from core.model.bot import Bot
+
+    changed = False
+    for bot in Bot.get_all_by_type(BOT_TYPES.INTEL_OWL_BOT):
+        current_count = len(bot.parameters)
+        bot.parameters = [parameter for parameter in bot.parameters if parameter.parameter != "INTEL_OWL_EMAIL_ENRICHMENT"]
+        changed |= len(bot.parameters) != current_count
+    if changed:
+        db.session.commit()
 
 
 def sync_presenter_templates():
@@ -234,12 +262,17 @@ def migrate_user_profile(user_profile: dict, template: dict) -> dict:
 
 
 def migrate_user_profiles():
+    from core.model.settings import Settings
     from core.model.user import PROFILE_TEMPLATE, User
 
+    profile_template = {
+        **PROFILE_TEMPLATE,
+        "onboarding_enabled": Settings.get_settings().get("onboarding_enabled", not Config.SKIP_INITIAL_USER_ONBOARDING),
+    }
     users = User.get_all_for_collector() or []
     for user in users:
         current = user.profile if isinstance(user.profile, dict) else {}
-        updated = migrate_user_profile(current, PROFILE_TEMPLATE)
+        updated = migrate_user_profile(current, profile_template)
         if current != updated:
             logger.debug(f"Migrating user profile for user {user.name}")
             User.update_profile(user=user, data=updated)
@@ -324,19 +357,37 @@ def pre_seed_manual_source():
 
 
 def pre_seed_workers():
+    from core.managers.db_manager import db
     from core.managers.pre_seed_data import bots, product_types, workers
-    from core.model.bot import Bot
+    from core.model.bot import RUN_AFTER_BOTS, Bot
     from core.model.product_type import ProductType
     from core.model.worker import Worker
 
     for w in workers:
         Worker.add(w)
 
-    for b in bots:
-        Bot.add(b)
+    seeded_bots = {bot_data["type"]: Bot.add(bot_data) for bot_data in bots}
+    for bot_type, parent_types in {
+        "IOC_BOT": ("WORDLIST_BOT",),
+        "INTEL_OWL_BOT": ("IOC_BOT",),
+        "NLP_BOT": ("IOC_BOT",),
+        "SUMMARY_BOT": ("NLP_BOT", "STORY_BOT"),
+    }.items():
+        bot = seeded_bots[bot_type]
+        next(parameter for parameter in bot.parameters if parameter.parameter == RUN_AFTER_BOTS).value = ",".join(
+            seeded_bots[parent_type].id for parent_type in parent_types
+        )
+    Bot.validate_dependency_config()
+    db.session.commit()
 
     for p in product_types:
         ProductType.add(_resolve_seed_product_type_report_types(p))
+
+
+def pre_seed_default_publisher():
+    from core.model.publisher_preset import PublisherPreset
+
+    PublisherPreset.ensure_default_taranis()
 
 
 def pre_seed_permissions():
@@ -438,8 +489,7 @@ def _resolve_seed_product_type_report_types(product_type: dict) -> dict:
     resolved_report_type_ids = []
 
     for report_type_ref in report_type_refs:
-        report_type = ReportItemType.get_by_title(report_type_ref)
-        if report_type:
+        if report_type := ReportItemType.get_by_title(report_type_ref):
             resolved_report_type_ids.append(report_type.id)
 
     product_type_data["report_types"] = resolved_report_type_ids
@@ -465,32 +515,33 @@ def pre_seed_default_user():
             }
         )
 
-    if not User.find_by_name(username="admin") and not User.find_by_role_name(role_name="Admin"):
-        if admin_role := Role.filter_by_name("Admin"):
-            User.add(
-                {
-                    "username": "admin",
-                    "name": "Arthur Dent",
-                    "roles": [admin_role.id],
-                    "organization": {"id": admin_organization.id},
-                    "password": Config.PRE_SEED_PASSWORD_ADMIN,
-                }
-            )
-
-    user_organization = Organization.find_by_name("The Clacks")
-    if not user_organization:
-        user_organization = Organization.add(
+    if (
+        not User.find_by_name(username="admin")
+        and not User.find_by_role_name(role_name="Admin")
+        and (admin_role := Role.filter_by_name("Admin"))
+    ):
+        User.add(
             {
-                "name": "The Clacks",
-                "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
-                "address": {
-                    "street": "Cherry Tree Rd",
-                    "city": "Beaconsfield, Buckinghamshire",
-                    "zip": "HP9 1BH",
-                    "country": "United Kingdom",
-                },
+                "username": "admin",
+                "name": "Arthur Dent",
+                "roles": [admin_role.id],
+                "organization": {"id": admin_organization.id},
+                "password": Config.PRE_SEED_PASSWORD_ADMIN,
             }
         )
+
+    user_organization = Organization.find_by_name("The Clacks") or Organization.add(
+        {
+            "name": "The Clacks",
+            "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
+            "address": {
+                "street": "Cherry Tree Rd",
+                "city": "Beaconsfield, Buckinghamshire",
+                "zip": "HP9 1BH",
+                "country": "United Kingdom",
+            },
+        }
+    )
 
     if not User.find_by_name(username="user"):
         user_role = Role.filter_by_name("User").id  # type: ignore

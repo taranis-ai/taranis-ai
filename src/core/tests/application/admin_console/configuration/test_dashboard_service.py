@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import core.service.dashboard as dashboard_module
@@ -19,7 +19,8 @@ def _unique_value(prefix: str) -> str:
 
 
 def test_get_dashboard_data_includes_task_totals(monkeypatch):
-    latest_collected = datetime(2026, 4, 13, 12, 30, tzinfo=timezone.utc)
+    latest_collected = datetime(2026, 4, 13, 12, 30, tzinfo=UTC)
+    schedule_count_calls = []
 
     monkeypatch.setattr(NewsItem, "get_count", classmethod(lambda cls: 11))
     monkeypatch.setattr(Story, "get_count", classmethod(lambda cls: 7))
@@ -29,7 +30,7 @@ def test_get_dashboard_data_includes_task_totals(monkeypatch):
     monkeypatch.setattr(
         dashboard_module.queue_manager,
         "queue_manager",
-        SimpleNamespace(get_scheduled_jobs=lambda: ({"total_count": 4}, None)),
+        SimpleNamespace(get_scheduled_job_count=lambda: schedule_count_calls.append(True) or 4),
         raising=False,
     )
     monkeypatch.setattr(StoryConflict, "conflict_store", [object(), object()])
@@ -56,19 +57,7 @@ def test_get_dashboard_data_includes_task_totals(monkeypatch):
         "success_pct": 66,
         "total": 3,
     }
-
-
-def test_count_user_scheduled_jobs_ignores_housekeeping_and_malformed_entries():
-    schedules = {
-        "items": [
-            {"id": dashboard_module.queue_manager.TOKEN_CLEANUP_JOB_ID},
-            {"id": "collector-source-1"},
-            "unexpected",
-            None,
-        ]
-    }
-
-    assert DashboardService._count_user_scheduled_jobs(schedules) == 1
+    assert schedule_count_calls == [True]
 
 
 def test_trending_clusters_include_tags_from_story_creation(app, client, auth_header):

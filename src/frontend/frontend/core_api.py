@@ -28,7 +28,7 @@ class CoreApi:
             payload = response.json()
             if isinstance(payload, dict):
                 message = payload.get("error") or payload.get("message") or message
-        except Exception:
+        except requests.JSONDecodeError:
             message = response.text or message
         return message
 
@@ -46,7 +46,7 @@ class CoreApi:
         try:
             if response.ok:
                 return response.json()
-        except Exception:
+        except requests.JSONDecodeError:
             logger.error(f"(catched) Call to {url} failed {response.status_code}: {response.text}")
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
@@ -86,7 +86,7 @@ class CoreApi:
         url = f"{self.api_url}{endpoint}"
         try:
             response = self.session.get(url=url, headers=self.headers, timeout=self.timeout, params=params)
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Call to {url} failed {e}")
             return None
         return self.check_response(response, url)
@@ -108,7 +108,7 @@ class CoreApi:
     def export_users(self, user_ids=None):
         try:
             return self.api_download("/config/users-export", params=user_ids)
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Export users failed: {e}")
             return None
 
@@ -130,7 +130,7 @@ class CoreApi:
     def export_word_lists(self, word_list_ids=None):
         try:
             return self.api_download("/config/export-word-lists", params=word_list_ids)
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Export word lists failed: {e}")
             return None
 
@@ -140,7 +140,7 @@ class CoreApi:
     def export_sources(self, source_ids=None):
         try:
             return self.api_download("/config/export-osint-sources", params=source_ids)
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Export sources failed: {e}")
             return None
 
@@ -165,35 +165,49 @@ class CoreApi:
     def retrigger_osint_source_preview(self, osint_source_id: str):
         try:
             return self.api_post(f"/config/osint-sources/{osint_source_id}/preview")
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Retriggering OSINT source preview failed: {e}")
             return None
 
     def collect_osint_source(self, osint_source_id: str):
         try:
             return self.api_post(f"/config/osint-sources/{osint_source_id}/collect")
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Collect OSINT source failed: {e}")
             return None
 
     def execute_bot(self, bot_id: str):
         try:
             return self.api_post(f"/config/bots/{bot_id}/execute")
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Execute bot failed: {e}")
+            return None
+
+    def preview_bot_dag(self, payload: dict[str, Any]):
+        try:
+            return self.api_post("/config/bots/dag-preview", json_data=payload)
+        except requests.RequestException as e:
+            logger.error(f"Bot DAG preview failed: {e}")
+            return None
+
+    def toggle_bot(self, bot_id: str, new_state: str):
+        try:
+            return self.api_put(f"/config/bots/{bot_id}", json_data={"enabled": new_state == "enabled"})
+        except requests.RequestException as e:
+            logger.error(f"Toggle bot failed: {e}")
             return None
 
     def collect_all_osint_sources(self):
         try:
             return self.api_post("/config/osint-sources/collect")
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Collect OSINT sources failed: {e}")
             return None
 
     def toggle_osint_source(self, osint_source_id: str, new_state: str):
         try:
             return self.api_patch(f"/config/osint-sources/{osint_source_id}", json_data={"state": new_state})
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Toggle OSINT source failed: {e}")
             return None
 
@@ -216,7 +230,7 @@ class CoreApi:
     def export_report_item_types(self, report_item_type_ids=None):
         try:
             return self.api_download("/config/export-report-item-types", params=report_item_type_ids)
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"Export report item types failed: {e}")
             return None
 
@@ -229,6 +243,9 @@ class CoreApi:
 
     def get_login_data(self):
         return self.api_get("/auth/method")
+
+    def refresh(self):
+        return self.session.get(url=f"{self.api_url}/auth/refresh", headers=self.headers, timeout=self.timeout)
 
     def logout(self):
         return self.api_delete("/auth/logout")

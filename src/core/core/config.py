@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 from urllib.parse import urlparse, urlunparse
 
@@ -25,7 +25,7 @@ def mask_db_uri(uri: str) -> str:
             netloc = parsed.netloc
 
         return urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
-    except Exception:
+    except ValueError:
         return "<masked>"
 
 
@@ -36,12 +36,28 @@ class Settings(BaseSettings):
     APPLICATION_ROOT: str = "/"
     MODULE_ID: str = "Core"
     DEBUG: bool = False
+    AUDIT_LOG_ENABLED: bool = True
 
     JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: timedelta = timedelta(hours=4)
     JWT_DECODE_LEEWAY: int = 5
     JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
+    JWT_COOKIE_SUFFIX: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]*$")] = ""
+
+    @property
+    def JWT_ACCESS_COOKIE_NAME(self) -> str:
+        return f"access_token_cookie{self.JWT_COOKIE_SUFFIX}"
+
+    @property
+    def JWT_ACCESS_CSRF_COOKIE_NAME(self) -> str:
+        return f"csrf_access_token{self.JWT_COOKIE_SUFFIX}"
+
+    @property
+    def JWT_ACCESS_COOKIE_PATH(self) -> str:
+        return self.APPLICATION_ROOT
+
+    JWT_ACCESS_CSRF_COOKIE_PATH = JWT_ACCESS_COOKIE_PATH
 
     DB_URL: str = "localhost"
     DB_DATABASE: str = "taranis"
@@ -59,13 +75,13 @@ class Settings(BaseSettings):
     SQLALCHEMY_POOL_TIMEOUT: Annotated[int | None, Field(gt=0)] = None
     SQLALCHEMY_POOL_RECYCLE: Annotated[int | None, Field(ge=-1)] = None
     COLORED_LOGS: bool = True
-    BUILD_DATE: datetime = datetime.now()
+    BUILD_DATE: datetime = datetime.now(UTC)
     GIT_INFO: dict[str, str] | None = None
     DATA_FOLDER: str = "./taranis_data"  # When started with Docker, the path is /app/data
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
     DISABLE_SCHEDULER: bool = False
-    TARANIS_SENTRY_DSN: str | None = None
+    TARANIS_CORE_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False
     SENTRY_SEND_DEFAULT_PII: bool = False
     SENTRY_ENABLE_DB_QUERY_SOURCE: bool = False
@@ -114,10 +130,12 @@ class Settings(BaseSettings):
     OPENID_METADATA_URL: str = "http://keycloak/realms/master/.well-known/openid-configuration"
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
+    SKIP_INITIAL_USER_ONBOARDING: bool = False
 
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: SecretStr | None = None
     RQ_DEFAULT_JOB_TIMEOUT: int = 180
+    TASK_HISTORY_RETENTION_DAYS: Annotated[int, Field(gt=0)] = 30
     CACHE_ENABLED: bool = CACHE_ENABLED_DEFAULT
     CACHE_DEFAULT_TIMEOUT: int = CACHE_DEFAULT_TIMEOUT_DEFAULT
     CACHE_KEY_PREFIX: str = CACHE_KEY_PREFIX_DEFAULT

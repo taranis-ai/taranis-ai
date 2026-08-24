@@ -13,9 +13,27 @@ The frontend supports two bookmark entry paths:
 - the modal flow for selecting one or more stories and choosing an existing or new collection
 - the instant single-story flow that uses the first available collection or creates a default collection named `Bookmarks`
 
+The instant story action remains an HTMX update when JavaScript is available, but is also a normal POST form. Without JavaScript it redirects to the story detail page with the result notification.
+
+Full-page share and report forms preserve all selected story IDs when validation fails. Missing story, connector, or report selections are rejected before calling core; non-HTMX requests redirect to a safe retry page with a flash notification.
+
 The Assess page shows a compact bookmark bar with up to six collections ordered by user-defined bookmark position and an `All bookmarks` link. Bookmark labels in templates should stay translatable, but the default collection name used by the instant create path stays `Bookmarks`.
 
 Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark` action because those stories are already in a bookmark collection.
+
+Bookmark detail views also reuse the Assess selection hotkey bar except for `Shift+B`. Bookmark actions re-render the bookmark detail instead of navigating back to Assess, Read/Important actions stay at the top level alongside Remove selected, and story cards expose Read, Important, and In Reports state even when the user's compact-card preference is enabled. The clustering dialog still offers `Cluster and Open`; choosing it intentionally navigates to the resulting primary story.
+
+Without JavaScript, bookmark detail views hide the shared selection bar through the base template's global `<noscript>` rule.
+
+Selecting a Bookmark story card checks its native `story_ids` input and updates both the selection count and the card's selected styling (`aria-selected`, primary background/border, and shadow). Bookmark actions submit those checked inputs directly; JavaScript only adapts the HTML-backed selection to the shared Assess toolbar interface. Assess and Bookmark use the same card-state synchronizer so their selected cards cannot diverge visually.
+
+Per-card Ungroup requests carry the bookmark ID and re-render the current collection for both success and error responses. Core rejects ungrouping stories assigned to reports, so Bookmark must show that error without redirecting to Assess.
+
+Story editor actions that replace the editor in place, including Like and Dislike, carry the bookmark ID so the replacement keeps its Return to bookmark link and Bookmark-aware Save action.
+
+The story editor Save action is a normal CSRF-protected POST form, enhanced with HTMX when JavaScript is available. Bookmark-aware saves preserve the bookmark return target in both paths.
+
+When an eligible bookmarked story is ungrouped, core replaces its bookmark relationship with relationships to the newly created standalone stories in the same transaction. If a partial ACL-limited ungroup leaves the source story non-empty, bookmarks retain it alongside the accessible new stories.
 
 ## Code Paths
 
@@ -34,13 +52,15 @@ Bookmark detail views reuse Assess story cards, but hide the per-story `Bookmark
   - `StoryBookmarkStoryPayload`
   - `StoryBookmark`
 - Frontend views: `src/frontend/frontend/views/story_bookmark_views.py`, `src/frontend/frontend/views/story_views.py`
+- Frontend selection adapter: `src/frontend/frontend/templates/bookmarks/bookmark_detail.html`
 - Frontend routes: `src/frontend/frontend/router/assess.py`
-- Templates: `src/frontend/frontend/templates/bookmarks/`, `src/frontend/frontend/templates/assess/bookmarks_bar.html`, `src/frontend/frontend/templates/assess/story_actions.html`
+- Templates: `src/frontend/frontend/templates/base.html`, `src/frontend/frontend/templates/bookmarks/`, `src/frontend/frontend/templates/assess/bookmarks_bar.html`, `src/frontend/frontend/templates/assess/story_actions.html`
 - Tests:
   - `src/core/tests/application/user_workspace/assessment/test_story_bookmarks.py`
   - `src/frontend/tests/unit/views/test_story_bookmark_view.py`
   - `src/frontend/tests/unit/views/test_story_view.py`
   - `src/frontend/tests/playwright/test_e2e_workflow.py`
+  - `src/frontend/tests/playwright/test_no_javascript.py`
 
 ## Data Flow
 
@@ -50,6 +70,10 @@ Users reorder bookmark collections on `/bookmarks` by dragging cards. The fronte
 
 Bookmark mutations in the frontend call core through `CoreApi()`, then invalidate the local bookmark cache so list/detail views and the Assess bar can refresh with current data.
 
+Bulk story actions, report additions, and clustering carry `bookmark_id` through their existing Assess dialogs and endpoints. `StoryView.rerender_list()` uses that value to render the current bookmark detail and preserve selected visible story IDs.
+
+Bookmark detail uses the bookmark's ordered story IDs to query the canonical Assess story collection before rendering cards. Do not render directly from the bookmark's embedded `stories` payload because it does not carry Assess-only enrichment such as `in_reports_count`.
+
 The instant bookmark path first looks up the earliest collection, then falls back to creating `Bookmarks` in core if the user has none. The modal flow posts selected story IDs to the existing add-stories endpoint.
 
 ## Testing
@@ -57,6 +81,7 @@ The instant bookmark path first looks up the earliest collection, then falls bac
 - Core API coverage: `cd src/core && uv run pytest tests/application/user_workspace/assessment/test_story_bookmarks.py`
 - Frontend bookmark views: `cd src/frontend && uv run pytest tests/unit/views/test_story_bookmark_view.py tests/unit/views/test_story_view.py`
 - E2E coverage: `cd src/frontend && uv run pytest tests/playwright/test_e2e_workflow.py -k bookmark`
+- JavaScript-disabled instant action coverage: `cd src/frontend && uv run pytest tests/playwright/test_no_javascript.py --e2e-ci`
 - If bookmark-related template strings change, refresh catalogs with `cd src/frontend && uv run pybabel compile -d frontend/translations`
 
 ## Pitfalls
@@ -68,4 +93,6 @@ The instant bookmark path first looks up the earliest collection, then falls bac
 - Keep cache invalidation after bookmark reorder or the Assess bar and bookmark list can render stale positions.
 - The Assess bookmark bar is intentionally capped at six items; do not broaden it without an explicit UI change.
 - Keep the Assess `Shift+B` bookmark shortcut guarded by `canUseAssessShortcut`; typing uppercase letters in bookmark dialogs must not reopen toolbar modals.
+- Do not add `Shift+B` to the bookmark detail hotkey bar, and keep its Read and Important actions outside the overflow Actions menu.
+- Keep Bookmark selection HTML-backed: checked `story_ids` inputs are the request source of truth, not a separate JavaScript selection store.
 - Prefer `data-testid` selectors when adding e2e coverage for bookmark behavior.

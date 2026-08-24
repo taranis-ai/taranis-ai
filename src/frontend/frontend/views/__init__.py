@@ -20,32 +20,33 @@ from .dashboard_views import DashboardView
 from .onboarding_views import OnboardingPromptView
 from .product_views import ProductView
 from .report_views import ReportItemView
-from .user_views import UserProfileView
+from .user_views import UserProfileView, UserTaskView
 
 
 __all__ = [
-    "AuthView",
-    "AssetView",
     "ACLView",
     "AdminDashboardView",
-    "TemplateView",
+    "AssetView",
+    "AttributeView",
+    "AuthView",
     "BotView",
+    "ConnectorView",
     "DashboardView",
     "OnboardingPromptView",
     "OrganizationView",
-    "PublisherView",
     "ProductTypeView",
+    "ProductView",
+    "PublisherView",
+    "ReportItemTypeView",
+    "ReportItemView",
     "RoleView",
+    "SchedulerView",
+    "SourceGroupView",
+    "SourceView",
+    "TemplateView",
+    "UserProfileView",
+    "UserTaskView",
     "UserView",
     "WordListView",
-    "AttributeView",
     "WorkerView",
-    "SourceView",
-    "SourceGroupView",
-    "ReportItemTypeView",
-    "ConnectorView",
-    "SchedulerView",
-    "ReportItemView",
-    "ProductView",
-    "UserProfileView",
 ]

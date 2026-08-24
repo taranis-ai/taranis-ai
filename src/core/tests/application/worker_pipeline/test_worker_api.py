@@ -1,6 +1,8 @@
+# pyright: reportAttributeAccessIssue=false
 import importlib.util
 import sys
 import uuid
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -19,6 +21,85 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 
 class TestWorkerApi:
     base_uri = "/api/worker"
+
+    def test_bot_story_query_uses_default_lookback_setting(self, client, api_header, monkeypatch):
+        captured_filter = {}
+        current_time = datetime(2026, 8, 12, 12, 0)
+
+        monkeypatch.setattr("core.api.worker.Settings.get_settings", lambda: {"default_bot_lookback_days": 5})
+        monkeypatch.setattr("core.api.worker.Story.utcnow", lambda: current_time)
+
+        def capture_filter(filter_args):
+            captured_filter.update(filter_args)
+            return [{"id": "story-1"}]
+
+        monkeypatch.setattr("core.api.worker.Story.get_for_worker", capture_filter)
+
+        response = client.get(
+            f"{self.base_uri}/stories",
+            query_string={"worker": "true", "exclude_attr": "ANALYST_BOT"},
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        assert captured_filter["timefrom"] == "2026-08-07T12:00:00"
+
+    def test_zero_bot_lookback_does_not_apply_timefrom(self, client, api_header, monkeypatch):
+        captured_filter = {}
+
+        monkeypatch.setattr("core.api.worker.Settings.get_settings", lambda: {"default_bot_lookback_days": 0})
+
+        def capture_filter(filter_args):
+            captured_filter.update(filter_args)
+            return [{"id": "story-1"}]
+
+        monkeypatch.setattr("core.api.worker.Story.get_for_worker", capture_filter)
+
+        response = client.get(
+            f"{self.base_uri}/stories",
+            query_string={"worker": "true", "exclude_attr": "ANALYST_BOT"},
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        assert "timefrom" not in captured_filter
+
+    def test_non_bot_story_query_does_not_apply_default_lookback(self, client, api_header, monkeypatch):
+        captured_filter = {}
+
+        def capture_filter(filter_args):
+            captured_filter.update(filter_args)
+            return [{"id": "story-1"}]
+
+        monkeypatch.setattr("core.api.worker.Story.get_for_worker", capture_filter)
+
+        response = client.get(
+            f"{self.base_uri}/stories",
+            query_string={"source": "source-1"},
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        assert "timefrom" not in captured_filter
+
+    def test_post_collection_bots_forwards_user_id(self, client, api_header, monkeypatch):
+        captured = {}
+
+        def fake_post_collection_bots(source_id, user_id=None):
+            captured["source_id"] = source_id
+            captured["user_id"] = user_id
+            return {"message": "scheduled"}, 200
+
+        monkeypatch.setattr("core.api.worker.queue_manager.queue_manager.post_collection_bots", fake_post_collection_bots)
+
+        response = client.put(
+            f"{self.base_uri}/post-collection-bots",
+            json={"source_id": "source-1", "user_id": "user-1"},
+            headers=api_header,
+        )
+
+        assert response.status_code == 200
+        assert captured == {"source_id": "source-1", "user_id": "user-1"}
 
     @pytest.mark.parametrize(
         "result_payload",
@@ -292,9 +373,11 @@ class TestWorkerApi:
             assert _tag_names(news_item.get("tags", [])) == _tag_names(expected_item.get("tags", []))
         assert len(story.get("attributes", {})) == len(full_story[0].get("attributes", [])) + 1
 
-    def test_worker_put_tags(self, client, stories, api_header):
+    def test_worker_put_tags(self, client, stories, api_header, monkeypatch):
         story_1_id = stories[0]
         tags = ["tag3", "tag4"]
+        refreshed = []
+        monkeypatch.setattr("core.service.news_item.refresh_misp_auto_update_jobs", refreshed.append)
         story_response = client.get(f"{self.base_uri}/stories", headers=api_header, query_string={"story_id": story_1_id})
         news_item_id = story_response.get_json()[0]["news_items"][0]["id"]
 
@@ -312,6 +395,7 @@ class TestWorkerApi:
         updated_tags = updated_news_item.get("tags", [])
         assert [tag.get("name") for tag in updated_tags] == tags
         assert all(tag.get("tag_type") == "misc" for tag in updated_tags)
+        assert refreshed == [[story_1_id]]
 
     def test_worker_put_tags_invalid_cases(self, client, stories, api_header):
         story_1_id = stories[0]
@@ -472,9 +556,11 @@ class TestWorkerTaskResults:
                 if Product.get(product_id):
                     Product.delete(product_id)
 
-    def test_worker_task_results_apply_bot_tags(self, client, stories, auth_header, api_header, app, wordlist_bot_result):
+    def test_worker_task_results_apply_bot_tags(self, client, stories, auth_header, api_header, app, wordlist_bot_result, monkeypatch):
         from core.model.task import Task
 
+        refreshed = []
+        monkeypatch.setattr("core.service.task.refresh_misp_auto_update_jobs", refreshed.append)
         task_id = f"cron-bot-wordlist-{uuid.uuid4().hex}"
         payload = {
             "id": task_id,
@@ -489,6 +575,7 @@ class TestWorkerTaskResults:
             response = client.post(self.base_uri, json=payload, headers=api_header)
 
             assert response.status_code == 200
+            assert refreshed == [set(stories)]
 
             for story_id in stories:
                 story_response = client.get(f"/api/assess/story/{story_id}", headers=auth_header)
@@ -523,6 +610,34 @@ class TestWorkerTaskResults:
             response = client.post(self.base_uri, json=payload, headers=api_header)
             assert response.status_code == 200
             assert response.get_json()["job_id"] == task_id
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+
+    def test_task_submission_persists_user_id(self, client, api_header, app):
+        from core.model.task import Task
+
+        task_id = f"user-task-{uuid.uuid4().hex}"
+        payload = {
+            "id": task_id,
+            "task": "collector_task",
+            "user_id": "user-123",
+            "worker_id": "source-1",
+            "worker_type": "rss_collector",
+            "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+            assert response.status_code == 200
+            assert response.get_json()["user_id"] == "user-123"
+
+            with app.app_context():
+                stored = Task.get(task_id)
+                assert stored is not None
+                assert stored.user_id == "user-123"
         finally:
             with app.app_context():
                 if Task.get(task_id):
@@ -629,7 +744,6 @@ class TestWorkerTaskResults:
             "taranis_frontend:user:alice:model:osint_source:detail:other-source",
             f"taranis_frontend:user:alice:model:task:detail:{task_id}",
             "taranis_frontend:user:alice:model:job:list:default",
-            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
             "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
             "taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton",
             "taranis_frontend:user:alice:model:active_job:list:default",
@@ -669,7 +783,6 @@ class TestWorkerTaskResults:
                 "taranis_frontend:user:alice:model:osint_source:detail:other-source",
                 f"taranis_frontend:user:alice:model:task:detail:{task_id}",
                 "taranis_frontend:user:alice:model:job:list:default",
-                "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
                 "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
                 "taranis_frontend:user:alice:model:active_job:list:default",
                 "taranis_frontend:user:alice:model:failed_job:list:default",
@@ -698,7 +811,6 @@ class TestWorkerTaskResults:
             "taranis_frontend:user:alice:model:osint_source:detail:other-source",
             f"taranis_frontend:user:alice:model:task:detail:{task_id}",
             "taranis_frontend:user:alice:model:job:list:default",
-            "taranis_frontend:user:alice:model:scheduler_dashboard:detail:singleton",
             "taranis_frontend:user:alice:model:task_history_response:detail:singleton",
             "taranis_frontend:user:alice:model:active_job:list:default",
             "taranis_frontend:user:alice:model:failed_job:list:default",
@@ -738,11 +850,17 @@ class TestWorkerTaskResults:
                 if Task.get(task_id):
                     Task.delete(task_id)
 
-    def test_collector_not_modified_updates_last_success_and_task_statistics(self, client, api_header, app):
+    def test_collector_not_modified_updates_last_success_and_task_statistics(self, client, api_header, app, fake_source):
+        from core.model.osint_source import CollectorHTTPState
         from core.model.task import Task
 
-        source_id = f"source-{uuid.uuid4().hex}"
+        source_id = fake_source
         task_id = f"collect_rss_collector_{source_id}"
+        validators = {
+            "url": "https://example.com/feed",
+            "etag": 'W/"opaque-etag"',
+            "last_modified": "Tue, 11 Aug 2026 09:07:03 GMT",
+        }
         payload = {
             "id": task_id,
             "task": "collector_task",
@@ -752,7 +870,7 @@ class TestWorkerTaskResults:
                 "message": "No changes: feed was not modified",
                 "reason": "collector_not_modified",
                 "retryable": False,
-                "data": {"source_id": source_id},
+                "data": {"source_id": source_id, "http_validators": validators},
             },
             "status": "NOT_MODIFIED",
         }
@@ -767,6 +885,13 @@ class TestWorkerTaskResults:
                 assert stored.status == "NOT_MODIFIED"
                 assert stored.last_run is not None
                 assert stored.last_success is not None
+                state = CollectorHTTPState.query.get(source_id)
+                assert state is not None
+                assert state.to_worker_dict() == validators
+
+            source_response = client.get(f"/api/worker/osint-sources/{source_id}", headers=api_header)
+            assert source_response.status_code == 200
+            assert source_response.get_json()["http_validators"] == validators
 
             history_response = client.get("/api/tasks", headers=api_header)
             assert history_response.status_code == 200
@@ -912,22 +1037,56 @@ class TestWorkerTaskResults:
         response = client.get(self.base_uri, headers=api_header)
         assert response.status_code == 200
 
-    def test_tasks_delete_allows_jwt_auth(self, client, auth_header, app):
+    def test_tasks_delete_allows_jwt_auth_and_invalidates_worker_status_caches(self, client, auth_header, app, monkeypatch):
+        import fakeredis
+
         from core.model.task import Task
+        from core.service import cache_invalidation as cache_invalidation_module
 
         task_id = f"delete-task-{uuid.uuid4().hex}"
-        with app.app_context():
-            Task.add(
-                {
-                    "id": task_id,
-                    "task": "collector_task",
-                    "result": {"message": "ok", "retryable": False, "data": {"source_id": "source-1"}},
-                    "status": "SUCCESS",
-                }
-            )
+        source_id = f"source-{uuid.uuid4().hex}"
+        redis_client = fakeredis.FakeRedis(decode_responses=True)
+        cached_keys = {
+            "taranis_frontend:user:alice:model:admin_menu_badges:detail:singleton",
+            "taranis_frontend:user:alice:model:bot:list:default",
+            "taranis_frontend:user:alice:model:osint_source:list:default",
+            f"taranis_frontend:user:alice:model:osint_source:detail:{source_id}",
+            "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+        }
+        redis_client.mset(dict.fromkeys(cached_keys, "1"))
 
-        response = client.delete(f"{self.base_uri}/{task_id}", headers=auth_header)
-        assert response.status_code == 200
+        service = cache_invalidation_module.FrontendCacheInvalidationService()
+        service._client = redis_client
+        monkeypatch.setattr(cache_invalidation_module, "cache_invalidation_service", service)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_ENABLED", True)
+        monkeypatch.setattr(cache_invalidation_module.Config, "CACHE_KEY_PREFIX", "taranis_frontend")
+
+        try:
+            with app.app_context():
+                Task.add(
+                    {
+                        "id": task_id,
+                        "task": "collector_task",
+                        "worker_id": source_id,
+                        "worker_type": "rss_collector",
+                        "result": {"message": "failed", "retryable": False, "data": {"source_id": source_id}},
+                        "status": "FAILURE",
+                    }
+                )
+
+            response = client.delete(f"{self.base_uri}/{task_id}", headers=auth_header)
+
+            assert response.status_code == 200
+            with app.app_context():
+                assert Task.get(task_id) is None
+            assert set(redis_client.scan_iter(match="*")) == {
+                "taranis_frontend:user:alice:model:bot:list:default",
+                "taranis_frontend:user:alice:model:osint_source:detail:other-source",
+            }
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
 
 
 class TestConnector:

@@ -1,4 +1,6 @@
-from flask import Blueprint, Flask, Response, jsonify, request, send_file
+from datetime import timedelta
+
+from flask import Blueprint, Flask, Response, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from werkzeug.datastructures import FileStorage
 
@@ -10,6 +12,7 @@ from core.managers.decorators import extract_args
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 from core.model.connector import Connector
+from core.model.ioc import IOC
 from core.model.news_item import NewsItem
 from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import InvalidOSINTSourceIconError, OSINTSource
@@ -17,9 +20,20 @@ from core.model.product import Product
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
 from core.model.report_item import ReportItem
-from core.model.story import Story
+from core.model.settings import Settings
+from core.model.story import Story, StoryMispAutoUpdate
 from core.model.word_list import WordList
-from core.service.cache_invalidation import SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS, invalidate_frontend_cache_on_success
+from core.service.cache_invalidation import (
+    SCOPE_ASSESS_VIEWS,
+    SCOPE_PUBLISH_VIEWS,
+    SCOPE_STORY_REPORT_VIEWS,
+    invalidate_frontend_cache_on_success,
+)
+from core.service.misp_auto_update import cancel_misp_auto_update_jobs
+from core.service.news_item import NewsItemService
+from core.service.news_item_tag import NewsItemTagService
+from core.service.product import ProductService
+from core.service.task import TaskService
 
 
 class AddNewsItems(MethodView):
@@ -52,13 +66,20 @@ class ProductsRender(MethodView):
         return {"error": "Product not found"}, 404
 
 
+class ProductsPublish(MethodView):
+    @api_key_required
+    def post(self, product_id: str):
+        response, status = ProductService.publish_to_taranis(product_id)
+        invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
+        return response, status
+
+
 class Presenters(MethodView):
     @api_key_required
     def get(self, presenter: str):
         try:
-            if pres := ProductType.get(presenter):
-                if tmpl := pres.get_template():
-                    return send_file(tmpl)
+            if (pres := ProductType.get(presenter)) and (tmpl := pres.get_template()):
+                return send_file(tmpl)
             return {"error": "Presenter not found"}, 404
         except Exception:
             logger.exception("Failed to get presenter %s", presenter)
@@ -99,6 +120,12 @@ class CronJobs(MethodView):
         return queue_manager.queue_manager.get_cron_job_configs()
 
 
+class TaskHistoryCleanup(MethodView):
+    @api_key_required
+    def post(self):
+        return TaskService.cleanup_history()
+
+
 class SourceIcon(MethodView):
     @api_key_required
     def put(self, source_id: str):
@@ -117,6 +144,17 @@ class SourceIcon(MethodView):
             return {"error": "Internal server error"}, 500
 
 
+def _configured_misp_story_ids() -> set[str]:
+    return set(StoryMispAutoUpdate.get_story_ids())
+
+
+def _cancel_deleted_misp_story_jobs(story_ids: set[str]) -> None:
+    if not story_ids:
+        return
+    surviving_ids = {story.id for story in Story.get_bulk(list(story_ids))}
+    cancel_misp_auto_update_jobs(story_ids - surviving_ids)
+
+
 class Stories(MethodView):
     @api_key_required
     def get(self):
@@ -132,12 +170,20 @@ class Stories(MethodView):
             "exclude_attr",
             "include_attr",
             "story_id",
+            "story_ids",
             "cybersecurity",
         ]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
-        filter_list_keys = ["source", "group"]
+        filter_list_keys = ["source", "group", "story_ids"]
         for key in filter_list_keys:
             filter_args[key] = request.args.getlist(key)
+
+        is_bot_query = str(filter_args.get("worker", "")).lower() == "true"
+        targets_stories = filter_args.get("story_id") or filter_args.get("story_ids")
+        if is_bot_query and not targets_stories and "timefrom" not in filter_args:
+            default_lookback_days = Settings.get_settings()["default_bot_lookback_days"]
+            if default_lookback_days > 0:
+                filter_args["timefrom"] = (Story.utcnow() - timedelta(days=default_lookback_days)).isoformat()
 
         if story := Story.get_for_worker(filter_args):
             return jsonify(story), 200
@@ -145,10 +191,10 @@ class Stories(MethodView):
 
     @api_key_required
     def post(self):
+        configured_story_ids = _configured_misp_story_ids()
         response, status = Story.add_or_update(request.json)
-        json_response = jsonify(response)
-        json_response.status_code = status
-        return json_response
+        _cancel_deleted_misp_story_jobs(configured_story_ids)
+        return make_response(jsonify(response), status)
 
 
 class MISPStories(MethodView):
@@ -158,11 +204,11 @@ class MISPStories(MethodView):
             return {"error": "No data provided"}, 400
         if not isinstance(data, list):
             return {"error": "Expected a list of stories"}, 400
+        configured_story_ids = _configured_misp_story_ids()
         result, status = Story.add_or_update_for_misp(data)
+        _cancel_deleted_misp_story_jobs(configured_story_ids)
         sse_manager.news_items_updated()
-        json_response = jsonify(result)
-        json_response.status_code = status
-        return json_response
+        return make_response(jsonify(result), status)
 
     @api_key_required
     def put(self):
@@ -175,9 +221,7 @@ class MISPStories(MethodView):
         if news_item_ids := data.get("news_items"):
             result, code = Connector.update_news_item_last_change(news_item_ids)
         sse_manager.news_items_updated()
-        json_response = jsonify(result)
-        json_response.status_code = code
-        return json_response
+        return make_response(jsonify(result), code)
 
 
 class Tags(MethodView):
@@ -205,7 +249,7 @@ class Tags(MethodView):
                 errors[news_item_id] = "News item not found"
                 continue
             actor = Story.resolve_actor(actor=news_item.story.last_change) if news_item.story else None
-            result, status = news_item.set_tags(tags, actor=actor)
+            result, status = NewsItemService.update_tags(news_item, tags, actor=actor)
             if status != 200:
                 errors[news_item_id] = result.get("error", status)
         if errors:
@@ -216,7 +260,23 @@ class Tags(MethodView):
 class DropTags(MethodView):
     @api_key_required
     def post(self):
-        return NewsItemTag.delete_all()
+        return NewsItemTagService.delete_all()
+
+
+class IOCs(MethodView):
+    @api_key_required
+    def post(self):
+        payload = request.json or {}
+        iocs = payload.get("iocs", [])
+        if not isinstance(iocs, list):
+            return {"error": "Expected iocs list"}, 400
+        keys = set()
+        for ioc in iocs:
+            if not isinstance(ioc, dict):
+                continue
+            keys.add((str(ioc.get("ioc_type") or ""), str(ioc.get("value") or "")))
+        rows = IOC.get_for_iocs(keys)
+        return {"items": [row.to_cti_model().model_dump(mode="json", exclude_none=False) for row in rows.values()]}, 200
 
 
 class BotInfo(MethodView):
@@ -228,13 +288,14 @@ class BotInfo(MethodView):
 
         if result := Bot.get(bot_id):
             return result.to_dict(), 200
-        if result := Bot.filter_by_type(bot_id):
-            return result.to_dict(), 200
         return {"error": "Bot not found"}, 404
 
     @api_key_required
     def put(self, bot_id):
-        if bot := Bot.update(bot_id, request.json or {}):
+        data = request.json
+        if not isinstance(data, dict) or not data:
+            return {"error": "No data provided"}, 400
+        if bot := Bot.update(bot_id, data):
             return bot.to_dict(), 200
         return {"error": "Bot not found"}, 404
 
@@ -245,7 +306,7 @@ class PostCollectionBots(MethodView):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
         if source_id := data.get("source_id", None):
-            return queue_manager.queue_manager.post_collection_bots(source_id=source_id)
+            return queue_manager.queue_manager.post_collection_bots(source_id=source_id, user_id=data.get("user_id"))
         return {"error": "No source_id provided"}, 400
 
 
@@ -295,14 +356,17 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/cron-jobs", view_func=CronJobs.as_view("cron_jobs_worker"))
+    worker_bp.add_url_rule("/tasks/history/cleanup", view_func=TaskHistoryCleanup.as_view("task_history_cleanup_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
     worker_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
+    worker_bp.add_url_rule("/products/<string:product_id>/publish", view_func=ProductsPublish.as_view("products_publish_worker"))
     worker_bp.add_url_rule("/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
     worker_bp.add_url_rule("/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
     worker_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view("connectors_worker"))
     worker_bp.add_url_rule("/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
     worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))
     worker_bp.add_url_rule("/tags", view_func=Tags.as_view("tags_worker"))
+    worker_bp.add_url_rule("/iocs", view_func=IOCs.as_view("iocs_worker"))
     worker_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
     worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))

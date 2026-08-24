@@ -57,7 +57,7 @@ def _parse_key(key: str) -> list[str]:
     segments = key.split("[")
     tokens = [segments[0]]
     for seg in segments[1:]:
-        tokens.append(seg[:-1] if seg.endswith("]") else seg)
+        tokens.append(seg.removesuffix("]"))
     return tokens
 
 

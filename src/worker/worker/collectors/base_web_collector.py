@@ -12,7 +12,20 @@ from trafilatura import extract, extract_metadata
 
 from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.collectors.playwright_manager import PlaywrightManager
+from worker.config import Config
+from worker.core_api import IconFile
 from worker.log import logger
+
+
+def parse_datetime(value: str) -> datetime.datetime | None:
+    try:
+        parsed = dateparser.parse(value, ignoretz=True)
+    except (TypeError, ValueError, OverflowError):
+        logger.info("Could not parse datetime value")
+        return None
+    if isinstance(parsed, datetime.datetime):
+        return parsed
+    return None
 
 
 class BaseWebCollector(BaseCollector):
@@ -34,6 +47,30 @@ class BaseWebCollector(BaseCollector):
         self.playwright_manager: PlaywrightManager | None = None
         self.browser_mode: str | None = None
         self.web_url: str = ""
+        self.http_validators: dict[str, str | None] | None = None
+        self.use_conditional_requests = False
+
+    def configure_primary_http_resource(self, source: dict, url: str, *, manual: bool) -> None:
+        self.http_validators = {"url": url, "etag": None, "last_modified": None}
+        stored_validators = source.get("http_validators")
+        if isinstance(stored_validators, dict) and stored_validators.get("url") == url:
+            for key in ("etag", "last_modified"):
+                value = stored_validators.get(key)
+                if value is None or isinstance(value, str):
+                    self.http_validators[key] = value
+        self.use_conditional_requests = not manual
+
+    def _request_headers(self, url: str, modified_since: datetime.datetime | None = None) -> dict:
+        request_headers = self.headers.copy()
+        if modified_since:
+            request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+        if self.http_validators is not None and self.use_conditional_requests:
+            if self.http_validators["url"] == url and (etag := self.http_validators.get("etag")):
+                request_headers["If-None-Match"] = etag
+            if last_modified := self.http_validators.get("last_modified"):
+                request_headers["If-Modified-Since"] = last_modified
+        return request_headers
 
     def send_get_request(self, url: str, modified_since: datetime.datetime | None = None) -> requests.Response:
         """Send a GET request to url with self.headers using self.proxies.
@@ -41,14 +78,15 @@ class BaseWebCollector(BaseCollector):
         Check for specific status codes and raise rest of errors
         """
 
-        request_headers = self.headers.copy()
-
-        # transform modified_since datetime object to str that is accepted by If-Modified-Since
-        if modified_since:
-            request_headers["If-Modified-Since"] = modified_since.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        http_validators = self.http_validators
+        primary_request = http_validators is not None and http_validators["url"] == url
 
         logger.debug(f"Sending GET request to {url}")
-        response = requests.get(url, headers=request_headers, proxies=self.proxies, timeout=self.timeout)
+        with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
+            response = session.get(url, headers=self._request_headers(url, modified_since), proxies=self.proxies, timeout=self.timeout)
+        if http_validators is not None and primary_request and response.status_code == 200:
+            http_validators["etag"] = response.headers.get("ETag")
+            http_validators["last_modified"] = response.headers.get("Last-Modified")
         if response.status_code == 200 and not response.content:
             logger.info(f"Request to {url} got Response 200 OK, but returned no content")
         if response.status_code == 304:
@@ -79,44 +117,47 @@ class BaseWebCollector(BaseCollector):
         try:
             headers_dict = json.loads(headers)
             if not isinstance(headers_dict, dict):
-                raise ValueError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
+                raise TypeError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
             self.headers.update(headers_dict)
         except (json.JSONDecodeError, TypeError) as e:
             raise ValueError(f"ADDITIONAL_HEADERS: {headers} has to be valid JSON\n{e}") from e
 
     def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
         if last_modified := response.headers.get("Last-Modified", None):
-            return dateparser.parse(last_modified, ignoretz=True)
+            return parse_datetime(last_modified)
         return None
 
     def get_last_attempted(self, source: dict) -> datetime.datetime | None:
         if last_attempted := source.get("last_attempted"):
-            try:
-                return dateparser.parse(last_attempted, ignoretz=True)
-            except Exception:
-                return None
+            return parse_datetime(last_attempted)
         return None
 
     def _fetch_icon(self, icon_url: str) -> requests.Response:
-        with requests.Session(disable_http3=True) as session:
-            return session.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=5)
+        with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
+            return session.get(icon_url, headers=self._request_headers(icon_url), proxies=self.proxies, timeout=5)
 
     def update_favicon(self, web_url: str, osint_source_id: str):
         # TODO: Try getting apple-touch-icon first
         icon_url = f"{urlparse(web_url).scheme}://{urlparse(web_url).netloc}/favicon.ico"
         r = self._fetch_icon(icon_url)
-        if not r.ok:
-            return None
+        if not r.ok or not (content := r.content):
+            return
 
-        icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
+        filename = r.headers.get("content-disposition")
+        if not isinstance(filename, str):
+            filename = "file"
+        icon_content: IconFile = {"file": (filename, content)}
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
-        return None
+        return
 
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:
         if self.browser_mode == "true" and self.playwright_manager:
-            return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
+            web_content, last_modified = self.playwright_manager.fetch_content_with_js(web_url, xpath)
+            published_date = parse_datetime(last_modified) if last_modified else None
+            return web_content, published_date
 
-        response = self.send_get_request(web_url, self.last_attempted)
+        modified_since = None if self.http_validators is not None else self.last_attempted
+        response = self.send_get_request(web_url, modified_since)
 
         if not response.text:
             return "", None
@@ -189,10 +230,10 @@ class BaseWebCollector(BaseCollector):
             try:
                 news_items.append(self.news_item_from_article(split_digest_url))
             except ValueError as e:
-                logger.warning(f"Failed to parse the digest with error: {str(e)}")
+                logger.warning(f"Failed to parse the digest with error: {e!s}")
                 continue
             except Exception as e:
-                logger.error(f"Failed digest splitting with error: {str(e)}")
-                raise e
+                logger.error(f"Failed digest splitting with error: {e!s}")
+                raise
 
         return news_items

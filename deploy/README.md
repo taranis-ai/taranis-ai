@@ -15,11 +15,13 @@ Always required:
 - In `kubernetes/00-config.yaml` (or `helm/values.yaml`), set `GRANIAN_HOST`.
 - In `kubernetes/01-secrets.yaml` (or `helm/values.yaml`), set `JWT_SECRET_KEY`, `API_KEY`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `REDIS_URL`, `REDIS_PASSWORD`.
 - The raw manifest provides `TARANIS_BASE_PATH: /`; set it only when serving the application below a subpath.
+- When multiple deployments share a domain, set a unique `JWT_COOKIE_SUFFIX` such as `_q` for each deployment and keep it aligned between core and frontend. Helm exposes the same setting as `config.jwtCookieSuffix`.
 - The raw manifest provides `SSE_PATH: /sse`; keep it aligned with the ingress SSE route if you change it.
 
 Optional `llm-bot` overlay:
 - In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`; optionally set `LLM_TIMEOUT` and `LLM_MODEL`.
 - In `kubernetes/01-secrets.yaml`, set `BOT_API_KEY`; optionally set `LLM_API_KEY` for providers that require one.
+- For Helm, set `config.llmBaseUrl`; optionally set `config.llmTimeout`, `config.llmModel`, and `secrets.llmApiKey`.
 - Set ingress hostname in `kubernetes/40-ingress.yaml` (or Helm values).
 
 ## Images
@@ -42,12 +44,12 @@ kubectl apply -k deploy/kubernetes-optional-bots
 ```
 
 `kubernetes` is core-only. `kubernetes-optional-bots` includes core plus `llm-bot`.
-Default bot endpoints target `llm-bot` routes: `/summarize`, `/ner`, `/cluster`.
+Default bot endpoints target `llm-bot` routes: `/summarize`, `/title`, `/ner`, `/cluster`, `/sentiment`, and `/cybersec-classification`.
 
 ## Helm
 
 Use [`helm/`](./helm) if you want value-driven rendering or upgrades. The chart keeps `global.imagePullPolicy: Always` and renders pod `restartPolicy: Always` explicitly for all Deployments.
-Helm currently still uses legacy `nlp-bot`, `summary-bot`, and `story-bot` workloads.
+Helm deploys one `llm-bot` workload for summarization, title generation, NER, story clustering, sentiment analysis, and cybersecurity classification.
 
 ```bash
 helm template taranis deploy/helm
@@ -98,11 +100,30 @@ kubectl logs deploy/collector --tail=200
 kubectl logs deploy/cron --tail=200
 ```
 
+## Operational CLI
+
+Run `taranis-cli` inside the core container for emergency user administration.
+
+```bash
+kubectl exec -it deploy/core -- taranis-cli set-password admin
+kubectl exec -it deploy/core -- taranis-cli set-roles user Admin
+```
+
+For Docker Compose-style deployments:
+
+```bash
+docker exec -it core taranis-cli set-password admin
+docker exec -it core taranis-cli set-roles user Admin
+```
+
+`set-password` updates an existing user's database-auth password. `set-roles` replaces an existing user's full role list; role arguments are exact role names or role IDs. Prefer the password prompt or `--password-stdin` instead of passing passwords as command arguments.
+
 ## Notes
 
 - These manifests expect a reachable PostgreSQL service and a reachable Redis service, but they do not create those workloads.
 - `STORY_API_ENDPOINT` now defaults to `http://llm-bot:8000/cluster`; ensure your `llm-bot` image exposes that route if you enable story clustering.
 - The `core` PVC is included because the application writes persistent data under `/app/data`.
-- The `core` readiness and liveness probes run every 15 minutes after a 15-second startup delay.
+- The `core` readiness and liveness probes run every 5 minutes after a 15-second startup delay because the core healthcheck performs non-trivial service checks.
+- The default `core` and `frontend` images recycle Granian workers above 4096 MiB and 1024 MiB RSS respectively.
 - The default ingress policy assumes the stock k3s Traefik deployment runs in `kube-system` with label `app.kubernetes.io/name=traefik`. Adjust [`05-network-policies.yaml`](./kubernetes/05-network-policies.yaml) or the Helm values if your ingress controller differs.
 - The default ingress manifest is plain HTTP. For raw Kubernetes, add `spec.tls` and a certificate secret. For Helm, configure `ingress.tls` and `ingress.annotations` in values.yaml.

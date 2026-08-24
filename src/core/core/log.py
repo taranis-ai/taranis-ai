@@ -3,7 +3,7 @@ import logging
 import logging.handlers
 import socket
 import sys
-from typing import Any, Optional
+from typing import Any
 
 from flask import request
 
@@ -31,7 +31,7 @@ def _redact_sensitive_json(value: Any) -> Any:
 
 
 class TaranisLogger:
-    def __init__(self, module: str, debug: bool, colored: bool, syslog_address: Optional[tuple[str, int]]):
+    def __init__(self, module: str, debug: bool, colored: bool, syslog_address: tuple[str, int] | None):
         stream_handler = logging.StreamHandler(stream=sys.stdout)
         if colored:
             stream_handler.setFormatter(TaranisLogFormatter(module))
@@ -41,7 +41,7 @@ class TaranisLogger:
         if syslog_address:
             try:
                 sys_log_handler = logging.handlers.SysLogHandler(address=syslog_address, socktype=socket.SOCK_STREAM)
-            except Exception:
+            except OSError:
                 print("Unable to connect to syslog server!")
 
         self.logger = logging.getLogger(module)
@@ -118,8 +118,6 @@ class Logger(TaranisLogger):
             return ""
 
         if isinstance(json_data := request.get_json(silent=True), (dict, list)):
-            if Config.DEBUG:
-                return json.dumps(json_data, separators=(",", ":"), sort_keys=True)[:4096]
             return json.dumps(_redact_sensitive_json(json_data), separators=(",", ":"), sort_keys=True)[:4096]
 
         return str(request.data)[:4096].replace("\\r", "").replace("\\n", "").replace(" ", "")[2:-1]

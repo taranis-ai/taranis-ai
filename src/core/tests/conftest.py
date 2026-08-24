@@ -1,8 +1,10 @@
 import contextlib
 import os
 import sys
+from unittest.mock import patch
 from urllib.parse import urlparse
 
+import fakeredis
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -27,16 +29,22 @@ def app():
         print(f"Cleaning up database file at {parsed_uri.path} before tests")
         os.remove(f"{parsed_uri.path}")
 
-    app = create_app()
-    app.config.update(
-        {
-            "TESTING": True,
-            "DEBUG": True,
-            "SERVER_NAME": "localhost",
-        }
-    )
+    redis_server = fakeredis.FakeServer()
 
-    yield app
+    def isolated_redis_from_url(url, *args, **kwargs):
+        return fakeredis.FakeRedis.from_url(url, *args, server=redis_server, **kwargs)
+
+    with patch("redis.Redis.from_url", side_effect=isolated_redis_from_url):
+        app = create_app()
+        app.config.update(
+            {
+                "TESTING": True,
+                "DEBUG": True,
+                "SERVER_NAME": "localhost",
+            }
+        )
+
+        yield app
 
     with contextlib.suppress(Exception):
         parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
@@ -444,18 +452,18 @@ def bots(app):
         highest_index = Bot.get_highest_index()
 
         bot1 = Bot(
-            name="Test IOC Bot",
-            description="IOC bot fixture for cron job tests",
-            type="ioc_bot",
+            name="Test Analyst Bot",
+            description="Analyst bot fixture for cron job tests",
+            type="analyst_bot",
             index=highest_index + 1,
             parameters={"REFRESH_INTERVAL": "0 2 * * *"},  # Daily at 2am
         )
         bot1.enabled = True
 
         bot2 = Bot(
-            name="Test NLP Bot",
-            description="NLP bot fixture for cron job tests",
-            type="nlp_bot",
+            name="Test Grouping Bot",
+            description="Grouping bot fixture for cron job tests",
+            type="grouping_bot",
             index=highest_index + 2,
             parameters={"REFRESH_INTERVAL": "0 */6 * * *"},  # Every 6 hours
         )

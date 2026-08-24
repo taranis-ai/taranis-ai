@@ -1,3 +1,5 @@
+from importlib import import_module
+from pathlib import Path
 from sqlite3 import Connection as SQLite3Connection
 
 from flask import Flask
@@ -14,6 +16,8 @@ db: SQLAlchemy = SQLAlchemy()
 
 
 def initial_database_setup(engine: Engine):
+    import_module("core.model.ioc")
+
     is_empty = is_db_empty(engine)
     db.metadata.create_all(bind=engine)
     setup_fts(engine)
@@ -42,7 +46,7 @@ def setup_fts(engine: Engine):
     if db.engine.dialect.name != "postgresql":
         return
     with engine.begin() as conn:
-        conn.execute(text(open("core/sql/fulltext_search.sql", "r").read()))
+        conn.execute(text(Path("core/sql/fulltext_search.sql").read_text(encoding="utf-8")))
 
 
 def is_db_empty(engine: Engine) -> bool:

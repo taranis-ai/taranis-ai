@@ -1,6 +1,7 @@
 import base64
-from datetime import datetime, timezone
-from typing import Any, Iterable
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Any
 
 import filetype
 from flask import render_template, url_for
@@ -13,26 +14,26 @@ from models.assess import Story
 
 
 __all__ = [
-    "human_readable_trigger",
-    "last_path_segment",
     "admin_action",
-    "get_var",
     "b64decode",
-    "render_truncated",
-    "render_icon",
-    "render_parameter",
-    "render_count",
-    "render_source_parameter",
-    "render_item_type",
-    "render_validation_status",
-    "render_item_validation_status",
     "badge_class",
     "badge_label",
-    "normalize_validation_status",
-    "render_worker_status",
     "format_datetime",
     "get_published_dates",
+    "get_var",
+    "human_readable_trigger",
     "index_by",
+    "last_path_segment",
+    "normalize_validation_status",
+    "render_count",
+    "render_icon",
+    "render_item_type",
+    "render_item_validation_status",
+    "render_parameter",
+    "render_source_parameter",
+    "render_truncated",
+    "render_validation_status",
+    "render_worker_status",
 ]
 
 
@@ -194,34 +195,34 @@ def render_item_validation_status(item) -> str:
     if isinstance(item, dict):
         status = item.get("validation_status")
     elif hasattr(item, "validation_status"):
-        status = getattr(item, "validation_status")
+        status = item.validation_status
     return render_validation_status(status)
 
 
 def format_datetime(value: datetime | str) -> str:
     if isinstance(value, str):
         try:
-            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            value = datetime.fromisoformat(value)
         except ValueError:
             return value
     if isinstance(value, datetime):
         if value.tzinfo is None or value.utcoffset() is None:
-            value = value.replace(tzinfo=timezone.utc)
+            value = value.replace(tzinfo=UTC)
         return babel_format_datetime(value, format="dd. MMMM y HH:mm")
     return value
 
 
 def get_published_dates(story: Story) -> dict[str, datetime | None]:
-    published = {}
+    published: dict[str, datetime | None] = {}
     if not story.news_items:
         return {"earliest": story.created, "latest": story.updated}
     for news_item in story.news_items:
         if published_at := news_item.published or news_item.collected:
-            published["earliest"] = published.get("earliest", published_at)
-            published["latest"] = published.get("latest", published_at)
-            if published_at < published["earliest"]:
+            earliest = published.get("earliest")
+            latest = published.get("latest")
+            if earliest is None or published_at < earliest:
                 published["earliest"] = published_at
-            if published_at > published["latest"]:
+            if latest is None or published_at > latest:
                 published["latest"] = published_at
     return published
 

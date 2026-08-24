@@ -1,6 +1,7 @@
 import hashlib
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from typing import TYPE_CHECKING, Any
 
 from models.assess import NewsItem as AssessNewsItem
 from models.assess import Story as AssessStory
@@ -19,6 +20,7 @@ from core.model.news_item_tag import NewsItemTag
 from core.model.osint_source import OSINTSource
 from core.model.role import TLPLevel
 from core.model.role_based_access import ItemType, RoleBasedAccess
+from core.model.settings import Settings
 from core.model.user import User
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
@@ -60,10 +62,10 @@ class NewsItem(BaseModel):
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="news_item", cascade="all, delete")
 
     osint_source_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("osint_source.id"), nullable=True, index=True)
-    osint_source: Mapped["OSINTSource"] = relationship("OSINTSource", back_populates="news_items")
+    osint_source: Mapped["OSINTSource | None"] = relationship("OSINTSource", back_populates="news_items")
 
     story_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("story.id", ondelete="SET NULL"), nullable=True, index=True)
-    story: Mapped["Story"] = relationship("Story", back_populates="news_items")
+    story: Mapped["Story | None"] = relationship("Story", back_populates="news_items")
 
     def __init__(
         self,
@@ -128,7 +130,9 @@ class NewsItem(BaseModel):
         self.collected = payload.collected or normalized_collected
         self.published = payload.published or normalized_published
         self.story_id = payload.story_id or story_id
-        self.attributes = NewsItemAttribute.load_multiple(cast(list[dict[str, Any]], payload.attributes or []))
+        self.attributes = NewsItemAttribute.load_multiple(
+            [attribute for attribute in payload.attributes or [] if isinstance(attribute, dict)]
+        )
         self.tags = list(NewsItemTag.parse_tags(payload.tags or {}).values())
 
     @classmethod
@@ -184,6 +188,8 @@ class NewsItem(BaseModel):
     def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
         if item := cls.get(item_id):
+            if user and not item.allowed_with_acl(user, require_write_access=False):
+                return {"error": "User does not have access to this news item"}, 403
             return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} not found"}, 404
 
@@ -414,7 +420,12 @@ class NewsItem(BaseModel):
 
     @property
     def tlp_level(self) -> TLPLevel:
-        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), self.osint_source.tlp_level)
+        source_tlp = (
+            self.osint_source.tlp_level
+            if self.osint_source
+            else TLPLevel(Settings.get_settings().get("default_tlp_level", TLPLevel.CLEAR.value))
+        )
+        return next((TLPLevel(attr.value) for attr in self.attributes if attr.key == "TLP"), source_tlp)
 
     def update_item(self, data, actor: str | None = None) -> tuple[dict, int]:
         if not self.osint_source or self.osint_source.key != "manual":
@@ -425,13 +436,12 @@ class NewsItem(BaseModel):
         except ValidationError as exc:
             return AssessNewsItem.validation_error_response(exc, prefix="Invalid news item data"), 400
 
-        if duplicate_item := self.get_by_hash(payload.hash):
-            if duplicate_item.id != self.id:
-                return {
-                    "error": "Identical news item found. Skipping...",
-                    "conflicting_news_item_id": duplicate_item.id,
-                    "story_id": duplicate_item.story_id,
-                }, 409
+        if (duplicate_item := self.get_by_hash(payload.hash)) and duplicate_item.id != self.id:
+            return {
+                "error": "Identical news item found. Skipping...",
+                "conflicting_news_item_id": duplicate_item.id,
+                "story_id": duplicate_item.story_id,
+            }, 409
 
         self.title = payload.title or ""
         self.review = payload.review or ""

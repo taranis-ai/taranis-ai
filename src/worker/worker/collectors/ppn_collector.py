@@ -34,7 +34,7 @@ class PPNCollector(BaseCollector):
         try:
             return self.ppn_collector(source)
         except Exception as e:
-            logger.exception(f"PPN Collector failed to collect ppn dataset from {self.path} with error: {str(e)}")
+            logger.exception(f"PPN Collector failed to collect ppn dataset from {self.path} with error: {e!s}")
             return str(e)
 
     def ppn_collector(self, source):
@@ -43,7 +43,6 @@ class PPNCollector(BaseCollector):
         news_item_batches = self.batch_news_items()
         for batch in news_item_batches:
             self.publish(batch, source)
-        return None
 
     def batch_news_items(self, batch_size: int = 400) -> list[list[NewsItem]]:
         batches = []
