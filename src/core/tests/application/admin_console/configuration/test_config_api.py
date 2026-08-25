@@ -196,6 +196,45 @@ class TestSourcesConfigApi(BaseTest):
         source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
         assert source_response.json["rank"] == 0
 
+    def test_patch_source_rejects_unsupported_state(self, client, auth_header, cleanup_sources):
+        source_id = cleanup_sources["id"]
+        source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+
+        response = client.patch(
+            self.concat_url(f"osint-sources/{source_id}"),
+            json={"state": "paused", "description": "must not be applied"},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json == {"error": "Invalid state"}
+        unchanged = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+        assert unchanged.json["description"] == source_response.json["description"]
+
+    def test_enabling_incomplete_source_returns_validation_error(self, client, auth_header):
+        source_id = str(uuid.uuid7())
+        payload = {
+            "id": source_id,
+            "name": "Incomplete disabled source",
+            "description": "",
+            "type": "rss_collector",
+            "enabled": False,
+            "parameters": {"USER_AGENT": "test"},
+        }
+        self.assert_post_ok(client, uri="osint-sources", json_data=payload, auth_header=auth_header)
+
+        try:
+            response = client.patch(
+                self.concat_url(f"osint-sources/{source_id}"),
+                json={"state": "enabled"},
+                headers=auth_header,
+            )
+
+            assert response.status_code == 400
+            assert response.json == {"error": "Invalid OSINT Source payload"}
+        finally:
+            client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
+
     def test_modify_source_rejects_invalid_icon(self, client, auth_header, cleanup_sources):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
@@ -972,6 +1011,22 @@ class TestBotConfigApi(BaseTest):
         assert response.status_code == 400
         assert response.json["error"] == "Invalid bot update payload"
         assert "SECRET_BOT_TYPE" not in response.text
+
+    def test_modify_bot_rejects_null_enabled(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
+        response = client.patch(self.concat_url(f"bots/{bot_id}"), json={"enabled": None}, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json == {"error": "Invalid bot update payload"}
+        with app.app_context():
+            assert Bot.get(bot_id).enabled is True
 
     def test_modify_bot_can_disable_and_clear_schedule(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot

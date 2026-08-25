@@ -795,6 +795,8 @@ class OSINTSources(MethodView):
             return {"error": "No source_id provided"}, 400
         data = dict(request.json or {})
         state = data.pop("state", None)
+        if state is not None and state not in {"enabled", "disabled"}:
+            return {"error": "Invalid state"}, 400
         if state and not data:
             logger.debug(f"Toggling OSINT source {source_id} to state {state}")
             response, status = osint_source.OSINTSource.toggle_state(source_id, state)

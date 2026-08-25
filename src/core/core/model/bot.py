@@ -102,7 +102,9 @@ class Bot(BaseModel):
             if "type" in data and cls.normalize_bot_type(data["type"]) != bot.type:
                 raise ValueError("Worker type is immutable")
             if "enabled" in data:
-                bot.enabled = data.get("enabled", True)
+                if not isinstance(data["enabled"], bool):
+                    raise ValueError("enabled must be a boolean")
+                bot.enabled = data["enabled"]
             if "parameters" in data:
                 bot.parameters = set_parameters(
                     bot.type,

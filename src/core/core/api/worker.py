@@ -289,8 +289,10 @@ class BotInfo(MethodView):
     def get(self, bot_id=None, filter_args=None):
         if not bot_id:
             response, status = Bot.get_all_for_api(filter_args)
-            for item in response.get("items", []):
-                if stored := Bot.get(item.get("id")):
+            items = response.get("items", [])
+            stored_by_id = {stored.id: stored for stored in Bot.get_bulk([item["id"] for item in items])}
+            for item in items:
+                if stored := stored_by_id.get(item["id"]):
                     item.update(stored.to_worker_dict())
             return response, status
 

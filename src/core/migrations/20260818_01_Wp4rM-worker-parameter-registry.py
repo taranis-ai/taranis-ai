@@ -50,7 +50,12 @@ def _migrate_parameters(connection) -> None:
                 values[parameter] = value
 
             for owner_id, (worker_type, enabled, values) in owners.items():
-                fields = get_worker_definition(worker_type).parameter_model.model_fields
+                try:
+                    fields = get_worker_definition(worker_type).parameter_model.model_fields
+                except (KeyError, ValueError) as exc:
+                    raise RuntimeError(
+                        f"Cannot migrate {owner_table} {owner_id} with worker type {worker_type}: unsupported worker type"
+                    ) from exc
                 normalized: dict[str, str] = {}
                 for name, value in values.items():
                     if name not in fields:
@@ -62,7 +67,12 @@ def _migrate_parameters(connection) -> None:
                         # aborts when an active object requires the value.
                         continue
                 if enabled:
-                    normalize_parameter_values(worker_type, normalized, complete=True)
+                    try:
+                        normalize_parameter_values(worker_type, normalized, complete=True)
+                    except (ValidationError, ValueError, TypeError) as exc:
+                        raise RuntimeError(
+                            f"Cannot migrate {owner_table} {owner_id} with worker type {worker_type}: invalid active configuration"
+                        ) from exc
                 cursor.execute(
                     f"UPDATE {owner_table} SET parameters = %s::jsonb WHERE id = %s",
                     (json.dumps(normalized, separators=(",", ":"), sort_keys=True), owner_id),

@@ -3,7 +3,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from pydantic import ValidationError
 
 
 def _load_migration():
@@ -81,11 +80,14 @@ def test_migration_aborts_on_conflicting_duplicates():
         migration._migrate_parameters(connection)
 
 
-def test_migration_aborts_when_active_owner_is_incomplete():
+def test_migration_identifies_incomplete_active_owner():
     migration = _load_migration()
     connection = FakeConnection({"osint_source": [("source-1", "RSS_COLLECTOR", True, "USER_AGENT", "agent")]})
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(
+        RuntimeError,
+        match="Cannot migrate osint_source source-1 with worker type RSS_COLLECTOR: invalid active configuration",
+    ):
         migration._migrate_parameters(connection)
 
 

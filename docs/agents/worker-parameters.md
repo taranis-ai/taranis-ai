@@ -25,7 +25,7 @@ Database JSON columns contain only explicitly configured name/string-value pairs
 
 Frontend imports the registry and renders `model_json_schema(mode="validation", by_alias=True)`. Standard schema types, enums, defaults, required fields, patterns, and numeric bounds drive controls. `Field(title=...)` is the label and `Field(description=...)` is tooltip/help text. `json_schema_extra` is only for behavior JSON Schema cannot express, such as cron, template, word-list, or preferred textarea widgets.
 
-POST creates a full configuration. `PUT.parameters` replaces non-secret configuration while preserving omitted configured secrets. `PATCH.parameters` merges keys; `null` removes a configured value and omitted keys remain unchanged. Worker type is immutable. Sources and bots may be incomplete only while disabled, and enabling or executing them performs full validation.
+POST creates a full configuration. `PUT.parameters` replaces non-secret configuration while preserving omitted or masked configured secrets. `PATCH.parameters` merges keys; `null` removes a configured value and omitted keys remain unchanged. Worker type is immutable. Sources and bots may be incomplete only while disabled, and enabling or executing them performs full validation. Connector tasks persist parameter-contract failures with the `invalid_parameters` reason before aborting execution.
 
 Secret inputs are not submitted until Replace or Clear is selected. Reveal is an audited POST authorized by the resource's update permission and is non-cacheable. Audit records remain metadata-only.
 Invalid reveal requests are logged server-side and return a static `400` error without exception-derived text.
@@ -44,3 +44,4 @@ Invalid reveal requests are logged server-side and return a static `400` error w
 - Canonical string serialization is a boundary concern and must not alter validation JSON Schema.
 - Template existence, referenced bot/word-list ids, DAG validity, and deployment availability remain stateful core/frontend checks.
 - The destructive migration has no reconstructive downgrade. Deployment requires a verified database snapshot; rollback restores it and redeploys the previous compatible images.
+- Migration failures for unsupported worker types or invalid active configurations identify the owner table, owner ID, and worker type; they never silently discard an owner.

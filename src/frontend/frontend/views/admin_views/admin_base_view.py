@@ -85,6 +85,9 @@ class AdminBaseView(BaseView):
             minimum = prop.get("minimum")
             if minimum is None and "exclusiveMinimum" in prop:
                 minimum = prop["exclusiveMinimum"] + (1 if prop.get("type") == "integer" else 0)
+            maximum = prop.get("maximum")
+            if maximum is None and prop.get("type") == "integer" and "exclusiveMaximum" in prop:
+                maximum = prop["exclusiveMaximum"] - 1
             field_type = (
                 "word-list-table"
                 if widget == "word-list-table"
@@ -112,7 +115,7 @@ class AdminBaseView(BaseView):
                     "required": name in required,
                     "pattern": prop.get("pattern", ""),
                     "minimum": minimum,
-                    "maximum": prop.get("maximum") or prop.get("exclusiveMaximum"),
+                    "maximum": maximum,
                     "options": [{"id": option, "name": option} for option in prop.get("enum", [])],
                     "widget": widget,
                 }

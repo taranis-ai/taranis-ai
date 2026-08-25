@@ -58,7 +58,9 @@ def test_secret_marker_preserves_and_null_clears_optional_secret():
     }
 
     preserved = set_parameters("EMAIL_PUBLISHER", current, {"EMAIL_PASSWORD": "********"}, patch=True)
+    replaced = set_parameters("EMAIL_PUBLISHER", current, {**current, "EMAIL_PASSWORD": "********"}, patch=False)
     cleared = set_parameters("EMAIL_PUBLISHER", current, {"EMAIL_PASSWORD": None}, patch=True)
 
     assert preserved["EMAIL_PASSWORD"] == "secret"
+    assert replaced["EMAIL_PASSWORD"] == "secret"
     assert "EMAIL_PASSWORD" not in cleared

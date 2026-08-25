@@ -28,7 +28,7 @@ def set_parameters(
     if patch:
         candidate = current
     else:
-        candidate = {name: value for name, value in current.items() if name in secrets and name not in submitted}
+        candidate = {name: value for name, value in current.items() if name in secrets and submitted.get(name, SECRET_MASK) == SECRET_MASK}
 
     for name, value in submitted.items():
         if name in secrets and value == SECRET_MASK:

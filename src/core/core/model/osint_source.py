@@ -487,7 +487,12 @@ class OSINTSource(BaseModel):
             logger.debug(f"Enabling OSINT Source: {osint_source.name}")
             if osint_source.type == COLLECTOR_TYPES.PPN_COLLECTOR and Config.DISABLE_PPN_COLLECTOR:
                 return {"error": "PPN collector is disabled in this deployment"}, 400
-            osint_source.parameters = set_parameters(osint_source.type, osint_source.parameters, {}, patch=True, complete=True)
+            try:
+                osint_source.parameters = set_parameters(osint_source.type, osint_source.parameters, {}, patch=True, complete=True)
+            except (TypeError, ValueError):
+                db.session.rollback()
+                logger.warning("Cannot enable OSINT source %s because its parameters are invalid", osint_source.id, exc_info=True)
+                return {"error": "Invalid OSINT Source payload"}, 400
             osint_source.enabled = True
             osint_source.schedule_osint_source()
         elif state == "disabled":
