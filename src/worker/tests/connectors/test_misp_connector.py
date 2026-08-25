@@ -242,7 +242,7 @@ def test_connector_task_story_load_failure_persists_failure(requests_mock, mock_
     }
 
 
-def test_misp_sender_returns_update_payload_for_existing_event(monkeypatch):
+def test_misp_execution_returns_update_result_for_existing_event(monkeypatch):
     from pymisp import MISPEvent
 
     connector = MispConnector()
@@ -254,32 +254,28 @@ def test_misp_sender_returns_update_payload_for_existing_event(monkeypatch):
             {"id": "news-1", "last_change": "internal"},
             {"id": "news-2", "last_change": "external"},
         ],
+        "attributes": {"misp_event_uuid": {"value": "existing-event-uuid"}},
     }
 
     monkeypatch.setattr(connector, "send_event_to_misp", lambda story_data, existing_uuid=None, auto_update=False: ("updated", event))
 
-    assert connector.misp_sender(story, misp_event_uuid="existing-event-uuid") == {
-        "action": "synced",
-        "message": "Story updated in MISP",
-        "sync_result": {
-            "type": "misp_sync_story",
-            "version": 1,
-            "story_id": "story-123",
-            "misp_event_uuid": "320d4589-cd71-4722-aa28-ea5530e99830",
-            "news_item_ids_to_mark_external": ["news-1"],
-        },
-    }
-
-
-def test_misp_execution_result_preserves_single_story_update_message():
-    connector = MispConnector()
-
-    assert connector._build_execution_result(
-        [{"action": "synced", "message": "Story updated in MISP", "sync_result": {"type": "misp_sync_story"}}]
+    assert connector.execute(
+        {
+            "connector_config": {"parameters": {"URL": "https://misp.example", "API_KEY": "key"}},
+            "story": [story],
+        }
     ) == {
         "action": "synced",
         "message": "Story updated in MISP",
-        "sync_results": [{"type": "misp_sync_story"}],
+        "sync_results": [
+            {
+                "type": "misp_sync_story",
+                "version": 1,
+                "story_id": "story-123",
+                "misp_event_uuid": "320d4589-cd71-4722-aa28-ea5530e99830",
+                "news_item_ids_to_mark_external": ["news-1"],
+            }
+        ],
     }
 
 
