@@ -85,7 +85,7 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
                     data={"connector_id": connector_id, "story_ids": story_ids},
                 ),
             )
-        if error is e:
+        if isinstance(e, ConnectorError):
             raise
         raise error from e
 
