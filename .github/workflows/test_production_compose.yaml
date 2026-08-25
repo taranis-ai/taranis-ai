@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APPLICATION_SERVICES: ingress core frontend collector workers cron
-      SUPPORT_SERVICES: redis sse database
+      SUPPORT_SERVICES: redis centrifugo database
 
     steps:
       - name: Checkout repository
@@ -64,7 +64,7 @@ jobs:
         working-directory: docker
         run: |
           # Check that services with healthchecks are healthy
-          for service in core frontend collector workers cron database redis; do
+          for service in core frontend collector workers cron database redis centrifugo; do
             HEALTH=$(docker compose ps $service --format json | jq -r '.Health')
             if [ -n "$HEALTH" ] && [ "$HEALTH" != "healthy" ]; then
               echo "❌ Service $service health check failed (health: $HEALTH)"

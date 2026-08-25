@@ -54,10 +54,7 @@ function hasAnyPermission(root, permissions) {
     return true;
   }
   const userPermissions = readUserPermissions(root);
-  return (
-    userPermissions.has("ALL") ||
-    permissions.some((permission) => userPermissions.has(permission))
-  );
+  return permissions.some((permission) => userPermissions.has(permission));
 }
 
 function buildOnboardingFormData(task, status) {

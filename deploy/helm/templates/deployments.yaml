@@ -45,6 +45,16 @@ spec:
                 secretKeyRef:
                   name: taranis-secrets
                   key: API_KEY
+            - name: CENTRIFUGO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: centrifugo-secrets
+                  key: CENTRIFUGO_API_KEY
+            - name: CENTRIFUGO_CONNECT_PROXY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: centrifugo-secrets
+                  key: CENTRIFUGO_CONNECT_PROXY_SECRET
             - name: PRE_SEED_PASSWORD_ADMIN
               valueFrom:
                 secretKeyRef:
@@ -146,57 +156,74 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sse-broker
+  name: centrifugo
   labels:
     {{- include "taranis.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicas.sse }}
+  replicas: {{ .Values.replicas.centrifugo }}
   strategy:
-    type: Recreate
+    type: RollingUpdate
   selector:
     matchLabels:
-      app: sse-broker
+      app: centrifugo
   template:
     metadata:
       labels:
-        app: sse-broker
+        app: centrifugo
     spec:
       restartPolicy: Always
+      terminationGracePeriodSeconds: 45
       containers:
-        - name: sse-broker
-          image: {{ include "taranis.image" .Values.images.sse | quote }}
+        - name: centrifugo
+          image: {{ include "taranis.image" .Values.images.centrifugo | quote }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: centrifugo-env
           env:
-            - name: SSE_PATH
+            - name: CENTRIFUGO_HTTP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: centrifugo-secrets
+                  key: CENTRIFUGO_API_KEY
+            - name: CENTRIFUGO_CONNECT_PROXY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: centrifugo-secrets
+                  key: CENTRIFUGO_CONNECT_PROXY_SECRET
+            - name: CENTRIFUGO_ENGINE_REDIS_ADDRESS
+              valueFrom:
+                secretKeyRef:
+                  name: taranis-redis-credentials
+                  key: CENTRIFUGO_REDIS_URL
+            - name: CENTRIFUGO_CLIENT_ALLOWED_ORIGINS
               valueFrom:
                 configMapKeyRef:
                   name: taranis-config
-                  key: SSE_PATH
-            - name: JWT_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: taranis-secrets
-                  key: JWT_SECRET_KEY
-            - name: API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: taranis-secrets
-                  key: API_KEY
+                  key: CENTRIFUGO_ALLOWED_ORIGINS
+            - name: CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_STATIC_HEADERS
+              value: '{"X-Realtime-Proxy-Key":"$(CENTRIFUGO_CONNECT_PROXY_SECRET)"}'
           ports:
-            - containerPort: 8088
-              name: http
+            - containerPort: 8000
+              name: client
+            - containerPort: 9000
+              name: internal
           readinessProbe:
-            tcpSocket:
-              port: 8088
+            httpGet:
+              path: /health
+              port: internal
             initialDelaySeconds: 10
             periodSeconds: 15
+            timeoutSeconds: 3
           livenessProbe:
-            tcpSocket:
-              port: 8088
+            httpGet:
+              path: /health
+              port: internal
             initialDelaySeconds: 30
             periodSeconds: 30
+            timeoutSeconds: 3
           resources:
-            {{- toYaml .Values.resources.sse | nindent 12 }}
+            {{- toYaml .Values.resources.centrifugo | nindent 12 }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -229,8 +256,8 @@ spec:
               value: "16"
             - name: TARANIS_CORE_UPSTREAM
               value: core:8080
-            - name: TARANIS_SSE_UPSTREAM
-              value: sse:8088
+            - name: TARANIS_REALTIME_UPSTREAM
+              value: centrifugo:8000
             - name: TARANIS_FRONTEND_UPSTREAM
               value: frontend:8080
             - name: TARANIS_BASE_PATH
