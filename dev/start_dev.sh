@@ -62,7 +62,7 @@ if [ ! -f "src/frontend/.env" ]; then
 fi
 
 if command -v podman-compose >/dev/null 2>&1; then
-    podman-compose -f dev/compose.yml -f dev/compose.podman.yml up -d
+    podman-compose -f dev/compose.yml up -d
 else
     docker compose -f dev/compose.yml up -d
 fi
