@@ -66,8 +66,8 @@ if [ ! -f "src/frontend/.env" ]; then
     echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 fi
 
-if [ "$host_os" = "Darwin" ]; then
-    podman compose -f dev/compose.yml up -d
+if command -v podman-compose >/dev/null 2>&1; then
+    podman-compose -f dev/compose.yml up -d
 else
     docker compose -f dev/compose.yml up -d
 fi

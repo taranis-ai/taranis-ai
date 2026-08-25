@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="p-8 space-y-6" data-testid="notification-center-page" x-data="{ notifications: window.taranisNotifications.read() }">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-semibold text-base-content">{{ _("Notification Center") }}</h1>
+        <p class="text-sm text-base-content/70">{{ _("Notifications from this browser session. They are not stored on the server.") }}</p>
+      </div>
+      <button type="button" class="btn btn-outline btn-sm" @click="window.taranisNotifications.clear(); notifications = []">{{ _("Clear all") }}</button>
+    </div>
+    <div class="space-y-3" data-notification-center-list>
+      <p class="py-8 text-center text-base-content/60" x-cloak x-show="notifications.length === 0">{{ _("No notifications in this browser session.") }}</p>
+      <template x-for="notification in notifications" :key="notification.createdAt + notification.message">
+        <article class="alert flex items-start justify-between gap-4" :class="`alert-${notification.level || 'info'}`">
+          <span class="whitespace-pre-wrap" x-text="notification.message"></span>
+          <time class="shrink-0 text-xs opacity-70" :datetime="notification.createdAt" x-text="new Date(notification.createdAt).toLocaleString()"></time>
+        </article>
+      </template>
+    </div>
+  </div>
+{% endblock content %}

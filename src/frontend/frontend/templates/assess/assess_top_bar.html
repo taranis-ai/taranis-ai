@@ -44,7 +44,7 @@
       </div>
       <div class="flex flex-wrap items-center">
         <div class="flex items-center gap-1" data-testid="assess_story_count">
-          <span class="badge badge-ghost badge-lg"><span x-text="storyIds.length"></span> / {{ stories.total_count }}</span>
+          <span class="badge badge-ghost badge-lg"><span x-text="storyIds.length"></span> / {{ stories.total_count | default(0) }}</span>
           <span class="font-medium text-base-content">Stories</span>
         </div>
       </div>

@@ -177,9 +177,21 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP base URL for traces and metrics  | `''`          |
 | `OTEL_EXPORTER_OTLP_HEADERS`  | Optional OTLP exporter headers             | `''`          |
 | `OTEL_METRIC_EXPORT_INTERVAL` | Metric export interval in milliseconds     | `60000`       |
+| `REALTIME_ENABLED`            | Enable Centrifugo publication and browser connections | `false` |
+| `CENTRIFUGO_API_URL`          | Cluster-internal Centrifugo HTTP API URL   | `http://centrifugo:9000` |
+| `CENTRIFUGO_API_KEY`          | Dedicated Centrifugo HTTP API key          | none          |
+| `CENTRIFUGO_CONNECT_PROXY_SECRET` | Dedicated connect-proxy shared secret  | none          |
+| `CENTRIFUGO_ALLOWED_ORIGINS`  | Space-separated exact browser origins     | `http://localhost:8080` |
 | `TARANIS_CORE_SENTRY_DSN`     | Core Sentry DSN                            | `''`          |
 | `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 | `GRANIAN_WORKERS_MAX_RSS`     | Per-worker Granian RSS recycle limit in MiB| `4096`        |
+
+The supplied Centrifugo configuration enables presence only for `global:events`, which every authenticated browser already receives. Core uses the server API to provide the `ADMIN_OPERATIONS`-protected connected-client snapshot on the Admin Notifications page; browsers are not granted presence access, and organization/user channel presence remains disabled.
+
+`CENTRIFUGO_API_KEY` and `CENTRIFUGO_CONNECT_PROXY_SECRET` must be non-empty and distinct from each other, `API_KEY`, and `JWT_SECRET_KEY`.
+
+The Centrifugo service also reads `CENTRIFUGO_REDIS_URL` directly; core does not. The sample environment derives its Redis URL password from `REDIS_PASSWORD` so the two credentials cannot drift.
+All other Centrifugo server behavior is configured through native `CENTRIFUGO_*` environment variables; no configuration file or runtime config volume is required.
 
 ### `worker`
 
@@ -208,6 +220,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP base URL for traces and metrics  | `''`                         |
 | `OTEL_EXPORTER_OTLP_HEADERS` | Optional OTLP exporter headers              | `''`                         |
 | `OTEL_METRIC_EXPORT_INTERVAL` | Metric export interval in milliseconds     | `60000`                      |
+| `REALTIME_ENABLED`      | Open the authenticated same-origin EventSource | `false`                  |
 | `TARANIS_FRONTEND_SENTRY_DSN` | Frontend Sentry DSN                        | `''`                         |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 | `GRANIAN_WORKERS_MAX_RSS` | Per-worker Granian RSS recycle limit in MiB | `1024`       |

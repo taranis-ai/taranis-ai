@@ -1,6 +1,6 @@
 # Taranis AI Development setup
 
-Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json).
+Dependency updates use [Renovate](https://docs.renovatebot.com/) with [`.github/renovate.json`](../.github/renovate.json). Each Python component explicitly selects the established Ruff rule baseline so a Ruff upgrade does not silently enable new rules; rule-set migrations should be reviewed separately.
 
 ## Optional local signoff
 
@@ -22,7 +22,7 @@ Workflow:
 
 ## Easy Mode
 
-The automated setup supports macOS, Ubuntu, and Debian 13. macOS requires Homebrew; the setup uses Podman for containers.
+The automated setup supports macOS, Ubuntu, and Debian 13. macOS requires Homebrew; the setup uses Podman for containers. The bootstrap downloads pinned uv and Ruff installers and verifies their SHA-256 checksums before execution.
 
 Clone Repository
 
@@ -82,8 +82,11 @@ Start support services via the dev compose file
 docker compose -f dev/compose.yml up -d
 ```
 
-This starts local Redis without authentication on `localhost:${TARANIS_REDIS_PORT:-6379}`.
+This starts local Redis without authentication and a pinned Centrifugo instance. Its client and authenticated admin UI port is available at `http://localhost:8000` and binds to all host interfaces, while its API and health port `9000` remains loopback-only. The development admin password defaults to `admin`; override `CENTRIFUGO_ADMIN_PASSWORD` and `CENTRIFUGO_ADMIN_SECRET` as needed.
 Queue state is not persisted across local Redis restarts in this dev setup.
+Browsers connect through the local NGINX ingress at `http://local.taranis.ai/sse`.
+Centrifugo reaches Core through Podman's `host.containers.internal` address; set `TARANIS_CORE_PORT` when Core does not use port `5001`.
+When `/sse` is unavailable, the browser retries eight times with exponential backoff and then requires a page reload; an internal connect-proxy error does not display a data-change notice.
 
 To start the optional Grafana LGTM telemetry stack as well:
 

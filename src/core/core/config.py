@@ -78,8 +78,10 @@ class Settings(BaseSettings):
     BUILD_DATE: datetime = datetime.now(UTC)
     GIT_INFO: dict[str, str] | None = None
     DATA_FOLDER: str = "./taranis_data"  # When started with Docker, the path is /app/data
-    SSE_URL: str = "http://sse:8088/publish"
-    DISABLE_SSE: bool = False
+    REALTIME_ENABLED: bool = False
+    CENTRIFUGO_API_URL: str = "http://centrifugo:9000"
+    CENTRIFUGO_API_KEY: SecretStr = SecretStr("")
+    CENTRIFUGO_CONNECT_PROXY_SECRET: SecretStr = SecretStr("")
     DISABLE_SCHEDULER: bool = False
     OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
     OTEL_METRIC_EXPORT_INTERVAL: Annotated[float, Field(gt=0)] = 60_000
@@ -118,6 +120,20 @@ class Settings(BaseSettings):
             update_payload["pool_recycle"] = self.SQLALCHEMY_POOL_RECYCLE
         self.SQLALCHEMY_ENGINE_OPTIONS.update(update_payload)
         object.__setattr__(self, "SQLALCHEMY_DATABASE_URI_MASK", mask_db_uri(self.SQLALCHEMY_DATABASE_URI))
+        return self
+
+    @model_validator(mode="after")
+    def validate_realtime_settings(self) -> "Settings":
+        if not self.REALTIME_ENABLED:
+            return self
+
+        api_key = self.CENTRIFUGO_API_KEY.get_secret_value()
+        proxy_secret = self.CENTRIFUGO_CONNECT_PROXY_SECRET.get_secret_value()
+        if not api_key or not proxy_secret:
+            raise ValueError("Centrifugo API and connect proxy secrets must be non-empty")
+        existing_secrets = {self.API_KEY.get_secret_value(), self.JWT_SECRET_KEY}
+        if api_key == proxy_secret or api_key in existing_secrets or proxy_secret in existing_secrets:
+            raise ValueError("Centrifugo secrets must be distinct from each other and existing application secrets")
         return self
 
     TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "dev"] = "database"
