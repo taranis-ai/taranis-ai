@@ -53,7 +53,7 @@ services:
       CENTRIFUGO_ENGINE_REDIS_PREFIX: "taranis:realtime"
       CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "${CENTRIFUGO_ALLOWED_ORIGINS:-http://local.taranis.ai}"
       CENTRIFUGO_CLIENT_PROXY_CONNECT_ENABLED: "true"
-      CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: "http://local.taranis.ai/api/realtime/connect"
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: "http://host.containers.internal:${TARANIS_CORE_PORT:-5001}/api/realtime/connect"
       CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_HEADERS: "Cookie"
       CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_STATIC_HEADERS: "{\"X-Realtime-Proxy-Key\":\"${CENTRIFUGO_CONNECT_PROXY_SECRET:-dev-centrifugo-connect-proxy-secret}\"}"
       CENTRIFUGO_CHANNEL_PUBLICATION_DATA_FORMAT: "json_object"

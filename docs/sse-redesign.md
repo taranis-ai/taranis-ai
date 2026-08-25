@@ -292,11 +292,11 @@ The OSINT source preview waiting fragment listens for its matching user-scoped c
 
 The dedicated Admin Notifications page also shows current connectivity. Its `ADMIN_OPERATIONS`-protected core endpoint calls Centrifugo's server API for `global:events` presence, counts client IDs and unique non-empty user IDs, and joins those IDs with Taranis users to display usernames. No username or profile data is stored in Centrifugo connection metadata, and browsers cannot call presence directly. This is a live snapshot, not a historical session or audit log.
 
-After any connection loss followed by a successful reopen, the connection module emits `realtime:resync`. Active page handlers then fetch their authoritative state. The first connection does not force every page to refetch its server-rendered content; lock-aware editor pages always fetch current lease state during initialization.
+After an established connection is lost and successfully reopens, the connection module emits `realtime:resync`. Active page handlers then fetch their authoritative state. A Centrifugo internal-disconnect response suppresses that resync because it proves no usable connection was established for that attempt and must not produce a false data-change notice. The first connection does not force every page to refetch its server-rendered content; lock-aware editor pages always fetch current lease state during initialization.
 
 Phase 1 does not enable Centrifugo history or rely on `Last-Event-ID`. Centrifugo's unidirectional SSE protocol does not support `Last-Event-ID` because one connection may carry several channels. Recovery is always an application-level refetch.
 
-If the connection remains unavailable for 15 seconds, show one non-blocking degraded notice: live updates are unavailable and data may require manual refresh. Remove the notice after a successful reconnect and resynchronization. Do not render repeated toast errors during browser retry attempts.
+If the connection remains unavailable for 15 seconds, show one non-blocking degraded notice: live updates are unavailable and data may require manual refresh. Retry eight times with jittered exponential backoff capped at 60 seconds, then require a page reload; a successful connection resets the retry budget. Remove the notice after a successful reconnect and resynchronization. Do not render repeated toast errors during browser retry attempts.
 
 All ordinary read and write flows continue without realtime. An active report editor already renews its lease through REST every 30 seconds, which doubles as targeted degraded-mode lock polling. No global polling loop is added.
 

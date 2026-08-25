@@ -1,4 +1,5 @@
 (function () {
+  const MAX_RECONNECT_ATTEMPTS = 8;
   const SUPPORTED_TYPES = new Set([
     "assess.changed",
     "report.item.changed",
@@ -12,6 +13,8 @@
   let opened = false;
   let disconnected = false;
   let reconnectAllowed = true;
+  let reconnectAttempt = 0;
+  let suppressNextResync = false;
   let reconnectTimer;
   let resyncTimer;
   let outageTimer;
@@ -47,6 +50,10 @@
       disconnectCode < 5000
     ) {
       close(true);
+      return;
+    }
+    if (Number.isInteger(disconnectCode)) {
+      suppressNextResync = true;
       return;
     }
 
@@ -161,7 +168,12 @@
 
   function scheduleReconnect() {
     self.clearTimeout(reconnectTimer);
-    reconnectTimer = self.setTimeout(connect, 1000 + Math.random() * 4000);
+    if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+      return;
+    }
+    const delay = Math.min(1000 * 2 ** reconnectAttempt, 60000);
+    reconnectAttempt += 1;
+    reconnectTimer = self.setTimeout(connect, delay + Math.random() * 1000);
   }
 
   function close(permanent = false) {
@@ -171,6 +183,8 @@
     self.clearTimeout(outageTimer);
     outageTimer = undefined;
     outageNotified = false;
+    reconnectAttempt = 0;
+    suppressNextResync = false;
     hideStatusNotification();
     disconnected = opened;
     eventSource?.close();
@@ -190,11 +204,14 @@
     eventSource = new EventSource(document.body.dataset.realtimeUrl);
     eventSource.addEventListener("message", handleMessage);
     eventSource.addEventListener("open", () => {
+      const shouldResync = opened && disconnected && !suppressNextResync;
       self.clearTimeout(outageTimer);
       outageTimer = undefined;
       outageNotified = false;
+      reconnectAttempt = 0;
+      suppressNextResync = false;
       hideStatusNotification();
-      if (opened && disconnected) {
+      if (shouldResync) {
         scheduleResync("reconnected");
       }
       opened = true;

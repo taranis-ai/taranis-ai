@@ -86,9 +86,12 @@ def _load_realtime(
             """
             ({ fastReconnect, fastOutage }) => {
               const nativeSetTimeout = window.setTimeout.bind(window);
+              window.reconnectDelays = [];
               window.setTimeout = (callback, delay, ...args) => {
+                const reconnect = fastReconnect && delay >= 1000 && delay <= 61000 && delay !== 15000;
+                if (reconnect) window.reconnectDelays.push(delay);
                 const accelerated =
-                  (fastReconnect && delay >= 1000 && delay < 5000) ||
+                  reconnect ||
                   (fastOutage && delay === 15000);
                 return nativeSetTimeout(callback, accelerated ? 0 : delay, ...args);
               };
@@ -246,6 +249,31 @@ def test_reconnect_emits_one_debounced_resynchronization(page: Page):
 
     assert page.evaluate("() => window.resyncReasons") == ["reconnected"]
     assert "hidden" not in page.locator("#realtime-data-notification").get_attribute("class").split()
+
+
+def test_internal_disconnect_does_not_resync_after_recovery(page: Page):
+    _load_realtime(page, page_target="assess", fast_reconnect=True)
+    page.evaluate("""
+        () => {
+          window.resyncReasons = [];
+          document.addEventListener(
+            "realtime:resync",
+            event => window.resyncReasons.push(event.detail.reason),
+          );
+          const source = EventSource.instances[0];
+          source.emit("open");
+          source.emit("message", JSON.stringify({
+            disconnect: { code: 3004, reason: "internal server error" },
+          }));
+          source.emit("error");
+        }
+    """)
+    page.wait_for_function("() => EventSource.instances.length === 2")
+    page.evaluate("() => EventSource.instances[1].emit('open')")
+    page.wait_for_timeout(350)
+
+    assert page.evaluate("() => window.resyncReasons") == []
+    assert "hidden" in page.locator("#realtime-data-notification").get_attribute("class").split()
 
 
 def test_protocol_control_and_heartbeat_frames_do_not_resync(page: Page):
@@ -412,10 +440,28 @@ def test_outage_notice_appears_once_and_clears_on_recovery(page: Page):
     page.wait_for_function("() => EventSource.instances.length === 3")
 
     assert "hidden" in notice.get_attribute("class").split()
+    assert page.evaluate("() => window.reconnectDelays") == [1000, 2000]
 
     page.evaluate("() => EventSource.instances[2].emit('open')")
+    page.evaluate("() => EventSource.instances[2].emit('error')")
+    page.wait_for_function("() => EventSource.instances.length === 4")
 
-    assert "hidden" in notice.get_attribute("class").split()
+    assert "hidden" not in notice.get_attribute("class").split()
+    assert page.evaluate("() => window.reconnectDelays") == [1000, 2000, 1000]
+
+
+def test_reconnect_backoff_stops_after_eight_attempts(page: Page):
+    _load_realtime(page, fast_reconnect=True)
+
+    for expected_count in range(2, 10):
+        page.evaluate("() => EventSource.instances.at(-1).emit('error')")
+        page.wait_for_function(f"() => EventSource.instances.length === {expected_count}")
+
+    page.evaluate("() => EventSource.instances.at(-1).emit('error')")
+    page.wait_for_timeout(50)
+
+    assert page.evaluate("() => EventSource.instances.length") == 9
+    assert page.evaluate("() => window.reconnectDelays") == [1000, 2000, 4000, 8000, 16000, 32000, 60000, 60000]
 
 
 def test_page_restore_reopens_the_connection(page: Page):
