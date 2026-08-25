@@ -5,7 +5,12 @@
   <div id="source_preview">
     {% if task_result %}
       {% if task_result.status == 'STARTED' %}
-        <div class="alert alert-info my-5 mx-5" hx-get hx-trigger="every 20s" hx-target="#source_preview" hx-swap="outerHTML" hx-select="#source_preview">
+        <div class="alert alert-info my-5 mx-5"
+             hx-get
+             hx-trigger='realtime:osint_source.preview.finished[detail.resource.id=={{ osint_source_id|tojson }}] from:document, realtime:resync from:document, every 20s'
+             hx-target="#source_preview"
+             hx-swap="outerHTML"
+             hx-select="#source_preview">
           <p>OSINT source preview is currently being processed. Please wait...</p>
         </div>
       {% elif task_result.status in ['SUCCESS', 'PREVIEW'] %}

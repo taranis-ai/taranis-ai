@@ -5,6 +5,7 @@ from frontend.auth import admin_required
 from frontend.views import (
     ACLView,
     AdminDashboardView,
+    AdminNotificationView,
     AttributeView,
     BotView,
     ConnectorView,
@@ -133,6 +134,7 @@ def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
     admin_bp.add_url_rule("/", view_func=AdminDashboardView.as_view("dashboard"))
+    admin_bp.add_url_rule("/notifications", view_func=AdminNotificationView.as_view("notifications"))
 
     admin_bp.add_url_rule("/attributes", view_func=AttributeView.as_view("attributes"))
     admin_bp.add_url_rule("/attributes/<string:attribute_id>", view_func=AttributeView.as_view("edit_attribute"))

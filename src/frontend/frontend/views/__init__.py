@@ -3,6 +3,7 @@ from .admin_views.attribute_views import AttributeView
 from .admin_views.bot_views import BotView
 from .admin_views.connector_views import ConnectorView
 from .admin_views.dashboard_views import AdminDashboardView
+from .admin_views.notification_views import AdminNotificationView
 from .admin_views.organization_views import OrganizationView
 from .admin_views.publisher_views import ProductTypeView, PublisherView
 from .admin_views.report_type_views import ReportItemTypeView
@@ -25,6 +26,7 @@ from .user_views import UserProfileView, UserTaskView
 __all__ = [
     "ACLView",
     "AdminDashboardView",
+    "AdminNotificationView",
     "AssetView",
     "AttributeView",
     "AuthView",

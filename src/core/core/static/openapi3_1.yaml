@@ -22,6 +22,8 @@ tags:
   description: session-related functionality
 - name: health
   description: see whether Taranis dependencies are healthy
+- name: realtime
+  description: authenticate Centrifugo realtime connections
 - name: isalive
   description: see whether the Taranis instance is alive
 - name: users
@@ -220,6 +222,92 @@ paths:
                         - up
                         - down
                         - n/a
+  /realtime/connect:
+    post:
+      tags:
+      - realtime
+      operationId: realtime.connect.post
+      description: authenticate a Centrifugo connection using its dedicated proxy secret and the user's access cookie
+      security:
+      - RealtimeProxyKey: []
+      responses:
+        '200':
+          description: connection credentials or a terminal disconnect
+        '403':
+          description: missing or invalid connect-proxy secret
+  /realtime/broadcast:
+    post:
+      tags:
+      - realtime
+      operationId: realtime.broadcast_notification.post
+      description: send a persistent notification to all connected users; requires ADMIN_OPERATIONS
+      security:
+      - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - message
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+      responses:
+        '200':
+          description: broadcast sent
+        '400':
+          description: invalid message
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '503':
+          description: realtime broadcast unavailable
+  /realtime/clients:
+    get:
+      tags:
+      - realtime
+      operationId: realtime.connected_clients.get
+      description: list connected realtime clients; requires ADMIN_OPERATIONS
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: connected client and user information
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - num_clients
+                - num_users
+                - clients
+                properties:
+                  num_clients:
+                    type: integer
+                  num_users:
+                    type: integer
+                  clients:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        client_id:
+                          type: string
+                        user_id:
+                          type: string
+                        username:
+                          type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '503':
+          description: realtime presence unavailable
   /users:
     get:
       security:
@@ -8534,41 +8622,6 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
-  /users/sse-connected:
-    post:
-      security:
-      - UserAuth: []
-      tags:
-      - users
-      description: handle sse connected
-      operationId: user.sse_connected.post
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '201':
-          description: created
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /worker/bots/{bot_id}:
     parameters:
     - name: bot_id
@@ -10747,6 +10800,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    RealtimeProxyKey:
+      type: apiKey
+      in: header
+      name: X-Realtime-Proxy-Key
   responses:
     404NotFound:
       description: Not found response

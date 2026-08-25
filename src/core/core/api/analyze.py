@@ -7,7 +7,8 @@ from core.config import Config
 from core.log import logger
 from core.managers import asset_manager, queue_manager
 from core.managers.auth_manager import auth_required
-from core.managers.sse_manager import sse_manager
+from core.managers.realtime_publisher import realtime_publisher
+from core.managers.report_item_lock_service import report_item_lock_service
 from core.model import report_item, report_item_type
 from core.model.revision import ReportRevision
 from core.service.cache_invalidation import SCOPE_PUBLISH_VIEWS, SCOPE_REPORT_VIEWS, invalidate_frontend_cache_on_success
@@ -82,7 +83,7 @@ class ReportItem(MethodView):
             return abort(401, "Unauthorized")
         if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
-            sse_manager.report_item_updated(new_report_item.id)
+            realtime_publisher.report_item_changed(new_report_item.id, current_user.organization_id, "created")
             invalidate_frontend_cache_on_success(status, scopes=(SCOPE_REPORT_VIEWS,))
 
         return make_response(
@@ -99,7 +100,7 @@ class ReportItem(MethodView):
             return {"error": "No data in request"}, 400
         updated_report, status = report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
         if status == 200:
-            sse_manager.report_item_updated(report_item_id)
+            realtime_publisher.report_item_changed(report_item_id, current_user.organization_id)
             ProductService.autopublish_product(report_item_id, user_id=current_user.id)
             invalidate_frontend_cache_on_success(
                 status,
@@ -115,7 +116,7 @@ class ReportItem(MethodView):
             return {"error": "No report_item_id provided"}, 400
         result, code = report_item.ReportItem.delete(report_item_id)
         if code == 200:
-            sse_manager.report_item_updated(report_item_id)
+            realtime_publisher.report_item_changed(report_item_id, current_user.organization_id, "deleted")
             invalidate_frontend_cache_on_success(
                 code,
                 scopes=(SCOPE_REPORT_VIEWS,),
@@ -174,7 +175,7 @@ class CloneReportItem(MethodView):
             logger.exception("Error cloning report item: %s", ex)
             return {"error": "Error cloning report item"}, 400
         if status == 200:
-            sse_manager.report_item_updated(result["id"])
+            realtime_publisher.report_item_changed(result["id"], current_user.organization_id, "created")
             invalidate_frontend_cache_on_success(status, scopes=(SCOPE_REPORT_VIEWS,))
 
         return make_response(jsonify(result), status)
@@ -183,7 +184,7 @@ class CloneReportItem(MethodView):
 class ReportItemLocks(MethodView):
     @auth_required("ANALYZE_UPDATE")
     def get(self, report_item_id: str):
-        return jsonify(sse_manager.to_report_item_json(report_item_id))
+        return jsonify(report_item_lock_service.to_report_item_json(report_item_id))
 
 
 class ReportItemLock(MethodView):
@@ -193,7 +194,7 @@ class ReportItemLock(MethodView):
         if not user:
             return abort(401, "User not found")
         try:
-            response, status = sse_manager.report_item_lock(report_item_id, user.id)
+            response, status = report_item_lock_service.lock(report_item_id, user.id, user.organization_id)
             return make_response(jsonify(response), status)
         except Exception as ex:
             logger.exception("Failed to lock report item %s: %s", report_item_id, ex)
@@ -205,7 +206,7 @@ class ReportItemLock(MethodView):
         if not user:
             return abort(401, "User not found")
         try:
-            response, status = sse_manager.report_item_unlock(report_item_id, user.id)
+            response, status = report_item_lock_service.unlock(report_item_id, user.organization_id)
             return make_response(jsonify(response), status)
         except Exception as ex:
             logger.exception("Failed to unlock report item %s: %s", report_item_id, ex)

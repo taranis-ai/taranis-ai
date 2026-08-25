@@ -1,35 +1,39 @@
+from unittest.mock import Mock
+
+from core.api import config as config_api
 from core.api.config import OSINTSourcePreview
 
 
 def test_preview_response_uses_live_rq_status_without_requeue(monkeypatch):
     task_id = "source_preview_123"
+    queue_manager = Mock()
+    queue_manager.get_task.return_value = {"id": task_id, "status": "STARTED"}, 202
 
-    def _fail_requeue(*_args, **_kwargs):
-        raise AssertionError("preview should not be re-enqueued")
-
-    monkeypatch.setattr("core.api.config.task.Task.get", lambda preview_task_id: None)
-    monkeypatch.setattr(
-        "core.api.config.queue_manager.queue_manager.get_task",
-        lambda preview_task_id: ({"id": preview_task_id, "status": "STARTED"}, 202),
-    )
-    monkeypatch.setattr("core.api.config.queue_manager.queue_manager.preview_osint_source", _fail_requeue)
+    monkeypatch.setattr(config_api.task.Task, "get", lambda preview_task_id: None)
+    monkeypatch.setattr(config_api.queue_manager, "queue_manager", queue_manager, raising=False)
 
     response, status = OSINTSourcePreview.get_osint_source_preview_response("123")
 
+    assert status == 202
+    assert response == {"id": task_id, "status": "STARTED"}
+    queue_manager.preview_osint_source.assert_not_called()
+
+
+def test_preview_response_requeues_when_task_not_found(monkeypatch):
     task_id = "source_preview_123"
     scheduled_response = {"message": "Preview for source 123 scheduled", "id": task_id, "status": "STARTED"}
+    queue_manager = Mock()
+    queue_manager.get_task.return_value = {"error": "Task not found"}, 404
+    queue_manager.preview_osint_source.return_value = scheduled_response, 201
 
-    monkeypatch.setattr("core.api.config.task.Task.get", lambda preview_task_id: None)
-    monkeypatch.setattr("core.api.config.queue_manager.queue_manager.get_task", lambda preview_task_id: ({"error": "Task not found"}, 404))
-    monkeypatch.setattr(
-        "core.api.config.queue_manager.queue_manager.preview_osint_source",
-        lambda source_id: (scheduled_response, 201),
-    )
+    monkeypatch.setattr(config_api.task.Task, "get", lambda preview_task_id: None)
+    monkeypatch.setattr(config_api.queue_manager, "queue_manager", queue_manager, raising=False)
 
     response, status = OSINTSourcePreview.get_osint_source_preview_response("123")
 
     assert status == 201
     assert response == scheduled_response
+    queue_manager.preview_osint_source.assert_called_once_with("123")
 
 
 def test_preview_response_uses_persisted_failure_without_requeue(monkeypatch):
@@ -43,7 +47,7 @@ def test_preview_response_uses_persisted_failure_without_requeue(monkeypatch):
         def to_dict(self):
             return persisted_failure
 
-    monkeypatch.setattr("core.api.config.task.Task.get", lambda preview_task_id: FakeTaskResult())
+    monkeypatch.setattr(config_api.task.Task, "get", lambda preview_task_id: FakeTaskResult())
 
     response, status = OSINTSourcePreview.get_osint_source_preview_response("123")
 
