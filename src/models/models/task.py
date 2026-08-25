@@ -73,7 +73,7 @@ class Task(TaranisBaseModel):
     user_id: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: TaskResultEnvelope
+    result: TaskResultEnvelope | None = None
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None

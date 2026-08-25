@@ -39,7 +39,7 @@ class Products(MethodView):
 
     @auth_required("PUBLISH_CREATE")
     def post(self):
-        new_product = product.Product.add(request.json)
+        new_product = product.Product.add(request.json, user_id=current_user.id)
         invalidate_frontend_cache_on_success(201, scopes=(SCOPE_PUBLISH_VIEWS,))
         return jsonify({"message": "New Product created", "id": new_product.id, "product": new_product.to_detail_dict()}), 201
 
@@ -47,7 +47,7 @@ class Products(MethodView):
     def put(self, product_id: str | None = None):
         if not product_id:
             return {"error": "No product_id provided"}, 400
-        response, status = product.Product.update(product_id, request.json)
+        response, status = product.Product.update(product_id, request.json, user_id=current_user.id)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status
 

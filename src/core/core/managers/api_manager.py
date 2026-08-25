@@ -26,6 +26,7 @@ def initialize(app):
     core_api.health.initialize(app)
     core_api.isalive.initialize(app)
     core_api.publish.initialize(app)
+    core_api.realtime.initialize(app)
     core_api.user.initialize(app)
     core_api.task.initialize(app)
     core_api.worker.initialize(app)

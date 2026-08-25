@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="p-4 space-y-6" id="admin-notifications" data-testid="admin-notifications-page">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-3xl font-bold">Notifications</h1>
+      <a class="btn btn-outline btn-sm" href="{{ url_for('admin.notifications') }}">Refresh clients</a>
+    </div>
+
+    <section class="bg-base-100 border p-4 space-y-4" aria-labelledby="broadcast-heading">
+      <h2 class="text-xl font-semibold" id="broadcast-heading">Broadcast notification</h2>
+      <form class="flex w-full gap-2" hx-post="{{ url_for('admin.notifications') }}" hx-target="#notification-bar" hx-target-error="#notification-bar">
+        <label class="sr-only" for="broadcast-message">Message</label>
+        <input id="broadcast-message"
+               name="message"
+               type="text"
+               class="input input-bordered min-w-0 flex-1"
+               maxlength="500"
+               placeholder="Message to all users"
+               required />
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
+    </section>
+
+    <section class="bg-base-100 border p-4 space-y-4" aria-labelledby="clients-heading">
+      <h2 class="text-xl font-semibold" id="clients-heading">Connected clients</h2>
+      {% if status.error %}
+        <div class="alert alert-warning" role="status">{{ status.error }}</div>
+      {% else %}
+        <div class="stats stats-horizontal border">
+          <div class="stat py-3">
+            <div class="stat-title">Clients</div>
+            <div class="stat-value text-2xl" data-testid="connected-client-count">{{ status.num_clients }}</div>
+          </div>
+          <div class="stat py-3">
+            <div class="stat-title">Users</div>
+            <div class="stat-value text-2xl" data-testid="connected-user-count">{{ status.num_users }}</div>
+          </div>
+        </div>
+
+        {% if status.clients %}
+          <div class="overflow-x-auto">
+            <table class="table table-zebra">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>User ID</th>
+                  <th>Client ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for client in status.clients %}
+                  <tr>
+                    <td>{{ client.username }}</td>
+                    <td class="font-mono text-xs">{{ client.user_id }}</td>
+                    <td class="font-mono text-xs">{{ client.client_id }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-base-content/60">No clients are currently connected.</p>
+        {% endif %}
+      {% endif %}
+    </section>
+  </div>
+{% endblock content %}

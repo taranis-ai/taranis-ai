@@ -3,7 +3,6 @@ from flask.views import MethodView
 from flask_jwt_extended import current_user, jwt_required
 
 from core.config import Config
-from core.managers.sse_manager import sse_manager
 from core.model.user import User
 from core.service.cache_invalidation import SCOPE_TRENDING_CLUSTERS, invalidate_frontend_cache_on_success
 
@@ -36,18 +35,9 @@ class UserProfile(MethodView):
         return response, status
 
 
-class SSEConnected(MethodView):
-    @jwt_required()
-    def post(self):
-        sse_manager.connected()
-        return {"connected": True}, 200
-
-
 def initialize(app: Flask):
     user_bp = Blueprint("user", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/users")
 
     user_bp.add_url_rule("/", view_func=UserInfo.as_view("user_info"))
     user_bp.add_url_rule("/profile", view_func=UserProfile.as_view("user_profile"))
-    user_bp.add_url_rule("/sse-connected", view_func=SSEConnected.as_view("sse_connected"))
-
     app.register_blueprint(user_bp)
