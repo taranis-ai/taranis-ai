@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block head %}
+  <script src="{{ url_for('static', filename='js/chat.js') }}" defer></script>
+{% endblock head %}
+
 {% block content %}
   {% include "chat/workspace.html" %}
 {% endblock content %}

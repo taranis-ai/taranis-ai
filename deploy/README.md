@@ -30,6 +30,7 @@ Optional analyst Chat:
 - Set `CHAT_LLM_MODEL` when required by the provider. `CHAT_LLM_TIMEOUT` defaults to 120 seconds and `CHAT_MAX_STORIES` defaults to 5.
 - Store `CHAT_LLM_API_KEY` only in the deployment secret. It may be empty when the provider does not require bearer authentication.
 - `CHAT_REQUEST_TIMEOUT` is frontend-only and defaults to 300 seconds to cover the synchronous planner and answer calls.
+- Realtime Chat progress uses the existing Centrifugo connection when `REALTIME_ENABLED=true`; Chat still completes through its normal HTTP response when realtime is disabled or unavailable.
 
 ## Images
 
@@ -78,7 +79,9 @@ kubectl apply -f deploy/argocd/application.yaml
 
 ## Analyst Chat
 
-Chat is independent of `llm-bot`, Redis, and workers. Core calls the configured OpenAI-compatible Responses API directly. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
+Chat is independent of `llm-bot` and workers. Core calls the configured OpenAI-compatible Responses API directly and uses Redis only for a bounded per-conversation turn lease. If Redis is unavailable, new turns return 503 rather than risk out-of-order conversation history. Analysts need `ASSESS_ACCESS`; all generated Assess searches continue to enforce their source ACLs and TLP restrictions.
+
+Core first makes a structured routing call, then requests a streaming plain-text answer. Providers that reject Responses streaming before sending any content fall back to the structured non-streaming answer contract. When realtime is enabled, Core publishes progress stage identifiers and cumulative answer snapshots to the authenticated user's existing Centrifugo channel; the frontend localizes the stages. These publications are best-effort and have no history; the final synchronous response and PostgreSQL conversation remain authoritative.
 
 Enabling Chat creates `chat_conversation` and `chat_message` tables at core startup. Conversations and answers remain in Taranis until their owner deletes them. The provider receives the analyst's prompt, up to the latest 10 saved chat messages, the analyst-visible filter catalog, and, for search answers, up to `CHAT_MAX_STORIES` bounded story summaries. Raw news-item content and provider credentials are not saved in chat metadata.
 

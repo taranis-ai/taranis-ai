@@ -10,9 +10,11 @@ from core.managers.auth_manager import auth_required
 from core.managers.db_manager import db
 from core.service.chat import (
     ChatConversationNotFoundError,
+    ChatCoordinationUnavailableError,
     ChatProviderError,
     ChatProviderTimeoutError,
     ChatService,
+    ChatTurnConflictError,
     ChatUnavailableError,
 )
 
@@ -27,6 +29,10 @@ def _turn_error(exc: Exception) -> tuple[dict[str, str], int]:
     db.session.rollback()
     if isinstance(exc, ChatConversationNotFoundError):
         return {"error": "Chat conversation not found"}, 404
+    if isinstance(exc, ChatTurnConflictError):
+        return {"error": "Another response is already being generated for this chat"}, 409
+    if isinstance(exc, ChatCoordinationUnavailableError):
+        return {"error": "Chat is temporarily unavailable"}, 503
     if isinstance(exc, ChatUnavailableError):
         return {"error": "Chat is not configured"}, 503
     if isinstance(exc, ChatProviderError):
@@ -54,8 +60,8 @@ class ChatConversations(MethodView):
         if isinstance(payload := _parse_turn(), tuple):
             return payload
         try:
-            return {"conversation": ChatService.create_turn(current_user, payload.content)}, 201
-        except Exception as exc:  # noqa: BLE001
+            return {"conversation": ChatService.create_turn(current_user, payload.content, str(payload.turn_id))}, 201
+        except Exception as exc:
             return _turn_error(exc)
 
 
@@ -79,8 +85,8 @@ class ChatMessages(MethodView):
         if isinstance(payload := _parse_turn(), tuple):
             return payload
         try:
-            return {"conversation": ChatService.create_turn(current_user, payload.content, conversation_id)}, 201
-        except Exception as exc:  # noqa: BLE001
+            return {"conversation": ChatService.create_turn(current_user, payload.content, str(payload.turn_id), conversation_id)}, 201
+        except Exception as exc:
             return _turn_error(exc)
 
 

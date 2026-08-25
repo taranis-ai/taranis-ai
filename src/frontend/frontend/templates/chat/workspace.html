@@ -1,4 +1,11 @@
-<div id="chat-workspace" class="flex h-[calc(100vh-5rem)] min-h-0 flex-col gap-3 p-3 lg:flex-row" data-testid="chat-workspace">
+<div id="chat-workspace"
+     class="flex h-[calc(100vh-5rem)] min-h-0 flex-col gap-3 p-3 lg:flex-row"
+     data-chat-turn-id="{{ turn_id }}"
+     data-chat-sequence="0"
+     data-chat-stage-planning="{{ _('Planning…') }}"
+     data-chat-stage-searching="{{ _('Searching stories…') }}"
+     data-chat-stage-answering="{{ _('Writing answer…') }}"
+     data-testid="chat-workspace">
   <aside class="flex max-h-56 shrink-0 flex-col rounded-box bg-base-200 p-3 lg:max-h-none lg:w-72" aria-label="{{ _('Chat history') }}">
     <a href="{{ url_for('chat.index') }}" class="btn btn-primary btn-sm mb-3" data-testid="chat-new">{{ _("New Chat") }}</a>
     <div class="min-h-0 space-y-1 overflow-y-auto">
@@ -41,7 +48,7 @@
           </div>
         {% endfor %}
       {% else %}
-        <div class="flex flex-1 items-center justify-center text-center text-base-content/60">
+        <div class="flex flex-1 items-center justify-center text-center text-base-content/60" data-chat-empty>
           <div>
             {{ heroicon_outline("chat-bubble-left-right", class="mx-auto mb-3 h-12 w-12") }}
             <p>{{ _("Ask a question or search the stories available to you in Taranis.") }}</p>
@@ -49,10 +56,18 @@
           </div>
         </div>
       {% endif %}
+      <div class="chat chat-end hidden shrink-0" data-chat-pending-user data-testid="chat-message-user-pending">
+        <div class="chat-header mb-1">{{ _("You") }}</div>
+        <div class="chat-bubble chat-bubble-primary whitespace-pre-wrap break-words" data-chat-pending-user-content></div>
+      </div>
       <div id="chat-answer-loading" class="chat chat-start htmx-indicator shrink-0" data-testid="chat-answer-loading">
         <div class="chat-header mb-1">{{ _("Taranis Chat") }}</div>
         <div class="chat-bubble">
-          <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+          <div class="flex items-center gap-2" data-chat-stream-status>
+            <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+            <span data-chat-stream-stage>{{ _("Planning…") }}</span>
+          </div>
+          <span class="hidden whitespace-pre-wrap break-words" data-chat-stream-content></span>
         </div>
       </div>
     </div>
@@ -63,7 +78,9 @@
           hx-swap="outerHTML"
           hx-indicator="#chat-answer-loading"
           hx-disabled-elt="#chat-message-input, #chat-send"
+          hx-on::before-request="window.taranisChat?.begin(this)"
           data-testid="chat-form">
+      <input type="hidden" name="turn_id" value="{{ turn_id }}">
       <label class="sr-only" for="chat-message-input">{{ _("Message") }}</label>
       <div class="flex items-end gap-2">
         <textarea id="chat-message-input"

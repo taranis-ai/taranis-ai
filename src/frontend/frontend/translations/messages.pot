@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-14 13:19+0200\n"
+"POT-Creation-Date: 2026-08-25 16:02+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: frontend/i18n.py:111
+#: frontend/i18n.py:110
 msgid "English"
 msgstr ""
 
-#: frontend/i18n.py:112
+#: frontend/i18n.py:111
 msgid "German"
 msgstr ""
 
@@ -53,34 +53,34 @@ msgstr ""
 msgid "No stories to choose from"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:73
+#: frontend/templates/assess/assess_top_bar.html:66
 msgid "Edit"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:87
+#: frontend/templates/assess/assess_top_bar.html:80
 msgid "Cluster"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:122
+#: frontend/templates/assess/assess_top_bar.html:115
 msgid "Remove selected"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:155
+#: frontend/templates/assess/assess_top_bar.html:148
 msgid "Actions"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:171
+#: frontend/templates/assess/assess_top_bar.html:164
 msgid "Select all"
 msgstr ""
 
-#: frontend/templates/assess/assess_top_bar.html:185
+#: frontend/templates/assess/assess_top_bar.html:178
 msgid "Clear selection"
 msgstr ""
 
 #: frontend/templates/assess/bookmarks_bar.html:9
 #: frontend/templates/bookmarks/bookmark_detail.html:7
 #: frontend/templates/bookmarks/bookmark_list.html:4
-#: frontend/templates/partials/navbar.html:65
+#: frontend/templates/partials/navbar.html:79
 msgid "Bookmarks"
 msgstr ""
 
@@ -94,6 +94,80 @@ msgstr ""
 
 #: frontend/templates/attribute/attribute_form.html:54
 msgid "No attributes to choose from"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:5
+#: frontend/templates/chat/workspace.html:68
+msgid "Planning…"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:6
+msgid "Searching stories…"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:7
+msgid "Writing answer…"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:9
+msgid "Chat history"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:10
+msgid "New Chat"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:19
+msgid "Delete chat"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:23
+msgid "Delete this chat conversation?"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:27
+msgid "No saved conversations yet."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:32
+msgid "Analyst chat"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:41
+#: frontend/templates/chat/workspace.html:60
+msgid "You"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:41
+#: frontend/templates/chat/workspace.html:64
+msgid "Taranis Chat"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:45
+#, python-format
+msgid "View %(count)s matching stories in Assess"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:54
+msgid "Ask a question or search the stories available to you in Taranis."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:55
+msgid ""
+"Messages and selected story summaries are sent to the configured LLM "
+"provider."
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:84
+msgid "Message"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:92
+msgid "Ask Taranis…"
+msgstr ""
+
+#: frontend/templates/chat/workspace.html:95
+msgid "Send"
 msgstr ""
 
 #: frontend/templates/dashboard/edit.html:34
@@ -147,7 +221,7 @@ msgstr ""
 msgid "Dashboard"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:32
+#: frontend/templates/partials/navbar.html:33
 #: frontend/templates/user_profile/hotkey_kbd.html:9
 #: frontend/templates/user_profile/hotkey_kbd.html:20
 #: frontend/templates/user_profile/hotkey_kbd.html:42
@@ -157,39 +231,43 @@ msgstr ""
 msgid "Assess"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:38
+#: frontend/templates/partials/navbar.html:40
+msgid "Chat"
+msgstr ""
+
+#: frontend/templates/partials/navbar.html:49
 #: frontend/templates/user_profile/hotkey_kbd.html:76
 msgid "Analyze"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:44
+#: frontend/templates/partials/navbar.html:57
 #: frontend/templates/user_profile/hotkey_kbd.html:77
 msgid "Publish"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:50
+#: frontend/templates/partials/navbar.html:64
 msgid "Assets"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:59
+#: frontend/templates/partials/navbar.html:73
 msgid "Profile"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:62
+#: frontend/templates/partials/navbar.html:76
 msgid "User Settings"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:68
+#: frontend/templates/partials/navbar.html:82
 #: frontend/templates/user_tasks/index.html:5
 msgid "My Tasks"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:71
+#: frontend/templates/partials/navbar.html:85
 #: frontend/templates/user_notifications/index.html:6
 msgid "Notification Center"
 msgstr ""
 
-#: frontend/templates/partials/navbar.html:78
+#: frontend/templates/partials/navbar.html:92
 msgid "Logout"
 msgstr ""
 

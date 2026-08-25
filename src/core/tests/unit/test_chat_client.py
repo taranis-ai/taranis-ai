@@ -1,3 +1,4 @@
+import io
 import json
 from datetime import datetime
 
@@ -14,6 +15,7 @@ from core.service.chat import (
     ChatProviderError,
     ChatProviderTimeoutError,
     ChatService,
+    ChatTurnStream,
     ChatUnavailableError,
     ResponsesClient,
 )
@@ -24,6 +26,15 @@ def _response(payload: dict, status: int = 200) -> requests.Response:
     response.status_code = status
     response.headers["Content-Type"] = "application/json"
     response._content = json.dumps(payload).encode()
+    response._content_consumed = True
+    return response
+
+
+def _stream_response(*events: dict) -> requests.Response:
+    response = requests.Response()
+    response.status_code = 200
+    response.headers["Content-Type"] = "text/event-stream; charset=utf-8"
+    response.raw = io.BytesIO("".join(f"data: {json.dumps(event, ensure_ascii=False)}\n\n" for event in events).encode())
     return response
 
 
@@ -79,6 +90,41 @@ def test_responses_client_reads_structured_message_output(configured_chat, monke
     )
 
     assert ResponsesClient().create_structured({}, "Answer", ChatAnswerResponse).answer == "Nested"
+
+
+def test_responses_client_streams_text_deltas(configured_chat, monkeypatch):
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _stream_response(
+            {"type": "response.output_text.delta", "delta": "Grü"},
+            {"type": "response.output_text.delta", "delta": "ße"},
+            {"type": "response.completed", "response": {"status": "completed"}},
+        ),
+    )
+    deltas = []
+
+    answer = ResponsesClient().create_text_stream({"question": "Hi"}, "Answer", deltas.append)
+
+    assert answer == "Grüße"
+    assert deltas == ["Grü", "ße"]
+
+
+def test_responses_client_falls_back_only_when_streaming_is_rejected(configured_chat, monkeypatch):
+    responses = iter([_response({}, status=422), _response({"output_text": '{"answer":"Fallback"}'})])
+    calls = []
+
+    def post(*args, **kwargs):
+        calls.append(kwargs["json"])
+        return next(responses)
+
+    monkeypatch.setattr(requests, "post", post)
+    deltas = []
+
+    assert ResponsesClient().create_text_stream({}, "Answer", deltas.append) == "Fallback"
+    assert deltas == ["Fallback"]
+    assert calls[0]["stream"] is True
+    assert calls[1]["text"]["format"]["type"] == "json_schema"
 
 
 def test_responses_client_retries_invalid_structured_output_once(configured_chat, monkeypatch):
@@ -145,7 +191,6 @@ def test_planner_rejects_hallucinated_catalog_and_story_references():
     }
     hallucinated_source = ChatPlannerResponse(
         mode="search",
-        answer="ignored",
         filters=AssessSearchFilters(source=["made-up-source"]),
     )
     with pytest.raises(ValueError, match="Unknown source"):
@@ -153,12 +198,30 @@ def test_planner_rejects_hallucinated_catalog_and_story_references():
 
     hallucinated_story = ChatPlannerResponse(
         mode="search",
-        answer="ignored",
         filters=AssessSearchFilters(story_ids=["made-up-story"]),
     )
     with pytest.raises(ValueError, match="Unknown recent story IDs"):
         ChatService._validate_planner(hallucinated_story, catalog, {"known-story"})
 
-    string_null = ChatPlannerResponse(mode="search", answer="ignored", filters=AssessSearchFilters(search="null"))
+    string_null = ChatPlannerResponse(mode="search", filters=AssessSearchFilters(search="null"))
     with pytest.raises(ValueError, match="must use JSON null"):
         ChatService._validate_planner(string_null, catalog, set())
+
+
+def test_chat_turn_stream_publishes_cumulative_throttled_snapshots(monkeypatch):
+    monkeypatch.setattr(Config, "REALTIME_ENABLED", True)
+    published = []
+    monkeypatch.setattr("core.service.chat.realtime_publisher.publish", lambda *args, **kwargs: published.append((args, kwargs)) or True)
+    now = iter([100.0, 100.1, 100.21])
+    monkeypatch.setattr("core.service.chat.time.monotonic", lambda: next(now))
+    stream = ChatTurnStream("user-id", "turn-id")
+
+    stream.stage("answering")
+    stream.add("One")
+    stream.add(" two")
+    stream.add(" three")
+    stream.complete()
+
+    assert published[0][0][:3] == ("user:#user-id", "chat.turn.updated", "updated")
+    assert [call[1]["data"]["content"] for call in published] == ["", "One", "One two three", "One two three"]
+    assert [call[1]["data"]["stage"] for call in published] == ["answering", "answering", "answering", "completed"]

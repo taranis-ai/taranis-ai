@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -13,7 +13,7 @@ MESSAGE_ID = "01981234-5678-7abc-8def-0123456789ac"
 
 
 def _conversation(answer: str = "Summary") -> dict[str, Any]:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     return {
         "id": CONVERSATION_ID,
         "title": "Vienna incidents",
@@ -59,6 +59,7 @@ def test_chat_history_escapes_answers_and_builds_doseq_assess_link(
     assert 'data-testid="nav-chat"' in body
     assert 'hx-indicator="#chat-answer-loading"' in body
     assert 'data-testid="chat-answer-loading"' in body
+    assert 'name="turn_id"' in body
     assert "!event.shiftKey && !event.isComposing" in body
     assert '<button id="chat-send" type="submit" class="btn btn-primary" data-testid="chat-send">Send</button>' in body
 

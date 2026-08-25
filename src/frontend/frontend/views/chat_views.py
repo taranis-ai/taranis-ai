@@ -1,3 +1,4 @@
+import uuid
 from typing import Any
 from urllib.parse import urlencode
 
@@ -44,6 +45,7 @@ class ChatView(BaseView):
         conversation: ChatConversation | None = None,
         notification: str | None = None,
         draft: str = "",
+        turn_id: str | None = None,
     ) -> dict[str, Any]:
         return {
             "_show_sidebar": False,
@@ -52,6 +54,7 @@ class ChatView(BaseView):
             "message_views": cls._message_views(conversation),
             "notification": notification,
             "draft": draft,
+            "turn_id": turn_id or str(uuid.uuid7()),
         }
 
     @classmethod
@@ -71,7 +74,7 @@ class ChatView(BaseView):
     def send_message(cls, conversation_id: str | None = None) -> ResponseReturnValue:
         draft = request.form.get("content", "")
         try:
-            payload = ChatTurnRequest(content=draft)
+            payload = ChatTurnRequest.model_validate(request.form)
         except ValidationError as exc:
             message = exc.errors()[0].get("msg", "Invalid chat message") if exc.errors() else "Invalid chat message"
             conversation = cls._load_conversation(conversation_id) if conversation_id else None
@@ -94,6 +97,7 @@ class ChatView(BaseView):
                 conversation=conversation,
                 notification=cls.render_response_notification({"error": "Chat request timed out or could not reach core."}),
                 draft=draft,
+                turn_id=str(payload.turn_id),
             ), 200
 
         if not response.ok:
@@ -102,6 +106,7 @@ class ChatView(BaseView):
                 conversation=conversation,
                 notification=cls.get_notification_from_response(response),
                 draft=draft,
+                turn_id=str(payload.turn_id),
             ), 200
 
         turn = ChatTurnResponse.model_validate(response.json())

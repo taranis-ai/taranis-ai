@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Any, Literal
 
@@ -11,11 +12,14 @@ from .assess import AssessSearchFilters
 CHAT_MESSAGE_MAX_LENGTH = 4000
 
 
+def _uuid7() -> uuid.UUID:
+    return vars(uuid)["uuid7"]()
+
+
 class ChatPlannerResponse(TaranisBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     mode: Literal["answer", "search"]
-    answer: str = Field(min_length=1)
     filters: AssessSearchFilters | None = None
 
     @model_validator(mode="after")
@@ -66,6 +70,7 @@ class ChatTurnRequest(TaranisBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     content: str = Field(min_length=1, max_length=CHAT_MESSAGE_MAX_LENGTH)
+    turn_id: uuid.UUID = Field(default_factory=_uuid7)
 
     @field_validator("content", mode="before")
     @classmethod

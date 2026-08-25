@@ -49,7 +49,7 @@ Bookmarks are private story bookmarks organized into named collections. Assess s
 
 When `CHAT_ENABLED=true`, users with `ASSESS_ACCESS` see a persistent `/chat` workspace. Chat operations intentionally bypass the frontend model cache. Search answers contain escaped plain text, a match count, and one canonical `/assess` filter link; provider-generated HTML, Markdown, and links are not rendered.
 
-The frontend waits up to `CHAT_REQUEST_TIMEOUT` seconds (default 300) for the synchronous core workflow. Provider configuration and credentials belong to core deployment settings, not the frontend.
+The frontend waits up to `CHAT_REQUEST_TIMEOUT` seconds (default 300) for the authoritative synchronous core workflow. With realtime enabled, the existing Centrifugo connection also shows the submitted message immediately, displays Planning/Searching/Writing stages, and replaces the assistant bubble with cumulative plain-text snapshots. Missing or failed realtime delivery simply leaves the progress indicator visible until the completed HTMX response arrives. Provider configuration and credentials belong to core deployment settings, not the frontend.
 
 ### Notifications
 

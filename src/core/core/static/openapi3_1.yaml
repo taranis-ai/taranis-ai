@@ -1053,7 +1053,7 @@ paths:
       tags:
       - chat
       operationId: chat.conversations.post
-      description: create a conversation after its first turn completes successfully
+      description: create a conversation after its first turn completes successfully; when realtime is enabled, progress is published to the authenticated user's Centrifugo channel using turn_id
       requestBody:
         required: true
         content:
@@ -1073,10 +1073,12 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: assess permission required
+        '409':
+          description: another new-conversation turn is already running for this user
         '502':
           description: configured provider returned an invalid or unsuccessful response
         '503':
-          description: chat is disabled or not configured
+          description: chat is disabled, not configured, or cannot acquire its Redis coordination lease
         '504':
           description: configured provider timed out
   /chat/conversations/{conversation_id}:
@@ -1141,7 +1143,7 @@ paths:
       tags:
       - chat
       operationId: chat.messages.post
-      description: complete and atomically persist a turn in an owned conversation
+      description: complete and atomically persist a turn in an owned conversation; when realtime is enabled, progress is published to the authenticated user's Centrifugo channel using turn_id
       requestBody:
         required: true
         content:
@@ -1163,10 +1165,12 @@ paths:
           description: assess permission required
         '404':
           $ref: '#/components/responses/404NotFound'
+        '409':
+          description: another turn is already running for this conversation
         '502':
           description: configured provider returned an invalid or unsuccessful response
         '503':
-          description: chat is disabled or not configured
+          description: chat is disabled, not configured, or cannot acquire its Redis coordination lease
         '504':
           description: configured provider timed out
   /assess/osint-source-group-list:
@@ -9817,6 +9821,10 @@ components:
           type: string
           minLength: 1
           maxLength: 4000
+        turn_id:
+          type: string
+          format: uuid
+          description: optional client correlation ID for user-scoped realtime progress events; core generates one when omitted
       required:
       - content
     chat_search_result:
