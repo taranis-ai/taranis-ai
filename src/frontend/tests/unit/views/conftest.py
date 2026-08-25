@@ -67,7 +67,9 @@ def core_payloads():
 
         expect_object = None
 
-        if view_name in ["Dashboard", "Admin Dashboard"]:
+        if view_name == "Notifications":
+            expect_object = "client-1"
+        elif view_name in ["Dashboard", "Admin Dashboard"]:
             expect_object = str(items[0].get("total_news_items"))
         elif view_name == "Settings":
             expect_object = items[0].get("settings", {}).get("default_collector_proxy")
@@ -184,6 +186,16 @@ def mock_core_get_endpoints(responses_mock, core_payloads, worker_parameter_data
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/config/admin-menu-badges",
         json={"osint_source": 2, "bot": 3},
+        status=200,
+        content_type="application/json",
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/realtime/clients",
+        json={
+            "num_clients": 1,
+            "num_users": 1,
+            "clients": [{"client_id": "client-1", "user_id": "user-1", "username": "admin"}],
+        },
         status=200,
         content_type="application/json",
     )

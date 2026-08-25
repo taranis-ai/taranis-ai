@@ -7,8 +7,8 @@ cd "$(git rev-parse --show-toplevel)"
 source dev/env.dev
 export COMPOSE_PROJECT_NAME TARANIS_REDIS_PORT
 
-if [ -n "${WITH_TELEMETRY:-}" ]; then
-    export COMPOSE_PROFILES=telemetry
+if [ "${WITH_TELEMETRY:-}" = 1 ]; then
+    export COMPOSE_PROFILES="${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}telemetry"
     export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}"
 fi
 
@@ -66,8 +66,8 @@ if [ ! -f "src/frontend/.env" ]; then
     echo "FLASK_RUN_PORT=5002" >> src/frontend/.env
 fi
 
-if [ "$host_os" = "Darwin" ]; then
-    podman compose -f dev/compose.yml up -d
+if command -v podman-compose >/dev/null 2>&1; then
+    podman-compose -f dev/compose.yml up -d
 else
     docker compose -f dev/compose.yml up -d
 fi

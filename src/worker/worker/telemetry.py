@@ -27,6 +27,7 @@ _meter_provider: MeterProvider | None = None
 _tracer: Tracer | None = None
 _completed_jobs: Counter | None = None
 _job_duration: Histogram | None = None
+_EXPORT_TIMEOUT_MILLIS = 500
 
 
 def _initialize() -> bool:
@@ -40,12 +41,14 @@ def _initialize() -> bool:
     service_name = "taranis-worker"
     resource = Resource.create({SERVICE_NAME: service_name, "service.instance.id": service_name})
     _tracer_provider = TracerProvider(resource=resource)
-    _tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces")))
+    _tracer_provider.add_span_processor(
+        BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces", timeout=_EXPORT_TIMEOUT_MILLIS / 1_000))
+    )
     _meter_provider = MeterProvider(
         resource=resource,
         metric_readers=[
             PeriodicExportingMetricReader(
-                OTLPMetricExporter(endpoint=f"{endpoint}/v1/metrics"),
+                OTLPMetricExporter(endpoint=f"{endpoint}/v1/metrics", timeout=_EXPORT_TIMEOUT_MILLIS / 1_000),
                 export_interval_millis=Config.OTEL_METRIC_EXPORT_INTERVAL,
             )
         ],
@@ -109,8 +112,8 @@ def instrument_job[**P, R](func: Callable[P, R]) -> Callable[P, R]:
             try:
                 completed_jobs.add(1, metric_attributes)
                 job_duration.record(perf_counter() - started, metric_attributes)
-                tracer_provider.force_flush(timeout_millis=1_000)
-                meter_provider.force_flush(timeout_millis=1_000)
+                tracer_provider.force_flush(timeout_millis=_EXPORT_TIMEOUT_MILLIS)
+                meter_provider.force_flush(timeout_millis=_EXPORT_TIMEOUT_MILLIS)
             except Exception as exc:
                 logger.warning(f"Failed to export OpenTelemetry data: {exc}")
 

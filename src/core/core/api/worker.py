@@ -9,7 +9,7 @@ from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import api_key_required
 from core.managers.decorators import extract_args
-from core.managers.sse_manager import sse_manager
+from core.managers.realtime_publisher import realtime_publisher
 from core.model.bot import Bot
 from core.model.connector import Connector
 from core.model.ioc import IOC
@@ -47,7 +47,7 @@ class AddNewsItems(MethodView):
         logger.debug(f"Received {len(json_data)} news items for worker ingestion")
         result, status = Story.add_news_items(json_data)
         if 200 <= status < 300:
-            sse_manager.news_items_updated()
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return result, status
 
@@ -207,7 +207,8 @@ class MISPStories(MethodView):
         configured_story_ids = _configured_misp_story_ids()
         result, status = Story.add_or_update_for_misp(data)
         _cancel_deleted_misp_story_jobs(configured_story_ids)
-        sse_manager.news_items_updated()
+        if 200 <= status < 300:
+            realtime_publisher.assess_changed()
         return make_response(jsonify(result), status)
 
     @api_key_required
@@ -220,7 +221,8 @@ class MISPStories(MethodView):
             result, code = Connector.update_story_last_change(story_ids)
         if news_item_ids := data.get("news_items"):
             result, code = Connector.update_news_item_last_change(news_item_ids)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         return make_response(jsonify(result), code)
 
 

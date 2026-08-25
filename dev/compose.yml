@@ -46,6 +46,42 @@ services:
     volumes:
       - telemetry_data:/data
 
+  centrifugo:
+    image: "centrifugo/centrifugo:v6.9.1"
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "0.0.0.0:${TARANIS_CENTRIFUGO_PORT:-8000}:8000"
+      - "127.0.0.1:${TARANIS_CENTRIFUGO_API_PORT:-9000}:9000"
+    environment:
+      CENTRIFUGO_ADMIN_ENABLED: "true"
+      CENTRIFUGO_ADMIN_EXTERNAL: "true"
+      CENTRIFUGO_ADMIN_PASSWORD: "${CENTRIFUGO_ADMIN_PASSWORD:-admin}"
+      CENTRIFUGO_ADMIN_SECRET: "${CENTRIFUGO_ADMIN_SECRET:-dev-centrifugo-admin-secret}"
+      CENTRIFUGO_HTTP_API_KEY: "${CENTRIFUGO_API_KEY:-dev-centrifugo-api-key}"
+      CENTRIFUGO_HTTP_SERVER_INTERNAL_PORT: "9000"
+      CENTRIFUGO_ENGINE_TYPE: "redis"
+      CENTRIFUGO_ENGINE_REDIS_ADDRESS: "redis://redis:6379/0"
+      CENTRIFUGO_ENGINE_REDIS_PREFIX: "taranis:realtime"
+      CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "${CENTRIFUGO_ALLOWED_ORIGINS:-http://local.taranis.ai}"
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_ENABLED: "true"
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: "http://host.containers.internal:${TARANIS_CORE_PORT:-5001}/api/realtime/connect"
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_HEADERS: "Cookie"
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_STATIC_HEADERS: "{\"X-Realtime-Proxy-Key\":\"${CENTRIFUGO_CONNECT_PROXY_SECRET:-dev-centrifugo-connect-proxy-secret}\"}"
+      CENTRIFUGO_CHANNEL_PUBLICATION_DATA_FORMAT: "json_object"
+      CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"global","presence":true},{"name":"org"},{"name":"user","allow_user_limited_channels":true}]'
+      CENTRIFUGO_WEBSOCKET_DISABLED: "true"
+      CENTRIFUGO_UNI_SSE_ENABLED: "true"
+      CENTRIFUGO_HEALTH_ENABLED: "true"
+      CENTRIFUGO_PROMETHEUS_ENABLED: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
 volumes:
   database_data:
   telemetry_data:

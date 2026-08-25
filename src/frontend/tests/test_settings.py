@@ -20,6 +20,18 @@ def test_jwt_decode_leeway(app):
         assert app.config.get("JWT_DECODE_LEEWAY") == 5
 
 
+def test_realtime_template_gate_requires_feature_flag_and_access_cookie(app, monkeypatch):
+    monkeypatch.setitem(app.config, "REALTIME_ENABLED", True)
+
+    with app.test_request_context("/"):
+        anonymous_body = render_template("base.html")
+    with app.test_request_context("/", headers={"Cookie": f"{app.config['JWT_ACCESS_COOKIE_NAME']}=signed-token"}):
+        authenticated_body = render_template("base.html")
+
+    assert 'data-realtime-enabled="false"' in anonymous_body
+    assert 'data-realtime-enabled="true"' in authenticated_body
+
+
 def test_settings_export_error_returns_oob_notification(app, monkeypatch):
     from frontend.views.admin_views import settings_views
 

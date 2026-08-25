@@ -6,7 +6,7 @@ from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission,
 
 from core.config import Config
 from core.log import logger
-from core.managers.sse_manager import sse_manager
+from core.managers.realtime_publisher import realtime_publisher
 from core.model.osint_source import CollectorHTTPState
 from core.model.product import Product
 from core.model.task import Task as TaskModel
@@ -94,6 +94,17 @@ class TaskService:
         result, _ = TaskModel.add_or_update(payload)
         if task_kind == "collector_task" and submission.worker_id:
             CollectorHTTPState.update_from_task_result(submission.worker_id, result_payload.get("data"))
+        if (
+            submission.user_id
+            and submission.task == "collector_preview"
+            and submission.id.startswith("source_preview_")
+            and submission.status in {"PREVIEW", "FAILURE"}
+        ):
+            realtime_publisher.osint_source_preview_finished(
+                submission.id.removeprefix("source_preview_"),
+                submission.user_id,
+                submission.status,
+            )
         if submission.status == "SUCCESS" and submission.result is not None:
             cls._handle_success_result(submission)
         elif task_kind in {"collector_task", "bot_task"}:
@@ -148,7 +159,7 @@ class TaskService:
                 logger.error("Invalid connector task result payload")
                 return
             handle_misp_connector_result(result_data)
-            sse_manager.news_items_updated()
+            realtime_publisher.assess_changed()
             cache_invalidation_module.invalidate_frontend_cache_on_success(
                 200,
                 scopes=(
@@ -167,14 +178,14 @@ class TaskService:
             return
 
         if task_kind == "presenter_task":
-            cls._handle_presenter_result(result_data)
+            cls._handle_presenter_result(result_data, submission.user_id)
             return
 
         if task_kind == "bot_task":
             cls._handle_bot_result(submission, result_data)
 
     @staticmethod
-    def _handle_presenter_result(result_data: dict[str, Any] | None) -> None:
+    def _handle_presenter_result(result_data: dict[str, Any] | None, user_id: str | None) -> None:
         if result_data is None:
             logger.error("Invalid presenter task result payload")
             return
@@ -186,7 +197,9 @@ class TaskService:
             logger.error(f"Product {product_id} not found or no render result")
             return
 
-        Product.update_render_for_id(product_id, rendered_product)
+        _, status = Product.update_render_for_id(product_id, rendered_product)
+        if status == 200 and user_id:
+            realtime_publisher.product_rendered(product_id, user_id, "completed")
 
     @staticmethod
     def _handle_bot_result(submission: TaskSubmission, result_data: dict[str, Any] | None) -> None:

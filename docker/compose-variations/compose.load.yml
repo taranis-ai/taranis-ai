@@ -43,10 +43,10 @@ services:
       JWT_COOKIE_SUFFIX: ""
       API_KEY: load_testing_api_key
       DEBUG: "true"
-      DISABLE_SSE: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
       OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
       OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
+      REALTIME_ENABLED: "false"
       TARANIS_CORE_SENTRY_DSN: ""
     depends_on:
       database:
@@ -78,6 +78,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
       OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
       OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
+      REALTIME_ENABLED: "false"
       DEBUG: "true"
     depends_on:
       core:
@@ -99,7 +100,7 @@ services:
       NGINX_CONNECTIONS: "32"
       TARANIS_CORE_UPSTREAM: core:8080
       TARANIS_FRONTEND_UPSTREAM: frontend:8080
-      TARANIS_SSE_UPSTREAM: core:8080
+      TARANIS_REALTIME_UPSTREAM: core:8080
       TARANIS_BASE_PATH: /
     depends_on:
       core:

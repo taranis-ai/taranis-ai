@@ -115,7 +115,7 @@ def auth_user():
         username="admin",
         name="Arthur Dent",
         organization={"id": "1", "name": "Galactic Government"},
-        permissions=["ALL"],
+        permissions=["ADMIN_OPERATIONS", "ASSESS_ACCESS", "ANALYZE_ACCESS", "PUBLISH_ACCESS", "ASSETS_ACCESS"],
         profile=ProfileSettings(),
         roles=[{"id": "1", "name": "Admin"}],
     )

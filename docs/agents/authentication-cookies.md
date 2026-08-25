@@ -13,12 +13,14 @@ Authentication, login, logout, implicit JWT refresh, JWT cookies, CSRF cookies, 
 - Authenticated frontend requests renew the access cookie through core when its token is within 30 minutes of expiry. No refresh token or refresh cookie is used.
 - `GET /api/auth/refresh` accepts bearer access tokens from the `Authorization` header for CLI and other non-browser clients.
 - Successful authentication updates `last_login` and emits a `LOGIN` activity; access-token renewal does neither.
+- The internal Centrifugo connect proxy decodes the signed access cookie directly, checks token type, expiry, revocation, and current user, and never treats its server-to-server POST as a browser CSRF-protected mutation.
 
 ## Code Paths
 
 - Cookie configuration: `src/core/core/config.py` and `src/frontend/frontend/config.py`
 - Token creation: `src/core/core/auth/base_authenticator.py`
 - Refresh and revocation validation: `src/core/core/api/auth.py` and `src/core/core/managers/auth_manager.py`
+- Realtime access-cookie validation: `src/core/core/api/realtime.py`
 - Implicit renewal and cookie clearing: `src/frontend/frontend/auth.py`
 - Frontend cookie reads and clearing: `src/frontend/frontend/auth.py`, `core_api.py`, `data_persistence.py`, templates, and `static/js/main.js`
 
@@ -42,3 +44,4 @@ Core records successful authentication before creating the initial access JWT an
 - Existing subpath sessions require a new login when a suffix is introduced; root sessions using the empty suffix remain valid.
 - Implicit renewal starts in frontend because ordinary core responses do not forward `Set-Cookie` headers to the browser; the frontend must forward the refresh response headers explicitly.
 - Core owns refresh issuance and revocation checks. Frontend must not mint replacement access tokens locally.
+- Native `EventSource` cannot add a CSRF header. Keep realtime connect authentication behind its dedicated proxy secret and exact-origin validation, and do not disable cookie CSRF checks globally.
