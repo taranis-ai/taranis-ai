@@ -44,7 +44,7 @@ For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
 | :-------------- | :------------------- | :------------------------------------ |
 | Database        | database             | Supported are PostgreSQL and SQLite with PostgreSQL as our primary citizen |
 | Message-broker  | redis                | Message broker and job queue for RQ workers |
-| SSE             | sse                  | [SSE Broker](https://github.com/taranis-ai/sse-broker) |
+| Realtime        | centrifugo           | [Centrifugo](https://centrifugal.dev/) |
 
 ## Features
 

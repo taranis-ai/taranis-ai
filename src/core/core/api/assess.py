@@ -22,7 +22,7 @@ from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import extract_args, validate_json
-from core.managers.sse_manager import sse_manager
+from core.managers.realtime_publisher import realtime_publisher
 from core.model import connector, news_item, news_item_tag, osint_source, report_item, story
 from core.model.filter_data import FilterData
 from core.model.story_conflict import StoryConflict
@@ -75,7 +75,8 @@ class NewsItems(MethodView):
 
         data_json["osint_source_id"] = "manual"
         result, status = story.Story.add_single_news_item(data_json, current_user)
-        sse_manager.news_items_updated()
+        if 200 <= status < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return result, status
 
@@ -99,7 +100,7 @@ class NewsItemFetch(MethodView):
 
         response, status = StoryService.fetch_and_create_story(parameters, user_id=current_user.id)
         if 200 <= status < 300:
-            sse_manager.news_items_updated()
+            realtime_publisher.assess_changed()
             invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return response, status
 
@@ -113,7 +114,8 @@ class NewsItem(MethodView):
     @validate_json
     def put(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
 
@@ -121,14 +123,16 @@ class NewsItem(MethodView):
     @validate_json
     def patch(self, item_id: str):
         response, code = NewsItemService.update(item_id, request.json, current_user)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
 
     @auth_required("ASSESS_DELETE")
     def delete(self, item_id: str):
         response, code = NewsItemService.delete(item_id, current_user)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS), object_ids={"news_item": item_id})
         return response, code
 
@@ -261,14 +265,16 @@ class Story(MethodView):
         except ValidationError as exc:
             return _validation_error_response(exc)
         response, code = StoryService.update(story_id, payload, current_user)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return response, code
 
     @auth_required("ASSESS_DELETE")
     def delete(self, story_id):
         response, code = StoryService.delete(story_id, current_user)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(
             code, models=("story_bookmark",), scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id}
         )
@@ -282,6 +288,8 @@ class Story(MethodView):
         except ValidationError as exc:
             return _validation_error_response(exc)
         response, code = StoryService.update(story_id, payload, current_user)
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_REPORT_VIEWS,), object_ids={"story": story_id})
         return response, code
 
@@ -300,7 +308,8 @@ class UnGroupNewsItem(MethodView):
             return {"error": "No news item ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
         response, code = StoryService.ungroup_news_items(newsitem_ids, current_user, actor=actor)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
@@ -312,7 +321,8 @@ class UnGroupStories(MethodView):
         if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
         response, code = StoryService.ungroup_stories(story_ids, current_user)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
@@ -325,7 +335,8 @@ class GroupAction(MethodView):
             return {"error": "No story ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
         response, code = StoryService.group_stories(story_ids, current_user, actor=actor)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
@@ -336,7 +347,8 @@ class GroupAction(MethodView):
             return {"error": "No story ids provided"}, 400
         actor = story.Story.last_change_for_user(current_user)
         response, code = StoryService.group_stories(story_ids, current_user, actor=actor)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_STORY_VIEWS,))
         return response, code
 
@@ -377,7 +389,7 @@ class BotActions(MethodView):
 
         response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter=filter_data, user_id=current_user.id)
         if code == 200:
-            sse_manager.news_items_updated()
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, models=("story", "report_item"))
         return response, code
 
@@ -531,7 +543,7 @@ class AssessImport(MethodView):
             return {"error": "No data provided"}, 400
 
         imported_stories = StoryService.import_stories(data_json, current_user)
-        sse_manager.news_items_updated()
+        realtime_publisher.assess_changed()
         return imported_stories
 
 

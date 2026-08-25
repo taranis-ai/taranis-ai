@@ -832,6 +832,8 @@ class StoryView(BaseView):
             items, error = None, str(exc)
 
         context = cls.get_view_context(items, error)
+        if items is not None:
+            context[cls.model_plural_name()] = items
         context["pagination"] = cls._build_pagination_context(items, paging_data, request_params)
         context["assess_selection_key"] = cls._build_assess_selection_key(request_params)
         context["selected_story_ids"] = selected_story_ids or []

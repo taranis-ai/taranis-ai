@@ -44,7 +44,7 @@ class AdminDashboardView(AdminBaseView):
         context = {
             "data": dashboard,
             "dashboard_health": cls.get_dashboard_health(dashboard),
-            "release_info": cls.get_release_info(data_persistence),
+            "release_info": cls.get_release_info(),
             "health_badge_classes": cls.get_health_badge_classes(),
             **cls._common_context(error),
         }
@@ -58,7 +58,8 @@ class AdminDashboardView(AdminBaseView):
         return result
 
     @classmethod
-    def get_core_build_info(cls, data_persistence: DataPersistenceLayer) -> dict[str, str] | None:
+    def get_core_build_info(cls) -> dict[str, str] | None:
+        data_persistence = DataPersistenceLayer()
         endpoint = f"{cls.model._core_endpoint}/build-info"
         build_info = data_persistence.api.api_get(endpoint)
         if isinstance(build_info, dict):
@@ -68,9 +69,9 @@ class AdminDashboardView(AdminBaseView):
         return None
 
     @classmethod
-    def get_release_info(cls, data_persistence: DataPersistenceLayer) -> dict[str, dict[str, str] | None]:
+    def get_release_info(cls) -> dict[str, dict[str, str] | None]:
         return {
-            "core": cls.get_core_build_info(data_persistence),
+            "core": cls.get_core_build_info(),
             "frontend": cls.get_build_info(),
         }
 

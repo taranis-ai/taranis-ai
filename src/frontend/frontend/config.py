@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     TARANIS_CORE_URL: str = "http://local.taranis.ai/api"
     TARANIS_CORE_HOST: str = "http://local.taranis.ai"
     TARANIS_BASE_PATH: str = "/"
+    REALTIME_ENABLED: bool = False
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
     CHAT_ENABLED: bool = False

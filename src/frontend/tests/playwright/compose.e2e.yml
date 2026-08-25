@@ -19,7 +19,7 @@ services:
       SKIP_INITIAL_USER_ONBOARDING: "false"
       TARANIS_AUTHENTICATOR: database
       PRESERVE_CONTEXT_ON_EXCEPTION: "false"
-      DISABLE_SSE: "true"
+      REALTIME_ENABLED: "false"
       SERVER_NAME: localhost
       TARANIS_CORE_SENTRY_DSN: ""
       APPLICATION_ROOT: /

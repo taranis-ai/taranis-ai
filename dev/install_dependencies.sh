@@ -33,8 +33,8 @@ install_basic_utils() {
 }
 
 install_astral() {
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    curl -LsSf https://astral.sh/ruff/install.sh | sh
+    command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
+    command -v ruff >/dev/null 2>&1 || curl -LsSf https://astral.sh/ruff/install.sh | sh
 }
 
 # Install and setup Docker
@@ -65,7 +65,9 @@ setup_nginx() {
 }
 
 install_macos() {
-    HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_INSTALL_UPGRADE=1 brew install \
+    local formula
+    local missing_formulas=()
+    for formula in \
         git \
         tmux \
         curl \
@@ -76,7 +78,13 @@ install_macos() {
         nginx \
         podman \
         podman-compose \
-        deno
+        deno; do
+        brew list --formula "$formula" >/dev/null 2>&1 || missing_formulas+=("$formula")
+    done
+
+    if ((${#missing_formulas[@]})); then
+        HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_INSTALL_UPGRADE=1 brew install "${missing_formulas[@]}"
+    fi
 
     install_astral
 
@@ -84,9 +92,11 @@ install_macos() {
     nginx_config="$(brew --prefix)/etc/nginx/servers/nginx.conf"
     if [ ! -f "$nginx_config" ]; then
         cp dev/nginx.conf "$nginx_config"
+        nginx -t
+        brew services restart nginx
+    elif ! pgrep nginx >/dev/null; then
+        brew services start nginx
     fi
-    nginx -t
-    brew services start nginx
 
     if ! podman info >/dev/null 2>&1; then
         if podman machine inspect >/dev/null 2>&1; then

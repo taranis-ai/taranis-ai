@@ -51,6 +51,10 @@ When `CHAT_ENABLED=true`, users with `ASSESS_ACCESS` see a persistent `/chat` wo
 
 The frontend waits up to `CHAT_REQUEST_TIMEOUT` seconds (default 300) for the synchronous core workflow. Provider configuration and credentials belong to core deployment settings, not the frontend.
 
+### Notifications
+
+Notifications may set `persistent: true` to remain visible until the user dismisses them. Administrators with `ADMIN_OPERATIONS` can use the dedicated Notifications page in the admin sidebar to send a persistent message of up to 500 characters to all connected users; the exact text is delivered through the existing Centrifugo realtime connection and recorded in each tab's Notification Center. The page also shows a live snapshot of connected clients and unique users, including usernames resolved by core.
+
 ### Cache configuration
 
 Frontend caching now uses Redis directly and falls back to a no-op cache when disabled or when Redis is unavailable.

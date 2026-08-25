@@ -12,6 +12,8 @@ Changing the global setting updates every existing user's `profile.onboarding_en
 
 Disabling onboarding suppresses pending tasks without changing completed, dismissed, or pending task state. An actual global value change replaces all existing per-user enabled flags; submitting the unchanged global value preserves individual overrides.
 
+Pending administrator tours require the real `ADMIN_OPERATIONS` permission. Taranis has no catch-all `ALL` permission, so backend and frontend onboarding checks must not treat that string specially.
+
 ## Code Paths
 
 - `src/core/core/config.py`
