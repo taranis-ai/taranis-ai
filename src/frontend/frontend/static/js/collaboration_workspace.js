@@ -984,15 +984,23 @@
         setSaveStatus("Archived channel is read-only.");
         return;
       }
-      if (!window.confirm("Remove this news item from the collaboration story?")) {
-        return;
-      }
-      setSaveStatus("Removing news item...");
-      sendMessage("collab.news_item.remove", {
-        snapshot_id: store.state.selectedStoryId,
-        news_item_id: removeNewsItemButton.dataset.collabRemoveNewsItem,
-        selected_story_id: store.state.selectedStoryId,
+      showConfirmDialog({
+        title: "Remove channel assignment?",
+        text: "This only removes the item from this collaboration story. The persistent news item and its story will not be changed.",
+        icon: "warning",
+        confirmButtonText: "Remove assignment",
+      }).then(({ isConfirmed }) => {
+        if (!isConfirmed) {
+          return;
+        }
+        setSaveStatus("Removing news item from collaboration story...");
+        sendMessage("collab.news_item.remove", {
+          snapshot_id: store.state.selectedStoryId,
+          news_item_id: removeNewsItemButton.dataset.collabRemoveNewsItem,
+          selected_story_id: store.state.selectedStoryId,
+        });
       });
+      return;
     }
   });
 

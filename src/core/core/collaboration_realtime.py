@@ -91,6 +91,13 @@ class CollaborationRealtimeHub:
             raise RuntimeError("COLLAB_EXTERNAL_BASE_URL must be configured for collaboration realtime")
         return self._normalize_base_url(Config.COLLAB_EXTERNAL_BASE_URL)
 
+    def _owns_channel(self, channel: dict[str, Any]) -> bool:
+        owner_base_url = channel.get("owner_base_url", "")
+        if owner_base_url == self._local_base_url():
+            return True
+        participants = channel.get("participants") or []
+        return len(participants) == 1 and participants[0].get("role") == "owner" and participants[0].get("base_url") == owner_base_url
+
     def _peer_ws_url(self, base_url: str) -> str:
         normalized = self._normalize_base_url(base_url)
         scheme = "wss" if normalized.startswith("https://") else "ws"
@@ -365,7 +372,7 @@ class CollaborationRealtimeHub:
 
     async def _ensure_participant_owner_connection(self, channel: dict[str, Any]) -> None:
         channel_id = channel["channel_id"]
-        if channel.get("owner_base_url") == self._local_base_url():
+        if self._owns_channel(channel):
             return
         existing_task = self.participant_owner_tasks.get(channel_id)
         if existing_task and not existing_task.done():
@@ -473,7 +480,7 @@ class CollaborationRealtimeHub:
         current_message_type = "collab.hello"
 
         try:
-            if channel.get("owner_base_url") == self._local_base_url():
+            if self._owns_channel(channel):
                 channel = await self._apply_owner_message(
                     channel_id,
                     actor,
@@ -494,7 +501,7 @@ class CollaborationRealtimeHub:
                 current_message_type = message.get("type", "")
                 session.selected_story_id = (message.get("payload") or {}).get("selected_story_id") or session.selected_story_id
                 actor = self._actor_payload(session)
-                if channel.get("owner_base_url") == self._local_base_url():
+                if self._owns_channel(channel):
                     async with self.channel_mutexes[channel_id]:
                         updated_payload = await self._apply_owner_message(channel_id, actor, message)
                     await self._broadcast_owner_result(channel_id, current_message_type, updated_payload)
@@ -517,7 +524,7 @@ class CollaborationRealtimeHub:
                     channel_id,
                     {"selected_story_id": session.selected_story_id},
                 )
-                if channel.get("owner_base_url") == self._local_base_url():
+                if self._owns_channel(channel):
                     async with self.channel_mutexes[channel_id]:
                         updated_channel = await self._apply_owner_message(channel_id, actor, disconnect_message)
                     await self._broadcast_state(updated_channel)

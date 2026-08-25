@@ -743,6 +743,13 @@ def test_collaboration_live_remove_news_item_updates_story_state(client, auth_he
     story_payload = response.get_json()["stories"][0]["story"]
     assert story_payload["news_items"] == []
 
+    finalize_response = client.post(f"/api/assess/collab/channels/{channel_id}/finalize", json={}, headers=auth_header)
+    persisted_story_response = client.get(f"/api/assess/story/{stories[0]}", headers=auth_header)
+
+    assert finalize_response.status_code == 200
+    assert persisted_story_response.status_code == 200
+    assert news_item_id in {item["id"] for item in persisted_story_response.get_json()["news_items"]}
+
 
 def test_collaboration_live_remove_story_updates_channel_state(client, auth_header, stories):
     create_response = client.post(

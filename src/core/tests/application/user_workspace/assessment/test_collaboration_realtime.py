@@ -31,6 +31,18 @@ class PeerSocketStub:
         self.closed = {"code": code, "reason": reason}
 
 
+def test_single_participant_channel_is_owned_locally_with_legacy_base_url():
+    hub = CollaborationRealtimeHub()
+    hub._local_base_url = lambda: "http://local.taranis.ai"
+
+    assert hub._owns_channel(
+        {
+            "owner_base_url": "http://frontendupstream",
+            "participants": [{"base_url": "http://frontendupstream", "role": "owner"}],
+        }
+    )
+
+
 def test_peer_socket_sends_initial_snapshot_via_send_text():
     channel_id = "channel-1"
     token = "invite-token"

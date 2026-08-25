@@ -403,7 +403,6 @@ class CollaborationService:
         *,
         actor: str,
     ) -> None:
-        desired_ids: list[str] = []
         source_stories: dict[str, Story] = {}
         prefer_item_id = snapshot.source_instance == self.external_base_url()
 
@@ -418,7 +417,6 @@ class CollaborationService:
                 new_item = NewsItem.from_dict(new_item_payload)
                 target_story.news_items.append(new_item)
                 db.session.add(new_item)
-                desired_ids.append(new_item.id)
                 continue
 
             if existing_item.story_id != target_story.id:
@@ -430,13 +428,6 @@ class CollaborationService:
                         existing_item.story = None
                 if existing_item not in target_story.news_items:
                     target_story.news_items.append(existing_item)
-            desired_ids.append(existing_item.id)
-
-        for existing_item in target_story.news_items[:]:
-            if existing_item.id in desired_ids:
-                continue
-            target_story.news_items.remove(existing_item)
-            Story.create_from_item(existing_item, commit=False, actor=actor)
 
         processed_stories = {target_story, *source_stories.values()}
         for story in processed_stories:

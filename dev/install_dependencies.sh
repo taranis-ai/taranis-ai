@@ -52,22 +52,25 @@ setup_deno() {
 
 # setup local.taranis.ai
 setup_nginx() {
-    if [ ! -f "/etc/nginx/sites-available/local.taranis.ai" ]; then
+    if ! cmp -s dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai; then
       sudo cp dev/nginx.conf /etc/nginx/sites-available/local.taranis.ai
-      sudo ln -s /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
+      if [ ! -e "/etc/nginx/sites-enabled/local.taranis.ai" ]; then
+        sudo ln -s /etc/nginx/sites-available/local.taranis.ai /etc/nginx/sites-enabled/local.taranis.ai
+      fi
       sudo nginx -t && sudo systemctl restart nginx
     fi
 }
 
 
 main() {
-    [[ -f ./dev/.installed ]] && exit 0
-    check_sudo_access
-    update_packages
-    install_basic_utils
-    install_astral
-    install_docker
-    setup_deno
+    if [ ! -f ./dev/.installed ]; then
+      check_sudo_access
+      update_packages
+      install_basic_utils
+      install_astral
+      install_docker
+      setup_deno
+    fi
     setup_nginx
     touch ./dev/.installed
 }
