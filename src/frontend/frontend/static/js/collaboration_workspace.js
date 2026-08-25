@@ -41,6 +41,20 @@
   const workspace = () => store.workspace();
   const isConnected = () => Boolean(runtime.socket) && runtime.socket.readyState === WebSocket.OPEN;
   const isReadOnly = () => store.state.channel?.status !== "open";
+  const duplicateNewsItems = () => {
+    const storiesByNewsItem = new Map();
+    (store.state.channel.stories || []).forEach((story) => {
+      const seen = new Set();
+      (story.story?.news_items || []).forEach((newsItem) => {
+        if (!newsItem.id || seen.has(newsItem.id)) {
+          return;
+        }
+        seen.add(newsItem.id);
+        storiesByNewsItem.set(newsItem.id, [...(storiesByNewsItem.get(newsItem.id) || []), story]);
+      });
+    });
+    return new Map([...storiesByNewsItem].filter(([, stories]) => stories.length > 1));
+  };
 
   const setSaveStatus = (text) => {
     if (saveStatusNode) {
@@ -190,10 +204,14 @@
 
   const renderStoryButtons = () => {
     const stories = store.state.channel.stories || [];
+    const duplicates = duplicateNewsItems();
     const storyListRoot = document.querySelector("[data-collab-story-list]");
     if (storyListRoot) {
       storyListRoot.innerHTML = stories.map((story) => {
         const active = story.id === store.state.selectedStoryId;
+        const duplicateCount = new Set(
+          (story.story?.news_items || []).filter((newsItem) => duplicates.has(newsItem.id)).map((newsItem) => newsItem.id),
+        ).size;
         return `
           <div class="rounded-[1.25rem] border p-4 transition ${active ? "border-primary bg-primary/6" : "border-base-300 hover:border-primary/40"}">
             <button type="button" class="block w-full text-left" data-collab-focus-story="${escapeHtml(story.id)}">
@@ -206,6 +224,7 @@
               </div>
               <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-base-content/60">
                 <span class="rounded-full bg-base-200 px-2 py-1"><span data-collab-news-count="${escapeHtml(story.id)}">${escapeHtml(String((story.story?.news_items || []).length))}</span> News Items</span>
+                ${duplicateCount ? `<span class="rounded-full bg-warning/20 px-2 py-1 text-warning-content">${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"}</span>` : ""}
               </div>
               <p class="mt-3 line-clamp-3 break-all text-sm text-base-content/70" data-collab-story-summary="${escapeHtml(story.id)}">${escapeHtml(story.story?.summary || story.description || "")}</p>
             </button>
@@ -494,6 +513,7 @@
 
   const renderRoomStory = ({ forceEditorSync = false } = {}) => {
     const story = selectedStory();
+    const duplicates = duplicateNewsItems();
     const titleNode = document.querySelector("[data-collab-room-title]");
     const newsRoot = document.querySelector("[data-collab-news-items]");
     if (!story) {
@@ -522,9 +542,12 @@
 
     if (newsRoot) {
       newsRoot.innerHTML = (story.story?.news_items || []).length
-        ? (story.story.news_items || []).map((newsItem) => `
-            <article class="rounded-[1.25rem] border border-base-300 bg-base-100/80 p-4">
+        ? (story.story.news_items || []).map((newsItem) => {
+            const otherStories = (duplicates.get(newsItem.id) || []).filter((candidate) => candidate.id !== story.id);
+            return `
+            <article class="rounded-[1.25rem] border ${otherStories.length ? "border-warning bg-warning/5" : "border-base-300 bg-base-100/80"} p-4">
               <div class="text-sm font-semibold">${escapeHtml(newsItem.title || "Untitled News Item")}</div>
+              ${otherStories.length ? `<div class="mt-2 text-xs font-medium text-warning-content">Also assigned to ${escapeHtml(otherStories.map((candidate) => candidate.title || "Untitled Story").join(", "))}. Remove one assignment before finalizing.</div>` : ""}
               <div class="mt-2 flex flex-wrap gap-2">
                 ${newsItem.id ? `<a class="link link-primary text-xs" href="${escapeHtml(newsItemDetailUrl(newsItem.id))}">Open details</a>` : ""}
                 ${newsItem.link ? `<a class="link link-primary text-xs" href="${escapeHtml(newsItem.link)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
@@ -543,9 +566,24 @@
                 </div>
               ` : ""}
             </article>
-          `).join("")
+          `;
+          }).join("")
         : `<div class="rounded-[1.25rem] border border-dashed border-base-300 p-4 text-sm text-base-content/55">No evidence items are attached to this story.</div>`;
     }
+  };
+
+  const renderDuplicateState = () => {
+    const duplicateCount = duplicateNewsItems().size;
+    const warning = document.querySelector("[data-collab-duplicate-warning]");
+    const warningText = document.querySelector("[data-collab-duplicate-warning-text]");
+    warning?.classList.toggle("hidden", duplicateCount === 0);
+    if (warningText) {
+      warningText.textContent = `${duplicateCount} news item${duplicateCount === 1 ? " is" : "s are"} assigned to multiple stories. Remove each extra assignment before finalizing or adding to a report.`;
+    }
+    document.querySelectorAll("[data-collab-finalize-action]").forEach((button) => {
+      button.disabled = duplicateCount > 0;
+      button.title = duplicateCount > 0 ? "Resolve duplicate news items first" : "";
+    });
   };
 
   const renderSidebarTabs = () => {
@@ -569,6 +607,7 @@
     renderActivity();
     renderTimeline();
     renderRoomStory({ forceEditorSync });
+    renderDuplicateState();
     renderSidebarTabs();
   };
 

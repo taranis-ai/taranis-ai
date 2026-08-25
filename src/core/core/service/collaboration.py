@@ -332,6 +332,16 @@ class CollaborationService:
         return None
 
     @staticmethod
+    def _duplicate_news_item_ids(snapshots: list[dict[str, Any]]) -> set[str]:
+        story_ids_by_news_item: dict[str, set[str]] = {}
+        for snapshot in snapshots:
+            snapshot_id = snapshot.get("id")
+            for news_item in (snapshot.get("story") or {}).get("news_items") or []:
+                if snapshot_id and isinstance(news_item, dict) and (news_item_id := news_item.get("id")):
+                    story_ids_by_news_item.setdefault(news_item_id, set()).add(snapshot_id)
+        return {news_item_id for news_item_id, story_ids in story_ids_by_news_item.items() if len(story_ids) > 1}
+
+    @staticmethod
     def _story_update_payload(snapshot: CollabStorySnapshot) -> dict[str, Any]:
         story_payload = copy.deepcopy(snapshot.story)
         payload: dict[str, Any] = {}
@@ -1523,6 +1533,12 @@ class CollaborationService:
 
     def finalize_channel(self, channel_id: str, user: User | None = None, story_ids: list[str] | None = None) -> CollabFinalizeResult:
         channel_state = self._require_channel(channel_id)
+        duplicate_news_item_ids = self._duplicate_news_item_ids(channel_state["result_stories"])
+        if duplicate_news_item_ids:
+            raise ValueError(
+                f"Resolve {len(duplicate_news_item_ids)} news item{'' if len(duplicate_news_item_ids) == 1 else 's'} assigned to "
+                "multiple collaboration stories before finalizing."
+            )
         selected_ids = set(story_ids or [])
         snapshots = [CollabStorySnapshot.model_validate(snapshot) for snapshot in channel_state["result_stories"]]
         if selected_ids:

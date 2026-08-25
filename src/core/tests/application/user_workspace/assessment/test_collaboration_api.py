@@ -1,3 +1,4 @@
+import copy
 from datetime import datetime, timedelta
 
 import pytest
@@ -146,6 +147,44 @@ def test_finalize_collaboration_channel_updates_local_origin_story_in_place(clie
     story_response = client.get(f"/api/assess/story/{stories[0]}", headers=auth_header)
     assert story_response.status_code == 200
     assert story_response.get_json()["summary"] == "Updated through collaboration finalize"
+
+
+def test_finalize_collaboration_channel_requires_cross_story_news_item_duplicates_to_be_resolved(client, auth_header, stories):
+    create_response = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Resolve Duplicates", "story_ids": stories[:2]},
+        headers=auth_header,
+    )
+    payload = create_response.get_json()
+    channel_id = payload["channel_id"]
+    channel_state = collaboration_service.channels[channel_id]
+    duplicate_news_item = copy.deepcopy(channel_state["stories"][0]["story"]["news_items"][0])
+    for snapshot_key in ("stories", "result_stories"):
+        channel_state[snapshot_key][1]["story"]["news_items"].append(copy.deepcopy(duplicate_news_item))
+
+    blocked_response = client.post(f"/api/assess/collab/channels/{channel_id}/finalize", json={}, headers=auth_header)
+
+    assert blocked_response.status_code == 409
+    assert blocked_response.get_json() == {"error": "Resolve 1 news item assigned to multiple collaboration stories before finalizing."}
+
+    actor = {
+        "base_url": collaboration_service.external_base_url(),
+        "session_id": "session-a",
+        "username": "alice",
+    }
+    resolved_response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/remove-news-item",
+        json={
+            "snapshot_id": channel_state["stories"][1]["id"],
+            "news_item_id": duplicate_news_item["id"],
+            "actor": actor,
+        },
+        headers=auth_header,
+    )
+    finalize_response = client.post(f"/api/assess/collab/channels/{channel_id}/finalize", json={}, headers=auth_header)
+
+    assert resolved_response.status_code == 200
+    assert finalize_response.status_code == 200
 
 
 def test_finalize_collaboration_channel_preserves_report_tag_for_existing_report_story(

@@ -643,7 +643,10 @@ class CollaborationFinalize(MethodView):
         except ValidationError as exc:
             return _validation_error(exc)
 
-        result = collaboration_service.finalize_channel(channel_id, current_user, payload.story_ids)
+        try:
+            result = collaboration_service.finalize_channel(channel_id, current_user, payload.story_ids)
+        except ValueError as exc:
+            return {"error": str(exc)}, 409
         return result.model_dump(mode="json"), 200
 
 

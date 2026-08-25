@@ -102,11 +102,11 @@
                     hx-target="body"
                     hx-swap="beforeend">
                 <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
-                <button class="btn btn-outline btn-sm" type="submit">Add to Report</button>
+                <button class="btn btn-outline btn-sm" type="submit" data-collab-finalize-action>Add to Report</button>
               </form>
               <form method="post" action="{{ url_for('collaboration.finalize', channel_id=active_channel.channel_id) }}">
                 <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
-                <button class="btn btn-primary btn-sm" type="submit">Finalize Stories</button>
+                <button class="btn btn-primary btn-sm" type="submit" data-collab-finalize-action>Finalize Stories</button>
               </form>
               {% if is_room_view %}
                 <form method="post" action="{{ url_for('collaboration.close', channel_id=active_channel.channel_id) }}">
@@ -116,6 +116,11 @@
               {% endif %}
             {% endif %}
           </div>
+        </div>
+
+        <div class="alert alert-warning mb-6 hidden" role="alert" data-collab-duplicate-warning>
+          {{ heroicon_mini("exclamation-triangle") }}
+          <span data-collab-duplicate-warning-text></span>
         </div>
 
         {% if finalize_result.report_story_ids %}
