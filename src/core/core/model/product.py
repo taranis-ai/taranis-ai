@@ -55,7 +55,15 @@ class Product(BaseModel):
         self.default_publisher = default_publisher
         if report_items is not None:
             self.report_items = ReportItem.get_bulk(report_items)
-            queue_manager.queue_manager.generate_product(self.id, countdown=5)
+
+    @classmethod
+    def add(cls, data: dict[str, Any], user_id: str | None = None) -> "Product":
+        product = cls.from_dict(data)
+        db.session.add(product)
+        db.session.commit()
+        if data.get("report_items") is not None:
+            queue_manager.queue_manager.generate_product(product.id, countdown=5, user_id=user_id)
+        return product
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
@@ -179,7 +187,7 @@ class Product(BaseModel):
         return None
 
     @classmethod
-    def update(cls, product_id: str, data) -> tuple[dict, int]:
+    def update(cls, product_id: str, data, user_id: str | None = None) -> tuple[dict, int]:
         product = Product.get(product_id)
         if product is None:
             return {"error": "Product not found"}, 404
@@ -202,7 +210,7 @@ class Product(BaseModel):
             product.default_publisher = data.get("default_publisher") or None
 
         db.session.commit()
-        queue_manager.queue_manager.generate_product(product.id)
+        queue_manager.queue_manager.generate_product(product.id, user_id=user_id)
         return {"message": "Product updated", "id": product.id, "product": product.to_detail_dict()}, 200
 
     @classmethod

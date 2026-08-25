@@ -149,7 +149,7 @@ def test_auth_login_external_authenticator(tmp_path, monkeypatch):
         "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
         "QUEUE_BROKER_URL": "memory://localhost",
         "PRE_SEED_PASSWORD_USER": "test",
-        "DISABLE_SSE": "True",
+        "REALTIME_ENABLED": "False",
         "SERVER_NAME": "localhost",
         "TARANIS_CORE_SENTRY_DSN": "",
         "FLASK_RUN_PORT": "5000",

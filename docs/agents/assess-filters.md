@@ -8,6 +8,10 @@ Load this memory for tasks mentioning assess filters, the assess sidebar, story 
 
 Assess filters let users narrow stories and news items from the assess workspace by search text, read/important/relevant/in-report states, source, group, language, tags, date range, and sorting.
 
+With infinite scroll disabled, page navigation replaces the story list and pagination controls, scrolls the window to the top, and keeps the sticky Assess top bar mounted and visible.
+
+The shared Assess selection bar is hidden when JavaScript is unavailable. Its `<noscript>` style belongs in `base.html`, not in HTMX-swappable fragments, so filtering cannot accidentally activate the fallback style.
+
 Filter option lists must reflect current user-visible database state. `/api/assess/filter-lists` builds those options on request and returns tags, sources, groups, and languages. The frontend may cache the response per user, so core writes that affect assess views must invalidate the relevant frontend cache scope.
 
 Saved assess default filters belong to the user profile. Applying defaults should preserve the same canonical query parameter shape used by normal sidebar filtering. Saving with an existing saved filter name updates that filter, duplicate filter criteria under another name are rejected, and managed filters can be updated from the current sidebar filters.
@@ -39,6 +43,7 @@ Saved assess default filters belong to the user profile. Applying defaults shoul
   - `filter_token_select.html`
   - `tri_state_filter.html`
   - `saved_filters_dialog.html`
+- No-JavaScript layout: `src/frontend/frontend/templates/base.html`
 - Shared saved filter template: `src/frontend/frontend/templates/assess/saved_filter_cards.html`
 
 ## Data Flow
@@ -48,6 +53,8 @@ The assess page loads filter lists through `StoryView.get_filter_lists()`. That 
 Core serves filter lists through `FilterLists.get()` in `src/core/core/api/assess.py`, backed by `FilterData.get_assess_filterlists()`.
 
 Sidebar form submissions and saved defaults use query parameters. Multi-value filters such as source, group, language, and tags must stay list-shaped where the view/core expects lists.
+
+Paged Assess links target `#story-list`; the response replaces `#story-pagination` out of band. This keeps the top bar mounted while its Alpine-owned story metadata updates from the changed list.
 
 The dashboard can surface saved Assess filters as shortcut cards, but should reuse the same saved filter normalization, delete route, and canonical `/assess` URL construction instead of adding a dashboard-specific endpoint or payload shape. Show only the first three saved filters by default and put the rest behind the dashboard's native Show more/Show less pattern.
 
@@ -59,6 +66,7 @@ Use focused tests for assess filter changes:
 
 - Core filter-list behavior: `cd src/core && uv run pytest tests/application/user_workspace/assessment/test_story_filters.py`
 - Frontend assess view behavior: `cd src/frontend && uv run pytest tests/unit/views/test_story_view.py`
+- Assess pagination UI behavior: `cd src/frontend && uv run pytest tests/playwright/test_e2e_user.py::TestEndToEndUser::test_user_profile --e2e-ci`
 - Omnisearch filter syntax and suggestions: `cd src/frontend && uv run pytest tests/unit/test_omnisearch.py`
 
 For broad validation or CI regressions, follow the project test instructions in `AGENTS.md`.

@@ -2,7 +2,7 @@ FROM nginxinc/nginx-unprivileged:1.29.2
 
 ENV TARANIS_CORE_UPSTREAM=core:8080
 ENV TARANIS_FRONTEND_UPSTREAM=frontend:8080
-ENV TARANIS_SSE_UPSTREAM=sse:8088
+ENV TARANIS_REALTIME_UPSTREAM=centrifugo:8000
 ENV TARANIS_BASE_PATH=/
 
 COPY ./src/ingress/extras/default.conf.template /etc/nginx/default.conf.template

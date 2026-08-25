@@ -63,7 +63,6 @@ def _load_routes(app) -> dict[str, set[str]]:
             continue
         if rule.rule.startswith("/api/admin/"):
             continue
-
         canonical = _canonical_path(rule.rule.removeprefix("/api"))
         if canonical in IGNORED_PATHS:
             continue
@@ -85,7 +84,6 @@ def _load_route_endpoints(app) -> dict[tuple[str, str], str]:
             continue
         if rule.rule.startswith("/api/admin/"):
             continue
-
         canonical = _canonical_path(rule.rule.removeprefix("/api"))
         if canonical in IGNORED_PATHS:
             continue

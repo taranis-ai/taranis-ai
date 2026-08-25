@@ -304,14 +304,16 @@ class TestSourceView:
         assert _json_request_body(responses_mock.calls[0]) == dummy_export_data
 
     def test_process_form_data_accepts_valid_png_icon(self, app):
-        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
-            with app.test_request_context(
+        with (
+            patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store,
+            app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
                 data={"icon": (BytesIO(_VALID_PNG_BYTES), "icon.png", "image/png")},
                 content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data("0")
+            ),
+        ):
+            response, error = SourceView.process_form_data("0")
 
         assert error is None
         assert response == {"stored": True}
@@ -339,27 +341,31 @@ class TestSourceView:
         mock_store.assert_not_called()
 
     def test_process_form_data_returns_core_error_message(self, app):
-        with patch.object(SourceView, "store_form_data", return_value=(None, {"error": "Icon payload is not a valid image file."})):
-            with app.test_request_context(
+        with (
+            patch.object(SourceView, "store_form_data", return_value=(None, {"error": "Icon payload is not a valid image file."})),
+            app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
                 data={"icon": (BytesIO(b"not-an-image"), "icon.png", "image/png")},
                 content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data("0")
+            ),
+        ):
+            response, error = SourceView.process_form_data("0")
 
         assert response is None
         assert error == "Icon payload is not a valid image file."
 
     def test_process_form_data_can_delete_icon_without_upload(self, app):
-        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
-            with app.test_request_context(
+        with (
+            patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store,
+            app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
                 data={"delete_icon": "true"},
                 content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data("123")
+            ),
+        ):
+            response, error = SourceView.process_form_data("123")
 
         assert error is None
         assert response == {"stored": True}
@@ -372,14 +378,16 @@ class TestSourceView:
         max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
         oversized_icon = b"\x00" * (max_bytes + 1)
 
-        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
-            with app.test_request_context(
+        with (
+            patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store,
+            app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
                 data={"delete_icon": "true", "icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
                 content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data("123")
+            ),
+        ):
+            response, error = SourceView.process_form_data("123")
 
         assert error is None
         assert response == {"stored": True}
@@ -412,6 +420,21 @@ class TestSourceView:
         assert "source_preview/42" in rendered
         assert 'hx-target="#source_preview"' in rendered
         assert "Retrigger preview" in rendered
+
+    def test_osint_source_preview_shows_started_task_without_result(self, authenticated_client, responses_mock):
+        responses_mock.get(
+            f"{Config.TARANIS_CORE_URL}/config/osint-sources/42/preview",
+            json={"id": "source_preview_42", "status": "STARTED"},
+            status=202,
+        )
+
+        response = authenticated_client.get("/admin/source_preview/42")
+
+        assert response.status_code == 200
+        assert "OSINT source preview is currently being processed." in response.text
+        assert 'realtime:osint_source.preview.finished[detail.resource.id=="42"] from:document' in response.text
+        assert "realtime:resync from:document" in response.text
+        assert "every 20s" in response.text
 
 
 class TestWordListView:
@@ -655,13 +678,32 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
     assert "Workers" in html
 
 
+def test_persistent_notification_has_no_timeout_animation(app):
+    with app.test_request_context():
+        persistent = render_template(
+            "notification/index.html",
+            notification={"message": "Persistent", "persistent": True},
+            oob=False,
+        )
+        timed = render_template(
+            "notification/index.html",
+            notification={"message": "Timed"},
+            oob=False,
+        )
+
+    assert "@animationend" not in persistent
+    assert '@click="show = false"' in persistent
+    assert "@animationend" in timed
+
+
 def test_analyze_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints):
     response = authenticated_client.get(ReportItemView.get_base_route())
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'aria-label="Toggle sidebar"' not in html
-    assert "<noscript>" not in html
+    assert "#sidebar {" not in html
+    assert "#sidebar ~ main {" not in html
 
 
 def test_publish_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints, responses_mock):
