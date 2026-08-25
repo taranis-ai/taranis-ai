@@ -100,6 +100,8 @@ Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` in the core, frontend, a
 WITH_TELEMETRY=1 ./dev/start_dev.sh
 ```
 
+The automated workflow preserves profiles already set in `COMPOSE_PROFILES`.
+
 Setup nginx.
 Make sure the paths are correct. Some distributions use a different nginx configuration directory hierarchy and rely on `.conf` suffix.
 Existing installed nginx configurations are not updated automatically when `dev/nginx.conf` changes. Public product publishing requires the active server block to include the tracked `/reports` proxy; recopy or update the installed configuration before validating that route.

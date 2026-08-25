@@ -69,8 +69,8 @@ def test_instrument_job_exports_trace_and_metrics(monkeypatch):
     assert spans[0].attributes["messaging.destination.name"] == "bots"
     assert spans[0].attributes["rq.job.status"] == "success"
     assert spans[0].resource.attributes["service.name"] == "taranis-worker"
-    span_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/traces", timeout=1)
-    metric_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/metrics", timeout=1)
+    span_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/traces", timeout=0.5)
+    metric_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/metrics", timeout=0.5)
 
     metrics_data = metric_reader.get_metrics_data()
     assert metrics_data is not None
