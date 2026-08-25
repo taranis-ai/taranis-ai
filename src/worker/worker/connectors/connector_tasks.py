@@ -132,7 +132,7 @@ def _get_connector_config(core_api: CoreApi, connector_id: str) -> dict:
 
     connector_type = connector_config.get("type")
     if connector_type is None:
-        raise ConnectorError("Connector type is missing", "connector_not_found")
+        raise ConnectorError("Connector type is missing", "connector_type_missing")
 
     return connector_config
 
