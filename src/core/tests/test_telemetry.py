@@ -33,6 +33,7 @@ def test_initialize_instruments_flask_requests(monkeypatch):
     assert span.attributes is not None
     assert span.attributes["http.route"] == "/test"
     assert span.resource.attributes["service.name"] == "taranis-core"
+    assert span.resource.attributes["service.instance.id"] == "taranis-core"
     exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/traces")
     metric_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/metrics")
     metrics_data = metric_reader.get_metrics_data()

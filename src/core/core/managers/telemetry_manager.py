@@ -42,7 +42,8 @@ def _initialize_opentelemetry(app: Flask):
     if not (endpoint := Config.OTEL_EXPORTER_OTLP_ENDPOINT):
         return
 
-    resource = Resource.create({SERVICE_NAME: "taranis-core"})
+    service_name = "taranis-core"
+    resource = Resource.create({SERVICE_NAME: service_name, "service.instance.id": service_name})
     tracer_provider = TracerProvider(resource=resource)
     tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces")))
     meter_provider = MeterProvider(

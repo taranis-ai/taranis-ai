@@ -69,6 +69,7 @@ def test_instrument_job_exports_trace_and_metrics(monkeypatch):
     assert spans[0].attributes["messaging.destination.name"] == "bots"
     assert spans[0].attributes["rq.job.status"] == "success"
     assert spans[0].resource.attributes["service.name"] == "taranis-worker"
+    assert spans[0].resource.attributes["service.instance.id"] == "taranis-worker"
     span_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/traces")
     metric_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/metrics")
 

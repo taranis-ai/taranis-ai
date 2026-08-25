@@ -34,6 +34,7 @@ def test_setup_telemetry_instruments_flask_requests(monkeypatch):
     assert span.attributes is not None
     assert span.attributes["http.route"] == "/test"
     assert span.resource.attributes["service.name"] == "taranis-frontend"
+    assert span.resource.attributes["service.instance.id"] == "taranis-frontend"
     exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/traces")
     metric_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/metrics")
     requests_instrumentor.return_value.instrument.assert_called_once()
