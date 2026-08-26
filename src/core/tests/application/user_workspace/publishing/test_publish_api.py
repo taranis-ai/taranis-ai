@@ -7,6 +7,47 @@ import pytest
 from tests.application.support.api_test_base import BaseTest
 
 
+@pytest.fixture
+def product_type_change_resources(app):
+    from core.managers.db_manager import db
+    from core.model.product import Product
+    from core.model.product_type import ProductType
+    from core.model.report_item import ReportItem
+    from core.model.report_item_type import ReportItemType
+
+    with app.app_context():
+        report_type = ReportItemType.get_by_title("Disinformation")
+        initial_type = ProductType.filter_by_title("Default html tailwindcss Presenter")
+        compatible_type = ProductType.filter_by_title("Default TEXT Presenter")
+        incompatible_type = ProductType.filter_by_title("CERT Daily Report")
+        assert report_type and initial_type and compatible_type and incompatible_type
+
+        report = ReportItem(title="Product type change report", report_item_type_id=report_type.id)
+        db.session.add(report)
+        db.session.flush()
+        product = Product(
+            title="Product type change product",
+            product_type_id=initial_type.id,
+            report_items=[report.id],
+        )
+        product.render_result = base64.b64encode(b"Old product render").decode()
+        product.last_rendered = datetime.now(UTC).replace(tzinfo=None)
+        product.last_published_url = f"/reports/{product.id}"
+        db.session.add(product)
+        db.session.commit()
+
+        yield {
+            "product_id": product.id,
+            "product_title": product.title,
+            "report_id": report.id,
+            "compatible_type_id": compatible_type.id,
+            "incompatible_type_id": incompatible_type.id,
+        }
+
+        Product.delete(product.id)
+        ReportItem.delete(report.id)
+
+
 class TestPublishApi(BaseTest):
     base_uri = "/api/publish"
 
@@ -26,6 +67,32 @@ class TestPublishApi(BaseTest):
         response = self.assert_get_ok(client, "products", auth_header)
         assert response.get_json()["total_count"] == 1
         assert response.get_json()["items"][0]["title"] == cleanup_product["title"]
+
+    def test_product_type_change_respects_selected_report_types(self, client, auth_header, product_type_change_resources):
+        update_payload = {
+            "title": product_type_change_resources["product_title"],
+            "product_type_id": product_type_change_resources["compatible_type_id"],
+            "report_items": [product_type_change_resources["report_id"]],
+        }
+
+        product_url = self.concat_url(f"products/{product_type_change_resources['product_id']}")
+        compatible_response = client.put(product_url, headers=auth_header, json=update_payload)
+        assert compatible_response.status_code == 200
+        compatible_product = compatible_response.get_json()["product"]
+        assert compatible_product["product_type_id"] == product_type_change_resources["compatible_type_id"]
+        assert compatible_product["render_result"] is None
+        assert compatible_product["last_rendered"] is None
+        assert compatible_product["last_published_url"] is None
+
+        update_payload["product_type_id"] = product_type_change_resources["incompatible_type_id"]
+        incompatible_response = client.put(product_url, headers=auth_header, json=update_payload)
+        assert incompatible_response.status_code == 400
+        assert incompatible_response.get_json() == {"error": "Selected product type does not support the selected reports"}
+
+        update_payload["report_items"] = []
+        no_report_response = client.put(product_url, headers=auth_header, json=update_payload)
+        assert no_report_response.status_code == 200
+        assert no_report_response.get_json()["product"]["product_type_id"] == product_type_change_resources["incompatible_type_id"]
 
     def test_rendered_product_download_returns_attachment(self, app, client, auth_header, pdf_product):
         file_bytes = b"This is a pdf"

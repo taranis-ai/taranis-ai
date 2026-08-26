@@ -33,7 +33,7 @@ class Product(BaseModel):
 
     report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item")
     default_publisher: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("publisher_preset.id"), nullable=True)
-    last_rendered: Mapped[datetime] = db.Column(db.DateTime)
+    last_rendered: Mapped[datetime | None] = db.Column(db.DateTime)
     last_published_url: Mapped[str | None] = db.Column(db.Text, nullable=True)
     render_result = deferred(db.Column(db.Text))
 
@@ -192,17 +192,38 @@ class Product(BaseModel):
         if product is None:
             return {"error": "Product not found"}, 404
 
+        product_type = ProductType.get(data.get("product_type_id", product.product_type_id))
+        if product_type is None:
+            return {"error": "Product type not found"}, 404
+
+        report_item_ids = data.get("report_items")
+        report_items = product.report_items if report_item_ids is None else ReportItem.get_bulk(report_item_ids)
+        supported_report_type_ids = {report_type.id for report_type in product_type.report_types if report_type}
+        selected_report_type_ids = {report_item.report_item_type_id for report_item in report_items}
+        if unsupported_report_type_ids := selected_report_type_ids - supported_report_type_ids:
+            logger.warning(
+                "Rejected product type %s for product %s; unsupported report types: %s",
+                product_type.id,
+                product.id,
+                sorted(map(str, unsupported_report_type_ids)),
+            )
+            return {"error": "Selected product type does not support the selected reports"}, 400
+
+        product_type_changed = product_type.id != product.product_type_id
+        mime_type_changed = product_type.get_mimetype() != product.product_type.get_mimetype()
+
         if title := data.get("title"):
             product.title = title
 
         product.description = data.get("description")
-
-        if data.get("product_type_id") != product.product_type_id:
-            logger.warning("Product type change not supported")
-
-        report_items = data.get("report_items")
-        if report_items is not None:
-            product.report_items = ReportItem.get_bulk(report_items)
+        product.product_type = product_type
+        if product_type_changed:
+            product.render_result = None
+            product.last_rendered = None
+        if mime_type_changed:
+            product.last_published_url = None
+        if report_item_ids is not None:
+            product.report_items = report_items
 
         if "auto_publish" in data:
             product.auto_publish = data.get("auto_publish")
