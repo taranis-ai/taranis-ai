@@ -76,8 +76,12 @@ def test_rss_collector_get_feed(rss_collector_mock, rss_collector):
         rss_collector.collect(rss_collector_source_data_not_modified)
     assert str(exception.value) == f"{rss_collector_url_not_modified} was not modified"
 
-    with pytest.raises(RSSCollectorError, match="No parseable RSS or Atom feed was detected"):
+    with pytest.raises(RSSCollectorError) as exception:
         rss_collector.collect(rss_collector_source_data_no_content)
+    assert str(exception.value) == (
+        f"No parseable RSS or Atom feed was detected at {rss_collector_source_data_no_content['parameters']['FEED_URL']}"
+        ". Suggested feed URL: https://rss.example.com/feed.xml"
+    )
 
 
 def test_rss_published_date_uses_first_parseable_value(rss_collector):
