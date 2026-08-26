@@ -13,7 +13,7 @@ This file records notable changes to Taranis AI. Published release entries link 
 
 ### Changed
 
-- Store configured worker parameters as canonical name/string-value JSON objects on their owning resources.
+- Store configured worker parameters as validated native JSON values on their owning resources.
 - Validate parameters in core before persistence and enqueueing, then revalidate expanded effective parameters in workers.
 - Preserve omitted secrets during replacement updates and distinguish configured values from default-expanded worker values.
 - Make OSINT source imports atomic across normalization, validation, and persistence.
@@ -28,10 +28,13 @@ This file records notable changes to Taranis AI. Published release entries link 
 
 - Aligned MISP connector parameters with the registered `SSL_CHECK`, `PROXY_SERVER`, and `ADDITIONAL_HEADERS` names and added safe parsing for stored request timeouts ([#996](https://github.com/taranis-ai/taranis-ai/issues/996)).
 - Removed undeclared HTML presenter conversion and render-option parameters.
+- Preserved legacy incomplete on-demand worker configurations during the worker-parameter migration and migrated tagging keywords without blocking startup.
+- Added Kafka `SSL` and `SASL_SSL` transport support, migrated legacy TAXII token authentication to bearer, and preserved native parameter types during worker execution.
 
 ### Deployment notes
 
 - This release contains a destructive worker-parameter database migration. Before deployment, create a database snapshot, verify that it can be restored, and record the snapshot identifier and restore verification.
+- Before deployment, verify that `osint_source.type` contains no `EMAIL_COLLECTOR` or `TWITTER_COLLECTOR` rows. These unsupported collector remnants have no safe automatic conversion, so the migration stops and identifies the source instead of deleting it.
 - Deploy core, frontend, worker, and shared-model images as one compatible release.
 - Rollback requires restoring the verified pre-deployment snapshot and redeploying the previous images. The migration intentionally has no reconstructive downgrade.
 

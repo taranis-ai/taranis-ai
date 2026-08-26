@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -59,6 +60,24 @@ def test_worker_parameter_numeric_upper_bounds(monkeypatch):
     assert fields["ZERO_MAX"]["maximum"] == 0
     assert fields["EXCLUSIVE_INT_MAX"]["maximum"] == 4
     assert fields["EXCLUSIVE_NUMBER_MAX"]["maximum"] is None
+
+
+def test_worker_parameter_form_renders_native_boolean_and_object_values(app):
+    with app.test_request_context("/"):
+        rendered = render_template(
+            "partials/worker_parameters.html",
+            parameters=AdminBaseView.get_worker_parameters("RSS_COLLECTOR"),
+            parameter_values={
+                "FEED_URL": "https://example.test/feed",
+                "USE_GLOBAL_PROXY": True,
+                "ADDITIONAL_HEADERS": {"X-Test": "1"},
+            },
+        )
+
+    tree = html.fromstring(rendered)
+    assert tree.xpath('//input[@name="parameters[USE_GLOBAL_PROXY]"][@type="checkbox"][@checked]')
+    headers = tree.xpath('//textarea[@name="parameters[ADDITIONAL_HEADERS]"]')[0]
+    assert json.loads(headers.text) == {"X-Test": "1"}
 
 
 def test_summary_bot_parameters_include_split_summary_and_title_endpoints(authenticated_client, htmx_header):
@@ -172,7 +191,7 @@ def test_bot_run_order_controls_render_selected_dependencies(app):
         rendered = render_template(
             "bot/bot_run_order.html",
             bot_id="bot-1",
-            parameter_values={"RUN_AFTER_COLLECTOR": "true", "RUN_AFTER_BOTS": ioc_bot_id},
+            parameter_values={"RUN_AFTER_COLLECTOR": True, "RUN_AFTER_BOTS": [ioc_bot_id]},
             selected_run_after=[ioc_bot_id],
             run_after_options=[{"id": ioc_bot_id, "name": "IOC Bot (IOC_BOT)", "enabled": "true"}],
             dag_preview={"order": [{"name": "Wordlist Bot"}, {"name": "IOC Bot"}], "edges": [], "warnings": []},

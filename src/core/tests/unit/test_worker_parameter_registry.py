@@ -23,22 +23,28 @@ def test_schema_preserves_contract_order_and_frontend_metadata():
     assert schema["properties"]["USE_GLOBAL_PROXY"]["type"] == "boolean"
 
 
-def test_boundary_adapter_uses_canonical_strings():
+def test_boundary_adapter_preserves_native_values():
     configured = normalize_parameter_values(
         "RSS_COLLECTOR",
-        {"FEED_URL": "https://example.test/feed", "USE_GLOBAL_PROXY": "on", "ADDITIONAL_HEADERS": '{"X-B":"2","X-A":"1"}'},
+        {
+            "FEED_URL": "https://example.test/feed",
+            "USE_GLOBAL_PROXY": "on",
+            "ADDITIONAL_HEADERS": '{"X-B":"2","X-A":"1"}',
+            "DIGEST_SPLITTING_LIMIT": "10",
+        },
     )
 
     assert configured == {
         "FEED_URL": "https://example.test/feed",
-        "USE_GLOBAL_PROXY": "true",
-        "ADDITIONAL_HEADERS": '{"X-A":"1","X-B":"2"}',
+        "USE_GLOBAL_PROXY": True,
+        "ADDITIONAL_HEADERS": {"X-A": "1", "X-B": "2"},
+        "DIGEST_SPLITTING_LIMIT": 10,
     }
 
 
 def test_effective_values_expand_defaults_and_unknown_fields_are_rejected():
     effective = effective_parameter_values("RSS_COLLECTOR", {"FEED_URL": "https://example.test/feed"})
-    assert effective["USE_GLOBAL_PROXY"] == "false"
+    assert effective["USE_GLOBAL_PROXY"] is False
     assert effective["REFRESH_INTERVAL"] == ""
 
     with pytest.raises(ValidationError):
@@ -70,7 +76,15 @@ def test_every_schema_uses_uppercase_names_and_documents_each_field():
         ("NLP_BOT", {"REQUESTS_TIMEOUT": "0"}),
         (
             "TAXII_PUBLISHER",
-            {"TAXII_COLLECTION_ID": "collection", "AUTH_TYPE": "token", "API_TOKEN": ""},
+            {"TAXII_COLLECTION_ID": "collection", "AUTH_TYPE": "bearer", "API_TOKEN": ""},
+        ),
+        (
+            "KAFKA_PUBLISHER",
+            {
+                "KAFKA_TOPIC": "topic",
+                "KAFKA_BOOTSTRAP_SERVERS": "kafka:9092",
+                "KAFKA_SECURITY_PROTOCOL": "SASL_SSL",
+            },
         ),
     ],
 )
@@ -86,3 +100,34 @@ def test_runtime_parameter_names_are_part_of_the_authoritative_contract():
     assert "REGULAR_EXPRESSION" in tagging
     assert "KEYWORDS" not in tagging
     assert {"IGNORECASE", "OVERRIDE_EXISTING_TAGS"} <= set(wordlist)
+
+
+def test_taxii_bearer_auth_matches_the_worker_contract():
+    effective = effective_parameter_values(
+        "TAXII_PUBLISHER",
+        {
+            "TAXII_API_ROOT_URL": "https://taxii.example.test/root",
+            "TAXII_COLLECTION_ID": "collection",
+            "AUTH_TYPE": "bearer",
+            "API_TOKEN": "secret",
+        },
+    )
+
+    assert effective["AUTH_TYPE"] == "bearer"
+    assert effective["API_TOKEN"] == "secret"
+
+
+def test_kafka_security_protocols_match_worker_contract():
+    protocols = ["PLAINTEXT", "SSL", "SASL_PLAINTEXT", "SASL_SSL"]
+    assert parameter_schema("KAFKA_PUBLISHER")["properties"]["KAFKA_SECURITY_PROTOCOL"]["enum"] == protocols
+
+    for security_protocol in protocols:
+        parameters = {
+            "KAFKA_TOPIC": "topic",
+            "KAFKA_BOOTSTRAP_SERVERS": "kafka:9092",
+            "KAFKA_SECURITY_PROTOCOL": security_protocol,
+            "KAFKA_SASL_MECHANISM": "PLAIN",
+            "KAFKA_SASL_USERNAME": "user",
+            "KAFKA_SASL_PASSWORD": "secret",
+        }
+        assert effective_parameter_values("KAFKA_PUBLISHER", parameters)["KAFKA_SECURITY_PROTOCOL"] == security_protocol
