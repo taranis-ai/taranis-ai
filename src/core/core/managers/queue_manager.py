@@ -802,8 +802,9 @@ class QueueManager:
             return {"error": "OSINT source not found"}, 404
         try:
             effective_parameters(source.type, source.parameters)
-        except ValueError as exc:
-            return {"error": f"Invalid OSINT source configuration: {exc}"}, 400
+        except ValueError:
+            logger.exception("Invalid OSINT source configuration for %s", source_id)
+            return {"error": "Invalid OSINT source configuration"}, 400
 
         if self.enqueue_task(
             "collectors",
@@ -836,8 +837,9 @@ class QueueManager:
             return {"error": "OSINT source not found"}, 404
         try:
             effective_parameters(source.type, source.parameters)
-        except ValueError as exc:
-            return {"error": f"Invalid OSINT source configuration: {exc}"}, 400
+        except ValueError:
+            logger.exception("Invalid OSINT source configuration for %s", source_id)
+            return {"error": "Invalid OSINT source configuration"}, 400
 
         task_id = f"source_preview_{source_id}"
         self.purge_job_artifacts(exact_ids={task_id})
@@ -929,11 +931,12 @@ class QueueManager:
             return {"error": "Could not reach Redis"}, 500
 
         sources = OSINTSource.get_all_for_collector()
-        try:
-            for source in sources:
+        for source in sources:
+            try:
                 effective_parameters(source.type, source.parameters)
-        except ValueError as exc:
-            return {"error": f"Invalid OSINT source configuration: {exc}"}, 400
+            except ValueError:
+                logger.exception("Invalid OSINT source configuration for %s", source.id)
+                return {"error": "Invalid OSINT source configuration"}, 400
         for source in sources:
             self.enqueue_task(
                 "collectors",
@@ -960,8 +963,9 @@ class QueueManager:
             return {"error": "Connector not found"}, 404
         try:
             effective_parameters(connector.type, connector.parameters)
-        except ValueError as exc:
-            return {"error": f"Invalid connector configuration: {exc}"}, 400
+        except ValueError:
+            logger.exception("Invalid connector configuration for %s", connector_id)
+            return {"error": "Invalid connector configuration"}, 400
 
         if self.enqueue_task(
             "connectors",
@@ -992,8 +996,9 @@ class QueueManager:
             return {"error": "Connector not found"}, 404
         try:
             effective_parameters(connector.type, connector.parameters)
-        except ValueError as exc:
-            return {"error": f"Invalid connector configuration: {exc}"}, 400
+        except ValueError:
+            logger.exception("Invalid connector configuration for %s", connector_id)
+            return {"error": "Invalid connector configuration"}, 400
 
         if self.enqueue_task(
             "connectors",
@@ -1049,8 +1054,9 @@ class QueueManager:
             return {"error": "Bot not found"}, 404
         try:
             effective_parameters(bot.type, bot.parameters)
-        except ValueError as exc:
-            return {"error": f"Invalid bot configuration: {exc}"}, 400
+        except ValueError:
+            logger.exception("Invalid bot configuration for %s", bot_id)
+            return {"error": "Invalid bot configuration"}, 400
 
         bot_args: dict[str, str | dict | bool] = {"bot_id": bot_id, "trigger_dependents": trigger_dependents}
         if filter:
@@ -1089,7 +1095,8 @@ class QueueManager:
         try:
             effective_parameters(product.product_type.type, product.product_type.parameters)
         except ValueError as exc:
-            return {"error": f"Invalid product type configuration: {exc}"}, 400
+            logger.warning("Invalid product type configuration for product %s: %s", product_id, exc)
+            return {"error": "Invalid product type configuration"}, 400
 
         if countdown > 0:
             scheduled_time = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=countdown)
@@ -1134,8 +1141,9 @@ class QueueManager:
             return {"error": "Publisher preset not found"}, 404
         try:
             effective_parameters(publisher.type, publisher.parameters)
-        except ValueError as exc:
-            return {"error": f"Invalid publisher configuration: {exc}"}, 400
+        except ValueError:
+            logger.exception("Invalid publisher configuration for %s", publisher_id)
+            return {"error": "Invalid publisher configuration"}, 400
 
         if self.enqueue_task(
             "publishers",
@@ -1711,8 +1719,9 @@ class QueueManager:
         try:
             effective_parameters(product.product_type.type, product.product_type.parameters)
             effective_parameters(publisher.type, publisher.parameters)
-        except ValueError as exc:
-            return {"error": f"Invalid autopublish configuration: {exc}"}, 400
+        except ValueError:
+            logger.exception("Invalid autopublish configuration for product %s", product_id)
+            return {"error": "Invalid autopublish configuration"}, 400
 
         presenter_job_id = self._build_unique_job_id("presenter_task", product_id)
         presenter_job = self.enqueue_task(
