@@ -5031,6 +5031,23 @@ paths:
           $ref: '#/components/responses/404NotFound'
         '500':
           description: Internal server error
+  /dashboard/pizzint:
+    get:
+      tags:
+      - dashboard
+      description: get the cached PizzINT DOUGHCON status
+      operationId: dashboard.pizzint.get
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/pizzint_status'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
   /publish/products:
     get:
       tags:
@@ -10426,6 +10443,49 @@ components:
           last_rendered:
             type: string
             format: date-time
+    pizzint_status:
+      type: object
+      properties:
+        state:
+          type: string
+          enum:
+          - fresh
+          - stale
+          - unavailable
+        level:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 5
+        smoothed_index:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 100
+        observed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        fetched_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        reason:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+      required:
+      - state
+      - level
+      - smoothed_index
+      - observed_at
+      - fetched_at
+      - reason
     trending_clusters:
       type: object
       additionalProperties:
