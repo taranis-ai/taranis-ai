@@ -286,7 +286,7 @@ class SourceView(AdminBaseView):
     def delete_multiple_view(cls, object_ids: list[str], params: dict[str, str] | None = None) -> tuple[str, int]:
         force = str(request.values.get("force", "")).lower() in {"1", "true", "yes", "on"}
         if force:
-            params = {"force": "true"}
+            params = (params or {}) | {"force": "true"}
         return super().delete_multiple_view(object_ids, params=params)
 
     @classmethod
