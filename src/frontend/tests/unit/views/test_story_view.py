@@ -628,10 +628,15 @@ def test_update_news_item_tags_propagates_core_error_and_does_not_rerender_card(
     assert 'id="news-item-card-news-1"' not in response.text
 
 
-def test_assess_search_form_uses_single_htmx_submission_path(authenticated_client, responses_mock):
+def test_assess_filters_support_htmx_and_native_form_submission(authenticated_client, responses_mock):
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/filter-lists",
-        json={"tags": [], "sources": [], "groups": []},
+        json={
+            "tags": ["incident"],
+            "sources": [{"id": "source-1", "name": "Source 1"}],
+            "groups": [{"id": "group-1", "name": "Group 1"}],
+            "languages": ["en"],
+        },
     )
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/stories",
@@ -643,7 +648,6 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     assert response.status_code == 200
 
     tree = html.fromstring(response.text)
-    search_form = tree.xpath('//form[@id="assess-search-form"]')[0]
     filter_form = tree.xpath('//form[@id="assess-sidebar"]')[0]
     search_input = tree.xpath('//input[@id="story_search"]')[0]
     clear_button = tree.xpath("//button[@title='Clear time filters']")[0]
@@ -651,19 +655,24 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     highlight_checkbox = tree.xpath('//input[@name="highlight"]')[0]
     compact_checkbox = tree.xpath('//input[@name="compact_view"]')[0]
 
-    assert search_form.get("hx-trigger") == expected_search_trigger("story_search")
-    assert search_form.get("hx-include") == "#assess-sidebar, #selected-tags"
-    assert search_form.get("hx-on:submit") == "event.preventDefault()"
-    assert filter_form.get("hx-trigger") == "change"
-    assert filter_form.get("hx-include") == "#selected-tags"
+    assert filter_form.get("method") == "get"
+    assert filter_form.get("action") == url_for("assess.assess")
+    assert filter_form.get("hx-trigger") == f"{expected_search_trigger('story_search')}, change"
+    assert filter_form.get("hx-include") is None
     assert filter_form.get("hx-on:submit") == "event.preventDefault()"
-    assert clear_button.get("hx-include") == "#assess-sidebar, #assess-search-form, #selected-tags"
+    assert clear_button.get("hx-include") == "#assess-sidebar"
     assert [option.text for option in changed_by_select.xpath("./option")] == ["Any", "Me"]
     assert highlight_checkbox.get("hx-vals") == "js:{highlight: this.checked}"
     assert compact_checkbox.get("hx-vals") == "js:{compact_view: this.checked}"
+    assert search_input.get("name") == "search"
     assert search_input.get("hx-get") is None
     assert search_input.get("hx-include") is None
     assert search_input.get("hx-trigger") is None
+    assert filter_form.xpath('.//button[@type="submit" and @data-testid="assess-apply-filters"]')
+    assert not filter_form.xpath('.//select[@name="source"]')
+    assert not filter_form.xpath('.//select[@name="group"]')
+    assert not filter_form.xpath('.//select[@name="tags"]')
+    assert filter_form.xpath('.//select[@name="language" and @data-testid="language-filter-native"]//option[@value="en"]')
 
 
 def test_story_read_action_replaces_story_card(app):

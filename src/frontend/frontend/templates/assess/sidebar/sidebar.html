@@ -69,53 +69,46 @@ document.addEventListener('htmx:afterSwap', function (event) {
 </script>
 
 <div class="p-4">
-  <section class="space-y-3">
-    <div class="flex items-center justify-between">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Search &amp; Scope</h3>
-      <a href="https://taranis.ai/docs/assess/#details"
-         target="_blank"
-         rel="noopener"
-         class="link link-hover text-xs text-base-content/60 inline-flex items-center">
-        help
-        {{ heroicon_outline('arrow-top-right-on-square', class='h-3 w-3') }}
-      </a>
-    </div>
-    <form id="assess-search-form"
-          hx-get="{{ base_url }}"
-          hx-target="#assess"
-          hx-swap="outerHTML"
-          hx-push-url="true"
-          hx-include="#assess-sidebar, #selected-tags"
-          hx-trigger="{{ search_trigger('story_search') }}"
-          hx-on:submit="event.preventDefault()">
-      <label class="input input-bordered input-sm flex items-center gap-2">
-        {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
-        <input type="search"
-               id="story_search"
-               oninput="this.name = this.value ? 'search' : '';"
-               value="{{ current_search }}"
-               {% if current_search %}name="search"{% endif %}
-               placeholder="Search stories"
-               class="grow"
-               autocomplete="off"
-               @keydown.window.prevent.ctrl.k="$el.focus()">
-        <span class="text-xs">
-          <kbd class="kbd kbd-xs text-base-content">ctrl+k</kbd>
-        </span>
-      </label>
-    </form>
-    {% include "assess/sidebar/tags_select.html" %}
-  </section>
-
   <form id="assess-sidebar"
+        action="{{ base_url }}"
+        method="get"
         data-tour-target="assess-filters"
         hx-get="{{ base_url }}"
         hx-target="#assess"
         hx-swap="outerHTML"
         hx-push-url="true"
-        hx-include="#selected-tags"
-        hx-trigger="change"
+        hx-trigger="{{ search_trigger('story_search') }}, change"
         hx-on:submit="event.preventDefault()">
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">Search &amp; Scope</h3>
+        <a href="https://taranis.ai/docs/assess/#details"
+           target="_blank"
+           rel="noopener"
+           class="link link-hover text-xs text-base-content/60 inline-flex items-center">
+          help
+          {{ heroicon_outline('arrow-top-right-on-square', class='h-3 w-3') }}
+        </a>
+      </div>
+      <div id="assess-search-form">
+        <label class="input input-bordered input-sm flex items-center gap-2">
+          {{ heroicon_outline('magnifying-glass', class='h-4 w-4 text-base-content/70') }}
+          <input type="search"
+                 id="story_search"
+                 name="search"
+                 oninput="this.name = this.value ? 'search' : '';"
+                 value="{{ current_search }}"
+                 placeholder="Search stories"
+                 class="grow"
+                 autocomplete="off"
+                 @keydown.window.prevent.ctrl.k="$el.focus()">
+          <span class="text-xs">
+            <kbd class="kbd kbd-xs text-base-content">ctrl+k</kbd>
+          </span>
+        </label>
+      </div>
+      {% include "assess/sidebar/tags_select.html" %}
+    </section>
 
     <div class="divider text-xs">Filter</div>
     {# djlint: off #}
@@ -145,7 +138,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
             title="Clear time filters"
             hx-get="{{ base_url }}"
             hx-params="not timefrom,timeto,range"
-            hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
+            hx-include="#assess-sidebar"
             hx-target="#assess"
             hx-swap="outerHTML"
             @click="clearTimeFilters()">{{ heroicon_mini('x-mark', class='h-4 w-4') }} Clear time filters</button>
@@ -169,8 +162,8 @@ document.addEventListener('htmx:afterSwap', function (event) {
         <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">From</span>
         <input type="datetime-local"
                x-ref="timeFrom"
+               name="timefrom"
                value="{{ time_from }}"
-               {% if time_from %}name="timefrom"{% endif %}
                onchange="this.name = this.value ? 'timefrom' : ''"
                class="input-bordered input-xs -ml-3"
                hx-trigger="change delay:250ms">
@@ -179,8 +172,8 @@ document.addEventListener('htmx:afterSwap', function (event) {
         <span class="label text-xs font-medium text-base-content/70 pr-1 mr-1">To</span>
         <input type="datetime-local"
                x-ref="timeTo"
+               name="timeto"
                value="{{ time_to }}"
-               {% if time_to %}name="timeto"{% endif %}
                onchange="this.name = this.value ? 'timeto' : ''"
                class="input-bordered input-xs -ml-3"
                hx-trigger="change delay:250ms">
@@ -195,20 +188,14 @@ document.addEventListener('htmx:afterSwap', function (event) {
     {% for item in tri_state_filters %}{{ tri_state_filter(item) }}{% endfor %}
     <label class="select w-full">
       <span class="label">Changed by</span>
-      <select {% if changed_by_filter %}name="changed_by"{% endif %}
-              onchange="this.name = this.value ? 'changed_by' : ''"
-              class="select select-bordered select-sm"
-              hx-trigger="change">
+      <select name="changed_by" onchange="this.name = this.value ? 'changed_by' : ''" class="select select-bordered select-sm" hx-trigger="change">
         <option value="" {% if changed_by_filter in ['', None] %}selected{% endif %}>Any</option>
         <option value="me" {% if changed_by_filter == 'me' %}selected{% endif %}>Me</option>
       </select>
     </label>
     <label class="select w-full">
       <span class="label">Cybersecurity</span>
-      <select {% if cybersecurity_filter %}name="cybersecurity"{% endif %}
-              onchange="this.name = this.value ? 'cybersecurity' : ''"
-              class="select select-bordered select-sm"
-              hx-trigger="change">
+      <select name="cybersecurity" onchange="this.name = this.value ? 'cybersecurity' : ''" class="select select-bordered select-sm" hx-trigger="change">
         <option value="" {% if cybersecurity_filter in ['', None] %}selected{% endif %}>Any</option>
         {% for option in ['yes', 'no', 'mixed', 'incomplete'] %}
           <option value="{{ option }}" {% if cybersecurity_filter == option %}selected{% endif %}>{{ option|capitalize }}</option>
@@ -221,16 +208,16 @@ document.addEventListener('htmx:afterSwap', function (event) {
   <section>
     <label class="select w-full">
       <span class="label">Sort</span>
-      <select {% if current_sort %}name="sort"{% endif %}
-              onchange="this.name = this.value ? 'sort' : ''"
-              class="select select-bordered select-sm"
-              hx-trigger="change">
+      <select name="sort" onchange="this.name = this.value ? 'sort' : ''" class="select select-bordered select-sm" hx-trigger="change">
         {% for option in sort_choices %}
           <option value="{{ option.value }}" {% if option.value == current_sort %}selected{% endif %}>{{ option.label }}</option>
         {% endfor %}
       </select>
     </label>
   </section>
+  <noscript>
+    <button type="submit" class="btn btn-primary btn-sm mt-4 w-full" data-testid="assess-apply-filters">Apply filters</button>
+  </noscript>
 </form>
 
 <div class="divider text-xs">Display</div>
@@ -275,7 +262,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
           class="btn btn-secondary btn-sm w-full"
           data-testid="assess-saved-filters-button"
           hx-get="{{ url_for('assess.saved_filters') }}"
-          hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
+          hx-include="#assess-sidebar"
           hx-target="body"
           hx-swap="beforeend"
           hx-on::before-request="document.getElementById('assess_saved_filters_dialog')?.remove()">

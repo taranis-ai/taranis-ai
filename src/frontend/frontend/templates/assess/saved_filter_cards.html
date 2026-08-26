@@ -20,7 +20,7 @@
                   class="btn btn-outline btn-xs whitespace-nowrap"
                   hx-post="{{ url_for('assess.save_saved_filter') }}"
                   hx-vals='{"name": {{ saved_filter.name | tojson }}}'
-                  hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
+                  hx-include="#assess-sidebar"
                   hx-target="#assess_saved_filters_dialog"
                   hx-swap="outerHTML"
                   hx-target-error="#assess_saved_filters_dialog"

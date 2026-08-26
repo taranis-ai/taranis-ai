@@ -12,6 +12,8 @@ With infinite scroll disabled, page navigation replaces the story list and pagin
 
 The shared Assess selection bar is hidden when JavaScript is unavailable. Its `<noscript>` style belongs in `base.html`, not in HTMX-swappable fragments, so filtering cannot accidentally activate the fallback style.
 
+Without JavaScript, search and the native sidebar filters submit through one GET form, Language falls back to a native multi-select, and the form exposes an explicit Apply filters button. Source, group, and tag filters are hidden because their token-selection workflows require JavaScript.
+
 Filter option lists must reflect current user-visible database state. `/api/assess/filter-lists` builds those options on request and returns tags, sources, groups, and languages. The frontend may cache the response per user, so core writes that affect assess views must invalidate the relevant frontend cache scope.
 
 Saved assess default filters belong to the user profile. Applying defaults should preserve the same canonical query parameter shape used by normal sidebar filtering. Saving with an existing saved filter name updates that filter, duplicate filter criteria under another name are rejected, and managed filters can be updated from the current sidebar filters.

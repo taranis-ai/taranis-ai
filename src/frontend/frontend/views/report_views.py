@@ -261,6 +261,8 @@ class ReportItemView(BaseView):
 
     def post(self, *args: Any, **kwargs: Any) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs) or "0"
+        if request.form.get("_action") == "delete":
+            return self.delete_view(object_id) if not self.is_create_object_id(object_id) else abort(405)
         if request.form.get("layout_switch"):
             return self._render_layout_switch_view(object_id)
         return self.update_view_table(object_id=object_id)

@@ -78,6 +78,40 @@ def test_product_view_always_shows_last_publication_section(app, last_published_
         assert 'rel="noopener noreferrer"' in markup
 
 
+def test_product_view_renders_native_report_item_selection(app):
+    product = Product.model_construct(
+        id="product-1",
+        title="Existing product",
+        description="existing",
+        product_type_id="product-type-1",
+        report_items=["report-1"],
+        supported_reports=[],
+        last_published_url=None,
+        render_result=None,
+        mime_type=None,
+    )
+    reports = [{"id": "report-1", "title": "Selectable report", "type": "OSINT Report", "created": "2026-08-27"}]
+
+    with app.test_request_context("/publish/product-1"):
+        markup = render_template(
+            "publish/product.html",
+            product=product,
+            product_types=[],
+            publishers=[],
+            selected_report_items=["report-1"],
+            supported_reports=reports,
+            submit_text="Update Product",
+            is_edit=True,
+            form_action="/publish/product-1",
+        )
+
+    assert 'data-testid="report-items-native"' in markup
+    assert "Selectable report" in markup
+    assert 'name="report_items[]"' in markup
+    assert 'value="report-1"' in markup
+    assert "checked" in markup
+
+
 def test_product_download_streams_core_response(authenticated_client):
     product_id = "product-download-test"
     expected_content = b"binary-product"

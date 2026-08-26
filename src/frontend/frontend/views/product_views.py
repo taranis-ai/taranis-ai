@@ -26,6 +26,10 @@ class ProductView(BaseView):
     edit_route = "publish.product"
 
     @classmethod
+    def get_form_action(cls, object_id: str = "0") -> str:
+        return cls.get_edit_route(product_id=object_id)
+
+    @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
         return [
             {"title": "Title", "field": "title", "sortable": True, "renderer": None},
@@ -133,7 +137,10 @@ class ProductView(BaseView):
         return render_template("notification/index.html", notification={"message": error, "error": True}), 400
 
     def post(self, *args, **kwargs) -> tuple[str, int] | ResponseReturnValue:
-        return self.update_view(object_id="0")
+        object_id = self._get_object_id(kwargs) or "0"
+        if request.form.get("_action") == "delete":
+            return self.delete_view(object_id) if not self.is_create_object_id(object_id) else abort(405)
+        return self.update_view(object_id=object_id)
 
     def put(self, **kwargs) -> tuple[str, int] | ResponseReturnValue:
         object_id = self._get_object_id(kwargs)

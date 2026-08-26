@@ -22,7 +22,7 @@
           action="{{ url_for('assess.save_saved_filter') }}"
           method="post"
           hx-post="{{ url_for('assess.save_saved_filter') }}"
-          hx-include="#saved-filter-form, #assess-sidebar, #assess-search-form, #selected-tags"
+          hx-include="#saved-filter-form, #assess-sidebar"
           hx-target="#assess_saved_filters_dialog"
           hx-swap="outerHTML"
           hx-target-error="#assess_saved_filters_dialog">

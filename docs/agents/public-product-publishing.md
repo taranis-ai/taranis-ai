@@ -6,6 +6,8 @@ Product publishing, Taranis Publisher, public reports, `/reports/<product-id>`, 
 ## Expected Behavior
 Taranis always seeds a built-in `TARANIS_PUBLISHER` preset during first startup and restores it when missing during later startups. The built-in preset cannot be deleted; administrators may still create additional presets of the same type. Publishing a rendered product with such a preset copies its current render into persistent storage, stores the stable public URL as the product's `last_published_url`, and returns it. Product details always show either a direct link to the latest successful publication or an unpublished empty state. The report URL is intentionally reachable without authentication. The worker-only write endpoint remains protected by the worker API key.
 
+Product creation and row deletion use native links and POST forms enhanced by HTMX, so both workflows remain available when JavaScript is disabled. On an existing product, compatible report items are also rendered as a native checkbox table inside a `noscript` fallback; the Alpine-powered searchable table remains the enhanced JavaScript experience.
+
 ## Code Paths
 Publisher dispatch and the Taranis publisher live under `src/worker/worker/publishers/`. Core persistence and serving live in `src/core/core/service/product.py`, with authenticated worker routing in `src/core/core/api/worker.py`, its contract in `src/core/core/static/openapi3_1.yaml`, and public routing in `src/core/core/api/publish.py`. Ingress proxies `/reports` to core through `src/ingress/extras/default.conf.template`.
 

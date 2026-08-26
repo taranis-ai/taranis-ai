@@ -12,3 +12,15 @@
   no_results_text="No languages found."
 ) }}
 {# djlint:on #}
+
+<noscript>
+  {% set selected_languages = filter_select.selected_items | map(attribute='value') | list %}
+  <label class="form-control mb-2 w-full">
+    <span class="label-text mb-1">Language</span>
+    <select name="language" multiple size="5" class="select select-bordered h-auto w-full" data-testid="language-filter-native">
+      {% for option in filter_select.options %}
+        <option value="{{ option.value }}" {% if option.value in selected_languages %}selected{% endif %}>{{ option.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</noscript>

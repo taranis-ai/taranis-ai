@@ -4,7 +4,8 @@
 {% set form_error = form_error | default({}) %}
 {% set product = product | default({}) %}
 {% set product_types = product_types | default([]) %}
-{% set supported_reports = supported_reports | default(product.supported_reports | default([])) | tojson %}
+{% set supported_report_items = supported_reports | default(product.supported_reports | default([])) %}
+{% set supported_reports = supported_report_items | tojson %}
 {% set selected_report_items = selected_report_items | default(product.report_items | default([])) %}
 {% set rendered_product = product.render_result %}
 {% set rendered_mime_type = product.mime_type %}
@@ -55,7 +56,7 @@
                 hx-target="#notification-bar"
                 hx-post="{{ url_for('publish.product_render', product_id=product.id) }}">Render</button>
       {% endif %}
-      <button class="mr-2 btn" :class="dirty ? 'btn-warning' : 'btn-success'" @click="product_form.requestSubmit()" data-testid="save-product">
+      <button type="submit" form="product_form" class="mr-2 btn" :class="dirty ? 'btn-warning' : 'btn-success'" data-testid="save-product">
         <span x-show="dirty" class="mr-1">!</span>
         Save
       </button>
@@ -64,12 +65,15 @@
     <div class="grid grid-cols-12 gap-4">
       <div class="col-span-12 {% if is_edit %}lg:col-span-6{% else %}lg:col-span-12{% endif %} px-2">
         <form id="product_form"
-              {{ form_action }}
+              method="post"
+              action="{{ form_action }}"
+              {% if is_edit %}hx-put="{{ form_action }}"{% else %}hx-post="{{ form_action }}"{% endif %}
               hx-swap="innerHTML"
               hx-target="#product"
               hx-target-error="#product"
               @input="dirty=true"
               data-testid="product-form">
+          <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
           {% include "partials/admin_form_error.html" %}
           <div class="grid grid-cols-12 gap-4">
             <div class="col-span-12 md:col-span-6">
@@ -84,7 +88,49 @@
 
           {% if product.product_type_id %}
             <div class="mt-2">
-              {{ datatable('Report Items', supported_reports, columns, selected_items=selected_report_items, input_name='report_items[]', headline='Report Items') }}
+              <div data-product-report-items-enhanced>
+                {{ datatable('Report Items', supported_reports, columns, selected_items=selected_report_items, input_name='report_items[]', headline='Report Items') }}
+              </div>
+              <noscript>
+                <style>
+                  [data-product-report-items-enhanced] {
+                    display: none;
+                  }
+                </style>
+                <section data-testid="report-items-native">
+                  <h4 class="text-l font-bold mb-1 mt-5">Report Items</h4>
+                  <table class="table table-sm" id="report-items-native-table">
+                    <thead>
+                      <tr>
+                        <th>Select</th>
+                        {% for col in columns %}<th>{{ col.title | capitalize }}</th>{% endfor %}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for item in supported_report_items %}
+                        {% set item_id = item.id | string %}
+                        <tr>
+                          <td>
+                            <label class="flex items-center gap-2">
+                              <input type="checkbox"
+                                     class="checkbox checkbox-sm"
+                                     name="report_items[]"
+                                     value="{{ item_id }}"
+                                     {% if item_id in selected_report_items %}checked{% endif %}>
+                              <span class="sr-only">{{ item.title }}</span>
+                            </label>
+                          </td>
+                          {% for col in columns %}<td>{{ item[col.field] | default("") }}</td>{% endfor %}
+                        </tr>
+                      {% else %}
+                        <tr>
+                          <td colspan="{{ columns | length + 1 }}" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </section>
+              </noscript>
             </div>
           {% endif %}
 
