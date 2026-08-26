@@ -101,7 +101,7 @@ class OSINTSourceParameterAPI(MethodView):
     @admin_required()
     def get(self, osint_source_id: str):
         collector_type = request.args.get("type", "")
-        bulk = request.args.get("bulk", default=False, type=bool)
+        bulk = request.args.get("bulk", "").lower() in {"true", "1", "yes", "on"}
         return SourceView.get_osint_source_parameters_view(osint_source_id, collector_type, bulk=bulk)
 
 

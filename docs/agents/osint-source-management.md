@@ -20,11 +20,11 @@ Bulk creation can also create one named source group containing exactly the new 
 
 ## Data Flow
 
-The bulk form uses Alpine only for adding and removing local name/URL rows. Selecting a collector loads its shared parameter fragment over HTMX with the collector's primary URL parameter omitted. On submit, the frontend builds a version-4 import payload by combining each name/URL pair with the shared settings. Optional group indexes associate the newly inserted sources with the new group in the same core database transaction.
+The bulk form uses Alpine only for adding and removing local name/URL rows. Selecting a collector loads its shared parameter fragment over HTMX with the collector's primary URL parameter omitted; regular parameter requests, including an explicit `bulk=false`, keep the URL field. On submit, the frontend builds a version-4 import payload by combining each name/URL pair with the shared settings. Optional group indexes associate the newly inserted sources with the new group in the same core database transaction.
 
 ## Testing
 
-Frontend unit coverage verifies supported collectors, parameter omission, and the generated import payload in `src/frontend/tests/unit/views/test_views.py`. The admin browser workflow in `src/frontend/tests/playwright/test_e2e_admin.py` verifies creation, persisted source rows, group membership, and cleanup.
+Frontend unit coverage verifies supported collectors, bulk-only parameter omission, and the generated import payload in `src/frontend/tests/unit/views/test_views.py`. The admin browser workflow in `src/frontend/tests/playwright/test_e2e_admin.py` verifies creation, persisted source rows, group membership, and cleanup.
 
 Run `cd src/frontend && uv run pytest tests/unit/views/test_views.py` for focused view coverage. Run the focused admin browser test through the frontend E2E setup for the complete workflow.
 

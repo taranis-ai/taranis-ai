@@ -348,8 +348,8 @@ class TestSourceView:
         assert "manual_collector" not in response.text
         assert "ppn_collector" not in response.text
 
-    def test_bulk_parameter_view_excludes_the_varying_url(self, authenticated_client):
-        response = authenticated_client.get(
+    def test_bulk_parameter_view_only_excludes_the_varying_url_for_bulk_requests(self, authenticated_client):
+        bulk_response = authenticated_client.get(
             url_for(
                 "admin.osint_source_parameters",
                 osint_source_id="0",
@@ -357,10 +357,20 @@ class TestSourceView:
                 bulk="true",
             )
         )
+        regular_response = authenticated_client.get(
+            url_for(
+                "admin.osint_source_parameters",
+                osint_source_id="0",
+                type="rss_collector",
+                bulk="false",
+            )
+        )
 
-        assert response.status_code == 200
-        assert 'name="parameters[FEED_URL]"' not in response.text
-        assert 'name="parameters[USER_AGENT]"' in response.text
+        assert bulk_response.status_code == 200
+        assert 'name="parameters[FEED_URL]"' not in bulk_response.text
+        assert 'name="parameters[USER_AGENT]"' in bulk_response.text
+        assert regular_response.status_code == 200
+        assert 'name="parameters[FEED_URL]"' in regular_response.text
 
     def test_bulk_create_posts_version_4_import_with_optional_group(self, authenticated_client, responses_mock):
         responses_mock.post(
