@@ -11,7 +11,9 @@ from frontend.config import Config
 
 def test_setup_telemetry_instruments_flask_requests(monkeypatch):
     endpoint = "http://collector:4318"
+    service_name = "custom-frontend"
     monkeypatch.setattr(Config, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
+    monkeypatch.setattr(Config, "OTEL_SERVICE_NAME", service_name)
     exporter = InMemorySpanExporter()
     metric_reader = InMemoryMetricReader()
     app = Flask(__name__)
@@ -33,7 +35,8 @@ def test_setup_telemetry_instruments_flask_requests(monkeypatch):
     span = spans[0]
     assert span.attributes is not None
     assert span.attributes["http.route"] == "/test"
-    assert span.resource.attributes["service.name"] == "taranis-frontend"
+    assert span.resource.attributes["service.name"] == service_name
+    assert span.resource.attributes["service.instance.id"] == service_name
     exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/traces")
     metric_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/metrics")
     requests_instrumentor.return_value.instrument.assert_called_once()

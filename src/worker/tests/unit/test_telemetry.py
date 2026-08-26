@@ -28,8 +28,10 @@ def test_disabled_telemetry_does_not_retry_failed_job(monkeypatch):
 
 def test_instrument_job_exports_trace_and_metrics(monkeypatch):
     endpoint = "http://telemetry:4318"
+    service_name = "custom-worker"
     parent_span_id = "00f067aa0ba902b7"
     monkeypatch.setattr(Config, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
+    monkeypatch.setattr(Config, "OTEL_SERVICE_NAME", service_name)
     monkeypatch.setattr(telemetry, "_tracer_provider", None)
     monkeypatch.setattr(telemetry, "_meter_provider", None)
     monkeypatch.setattr(telemetry, "_tracer", None)
@@ -68,7 +70,8 @@ def test_instrument_job_exports_trace_and_metrics(monkeypatch):
     assert spans[0].attributes is not None
     assert spans[0].attributes["messaging.destination.name"] == "bots"
     assert spans[0].attributes["rq.job.status"] == "success"
-    assert spans[0].resource.attributes["service.name"] == "taranis-worker"
+    assert spans[0].resource.attributes["service.name"] == service_name
+    assert spans[0].resource.attributes["service.instance.id"] == service_name
     span_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/traces", timeout=0.5)
     metric_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/metrics", timeout=0.5)
 
