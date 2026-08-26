@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, ClassVar, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from models.base import TaranisBaseModel
 
@@ -16,6 +16,16 @@ class CollabFieldLock(TaranisBaseModel):
     snapshot_id: str
     field_name: Literal["title", "description", "summary", "comments"]
     participant_base_url: str
+    session_id: str
+    username: str
+    acquired_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
+class CollabReportFieldLock(TaranisBaseModel):
+    draft_id: str
+    field_key: str
+    user_id: int
     session_id: str
     username: str
     acquired_at: datetime | None = None
@@ -43,7 +53,7 @@ class CollabTextDocChange(TaranisBaseModel):
     to: int
     insert: str = ""
 
-    model_config = {"populate_by_name": True}
+    model_config: ClassVar[dict[str, bool]] = {"populate_by_name": True}
 
 
 class CollabTextDocHistoryEntry(TaranisBaseModel):
@@ -184,6 +194,38 @@ class CollabChannelSummary(TaranisBaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     invite: CollabInvite | None = None
+    report_count: int | None = None
+    finalized_report_count: int | None = None
+
+
+class CollabReportAttribute(TaranisBaseModel):
+    key: str
+    title: str
+    description: str | None = None
+    group_title: str = ""
+    type: str
+    required: bool = False
+    value: str = ""
+    render_data: dict[str, Any] = Field(default_factory=dict)
+
+
+class CollabReportDraft(TaranisBaseModel):
+    id: str
+    title: str
+    creator_id: int
+    report_item_type_id: int
+    report_item_type_title: str
+    completed: bool = False
+    attributes: list[CollabReportAttribute] = Field(default_factory=list)
+    selected_story_ids: list[str] = Field(default_factory=list)
+    finalized_report_id: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class CollabReportWorkspace(TaranisBaseModel):
+    member_ids: list[int] = Field(default_factory=list)
+    drafts: list[CollabReportDraft] = Field(default_factory=list)
 
 
 class CollabChannelDetail(TaranisBaseModel):
@@ -200,9 +242,11 @@ class CollabChannelDetail(TaranisBaseModel):
     participants: list[CollabParticipant] = Field(default_factory=list)
     presence: list[CollabPresence] = Field(default_factory=list)
     locks: list[CollabFieldLock] = Field(default_factory=list)
+    report_locks: list[CollabReportFieldLock] | None = None
     shared_docs: list[CollabTextDocState] = Field(default_factory=list)
     text_selections: list[CollabTextSelectionPresence] = Field(default_factory=list)
     workspace: CollabWorkspaceState = Field(default_factory=CollabWorkspaceState)
+    report_workspace: CollabReportWorkspace | None = None
     stories: list[CollabStorySnapshot] = Field(default_factory=list)
     result_stories: list[CollabStorySnapshot] = Field(default_factory=list)
     created_at: datetime | None = None
@@ -247,13 +291,26 @@ class CollabLiveActor(TaranisBaseModel):
     base_url: str
     session_id: str
     username: str
+    user_id: int | None = None
 
 
 class CollabLiveLockRequest(TaranisBaseModel):
-    snapshot_id: str
-    field_name: Literal["title", "description", "summary", "comments"]
+    snapshot_id: str | None = None
+    field_name: Literal["title", "description", "summary", "comments"] | None = None
+    draft_id: str | None = None
+    field_key: str | None = None
     actor: CollabLiveActor
     selected_story_id: str | None = None
+
+    @model_validator(mode="after")
+    def validate_target(self):
+        story_target = bool(self.snapshot_id and self.field_name)
+        report_target = bool(self.draft_id and self.field_key)
+        if bool(self.snapshot_id) != bool(self.field_name) or bool(self.draft_id) != bool(self.field_key):
+            raise ValueError("Lock target fields must be provided together")
+        if story_target == report_target:
+            raise ValueError("Exactly one story or report lock target is required")
+        return self
 
 
 class CollabLivePresenceRequest(TaranisBaseModel):
@@ -272,7 +329,7 @@ class CollabLiveStoryOpChange(TaranisBaseModel):
     to: int
     insert: str = ""
 
-    model_config = {"populate_by_name": True}
+    model_config: ClassVar[dict[str, bool]] = {"populate_by_name": True}
 
 
 class CollabLiveStoryOpsSubmit(TaranisBaseModel):
@@ -322,6 +379,22 @@ class CollabLiveWorkspacePatch(TaranisBaseModel):
     actor: CollabLiveActor
     item_id: str | None = None
     data: dict[str, Any] = Field(default_factory=dict)
+
+
+class CollabReportMembersReplace(TaranisBaseModel):
+    member_ids: list[int]
+
+
+class CollabReportDraftCreate(TaranisBaseModel):
+    report_item_type_id: int
+    title: str | None = None
+
+
+class CollabLiveReportPatch(TaranisBaseModel):
+    draft_id: str
+    field_key: str
+    value: Any
+    actor: CollabLiveActor
 
 
 class CollabPeerRealtimeEnvelope(TaranisBaseModel):

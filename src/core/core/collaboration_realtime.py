@@ -28,6 +28,7 @@ class BrowserSession:
     channel_id: str
     session_id: str
     username: str
+    user_id: int
     selected_story_id: str | None = None
 
 
@@ -47,6 +48,7 @@ class CollaborationRealtimeHub:
             "collab.lock.heartbeat": self._handle_lock_heartbeat,
             "collab.lock.release": self._handle_lock_release,
             "collab.story.patch": self._handle_story_patch,
+            "collab.report.patch": self._handle_report_patch,
             "collab.story.ops.submit": self._handle_story_ops_submit,
             "collab.story.selection.update": self._handle_selection_update,
             "collab.story.selection.clear": self._handle_selection_clear,
@@ -74,6 +76,13 @@ class CollaborationRealtimeHub:
             if isinstance(parsed, dict):
                 return parsed
         raise TypeError(f"Invalid collaboration channel payload type: {type(channel).__name__}")
+
+    @staticmethod
+    def _strip_local_report_state(channel: dict[str, Any]) -> dict[str, Any]:
+        channel = json.loads(json.dumps(channel))
+        channel.pop("report_workspace", None)
+        channel.pop("report_locks", None)
+        return channel
 
     @staticmethod
     def _root_prefix() -> str:
@@ -135,8 +144,9 @@ class CollaborationRealtimeHub:
         except httpx.HTTPError as exc:
             raise PermissionError("Unauthorized collaboration session") from exc
 
-    async def _channel_state(self, channel_id: str) -> dict[str, Any]:
-        return await self._core_get(f"/assess/collab/channels/{channel_id}/live-state")
+    async def _channel_state(self, channel_id: str, user_id: int | None = None) -> dict[str, Any]:
+        suffix = f"?user_id={user_id}" if user_id is not None else ""
+        return await self._core_get(f"/assess/collab/channels/{channel_id}/live-state{suffix}")
 
     async def _sync_local_channel(self, channel: dict[str, Any]) -> dict[str, Any]:
         invite = channel.get("invite") or {}
@@ -156,6 +166,10 @@ class CollaborationRealtimeHub:
             self.browser_sessions[channel_id].pop(session_id, None)
 
     async def _broadcast_to_owner_peers(self, channel_id: str, message: dict[str, Any]) -> None:
+        message = json.loads(json.dumps(message))
+        channel = (message.get("payload") or {}).get("channel")
+        if isinstance(channel, dict):
+            message["payload"]["channel"] = self._strip_local_report_state(channel)
         stale_peers: list[str] = []
         for peer_base_url, websocket in self.owner_peer_connections.get(channel_id, {}).items():
             try:
@@ -165,18 +179,31 @@ class CollaborationRealtimeHub:
         for peer_base_url in stale_peers:
             self.owner_peer_connections[channel_id].pop(peer_base_url, None)
 
-    async def _broadcast_state(self, channel: dict[str, Any], *, snapshot: bool = False, session_id: str | None = None) -> None:
+    async def _broadcast_state(
+        self,
+        channel: dict[str, Any],
+        *,
+        snapshot: bool = False,
+        session_id: str | None = None,
+        local_only: bool = False,
+    ) -> None:
         channel = self._coerce_channel_payload(channel)
         channel_id = channel["channel_id"]
         message_type = "collab.state.snapshot" if snapshot else "collab.state.updated"
-        payload = {"channel": channel}
-        if session_id:
-            payload["session_id"] = session_id
-        message = self._message(message_type, channel_id, payload)
-        await self._broadcast_to_browsers(channel_id, message)
-        await self._broadcast_to_owner_peers(channel_id, message)
+        for browser_session in self.browser_sessions.get(channel_id, {}).values():
+            personalized = await self._channel_state(channel_id, browser_session.user_id)
+            payload = {"channel": personalized}
+            if session_id:
+                payload["session_id"] = session_id
+            await browser_session.websocket.send_json(self._message(message_type, channel_id, payload))
+        message = self._message(message_type, channel_id, {"channel": channel})
+        if not local_only:
+            await self._broadcast_to_owner_peers(channel_id, message)
 
     async def _broadcast_event(self, channel_id: str, message_type: str, payload: dict[str, Any]) -> None:
+        payload = json.loads(json.dumps(payload))
+        if isinstance(payload.get("channel"), dict):
+            payload["channel"] = self._strip_local_report_state(payload["channel"])
         message = self._message(message_type, channel_id, payload)
         await self._broadcast_to_browsers(channel_id, message)
         await self._broadcast_to_owner_peers(channel_id, message)
@@ -189,6 +216,7 @@ class CollaborationRealtimeHub:
             "base_url": self._local_base_url(),
             "session_id": session.session_id,
             "username": session.username,
+            "user_id": session.user_id,
         }
 
     async def _handle_presence_connect(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
@@ -211,6 +239,8 @@ class CollaborationRealtimeHub:
                 "snapshot_id": payload.get("snapshot_id"),
                 "field_name": payload.get("field_name"),
                 "selected_story_id": payload.get("selected_story_id"),
+                "draft_id": payload.get("draft_id"),
+                "field_key": payload.get("field_key"),
             },
         )
 
@@ -222,6 +252,8 @@ class CollaborationRealtimeHub:
                 "snapshot_id": payload.get("snapshot_id"),
                 "field_name": payload.get("field_name"),
                 "selected_story_id": payload.get("selected_story_id"),
+                "draft_id": payload.get("draft_id"),
+                "field_key": payload.get("field_key"),
             },
         )
 
@@ -233,6 +265,8 @@ class CollaborationRealtimeHub:
                 "snapshot_id": payload.get("snapshot_id"),
                 "field_name": payload.get("field_name"),
                 "selected_story_id": payload.get("selected_story_id"),
+                "draft_id": payload.get("draft_id"),
+                "field_key": payload.get("field_key"),
             },
         )
 
@@ -245,6 +279,17 @@ class CollaborationRealtimeHub:
                 "actor": actor,
                 "snapshot_id": payload.get("snapshot_id"),
                 "payload": filtered_fields,
+            },
+        )
+
+    async def _handle_report_patch(self, channel_id: str, actor: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._core_post(
+            f"/assess/collab/channels/{channel_id}/live/report-patch",
+            {
+                "actor": actor,
+                "draft_id": payload.get("draft_id"),
+                "field_key": payload.get("field_key"),
+                "value": payload.get("value"),
             },
         )
 
@@ -420,9 +465,9 @@ class CollaborationRealtimeHub:
                         if authoritative_channel:
                             synced_channel = await self._sync_local_channel(self._coerce_channel_payload(authoritative_channel))
                         if message.get("type") in {"collab.state.snapshot", "collab.state.updated"}:
-                            await self._broadcast_to_browsers(
-                                channel_id,
-                                self._message(message["type"], channel_id, {"channel": synced_channel}),
+                            await self._broadcast_state(
+                                synced_channel,
+                                snapshot=message.get("type") == "collab.state.snapshot",
                             )
                             continue
                         browser_payload = {key: value for key, value in payload.items() if key != "channel"}
@@ -458,7 +503,8 @@ class CollaborationRealtimeHub:
             return
         try:
             user = await self._authenticate_browser(websocket)
-            channel = await self._channel_state(channel_id)
+            user_id = int(user["id"])
+            channel = await self._channel_state(channel_id, user_id)
         except PermissionError:
             await websocket.close(code=4401, reason="Unauthorized")
             return
@@ -473,6 +519,7 @@ class CollaborationRealtimeHub:
             channel_id=channel_id,
             session_id=str(uuid.uuid4()),
             username=user.get("username") or user.get("name") or "unknown",
+            user_id=user_id,
             selected_story_id=websocket.query_params.get("story_id"),
         )
         self.browser_sessions[channel_id][session.session_id] = session
@@ -481,11 +528,12 @@ class CollaborationRealtimeHub:
 
         try:
             if self._owns_channel(channel):
-                channel = await self._apply_owner_message(
+                await self._apply_owner_message(
                     channel_id,
                     actor,
                     self._message("collab.hello", channel_id, {"selected_story_id": session.selected_story_id}),
                 )
+                channel = await self._channel_state(channel_id, session.user_id)
             else:
                 await self._forward_to_owner(
                     channel_id,
@@ -501,10 +549,16 @@ class CollaborationRealtimeHub:
                 current_message_type = message.get("type", "")
                 session.selected_story_id = (message.get("payload") or {}).get("selected_story_id") or session.selected_story_id
                 actor = self._actor_payload(session)
-                if self._owns_channel(channel):
+                is_local_report_message = current_message_type == "collab.report.patch" or (
+                    current_message_type.startswith("collab.lock.") and bool((message.get("payload") or {}).get("draft_id"))
+                )
+                if self._owns_channel(channel) or is_local_report_message:
                     async with self.channel_mutexes[channel_id]:
                         updated_payload = await self._apply_owner_message(channel_id, actor, message)
-                    await self._broadcast_owner_result(channel_id, current_message_type, updated_payload)
+                    if is_local_report_message:
+                        await self._broadcast_state(updated_payload, local_only=True)
+                    else:
+                        await self._broadcast_owner_result(channel_id, current_message_type, updated_payload)
                 else:
                     await self._forward_to_owner(channel_id, message, actor)
         except WebSocketDisconnect:
@@ -558,7 +612,15 @@ class CollaborationRealtimeHub:
                 return
 
             self.owner_peer_connections[channel_id][partner_base_url] = websocket
-            await websocket.send_text(json.dumps(self._message("collab.state.snapshot", channel_id, {"channel": channel})))
+            await websocket.send_text(
+                json.dumps(
+                    self._message(
+                        "collab.state.snapshot",
+                        channel_id,
+                        {"channel": self._strip_local_report_state(channel)},
+                    )
+                )
+            )
 
             while True:
                 raw_message = await websocket.receive_text()

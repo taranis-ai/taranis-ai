@@ -1,7 +1,8 @@
 import copy
+import re
 import threading
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 from urllib.parse import quote, urlsplit
 
@@ -15,6 +16,9 @@ from models.collaboration import (
     CollabFinalizeResult,
     CollabInvite,
     CollabParticipant,
+    CollabReportAttribute,
+    CollabReportDraft,
+    CollabReportWorkspace,
     CollabStorySnapshot,
     CollabWorkspaceActivityItem,
     CollabWorkspaceBriefing,
@@ -29,17 +33,23 @@ from models.collaboration import (
 
 from core.config import Config
 from core.log import logger
+from core.managers import asset_manager
 from core.managers.db_manager import db
 from core.managers.sse_manager import sse_manager
+from core.model.attribute import AttributeEnum, AttributeType
 from core.model.collaboration_channel import CollaborationChannelRecord
 from core.model.news_item import NewsItem
+from core.model.report_item import ReportItem
+from core.model.report_item_type import AttributeGroup, AttributeGroupItem, ReportItemType
 from core.model.story import Story
 from core.model.user import User
+from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.collaboration_text import StoryTextCollabService
 from core.service.report_story_sync import ReportStorySyncService
 
 
 EDITABLE_TEXT_FIELDS = ("title", "description", "summary", "comments")
+REPORT_MEMBER_PERMISSIONS = {"ASSESS_ACCESS", "ASSESS_UPDATE", "ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_UPDATE"}
 
 
 def _utcnow() -> datetime:
@@ -65,17 +75,43 @@ class CollaborationService:
         except ValueError:
             return None
 
-    def _hydrate_channel_state(self, channel_state: dict[str, Any], *, persisted_at: datetime | None = None) -> dict[str, Any]:
+    def _hydrate_channel_state(
+        self,
+        channel_state: dict[str, Any],
+        *,
+        persisted_at: datetime | None = None,
+        migrate_legacy_owner: bool = False,
+    ) -> dict[str, Any]:
         hydrated = copy.deepcopy(channel_state)
         if not hydrated.get("token") and hydrated.get("channel_id"):
             hydrated["token"] = self._build_token(hydrated["channel_id"])
+        if migrate_legacy_owner and urlsplit(str(hydrated.get("owner_base_url") or "")).hostname == "frontendupstream":
+            try:
+                local_base_url = self.external_base_url()
+            except RuntimeError:
+                local_base_url = None
+            if local_base_url:
+                hydrated["owner_base_url"] = local_base_url
+                hydrated["participants"] = [
+                    {
+                        **participant,
+                        "base_url": local_base_url if participant.get("role") == "owner" else participant.get("base_url"),
+                    }
+                    for participant in hydrated.get("participants", [])
+                ]
+                hydrated["token"] = self._build_token(hydrated["channel_id"])
+                hydrated["local_owner"] = True
         self.text_collab.ensure_runtime(hydrated)
         runtime = hydrated.setdefault("runtime", {})
         runtime.setdefault("shared_docs", {})
         runtime["presence"] = []
         runtime["locks"] = []
+        runtime["report_locks"] = []
         runtime["text_selections"] = {}
         hydrated.setdefault("workspace", self._default_workspace_state(hydrated))
+        if not isinstance(hydrated.get("report_workspace"), dict):
+            hydrated["report_workspace"] = {"member_ids": [], "drafts": []}
+        hydrated.setdefault("local_owner", None)
         if persisted_at is not None:
             hydrated["_last_persisted_at"] = persisted_at.isoformat()
         self._refresh_shared_docs_from_stories(hydrated)
@@ -93,6 +129,7 @@ class CollaborationService:
         runtime = persisted.setdefault("runtime", {})
         runtime["presence"] = []
         runtime["locks"] = []
+        runtime["report_locks"] = []
         runtime["text_selections"] = {}
         runtime.setdefault("shared_docs", {})
         return persisted
@@ -121,7 +158,7 @@ class CollaborationService:
             return None
         try:
             if record := CollaborationChannelRecord.get(channel_id):
-                channel_state = self._hydrate_channel_state(record.state or {}, persisted_at=record.updated_at)
+                channel_state = self._hydrate_channel_state(record.state or {}, persisted_at=record.updated_at, migrate_legacy_owner=True)
                 self.channels[channel_id] = channel_state
                 return channel_state
         except Exception as exc:
@@ -133,7 +170,9 @@ class CollaborationService:
             return
         try:
             for record in CollaborationChannelRecord.get_all():
-                self.channels[record.channel_id] = self._hydrate_channel_state(record.state or {}, persisted_at=record.updated_at)
+                self.channels[record.channel_id] = self._hydrate_channel_state(
+                    record.state or {}, persisted_at=record.updated_at, migrate_legacy_owner=True
+                )
         except Exception as exc:
             self._disable_persistence(exc)
 
@@ -482,6 +521,108 @@ class CollaborationService:
         return f"{snapshot_id}:{field_name}"
 
     @staticmethod
+    def _report_workspace(channel_state: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(channel_state.get("report_workspace"), dict):
+            channel_state["report_workspace"] = {"member_ids": [], "drafts": []}
+        return channel_state["report_workspace"]
+
+    @classmethod
+    def _is_report_member(cls, channel_state: dict[str, Any], user_id: int | None) -> bool:
+        return user_id is not None and user_id in cls._report_workspace(channel_state)["member_ids"]
+
+    @staticmethod
+    def _eligible_report_user(user: User | None) -> bool:
+        return bool(user and REPORT_MEMBER_PERMISSIONS.issubset(user.get_permissions()))
+
+    @classmethod
+    def _require_report_member(cls, channel_state: dict[str, Any], user: User | None) -> None:
+        if not cls._eligible_report_user(user) or not cls._is_report_member(channel_state, user.id):
+            raise PermissionError("Report workspace membership is required")
+
+    @staticmethod
+    def _find_report_draft(channel_state: dict[str, Any], draft_id: str) -> dict[str, Any] | None:
+        return next(
+            (draft for draft in CollaborationService._report_workspace(channel_state)["drafts"] if draft.get("id") == draft_id),
+            None,
+        )
+
+    @staticmethod
+    def _report_schema(report_type: ReportItemType) -> list[dict[str, Any]]:
+        attributes: list[dict[str, Any]] = []
+        index = 0
+        for group in sorted(report_type.attribute_groups, key=AttributeGroup.sort):
+            for item in sorted(group.attribute_group_items, key=AttributeGroupItem.sort):
+                attribute_type = item.attribute.type
+                enums = AttributeEnum.get_all_for_attribute(item.attribute.id)
+                value = "clear" if attribute_type == AttributeType.TLP else item.attribute.default_value or ""
+                render_data = {"attribute_enums": [enum.to_small_dict() for enum in enums]} if enums else {}
+                if item.attribute.default_value:
+                    render_data["default_value"] = item.attribute.default_value
+                attributes.append(
+                    CollabReportAttribute(
+                        key=str(index),
+                        title=item.title,
+                        description=item.description,
+                        group_title=group.title or "",
+                        type=attribute_type.name,
+                        required=item.required,
+                        value=value,
+                        render_data=render_data,
+                    ).model_dump(mode="json")
+                )
+                index += 1
+        return attributes
+
+    @staticmethod
+    def _report_type_allowed_for_members(report_type: ReportItemType, members: list[User]) -> bool:
+        return all(CollaborationService._eligible_report_user(user) and report_type.allowed_with_acl(user, True) for user in members)
+
+    @staticmethod
+    def _validate_tlp_for_members(value: str, members: list[User]) -> bool:
+        return all(value in user.get_highest_tlp().get_accessible_levels() for user in members)
+
+    @staticmethod
+    def _normalize_report_value(attribute: dict[str, Any], value: Any, members: list[User]) -> str:
+        attribute_type = attribute["type"]
+        if value is None:
+            value = ""
+        if attribute_type == "BOOLEAN":
+            if value not in ("Yes", "No", True, False):
+                raise ValueError("Boolean attributes must be Yes or No")
+            return "Yes" if value in ("Yes", True) else "No"
+        if attribute_type == "NUMBER" and str(value):
+            float(value)
+        if attribute_type in {"ENUM", "RADIO", "CPE"} and str(value):
+            choices = {str(item.get("value")) for item in attribute.get("render_data", {}).get("attribute_enums", [])}
+            if choices and str(value) not in choices:
+                raise ValueError(f"Invalid value for {attribute['title']}")
+        if attribute_type == "TLP" and not CollaborationService._validate_tlp_for_members(str(value), members):
+            raise PermissionError(f"TLP {value} is not available to every report member")
+        if attribute_type == "DATE" and str(value):
+            date.fromisoformat(str(value))
+        if attribute_type == "TIME" and str(value):
+            time.fromisoformat(str(value))
+        if attribute_type == "DATE_TIME" and str(value):
+            datetime.fromisoformat(str(value))
+        if attribute_type == "CVE" and str(value) and not re.fullmatch(r"CVE-\d{4}-\d{4,7}", str(value)):
+            raise ValueError("Invalid CVE value")
+        if attribute_type == "CVSS" and str(value) and not 0 <= float(value) <= 10:
+            raise ValueError("CVSS must be between 0 and 10")
+        if attribute_type == "ATTACHMENT" and str(value) != str(attribute.get("value") or ""):
+            raise ValueError("Attachment attributes cannot be edited in collaboration reports")
+        return str(value)
+
+    @staticmethod
+    def _peer_channel_payload(payload: dict[str, Any]) -> dict[str, Any]:
+        peer_payload = copy.deepcopy(payload)
+        peer_payload.pop("report_workspace", None)
+        peer_payload.pop("report_locks", None)
+        runtime = peer_payload.get("runtime")
+        if isinstance(runtime, dict):
+            runtime.pop("report_locks", None)
+        return peer_payload
+
+    @staticmethod
     def _touch_channel(channel_state: dict[str, Any]) -> None:
         channel_state["updated_at"] = _utcnow().isoformat()
 
@@ -689,18 +830,19 @@ class CollaborationService:
     def _prune_runtime_state(self, channel_state: dict[str, Any]) -> None:
         runtime = self.text_collab.ensure_runtime(channel_state)
         now = _utcnow()
-        valid_locks = []
-        for lock in runtime.get("locks", []):
-            expires_at = lock.get("expires_at")
-            if not expires_at:
-                continue
-            try:
-                if datetime.fromisoformat(expires_at) <= now:
+        for lock_collection in ("locks", "report_locks"):
+            valid_locks = []
+            for lock in runtime.get(lock_collection, []):
+                expires_at = lock.get("expires_at")
+                if not expires_at:
                     continue
-            except ValueError:
-                continue
-            valid_locks.append(lock)
-        runtime["locks"] = valid_locks
+                try:
+                    if datetime.fromisoformat(expires_at) <= now:
+                        continue
+                except ValueError:
+                    continue
+                valid_locks.append(lock)
+            runtime[lock_collection] = valid_locks
 
     def _upsert_presence(
         self,
@@ -739,19 +881,28 @@ class CollaborationService:
             return False
         runtime["presence"] = remaining
         runtime["locks"] = [lock for lock in runtime.get("locks", []) if lock.get("session_id") != session_id]
+        runtime["report_locks"] = [lock for lock in runtime.get("report_locks", []) if lock.get("session_id") != session_id]
         runtime["text_selections"] = {
             key: value for key, value in runtime.get("text_selections", {}).items() if value.get("session_id") != session_id
         }
         self._touch_channel(channel_state)
         return True
 
-    def _channel_to_detail(self, channel_state: dict[str, Any], active_instance_base_url: str | None = None) -> CollabChannelDetail:
+    def _channel_to_detail(
+        self,
+        channel_state: dict[str, Any],
+        active_instance_base_url: str | None = None,
+        user_id: int | None = None,
+    ) -> CollabChannelDetail:
         self._prune_runtime_state(channel_state)
         runtime = self.text_collab.export_runtime(channel_state)
         invite = self._build_invite(channel_state["channel_id"], channel_state["token"], channel_state["owner_base_url"])
         participants = [CollabParticipant.model_validate(item) for item in channel_state["participants"]]
         presence = list(runtime.presence)
         locks = list(runtime.locks)
+        report_locks = (
+            list(channel_state.get("runtime", {}).get("report_locks", [])) if self._is_report_member(channel_state, user_id) else None
+        )
         shared_docs = [
             {
                 "snapshot_id": item.snapshot_id,
@@ -776,18 +927,29 @@ class CollaborationService:
             participants=participants,
             presence=presence,
             locks=locks,
+            report_locks=report_locks,
             shared_docs=shared_docs,
             text_selections=text_selections,
             workspace=workspace,
+            report_workspace=(
+                CollabReportWorkspace.model_validate(self._report_workspace(channel_state))
+                if self._is_report_member(channel_state, user_id)
+                else None
+            ),
             stories=stories,
             result_stories=result_stories,
             created_at=channel_state["created_at"],
             updated_at=channel_state["updated_at"],
-            is_owner=channel_state["owner_base_url"] == active_base_url,
+            is_owner=(
+                channel_state["local_owner"]
+                if channel_state.get("local_owner") is not None
+                else channel_state["owner_base_url"] == active_base_url
+            ),
         )
 
-    def _channel_to_summary(self, channel_state: dict[str, Any]) -> CollabChannelSummary:
+    def _channel_to_summary(self, channel_state: dict[str, Any], user_id: int | None = None) -> CollabChannelSummary:
         invite = self._build_invite(channel_state["channel_id"], channel_state["token"], channel_state["owner_base_url"])
+        workspace = self._report_workspace(channel_state) if self._is_report_member(channel_state, user_id) else None
         return CollabChannelSummary(
             channel_id=channel_state["channel_id"],
             topic=channel_state["topic"],
@@ -798,6 +960,8 @@ class CollaborationService:
             created_at=channel_state["created_at"],
             updated_at=channel_state["updated_at"],
             invite=invite,
+            report_count=len(workspace["drafts"]) if workspace else None,
+            finalized_report_count=sum(bool(draft.get("finalized_report_id")) for draft in workspace["drafts"]) if workspace else None,
         )
 
     def _broadcast_update(
@@ -808,13 +972,14 @@ class CollaborationService:
     ) -> None:
         detail = self._channel_to_detail(channel_state)
         payload = detail.model_dump(mode="json")
+        public_payload = self._peer_channel_payload(payload)
         if closed:
-            sse_manager.collab_channel_closed(payload)
+            sse_manager.collab_channel_closed(public_payload)
         else:
-            sse_manager.collab_channel_updated(payload)
+            sse_manager.collab_channel_updated(public_payload)
 
         skipped = {self._normalize_base_url(base_url) for base_url in (skip_participants or set()) if base_url}
-        sync_payload = {"token": channel_state["token"], "channel": payload}
+        sync_payload = {"token": channel_state["token"], "channel": public_payload}
         for participant in channel_state["participants"]:
             base_url = participant["base_url"]
             if base_url == channel_state["owner_base_url"] or base_url in skipped:
@@ -833,17 +998,34 @@ class CollaborationService:
             raise KeyError(channel_id)
         return channel
 
-    def list_channels(self) -> dict[str, Any]:
+    def list_channels(self, user: User | None = None) -> dict[str, Any]:
         if not self.channels:
             self._load_persisted_channels()
-        items = [self._channel_to_summary(channel).model_dump(mode="json") for channel in self.channels.values()]
+        user_id = user.id if self._eligible_report_user(user) else None
+        items = [self._channel_to_summary(channel, user_id).model_dump(mode="json", exclude_none=True) for channel in self.channels.values()]
         items.sort(key=lambda item: item.get("created_at") or "", reverse=True)
         return {"items": items, "total_count": len(items)}
 
-    def get_channel(self, channel_id: str, active_instance_base_url: str | None = None) -> CollabChannelDetail:
-        return self._channel_to_detail(self._require_channel(channel_id), active_instance_base_url=active_instance_base_url)
+    def get_channel(
+        self,
+        channel_id: str,
+        active_instance_base_url: str | None = None,
+        user: User | None = None,
+        user_id: int | None = None,
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        report_user = user or (User.get(user_id) if user_id is not None else None)
+        if report_user and self._eligible_report_user(report_user) and not self._report_workspace(channel_state)["member_ids"]:
+            self._report_workspace(channel_state)["member_ids"] = [report_user.id]
+            self._persist_channel_state(channel_state, force=True)
+        report_user_id = report_user.id if self._eligible_report_user(report_user) else None
+        return self._channel_to_detail(
+            channel_state,
+            active_instance_base_url=active_instance_base_url,
+            user_id=report_user_id,
+        )
 
-    def create_channel(self, topic: str, story_payloads: list[dict[str, Any]]) -> CollabChannelDetail:
+    def create_channel(self, topic: str, story_payloads: list[dict[str, Any]], user: User | None = None) -> CollabChannelDetail:
         channel_id = str(uuid.uuid4())
         token = self._build_token(channel_id)
         now = _utcnow()
@@ -853,6 +1035,7 @@ class CollaborationService:
             "status": "open",
             "token": token,
             "owner_base_url": self.external_base_url(),
+            "local_owner": True,
             "participants": [
                 {
                     "base_url": self.external_base_url(),
@@ -865,8 +1048,13 @@ class CollaborationService:
                 "locks": [],
                 "shared_docs": {},
                 "text_selections": {},
+                "report_locks": [],
             },
             "workspace": {},
+            "report_workspace": {
+                "member_ids": [user.id] if self._eligible_report_user(user) else [],
+                "drafts": [],
+            },
             "stories": [],
             "result_stories": [],
             "created_at": now.isoformat(),
@@ -878,7 +1066,7 @@ class CollaborationService:
         self.channels[channel_id] = channel_state
         self._persist_channel_state(channel_state, force=True)
         self._broadcast_update(channel_state)
-        return self._channel_to_detail(channel_state)
+        return self._channel_to_detail(channel_state, user_id=getattr(user, "id", None))
 
     def join_owner_channel(self, channel_id: str, token: str, partner_base_url: str) -> CollabChannelDetail:
         channel_state = self._require_channel(channel_id)
@@ -906,6 +1094,7 @@ class CollaborationService:
         detail = CollabChannelDetail.model_validate(response.json())
         channel_state = detail.model_dump(mode="json")
         channel_state["token"] = token
+        channel_state["local_owner"] = False
         self.text_collab.ensure_runtime(channel_state)
         channel_state.setdefault("workspace", self._default_workspace_state(channel_state))
         self._refresh_shared_docs_from_stories(channel_state)
@@ -917,12 +1106,16 @@ class CollaborationService:
     def apply_remote_sync(self, channel_id: str, token: str, channel_payload: dict[str, Any]) -> CollabChannelDetail:
         if channel_payload.get("channel_id") != channel_id:
             raise ValueError("Channel payload mismatch")
-        existing = self.channels.get(channel_id)
+        existing = self.channels.get(channel_id) or self._load_persisted_channel(channel_id)
         if existing and existing.get("token") != token:
             raise PermissionError("Invalid collaboration token")
-        channel_state = copy.deepcopy(channel_payload)
+        local_report_workspace = copy.deepcopy((existing or {}).get("report_workspace", {"member_ids": [], "drafts": []}))
+        local_report_locks = copy.deepcopy((existing or {}).get("runtime", {}).get("report_locks", []))
+        channel_state = self._peer_channel_payload(channel_payload)
         channel_state["token"] = token
         self.text_collab.ensure_runtime(channel_state)
+        channel_state["report_workspace"] = local_report_workspace
+        channel_state.setdefault("runtime", {})["report_locks"] = local_report_locks
         channel_state.setdefault("workspace", self._default_workspace_state(channel_state))
         self._refresh_shared_docs_from_stories(channel_state)
         self.channels[channel_id] = channel_state
@@ -1419,6 +1612,291 @@ class CollaborationService:
         self._persist_channel_state(channel_state)
         return self._channel_to_detail(channel_state, active_instance_base_url=participant_base_url)
 
+    def report_member_candidates(self, channel_id: str, user: User) -> list[dict[str, Any]]:
+        channel_state = self._require_channel(channel_id)
+        self._require_report_member(channel_state, user)
+        return [
+            {"id": candidate.id, "username": candidate.username, "name": candidate.name}
+            for candidate in (User.get_all_for_collector() or [])
+            if self._eligible_report_user(candidate)
+        ]
+
+    def report_types(self, channel_id: str, user: User) -> list[dict[str, Any]]:
+        channel_state = self._require_channel(channel_id)
+        self._require_report_member(channel_state, user)
+        members = User.get_bulk(self._report_workspace(channel_state)["member_ids"])
+        return [
+            {"id": report_type.id, "title": report_type.title}
+            for report_type in (ReportItemType.get_all_for_collector() or [])
+            if self._report_type_allowed_for_members(report_type, members)
+            and all(
+                attribute["type"] != "TLP" or self._validate_tlp_for_members(attribute["value"], members)
+                for attribute in self._report_schema(report_type)
+            )
+        ]
+
+    def replace_report_members(self, channel_id: str, member_ids: list[int], user: User) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Closed channels do not allow report workspace changes")
+        self._require_report_member(channel_state, user)
+        normalized_ids = list(dict.fromkeys(member_ids))
+        members = User.get_bulk(normalized_ids)
+        if not normalized_ids or len(members) != len(normalized_ids) or not all(self._eligible_report_user(member) for member in members):
+            raise ValueError("Every report member must be an eligible local user")
+        for draft in self._report_workspace(channel_state)["drafts"]:
+            report_type = ReportItemType.get(draft["report_item_type_id"])
+            if not report_type or not self._report_type_allowed_for_members(report_type, members):
+                raise PermissionError(f"Report type for '{draft['title']}' is not writable by every selected member")
+            for attribute in draft["attributes"]:
+                if attribute["type"] == "TLP" and not self._validate_tlp_for_members(attribute["value"], members):
+                    raise PermissionError(f"TLP for '{draft['title']}' is not available to every selected member")
+        self._report_workspace(channel_state)["member_ids"] = normalized_ids
+        self._touch_channel(channel_state)
+        self._persist_channel_state(channel_state, force=True)
+        return self._channel_to_detail(channel_state, user_id=user.id)
+
+    def create_report_draft(self, channel_id: str, report_item_type_id: int, user: User, title: str | None = None) -> CollabReportDraft:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Closed channels do not allow new report drafts")
+        self._require_report_member(channel_state, user)
+        report_type = ReportItemType.get(report_item_type_id)
+        members = User.get_bulk(self._report_workspace(channel_state)["member_ids"])
+        if not report_type or not self._report_type_allowed_for_members(report_type, members):
+            raise PermissionError("Report type is not writable by every report member")
+        attributes = self._report_schema(report_type)
+        if not all(attribute["type"] != "TLP" or self._validate_tlp_for_members(attribute["value"], members) for attribute in attributes):
+            raise PermissionError("Default TLP is not available to every report member")
+        now = _utcnow().isoformat()
+        draft = CollabReportDraft(
+            id=str(uuid.uuid4()),
+            title=(title or report_type.title).strip() or report_type.title,
+            creator_id=user.id,
+            report_item_type_id=report_type.id,
+            report_item_type_title=report_type.title,
+            attributes=attributes,
+            selected_story_ids=[story["id"] for story in channel_state["stories"]],
+            created_at=now,
+            updated_at=now,
+        )
+        self._report_workspace(channel_state)["drafts"].append(draft.model_dump(mode="json"))
+        self._touch_channel(channel_state)
+        self._persist_channel_state(channel_state, force=True)
+        return draft
+
+    def delete_report_draft(self, channel_id: str, draft_id: str, user: User) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Closed channels do not allow report workspace changes")
+        self._require_report_member(channel_state, user)
+        workspace = self._report_workspace(channel_state)
+        draft = self._find_report_draft(channel_state, draft_id)
+        if not draft:
+            raise KeyError(draft_id)
+        if draft.get("finalized_report_id"):
+            raise ValueError("Finalized report drafts cannot be deleted")
+        workspace["drafts"] = [item for item in workspace["drafts"] if item.get("id") != draft_id]
+        runtime = channel_state.setdefault("runtime", {})
+        runtime["report_locks"] = [lock for lock in runtime.get("report_locks", []) if lock.get("draft_id") != draft_id]
+        self._touch_channel(channel_state)
+        self._persist_channel_state(channel_state, force=True)
+        return self._channel_to_detail(channel_state, user_id=user.id)
+
+    def _assert_report_field_lock(self, channel_state: dict[str, Any], draft_id: str, field_key: str, session_id: str) -> None:
+        self._prune_runtime_state(channel_state)
+        lock = next(
+            (
+                item
+                for item in channel_state.get("runtime", {}).get("report_locks", [])
+                if item.get("draft_id") == draft_id and item.get("field_key") == field_key
+            ),
+            None,
+        )
+        if lock and lock.get("session_id") != session_id:
+            raise PermissionError(f"Report field is locked by {lock.get('username') or 'another user'}")
+
+    def acquire_report_lock(
+        self, channel_id: str, draft_id: str, field_key: str, user: User, session_id: str, username: str
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Closed channels do not allow report edits")
+        self._require_report_member(channel_state, user)
+        draft = self._find_report_draft(channel_state, draft_id)
+        if not draft:
+            raise KeyError(draft_id)
+        if draft.get("finalized_report_id"):
+            raise ValueError("Finalized report drafts are read-only")
+        self._validate_report_field_key(draft, field_key)
+        self._assert_report_field_lock(channel_state, draft_id, field_key, session_id)
+        now = _utcnow()
+        locks = channel_state.setdefault("runtime", {}).setdefault("report_locks", [])
+        locks[:] = [lock for lock in locks if not (lock.get("draft_id") == draft_id and lock.get("field_key") == field_key)]
+        locks.append(
+            {
+                "draft_id": draft_id,
+                "field_key": field_key,
+                "user_id": user.id,
+                "session_id": session_id,
+                "username": username,
+                "acquired_at": now.isoformat(),
+                "expires_at": (now + timedelta(seconds=self.lock_ttl_seconds)).isoformat(),
+            }
+        )
+        return self._channel_to_detail(channel_state, user_id=user.id)
+
+    def heartbeat_report_lock(self, *args, **kwargs) -> CollabChannelDetail:
+        return self.acquire_report_lock(*args, **kwargs)
+
+    def release_report_lock(self, channel_id: str, draft_id: str, field_key: str, user: User, session_id: str) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        self._require_report_member(channel_state, user)
+        locks = channel_state.setdefault("runtime", {}).setdefault("report_locks", [])
+        locks[:] = [
+            lock
+            for lock in locks
+            if not (lock.get("draft_id") == draft_id and lock.get("field_key") == field_key and lock.get("session_id") == session_id)
+        ]
+        return self._channel_to_detail(channel_state, user_id=user.id)
+
+    @staticmethod
+    def _validate_report_field_key(draft: dict[str, Any], field_key: str) -> None:
+        if field_key in {"title", "completed", "selected_story_ids"}:
+            return
+        if field_key.startswith("attribute:") and any(
+            attribute["key"] == field_key.removeprefix("attribute:") for attribute in draft["attributes"]
+        ):
+            return
+        raise ValueError("Invalid report field key")
+
+    def patch_report_draft(
+        self, channel_id: str, draft_id: str, field_key: str, value: Any, user: User, session_id: str
+    ) -> CollabChannelDetail:
+        channel_state = self._require_channel(channel_id)
+        if channel_state["status"] != "open":
+            raise ValueError("Closed channels do not allow report edits")
+        self._require_report_member(channel_state, user)
+        draft = self._find_report_draft(channel_state, draft_id)
+        if not draft:
+            raise KeyError(draft_id)
+        if draft.get("finalized_report_id"):
+            raise ValueError("Finalized report drafts are read-only")
+        self._validate_report_field_key(draft, field_key)
+        self._assert_report_field_lock(channel_state, draft_id, field_key, session_id)
+        members = User.get_bulk(self._report_workspace(channel_state)["member_ids"])
+        report_type = ReportItemType.get(draft["report_item_type_id"])
+        if not report_type or not self._report_type_allowed_for_members(report_type, members):
+            raise PermissionError("Report type is no longer writable by every report member")
+        if field_key == "title":
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("Report title is required")
+            draft["title"] = value.strip()
+        elif field_key == "completed":
+            if not isinstance(value, bool):
+                raise ValueError("Report completion must be a boolean")
+            draft["completed"] = value
+        elif field_key == "selected_story_ids":
+            if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+                raise ValueError("Selected stories must be a list of snapshot ids")
+            available_ids = {story["id"] for story in channel_state["stories"]}
+            selected_ids = list(dict.fromkeys(value))
+            if not set(selected_ids).issubset(available_ids):
+                raise ValueError("Reports may only select stories in this channel")
+            draft["selected_story_ids"] = selected_ids
+            for attribute in draft["attributes"]:
+                if attribute["type"] == "STORY":
+                    attribute["value"] = ",".join(story_id for story_id in attribute["value"].split(",") if story_id in selected_ids)
+        else:
+            attribute = next(item for item in draft["attributes"] if item["key"] == field_key.removeprefix("attribute:"))
+            if attribute["type"] == "STORY":
+                story_ids = [item for item in (value if isinstance(value, list) else str(value).split(",")) if item]
+                if not set(story_ids).issubset(set(draft["selected_story_ids"])):
+                    raise ValueError("Story attributes may only reference selected report stories")
+                value = ",".join(dict.fromkeys(story_ids))
+            attribute["value"] = self._normalize_report_value(attribute, value, members)
+        draft["updated_at"] = _utcnow().isoformat()
+        self._touch_channel(channel_state)
+        self._persist_channel_state(channel_state, force=True)
+        return self._channel_to_detail(channel_state, user_id=user.id)
+
+    def finalize_report_draft(self, channel_id: str, draft_id: str, user: User) -> str:
+        channel_state = self._require_channel(channel_id)
+        self._require_report_member(channel_state, user)
+        draft = self._find_report_draft(channel_state, draft_id)
+        if not draft:
+            raise KeyError(draft_id)
+        if report_id := draft.get("finalized_report_id"):
+            return report_id
+        creator = User.get(draft["creator_id"])
+        if not creator:
+            raise ValueError("Report draft creator no longer exists")
+        members = User.get_bulk(self._report_workspace(channel_state)["member_ids"])
+        report_type = ReportItemType.get(draft["report_item_type_id"])
+        if not report_type or report_type.title != draft["report_item_type_title"]:
+            raise ValueError("Report type changed or was deleted")
+        if not self._report_type_allowed_for_members(report_type, [creator]):
+            raise PermissionError("Report draft creator can no longer own this report type")
+        current_schema = self._report_schema(report_type)
+        schema_fields = ("key", "title", "description", "group_title", "type", "required", "render_data")
+        if [tuple(attribute.get(key) for key in schema_fields) for attribute in current_schema] != [
+            tuple(attribute.get(key) for key in schema_fields) for attribute in draft["attributes"]
+        ]:
+            raise ValueError("Report type schema changed; create a new draft")
+        if not self._report_type_allowed_for_members(report_type, members):
+            raise PermissionError("Report type is no longer writable by every report member")
+        for attribute in draft["attributes"]:
+            self._normalize_report_value(attribute, attribute["value"], members)
+            if attribute["required"] and not attribute["value"]:
+                raise ValueError(f"{attribute['title']} is required")
+        available_ids = {story["id"] for story in channel_state["result_stories"]}
+        if not set(draft["selected_story_ids"]).issubset(available_ids):
+            raise ValueError("A selected collaboration story was removed")
+        duplicate_ids = self._duplicate_news_item_ids(
+            [story for story in channel_state["result_stories"] if story["id"] in draft["selected_story_ids"]]
+        )
+        if duplicate_ids:
+            raise ValueError("Resolve news items assigned to multiple selected stories before finalizing")
+        result = self.finalize_channel(channel_id, user=user, story_ids=draft["selected_story_ids"])
+        story_id_map = {}
+        for snapshot in channel_state["result_stories"]:
+            if snapshot["id"] not in draft["selected_story_ids"]:
+                continue
+            persisted_id = snapshot.get("persisted_local_story_id")
+            if snapshot.get("source_instance") == self.external_base_url() and Story.get(snapshot.get("source_story_id")):
+                persisted_id = snapshot["source_story_id"]
+            if not persisted_id:
+                raise RuntimeError(f"Finalized story mapping is missing for {snapshot['id']}")
+            story_id_map[snapshot["id"]] = persisted_id
+        attribute_values = {}
+        for attribute in draft["attributes"]:
+            value = attribute["value"]
+            if attribute["type"] == "STORY":
+                value = ",".join(story_id_map[story_id] for story_id in value.split(",") if story_id)
+            attribute_values[attribute["key"]] = value
+        report, status = ReportItem.add(
+            {
+                "title": draft["title"],
+                "completed": draft["completed"],
+                "report_item_type_id": draft["report_item_type_id"],
+                "stories": result.persisted_story_ids,
+            },
+            user,
+            owner=creator,
+            initial_attribute_values=attribute_values,
+        )
+        if status != 200 or not isinstance(report, ReportItem):
+            error = report.get("error", "Failed to create report") if isinstance(report, dict) else "Failed to create report"
+            raise RuntimeError(error)
+        draft["finalized_report_id"] = report.id
+        draft["updated_at"] = _utcnow().isoformat()
+        self._touch_channel(channel_state)
+        self._persist_channel_state(channel_state, force=True)
+        asset_manager.report_item_changed(report)
+        sse_manager.report_item_updated(report.id)
+        invalidate_frontend_cache_on_success(status, models=("report", "story", "product"))
+        return report.id
+
     def add_story_payloads(self, channel_id: str, story_payloads: list[dict[str, Any]], user: User | None = None) -> CollabChannelDetail:
         channel_state = self._require_channel(channel_id)
         if channel_state["status"] != "open":
@@ -1524,16 +2002,15 @@ class CollaborationService:
 
     def finalize_channel(self, channel_id: str, user: User | None = None, story_ids: list[str] | None = None) -> CollabFinalizeResult:
         channel_state = self._require_channel(channel_id)
-        duplicate_news_item_ids = self._duplicate_news_item_ids(channel_state["result_stories"])
+        selected_ids = set(story_ids) if story_ids is not None else None
+        result_stories = [snapshot for snapshot in channel_state["result_stories"] if selected_ids is None or snapshot["id"] in selected_ids]
+        duplicate_news_item_ids = self._duplicate_news_item_ids(result_stories)
         if duplicate_news_item_ids:
             raise ValueError(
                 f"Resolve {len(duplicate_news_item_ids)} news item{'' if len(duplicate_news_item_ids) == 1 else 's'} assigned to "
                 "multiple collaboration stories before finalizing."
             )
-        selected_ids = set(story_ids or [])
-        snapshots = [CollabStorySnapshot.model_validate(snapshot) for snapshot in channel_state["result_stories"]]
-        if selected_ids:
-            snapshots = [snapshot for snapshot in snapshots if snapshot.id in selected_ids]
+        snapshots = [CollabStorySnapshot.model_validate(snapshot) for snapshot in result_stories]
 
         persisted_story_ids: list[str] = []
         created_story_ids: list[str] = []

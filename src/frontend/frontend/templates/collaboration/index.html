@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "analyze/attribute_macros.html" import attribute_field %}
 
 {% block head %}
   <script type="module" src="{{ url_for('static', filename='vendor/codemirror.js') }}"></script>
@@ -130,7 +131,130 @@
         {% endif %}
 
         {% if is_room_view %}
-          <div class="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
+          {% if active_channel.get('report_workspace') is not none %}
+            <div class="tabs tabs-box mb-4 w-fit">
+              <button class="tab {% if request.args.get('mode') != 'reports' %}tab-active{% endif %}" type="button" data-collab-main-mode="stories">Stories</button>
+              <button class="tab {% if request.args.get('mode') == 'reports' %}tab-active{% endif %}" type="button" data-collab-main-mode="reports">Reports</button>
+            </div>
+
+            <div class="{% if request.args.get('mode') != 'reports' %}hidden{% endif %} grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]"
+                 data-collab-main-panel="reports">
+              <aside class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-4 shadow-sm">
+                <h2 class="text-lg font-semibold">Report Drafts</h2>
+                <div class="mt-4 space-y-2">
+                  {% for draft in active_channel.report_workspace.drafts %}
+                    <button class="btn btn-ghost w-full justify-start" type="button" data-collab-report-select="{{ draft.id }}">
+                      {{ draft.title }}{% if draft.finalized_report_id %} · Finalized{% endif %}
+                    </button>
+                  {% else %}
+                    <p class="text-sm text-base-content/60">No report drafts yet.</p>
+                  {% endfor %}
+                </div>
+                {% if active_channel.status == 'open' and report_types %}
+                  <form class="mt-5 space-y-2" method="post" action="{{ url_for('collaboration.create_report_draft', channel_id=active_channel.channel_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                    <input class="input input-bordered input-sm w-full" name="title" placeholder="Optional title">
+                    <select class="select select-bordered select-sm w-full" name="report_item_type_id" required>
+                      <option value="" selected disabled>Report type</option>
+                      {% for report_type in report_types %}<option value="{{ report_type.id }}">{{ report_type.title }}</option>{% endfor %}
+                    </select>
+                    <button class="btn btn-primary btn-sm w-full" type="submit">New report</button>
+                  </form>
+                {% endif %}
+              </aside>
+
+              <section class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-6 shadow-sm">
+                {% for draft in active_channel.report_workspace.drafts %}
+                  {% set read_only = draft.finalized_report_id or active_channel.status != 'open' %}
+                  <div class="{% if not loop.first %}hidden{% endif %} space-y-5" data-collab-report-editor="{{ draft.id }}">
+                    <div class="flex flex-wrap items-center gap-3">
+                      <h2 class="text-xl font-semibold">{{ draft.report_item_type_title }}</h2>
+                      {% if draft.finalized_report_id %}
+                        <a class="btn btn-success btn-sm" href="{{ url_for('analyze.report', report_id=draft.finalized_report_id) }}">Open finalized report</a>
+                      {% endif %}
+                    </div>
+                    <label class="form-control">
+                      <span class="label-text">Title</span>
+                      <input class="input input-bordered w-full"
+                             value="{{ draft.title }}"
+                             data-collab-report-field="title"
+                             data-draft-id="{{ draft.id }}"
+                             {% if read_only %}disabled{% endif %}>
+                    </label>
+                    <label class="flex items-center gap-3">
+                      <input class="toggle toggle-primary"
+                             type="checkbox"
+                             {% if draft.completed %}checked{% endif %}
+                             data-collab-report-field="completed"
+                             data-draft-id="{{ draft.id }}"
+                             {% if read_only %}disabled{% endif %}>
+                      <span>Completed</span>
+                    </label>
+
+                    {% for attribute in draft.attributes %}
+                      <div data-collab-report-field="attribute:{{ attribute.key }}" data-draft-id="{{ draft.id }}" data-report-attribute-type="{{ attribute.type }}">
+                        <fieldset {% if read_only %}disabled{% endif %}>
+                          {{ attribute_field(attribute, read_only=read_only, stories=active_channel.stories) }}
+                        </fieldset>
+                      </div>
+                    {% endfor %}
+
+                    <fieldset class="rounded-box border border-base-300 p-4">
+                      <legend class="px-2 font-semibold">Selected stories</legend>
+                      {% for story in active_channel.stories %}
+                        <label class="mt-2 flex items-center gap-2">
+                          <input type="checkbox"
+                                 value="{{ story.id }}"
+                                 {% if story.id in draft.selected_story_ids %}checked{% endif %}
+                                 data-collab-report-field="selected_story_ids"
+                                 data-draft-id="{{ draft.id }}"
+                                 data-report-value-type="list"
+                                 {% if read_only %}disabled{% endif %}>
+                          <span>{{ story.title or story.id }}</span>
+                        </label>
+                      {% endfor %}
+                    </fieldset>
+                    <div class="flex gap-2">
+                      <form method="post" action="{{ url_for('collaboration.finalize_report_draft', channel_id=active_channel.channel_id, draft_id=draft.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                        <button class="btn btn-primary" type="submit" {% if draft.finalized_report_id %}disabled{% endif %}>Finalize report</button>
+                      </form>
+                      {% if not read_only %}
+                        <form method="post" action="{{ url_for('collaboration.delete_report_draft', channel_id=active_channel.channel_id, draft_id=draft.id) }}">
+                          <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                          <button class="btn btn-ghost text-error" type="submit">Delete draft</button>
+                        </form>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% else %}
+                  <div class="text-sm text-base-content/60">Create a report draft to begin.</div>
+                {% endfor %}
+              </section>
+
+              <aside class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-4 shadow-sm">
+                <h3 class="font-semibold">Report Members</h3>
+                <form class="mt-4 space-y-2" method="post" action="{{ url_for('collaboration.replace_report_members', channel_id=active_channel.channel_id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+                  {% for candidate in report_candidates %}
+                    <label class="flex items-center gap-2">
+                      <input class="checkbox checkbox-sm"
+                             type="checkbox"
+                             name="member_ids"
+                             value="{{ candidate.id }}"
+                             {% if candidate.id in active_channel.report_workspace.member_ids %}checked{% endif %}
+                             {% if active_channel.status != 'open' %}disabled{% endif %}>
+                      <span>{{ candidate.name or candidate.username }}</span>
+                    </label>
+                  {% endfor %}
+                  {% if active_channel.status == 'open' %}<button class="btn btn-outline btn-sm w-full" type="submit">Update members</button>{% endif %}
+                </form>
+              </aside>
+            </div>
+          {% endif %}
+
+          <div class="{% if active_channel.get('report_workspace') is not none and request.args.get('mode') == 'reports' %}hidden{% endif %} grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]"
+               data-collab-main-panel="stories">
             <aside class="rounded-[1.5rem] border border-base-300 bg-base-100/95 p-4 shadow-sm">
               <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-lg font-semibold">Story Queue</h2>

@@ -50,7 +50,13 @@
     }
 
     applyChannelState(channel) {
+      const localReportWorkspace = this.state.channel?.report_workspace;
+      const localReportLocks = this.state.channel?.report_locks;
       this.state.channel = channel || {};
+      if (localReportWorkspace && !Object.hasOwn(this.state.channel, "report_workspace")) {
+        this.state.channel.report_workspace = localReportWorkspace;
+        this.state.channel.report_locks = localReportLocks || [];
+      }
       const focusedStoryId = this.state.channel.workspace?.focused_story_id;
       if (
         !this.state.selectedStoryId

@@ -1,5 +1,5 @@
 import requests
-from flask import Blueprint, Flask, request
+from flask import Blueprint, Flask, g, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.collaboration import (
@@ -11,6 +11,7 @@ from models.collaboration import (
     CollabLivePresenceRequest,
     CollabLiveRemoveNewsItem,
     CollabLiveRemoveStory,
+    CollabLiveReportPatch,
     CollabLiveSelectionClear,
     CollabLiveSelectionUpdate,
     CollabLiveStoryOpsSubmit,
@@ -22,6 +23,8 @@ from models.collaboration import (
     CollabPeerStoriesAdd,
     CollabPeerStoryUpdate,
     CollabRemoteSync,
+    CollabReportDraftCreate,
+    CollabReportMembersReplace,
     CollabStoriesAdd,
     CollabStoryUpdate,
 )
@@ -29,6 +32,7 @@ from pydantic import ValidationError
 
 from core.config import Config
 from core.managers.auth_manager import api_key_or_auth_required, auth_required
+from core.model.user import User
 from core.service.collaboration import collaboration_service
 
 
@@ -51,13 +55,29 @@ def collaboration_service_story_access(story_id: str) -> tuple[dict, int]:
     return Story.get_for_api(story_id, current_user)
 
 
+def _local_actor_user(actor) -> User:
+    if collaboration_service._normalize_base_url(actor.base_url) != collaboration_service.external_base_url():
+        raise PermissionError("Report workspaces are local to this instance")
+    user = User.get(actor.user_id) if actor.user_id is not None else User.find_by_name(actor.username)
+    if not user or user.username != actor.username:
+        raise PermissionError("Unknown local report workspace user")
+    authenticated_user = getattr(g, "authenticated_user", None)
+    if authenticated_user is not None and authenticated_user.id != user.id:
+        raise PermissionError("Report workspace actor does not match the authenticated user")
+    return user
+
+
+def _peer_detail(detail) -> dict:
+    return collaboration_service._peer_channel_payload(detail.model_dump(mode="json"))
+
+
 class CollaborationChannels(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, channel_id: str | None = None):
         if channel_id:
-            detail = collaboration_service.get_channel(channel_id)
-            return detail.model_dump(mode="json"), 200
-        return collaboration_service.list_channels(), 200
+            detail = collaboration_service.get_channel(channel_id, user=current_user)
+            return detail.model_dump(mode="json", exclude_none=True), 200
+        return collaboration_service.list_channels(current_user), 200
 
     @auth_required("ASSESS_UPDATE")
     def post(self):
@@ -67,8 +87,8 @@ class CollaborationChannels(MethodView):
             return _validation_error(exc)
 
         story_payloads = _story_payloads_from_ids(payload.story_ids)
-        detail = collaboration_service.create_channel(payload.topic, story_payloads)
-        return detail.model_dump(mode="json"), 200
+        detail = collaboration_service.create_channel(payload.topic, story_payloads, current_user)
+        return detail.model_dump(mode="json", exclude_none=True), 200
 
 
 class CollaborationInviteRedeem(MethodView):
@@ -94,7 +114,7 @@ class CollaborationStories(MethodView):
         except ValidationError as exc:
             return _validation_error(exc)
 
-        detail = collaboration_service.get_channel(channel_id)
+        detail = collaboration_service.get_channel(channel_id, active_instance_base_url=collaboration_service.external_base_url())
         story_payloads = _story_payloads_from_ids(payload.story_ids)
 
         try:
@@ -146,7 +166,7 @@ class CollaborationPeerJoin(MethodView):
             return {"error": str(exc)}, 403
         except ValueError as exc:
             return {"error": str(exc)}, 400
-        return detail.model_dump(mode="json"), 200
+        return _peer_detail(detail), 200
 
 
 class CollaborationPeerStories(MethodView):
@@ -169,7 +189,7 @@ class CollaborationPeerStories(MethodView):
             return {"error": str(exc)}, 403
         except ValueError as exc:
             return {"error": str(exc)}, 400
-        return detail.model_dump(mode="json"), 200
+        return _peer_detail(detail), 200
 
 
 class CollaborationRemoteSync(MethodView):
@@ -185,13 +205,15 @@ class CollaborationRemoteSync(MethodView):
             return {"error": str(exc)}, 403
         except ValueError as exc:
             return {"error": str(exc)}, 400
-        return detail.model_dump(mode="json"), 200
+        return _peer_detail(detail), 200
 
 
 class CollaborationLiveState(MethodView):
     @api_key_or_auth_required("ASSESS_ACCESS")
     def get(self, channel_id: str):
-        detail = collaboration_service.get_channel(channel_id)
+        authenticated_user = getattr(g, "authenticated_user", None)
+        user_id = authenticated_user.id if authenticated_user is not None else request.args.get("user_id", type=int)
+        detail = collaboration_service.get_channel(channel_id, user_id=user_id)
         return detail.model_dump(mode="json"), 200
 
 
@@ -238,17 +260,31 @@ class CollaborationLiveLockAcquire(MethodView):
             return _validation_error(exc)
 
         try:
-            detail = collaboration_service.acquire_field_lock(
-                channel_id,
-                snapshot_id=payload.snapshot_id,
-                field_name=payload.field_name,
-                participant_base_url=payload.actor.base_url,
-                session_id=payload.actor.session_id,
-                username=payload.actor.username,
-                selected_story_id=payload.selected_story_id,
-            )
+            if payload.draft_id and payload.field_key:
+                detail = collaboration_service.acquire_report_lock(
+                    channel_id,
+                    payload.draft_id,
+                    payload.field_key,
+                    _local_actor_user(payload.actor),
+                    payload.actor.session_id,
+                    payload.actor.username,
+                )
+            elif payload.snapshot_id and payload.field_name:
+                detail = collaboration_service.acquire_field_lock(
+                    channel_id,
+                    snapshot_id=payload.snapshot_id,
+                    field_name=payload.field_name,
+                    participant_base_url=payload.actor.base_url,
+                    session_id=payload.actor.session_id,
+                    username=payload.actor.username,
+                    selected_story_id=payload.selected_story_id,
+                )
+            else:
+                raise ValueError("A story or report field is required")
         except PermissionError as exc:
             return {"error": str(exc)}, 409
+        except KeyError:
+            return {"error": "Report draft not found"}, 404
         except ValueError as exc:
             return {"error": str(exc)}, 400
         return detail.model_dump(mode="json"), 200
@@ -263,17 +299,31 @@ class CollaborationLiveLockHeartbeat(MethodView):
             return _validation_error(exc)
 
         try:
-            detail = collaboration_service.heartbeat_field_lock(
-                channel_id,
-                snapshot_id=payload.snapshot_id,
-                field_name=payload.field_name,
-                participant_base_url=payload.actor.base_url,
-                session_id=payload.actor.session_id,
-                username=payload.actor.username,
-                selected_story_id=payload.selected_story_id,
-            )
+            if payload.draft_id and payload.field_key:
+                detail = collaboration_service.heartbeat_report_lock(
+                    channel_id,
+                    payload.draft_id,
+                    payload.field_key,
+                    _local_actor_user(payload.actor),
+                    payload.actor.session_id,
+                    payload.actor.username,
+                )
+            elif payload.snapshot_id and payload.field_name:
+                detail = collaboration_service.heartbeat_field_lock(
+                    channel_id,
+                    snapshot_id=payload.snapshot_id,
+                    field_name=payload.field_name,
+                    participant_base_url=payload.actor.base_url,
+                    session_id=payload.actor.session_id,
+                    username=payload.actor.username,
+                    selected_story_id=payload.selected_story_id,
+                )
+            else:
+                raise ValueError("A story or report field is required")
         except PermissionError as exc:
             return {"error": str(exc)}, 409
+        except KeyError:
+            return {"error": "Report draft not found"}, 404
         except ValueError as exc:
             return {"error": str(exc)}, 400
         return detail.model_dump(mode="json"), 200
@@ -287,13 +337,53 @@ class CollaborationLiveLockRelease(MethodView):
         except ValidationError as exc:
             return _validation_error(exc)
 
-        detail = collaboration_service.release_field_lock(
-            channel_id,
-            snapshot_id=payload.snapshot_id,
-            field_name=payload.field_name,
-            session_id=payload.actor.session_id,
-            active_instance_base_url=payload.actor.base_url,
-        )
+        try:
+            if payload.draft_id and payload.field_key:
+                detail = collaboration_service.release_report_lock(
+                    channel_id,
+                    payload.draft_id,
+                    payload.field_key,
+                    _local_actor_user(payload.actor),
+                    payload.actor.session_id,
+                )
+            elif payload.snapshot_id and payload.field_name:
+                detail = collaboration_service.release_field_lock(
+                    channel_id,
+                    snapshot_id=payload.snapshot_id,
+                    field_name=payload.field_name,
+                    session_id=payload.actor.session_id,
+                    active_instance_base_url=payload.actor.base_url,
+                )
+            else:
+                raise ValueError("A story or report field is required")
+        except PermissionError as exc:
+            return {"error": str(exc)}, 409
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationLiveReportPatchView(MethodView):
+    @api_key_or_auth_required()
+    def post(self, channel_id: str):
+        try:
+            payload = CollabLiveReportPatch.model_validate(request.get_json(silent=True) or {})
+            detail = collaboration_service.patch_report_draft(
+                channel_id,
+                payload.draft_id,
+                payload.field_key,
+                payload.value,
+                _local_actor_user(payload.actor),
+                payload.actor.session_id,
+            )
+        except ValidationError as exc:
+            return _validation_error(exc)
+        except KeyError:
+            return {"error": "Report draft not found"}, 404
+        except PermissionError as exc:
+            return {"error": str(exc)}, 403
+        except (TypeError, ValueError) as exc:
+            return {"error": str(exc)}, 400
         return detail.model_dump(mode="json"), 200
 
 
@@ -510,7 +600,7 @@ class CollaborationStoryUpdate(MethodView):
         except ValidationError as exc:
             return _validation_error(exc)
 
-        detail = collaboration_service.get_channel(channel_id)
+        detail = collaboration_service.get_channel(channel_id, active_instance_base_url=collaboration_service.external_base_url())
         try:
             if detail.is_owner:
                 updated = collaboration_service.update_story_snapshot(channel_id, payload.snapshot_id, payload.payload.model_dump())
@@ -562,7 +652,7 @@ class CollaborationPeerStoryUpdate(MethodView):
             return {"error": str(exc)}, 403
         except ValueError as exc:
             return {"error": str(exc)}, 400
-        return detail.model_dump(mode="json"), 200
+        return _peer_detail(detail), 200
 
 
 class CollaborationMoveNewsItemView(MethodView):
@@ -573,7 +663,7 @@ class CollaborationMoveNewsItemView(MethodView):
         except ValidationError as exc:
             return _validation_error(exc)
 
-        detail = collaboration_service.get_channel(channel_id)
+        detail = collaboration_service.get_channel(channel_id, active_instance_base_url=collaboration_service.external_base_url())
         try:
             if detail.is_owner:
                 updated = collaboration_service.move_news_item(
@@ -632,7 +722,91 @@ class CollaborationPeerMoveNewsItemView(MethodView):
             return {"error": str(exc)}, 403
         except ValueError as exc:
             return {"error": str(exc)}, 400
+        return _peer_detail(detail), 200
+
+
+class CollaborationReportCandidates(MethodView):
+    @auth_required(["ASSESS_ACCESS", "ASSESS_UPDATE", "ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_UPDATE"])
+    def get(self, channel_id: str):
+        try:
+            return {"items": collaboration_service.report_member_candidates(channel_id, current_user)}, 200
+        except KeyError:
+            return {"error": "Collaboration channel not found"}, 404
+        except PermissionError as exc:
+            return {"error": str(exc)}, 403
+
+
+class CollaborationReportTypes(MethodView):
+    @auth_required(["ASSESS_ACCESS", "ASSESS_UPDATE", "ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_UPDATE"])
+    def get(self, channel_id: str):
+        try:
+            return {"items": collaboration_service.report_types(channel_id, current_user)}, 200
+        except KeyError:
+            return {"error": "Collaboration channel not found"}, 404
+        except PermissionError as exc:
+            return {"error": str(exc)}, 403
+
+
+class CollaborationReportMembers(MethodView):
+    @auth_required(["ASSESS_ACCESS", "ASSESS_UPDATE", "ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_UPDATE"])
+    def put(self, channel_id: str):
+        try:
+            payload = CollabReportMembersReplace.model_validate(request.get_json(silent=True) or {})
+            detail = collaboration_service.replace_report_members(channel_id, payload.member_ids, current_user)
+        except ValidationError as exc:
+            return _validation_error(exc)
+        except KeyError:
+            return {"error": "Collaboration channel not found"}, 404
+        except PermissionError as exc:
+            return {"error": str(exc)}, 403
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
         return detail.model_dump(mode="json"), 200
+
+
+class CollaborationReportDrafts(MethodView):
+    @auth_required(["ASSESS_ACCESS", "ASSESS_UPDATE", "ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_UPDATE"])
+    def post(self, channel_id: str):
+        try:
+            payload = CollabReportDraftCreate.model_validate(request.get_json(silent=True) or {})
+            draft = collaboration_service.create_report_draft(channel_id, payload.report_item_type_id, current_user, payload.title)
+        except ValidationError as exc:
+            return _validation_error(exc)
+        except KeyError:
+            return {"error": "Collaboration channel not found"}, 404
+        except PermissionError as exc:
+            return {"error": str(exc)}, 403
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return draft.model_dump(mode="json"), 201
+
+    @auth_required(["ASSESS_ACCESS", "ASSESS_UPDATE", "ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_UPDATE"])
+    def delete(self, channel_id: str, draft_id: str):
+        try:
+            detail = collaboration_service.delete_report_draft(channel_id, draft_id, current_user)
+        except KeyError:
+            return {"error": "Report draft not found"}, 404
+        except PermissionError as exc:
+            return {"error": str(exc)}, 403
+        except ValueError as exc:
+            return {"error": str(exc)}, 400
+        return detail.model_dump(mode="json"), 200
+
+
+class CollaborationReportFinalize(MethodView):
+    @auth_required(["ASSESS_ACCESS", "ASSESS_UPDATE", "ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_UPDATE"])
+    def post(self, channel_id: str, draft_id: str):
+        try:
+            report_id = collaboration_service.finalize_report_draft(channel_id, draft_id, current_user)
+        except KeyError:
+            return {"error": "Report draft not found"}, 404
+        except PermissionError as exc:
+            return {"error": str(exc)}, 403
+        except ValueError as exc:
+            return {"error": str(exc)}, 409
+        except RuntimeError as exc:
+            return {"error": str(exc)}, 500
+        return {"report_id": report_id}, 200
 
 
 class CollaborationFinalize(MethodView):
@@ -644,7 +818,7 @@ class CollaborationFinalize(MethodView):
             return _validation_error(exc)
 
         try:
-            result = collaboration_service.finalize_channel(channel_id, current_user, payload.story_ids)
+            result = collaboration_service.finalize_channel(channel_id, current_user, payload.story_ids or None)
         except ValueError as exc:
             return {"error": str(exc)}, 409
         return result.model_dump(mode="json"), 200
@@ -653,7 +827,7 @@ class CollaborationFinalize(MethodView):
 class CollaborationClose(MethodView):
     @auth_required("ASSESS_UPDATE")
     def post(self, channel_id: str):
-        detail = collaboration_service.get_channel(channel_id)
+        detail = collaboration_service.get_channel(channel_id, active_instance_base_url=collaboration_service.external_base_url())
         try:
             if detail.is_owner:
                 closed = collaboration_service.close_channel(channel_id)
@@ -685,7 +859,7 @@ class CollaborationOwnerClose(MethodView):
             closed = collaboration_service.close_channel(channel_id)
         except KeyError:
             return {"error": "Collaboration channel not found"}, 404
-        return closed.model_dump(mode="json"), 200
+        return _peer_detail(closed), 200
 
 
 def initialize(app: Flask):
@@ -796,6 +970,41 @@ def initialize(app: Flask):
     collab_bp.add_url_rule(
         "/channels/<string:channel_id>/live/workspace-patch",
         view_func=CollaborationLiveWorkspacePatchView.as_view("collab_live_workspace_patch"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/live/report-patch",
+        view_func=CollaborationLiveReportPatchView.as_view("collab_live_report_patch"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/report-candidates",
+        view_func=CollaborationReportCandidates.as_view("collab_report_candidates"),
+        methods=["GET"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/report-types",
+        view_func=CollaborationReportTypes.as_view("collab_report_types"),
+        methods=["GET"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/report-members",
+        view_func=CollaborationReportMembers.as_view("collab_report_members"),
+        methods=["PUT"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/report-drafts",
+        view_func=CollaborationReportDrafts.as_view("collab_report_drafts"),
+        methods=["POST"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/report-drafts/<string:draft_id>",
+        view_func=CollaborationReportDrafts.as_view("collab_report_draft"),
+        methods=["DELETE"],
+    )
+    collab_bp.add_url_rule(
+        "/channels/<string:channel_id>/report-drafts/<string:draft_id>/finalize",
+        view_func=CollaborationReportFinalize.as_view("collab_report_finalize"),
         methods=["POST"],
     )
     collab_bp.add_url_rule(

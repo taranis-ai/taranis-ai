@@ -8,6 +8,15 @@ class CollabParticipant(TaranisBaseModel):
     role: Literal["owner", "participant"]
     joined_at: datetime | None
 
+class CollabReportFieldLock(TaranisBaseModel):
+    draft_id: str
+    field_key: str
+    user_id: int
+    session_id: str
+    username: str
+    acquired_at: datetime | None
+    expires_at: datetime | None
+
 class CollabTextDocState(TaranisBaseModel):
     snapshot_id: str
     field_name: Literal["title", "description", "summary", "comments"]
@@ -83,6 +92,35 @@ class CollabChannelSummary(TaranisBaseModel):
     created_at: datetime | None
     updated_at: datetime | None
     invite: CollabInvite | None
+    report_count: int | None
+    finalized_report_count: int | None
+
+class CollabReportAttribute(TaranisBaseModel):
+    key: str
+    title: str
+    description: str | None
+    group_title: str
+    type: str
+    required: bool
+    value: str
+    render_data: dict[str, Any]
+
+class CollabReportDraft(TaranisBaseModel):
+    id: str
+    title: str
+    creator_id: int
+    report_item_type_id: int
+    report_item_type_title: str
+    completed: bool
+    attributes: list[CollabReportAttribute]
+    selected_story_ids: list[str]
+    finalized_report_id: str | None
+    created_at: datetime | None
+    updated_at: datetime | None
+
+class CollabReportWorkspace(TaranisBaseModel):
+    member_ids: list[int]
+    drafts: list[CollabReportDraft]
 
 class CollabChannelDetail(TaranisBaseModel):
     _core_endpoint: ClassVar[str]
@@ -97,9 +135,11 @@ class CollabChannelDetail(TaranisBaseModel):
     participants: list[CollabParticipant]
     presence: list[Any]
     locks: list[Any]
+    report_locks: list[CollabReportFieldLock] | None
     shared_docs: list[CollabTextDocState]
     text_selections: list[CollabTextSelectionPresence]
     workspace: Any
+    report_workspace: CollabReportWorkspace | None
     stories: list[CollabStorySnapshot]
     result_stories: list[CollabStorySnapshot]
     created_at: datetime | None
@@ -138,3 +178,16 @@ class CollabFinalizeResult(TaranisBaseModel):
     channel_id: str
     created_story_ids: list[str]
     report_story_ids: list[str]
+
+class CollabReportMembersReplace(TaranisBaseModel):
+    member_ids: list[int]
+
+class CollabReportDraftCreate(TaranisBaseModel):
+    report_item_type_id: int
+    title: str | None
+
+class CollabLiveReportPatch(TaranisBaseModel):
+    draft_id: str
+    field_key: str
+    value: Any
+    actor: Any

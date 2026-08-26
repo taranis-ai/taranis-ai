@@ -17,6 +17,7 @@
   const connectionBadge = document.querySelector("[data-collab-connection-status]");
   const saveStatusNode = document.querySelector("[data-collab-save-status]");
   const fieldElements = Array.from(document.querySelectorAll("[data-collab-field]"));
+  const reportFieldElements = Array.from(document.querySelectorAll("[data-collab-report-field]"));
   const lockStatusElements = new Map(
     Array.from(document.querySelectorAll("[data-collab-lock-status]")).map((node) => [node.dataset.collabLockStatus, node]),
   );
@@ -28,6 +29,7 @@
     socket: null,
     selectionTimer: null,
     fields: new Map(),
+    reportHeartbeats: new Map(),
   };
 
   const escapeHtml = (value) => String(value || "")
@@ -735,6 +737,107 @@
   const applyChannelUpdate = (channel) => {
     store.applyChannelState(channel);
     render();
+    syncReportFields(channel);
+  };
+
+  const reportControls = (element) => element.matches("input, select, textarea")
+    ? [element]
+    : Array.from(element.querySelectorAll("input:not([type='hidden']), select, textarea"));
+
+  const reportFieldValue = (element) => {
+    if (element.dataset.reportValueType === "list") {
+      return reportFieldElements
+        .filter((item) => item.dataset.draftId === element.dataset.draftId
+          && item.dataset.collabReportField === element.dataset.collabReportField
+          && item.checked)
+        .map((item) => item.value);
+    }
+    const controls = reportControls(element);
+    const attributeType = element.dataset.reportAttributeType;
+    if (attributeType === "STORY") {
+      return Array.from(controls[0]?.selectedOptions || []).map((option) => option.value);
+    }
+    if (attributeType === "RADIO") {
+      return controls.find((control) => control.checked)?.value || "";
+    }
+    if (attributeType === "BOOLEAN") {
+      return controls[0]?.checked ? "Yes" : "No";
+    }
+    if (element.type === "checkbox") {
+      return element.checked;
+    }
+    return controls[0]?.value || "";
+  };
+
+  const reportDraft = (channel, draftId) => (channel.report_workspace?.drafts || []).find((draft) => draft.id === draftId);
+
+  const syncReportFields = (channel) => {
+    reportFieldElements.forEach((element) => {
+      const draft = reportDraft(channel, element.dataset.draftId);
+      if (!draft) {
+        return;
+      }
+      let value = draft[element.dataset.collabReportField];
+      if (element.dataset.collabReportField.startsWith("attribute:")) {
+        const key = element.dataset.collabReportField.slice("attribute:".length);
+        value = draft.attributes.find((attribute) => attribute.key === key)?.value ?? "";
+      }
+      const controls = reportControls(element);
+      if (!controls.length) {
+        return;
+      }
+      const attributeType = element.dataset.reportAttributeType;
+      if (attributeType === "STORY") {
+        const selected = new Set(String(value || "").split(","));
+        const available = new Set(draft.selected_story_ids || []);
+        Array.from(controls[0]?.options || []).forEach((option) => {
+          option.selected = available.has(option.value) && selected.has(option.value);
+          option.disabled = !available.has(option.value);
+        });
+      } else if (attributeType === "RADIO") {
+        controls.forEach((control) => {
+          control.checked = control.value === value;
+        });
+      } else if (attributeType === "BOOLEAN") {
+        controls[0].checked = value === "Yes";
+      } else if (element.dataset.reportValueType === "list") {
+        const selected = Array.isArray(value) ? value : String(value || "").split(",");
+        element.checked = selected.includes(element.value);
+      } else if (element.type === "checkbox") {
+        element.checked = Boolean(value);
+      } else if (!controls.includes(document.activeElement)) {
+        controls[0].value = value ?? "";
+      }
+      const lock = (channel.report_locks || []).find((item) => item.draft_id === element.dataset.draftId
+        && item.field_key === element.dataset.collabReportField);
+      const lockedByOther = lock && lock.session_id !== store.state.sessionId;
+      controls.forEach((control) => {
+        control.disabled = channel.status !== "open" || Boolean(draft.finalized_report_id) || lockedByOther;
+      });
+      element.title = lockedByOther ? `Locked by ${lock.username || "another user"}` : "";
+    });
+  };
+
+  const reportLockPayload = (element) => ({
+    draft_id: element.dataset.draftId,
+    field_key: element.dataset.collabReportField,
+  });
+
+  const acquireReportField = (element) => {
+    const key = `${element.dataset.draftId}:${element.dataset.collabReportField}`;
+    sendMessage("collab.lock.acquire", reportLockPayload(element));
+    if (!runtime.reportHeartbeats.has(key)) {
+      runtime.reportHeartbeats.set(key, window.setInterval(() => {
+        sendMessage("collab.lock.heartbeat", reportLockPayload(element));
+      }, 5000));
+    }
+  };
+
+  const releaseReportField = (element) => {
+    const key = `${element.dataset.draftId}:${element.dataset.collabReportField}`;
+    window.clearInterval(runtime.reportHeartbeats.get(key));
+    runtime.reportHeartbeats.delete(key);
+    sendMessage("collab.lock.release", reportLockPayload(element));
   };
 
   const applySelectionEvent = (payload) => {
@@ -875,6 +978,26 @@
   };
 
   document.addEventListener("click", (event) => {
+    const mainModeButton = event.target.closest("[data-collab-main-mode]");
+    if (mainModeButton) {
+      const mode = mainModeButton.dataset.collabMainMode;
+      document.querySelectorAll("[data-collab-main-mode]").forEach((button) => {
+        button.classList.toggle("tab-active", button.dataset.collabMainMode === mode);
+      });
+      document.querySelectorAll("[data-collab-main-panel]").forEach((panel) => {
+        panel.classList.toggle("hidden", panel.dataset.collabMainPanel !== mode);
+      });
+      return;
+    }
+
+    const reportSelectButton = event.target.closest("[data-collab-report-select]");
+    if (reportSelectButton) {
+      document.querySelectorAll("[data-collab-report-editor]").forEach((editor) => {
+        editor.classList.toggle("hidden", editor.dataset.collabReportEditor !== reportSelectButton.dataset.collabReportSelect);
+      });
+      return;
+    }
+
     const copyButton = event.target.closest("[data-collab-copy-link]");
     if (copyButton) {
       const link = copyButton.dataset.collabCopyLink;
@@ -1004,6 +1127,32 @@
     }
   });
 
+  document.addEventListener("focusin", (event) => {
+    const field = event.target.closest("[data-collab-report-field]");
+    if (field && !field.disabled) {
+      acquireReportField(field);
+    }
+  });
+
+  document.addEventListener("focusout", (event) => {
+    const field = event.target.closest("[data-collab-report-field]");
+    if (field) {
+      releaseReportField(field);
+    }
+  });
+
+  document.addEventListener("change", (event) => {
+    const field = event.target.closest("[data-collab-report-field]");
+    if (!field || field.disabled) {
+      return;
+    }
+    sendMessage("collab.report.patch", {
+      ...reportLockPayload(field),
+      value: reportFieldValue(field),
+    });
+    setSaveStatus("Saving report field...");
+  });
+
   document.addEventListener("submit", (event) => {
     const entryForm = event.target.closest("[data-collab-entry-form]");
     if (entryForm) {
@@ -1086,6 +1235,7 @@
     if (runtime.socket) {
       runtime.socket.close();
     }
+    runtime.reportHeartbeats.forEach((timer) => window.clearInterval(timer));
   }, { once: true });
 
   mountEditors();

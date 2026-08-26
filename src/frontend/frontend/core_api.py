@@ -316,6 +316,27 @@ class CoreApi:
     def close_collaboration_channel(self, channel_id: str) -> requests.Response:
         return self.api_post(f"/assess/collab/channels/{channel_id}/close")
 
+    def get_collaboration_report_candidates(self, channel_id: str):
+        return self.api_get(f"/assess/collab/channels/{channel_id}/report-candidates")
+
+    def get_collaboration_report_types(self, channel_id: str):
+        return self.api_get(f"/assess/collab/channels/{channel_id}/report-types")
+
+    def replace_collaboration_report_members(self, channel_id: str, member_ids: list[int]) -> requests.Response:
+        return self.api_put(f"/assess/collab/channels/{channel_id}/report-members", json_data={"member_ids": member_ids})
+
+    def create_collaboration_report_draft(self, channel_id: str, report_item_type_id: int, title: str | None = None) -> requests.Response:
+        return self.api_post(
+            f"/assess/collab/channels/{channel_id}/report-drafts",
+            json_data={"report_item_type_id": report_item_type_id, "title": title},
+        )
+
+    def delete_collaboration_report_draft(self, channel_id: str, draft_id: str) -> requests.Response:
+        return self.api_delete(f"/assess/collab/channels/{channel_id}/report-drafts/{draft_id}")
+
+    def finalize_collaboration_report_draft(self, channel_id: str, draft_id: str) -> requests.Response:
+        return self.api_post(f"/assess/collab/channels/{channel_id}/report-drafts/{draft_id}/finalize")
+
     def resolve_story_conflict(self, story_id: str, resolution: dict, incoming_story_original: dict):
         payload = {
             "resolution": resolution,

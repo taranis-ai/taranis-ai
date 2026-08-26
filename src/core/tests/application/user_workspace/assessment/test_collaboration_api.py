@@ -39,6 +39,176 @@ def test_create_collaboration_channel_from_story(client, auth_header, stories):
     assert len(payload["stories"]) == 1
     assert payload["stories"][0]["source_story_id"] == stories[0]
 
+    legacy_state = copy.deepcopy(collaboration_service.channels[payload["channel_id"]])
+    legacy_state.pop("local_owner", None)
+    legacy_state["owner_base_url"] = "http://frontendupstream"
+    legacy_state["participants"][0]["base_url"] = "http://frontendupstream"
+    CollaborationChannelRecord.upsert_state(legacy_state)
+    collaboration_service.channels.clear()
+    migrated = collaboration_service.get_channel(payload["channel_id"])
+    assert migrated.owner_base_url == collaboration_service.external_base_url()
+    assert migrated.is_owner
+
+
+def test_local_report_workspace_draft_can_be_edited_and_finalized(client, auth_header, stories, admin_user, cleanup_report_item):
+    created = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Local report", "story_ids": [stories[0]]},
+        headers=auth_header,
+    ).get_json()
+    channel_id = created["channel_id"]
+    assert created["report_workspace"]["member_ids"] == [admin_user.id]
+
+    draft_response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/report-drafts",
+        json={"report_item_type_id": cleanup_report_item["report_item_type_id"]},
+        headers=auth_header,
+    )
+    assert draft_response.status_code == 201
+    draft = draft_response.get_json()
+    actor = {
+        "base_url": collaboration_service.external_base_url(),
+        "session_id": "report-session",
+        "username": admin_user.username,
+        "user_id": admin_user.id,
+    }
+    patched = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/report-patch",
+        json={"draft_id": draft["id"], "field_key": "title", "value": "Joint report", "actor": actor},
+        headers=auth_header,
+    )
+    assert patched.status_code == 200
+    empty_draft = client.post(
+        f"/api/assess/collab/channels/{channel_id}/report-drafts",
+        json={"report_item_type_id": cleanup_report_item["report_item_type_id"], "title": "Empty report"},
+        headers=auth_header,
+    ).get_json()
+    empty_selection = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/report-patch",
+        json={"draft_id": empty_draft["id"], "field_key": "selected_story_ids", "value": [], "actor": actor},
+        headers=auth_header,
+    )
+    assert empty_selection.status_code == 200
+    collaboration_service.close_channel(channel_id)
+
+    finalized = client.post(
+        f"/api/assess/collab/channels/{channel_id}/report-drafts/{draft['id']}/finalize",
+        headers=auth_header,
+    )
+    repeated = client.post(
+        f"/api/assess/collab/channels/{channel_id}/report-drafts/{draft['id']}/finalize",
+        headers=auth_header,
+    )
+    finalized_empty = client.post(
+        f"/api/assess/collab/channels/{channel_id}/report-drafts/{empty_draft['id']}/finalize",
+        headers=auth_header,
+    )
+    assert finalized.status_code == 200
+    assert repeated.get_json() == finalized.get_json()
+    report = ReportItem.get(finalized.get_json()["report_id"])
+    assert report is not None
+    assert report.title == "Joint report"
+    assert report.user_id == admin_user.id
+    assert [story.id for story in report.stories] == [stories[0]]
+    assert ReportItem.get(finalized_empty.get_json()["report_id"]).stories == []
+
+
+def test_owner_can_add_story_after_report_finalization(client, auth_header, stories, cleanup_report_item):
+    created = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Continue after report", "story_ids": [stories[0]]},
+        headers=auth_header,
+    ).get_json()
+    channel_id = created["channel_id"]
+    assert collaboration_service.get_channel(channel_id, active_instance_base_url="http://another-proxy").is_owner
+    draft = client.post(
+        f"/api/assess/collab/channels/{channel_id}/report-drafts",
+        json={"report_item_type_id": cleanup_report_item["report_item_type_id"]},
+        headers=auth_header,
+    ).get_json()
+
+    finalized = client.post(
+        f"/api/assess/collab/channels/{channel_id}/report-drafts/{draft['id']}/finalize",
+        headers=auth_header,
+    )
+    assert finalized.status_code == 200
+
+    added = client.post(
+        f"/api/assess/collab/channels/{channel_id}/stories",
+        json={"story_ids": [stories[1]]},
+        headers=auth_header,
+    )
+    assert added.status_code == 200
+    assert {story["source_story_id"] for story in added.get_json()["stories"]} == {stories[0], stories[1]}
+
+
+def test_report_workspace_is_local_only_and_survives_remote_sync(client, auth_header, stories, admin_user, cleanup_report_item):
+    created = client.post(
+        "/api/assess/collab/channels",
+        json={"topic": "Local only", "story_ids": [stories[0]]},
+        headers=auth_header,
+    ).get_json()
+    channel_id = created["channel_id"]
+    token = created["invite"]["token"]
+
+    peer_response = client.post(
+        f"/api/assess/collab/channels/{channel_id}/join",
+        json={"token": token, "partner_base_url": "https://peer.demo"},
+    )
+    assert "report_workspace" not in peer_response.get_json()
+    assert "report_locks" not in peer_response.get_json()
+
+    client.post(
+        f"/api/assess/collab/channels/{channel_id}/report-drafts",
+        json={"report_item_type_id": cleanup_report_item["report_item_type_id"]},
+        headers=auth_header,
+    )
+
+    local_workspace = copy.deepcopy(collaboration_service.channels[channel_id]["report_workspace"])
+    remote_payload = collaboration_service._peer_channel_payload(created)
+    remote_payload["topic"] = "Synced story topic"
+    collaboration_service.channels.clear()
+    collaboration_service.apply_remote_sync(channel_id, token, remote_payload)
+    assert collaboration_service.channels[channel_id]["report_workspace"] == local_workspace
+    collaboration_service.channels.clear()
+    reloaded_workspace = collaboration_service.get_channel(channel_id, user=admin_user).report_workspace
+    assert reloaded_workspace is not None
+    assert reloaded_workspace.model_dump(mode="json") == local_workspace
+    assert collaboration_service.get_channel(channel_id, user_id=-1).report_workspace is None
+
+
+def test_report_field_locks_block_other_sessions(client, auth_header, admin_user, cleanup_report_item):
+    created = client.post("/api/assess/collab/channels", json={"topic": "Locked report"}, headers=auth_header).get_json()
+    channel_id = created["channel_id"]
+    draft = client.post(
+        f"/api/assess/collab/channels/{channel_id}/report-drafts",
+        json={"report_item_type_id": cleanup_report_item["report_item_type_id"]},
+        headers=auth_header,
+    ).get_json()
+
+    def actor(session_id):
+        return {
+            "base_url": collaboration_service.external_base_url(),
+            "session_id": session_id,
+            "username": admin_user.username,
+            "user_id": admin_user.id,
+        }
+
+    acquired = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/lock/acquire",
+        json={"draft_id": draft["id"], "field_key": "title", "actor": actor("session-a")},
+        headers=auth_header,
+    )
+    blocked = client.post(
+        f"/api/assess/collab/channels/{channel_id}/live/report-patch",
+        json={"draft_id": draft["id"], "field_key": "title", "value": "Blocked", "actor": actor("session-b")},
+        headers=auth_header,
+    )
+
+    assert acquired.status_code == 200
+    assert blocked.status_code == 403
+    assert "locked by" in blocked.get_json()["error"]
+
 
 def test_collaboration_channel_invite_can_be_redeemed_multiple_times(client, auth_header, stories):
     create_response = client.post(

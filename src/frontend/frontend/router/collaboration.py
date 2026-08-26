@@ -63,5 +63,29 @@ def init(app: Flask):
         methods=["POST"],
         endpoint="close",
     )
+    collaboration_bp.add_url_rule(
+        "/collaboration/<string:channel_id>/report-members",
+        view_func=CollaborationView.replace_report_members,
+        methods=["POST"],
+        endpoint="replace_report_members",
+    )
+    collaboration_bp.add_url_rule(
+        "/collaboration/<string:channel_id>/report-drafts",
+        view_func=CollaborationView.create_report_draft,
+        methods=["POST"],
+        endpoint="create_report_draft",
+    )
+    collaboration_bp.add_url_rule(
+        "/collaboration/<string:channel_id>/report-drafts/<string:draft_id>/delete",
+        view_func=CollaborationView.delete_report_draft,
+        methods=["POST"],
+        endpoint="delete_report_draft",
+    )
+    collaboration_bp.add_url_rule(
+        "/collaboration/<string:channel_id>/report-drafts/<string:draft_id>/finalize",
+        view_func=CollaborationView.finalize_report_draft,
+        methods=["POST"],
+        endpoint="finalize_report_draft",
+    )
 
     app.register_blueprint(collaboration_bp)

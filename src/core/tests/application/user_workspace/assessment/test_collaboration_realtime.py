@@ -51,6 +51,8 @@ def test_peer_socket_sends_initial_snapshot_via_send_text():
         "channel_id": channel_id,
         "invite": {"token": token},
         "participants": [{"base_url": partner_base_url}],
+        "report_workspace": {"member_ids": [1], "drafts": [{"id": "local-draft"}]},
+        "report_locks": [{"draft_id": "local-draft"}],
     }
     websocket = PeerSocketStub(
         [
@@ -77,6 +79,8 @@ def test_peer_socket_sends_initial_snapshot_via_send_text():
     snapshot_message = json.loads(websocket.sent_texts[0])
     assert snapshot_message["type"] == "collab.state.snapshot"
     assert snapshot_message["payload"]["channel"]["channel_id"] == channel_id
+    assert "report_workspace" not in snapshot_message["payload"]["channel"]
+    assert "report_locks" not in snapshot_message["payload"]["channel"]
 
 
 def test_peer_socket_processes_followup_messages_without_async_iteration():
@@ -168,6 +172,32 @@ def test_apply_owner_message_supports_workspace_patch():
     assert recorded["endpoint"].endswith("/assess/collab/channels/channel-3/live/workspace-patch")
     assert recorded["payload"]["target"] == "workspace"
     assert updated["workspace"]["active_mode"] == "briefing"
+
+
+def test_apply_owner_message_supports_local_report_patch():
+    hub = CollaborationRealtimeHub()
+    recorded = {}
+
+    async def fake_core_post(endpoint: str, payload: dict):
+        recorded["endpoint"] = endpoint
+        recorded["payload"] = payload
+        return {"channel_id": "channel-3", "report_workspace": {"drafts": []}}
+
+    hub._core_post = fake_core_post
+    asyncio.run(
+        hub._apply_owner_message(
+            "channel-3",
+            {"base_url": "https://alpha.demo", "session_id": "session-a", "username": "alice", "user_id": 7},
+            {
+                "type": "collab.report.patch",
+                "payload": {"draft_id": "draft-1", "field_key": "completed", "value": True},
+            },
+        )
+    )
+
+    assert recorded["endpoint"].endswith("/assess/collab/channels/channel-3/live/report-patch")
+    assert recorded["payload"]["actor"]["user_id"] == 7
+    assert recorded["payload"]["field_key"] == "completed"
 
 
 def test_apply_owner_message_supports_story_ops_submit():

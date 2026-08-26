@@ -2,8 +2,9 @@
 {% from "macros/forms.html" import form_input_content, form_textarea %}
 
 {% macro attribute_field(attr, read_only=False, stories=[]) %}
-  {% set base_name = 'attributes[' ~ attr.id ~ ']' %}
-  {% set field_id = 'attribute-' ~ attr.id %}
+  {% set attr_id = attr.id | default(attr.key) %}
+  {% set base_name = 'attributes[' ~ attr_id ~ ']' %}
+  {% set field_id = 'attribute-' ~ attr_id %}
   {% set value = attr.value | default('') %}
   {% set label = attr.title or ('Attribute #' ~ attr.id) %}
   {% set description = attr.description %}
@@ -82,7 +83,7 @@
       <label class="input w-full">
         <span class="label">{{ label }}{% if required %}<span class="text-error text-sm">*</span>{% endif %}
         </span>
-        <input type="date"
+        <input type="{% if attr.type == 'DATE_TIME' %}datetime-local{% elif attr.type == 'TIME' %}time{% else %}date{% endif %}"
                name="{{ base_name }}"
                value="{{ value }}"
                placeholder="{{ description or 'Enter a date' }}"
@@ -100,7 +101,7 @@
 
     {% elif attr.type == 'STORY' %}
       {% set selected_values = value.split(',') if value else [] %}
-      {% set story_choices = attr.render_data.story_choices | default([]) %}
+      {% set story_choices = attr.render_data.story_choices | default(stories, true) %}
       <div class="w-full">
         <input type="hidden" name="{{ base_name }}[]" value="">
         <select id="attribute_story_{{ attr.id }}"

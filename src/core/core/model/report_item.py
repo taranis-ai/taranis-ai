@@ -322,7 +322,14 @@ class ReportItem(BaseModel):
         return [cls.from_dict(report_item) for report_item in data]
 
     @classmethod
-    def add(cls, report_item_data: dict, user: User | None = None) -> tuple["ReportItem", Literal[200]] | tuple[dict[str, Any], int]:
+    def add(
+        cls,
+        report_item_data: dict,
+        user: User | None = None,
+        *,
+        owner: User | None = None,
+        initial_attribute_values: dict[str, str] | None = None,
+    ) -> tuple["ReportItem", Literal[200]] | tuple[dict[str, Any], int]:
         sanitized_data, error = cls._sanitize_create_payload(report_item_data)
         if error:
             return error[0], error[1]
@@ -335,8 +342,12 @@ class ReportItem(BaseModel):
             if not report_item.access_allowed(user, True):
                 return {"error": f"User {user.id} is not allowed to create Report {report_item.id}"}, 403
 
-            report_item.user_id = user.id
+            report_item.user_id = (owner or user).id
         report_item.add_attributes()
+        if initial_attribute_values:
+            for attribute in report_item.attributes:
+                if str(attribute.index) in initial_attribute_values:
+                    attribute.value = initial_attribute_values[str(attribute.index)]
 
         db.session.add(report_item)
         db.session.flush()

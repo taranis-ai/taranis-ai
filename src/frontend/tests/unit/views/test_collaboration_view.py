@@ -175,6 +175,26 @@ def test_collaboration_dialog_submit_creates_new_channel_from_workspace(authenti
     assert request_body == {"topic": "Fresh Topic", "story_ids": []}
 
 
+def test_collaboration_report_draft_actions_use_local_workspace_api(authenticated_client, responses_mock):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-1/report-drafts",
+        json={"id": "draft-1", "title": "Joint report"},
+        status=201,
+    )
+    response = authenticated_client.post(
+        "/collaboration/channel-1/report-drafts",
+        data={"report_item_type_id": "7", "title": "Joint report"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/collaboration/channel-1?mode=reports")
+    assert json.loads(responses_mock.calls[0].request.body) == {
+        "report_item_type_id": 7,
+        "title": "Joint report",
+    }
+
+
 def test_collaboration_dialog_submit_creates_new_channel_with_plain_redirect(authenticated_client, responses_mock):
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
@@ -326,6 +346,14 @@ def test_collaboration_report_dialog_renders_all_finalized_channel_story_ids(aut
 
 def test_collaboration_workspace_renders_active_channel(authenticated_client, responses_mock):
     responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-1/report-candidates",
+        json={"items": [{"id": 1, "username": "analyst", "name": "Analyst"}]},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/assess/collab/channels/channel-1/report-types",
+        json={"items": [{"id": 7, "title": "Incident report"}]},
+    )
+    responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/collab/channels",
         json={
             "items": [
@@ -378,6 +406,32 @@ def test_collaboration_workspace_renders_active_channel(authenticated_client, re
                 }
             ],
             "locks": [],
+            "report_locks": [],
+            "report_workspace": {
+                "member_ids": [1],
+                "drafts": [
+                    {
+                        "id": "draft-1",
+                        "title": "Joint report",
+                        "creator_id": 1,
+                        "report_item_type_id": 7,
+                        "report_item_type_title": "Incident report",
+                        "completed": False,
+                        "attributes": [
+                            {"key": "0", "title": "Summary", "type": "TEXT", "value": "Draft summary", "render_data": {}},
+                            {"key": "1", "title": "Stories", "type": "STORY", "value": "snapshot-1", "render_data": {}},
+                            {
+                                "key": "2",
+                                "title": "Observed",
+                                "type": "DATE_TIME",
+                                "value": "2026-05-08T10:00",
+                                "render_data": {},
+                            },
+                        ],
+                        "selected_story_ids": ["snapshot-1"],
+                    }
+                ],
+            },
             "workspace": {
                 "focused_story_id": "snapshot-1",
                 "active_mode": "story",
@@ -434,6 +488,11 @@ def test_collaboration_workspace_renders_active_channel(authenticated_client, re
     assert "Story Focus" not in html
     assert "vendor/codemirror.js" in html
     assert 'data-collab-editor-host="summary"' in html
+    assert 'data-collab-main-mode="reports"' in html
+    assert 'data-collab-report-editor="draft-1"' in html
+    assert 'name="attributes[0]"' in html
+    assert 'type="datetime-local"' in html
+    assert 'value="snapshot-1" selected' in html
     assert "Nobody here" in html
     assert html.count("data-collab-copy-link") == 0
 

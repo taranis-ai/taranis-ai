@@ -126,6 +126,12 @@ class CollaborationView:
             (story for story in (active_channel or {}).get("stories", []) if story.get("id") == selected_story_id),
             None,
         )
+        report_workspace = (active_channel or {}).get("report_workspace")
+        report_candidates = []
+        report_types = []
+        if report_workspace is not None and active_id:
+            report_candidates = (api.get_collaboration_report_candidates(active_id) or {}).get("items", [])
+            report_types = (api.get_collaboration_report_types(active_id) or {}).get("items", [])
 
         return {
             "_show_sidebar": False,
@@ -137,6 +143,8 @@ class CollaborationView:
             "selected_story_id": selected_story_id,
             "notification_html": notification or "",
             "finalize_result": finalize_result or cls._get_finalize_result(active_id),
+            "report_candidates": report_candidates,
+            "report_types": report_types,
         }
 
     @classmethod
@@ -350,3 +358,34 @@ class CollaborationView:
         if next_channel:
             return BaseView.redirect_htmx(url_for("collaboration.workspace", channel_id=next_channel))
         return BaseView.redirect_htmx(url_for("collaboration.workspace"))
+
+    @staticmethod
+    def _report_action_redirect(channel_id: str, core_response) -> ResponseReturnValue:
+        BaseView.add_flash_notification(core_response)
+        return redirect(url_for("collaboration.workspace_channel", channel_id=channel_id, mode="reports"))
+
+    @classmethod
+    @auth_required()
+    def replace_report_members(cls, channel_id: str) -> ResponseReturnValue:
+        member_ids = [int(value) for value in request.form.getlist("member_ids") if value.isdigit()]
+        return cls._report_action_redirect(channel_id, CoreApi().replace_collaboration_report_members(channel_id, member_ids))
+
+    @classmethod
+    @auth_required()
+    def create_report_draft(cls, channel_id: str) -> ResponseReturnValue:
+        report_type_id = request.form.get("report_item_type_id", "")
+        if not report_type_id.isdigit():
+            flash("Select a report type.", "error")
+            return redirect(url_for("collaboration.workspace_channel", channel_id=channel_id, mode="reports"))
+        response = CoreApi().create_collaboration_report_draft(channel_id, int(report_type_id), request.form.get("title", "").strip() or None)
+        return cls._report_action_redirect(channel_id, response)
+
+    @classmethod
+    @auth_required()
+    def delete_report_draft(cls, channel_id: str, draft_id: str) -> ResponseReturnValue:
+        return cls._report_action_redirect(channel_id, CoreApi().delete_collaboration_report_draft(channel_id, draft_id))
+
+    @classmethod
+    @auth_required()
+    def finalize_report_draft(cls, channel_id: str, draft_id: str) -> ResponseReturnValue:
+        return cls._report_action_redirect(channel_id, CoreApi().finalize_collaboration_report_draft(channel_id, draft_id))
