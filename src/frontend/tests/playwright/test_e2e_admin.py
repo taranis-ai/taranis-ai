@@ -463,6 +463,51 @@ class TestEndToEndAdmin(BaseE2ETest):
         update_osint_sources()
         remove_osint_sources()
 
+    def test_admin_bulk_osint_source_creation(self, logged_in_page: Page, forward_console_and_page_errors):
+        page = logged_in_page
+        unique_suffix = uuid.uuid4().hex[:6]
+        source_names = [f"bulk_source_one_{unique_suffix}", f"bulk_source_two_{unique_suffix}"]
+        source_urls = [f"https://example.com/{unique_suffix}/one.xml", f"https://example.com/{unique_suffix}/two.xml"]
+        group_name = f"bulk_source_group_{unique_suffix}"
+
+        page.goto(url_for("admin.osint_sources", _external=True))
+        page.get_by_test_id("new-osint_source-button").click()
+        page.get_by_test_id("bulk-create-osint-sources-button").click()
+        expect(page.get_by_role("heading", name="Bulk Create OSINT Sources")).to_be_visible()
+
+        for index, (source_name, source_url) in enumerate(zip(source_names, source_urls, strict=True)):
+            page.get_by_test_id(f"bulk-source-name-{index}").fill(source_name)
+            page.get_by_test_id(f"bulk-source-url-{index}").fill(source_url)
+
+        page.get_by_label("Shared Description").fill("Shared bulk source settings")
+        page.locator('input[name="rank"][value="3"]').check()
+        user_agent_input = page.locator('input[name="parameters[USER_AGENT]"]')
+        self.select_dynamic_type_and_wait(page, "rss_collector", user_agent_input)
+        expect(page.locator('input[name="parameters[FEED_URL]"]')).to_have_count(0)
+        user_agent_input.fill("Taranis bulk source test")
+
+        page.get_by_test_id("bulk-create-source-group").check()
+        page.get_by_label("Group Name").fill(group_name)
+        page.get_by_label("Group Description").fill("Created with the bulk source workflow")
+        page.get_by_role("button", name="Create OSINT Sources").click()
+
+        expect(page).to_have_url(url_for("admin.osint_sources", _external=True))
+        for source_name in source_names:
+            expect(page.get_by_role("link", name=source_name)).to_be_visible()
+
+        page.goto(url_for("admin.osint_source_groups", _external=True))
+        page.get_by_role("link", name=group_name).click()
+        group_form = page.locator("#osint_source_group-form")
+        for source_name in source_names:
+            source_row = group_form.locator("#osint_sources tbody tr").filter(has_text=source_name)
+            expect(source_row.get_by_role("checkbox")).to_be_checked()
+
+        page.goto(url_for("admin.osint_source_groups", _external=True))
+        self.delete_item(page, "osint_source_group-table", group_name)
+        page.goto(url_for("admin.osint_sources", _external=True))
+        for source_name in source_names:
+            self.delete_item(page, "osint_source-table", source_name)
+
     def test_admin_osint_source_group_management(self, logged_in_page: Page, forward_console_and_page_errors, test_batch_osint_sources):
         page = logged_in_page
         osint_group_name = f"test_osint_group_{uuid.uuid4().hex[:6]}"

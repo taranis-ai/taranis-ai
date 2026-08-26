@@ -14,6 +14,7 @@ from models.admin import OSINTSource, ReportItemType
 from models.task import Task, TaskResultEnvelope
 from models.types import COLLECTOR_TYPES
 from models.user import AssessSavedFilter
+from werkzeug.datastructures import MultiDict
 
 from frontend.cache import add_user_to_cache, cache
 from frontend.cache_models import CacheObject
@@ -331,6 +332,93 @@ class TestSourceView:
         )
 
         assert SourceView.get_admin_menu_badge() == 4
+
+    def test_bulk_create_view_uses_url_based_collectors(self, authenticated_client):
+        create_form_response = authenticated_client.get(SourceView.get_edit_route(osint_source_id="0"))
+        response = authenticated_client.get(url_for("admin.bulk_create_osint_sources"))
+
+        assert create_form_response.status_code == 200
+        assert 'data-testid="bulk-create-osint-sources-button"' in create_form_response.text
+        assert response.status_code == 200
+        assert "Bulk Create OSINT Sources" in response.text
+        assert "rss_collector" in response.text
+        assert "simple_web_collector" in response.text
+        assert "rt_collector" in response.text
+        assert "misp_collector" in response.text
+        assert "manual_collector" not in response.text
+        assert "ppn_collector" not in response.text
+
+    def test_bulk_parameter_view_excludes_the_varying_url(self, authenticated_client):
+        response = authenticated_client.get(
+            url_for(
+                "admin.osint_source_parameters",
+                osint_source_id="0",
+                type="rss_collector",
+                bulk="true",
+            )
+        )
+
+        assert response.status_code == 200
+        assert 'name="parameters[FEED_URL]"' not in response.text
+        assert 'name="parameters[USER_AGENT]"' in response.text
+
+    def test_bulk_create_posts_version_4_import_with_optional_group(self, authenticated_client, responses_mock):
+        responses_mock.post(
+            f"{Config.TARANIS_CORE_URL}/config/import-osint-sources",
+            json={"count": 2, "message": "Successfully imported sources", "sources": ["source-1", "source-2"]},
+            status=200,
+            content_type="application/json",
+        )
+        form_data = MultiDict(
+            [
+                ("sources[][name]", "Feed One"),
+                ("sources[][url]", "https://example.com/one.xml"),
+                ("sources[][name]", "Feed Two"),
+                ("sources[][url]", "https://example.com/two.xml"),
+                ("description", "Shared description"),
+                ("rank", "3"),
+                ("type", "rss_collector"),
+                ("parameters[USER_AGENT]", "Taranis test"),
+                ("create_group", "false"),
+                ("create_group", "true"),
+                ("group_name", "Example feeds"),
+                ("group_description", "Created in bulk"),
+            ]
+        )
+
+        response = authenticated_client.post(url_for("admin.bulk_create_osint_sources"), data=form_data)
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == SourceView.get_base_route()
+        assert len(responses_mock.calls) == 1
+        assert _json_request_body(responses_mock.calls[0]) == {
+            "version": 4,
+            "sources": [
+                {
+                    "name": "Feed One",
+                    "description": "Shared description",
+                    "rank": "3",
+                    "type": "rss_collector",
+                    "parameters": {"USER_AGENT": "Taranis test", "FEED_URL": "https://example.com/one.xml"},
+                    "group_idx": 1,
+                },
+                {
+                    "name": "Feed Two",
+                    "description": "Shared description",
+                    "rank": "3",
+                    "type": "rss_collector",
+                    "parameters": {"USER_AGENT": "Taranis test", "FEED_URL": "https://example.com/two.xml"},
+                    "group_idx": 2,
+                },
+            ],
+            "groups": [
+                {
+                    "name": "Example feeds",
+                    "description": "Created in bulk",
+                    "osint_sources": [1, 2],
+                }
+            ],
+        }
 
     def test_import_post_view(self, authenticated_client, responses_mock):
         """
