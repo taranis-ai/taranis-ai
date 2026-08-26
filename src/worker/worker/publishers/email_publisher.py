@@ -12,8 +12,6 @@ from worker.publishers.base_publisher import BasePublisher
 
 
 class EMAILPublisher(BasePublisher):
-    REQUIRED_PARAMETERS = ("SMTP_SERVER_ADDRESS", "EMAIL_SENDER", "EMAIL_RECIPIENT", "EMAIL_SUBJECT")
-
     def __init__(self):
         super().__init__()
         self.smtp_address: str

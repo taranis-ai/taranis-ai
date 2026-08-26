@@ -2929,54 +2929,6 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
-    put:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: update product types
-      operationId: config.config_product_types_config.put
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    delete:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: delete product types
-      operationId: config.config_product_types_config.delete
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /config/product-types/{type_id}:
     parameters:
     - name: type_id
@@ -3001,6 +2953,30 @@ paths:
           description: success
         '401':
           $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    patch:
+      tags:
+      - config
+      operationId: config.config_product_type.patch
+      description: merge configured worker parameters
+      security:
+      - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: updated
+        '400':
+          description: invalid configuration
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
     delete:
@@ -3723,40 +3699,6 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '500':
           description: could not connect to Redis
-  /config/worker-types:
-    get:
-      tags:
-      - config
-      operationId: config.config_worker_types.get
-      description: get all worker types
-      security:
-      - UserAuth: []
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/worker_type'
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-    patch:
-      tags:
-      - config
-      operationId: config.config_worker_types.patch
-      description: create new worker type
-      security:
-      - UserAuth: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/worker_type'
-      responses:
-        '200':
-          description: success
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
   /config/export-word-lists:
     parameters:
     - name: ids
@@ -3882,73 +3824,6 @@ paths:
                 properties:
                   error:
                     type: string
-  /config/parameters:
-    get:
-      tags:
-      - config
-      description: get all parameters
-      operationId: config.config_parameters.get
-      security:
-      - UserAuth: []
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/parameter'
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-  /config/presenters:
-    get:
-      tags:
-      - config
-      description: get all presenters
-      operationId: config.config_presenters.get
-      security:
-      - UserAuth: []
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/worker_type'
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-  /config/publishers:
-    get:
-      tags:
-      - config
-      description: get all publishers
-      operationId: config.config_publishers.get
-      security:
-      - UserAuth: []
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/worker_type'
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
   /config/bots:
     get:
       tags:
@@ -4004,13 +3879,20 @@ paths:
                     type: string
         '401':
           $ref: '#/components/responses/401Unauthorized'
-    put:
-      security:
-      - UserAuth: []
+  /config/bots/{bot_id}:
+    parameters:
+    - name: bot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    patch:
       tags:
       - config
-      description: update bots
-      operationId: config.config_bots_config.put
+      operationId: config.config_bot_config.patch
+      description: merge configured worker parameters
+      security:
+      - UserAuth: []
       requestBody:
         required: true
         content:
@@ -4019,46 +3901,15 @@ paths:
               type: object
       responses:
         '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
+          description: updated
         '400':
-          description: invalid request
+          description: invalid configuration
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
-    delete:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: delete bots
-      operationId: config.config_bots_config.delete
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-  /config/bots/{bot_id}:
-    parameters:
-    - name: bot_id
-      in: path
-      required: true
-      schema:
-        type: string
     delete:
       tags:
       - config
@@ -4385,82 +4236,6 @@ paths:
           description: success
         '401':
           $ref: '#/components/responses/401Unauthorized'
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    put:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: update osint sources
-      operationId: config.config_osint_sources.put
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    patch:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: update osint sources
-      operationId: config.config_osint_sources.patch
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    delete:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: delete osint sources
-      operationId: config.config_osint_sources.delete
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
   /config/osint-sources/{osint_source_id}:
@@ -4878,54 +4653,6 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
-    put:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: update publishers presets
-      operationId: config.config_publishers_presets.put
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    delete:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: delete publishers presets
-      operationId: config.config_publishers_presets.delete
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /config/publishers-presets/{preset_id}:
     parameters:
     - name: preset_id
@@ -4966,6 +4693,30 @@ paths:
             application/json:
               schema:
                 type: object
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    patch:
+      tags:
+      - config
+      operationId: config.config_publishers_preset.patch
+      description: merge configured worker parameters
+      security:
+      - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: updated
+        '400':
+          description: invalid configuration
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -7131,82 +6882,6 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
-    put:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: update connectors
-      operationId: config.config_connectors.put
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    patch:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: update connectors
-      operationId: config.config_connectors.patch
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    delete:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: delete connectors
-      operationId: config.config_connectors.delete
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /config/connectors/{connector_id}:
     parameters:
     - name: connector_id
@@ -7560,54 +7235,6 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
-    put:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: update publisher presets
-      operationId: config.config_publisher_presets.put
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    delete:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: delete publisher presets
-      operationId: config.config_publisher_presets.delete
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
   /config/publisher-presets/{preset_id}:
     parameters:
     - name: preset_id
@@ -7657,6 +7284,30 @@ paths:
                 type: object
         '400':
           description: invalid request
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    patch:
+      tags:
+      - config
+      operationId: config.config_publisher_preset.patch
+      description: merge configured worker parameters
+      security:
+      - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: updated
+        '400':
+          description: invalid configuration
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -7797,82 +7448,6 @@ paths:
                 type: object
         '400':
           description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    put:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: update sources
-      operationId: config.config_sources.put
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    patch:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: update sources
-      operationId: config.config_sources.patch
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: invalid request
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    delete:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: delete sources
-      operationId: config.config_sources.delete
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -8069,76 +7644,46 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
-  /config/worker-parameters:
-    get:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: get worker parameters
-      operationId: config.config_worker_parameters.get
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-  /config/worker-types/{worker_id}:
+  /config/parameter-secrets/{resource}/{resource_id}/{parameter}/reveal:
     parameters:
-    - name: worker_id
+    - name: resource
       in: path
       required: true
       schema:
         type: string
-    get:
-      security:
-      - UserAuth: []
+    - name: resource_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: parameter
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
       tags:
       - config
-      description: get worker types
-      operationId: config.config_worker_type_patch.get
+      operationId: config.config_parameter_secret_reveal.post
+      description: reveal a configured secret after resource update authorization
+      security:
+      - UserAuth: []
       responses:
         '200':
-          description: success
+          description: secret value
+          headers:
+            Cache-Control:
+              schema:
+                type: string
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/401Unauthorized'
-        '403':
-          description: forbidden
-        '404':
-          $ref: '#/components/responses/404NotFound'
-    patch:
-      security:
-      - UserAuth: []
-      tags:
-      - config
-      description: update worker types
-      operationId: config.config_worker_type_patch.patch
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
+                properties:
+                  value:
+                    type: string
         '400':
-          description: invalid request
+          description: parameter is not a configured secret
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -9978,9 +9523,9 @@ components:
         presenter_id:
           type: string
         parameters:
-          type: array
-          items:
-            $ref: '#/components/schemas/parameter_value'
+          type: object
+          additionalProperties:
+            type: string
     publisher_preset.base:
       type: object
       properties:
@@ -9989,9 +9534,9 @@ components:
         name:
           type: string
         parameters:
-          type: array
-          items:
-            $ref: '#/components/schemas/parameter_value'
+          type: object
+          additionalProperties:
+            type: string
     publisher_preset:
       allOf:
       - $ref: '#/components/schemas/publisher_preset.base'
@@ -10379,32 +9924,6 @@ components:
           $ref: '#/components/schemas/product_detail.workflow'
         publish:
           $ref: '#/components/schemas/report_publish_status'
-    parameter_value:
-      type: object
-      properties:
-        value:
-          type: string
-        parameter:
-          $ref: '#/components/schemas/parameter'
-    parameter_type:
-      type: string
-      enum:
-      - STRING
-      - NUMBER
-      - BOOLEAN
-    parameter:
-      type: object
-      properties:
-        id:
-          type: string
-        key:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        type:
-          $ref: '#/components/schemas/parameter_type'
     attribute_type:
       type: string
       enum:
@@ -10735,9 +10254,9 @@ components:
         type:
           type: string
         parameters:
-          type: array
-          items:
-            $ref: '#/components/schemas/parameter_value'
+          type: object
+          additionalProperties:
+            type: string
         news_items_count:
           type: integer
     osint_source_group:
@@ -10853,22 +10372,9 @@ components:
         index:
           type: integer
         parameters:
-          type: array
-          items:
-            $ref: '#/components/schemas/parameter_value'
-    worker_type:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        worker_type:
-          type: string
-        category:
-          type: string
+          type: object
+          additionalProperties:
+            type: string
     item_type:
       type: string
       enum:

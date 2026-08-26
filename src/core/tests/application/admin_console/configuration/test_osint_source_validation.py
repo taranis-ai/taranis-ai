@@ -3,7 +3,6 @@ from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
 
 from core.model.osint_source import OSINTSource
-from core.model.parameter_value import ParameterValue
 
 
 @pytest.mark.usefixtures("app")
@@ -29,7 +28,7 @@ def test_osint_source_from_dict_accepts_parameter_dict():
         }
     )
 
-    assert ParameterValue.find_value_by_parameter(source.parameters, "FEED_URL") == "https://example.com/feed.xml"
+    assert source.parameters["FEED_URL"] == "https://example.com/feed.xml"
 
 
 @pytest.mark.usefixtures("app")
@@ -62,7 +61,7 @@ def test_osint_source_partial_update_preserves_unsent_fields(session):
     assert updated_source is not None
     assert updated_source.name == "Source"
     assert updated_source.description == ""
-    assert ParameterValue.find_value_by_parameter(updated_source.parameters, "FEED_URL") == "https://example.com/feed.xml"
+    assert updated_source.parameters["FEED_URL"] == "https://example.com/feed.xml"
 
 
 @pytest.mark.usefixtures("app")
@@ -79,7 +78,7 @@ def test_osint_source_partial_update_reparses_parameters(session):
     updated_source = OSINTSource.update(source.id, {"parameters": {"FEED_URL": "https://changed.example/feed.xml"}})
 
     assert updated_source is not None
-    assert ParameterValue.find_value_by_parameter(updated_source.parameters, "FEED_URL") == "https://changed.example/feed.xml"
+    assert updated_source.parameters["FEED_URL"] == "https://changed.example/feed.xml"
 
 
 @pytest.mark.usefixtures("app")

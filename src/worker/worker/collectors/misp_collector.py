@@ -63,7 +63,7 @@ class MispCollector(BaseCollector):
             self.headers.update({"User-Agent": user_agent})
 
     def set_proxies(self, proxy_server: str | None):
-        self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
+        self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server} if proxy_server else None
 
     def update_headers(self, headers: str):
         try:

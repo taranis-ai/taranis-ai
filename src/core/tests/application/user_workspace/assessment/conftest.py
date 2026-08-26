@@ -15,7 +15,11 @@ def assess_connector(app):
             "name": f"Assess Connector {uuid.uuid4().hex[:8]}",
             "description": "Connector visible in the assess workspace",
             "type": "misp_connector",
-            "parameters": {"API_KEY": "super-secret-api-key"},
+            "parameters": {
+                "URL": "https://misp.example.invalid",
+                "API_KEY": "super-secret-api-key",
+                "ORGANISATION_ID": "1",
+            },
         }
 
         if not Connector.get(connector_data["id"]):

@@ -4,6 +4,7 @@ Functions for publishing products to external systems.
 """
 
 from models.product import WorkerProduct as Product
+from models.worker_parameters import effective_parameter_values
 from rq import get_current_job
 
 import worker.publishers
@@ -51,6 +52,7 @@ def publisher_task(product_id: str, publisher_id: str):
         if pub_type is None:
             raise ValueError(f"Publisher {publisher_id} has no type configured")
         worker_type = pub_type
+        publisher["parameters"] = effective_parameter_values(pub_type, publisher.get("parameters", {}))
         publisher_impl = _get_publisher_impl(pub_type)
 
         publish_result = publisher_impl.publish(publisher, product, rendered_product)

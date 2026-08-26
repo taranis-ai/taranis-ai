@@ -239,4 +239,7 @@ class DataPersistenceLayer:
 
     def update_object(self, object: TaranisBaseModel, object_id: str) -> Response:
         endpoint = self.get_endpoint(object)
-        return self.api.api_put(f"{endpoint}/{object_id}", json_data=object.model_dump(mode="json"))
+        payload = object.model_dump(mode="json")
+        if getattr(object, "_parameter_patch", False):
+            return self.api.api_patch(f"{endpoint}/{object_id}", json_data=payload)
+        return self.api.api_put(f"{endpoint}/{object_id}", json_data=payload)

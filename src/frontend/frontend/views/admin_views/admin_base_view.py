@@ -1,12 +1,12 @@
+import json
 from typing import Any, ClassVar
 
 from flask import current_app
 from flask.typing import ResponseReturnValue
 from jinja2 import TemplateNotFound
-from models.admin import WorkerParameter, WorkerParameterValue
+from models.worker_parameters import parameter_schema
 
 from frontend.auth import admin_required
-from frontend.data_persistence import DataPersistenceLayer
 from frontend.views.base_view import BaseView
 
 
@@ -64,11 +64,63 @@ class AdminBaseView(BaseView):
         return cls.get_edit_route(**{cls._get_object_key(): object_id})
 
     @classmethod
-    def get_worker_parameters(cls, worker_type: str) -> list[WorkerParameterValue]:
-        dpl = DataPersistenceLayer()
-        all_parameters = dpl.get_objects(WorkerParameter)
-        match = next((wp for wp in all_parameters if wp.id == worker_type), None)
-        return match.parameters if match else []
+    def get_worker_parameters(cls, worker_type: str) -> list[dict[str, Any]]:
+        schema = parameter_schema(worker_type)
+        definitions = schema.get("$defs", {})
+        required = set(schema.get("required", []))
+        fields = []
+        for name, raw_property in schema.get("properties", {}).items():
+            prop = dict(raw_property)
+            if reference := prop.pop("$ref", None):
+                prop = {**definitions[reference.rsplit("/", 1)[-1]], **prop}
+            if variants := prop.get("anyOf"):
+                concrete = next((variant for variant in variants if variant.get("type") != "null"), {})
+                prop = {**prop, **concrete}
+            value = prop.get("default", "")
+            if isinstance(value, bool):
+                value = "true" if value else "false"
+            elif isinstance(value, (dict, list)):
+                value = json.dumps(value, separators=(",", ":"))
+            widget = prop.get("widget")
+            minimum = prop.get("minimum")
+            if minimum is None and "exclusiveMinimum" in prop:
+                minimum = prop["exclusiveMinimum"] + (1 if prop.get("type") == "integer" else 0)
+            maximum = prop.get("maximum")
+            if maximum is None and prop.get("type") == "integer" and "exclusiveMaximum" in prop:
+                maximum = prop["exclusiveMaximum"] - 1
+            field_type = (
+                "word-list-table"
+                if widget == "word-list-table"
+                else "password"
+                if prop.get("writeOnly") or prop.get("format") == "password"
+                else "cron_interval"
+                if widget == "cron"
+                else "textarea"
+                if widget == "textarea"
+                else "switch"
+                if prop.get("type") == "boolean"
+                else "number"
+                if prop.get("type") in {"integer", "number"}
+                else "select"
+                if prop.get("enum")
+                else "text"
+            )
+            fields.append(
+                {
+                    "name": name,
+                    "label": prop.get("title", name),
+                    "description": prop.get("description", ""),
+                    "type": field_type,
+                    "value": value,
+                    "required": name in required,
+                    "pattern": prop.get("pattern", ""),
+                    "minimum": minimum,
+                    "maximum": maximum,
+                    "options": [{"id": option, "name": option} for option in prop.get("enum", [])],
+                    "widget": widget,
+                }
+            )
+        return fields
 
     @classmethod
     def handle_submit_error(cls, object_id: str, error: str | None = None, resp_obj: dict | None = None) -> tuple[str, int]:
