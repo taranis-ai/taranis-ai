@@ -26,13 +26,19 @@ def test_schema_preserves_contract_order_and_frontend_metadata():
 def test_boundary_adapter_preserves_native_values():
     configured = normalize_parameter_values(
         "RSS_COLLECTOR",
-        {"FEED_URL": "https://example.test/feed", "USE_GLOBAL_PROXY": "on", "ADDITIONAL_HEADERS": '{"X-B":"2","X-A":"1"}'},
+        {
+            "FEED_URL": "https://example.test/feed",
+            "USE_GLOBAL_PROXY": "on",
+            "ADDITIONAL_HEADERS": '{"X-B":"2","X-A":"1"}',
+            "DIGEST_SPLITTING_LIMIT": "10",
+        },
     )
 
     assert configured == {
         "FEED_URL": "https://example.test/feed",
         "USE_GLOBAL_PROXY": True,
         "ADDITIONAL_HEADERS": {"X-A": "1", "X-B": "2"},
+        "DIGEST_SPLITTING_LIMIT": 10,
     }
 
 

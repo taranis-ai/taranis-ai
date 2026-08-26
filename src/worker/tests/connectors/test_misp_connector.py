@@ -421,7 +421,7 @@ def test_blocked_results_are_counted_in_execution_summary():
     )
 
 
-@pytest.mark.parametrize(("request_timeout", "expected"), [("", 5), ("invalid", 5), ("42", 42)])
+@pytest.mark.parametrize(("request_timeout", "expected"), [(None, 5), (42, 42)])
 def test_pymisp_uses_registered_parameters(monkeypatch, request_timeout, expected):
     connector = MispConnector()
     connector.parse_parameters(
@@ -532,7 +532,7 @@ def test_valid_distribution():
 
 def test_empty_distribution_with_sharing_group():
     connector = MispConnector()
-    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1", "DISTRIBUTION": ""})
+    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": 1, "DISTRIBUTION": ""})
     assert connector.distribution == 4
 
 
@@ -550,5 +550,5 @@ def test_invalid_distribution_string():
 
 def test_distribution_not_provided():
     connector = MispConnector()
-    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1"})
+    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": 1})
     assert connector.distribution == 4

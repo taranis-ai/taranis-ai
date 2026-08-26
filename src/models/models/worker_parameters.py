@@ -362,18 +362,21 @@ class KafkaPublisherParameters(WorkerParameters):
 
     @model_validator(mode="after")
     def validate_sasl(self) -> "KafkaPublisherParameters":
-        if self.KAFKA_SECURITY_PROTOCOL.startswith("SASL"):
-            missing = [
+        if self.KAFKA_SECURITY_PROTOCOL.startswith("SASL") and (
+            missing := [
                 name
                 for name, value in (
                     ("KAFKA_SASL_MECHANISM", self.KAFKA_SASL_MECHANISM),
                     ("KAFKA_SASL_USERNAME", self.KAFKA_SASL_USERNAME),
-                    ("KAFKA_SASL_PASSWORD", self.KAFKA_SASL_PASSWORD.get_secret_value()),
+                    (
+                        "KAFKA_SASL_PASSWORD",
+                        self.KAFKA_SASL_PASSWORD.get_secret_value(),
+                    ),
                 )
                 if not value
             ]
-            if missing:
-                raise ValueError(f"SASL parameters are required: {', '.join(missing)}")
+        ):
+            raise ValueError(f"SASL parameters are required: {', '.join(missing)}")
         return self
 
 
@@ -466,9 +469,7 @@ def secret_parameter_names(worker_type: WORKER_TYPES | str) -> frozenset[str]:
 
 
 def _plain_value(value: Any) -> Any:
-    if isinstance(value, SecretStr):
-        return value.get_secret_value()
-    return value
+    return value.get_secret_value() if isinstance(value, SecretStr) else value
 
 
 def normalize_parameter_values(
@@ -484,8 +485,7 @@ def normalize_parameter_values(
         native = validated.model_dump(mode="python")
         return {name: _plain_value(native[name]) for name in values if native[name] is not None}
 
-    unknown = set(values) - set(model.model_fields)
-    if unknown:
+    if unknown := set(values) - set(model.model_fields):
         raise ValueError(f"Unknown parameters: {', '.join(sorted(unknown))}")
     normalized: dict[str, Any] = {}
     for name, value in values.items():

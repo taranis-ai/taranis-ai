@@ -69,7 +69,7 @@ class IntelOwlBot(BaseBot):
             existing,
             api_key,
             cast(IntelOwlTLP, parameters.get("INTEL_OWL_TLP") or "CLEAR"),
-            int(parameters.get("INTEL_OWL_POLL_TIMEOUT_SECONDS") or self.poll_timeout_seconds),
+            parameters.get("INTEL_OWL_POLL_TIMEOUT_SECONDS") or self.poll_timeout_seconds,
         )
 
         return {

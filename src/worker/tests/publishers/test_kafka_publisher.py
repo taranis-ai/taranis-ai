@@ -63,7 +63,7 @@ def test_kafka_publisher_publish_sends_product_to_topic(
     assert message["mime_type"] == get_product_mock.mime_type
     assert message["data"] == get_product_mock.data.decode("utf-8")
 
-    assert producer.flush_calls == [{"timeout": float(kafka_publisher_testdata["parameters"]["KAFKA_SEND_TIMEOUT"])}]
+    assert producer.flush_calls == [{"timeout": kafka_publisher_testdata["parameters"]["KAFKA_SEND_TIMEOUT"]}]
 
     assert result["topic"] == topic
     assert result["key"] == produce_call["key"].decode("utf-8")
@@ -89,6 +89,7 @@ def test_kafka_publisher_create_producer_with_sasl_plaintext(monkeypatch):
         "KAFKA_SASL_MECHANISM": "PLAIN",
         "KAFKA_SASL_USERNAME": "user",
         "KAFKA_SASL_PASSWORD": "password",
+        "KAFKA_RETRIES": 0,
     }
 
     KafkaPublisher._create_producer(parameters)
@@ -98,6 +99,7 @@ def test_kafka_publisher_create_producer_with_sasl_plaintext(monkeypatch):
     assert captured_config["sasl.mechanism"] == "PLAIN"
     assert captured_config["sasl.username"] == "user"
     assert captured_config["sasl.password"] == "password"
+    assert captured_config["retries"] == 0
 
 
 def test_kafka_publisher_create_producer_sasl_requires_credentials():
@@ -128,7 +130,6 @@ def test_kafka_publisher_create_producer_uses_defaults_for_empty_optional_parame
         "KAFKA_TOPIC": "test-topic",
         "KAFKA_SECURITY_PROTOCOL": "",
         "KAFKA_ACKS": "",
-        "KAFKA_RETRIES": "",
     }
 
     KafkaPublisher._create_producer(parameters)

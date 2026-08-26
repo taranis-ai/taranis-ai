@@ -19,7 +19,7 @@ bots = [
         "parameters": {
             "INTEL_OWL_TLS_VERIFY": "true",
             "INTEL_OWL_TLP": "CLEAR",
-            "INTEL_OWL_POLL_TIMEOUT_SECONDS": "1800",
+            "INTEL_OWL_POLL_TIMEOUT_SECONDS": 1800,
         },
     },
     {

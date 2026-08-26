@@ -143,7 +143,10 @@ def test_migration_converts_every_owner_table():
     migration = _load_migration()
     connection = FakeConnection(
         {
-            "osint_source": [("source-1", "MANUAL_COLLECTOR", True, None, None)],
+            "osint_source": [
+                ("source-1", "RSS_COLLECTOR", True, "FEED_URL", "https://example.test/feed"),
+                ("source-1", "RSS_COLLECTOR", True, "DIGEST_SPLITTING_LIMIT", "10"),
+            ],
             "bot": [("bot-1", "IOC_BOT", True, "RUN_AFTER_COLLECTOR", "1")],
             "connector": [
                 ("connector-1", "MISP_CONNECTOR", "URL", "https://misp.test"),
@@ -162,7 +165,7 @@ def test_migration_converts_every_owner_table():
     migration._migrate_parameters(connection)
 
     assert connection.fake_cursor.updates == [
-        ("osint_source", ("{}", "source-1")),
+        ("osint_source", ('{"DIGEST_SPLITTING_LIMIT":10,"FEED_URL":"https://example.test/feed"}', "source-1")),
         ("bot", ('{"RUN_AFTER_COLLECTOR":true}', "bot-1")),
         (
             "connector",

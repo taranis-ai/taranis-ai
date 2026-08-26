@@ -93,7 +93,7 @@ def test_nlp_bot_uses_requests_timeout_parameter(story_get_mock, ner_bot_mock):
     from worker import bots
 
     nlp_bot = bots.NLPBot()
-    nlp_bot.execute({"REQUESTS_TIMEOUT": "17"})
+    nlp_bot.execute({"REQUESTS_TIMEOUT": 17})
 
     assert nlp_bot.bot_api.timeout == 17
 

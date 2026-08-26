@@ -13,7 +13,7 @@ source = {
         "REFRESH_INTERVAL": "",
         "URL": "https://test.misp.test",
         "USER_AGENT": "",
-        "SHARING_GROUP_ID": "1",
+        "SHARING_GROUP_ID": 1,
         "ORGANISATION_ID": "1",
     },
     "state": -1,

@@ -463,7 +463,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
                 "PROXY_SERVER": "http://proxy:8080",
                 "ADDITIONAL_HEADERS": {"User-Agent": "TaranisAI/1.0", "X-Test": "1"},
                 "SSL_CHECK": True,
-                "SHARING_GROUP_ID": "42",
+                "SHARING_GROUP_ID": 42,
                 "ORGANISATION_ID": "org-123",
                 "REQUEST_TIMEOUT": 15,
                 "DAYS_WITHOUT_CHANGE": 7,
@@ -495,7 +495,6 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             },
             Config.REQUESTS_TIMEOUT,
         ),
-        # Edge: SHARING_GROUP_ID as int
         (
             {"URL": "u", "API_KEY": "k", "SHARING_GROUP_ID": 99},
             {
@@ -510,27 +509,11 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             },
             Config.REQUESTS_TIMEOUT,
         ),
-        # Edge: SHARING_GROUP_ID not convertible to int
-        (
-            {"URL": "u", "API_KEY": "k", "SHARING_GROUP_ID": "not-an-int"},
-            {
-                "url": "u",
-                "api_key": "k",
-                "proxies": None,
-                "headers": {"User-Agent": "TaranisAI/1.0"},
-                "ssl": False,
-                "sharing_group_id": None,
-                "org_id": "",
-                "days_without_change": None,
-            },
-            Config.REQUESTS_TIMEOUT,
-        ),
     ],
     ids=[
         "all_fields_typical",
         "minimal_required",
-        "sharing_group_id_int",
-        "sharing_group_id_invalid",
+        "sharing_group_id",
     ],
 )
 def test_parse_parameters_happy_and_edge(parameters, expected, expected_timeout):

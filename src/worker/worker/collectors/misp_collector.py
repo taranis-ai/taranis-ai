@@ -34,9 +34,9 @@ class MispCollector(BaseCollector):
             self.update_headers(additional_headers)
 
         self.ssl = parameters.get("SSL_CHECK", False)
-        self.sharing_group_id = self._as_int(parameters.get("SHARING_GROUP_ID", ""))
+        self.sharing_group_id = parameters.get("SHARING_GROUP_ID")
         self.org_id = parameters.get("ORGANISATION_ID", "")
-        self.core_api.timeout = self._as_int(parameters.get("REQUEST_TIMEOUT", Config.REQUESTS_TIMEOUT)) or Config.REQUESTS_TIMEOUT
+        self.core_api.timeout = parameters.get("REQUEST_TIMEOUT") or Config.REQUESTS_TIMEOUT
         self.days_without_change = parameters.get("DAYS_WITHOUT_CHANGE")
         self.parse_header_parameters(parameters)
 
@@ -44,12 +44,6 @@ class MispCollector(BaseCollector):
             raise ValueError("Missing URL parameter")
         if not self.api_key:
             raise ValueError("Missing API_KEY parameter")
-
-    def _as_int(self, val: Any) -> int | None:
-        try:
-            return int(val)
-        except (TypeError, ValueError):
-            return None
 
     def parse_header_parameters(self, parameters: dict):
         self.set_proxies(parameters.get("PROXY_SERVER"))

@@ -60,7 +60,7 @@ def _migrate_parameters(connection) -> None:
                     values["REGULAR_EXPRESSION"] = values["KEYWORDS"]
                 if worker_type == "TAXII_PUBLISHER" and values.get("AUTH_TYPE") == "token":
                     values["AUTH_TYPE"] = "bearer"
-                normalized: dict[str, str] = {}
+                normalized: dict[str, Any] = {}
                 for name, value in values.items():
                     if name not in fields:
                         continue

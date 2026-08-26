@@ -48,7 +48,7 @@ class KafkaPublisher(BasePublisher):
         except BufferError as exc:
             raise RuntimeError(f"Failed to queue Kafka message for topic {topic}: {exc}") from exc
 
-        producer.flush(timeout=float(parameters.get("KAFKA_SEND_TIMEOUT") or 30))
+        producer.flush(timeout=parameters.get("KAFKA_SEND_TIMEOUT", 30))
         if delivery_result["error"] is not None:
             raise RuntimeError(f"Kafka delivery failed for topic {topic}: {delivery_result['error']}")
 
@@ -70,7 +70,7 @@ class KafkaPublisher(BasePublisher):
             "bootstrap.servers": parameters["KAFKA_BOOTSTRAP_SERVERS"],
             "client.id": "taranis-kafka-publisher",
             "acks": parameters.get("KAFKA_ACKS") or "all",
-            "retries": int(parameters.get("KAFKA_RETRIES") or 3),
+            "retries": parameters.get("KAFKA_RETRIES", 3),
             "security.protocol": security_protocol,
         }
 
