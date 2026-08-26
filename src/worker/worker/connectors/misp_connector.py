@@ -1,5 +1,4 @@
 import contextlib
-import json
 from datetime import UTC, datetime
 from typing import Any, Literal, cast
 
@@ -42,20 +41,14 @@ class MispConnector:
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
         self.org_id = parameters.get("ORGANISATION_ID", "")
-        self.ssl = str(parameters.get("SSL_CHECK", "false")).lower() == "true"
+        self.ssl = parameters.get("SSL_CHECK", False)
         try:
             self.request_timeout = int(parameters.get("REQUEST_TIMEOUT") or 5)
         except (TypeError, ValueError):
             self.request_timeout = 5
         proxy_server = parameters.get("PROXY_SERVER")
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server} if proxy_server else None
-        additional_headers = parameters.get("ADDITIONAL_HEADERS") or "{}"
-        try:
-            self.headers = json.loads(additional_headers) if isinstance(additional_headers, str) else additional_headers
-            if not isinstance(self.headers, dict):
-                raise TypeError("ADDITIONAL_HEADERS must be a JSON object")
-        except (json.JSONDecodeError, TypeError) as exc:
-            raise TypeError(f"ADDITIONAL_HEADERS must be a valid JSON object: {additional_headers}") from exc
+        self.headers = parameters.get("ADDITIONAL_HEADERS") or {}
         if user_agent := parameters.get("USER_AGENT"):
             self.headers.setdefault("User-Agent", user_agent)
         try:

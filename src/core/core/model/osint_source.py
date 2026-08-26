@@ -93,7 +93,7 @@ class OSINTSource(BaseModel):
     rank: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
     type: Mapped[COLLECTOR_TYPES] = db.Column(db.Enum(COLLECTOR_TYPES))
-    parameters: Mapped[dict[str, str]] = db.Column(db.JSON, nullable=False, default=dict)
+    parameters: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False, default=dict)
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
     http_state: Mapped[CollectorHTTPState | None] = relationship(
         CollectorHTTPState, cascade="all, delete-orphan", passive_deletes=True, uselist=False
@@ -395,8 +395,7 @@ class OSINTSource(BaseModel):
         params = data["parameters"]
         settings = Settings.get_settings()
 
-        use_global = params.get("USE_GLOBAL_PROXY", "false").lower()
-        if use_global == "true":
+        if params.get("USE_GLOBAL_PROXY"):
             data["parameters"]["PROXY_SERVER"] = settings.get("default_collector_proxy", "")
 
         return data
@@ -740,7 +739,7 @@ class OSINTSource(BaseModel):
         logger.debug(f"Exporting {len(sources)} sources")
         return json.dumps(export_data).encode("utf-8")
 
-    def get_export_parameters(self, with_secrets: bool = False) -> dict[str, str]:
+    def get_export_parameters(self, with_secrets: bool = False) -> dict[str, Any]:
         parameters = dict(self.parameters) if with_secrets else configured_parameters(self.type, self.parameters)
         if not with_secrets and parameters.get("PROXY_SERVER"):
             parameters["PROXY_SERVER"] = "<REDACTED>"

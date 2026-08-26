@@ -19,7 +19,7 @@ class WordlistBot(BaseBot):
         if not parameters:
             parameters = {}
         ignore_case = self._set_ignore_case_flag(parameters)
-        override_existing_tags = str(parameters.get("OVERRIDE_EXISTING_TAGS", "true")).lower() == "true"
+        override_existing_tags = parameters.get("OVERRIDE_EXISTING_TAGS", True)
 
         word_list_entries = self._get_word_list_entries()
         if not word_list_entries:
@@ -34,7 +34,7 @@ class WordlistBot(BaseBot):
 
     @staticmethod
     def _set_ignore_case_flag(parameters):
-        return re.IGNORECASE if parameters.get("IGNORECASE", "true").lower() == "true" else re.NOFLAG
+        return re.IGNORECASE if parameters.get("IGNORECASE", True) else re.NOFLAG
 
     def _get_word_list_entries(self):
         if word_lists := self.core_api.get_words_for_tagging_bot():

@@ -30,7 +30,7 @@ class Bot(BaseModel):
     type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES), nullable=False)
     index: Mapped[int] = db.Column(db.Integer, unique=True, nullable=False)
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
-    parameters: Mapped[dict[str, str]] = db.Column(db.JSON, nullable=False, default=dict)
+    parameters: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False, default=dict)
 
     def __init__(
         self,
@@ -282,12 +282,12 @@ class Bot(BaseModel):
         return tuple(result)
 
     @property
-    def parameter_map(self) -> dict[str, str]:
+    def parameter_map(self) -> dict[str, Any]:
         return dict(self.parameters)
 
     @property
     def run_after_collector(self) -> bool:
-        return self.parameter_map.get(RUN_AFTER_COLLECTOR, "").lower() == "true"
+        return self.parameter_map.get(RUN_AFTER_COLLECTOR, False)
 
     @property
     def run_after_bot_ids(self) -> tuple[str, ...]:

@@ -60,7 +60,7 @@ def test_news_item_content_for_tagging_handles_nullable_fields():
     assert _news_item_content_for_tagging(news_item, separator="\n") == "\n\ncontent"
 
 
-def test_wordlist_bot_respects_canonical_false_override(monkeypatch):
+def test_wordlist_bot_respects_false_override(monkeypatch):
     from worker import bots
 
     wordlist_bot = bots.WordlistBot()
@@ -71,7 +71,7 @@ def test_wordlist_bot_respects_canonical_false_override(monkeypatch):
         lambda _: [{"id": "story-1", "news_items": [{"id": "item-1", "content": "malware", "tags": {"malware": "existing"}}]}],
     )
 
-    result = wordlist_bot.execute({"OVERRIDE_EXISTING_TAGS": "false"})
+    result = wordlist_bot.execute({"OVERRIDE_EXISTING_TAGS": False})
 
     assert result == {"item-1": {}}
 

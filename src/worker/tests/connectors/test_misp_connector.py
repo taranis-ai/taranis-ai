@@ -429,9 +429,9 @@ def test_pymisp_uses_registered_parameters(monkeypatch, request_timeout, expecte
             "URL": "https://misp.example",
             "API_KEY": "key",
             "REQUEST_TIMEOUT": request_timeout,
-            "SSL_CHECK": "true",
+            "SSL_CHECK": True,
             "PROXY_SERVER": "http://proxy.example:8080",
-            "ADDITIONAL_HEADERS": '{"X-Test":"1"}',
+            "ADDITIONAL_HEADERS": {"X-Test": "1"},
             "USER_AGENT": "TaranisAI/test",
         }
     )

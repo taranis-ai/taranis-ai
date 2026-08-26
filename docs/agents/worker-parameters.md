@@ -8,7 +8,7 @@ Load for worker types, collector/bot/connector/product-type/publisher-preset par
 
 `src/models/models/worker_parameters.py` is the only intrinsic worker-parameter contract. Every `WORKER_TYPES` member has exactly one registry entry and one Pydantic model with `extra="forbid"`. Models own uppercase external names, native types, defaults, field order, constraints, labels, tooltip descriptions, secret status, and exceptional UI widgets.
 
-Database JSON columns contain only explicitly configured name/string-value pairs. Explicit values are retained even when equal to defaults. Core returns configured non-secret values and `********` secret markers to human-facing APIs. Worker-authenticated responses validate the configured values, expand model defaults, and include raw secrets. Workers validate that effective payload again before dispatch; transient task filters are added only afterwards.
+Database JSON columns contain only explicitly configured names with their native validated values. Explicit values are retained even when equal to defaults. Core returns configured non-secret values and `********` secret markers to human-facing APIs. Worker-authenticated responses validate the configured values, expand model defaults, preserve native Pydantic types, and include raw secrets. Workers validate that effective payload again before dispatch; transient task filters are added only afterwards.
 
 ## Code Paths
 
@@ -41,8 +41,8 @@ Invalid reveal requests are logged server-side and return a static `400` error w
 ## Pitfalls
 
 - Never add validation metadata back to owner rows or create a parallel frontend catalog.
-- Canonical string serialization is a boundary concern and must not alter validation JSON Schema.
+- Preserve validated native types across persistence, human-facing APIs, and worker execution; do not turn booleans, numbers, objects, or lists back into strings.
 - Template existence, referenced bot/word-list ids, DAG validity, and deployment availability remain stateful core/frontend checks.
 - The destructive migration has no reconstructive downgrade. Deployment requires a verified database snapshot; rollback restores it and redeploys the previous compatible images.
 - Migration failures for unsupported worker types or invalid enabled source/bot configurations identify the owner table, owner ID, and worker type; they never silently discard an owner. Incomplete connector, product-type, and publisher-preset configurations are retained for administrators to repair and are fully validated before execution.
-- Legacy numeric refresh intervals are converted to valid cron expressions, including daily intervals, `TAGGING_BOT.KEYWORDS` is migrated to `REGULAR_EXPRESSION` when no canonical value exists, and TAXII `AUTH_TYPE=token` is migrated to `bearer`.
+- `TAGGING_BOT.KEYWORDS` is migrated to `REGULAR_EXPRESSION` when no canonical value exists, and TAXII `AUTH_TYPE=token` is migrated to `bearer`.

@@ -20,24 +20,6 @@ _OWNERS = (
 )
 
 
-def _normalize_legacy_refresh_interval(value: Any) -> Any:
-    try:
-        interval = int(value)
-    except (TypeError, ValueError):
-        return value
-    if interval < 1:
-        return "0 */8 * * *"
-    if interval < 60:
-        return f"*/{interval} * * * *"
-    if interval < 1440:
-        hours = interval // 60
-        return "0 * * * *" if hours == 1 else f"0 */{hours} * * *"
-    if interval <= 40000:
-        days = interval // 1440
-        return "0 4 * * *" if days == 1 else f"0 4 */{days} * *"
-    return "0 */8 * * *"
-
-
 def _unsupported_downgrade(connection) -> None:
     raise RuntimeError("Worker parameter migration cannot be downgraded; restore the verified database snapshot")
 
@@ -82,8 +64,6 @@ def _migrate_parameters(connection) -> None:
                 for name, value in values.items():
                     if name not in fields:
                         continue
-                    if name == "REFRESH_INTERVAL":
-                        value = _normalize_legacy_refresh_interval(value)
                     try:
                         normalized.update(normalize_parameter_values(worker_type, {name: value}, complete=False))
                     except (ValidationError, ValueError, TypeError):

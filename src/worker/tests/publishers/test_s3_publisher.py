@@ -51,7 +51,7 @@ def test_s3_publisher_publish_creates_bucket_and_uploads(s3_publisher_testdata, 
     assert upload["length"] == len(get_product_mock.data)
 
 
-def test_s3_publisher_converts_canonical_boolean_strings(monkeypatch):
+def test_s3_publisher_uses_native_boolean_values(monkeypatch):
     captured = {}
     monkeypatch.setattr("worker.publishers.s3_publisher.Minio", lambda **kwargs: captured.update(kwargs))
 
@@ -60,8 +60,8 @@ def test_s3_publisher_converts_canonical_boolean_strings(monkeypatch):
             "S3_ENDPOINT": "s3.example.test",
             "S3_ACCESS_KEY": "access",
             "S3_SECRET_KEY": "secret",
-            "S3_SECURE": "false",
-            "S3_CERT_CHECK": "false",
+            "S3_SECURE": False,
+            "S3_CERT_CHECK": False,
         }
     )
 

@@ -1,5 +1,4 @@
 import datetime
-import json
 from typing import Any, Literal
 from urllib.parse import urljoin, urlparse
 
@@ -42,10 +41,11 @@ class BaseWebCollector(BaseCollector):
         self.osint_source_id: str
 
         self.digest_splitting_limit: int
+        self.digest_splitting = False
         self.split_digest_urls: list = []
 
         self.playwright_manager: PlaywrightManager | None = None
-        self.browser_mode: str | None = None
+        self.browser_mode = False
         self.web_url: str = ""
         self.http_validators: dict[str, str | None] | None = None
         self.use_conditional_requests = False
@@ -98,29 +98,23 @@ class BaseWebCollector(BaseCollector):
         return response
 
     def parse_source(self, source: dict):
-        self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
-        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
+        self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", False)
+        self.digest_splitting_limit = source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30)
         self.xpath = source["parameters"].get("XPATH", "")
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
         if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
             self.update_headers(additional_headers)
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers.update({"User-Agent": user_agent})
-        self.browser_mode = source["parameters"].get("BROWSER_MODE", "false")
+        self.browser_mode = source["parameters"].get("BROWSER_MODE", False)
 
         self.osint_source_id = str(source["id"])
 
     def set_proxies(self, proxy_server: str | None):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server} if proxy_server else None
 
-    def update_headers(self, headers: str):
-        try:
-            headers_dict = json.loads(headers)
-            if not isinstance(headers_dict, dict):
-                raise TypeError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
-            self.headers.update(headers_dict)
-        except (json.JSONDecodeError, TypeError) as e:
-            raise ValueError(f"ADDITIONAL_HEADERS: {headers} has to be valid JSON\n{e}") from e
+    def update_headers(self, headers: dict[str, Any]):
+        self.headers.update(headers)
 
     def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
         if last_modified := response.headers.get("Last-Modified", None):
@@ -151,7 +145,7 @@ class BaseWebCollector(BaseCollector):
         return
 
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None] | tuple[Literal[""], None]:
-        if self.browser_mode == "true" and self.playwright_manager:
+        if self.browser_mode and self.playwright_manager:
             web_content, last_modified = self.playwright_manager.fetch_content_with_js(web_url, xpath)
             published_date = parse_datetime(last_modified) if last_modified else None
             return web_content, published_date

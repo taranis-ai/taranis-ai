@@ -51,8 +51,7 @@ Cron = Annotated[
 class WorkerParameters(BaseModel):
     """Base for configured worker parameters.
 
-    Models contain native values. Values are converted to canonical strings only
-    when crossing the persistence/API/worker boundary.
+    Validated native values are preserved across persistence, APIs, and worker execution.
     """
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -466,18 +465,10 @@ def secret_parameter_names(worker_type: WORKER_TYPES | str) -> frozenset[str]:
     )
 
 
-def _canonical_value(value: Any) -> str:
+def _plain_value(value: Any) -> Any:
     if isinstance(value, SecretStr):
         return value.get_secret_value()
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (dict, list)):
-        if isinstance(value, list):
-            return ",".join(str(item) for item in value)
-        return json.dumps(value, separators=(",", ":"), sort_keys=True)
-    if value is None:
-        return ""
-    return str(value)
+    return value
 
 
 def normalize_parameter_values(
@@ -485,35 +476,36 @@ def normalize_parameter_values(
     values: dict[str, Any],
     *,
     complete: bool = True,
-) -> dict[str, str]:
-    """Validate configured values and return only submitted keys as strings."""
+) -> dict[str, Any]:
+    """Validate configured values and return submitted keys with native values."""
     model = get_worker_definition(worker_type).parameter_model
     if complete:
         validated = model.model_validate(values)
         native = validated.model_dump(mode="python")
-        return {name: _canonical_value(native[name]) for name in values}
+        return {name: _plain_value(native[name]) for name in values if native[name] is not None}
 
     unknown = set(values) - set(model.model_fields)
     if unknown:
         raise ValueError(f"Unknown parameters: {', '.join(sorted(unknown))}")
-    normalized: dict[str, str] = {}
+    normalized: dict[str, Any] = {}
     for name, value in values.items():
         field = model.model_fields[name]
         native = TypeAdapter(field.rebuild_annotation()).validate_python(value)
-        normalized[name] = _canonical_value(native)
+        if native is not None:
+            normalized[name] = _plain_value(native)
     return normalized
 
 
-def effective_parameter_values(worker_type: WORKER_TYPES | str, values: dict[str, Any]) -> dict[str, str]:
+def effective_parameter_values(worker_type: WORKER_TYPES | str, values: dict[str, Any]) -> dict[str, Any]:
     """Validate configured values and expand defaults for worker execution."""
     validated = get_worker_definition(worker_type).parameter_model.model_validate(values)
-    return {name: _canonical_value(value) for name, value in validated.model_dump(mode="python").items()}
+    return {name: _plain_value(value) for name, value in validated.model_dump(mode="python").items()}
 
 
 SECRET_MASK = "********"
 
 
-def configured_parameter_values(worker_type: WORKER_TYPES | str, values: dict[str, str]) -> dict[str, str]:
+def configured_parameter_values(worker_type: WORKER_TYPES | str, values: dict[str, Any]) -> dict[str, Any]:
     """Return configured values with secrets replaced by a stable marker."""
     secrets = secret_parameter_names(worker_type)
     return {name: SECRET_MASK if name in secrets and value else value for name, value in values.items()}

@@ -135,10 +135,10 @@ def browser_web_collector_mock(monkeypatch) -> MagicMock:
 def browser_web_collector_instance(simple_web_collector):
     collector = simple_web_collector
 
-    collector.browser_mode = "true"
+    collector.browser_mode = True
     collector.proxies = {}
     collector.headers = {}
-    collector.digest_splitting = "false"
+    collector.digest_splitting = False
     collector.playwright_manager = None
 
     yield collector

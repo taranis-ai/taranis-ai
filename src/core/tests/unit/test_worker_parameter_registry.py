@@ -23,7 +23,7 @@ def test_schema_preserves_contract_order_and_frontend_metadata():
     assert schema["properties"]["USE_GLOBAL_PROXY"]["type"] == "boolean"
 
 
-def test_boundary_adapter_uses_canonical_strings():
+def test_boundary_adapter_preserves_native_values():
     configured = normalize_parameter_values(
         "RSS_COLLECTOR",
         {"FEED_URL": "https://example.test/feed", "USE_GLOBAL_PROXY": "on", "ADDITIONAL_HEADERS": '{"X-B":"2","X-A":"1"}'},
@@ -31,14 +31,14 @@ def test_boundary_adapter_uses_canonical_strings():
 
     assert configured == {
         "FEED_URL": "https://example.test/feed",
-        "USE_GLOBAL_PROXY": "true",
-        "ADDITIONAL_HEADERS": '{"X-A":"1","X-B":"2"}',
+        "USE_GLOBAL_PROXY": True,
+        "ADDITIONAL_HEADERS": {"X-A": "1", "X-B": "2"},
     }
 
 
 def test_effective_values_expand_defaults_and_unknown_fields_are_rejected():
     effective = effective_parameter_values("RSS_COLLECTOR", {"FEED_URL": "https://example.test/feed"})
-    assert effective["USE_GLOBAL_PROXY"] == "false"
+    assert effective["USE_GLOBAL_PROXY"] is False
     assert effective["REFRESH_INTERVAL"] == ""
 
     with pytest.raises(ValidationError):
