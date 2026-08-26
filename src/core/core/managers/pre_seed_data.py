@@ -17,7 +17,7 @@ bots = [
         "type": "INTEL_OWL_BOT",
         "enabled": False,
         "parameters": {
-            "INTEL_OWL_TLS_VERIFY": "true",
+            "INTEL_OWL_TLS_VERIFY": True,
             "INTEL_OWL_TLP": "CLEAR",
             "INTEL_OWL_POLL_TIMEOUT_SECONDS": 1800,
         },
