@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_PASSWORD: str | None = None
     OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
+    OTEL_SERVICE_NAME: str = "taranis-frontend"
     OTEL_METRIC_EXPORT_INTERVAL: Annotated[float, Field(gt=0)] = 60_000
     TARANIS_FRONTEND_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False

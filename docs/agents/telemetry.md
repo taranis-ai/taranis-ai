@@ -4,7 +4,7 @@
 OpenTelemetry, OTLP, Sentry, Grafana LGTM, Flask instrumentation, RQ job traces, worker metrics, or trace-context propagation.
 
 ## Expected Behavior
-Sentry and OpenTelemetry are optional. Core and frontend initialize every configured telemetry integration through one component-level entry point. A normalized `OTEL_EXPORTER_OTLP_ENDPOINT` base URL enables OTLP/HTTP traces and metrics; no endpoint disables both. Core and frontend emit Flask request metrics and spans. Frontend calls to core remain in the incoming trace. RQ jobs continue that trace and emit bounded completed-job and duration metrics.
+Sentry and OpenTelemetry are optional. Core and frontend initialize every configured telemetry integration through one component-level entry point. A normalized `OTEL_EXPORTER_OTLP_ENDPOINT` base URL enables OTLP/HTTP traces and metrics; no endpoint disables both. Each component's `OTEL_SERVICE_NAME` setting controls its OpenTelemetry service and instance resource name and defaults to `taranis-core`, `taranis-frontend`, or `taranis-worker`. Core and frontend emit Flask request metrics and spans. Frontend calls to core remain in the incoming trace. RQ jobs continue that trace and emit bounded completed-job and duration metrics.
 
 The bundled Grafana LGTM service is opt-in through the `telemetry` Compose profile. External OTLP backends remain supported by configuring their base URL without enabling the profile.
 

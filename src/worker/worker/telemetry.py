@@ -38,7 +38,7 @@ def _initialize() -> bool:
     if not (endpoint := Config.OTEL_EXPORTER_OTLP_ENDPOINT):
         return False
 
-    service_name = "taranis-worker"
+    service_name = Config.OTEL_SERVICE_NAME
     resource = Resource.create({SERVICE_NAME: service_name, "service.instance.id": service_name})
     _tracer_provider = TracerProvider(resource=resource)
     _tracer_provider.add_span_processor(

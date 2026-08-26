@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str | None = None
     RQ_WORKER_CLASS: Literal["auto", "fork", "spawn"] = "auto"
     OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
+    OTEL_SERVICE_NAME: str = "taranis-worker"
     OTEL_METRIC_EXPORT_INTERVAL: Annotated[float, Field(gt=0)] = 60_000
     SUMMARY_API_ENDPOINT: str = "http://llm-bot:8000/summarize"
     TITLE_API_ENDPOINT: str | None = "http://llm-bot:8000/title"

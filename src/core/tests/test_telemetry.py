@@ -11,7 +11,9 @@ from core.managers import telemetry_manager
 
 def test_initialize_instruments_flask_requests(monkeypatch):
     endpoint = "http://collector:4318"
+    service_name = "custom-core"
     monkeypatch.setattr(Config, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
+    monkeypatch.setattr(Config, "OTEL_SERVICE_NAME", service_name)
     exporter = InMemorySpanExporter()
     metric_reader = InMemoryMetricReader()
     app = Flask(__name__)
@@ -32,8 +34,8 @@ def test_initialize_instruments_flask_requests(monkeypatch):
     span = spans[0]
     assert span.attributes is not None
     assert span.attributes["http.route"] == "/test"
-    assert span.resource.attributes["service.name"] == "taranis-core"
-    assert span.resource.attributes["service.instance.id"] == "taranis-core"
+    assert span.resource.attributes["service.name"] == service_name
+    assert span.resource.attributes["service.instance.id"] == service_name
     exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/traces")
     metric_exporter_factory.assert_called_once_with(endpoint=f"{endpoint}/v1/metrics")
     metrics_data = metric_reader.get_metrics_data()

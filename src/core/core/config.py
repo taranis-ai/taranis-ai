@@ -84,6 +84,7 @@ class Settings(BaseSettings):
     CENTRIFUGO_CONNECT_PROXY_SECRET: SecretStr = SecretStr("")
     DISABLE_SCHEDULER: bool = False
     OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
+    OTEL_SERVICE_NAME: str = "taranis-core"
     OTEL_METRIC_EXPORT_INTERVAL: Annotated[float, Field(gt=0)] = 60_000
     TARANIS_CORE_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False
