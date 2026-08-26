@@ -32,6 +32,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [MISP Auto-Update](misp-auto-update.md) - scheduled story-to-MISP pushes, proposal warnings, and configuration state.
 - [Scheduler Dashboard](scheduler-dashboard.md) - scheduler tabs, RQ-backed table data, granular refreshes, pagination and filtering, and task history.
 - [Collector HTTP State](collector-http-state.md) - persistent HTTP validators, request scoping, manual bypass, 304 handling, and collector failure propagation.
+- [Worker Parameters](worker-parameters.md) - shared parameter registry ownership, configured/effective values, schema-driven forms, secrets, update semantics, and migration rules.
 
 ## File Format
 

@@ -5,7 +5,6 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 def dismiss_notifications(
     page: Page,
     *,
-    click_timeout_ms: int = 500,
     settle_timeout_ms: int = 100,
     appear_timeout_ms: int = 1000,
     modal_timeout_ms: int = 5000,
@@ -19,28 +18,8 @@ def dismiss_notifications(
     except PlaywrightTimeoutError:
         pass
 
-    while alerts.count():
-        alert = alerts.first
-        try:
-            if not alert.is_visible():
-                break
-        except Error:
-            break
-
-        try:
-            alert.click(timeout=click_timeout_ms)
-        except Error:
-            break
-
-        try:
-            alert.wait_for(state="hidden", timeout=settle_timeout_ms)
-        except Error:
-            page.wait_for_timeout(settle_timeout_ms)
-            try:
-                if alert.is_visible():
-                    break
-            except Error:
-                break
+    if alerts.count():
+        page.locator("#notification-bar").evaluate("element => element.replaceChildren()")
 
     modal_overlay = page.locator(".swal2-container.swal2-backdrop-show").first
     try:

@@ -1,10 +1,12 @@
 # pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any, cast
 
 import fakeredis
 import pytest
 import rq.registry as rq_registry
+from models.types import COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
 from rq import Queue
 
 import core.service.dashboard as dashboard_module
@@ -329,6 +331,10 @@ def test_preview_osint_source_purges_existing_preview_artifacts(monkeypatch):
 
     qm = _make_queue_manager()
     monkeypatch.setattr(
+        "core.model.osint_source.OSINTSource.get",
+        lambda source_id: type("Source", (), {"type": COLLECTOR_TYPES.MANUAL_COLLECTOR, "parameters": {}})(),
+    )
+    monkeypatch.setattr(
         qm,
         "purge_job_artifacts",
         lambda *, exact_ids=None, prefixes=None: purged_calls.append((exact_ids or set(), prefixes or [])) or (1, 1),
@@ -430,6 +436,14 @@ def test_get_failed_jobs_removes_stale_registry_entries(monkeypatch):
 
 def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
     qm = _make_queue_manager()
+    monkeypatch.setattr(
+        "core.model.product.Product.get",
+        lambda product_id: SimpleNamespace(product_type=SimpleNamespace(type=PRESENTER_TYPES.STIX_PRESENTER, parameters={})),
+    )
+    monkeypatch.setattr(
+        "core.model.publisher_preset.PublisherPreset.get",
+        lambda publisher_id: SimpleNamespace(type=PUBLISHER_TYPES.TARANIS_PUBLISHER, parameters={}),
+    )
     job_ids = iter(("presenter_task_product-1_101", "publisher_task_product-1_202"))
     presenter_job = object()
     publisher_job = object()
@@ -474,7 +488,12 @@ def test_autopublish_product_schedules_presenter_then_publisher(monkeypatch):
         "kwargs": {
             "job_id": "publisher_task_product-1_202",
             "depends_on": presenter_job,
-            "meta": {"task": "publisher_task", "user_id": None, "worker_id": "publisher-1", "worker_type": "publisher_task"},
+            "meta": {
+                "task": "publisher_task",
+                "user_id": None,
+                "worker_id": "publisher-1",
+                "worker_type": "taranis_publisher",
+            },
         },
     }
 
@@ -697,6 +716,14 @@ def test_enqueue_at_keeps_background_job_at_normal_priority(monkeypatch):
 
 def test_autopublish_product_returns_error_when_presenter_enqueue_fails(monkeypatch):
     qm = _make_queue_manager()
+    monkeypatch.setattr(
+        "core.model.product.Product.get",
+        lambda product_id: SimpleNamespace(product_type=SimpleNamespace(type=PRESENTER_TYPES.STIX_PRESENTER, parameters={})),
+    )
+    monkeypatch.setattr(
+        "core.model.publisher_preset.PublisherPreset.get",
+        lambda publisher_id: SimpleNamespace(type=PUBLISHER_TYPES.TARANIS_PUBLISHER, parameters={}),
+    )
     monkeypatch.setattr(qm, "_build_unique_job_id", lambda _task_name, _worker_id: "presenter_task_product-2_303")
     monkeypatch.setattr(qm, "enqueue_task", lambda *args, **kwargs: False)
 

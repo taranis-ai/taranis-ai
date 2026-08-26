@@ -5,6 +5,7 @@ from models.admin import ProductType, PublisherPreset, ReportItemType, Template
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
 from werkzeug.exceptions import HTTPException
 
+from frontend.config import Config
 from frontend.data_persistence import DataPersistenceLayer
 from frontend.filters import render_item_type
 from frontend.log import logger
@@ -35,6 +36,11 @@ class PublisherView(AdminBaseView):
             "publisher_types": cls.publisher_types.values(),
             "parameter_values": parameter_values,
             "parameters": parameters,
+            "secret_reveal_url": (
+                f"{Config.TARANIS_BASE_PATH.rstrip('/')}/api/config/parameter-secrets/publisher-presets/{publisher.id}"
+                if publisher and publisher.id
+                else ""
+            ),
         }
         return base_context
 
@@ -80,6 +86,11 @@ class ProductTypeView(AdminBaseView):
             "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType).items],
             "parameters": parameters,
             "parameter_values": parameter_values,
+            "secret_reveal_url": (
+                f"{Config.TARANIS_BASE_PATH.rstrip('/')}/api/config/parameter-secrets/product-types/{presenter.id}"
+                if presenter and presenter.id
+                else ""
+            ),
         }
         base_context["template_options"] = cls.get_template_options()
         return base_context

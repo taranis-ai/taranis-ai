@@ -8,11 +8,6 @@ from .base_publisher import BasePublisher
 
 
 class KafkaPublisher(BasePublisher):
-    REQUIRED_PARAMETERS = (
-        "KAFKA_BOOTSTRAP_SERVERS",
-        "KAFKA_TOPIC",
-    )
-
     def __init__(self, producer=None):
         super().__init__()
         self.type = "KAFKA_PUBLISHER"

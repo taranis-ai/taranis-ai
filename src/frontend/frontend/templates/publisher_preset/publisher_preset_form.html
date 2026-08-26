@@ -1,6 +1,6 @@
 {% from "macros/forms.html" import form_input %}
 {% set publisher_id = publisher_preset.id | default("0", true) %}
-{% set publisher_type = publisher_preset.type | upper %}
+{% set publisher_type = publisher_preset.type %}
 
 <div class="bg-base-100 p-4">
   <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">{{ submit_text }}</h1>

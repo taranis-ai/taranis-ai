@@ -500,7 +500,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             {
                 "url": "u",
                 "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
+                "proxies": None,
                 "headers": {"User-Agent": "TaranisAI/1.0"},
                 "ssl": False,
                 "sharing_group_id": None,
@@ -515,7 +515,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             {
                 "url": "u",
                 "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
+                "proxies": None,
                 "headers": {"User-Agent": "TaranisAI/1.0"},
                 "ssl": False,
                 "sharing_group_id": 99,
@@ -530,7 +530,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             {
                 "url": "u",
                 "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
+                "proxies": None,
                 "headers": {"User-Agent": "TaranisAI/1.0"},
                 "ssl": False,
                 "sharing_group_id": None,

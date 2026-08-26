@@ -14,11 +14,10 @@ from core.managers.data_manager import (
 )
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
-from core.model.parameter_value import ParameterValue
 from core.model.report_item_type import ReportItemType
 from core.model.role_based_access import ItemType, RoleBasedAccess
-from core.model.worker import Worker
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.service.worker_parameters import configured_parameters, effective_parameters, set_parameters
 
 
 class ProductType(BaseModel):
@@ -29,9 +28,7 @@ class ProductType(BaseModel):
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[PRESENTER_TYPES] = db.Column(db.Enum(PRESENTER_TYPES))
 
-    parameters: Mapped[list["ParameterValue"]] = relationship(
-        "ParameterValue", secondary="product_type_parameter_value", cascade="all, delete"
-    )
+    parameters: Mapped[dict[str, str]] = db.Column(db.JSON, nullable=False, default=dict)
     report_types: Mapped[list["ReportItemType"]] = relationship("ReportItemType", secondary="product_type_report_type")
 
     def __init__(self, title, type, description="", parameters=None, report_types=None, id=None):
@@ -102,7 +99,7 @@ class ProductType(BaseModel):
         return {"items": cls.to_list(items)}, 200
 
     @classmethod
-    def update(cls, product_type_id: str, data, user=None) -> tuple[dict, int]:
+    def update(cls, product_type_id: str, data, user=None, *, patch: bool = False) -> tuple[dict, int]:
         product_type = cls.get(product_type_id)
         logger.debug(f"Updating {cls.__name__} with id {product_type_id} and data {data}")
         if not product_type:
@@ -112,14 +109,23 @@ class ProductType(BaseModel):
             logger.error(f"User {user} does not have write access to product type {product_type_id}")
             return {"error": "User does not have write access to this product type"}, 403
 
-        if type := data.get("type"):
-            product_type.type = type
-            product_type.parameters = cls._parse_parameters(type, data.get("parameters", product_type.parameters))
+        if "type" in data and PRESENTER_TYPES(data["type"]) != product_type.type:
+            raise ValueError("Worker type is immutable")
+        if "parameters" in data:
+            product_type.parameters = cls._parse_parameters(
+                product_type.type,
+                data.get("parameters"),
+                current=product_type.parameters,
+                patch=patch,
+            )
 
         if title := data.get("title"):
             product_type.title = title
 
-        product_type.description = data.get("description")
+        if "description" in data:
+            product_type.description = data.get("description") or ""
+        elif not patch:
+            product_type.description = ""
 
         report_types = data.get("report_types", None)
         if report_types is not None:
@@ -128,29 +134,37 @@ class ProductType(BaseModel):
         return {"message": "Product type updated", "id": product_type.id}, 200
 
     @staticmethod
-    def _parse_parameters(worker_type: str, parameters) -> list[ParameterValue]:
-        parsed_parameters = Worker.parse_parameters(worker_type, parameters)
-        template_parameter = ParameterValue.find_by_parameter(parsed_parameters, "TEMPLATE_PATH")
-        if template_parameter and template_parameter.value:
-            template_parameter.value = validate_existing_presenter_template_id(str(template_parameter.value))
+    def _parse_parameters(
+        worker_type: str,
+        parameters,
+        *,
+        current: dict[str, str] | None = None,
+        patch: bool = False,
+    ) -> dict[str, str]:
+        parsed_parameters = set_parameters(worker_type, current, parameters, patch=patch, complete=True)
+        if template := parsed_parameters.get("TEMPLATE_PATH"):
+            parsed_parameters["TEMPLATE_PATH"] = validate_existing_presenter_template_id(template)
         return parsed_parameters
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["report_types"] = [report_type.id for report_type in self.report_types if report_type]
-        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
+        data["parameters"] = configured_parameters(self.type, self.parameters)
+        return data
+
+    def to_worker_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["parameters"] = effective_parameters(self.type, self.parameters)
+        data["report_types"] = [report_type.id for report_type in self.report_types if report_type]
         return data
 
     def _get_template_path(self) -> str:
         # get value of parameter where parameter.parameter == "TEMPLATE_PATH"
-        template_parameter = next((param for param in self.parameters if param.parameter == "TEMPLATE_PATH"), None)
-        if not template_parameter:
+        template_path = self.parameters.get("TEMPLATE_PATH", "")
+        if not template_path:
             logger.debug("Product type has no TEMPLATE_PATH parameter")
             return ""
-        if not template_parameter.value and template_parameter.rules and "required" in template_parameter.rules:
-            logger.error("TEMPLATE_PATH parameter has no value")
-            return ""
-        return str(template_parameter.value)
+        return template_path
 
     def get_template(self) -> str:
         full_path = get_presenter_template_path(self._get_template_path())
@@ -176,7 +190,7 @@ class ProductType(BaseModel):
         if self.type.startswith("image"):
             return "image/png"
         if self.type.startswith("pandoc"):
-            data_format = next((param.value for param in self.parameters if param.parameter == "CONVERT_TO"), None)
+            data_format = self.parameters.get("CONVERT_TO")
             if data_format == "docx":
                 return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             elif data_format == "odt":
@@ -207,11 +221,6 @@ class ProductType(BaseModel):
         db.session.delete(product_type)
         db.session.commit()
         return {"message": "Product type deleted"}, 200
-
-
-class ProductTypeParameterValue(BaseModel):
-    product_type_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id"), primary_key=True)
 
 
 class ProductTypeReportType(BaseModel):

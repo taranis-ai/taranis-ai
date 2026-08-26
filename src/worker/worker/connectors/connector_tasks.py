@@ -7,6 +7,8 @@ import json
 import re
 from typing import Any
 
+from models.worker_parameters import effective_parameter_values
+from pydantic import ValidationError
 from rq import get_current_job
 
 from worker.connectors import MispConnector
@@ -39,6 +41,11 @@ def connector_task(connector_id: str, story_ids: list[str] | None, auto_update: 
     try:
         connector_config = _get_connector_config(core_api, connector_id)
         connector = _get_connector(connector_config.get("type", ""))
+        try:
+            connector_config["parameters"] = effective_parameter_values(connector_config["type"], connector_config.get("parameters", {}))
+        except (ValidationError, TypeError, ValueError) as exc:
+            raise ConnectorError("Invalid connector parameters", "invalid_parameters") from exc
+
         connector_data = _get_connector_data(core_api, connector_id, connector_config, story_ids)
         connector_result = connector.execute(connector_data, auto_update=auto_update)
         if not isinstance(connector_result, dict):
