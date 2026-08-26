@@ -92,13 +92,35 @@ def test_migration_identifies_incomplete_active_owner():
         migration._migrate_parameters(connection)
 
 
-def test_migration_converts_legacy_tagging_keywords():
+def test_migration_converts_released_legacy_values():
     migration = _load_migration()
-    connection = FakeConnection({"bot": [("bot-1", "TAGGING_BOT", True, "KEYWORDS", "threat|malware")]})
+    connection = FakeConnection(
+        {
+            "osint_source": [("source-1", "RSS_COLLECTOR", False, "REFRESH_INTERVAL", "1440")],
+            "bot": [("bot-1", "TAGGING_BOT", True, "KEYWORDS", "threat|malware")],
+            "publisher_preset": [
+                ("publisher-1", "TAXII_PUBLISHER", "TAXII_API_ROOT_URL", "https://taxii.example.test/root"),
+                ("publisher-1", "TAXII_PUBLISHER", "TAXII_COLLECTION_ID", "collection"),
+                ("publisher-1", "TAXII_PUBLISHER", "AUTH_TYPE", "token"),
+                ("publisher-1", "TAXII_PUBLISHER", "API_TOKEN", "secret"),
+            ],
+        }
+    )
 
     migration._migrate_parameters(connection)
 
-    assert connection.fake_cursor.updates == [("bot", ('{"REGULAR_EXPRESSION":"threat|malware"}', "bot-1"))]
+    assert connection.fake_cursor.updates == [
+        ("osint_source", ('{"REFRESH_INTERVAL":"0 4 * * *"}', "source-1")),
+        ("bot", ('{"REGULAR_EXPRESSION":"threat|malware"}', "bot-1")),
+        (
+            "publisher_preset",
+            (
+                '{"API_TOKEN":"secret","AUTH_TYPE":"bearer","TAXII_API_ROOT_URL":"https://taxii.example.test/root",'
+                + '"TAXII_COLLECTION_ID":"collection"}',
+                "publisher-1",
+            ),
+        ),
+    ]
 
 
 def test_migration_allows_incomplete_on_demand_owners():

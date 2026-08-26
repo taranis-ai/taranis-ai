@@ -45,4 +45,4 @@ Invalid reveal requests are logged server-side and return a static `400` error w
 - Template existence, referenced bot/word-list ids, DAG validity, and deployment availability remain stateful core/frontend checks.
 - The destructive migration has no reconstructive downgrade. Deployment requires a verified database snapshot; rollback restores it and redeploys the previous compatible images.
 - Migration failures for unsupported worker types or invalid enabled source/bot configurations identify the owner table, owner ID, and worker type; they never silently discard an owner. Incomplete connector, product-type, and publisher-preset configurations are retained for administrators to repair and are fully validated before execution.
-- Legacy numeric refresh intervals are converted to cron expressions, and `TAGGING_BOT.KEYWORDS` is migrated to `REGULAR_EXPRESSION` when no canonical value exists.
+- Legacy numeric refresh intervals are converted to valid cron expressions, including daily intervals, `TAGGING_BOT.KEYWORDS` is migrated to `REGULAR_EXPRESSION` when no canonical value exists, and TAXII `AUTH_TYPE=token` is migrated to `bearer`.

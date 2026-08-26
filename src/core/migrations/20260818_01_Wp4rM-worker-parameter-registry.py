@@ -34,7 +34,7 @@ def _normalize_legacy_refresh_interval(value: Any) -> Any:
         return "0 * * * *" if hours == 1 else f"0 */{hours} * * *"
     if interval <= 40000:
         days = interval // 1440
-        return "0 4 0 * *" if days == 1 else f"0 4 */{days} * *"
+        return "0 4 * * *" if days == 1 else f"0 4 */{days} * *"
     return "0 */8 * * *"
 
 
@@ -76,6 +76,8 @@ def _migrate_parameters(connection) -> None:
                     ) from exc
                 if worker_type == "TAGGING_BOT" and values.get("KEYWORDS") and "REGULAR_EXPRESSION" not in values:
                     values["REGULAR_EXPRESSION"] = values["KEYWORDS"]
+                if worker_type == "TAXII_PUBLISHER" and values.get("AUTH_TYPE") == "token":
+                    values["AUTH_TYPE"] = "bearer"
                 normalized: dict[str, str] = {}
                 for name, value in values.items():
                     if name not in fields:

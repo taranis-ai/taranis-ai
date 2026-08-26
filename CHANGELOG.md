@@ -28,8 +28,8 @@ This file records notable changes to Taranis AI. Published release entries link 
 
 - Aligned MISP connector parameters with the registered `SSL_CHECK`, `PROXY_SERVER`, and `ADDITIONAL_HEADERS` names and added safe parsing for stored request timeouts ([#996](https://github.com/taranis-ai/taranis-ai/issues/996)).
 - Removed undeclared HTML presenter conversion and render-option parameters.
-- Preserved legacy incomplete on-demand worker configurations during the worker-parameter migration, converted numeric refresh intervals, and migrated tagging keywords without blocking startup.
-- Aligned TAXII and Kafka validation with worker-supported authentication and transport values, and corrected canonical boolean handling in S3 and word-list workers.
+- Preserved legacy incomplete on-demand worker configurations during the worker-parameter migration, converted numeric refresh intervals to valid cron schedules, and migrated tagging keywords without blocking startup.
+- Aligned TAXII and Kafka validation with worker-supported authentication and transport values, migrated legacy TAXII token authentication to bearer, and corrected canonical boolean handling in S3 and word-list workers.
 
 ### Deployment notes
 
