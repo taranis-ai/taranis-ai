@@ -42,7 +42,7 @@ def bot_config():
         "id": "bot-456",
         "type": "wordlist_bot",
         "name": "Test Bot",
-        "parameters": {"limit": 5},
+        "parameters": {"ITEM_FILTER": "limit=5"},
     }
 
 

@@ -7,15 +7,14 @@ from models.admin import CronSpec
 from models.types import BOT_TYPES
 from sqlalchemy import func, literal
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
-from core.model.parameter_value import ParameterValue
 from core.model.task import Task as TaskModel
-from core.model.worker import Worker
+from core.service.worker_parameters import configured_parameters, effective_parameters, set_parameters
 
 
 RUN_AFTER_COLLECTOR = "RUN_AFTER_COLLECTOR"
@@ -31,7 +30,7 @@ class Bot(BaseModel):
     type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES), nullable=False)
     index: Mapped[int] = db.Column(db.Integer, unique=True, nullable=False)
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
-    parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
+    parameters: Mapped[dict[str, str]] = db.Column(db.JSON, nullable=False, default=dict)
 
     def __init__(
         self,
@@ -49,7 +48,7 @@ class Bot(BaseModel):
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
         self.index = index or Bot.get_highest_index() + 1
         self.enabled = enabled
-        self.parameters = Worker.parse_parameters(type, parameters)
+        self.parameters = set_parameters(self.type, {}, parameters, patch=False, complete=self.enabled)
 
     @property
     def status(self):
@@ -88,7 +87,7 @@ class Bot(BaseModel):
             raise
 
     @classmethod
-    def update(cls, bot_id: str, data: dict[str, Any]) -> "Bot | None":
+    def update(cls, bot_id: str, data: dict[str, Any], *, patch: bool = False) -> "Bot | None":
         bot = cls.get(bot_id)
         if not bot:
             return None
@@ -96,14 +95,26 @@ class Bot(BaseModel):
             if name := data.get("name"):
                 bot.name = name
 
-            bot.description = data.get("description", "")
-            if "type" in data:
-                bot.type = cls.normalize_bot_type(data["type"])
+            if "description" in data:
+                bot.description = data.get("description", "")
+            elif not patch:
+                bot.description = ""
+            if "type" in data and cls.normalize_bot_type(data["type"]) != bot.type:
+                raise ValueError("Worker type is immutable")
             if "enabled" in data:
-                bot.enabled = data.get("enabled", True)
-            if parameters := data.get("parameters"):
-                update_parameter = ParameterValue.get_or_create_from_list(parameters)
-                bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
+                if not isinstance(data["enabled"], bool):
+                    raise ValueError("enabled must be a boolean")
+                bot.enabled = data["enabled"]
+            if "parameters" in data:
+                bot.parameters = set_parameters(
+                    bot.type,
+                    bot.parameters,
+                    data.get("parameters"),
+                    patch=patch,
+                    complete=bot.enabled,
+                )
+            elif bot.enabled:
+                bot.parameters = set_parameters(bot.type, bot.parameters, {}, patch=True, complete=True)
             if (index := data.get("index")) and not Bot.index_exists(index):
                 bot.index = index
             cls.validate_dependency_config()
@@ -272,7 +283,7 @@ class Bot(BaseModel):
 
     @property
     def parameter_map(self) -> dict[str, str]:
-        return {parameter.parameter: parameter.value for parameter in self.parameters}
+        return dict(self.parameters)
 
     @property
     def run_after_collector(self) -> bool:
@@ -392,7 +403,7 @@ class Bot(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameters"] = self.parameter_map
+        data["parameters"] = configured_parameters(self.type, self.parameters)
         if status := self.status:
             data["status"] = status
         return data
@@ -436,7 +447,12 @@ class Bot(BaseModel):
         return {"message": "Bot deleted"}, 200
 
     def get_schedule(self) -> str:
-        return ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+        return self.parameters.get("REFRESH_INTERVAL", "")
+
+    def to_worker_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["parameters"] = effective_parameters(self.type, self.parameters)
+        return data
 
     def get_cron_spec(self) -> CronSpec:
         return CronSpec(
@@ -543,8 +559,3 @@ class Bot(BaseModel):
             self.schedule_bot()
         else:
             self.unschedule_bot()
-
-
-class BotParameterValue(BaseModel):
-    bot_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("bot.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id"), primary_key=True)

@@ -9,8 +9,6 @@ from worker.log import logger
 
 
 class BasePublisher:
-    REQUIRED_PARAMETERS: tuple[str, ...] = ()
-
     def __init__(self):
         self.type = "BASE_PUBLISHER"
         self.name = "Base Publisher"
@@ -36,12 +34,7 @@ class BasePublisher:
         return f"{product_title}_{datetime.now(UTC).strftime('%d-%m-%Y_%H-%M')}{file_extension}"
 
     def _extract_parameters(self, publisher: dict[str, Any]) -> dict[str, Any]:
-        parameters = publisher.get("parameters") or {}
-        missing = [param for param in self.REQUIRED_PARAMETERS if not parameters.get(param)]
-        if missing:
-            missing_params = ", ".join(missing)
-            raise ValueError(f"Missing required parameters for {self.name}: {missing_params}")
-        return parameters
+        return publisher.get("parameters") or {}
 
     @staticmethod
     def _require_rendered_data(rendered_product: Product) -> bytes:

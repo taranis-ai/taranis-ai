@@ -9,8 +9,6 @@ from .base_publisher import BasePublisher
 
 
 class FTPPublisher(BasePublisher):
-    REQUIRED_PARAMETERS = ("FTP_URL",)
-
     def __init__(self):
         super().__init__()
         self.ftp_url = None

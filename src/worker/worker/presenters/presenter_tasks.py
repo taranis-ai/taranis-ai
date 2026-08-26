@@ -6,6 +6,7 @@ Functions for generating products/reports in various formats.
 from base64 import b64encode
 from typing import Any
 
+from models.worker_parameters import effective_parameter_values
 from niquests.exceptions import ConnectionError
 from rq import get_current_job
 
@@ -42,6 +43,7 @@ def presenter_task(product_id: str):
     # Get presenter for product type
     presenter = _get_presenter(product)
     worker_type = presenter.type
+    product["parameters"] = effective_parameter_values(worker_type, product.get("parameters", {}))
 
     # Get template if needed
     type_id = str(product["type_id"])

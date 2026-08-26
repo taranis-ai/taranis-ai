@@ -196,6 +196,45 @@ class TestSourcesConfigApi(BaseTest):
         source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
         assert source_response.json["rank"] == 0
 
+    def test_patch_source_rejects_unsupported_state(self, client, auth_header, cleanup_sources):
+        source_id = cleanup_sources["id"]
+        source_response = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+
+        response = client.patch(
+            self.concat_url(f"osint-sources/{source_id}"),
+            json={"state": "paused", "description": "must not be applied"},
+            headers=auth_header,
+        )
+
+        assert response.status_code == 400
+        assert response.json == {"error": "Invalid state"}
+        unchanged = self.assert_get_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+        assert unchanged.json["description"] == source_response.json["description"]
+
+    def test_enabling_incomplete_source_returns_validation_error(self, client, auth_header):
+        source_id = str(uuid.uuid7())
+        payload = {
+            "id": source_id,
+            "name": "Incomplete disabled source",
+            "description": "",
+            "type": "rss_collector",
+            "enabled": False,
+            "parameters": {"USER_AGENT": "test"},
+        }
+        self.assert_post_ok(client, uri="osint-sources", json_data=payload, auth_header=auth_header)
+
+        try:
+            response = client.patch(
+                self.concat_url(f"osint-sources/{source_id}"),
+                json={"state": "enabled"},
+                headers=auth_header,
+            )
+
+            assert response.status_code == 400
+            assert response.json == {"error": "Invalid OSINT Source payload"}
+        finally:
+            client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
+
     def test_modify_source_rejects_invalid_icon(self, client, auth_header, cleanup_sources):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
@@ -946,7 +985,7 @@ class TestBotConfigApi(BaseTest):
             "name": cleanup_bot["name"],
             "type": cleanup_bot["type"],
             "description": "Boty McBotFace",
-            "parameters": {"REFRESH_INTERVAL": "0 */8 * * *"},
+            "parameters": {"REGULAR_EXPRESSION": r"\btest\b", "REFRESH_INTERVAL": "0 */8 * * *"},
         }
         bot_id = cleanup_bot["id"]
         response = self.assert_put_ok(client, uri=f"bots/{bot_id}", json_data=bot_data, auth_header=auth_header)
@@ -973,6 +1012,22 @@ class TestBotConfigApi(BaseTest):
         assert response.json["error"] == "Invalid bot update payload"
         assert "SECRET_BOT_TYPE" not in response.text
 
+    def test_modify_bot_rejects_null_enabled(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        bot_id = cleanup_bot["id"]
+        with app.app_context():
+            if Bot.get(bot_id):
+                Bot.delete(bot_id)
+        self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+
+        response = client.patch(self.concat_url(f"bots/{bot_id}"), json={"enabled": None}, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json == {"error": "Invalid bot update payload"}
+        with app.app_context():
+            assert Bot.get(bot_id).enabled is True
+
     def test_modify_bot_can_disable_and_clear_schedule(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot
 
@@ -991,6 +1046,7 @@ class TestBotConfigApi(BaseTest):
                 "type": cleanup_bot["type"],
                 "enabled": True,
                 "parameters": {
+                    "REGULAR_EXPRESSION": r"\btest\b",
                     "RUN_AFTER_COLLECTOR": "true",
                     "REFRESH_INTERVAL": "0 */8 * * *",
                 },
@@ -1038,7 +1094,7 @@ class TestBotConfigApi(BaseTest):
                 "name": cleanup_bot["name"],
                 "type": cleanup_bot["type"],
                 "description": "Boty McBotFace",
-                "parameters": {"REFRESH_INTERVAL": "0 */8 * * *"},
+                "parameters": {"REGULAR_EXPRESSION": r"\btest\b", "REFRESH_INTERVAL": "0 */8 * * *"},
             },
             auth_header=auth_header,
         )
@@ -1415,25 +1471,3 @@ class TestAttributes(BaseTest):
                 Attribute.add(cleanup_attribute.copy())
         response = self.assert_delete_ok(client, uri=f"attributes/{attribute_id}", auth_header=auth_header)
         assert response.json["message"] == "Attribute deleted"
-
-
-class TestWorkerTypes(BaseTest):
-    base_uri = "/api/config"
-
-    def test_get_worker_types(self, client, cleanup_worker_types, auth_header):
-        response = self.assert_get_ok(client, uri=f"worker-types?search={cleanup_worker_types['name']}", auth_header=auth_header)
-        assert response.json["items"][0]["name"] == cleanup_worker_types["name"]
-        assert response.json["items"][0]["description"] == cleanup_worker_types["description"]
-        assert response.json["items"][0]["type"] == cleanup_worker_types["type"]
-        assert response.json["items"][0]["parameters"] == cleanup_worker_types["parameters"]
-
-    def test_patch_worker_types(self, client, cleanup_worker_types, auth_header):
-        update_data = {"name": "Worky McWorkerFace"}
-
-        response = self.assert_patch_ok(
-            client, uri=f"worker-types/{cleanup_worker_types['id']}", json_data=update_data, auth_header=auth_header
-        )
-        assert response.json["name"] == update_data["name"]
-        assert response.json["description"] == cleanup_worker_types["description"]
-        assert response.json["type"] == cleanup_worker_types["type"]
-        assert response.json["parameters"] == cleanup_worker_types["parameters"]

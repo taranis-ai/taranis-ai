@@ -3,6 +3,9 @@
 Functions for executing bots to process news items.
 """
 
+from typing import Any
+
+from models.worker_parameters import effective_parameter_values
 from rq import get_current_job
 
 import worker.bots
@@ -116,11 +119,10 @@ def _execute_by_config(bot_config: dict, filter: dict | None = None, bot_id: str
     bot = bots.get(bot_type)
     if not bot:
         raise ValueError(f"Bot type '{bot_type}' not implemented")
-    bot_params = bot_config.get("parameters")
-    if not bot_params:
-        raise ValueError("Bot has no parameters")
+    bot_params: dict[str, Any] = effective_parameter_values(bot_type, bot_config.get("parameters", {}))
 
     if filter:
+        # Runtime filters are transient task data, not persisted parameters.
         bot_params["filter"] = filter
 
     return bot.execute(bot_params)

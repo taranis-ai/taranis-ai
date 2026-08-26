@@ -16,7 +16,12 @@ from tests.application.support.builders import build_news_item_payload, create_o
 
 
 def _misp_connector(name: str) -> Connector:
-    connector = Connector(name=name, description="", type="misp_connector")
+    connector = Connector(
+        name=name,
+        description="",
+        type="misp_connector",
+        parameters={"URL": "https://misp.example.invalid", "API_KEY": "secret", "ORGANISATION_ID": "1"},
+    )
     db.session.add(connector)
     db.session.commit()
     return connector

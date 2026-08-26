@@ -192,7 +192,7 @@ class CoreApi:
 
     def toggle_bot(self, bot_id: str, new_state: str):
         try:
-            return self.api_put(f"/config/bots/{bot_id}", json_data={"enabled": new_state == "enabled"})
+            return self.api_patch(f"/config/bots/{bot_id}", json_data={"enabled": new_state == "enabled"})
         except requests.RequestException as e:
             logger.error(f"Toggle bot failed: {e}")
             return None
