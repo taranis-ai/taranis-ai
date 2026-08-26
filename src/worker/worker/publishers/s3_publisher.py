@@ -34,8 +34,8 @@ class S3Publisher(BasePublisher):
             secret_key=parameters["S3_SECRET_KEY"],
             session_token=parameters.get("S3_SESSION_TOKEN"),
             region=parameters.get("S3_REGION"),
-            secure=parameters.get("S3_SECURE", True),
-            cert_check=parameters.get("S3_CERT_CHECK", True),
+            secure=str(parameters.get("S3_SECURE", "true")).lower() == "true",
+            cert_check=str(parameters.get("S3_CERT_CHECK", "true")).lower() == "true",
         )
 
     @staticmethod

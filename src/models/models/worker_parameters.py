@@ -310,7 +310,7 @@ class EmailPublisherParameters(WorkerParameters):
     EMAIL_PASSWORD: SecretStr = Field(SecretStr(""), title="Email password", description="Optional SMTP password.")
     EMAIL_SENDER: str = Field(min_length=1, title="Email sender", description="Sender email address.")
     EMAIL_RECIPIENT: str = Field(min_length=1, title="Email recipient", description="Recipient email address.")
-    EMAIL_SUBJECT: str = Field(min_length=1, title="Email subject", description="Subject of the published email.")
+    EMAIL_SUBJECT: str = Field("", title="Email subject", description="Optional subject of the published email.")
 
 
 class WordpressPublisherParameters(WorkerParameters):
@@ -328,12 +328,12 @@ class TaxiiPublisherParameters(WorkerParameters):
     TAXII_DISCOVERY_URL: str = Field("", title="Discovery URL", description="TAXII discovery endpoint; required when API root URL is absent.")
     TAXII_API_ROOT_URL: str = Field("", title="API root URL", description="TAXII API root URL; discovered when omitted.")
     TAXII_COLLECTION_ID: str = Field(min_length=1, title="Collection ID", description="Target TAXII collection identifier.")
-    AUTH_TYPE: Literal["basic", "token"] = Field(
+    AUTH_TYPE: Literal["basic", "bearer"] = Field(
         "basic", title="Authentication type", description="Authentication method used by the TAXII server."
     )
     USERNAME: str = Field("", title="Username", description="Username for basic authentication.")
     PASSWORD: SecretStr = Field(SecretStr(""), title="Password", description="Password for basic authentication.")
-    API_TOKEN: SecretStr = Field(SecretStr(""), title="API token", description="Bearer token for token authentication.")
+    API_TOKEN: SecretStr = Field(SecretStr(""), title="API token", description="Bearer token for bearer authentication.")
     SSL_VERIFY: bool = Field(True, title="Verify SSL", description="Verify the TAXII TLS certificate.")
     PROXY_SERVER: str = Field("", title="Proxy server", description="Optional proxy URL used for requests.")
 
@@ -343,15 +343,15 @@ class TaxiiPublisherParameters(WorkerParameters):
             raise ValueError("TAXII_DISCOVERY_URL or TAXII_API_ROOT_URL is required")
         if self.AUTH_TYPE == "basic" and (not self.USERNAME or not self.PASSWORD.get_secret_value()):
             raise ValueError("USERNAME and PASSWORD are required for basic authentication")
-        if self.AUTH_TYPE == "token" and not self.API_TOKEN.get_secret_value():
-            raise ValueError("API_TOKEN is required for token authentication")
+        if self.AUTH_TYPE == "bearer" and not self.API_TOKEN.get_secret_value():
+            raise ValueError("API_TOKEN is required for bearer authentication")
         return self
 
 
 class KafkaPublisherParameters(WorkerParameters):
     KAFKA_TOPIC: str = Field(min_length=1, title="Kafka topic", description="Destination Kafka topic.")
     KAFKA_BOOTSTRAP_SERVERS: str = Field(min_length=1, title="Bootstrap servers", description="Comma-separated Kafka bootstrap servers.")
-    KAFKA_SECURITY_PROTOCOL: Literal["PLAINTEXT", "SASL_PLAINTEXT", "SASL_SSL", "SSL"] = Field(
+    KAFKA_SECURITY_PROTOCOL: Literal["PLAINTEXT", "SASL_PLAINTEXT"] = Field(
         "PLAINTEXT", title="Security protocol", description="Kafka transport security protocol."
     )
     KAFKA_SASL_MECHANISM: str = Field("", title="SASL mechanism", description="SASL mechanism when SASL is enabled.")

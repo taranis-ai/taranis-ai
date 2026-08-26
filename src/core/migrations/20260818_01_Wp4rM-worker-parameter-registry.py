@@ -20,6 +20,24 @@ _OWNERS = (
 )
 
 
+def _normalize_legacy_refresh_interval(value: Any) -> Any:
+    try:
+        interval = int(value)
+    except (TypeError, ValueError):
+        return value
+    if interval < 1:
+        return "0 */8 * * *"
+    if interval < 60:
+        return f"*/{interval} * * * *"
+    if interval < 1440:
+        hours = interval // 60
+        return "0 * * * *" if hours == 1 else f"0 */{hours} * * *"
+    if interval <= 40000:
+        days = interval // 1440
+        return "0 4 0 * *" if days == 1 else f"0 4 */{days} * *"
+    return "0 */8 * * *"
+
+
 def _unsupported_downgrade(connection) -> None:
     raise RuntimeError("Worker parameter migration cannot be downgraded; restore the verified database snapshot")
 
@@ -40,33 +58,36 @@ def _migrate_parameters(connection) -> None:
             owners: dict[str, tuple[str, bool, dict[str, Any]]] = {}
             for row in cursor.fetchall():
                 owner_id, worker_type = row[:2]
-                enabled = bool(row[2]) if enabled_column else True
+                requires_complete = bool(row[2]) if enabled_column else False
                 parameter, value = row[3:5] if enabled_column else row[2:4]
-                _, _, values = owners.setdefault(str(owner_id), (str(worker_type), enabled, {}))
+                _, _, values = owners.setdefault(str(owner_id), (str(worker_type), requires_complete, {}))
                 if parameter is None:
                     continue
                 if parameter in values and values[parameter] != value:
                     raise RuntimeError(f"Conflicting duplicate {owner_table} parameter {owner_id}/{parameter}")
                 values[parameter] = value
 
-            for owner_id, (worker_type, enabled, values) in owners.items():
+            for owner_id, (worker_type, requires_complete, values) in owners.items():
                 try:
                     fields = get_worker_definition(worker_type).parameter_model.model_fields
                 except (KeyError, ValueError) as exc:
                     raise RuntimeError(
                         f"Cannot migrate {owner_table} {owner_id} with worker type {worker_type}: unsupported worker type"
                     ) from exc
+                if worker_type == "TAGGING_BOT" and values.get("KEYWORDS") and "REGULAR_EXPRESSION" not in values:
+                    values["REGULAR_EXPRESSION"] = values["KEYWORDS"]
                 normalized: dict[str, str] = {}
                 for name, value in values.items():
                     if name not in fields:
                         continue
+                    if name == "REFRESH_INTERVAL":
+                        value = _normalize_legacy_refresh_interval(value)
                     try:
                         normalized.update(normalize_parameter_values(worker_type, {name: value}, complete=False))
                     except (ValidationError, ValueError, TypeError):
-                        # Invalid legacy values are omitted. Full validation below
-                        # aborts when an active object requires the value.
-                        continue
-                if enabled:
+                        if value not in (None, ""):
+                            normalized[name] = str(value)
+                if requires_complete:
                     try:
                         normalize_parameter_values(worker_type, normalized, complete=True)
                     except (ValidationError, ValueError, TypeError) as exc:

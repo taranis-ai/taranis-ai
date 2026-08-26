@@ -70,7 +70,7 @@ def test_every_schema_uses_uppercase_names_and_documents_each_field():
         ("NLP_BOT", {"REQUESTS_TIMEOUT": "0"}),
         (
             "TAXII_PUBLISHER",
-            {"TAXII_COLLECTION_ID": "collection", "AUTH_TYPE": "token", "API_TOKEN": ""},
+            {"TAXII_COLLECTION_ID": "collection", "AUTH_TYPE": "bearer", "API_TOKEN": ""},
         ),
     ],
 )
@@ -86,3 +86,18 @@ def test_runtime_parameter_names_are_part_of_the_authoritative_contract():
     assert "REGULAR_EXPRESSION" in tagging
     assert "KEYWORDS" not in tagging
     assert {"IGNORECASE", "OVERRIDE_EXISTING_TAGS"} <= set(wordlist)
+
+
+def test_taxii_bearer_auth_matches_the_worker_contract():
+    effective = effective_parameter_values(
+        "TAXII_PUBLISHER",
+        {
+            "TAXII_API_ROOT_URL": "https://taxii.example.test/root",
+            "TAXII_COLLECTION_ID": "collection",
+            "AUTH_TYPE": "bearer",
+            "API_TOKEN": "secret",
+        },
+    )
+
+    assert effective["AUTH_TYPE"] == "bearer"
+    assert effective["API_TOKEN"] == "secret"

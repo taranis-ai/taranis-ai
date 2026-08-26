@@ -56,13 +56,14 @@ def test_migration_collapses_equal_duplicates_and_normalizes_disabled_data():
                 ("source-1", "RSS_COLLECTOR", False, "USER_AGENT", "agent"),
                 ("source-1", "RSS_COLLECTOR", False, "UNKNOWN", "drop-me"),
                 ("source-1", "RSS_COLLECTOR", False, "USE_GLOBAL_PROXY", ""),
+                ("source-1", "RSS_COLLECTOR", False, "REFRESH_INTERVAL", "60"),
             ]
         }
     )
 
     migration._migrate_parameters(connection)
 
-    assert connection.fake_cursor.updates == [("osint_source", ('{"USER_AGENT":"agent"}', "source-1"))]
+    assert connection.fake_cursor.updates == [("osint_source", ('{"REFRESH_INTERVAL":"0 * * * *","USER_AGENT":"agent"}', "source-1"))]
 
 
 def test_migration_aborts_on_conflicting_duplicates():
@@ -91,6 +92,34 @@ def test_migration_identifies_incomplete_active_owner():
         migration._migrate_parameters(connection)
 
 
+def test_migration_converts_legacy_tagging_keywords():
+    migration = _load_migration()
+    connection = FakeConnection({"bot": [("bot-1", "TAGGING_BOT", True, "KEYWORDS", "threat|malware")]})
+
+    migration._migrate_parameters(connection)
+
+    assert connection.fake_cursor.updates == [("bot", ('{"REGULAR_EXPRESSION":"threat|malware"}', "bot-1"))]
+
+
+def test_migration_allows_incomplete_on_demand_owners():
+    migration = _load_migration()
+    connection = FakeConnection(
+        {
+            "connector": [("connector-1", "MISP_CONNECTOR", "URL", "")],
+            "product_type": [("product-1", "PANDOC_PRESENTER", "TEMPLATE_PATH", "template.md")],
+            "publisher_preset": [("publisher-1", "WORDPRESS_PUBLISHER", "WP_URL", "")],
+        }
+    )
+
+    migration._migrate_parameters(connection)
+
+    assert connection.fake_cursor.updates == [
+        ("connector", ("{}", "connector-1")),
+        ("product_type", ('{"TEMPLATE_PATH":"template.md"}', "product-1")),
+        ("publisher_preset", ("{}", "publisher-1")),
+    ]
+
+
 def test_migration_converts_every_owner_table():
     migration = _load_migration()
     connection = FakeConnection(
@@ -103,7 +132,11 @@ def test_migration_converts_every_owner_table():
                 ("connector-1", "MISP_CONNECTOR", "ORGANISATION_ID", "1"),
             ],
             "product_type": [("product-1", "STIX_PRESENTER", None, None)],
-            "publisher_preset": [("publisher-1", "TARANIS_PUBLISHER", None, None)],
+            "publisher_preset": [
+                ("publisher-1", "EMAIL_PUBLISHER", "SMTP_SERVER_ADDRESS", "smtp.example.test"),
+                ("publisher-1", "EMAIL_PUBLISHER", "EMAIL_SENDER", "sender@example.test"),
+                ("publisher-1", "EMAIL_PUBLISHER", "EMAIL_RECIPIENT", "recipient@example.test"),
+            ],
         }
     )
 
@@ -117,5 +150,12 @@ def test_migration_converts_every_owner_table():
             ('{"API_KEY":"secret","ORGANISATION_ID":"1","URL":"https://misp.test"}', "connector-1"),
         ),
         ("product_type", ("{}", "product-1")),
-        ("publisher_preset", ("{}", "publisher-1")),
+        (
+            "publisher_preset",
+            (
+                '{"EMAIL_RECIPIENT":"recipient@example.test","EMAIL_SENDER":"sender@example.test",'
+                + '"SMTP_SERVER_ADDRESS":"smtp.example.test"}',
+                "publisher-1",
+            ),
+        ),
     ]
