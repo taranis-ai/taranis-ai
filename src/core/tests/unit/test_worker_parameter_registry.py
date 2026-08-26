@@ -78,6 +78,14 @@ def test_every_schema_uses_uppercase_names_and_documents_each_field():
             "TAXII_PUBLISHER",
             {"TAXII_COLLECTION_ID": "collection", "AUTH_TYPE": "bearer", "API_TOKEN": ""},
         ),
+        (
+            "KAFKA_PUBLISHER",
+            {
+                "KAFKA_TOPIC": "topic",
+                "KAFKA_BOOTSTRAP_SERVERS": "kafka:9092",
+                "KAFKA_SECURITY_PROTOCOL": "SASL_SSL",
+            },
+        ),
     ],
 )
 def test_intrinsic_and_cross_field_validation(worker_type, parameters):
@@ -107,3 +115,19 @@ def test_taxii_bearer_auth_matches_the_worker_contract():
 
     assert effective["AUTH_TYPE"] == "bearer"
     assert effective["API_TOKEN"] == "secret"
+
+
+def test_kafka_security_protocols_match_worker_contract():
+    protocols = ["PLAINTEXT", "SSL", "SASL_PLAINTEXT", "SASL_SSL"]
+    assert parameter_schema("KAFKA_PUBLISHER")["properties"]["KAFKA_SECURITY_PROTOCOL"]["enum"] == protocols
+
+    for security_protocol in protocols:
+        parameters = {
+            "KAFKA_TOPIC": "topic",
+            "KAFKA_BOOTSTRAP_SERVERS": "kafka:9092",
+            "KAFKA_SECURITY_PROTOCOL": security_protocol,
+            "KAFKA_SASL_MECHANISM": "PLAIN",
+            "KAFKA_SASL_USERNAME": "user",
+            "KAFKA_SASL_PASSWORD": "secret",
+        }
+        assert effective_parameter_values("KAFKA_PUBLISHER", parameters)["KAFKA_SECURITY_PROTOCOL"] == security_protocol

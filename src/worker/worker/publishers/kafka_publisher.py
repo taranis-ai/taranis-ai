@@ -63,9 +63,6 @@ class KafkaPublisher(BasePublisher):
     def _create_producer(parameters: dict[str, Any]) -> Producer:
         security_protocol = str(parameters.get("KAFKA_SECURITY_PROTOCOL") or "PLAINTEXT").upper()
 
-        if security_protocol not in {"PLAINTEXT", "SASL_PLAINTEXT"}:
-            raise ValueError("Invalid KAFKA_SECURITY_PROTOCOL. Only 'PLAINTEXT' and 'SASL_PLAINTEXT' are supported.")
-
         producer_config = {
             "bootstrap.servers": parameters["KAFKA_BOOTSTRAP_SERVERS"],
             "client.id": "taranis-kafka-publisher",
@@ -74,20 +71,7 @@ class KafkaPublisher(BasePublisher):
             "security.protocol": security_protocol,
         }
 
-        if security_protocol == "SASL_PLAINTEXT":
-            missing = [
-                parameter
-                for parameter in (
-                    "KAFKA_SASL_MECHANISM",
-                    "KAFKA_SASL_USERNAME",
-                    "KAFKA_SASL_PASSWORD",
-                )
-                if not parameters.get(parameter)
-            ]
-
-            if missing:
-                raise ValueError(f"KAFKA_SECURITY_PROTOCOL is 'SASL_PLAINTEXT', but these parameters are missing: {', '.join(missing)}")
-
+        if security_protocol.startswith("SASL"):
             producer_config |= {
                 "sasl.mechanism": parameters["KAFKA_SASL_MECHANISM"],
                 "sasl.username": parameters["KAFKA_SASL_USERNAME"],

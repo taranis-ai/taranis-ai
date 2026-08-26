@@ -70,7 +70,8 @@ def test_kafka_publisher_publish_sends_product_to_topic(
     assert result["message"] == f"Product {result['key']} published to Kafka topic {topic}."
 
 
-def test_kafka_publisher_create_producer_with_sasl_plaintext(monkeypatch):
+@pytest.mark.parametrize("security_protocol", ["PLAINTEXT", "SSL", "SASL_PLAINTEXT", "SASL_SSL"])
+def test_kafka_publisher_create_producer_supports_security_protocol(monkeypatch, security_protocol):
     captured_config = {}
 
     class FakeProducer:
@@ -85,7 +86,7 @@ def test_kafka_publisher_create_producer_with_sasl_plaintext(monkeypatch):
     parameters = {
         "KAFKA_BOOTSTRAP_SERVERS": "localhost:9092",
         "KAFKA_TOPIC": "test-topic",
-        "KAFKA_SECURITY_PROTOCOL": "SASL_PLAINTEXT",
+        "KAFKA_SECURITY_PROTOCOL": security_protocol,
         "KAFKA_SASL_MECHANISM": "PLAIN",
         "KAFKA_SASL_USERNAME": "user",
         "KAFKA_SASL_PASSWORD": "password",
@@ -95,22 +96,14 @@ def test_kafka_publisher_create_producer_with_sasl_plaintext(monkeypatch):
     KafkaPublisher._create_producer(parameters)
 
     assert captured_config["bootstrap.servers"] == "localhost:9092"
-    assert captured_config["security.protocol"] == "SASL_PLAINTEXT"
-    assert captured_config["sasl.mechanism"] == "PLAIN"
-    assert captured_config["sasl.username"] == "user"
-    assert captured_config["sasl.password"] == "password"
+    assert captured_config["security.protocol"] == security_protocol
+    if security_protocol.startswith("SASL"):
+        assert captured_config["sasl.mechanism"] == "PLAIN"
+        assert captured_config["sasl.username"] == "user"
+        assert captured_config["sasl.password"] == "password"
+    else:
+        assert "sasl.mechanism" not in captured_config
     assert captured_config["retries"] == 0
-
-
-def test_kafka_publisher_create_producer_sasl_requires_credentials():
-    parameters = {
-        "KAFKA_BOOTSTRAP_SERVERS": "localhost:9092",
-        "KAFKA_TOPIC": "test-topic",
-        "KAFKA_SECURITY_PROTOCOL": "SASL_PLAINTEXT",
-    }
-
-    with pytest.raises(ValueError, match="parameters are missing"):
-        KafkaPublisher._create_producer(parameters)
 
 
 def test_kafka_publisher_create_producer_uses_defaults_for_empty_optional_parameters(monkeypatch):

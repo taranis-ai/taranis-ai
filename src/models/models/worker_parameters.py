@@ -350,7 +350,7 @@ class TaxiiPublisherParameters(WorkerParameters):
 class KafkaPublisherParameters(WorkerParameters):
     KAFKA_TOPIC: str = Field(min_length=1, title="Kafka topic", description="Destination Kafka topic.")
     KAFKA_BOOTSTRAP_SERVERS: str = Field(min_length=1, title="Bootstrap servers", description="Comma-separated Kafka bootstrap servers.")
-    KAFKA_SECURITY_PROTOCOL: Literal["PLAINTEXT", "SASL_PLAINTEXT"] = Field(
+    KAFKA_SECURITY_PROTOCOL: Literal["PLAINTEXT", "SSL", "SASL_PLAINTEXT", "SASL_SSL"] = Field(
         "PLAINTEXT", title="Security protocol", description="Kafka transport security protocol."
     )
     KAFKA_SASL_MECHANISM: str = Field("", title="SASL mechanism", description="SASL mechanism when SASL is enabled.")
