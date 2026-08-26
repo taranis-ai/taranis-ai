@@ -332,7 +332,7 @@ class Templates(MethodView):
             return jsonify(build_template_response(template_path)), 200
 
         # List all templates
-        items = build_templates_list()
+        items = build_templates_list(request.args.get("order"))
         return jsonify({"items": items, "total_count": len(items)}), 200
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
