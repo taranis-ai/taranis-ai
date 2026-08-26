@@ -283,6 +283,13 @@ class SourceView(AdminBaseView):
         return response, core_response.status_code or table_response
 
     @classmethod
+    def delete_multiple_view(cls, object_ids: list[str], params: dict[str, str] | None = None) -> tuple[str, int]:
+        force = str(request.values.get("force", "")).lower() in {"1", "true", "yes", "on"}
+        if force:
+            params = {"force": "true"}
+        return super().delete_multiple_view(object_ids, params=params)
+
+    @classmethod
     @admin_required()
     def toggle_osint_source_state(cls, osint_source_id: str, new_state: Literal["enabled", "disabled"]) -> tuple[str, int]:
         dpl = DataPersistenceLayer()

@@ -539,9 +539,9 @@ class BaseView(MethodView):
         return response, core_response.status_code or table_response
 
     @classmethod
-    def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
+    def delete_multiple_view(cls, object_ids: list[str], params: dict[str, str] | None = None) -> tuple[str, int]:
         results = []
-        results.extend(DataPersistenceLayer().delete_object(cls.model, object_id) for object_id in object_ids)
+        results.extend(DataPersistenceLayer().delete_object(cls.model, object_id, params=params) for object_id in object_ids)
         if not all(r.ok for r in results):
             return (
                 render_template("notification/index.html", notification={"message": "Failed to delete selected items", "error": True}),
