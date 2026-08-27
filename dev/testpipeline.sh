@@ -58,30 +58,23 @@ run_frontend() {
   run_in_dir src/frontend uv run --frozen --no-sync pytest -p no:cacheprovider --ignore=tests/playwright
 }
 
-run_frontend_e2e_admin() {
-  run_step "src/frontend e2e admin"
-  run_in_dir src/frontend uv run --frozen --no-sync pytest -p no:cacheprovider --e2e-ci --e2e-stack=core \
-    tests/playwright/test_e2e_admin.py -k "not test_admin_dashboard"
-}
+run_frontend_e2e() {
+  local compose=(docker compose --profile rq -p taranis-e2e -f tests/playwright/compose.e2e.yml)
+  local service
+  local services=()
 
-run_frontend_e2e_user() {
-  run_step "src/frontend e2e user"
-  run_in_dir src/frontend uv run --frozen --no-sync pytest -p no:cacheprovider --e2e-ci --e2e-stack=core \
-    tests/playwright/test_e2e_user.py
-}
+  run_step "src/frontend e2e"
+  for service in core worker cron; do
+    if [ -n "$(run_in_dir src/frontend "${compose[@]}" ps -q "$service")" ]; then
+      services+=("$service")
+    fi
+  done
+  if [ "${#services[@]}" -ne 0 ]; then
+    run_in_dir src/frontend "${compose[@]}" restart "${services[@]}"
+  fi
 
-run_frontend_e2e_support() {
-  run_step "src/frontend e2e support"
-  run_in_dir src/frontend uv run --frozen --no-sync pytest -p no:cacheprovider --e2e-ci --e2e-stack=full \
-    tests/playwright/test_e2e_rq_tasks.py \
-    tests/playwright/test_e2e_admin.py::TestEndToEndAdmin::test_admin_dashboard \
-    tests/playwright/test_no_javascript.py \
-    tests/playwright/test_viewport_notice.py \
-    tests/playwright/test_htmx_helpers.py \
-    tests/playwright/test_main_js.py \
-    tests/playwright/test_notification_center_js.py \
-    tests/playwright/test_notification_helpers.py \
-    tests/playwright/test_realtime_js.py
+  run_in_dir src/frontend uv run --frozen --no-sync pytest -p no:cacheprovider \
+    tests/playwright --e2e-ci --e2e-keep-stack
 }
 
 run_worker() {
@@ -157,7 +150,5 @@ start_parallel_step "src/models" run_models
 start_parallel_step "src/core" run_core
 start_parallel_step "src/frontend" run_frontend
 start_parallel_step "src/worker" run_worker
-start_parallel_step "src/frontend e2e admin" run_frontend_e2e_admin
-start_parallel_step "src/frontend e2e user" run_frontend_e2e_user
-start_parallel_step "src/frontend e2e support" run_frontend_e2e_support
+start_parallel_step "src/frontend e2e" run_frontend_e2e
 wait_parallel_steps

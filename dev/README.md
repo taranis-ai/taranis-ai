@@ -15,10 +15,11 @@ gh extension install basecamp/gh-signoff
 
 Workflow:
 
-1. Push your branch and create or update the pull request.
-2. Run `./dev/signoff.sh` from the repository root. It prepares component environments in parallel, then runs the same local lint, unit test, and e2e scope as the PR workflow in parallel before calling `gh signoff`.
-3. Run `./dev/signoff.sh` again after every new commit you push.
-4. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the fallback path.
+1. Commit the completed feature so the worktree is clean.
+2. Run `./dev/test_push_signoff.sh` from the repository root. It prepares component environments, runs the complete local lint, unit test, and E2E pipeline, then pushes and calls `gh signoff` after validation passes.
+3. If validation fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Its E2E suite reuses the retained `taranis-e2e` stack and restarts the code-bearing services, avoiding repeated environment setup.
+4. Do not run multiple signoff pipelines concurrently or tear down the stack between ordinary fix-and-rerun attempts. If retained state causes a failure, reset it with `docker compose --profile rq -p taranis-e2e -f src/frontend/tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1`.
+5. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the isolated fallback path.
 
 ## Easy Mode
 

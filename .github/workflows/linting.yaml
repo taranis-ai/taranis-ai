@@ -132,49 +132,12 @@ jobs:
           echo "- **🚨 Errors:** $(grep -oP '\d+(?= error)' pytest_output.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
   e2e_tests:
-    name: End-to-End Tests (${{ matrix.lane }})
+    name: End-to-End Tests
     if: (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && needs.detect_signoff.outputs.signedoff != 'true'
     runs-on: ubuntu-latest
-    needs: detect_signoff
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - lane: admin-a
-            stack: core
-            pytest-args: >-
-              tests/playwright/test_e2e_admin.py
-              -k "test_login or admin_welcome_onboarding or admin_advanced_onboarding or manual_news_item or admin_organizations or admin_user_management or admin_template_management or admin_osint_workflow or admin_osint_source_group_management or admin_role_management or admin_wordlist_management"
-          - lane: admin-b
-            stack: core
-            pytest-args: >-
-              tests/playwright/test_e2e_admin.py
-              -k "admin_acls or admin_attributes or admin_report_types or admin_product_types or admin_bot or admin_connector_management or publisher_presets or admin_settings or open_api"
-          - lane: user
-            stack: core
-            pytest-args: tests/playwright/test_e2e_user.py
-          - lane: app-support
-            stack: core
-            pytest-args: >-
-              tests/playwright/test_no_javascript.py
-              tests/playwright/test_viewport_notice.py
-          - lane: js-support
-            stack: core
-            pytest-args: >-
-              tests/playwright/test_htmx_helpers.py
-              tests/playwright/test_main_js.py
-              tests/playwright/test_notification_center_js.py
-              tests/playwright/test_notification_helpers.py
-              tests/playwright/test_realtime_js.py
-          - lane: rq-dashboard
-            stack: full
-            pytest-args: >-
-              tests/playwright/test_e2e_rq_tasks.py
-              tests/playwright/test_e2e_admin.py::TestEndToEndAdmin::test_admin_dashboard
+    needs: [detect_signoff, test_core, test_frontend]
     env:
-      E2E_STACK: ${{ matrix.stack }}
-      PYTEST_ARGS: ${{ matrix.pytest-args }}
-      TARANIS_E2E_PROJECT_NAME: taranis-e2e-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+      TARANIS_E2E_PROJECT_NAME: taranis-e2e-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
 
@@ -186,7 +149,7 @@ jobs:
       - name: Set PLAYWRIGHT_BROWSERS_PATH and TRACES_ARTIFACT_NAME
         run: |
           echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright" >> $GITHUB_ENV
-          TRACES_ARTIFACT_NAME="playwright-traces-${{ matrix.lane }}-${{ github.event.pull_request.number || github.run_number }}"
+          TRACES_ARTIFACT_NAME="playwright-traces-${{ github.event.pull_request.number || github.run_number }}"
           echo "TRACES_ARTIFACT_NAME=${TRACES_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
 
       - name: Check Playwright version consistency in uv.lock files
@@ -235,19 +198,16 @@ jobs:
       - name: Run e2e tests
         id: run_e2e
         working-directory: src/frontend
-        run: uv run pytest --e2e-ci --e2e-stack="$E2E_STACK" --durations=20 $PYTEST_ARGS
+        run: uv run pytest tests/playwright --e2e-ci --durations=20
 
       - name: Re-run failing tests with traces
         if: ${{ failure() && steps.run_e2e.outcome == 'failure' }}
         continue-on-error: true
         working-directory: src/frontend
-        env:
-          TARANIS_E2E_TRACE: "true"
         run: |
           docker compose --profile rq -p "$TARANIS_E2E_PROJECT_NAME" \
             -f tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1
-          uv run pytest --e2e-ci --e2e-stack="$E2E_STACK" --last-failed \
-            --tracing=retain-on-failure $PYTEST_ARGS
+          uv run pytest tests/playwright --e2e-ci --last-failed --e2e-trace
 
       - name: Upload a e2e-test trace
         uses: actions/upload-artifact@v7

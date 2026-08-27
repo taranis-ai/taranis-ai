@@ -45,21 +45,25 @@ From `src/frontend` folder run:
 pytest tests/playwright/test_e2e_rq_tasks.py --e2e-ci
 ```
 
-### Reuse the stack while developing a test
+### Reuse the stack across signoff attempts
 
-Keep the named `taranis-e2e` Compose project running across focused test invocations:
-
-```bash
-pytest tests/playwright/test_e2e_user.py::TestEndToEndUser::test_user_profile --e2e-ci --e2e-keep-stack
-```
-
-Subsequent commands with `--e2e-keep-stack` attach to the same services. Test data also remains, so use the default isolated mode when a test does not clean up its records. Reset the reusable stack from `src/frontend` with:
+At the end of feature development, run the complete push-and-signoff pipeline from the repository root:
 
 ```bash
-docker compose --profile rq -p taranis-e2e -f tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1
+./dev/test_push_signoff.sh
 ```
 
-`--e2e-stack=core` forces Core and Redis only; `--e2e-stack=full` activates the RQ services. The default `auto` mode activates them when a selected test has the `e2e_full_stack` marker.
+`dev/testpipeline.sh` runs the complete Playwright suite with `--e2e-keep-stack`. The first attempt starts the full named `taranis-e2e` stack. Later attempts restart Core, worker, and cron to load edited Python, then reuse the containers, installed dependencies, SQLite database, and Redis data.
+
+If the pipeline fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Do not substitute a focused Playwright target or tear down the stack between normal fix-and-rerun attempts. Do not run signoff pipelines concurrently because they share the same services and test data.
+
+Reset only when retained state is suspected of causing a failure:
+
+```bash
+docker compose --profile rq -p taranis-e2e -f src/frontend/tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1
+```
+
+CI runs the same suite against its own isolated stack.
 
 Successful CI runs do not record traces or documentation screenshots. Use `--e2e-trace` for a focused local trace; artifacts are written under `test-results/e2e-traces/`. CI automatically reruns failing tests with tracing enabled.
 
