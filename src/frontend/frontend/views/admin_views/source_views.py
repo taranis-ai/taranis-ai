@@ -93,7 +93,7 @@ class SourceView(AdminBaseView):
                 "hx_swap": "outerHTML",
                 "type": "button",
                 "confirm": "Are you sure you want to delete this OSINT Source?",
-                "data_attr": "data-swal-confirm=true",
+                "data_attr": "data-force-delete",
             },
         ]
 
@@ -406,7 +406,7 @@ class SourceView(AdminBaseView):
 
     @classmethod
     def delete_view(cls, object_id: str) -> tuple[str, int]:
-        force = str(request.values.get("force", "")).lower() in {"1", "true", "yes", "on"}
+        force = request.values.get("force") == "true"
         dpl = DataPersistenceLayer()
         params = {"force": "true"} if force else None
         core_response = dpl.delete_object(cls.model, object_id, params=params)
@@ -423,6 +423,24 @@ class SourceView(AdminBaseView):
         if table_response == 200:
             response += table
         return response, core_response.status_code or table_response
+
+    @classmethod
+    def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
+        force = request.values.get("force") == "true"
+        params: dict[str, Any] = {"ids": object_ids}
+        if force:
+            params["force"] = "true"
+
+        core_response = CoreApi().api_delete(cls.model._core_endpoint, params=params)
+        if not core_response.ok:
+            return cls.get_notification_from_response(core_response), core_response.status_code or 500
+
+        cls._invalidate_model_cache()
+        response, status_code = cls.render_list()
+        response += render_template(
+            "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
+        )
+        return response, status_code
 
     @classmethod
     @admin_required()
