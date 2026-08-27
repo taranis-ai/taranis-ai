@@ -172,6 +172,8 @@ class RSSCollector(BaseWebCollector):
         else:
             logger.warning(f"No content could be extracted for RSS entry {feed_entry.get('id', link or title)}")
 
+        published = published or feed_updated
+
         if content == description:
             description = ""
 
@@ -243,18 +245,26 @@ class RSSCollector(BaseWebCollector):
         return self.news_items
 
     def collect_news(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
-        if self.digest_splitting:
-            return self.handle_digests(feed["entries"][:42])
-
         feed_metadata = cast(feedparser.FeedParserDict, feed["feed"])
         updated = str(feed_metadata.get("updated") or "").strip()
-        return self.parse_feed(feed["entries"][:42], source, parse_datetime(updated) if updated else None)
+        feed_updated = parse_datetime(updated) if updated else None
 
-    def handle_digests(self, feed_entries: list[feedparser.FeedParserDict]) -> list[NewsItem]:
+        if self.digest_splitting:
+            return self.handle_digests(feed["entries"][:42], feed_updated)
+
+        return self.parse_feed(feed["entries"][:42], source, feed_updated)
+
+    def handle_digests(
+        self,
+        feed_entries: list[feedparser.FeedParserDict],
+        feed_updated: datetime.datetime | None = None,
+    ) -> list[NewsItem]:
         self.split_digest_urls = self.get_digest_url_list(feed_entries)
         logger.info(f"RSS-Feed {self.feed_url} returned {len(self.split_digest_urls)} available URLs")
 
-        return self.parse_digests()
+        validator_date = self.http_validators.get("last_modified") if self.http_validators else None
+        published_fallback = feed_updated or (parse_datetime(validator_date) if validator_date else None)
+        return self.parse_digests(published_fallback)
 
     def get_digest_url_list(self, feed_entries: list[feedparser.FeedParserDict]) -> list:
         return [
