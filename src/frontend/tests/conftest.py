@@ -249,7 +249,7 @@ def pytest_addoption(parser):
         "--e2e-keep-stack",
         action="store_true",
         default=False,
-        help="reuse the taranis-e2e compose project and leave it running after the test session",
+        help="reuse the named compose project and leave it running after the test session",
     )
     group.addoption(
         "--e2e-trace",

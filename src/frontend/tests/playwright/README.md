@@ -33,7 +33,7 @@ All flags:
 - `--record-video` - record a video (save to `src/frontend/tests/playwright/videos`)
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
 - `--e2e-stack=<auto|core|full>` - choose the Compose services (`default=auto`)
-- `--e2e-keep-stack` - keep and reuse the `taranis-e2e` Compose project
+- `--e2e-keep-stack` - keep and reuse the named Compose project
 - `--e2e-trace` - record unique traces for stack-backed browser tests
 - `-s` - see all logs on stdout
 
@@ -53,14 +53,15 @@ At the end of feature development, run the complete push-and-signoff pipeline fr
 ./dev/test_push_signoff.sh
 ```
 
-`dev/testpipeline.sh` runs the complete Playwright suite with `--e2e-keep-stack`. The first attempt starts the full named `taranis-e2e` stack. Later attempts restart Core, worker, and cron to load edited Python, then reuse the containers, installed dependencies, SQLite database, and Redis data.
+`dev/testpipeline.sh` runs the complete Playwright suite with `--e2e-keep-stack`. The first attempt starts a full stack named for the current branch. Later attempts on that branch restart Core, worker, and cron to load edited Python, then reuse the containers, installed dependencies, SQLite database, and Redis data. Separate worktrees on different branches use isolated stacks and may run concurrently. Set `TARANIS_E2E_PROJECT_NAME` to override the generated name.
 
-If the pipeline fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Do not substitute a focused Playwright target or tear down the stack between normal fix-and-rerun attempts. Do not run signoff pipelines concurrently because they share the same services and test data.
+If the pipeline fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Do not substitute a focused Playwright target or tear down the stack between normal fix-and-rerun attempts. Do not run multiple signoff pipelines for the same branch because they share the same services and test data.
 
 Reset only when retained state is suspected of causing a failure:
 
 ```bash
-docker compose --profile rq -p taranis-e2e -f src/frontend/tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1
+e2e_project="taranis-e2e-..."  # replace with the project name printed by testpipeline.sh
+docker compose --profile rq -p "$e2e_project" -f src/frontend/tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1
 ```
 
 CI runs the same suite against its own isolated stack.

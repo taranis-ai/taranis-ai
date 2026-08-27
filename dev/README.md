@@ -17,8 +17,8 @@ Workflow:
 
 1. Commit the completed feature so the worktree is clean.
 2. Run `./dev/test_push_signoff.sh` from the repository root. It prepares component environments, runs the complete local lint, unit test, and E2E pipeline, then pushes and calls `gh signoff` after validation passes.
-3. If validation fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Its E2E suite reuses the retained `taranis-e2e` stack and restarts the code-bearing services, avoiding repeated environment setup.
-4. Do not run multiple signoff pipelines concurrently or tear down the stack between ordinary fix-and-rerun attempts. If retained state causes a failure, reset it with `docker compose --profile rq -p taranis-e2e -f src/frontend/tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1`.
+3. If validation fails, fix and commit the problem, then run `./dev/test_push_signoff.sh` again. Its E2E suite reuses the retained branch-scoped stack and restarts the code-bearing services, avoiding repeated environment setup.
+4. Signoff pipelines for different branches may run concurrently from separate worktrees. Do not run multiple pipelines for the same branch or tear down its stack between ordinary fix-and-rerun attempts. If retained state causes a failure, copy the project name printed by `dev/testpipeline.sh`, set `e2e_project` to that value, and reset it with `docker compose --profile rq -p "$e2e_project" -f src/frontend/tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1`.
 5. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the isolated fallback path.
 
 ## Easy Mode

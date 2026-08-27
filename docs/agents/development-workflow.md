@@ -45,14 +45,15 @@ After implementing and committing a feature, both humans and agents run the comp
 ./dev/test_push_signoff.sh
 ```
 
-The script requires a clean worktree, runs the full local lint, unit, and E2E pipeline, then pushes and signs off only after validation passes. The E2E command inside `dev/testpipeline.sh` always includes `--e2e-keep-stack`. Its first run creates the full `taranis-e2e` Compose project. Later runs restart Core, worker, and cron to load edited code, then reuse the existing containers, dependency environments, SQLite database, and Redis data.
+The script requires a clean worktree, runs the full local lint, unit, and E2E pipeline, then pushes and signs off only after validation passes. The E2E command inside `dev/testpipeline.sh` always includes `--e2e-keep-stack`. Its first run creates a full Compose project named for the current branch. Later runs on that branch restart Core, worker, and cron to load edited code, then reuse the existing containers, dependency environments, SQLite database, and Redis data. Different branches use different projects, so signoff pipelines may run concurrently from separate worktrees; do not run multiple pipelines for the same branch concurrently.
 
-When validation fails, fix the feature, commit the fix, and run `./dev/test_push_signoff.sh` again. Do not replace this with a focused E2E test, tear down the retained stack between attempts, or run multiple signoff pipelines concurrently. Reusing the full stack is the intended acceleration for the complete fix-and-rerun loop.
+When validation fails, fix the feature, commit the fix, and run `./dev/test_push_signoff.sh` again. Do not replace this with a focused E2E test, tear down the retained stack between attempts, or run multiple signoff pipelines for the same branch concurrently. Reusing the full stack is the intended acceleration for the complete fix-and-rerun loop.
 
-If retained state appears to cause a failure, reset the stack and rerun the same complete script:
+If retained state appears to cause a failure, copy the project name printed by `dev/testpipeline.sh`, reset that stack, and rerun the same complete script:
 
 ```bash
-docker compose --profile rq -p taranis-e2e -f src/frontend/tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1
+e2e_project="taranis-e2e-..."  # replace with the project name printed by testpipeline.sh
+docker compose --profile rq -p "$e2e_project" -f src/frontend/tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1
 ```
 
 CI always uses its own isolated stack, so no separate clean-stack local run is required before signoff.
