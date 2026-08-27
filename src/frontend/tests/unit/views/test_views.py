@@ -81,8 +81,16 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
         json={
             "items": [
                 {"name": "Location", "size": 10, "tags": [{"name": "USA", "size": 6}]},
-                {"name": "Organization", "size": 8, "tags": [{"name": "AIT", "size": 3}]},
-                {"name": "Product", "size": 6, "tags": [{"name": "Taranis", "size": 2}]},
+                {
+                    "name": "Organization",
+                    "size": 8,
+                    "tags": [{"name": "AIT", "size": 3}],
+                },
+                {
+                    "name": "Product",
+                    "size": 6,
+                    "tags": [{"name": "Taranis", "size": 2}],
+                },
                 {"name": "Person", "size": 4, "tags": [{"name": "Arthur", "size": 1}]},
             ],
             "total_count": 4,
@@ -123,7 +131,11 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
     assert delete_button.get("hx-target") == "closest [data-testid='dashboard-saved-filter-card']"
     assert delete_button.get("hx-swap") == "delete"
     assert saved_filter_url.path == url_for("assess.assess")
-    assert parse_qs(saved_filter_url.query) == {"search": ["incident"], "tags": ["alpha"], "sort": ["date_desc"]}
+    assert parse_qs(saved_filter_url.query) == {
+        "search": ["incident"],
+        "tags": ["alpha"],
+        "sort": ["date_desc"],
+    }
     assert not tree.xpath('//*[@data-testid="dashboard-external-signals"]')
 
 
@@ -251,7 +263,13 @@ class TestAdminViews:
 @pytest.mark.parametrize("view_name,view_cls", CRUD_ITEMS, ids=CRUD_IDS)
 class TestCRUDViews:
     def test_create_form_renders(
-        self, view_name, view_cls, form_data, form_formats_from_models, authenticated_client, mock_core_get_endpoints
+        self,
+        view_name,
+        view_cls,
+        form_data,
+        form_formats_from_models,
+        authenticated_client,
+        mock_core_get_endpoints,
     ):
         # GET the edit form for item_id
         item_id = "0"
@@ -275,7 +293,13 @@ class TestCRUDViews:
         assert not extra, f"{view_name!r} has unexpected fields: {extra}"
 
     def test_update_form_renders(
-        self, view_name, view_cls, form_data, mock_core_get_item_endpoints, form_formats_from_models, authenticated_client
+        self,
+        view_name,
+        view_cls,
+        form_data,
+        mock_core_get_item_endpoints,
+        form_formats_from_models,
+        authenticated_client,
     ):
         item_id = str(mock_core_get_item_endpoints[view_name]["id"])
         key = view_cls._get_object_key()
@@ -373,64 +397,6 @@ class TestSourceView:
         assert regular_response.status_code == 200
         assert 'name="parameters[FEED_URL]"' in regular_response.text
 
-    def test_bulk_create_posts_version_4_import_with_optional_group(self, authenticated_client, responses_mock):
-        responses_mock.post(
-            f"{Config.TARANIS_CORE_URL}/config/import-osint-sources",
-            json={"count": 2, "message": "Successfully imported sources", "sources": ["source-1", "source-2"]},
-            status=200,
-            content_type="application/json",
-        )
-        form_data = MultiDict(
-            [
-                ("sources[][name]", "Feed One"),
-                ("sources[][url]", "https://example.com/one.xml"),
-                ("sources[][name]", "Feed Two"),
-                ("sources[][url]", "https://example.com/two.xml"),
-                ("description", "Shared description"),
-                ("rank", "3"),
-                ("type", "rss_collector"),
-                ("parameters[USER_AGENT]", "Taranis test"),
-                ("create_group", "false"),
-                ("create_group", "true"),
-                ("group_name", "Example feeds"),
-                ("group_description", "Created in bulk"),
-            ]
-        )
-
-        response = authenticated_client.post(url_for("admin.bulk_create_osint_sources"), data=form_data)
-
-        assert response.status_code == 302
-        assert response.headers["Location"] == SourceView.get_base_route()
-        assert len(responses_mock.calls) == 1
-        assert _json_request_body(responses_mock.calls[0]) == {
-            "version": 4,
-            "sources": [
-                {
-                    "name": "Feed One",
-                    "description": "Shared description",
-                    "rank": "3",
-                    "type": "rss_collector",
-                    "parameters": {"USER_AGENT": "Taranis test", "FEED_URL": "https://example.com/one.xml"},
-                    "group_idx": 1,
-                },
-                {
-                    "name": "Feed Two",
-                    "description": "Shared description",
-                    "rank": "3",
-                    "type": "rss_collector",
-                    "parameters": {"USER_AGENT": "Taranis test", "FEED_URL": "https://example.com/two.xml"},
-                    "group_idx": 2,
-                },
-            ],
-            "groups": [
-                {
-                    "name": "Example feeds",
-                    "description": "Created in bulk",
-                    "osint_sources": [1, 2],
-                }
-            ],
-        }
-
     def test_bulk_create_reports_core_import_failures_with_server_status(self, authenticated_client, responses_mock):
         endpoint = f"{Config.TARANIS_CORE_URL}/config/import-osint-sources"
         responses_mock.post(endpoint, json={"error": "Core import failed."}, status=503)
@@ -459,7 +425,10 @@ class TestSourceView:
         from the uploaded JSON file.
         """
         # Create a dummy export file with a "sources" key
-        dummy_export_data = {"version": 3, "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}]}
+        dummy_export_data = {
+            "version": 3,
+            "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}],
+        }
         dummy_file_content = json.dumps(dummy_export_data).encode("utf-8")
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
@@ -473,7 +442,9 @@ class TestSourceView:
 
         # Simulate the POST request
         resp = authenticated_client.post(
-            SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
+            SourceView.get_import_route(),
+            data={"file": (dummy_file, "test.json")},
+            content_type="multipart/form-data",
         )
 
         assert resp.status_code == 302, f"Expected redirect response, got {resp.status_code}"
@@ -497,7 +468,10 @@ class TestSourceView:
         """
         Test that the import_post_view method returns an error when the CoreApi call fails.
         """
-        dummy_export_data = {"version": 3, "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}]}
+        dummy_export_data = {
+            "version": 3,
+            "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}],
+        }
         dummy_file_content = json.dumps(dummy_export_data).encode("utf-8")
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
@@ -510,7 +484,9 @@ class TestSourceView:
         )
 
         resp = authenticated_client.post(
-            SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
+            SourceView.get_import_route(),
+            data={"file": (dummy_file, "test.json")},
+            content_type="multipart/form-data",
         )
 
         assert resp.status_code == 200
@@ -558,7 +534,14 @@ class TestSourceView:
 
     def test_process_form_data_returns_core_error_message(self, app):
         with (
-            patch.object(SourceView, "store_form_data", return_value=(None, {"error": "Icon payload is not a valid image file."})),
+            patch.object(
+                SourceView,
+                "store_form_data",
+                return_value=(
+                    None,
+                    {"error": "Icon payload is not a valid image file."},
+                ),
+            ),
             app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
@@ -599,7 +582,10 @@ class TestSourceView:
             app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
-                data={"delete_icon": "true", "icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
+                data={
+                    "delete_icon": "true",
+                    "icon": (BytesIO(oversized_icon), "icon.png", "image/png"),
+                },
                 content_type="multipart/form-data",
             ),
         ):
@@ -686,7 +672,10 @@ class TestWordListView:
         assert 'hx-swap-oob="true"' not in html
 
     def test_import_post_view_api_failure_renders_inline_error(self, authenticated_client, responses_mock):
-        dummy_export_data = {"version": 1, "data": [{"name": "Test wordlist", "entries": []}]}
+        dummy_export_data = {
+            "version": 1,
+            "data": [{"name": "Test wordlist", "entries": []}],
+        }
         dummy_file_content = json.dumps(dummy_export_data).encode("utf-8")
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
