@@ -1405,6 +1405,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             collector_proxy_input.fill("")
             expect(collector_interval_input).to_be_visible()
             collector_interval_input.fill("0 */8 * * *")
+            rss_entry_limit_input.fill("42")
             story_conflict_input.fill("200")
             news_conflict_input.fill("200")
             with page.expect_response(settings_update_url) as response_info:
