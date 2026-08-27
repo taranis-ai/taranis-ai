@@ -20,7 +20,7 @@ class TestViewportNotice(PlaywrightHelpers):
         page.goto(url_for("base.login", _external=True))
         return context, page
 
-    def test_warning_bar_tracks_wxga_plus_threshold(self, browser: Browser, e2e_request_context, core_request_client):
+    def test_warning_bar_tracks_wxga_plus_threshold(self, e2e_browser: Browser, e2e_request_context, core_request_client):
         allow_requests_passthru(core_request_client.base_url)
         response = core_request_client.post(
             "/users/profile",
@@ -33,7 +33,7 @@ class TestViewportNotice(PlaywrightHelpers):
         )
         assert response.ok, f"Failed to complete onboarding tours: {response.status_code}"
 
-        context, page = self._open_login_page(browser, {"width": 1440, "height": 600})
+        context, page = self._open_login_page(e2e_browser, {"width": 1440, "height": 600})
 
         try:
             banner = page.locator("#viewport-notification")

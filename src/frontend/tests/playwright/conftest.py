@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 import responses
 from flask import json, url_for
-from models.user import USER_PRODUCT_OVERVIEW_TASK_ID
+from models.user import ADMIN_ADVANCED_TOUR_ID, ADMIN_WELCOME_TOUR_ID, ONBOARDING_COMPLETED_STATUS, USER_PRODUCT_OVERVIEW_TASK_ID
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 
 from tests.core_requests import CoreRequestClient
@@ -27,6 +27,7 @@ from tests.external_e2e import (
     external_core_api_url,
     external_frontend_base_url,
     login_to_core,
+    wait_for_server_to_be_alive,
     wait_for_server_to_be_healthy,
 )
 from tests.playwright.e2e_harness import (
@@ -37,7 +38,6 @@ from tests.playwright.e2e_harness import (
 from tests.playwright.fixtures.test_news_item_list import news_items_list  # noqa: F401
 from tests.playwright.fixtures.test_story_list_enriched import story_list_enriched  # noqa: F401
 from tests.playwright.htmx_helpers import install_htmx_support
-from tests.playwright.notification_helpers import dismiss_notifications
 from tests.playwright.story_seed_payloads import load_playwright_story_fixtures, normalize_playwright_story_payload
 
 
@@ -93,17 +93,43 @@ def docker_compose_file():
 
 
 @pytest.fixture(scope="session")
-def docker_compose_command() -> str:
-    return require_docker_compose_command()
+def e2e_stack(request) -> str:
+    configured_stack = request.config.getoption("--e2e-stack")
+    if configured_stack != "auto":
+        return configured_stack
+
+    selected_full_stack_test = any(
+        item.get_closest_marker("e2e_full_stack") is not None and item.get_closest_marker("skip") is None for item in request.session.items
+    )
+    return "full" if selected_full_stack_test else "core"
 
 
 @pytest.fixture(scope="session")
-def docker_setup(docker_compose_command):
-    return docker_setup_commands(docker_compose_command)
+def docker_compose_command(e2e_stack: str) -> str:
+    command = require_docker_compose_command()
+    return f"{command} --profile rq" if e2e_stack == "full" else command
 
 
 @pytest.fixture(scope="session")
-def docker_cleanup():
+def docker_compose_project_name(request) -> str:
+    configured_name = os.getenv("TARANIS_E2E_PROJECT_NAME", "").strip()
+    if configured_name:
+        return configured_name
+    if request.config.getoption("--e2e-keep-stack"):
+        return "taranis-e2e"
+    return f"pytest{os.getpid()}"
+
+
+@pytest.fixture(scope="session")
+def docker_setup(docker_compose_command: str, e2e_stack: str):
+    services = () if e2e_stack == "full" else ("core",)
+    return docker_setup_commands(docker_compose_command, *services)
+
+
+@pytest.fixture(scope="session")
+def docker_cleanup(request):
+    if request.config.getoption("--e2e-keep-stack") or os.getenv("CI", "").lower() == "true":
+        return []
     return docker_cleanup_commands()
 
 
@@ -124,7 +150,7 @@ def run_core_external():
 
 
 @pytest.fixture(scope="session")
-def run_core_local(docker_services):
+def run_core_local(docker_services, e2e_stack: str):
     from frontend.config import Config
 
     taranis_core_start_timeout = int(os.getenv("TARANIS_CORE_START_TIMEOUT", "180"))
@@ -136,8 +162,12 @@ def run_core_local(docker_services):
 
     try:
         print("Starting Taranis Core Docker service for E2E tests (pytest-docker)")
-        print(f"Waiting for Taranis Core to be healthy at: {core_url}/health")
-        wait_for_server_to_be_healthy(core_url, taranis_core_start_timeout)
+        if e2e_stack == "full":
+            print(f"Waiting for the full Taranis stack to be healthy at: {core_url}/health")
+            wait_for_server_to_be_healthy(core_url, taranis_core_start_timeout)
+        else:
+            print(f"Waiting for Taranis Core to be alive at: {core_url}/isalive")
+            wait_for_server_to_be_alive(f"{core_url}/isalive", taranis_core_start_timeout)
         return core_url
     except Exception as e:
         pytest.fail(str(e))
@@ -221,20 +251,26 @@ def e2e_request_context(e2e_server, app):
         yield
 
 
+@pytest.fixture
+def e2e_browser(request) -> Browser:
+    """Start Flask's forked live server before Playwright starts browser threads."""
+    request.getfixturevalue("e2e_server")
+    return request.getfixturevalue("browser")
+
+
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args, browser_type_launch_args, request):
     browser_type_launch_args["args"] = ["--window-size=1964,1211"]
-
+    context_args = {**browser_context_args, "no_viewport": True}
     if request.config.getoption("--record-video"):
         browser_type_launch_args["args"] = ["--window-size=1964,1211"]
         print("Screenshots in --record-video mode are not of optimal resolution")
         return {
-            **browser_context_args,
+            **context_args,
             "record_video_dir": "tests/playwright/videos",
-            "no_viewport": True,
             "record_video_size": {"width": 1920, "height": 1080},
         }
-    return {**browser_context_args, "no_viewport": True}
+    return context_args
 
 
 @pytest.fixture(scope="session")
@@ -258,32 +294,53 @@ def setup_test_templates(core_request_client):
             core_request_client.delete(f"/config/templates/{template_name}", timeout_seconds=30)
 
 
+def _trace_enabled(request) -> bool:
+    return request.config.getoption("--e2e-trace") or os.getenv("TARANIS_E2E_TRACE", "").lower() == "true"
+
+
+def _trace_path(node_id: str) -> Path:
+    safe_node_id = re.sub(r"[^a-zA-Z0-9_.-]+", "-", node_id).strip("-")
+    trace_dir = Path("test-results/e2e-traces")
+    trace_dir.mkdir(parents=True, exist_ok=True)
+    return trace_dir / f"{safe_node_id}.zip"
+
+
 @pytest.fixture(scope="function")
-def taranis_frontend(request, e2e_request_context, setup_test_templates, browser_context_args, browser: Browser):
+def taranis_browser_context(
+    request,
+    e2e_request_context,
+    setup_test_templates,
+    browser_context_args,
+    browser: Browser,
+):
     timeout = int(request.config.getoption("--e2e-timeout"))
     expect.set_options(timeout=timeout)
     context = browser.new_context(**browser_context_args)
     install_htmx_support(context)
     context.set_default_timeout(timeout)
-    if request.config.getoption("trace"):
+    tracing = _trace_enabled(request)
+    if tracing:
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
-    page = context.new_page()
+    try:
+        yield context
+    finally:
+        if tracing:
+            context.tracing.stop(path=_trace_path(request.node.nodeid))
+        context.close()
+
+
+@pytest.fixture(scope="function")
+def taranis_frontend(taranis_browser_context: BrowserContext):
+    page = taranis_browser_context.new_page()
     try:
         yield page
     finally:
-        if request.config.getoption("trace"):
-            context.tracing.stop(path="taranis_ai_frontend_trace.zip")
         page.close()
-        context.close()
 
 
 def _allowed(entry: str, allow_patterns: list[str]) -> bool:
     return any(re.search(pattern, entry) for pattern in allow_patterns)
-
-
-def _dismiss_notifications(page: Page):
-    dismiss_notifications(page)
 
 
 def _cookies_from_response(resp) -> list[dict]:
@@ -319,46 +376,48 @@ def _add_auth_cookies(context: BrowserContext, base_url: str, token_response) ->
     context.add_cookies(context_cookies)
 
 
-def _new_authenticated_page(taranis_frontend: Page, e2e_server, token_response) -> Page:
-    context = taranis_frontend.context
+def _new_authenticated_page(context: BrowserContext, e2e_server, token_response) -> Page:
     base_url: str = e2e_server.url()
 
     # Ensure we do not leak auth state across test segments (admin -> user).
     context.clear_cookies()
     _add_auth_cookies(context, base_url, token_response)
 
-    page = context.new_page()
-    _dismiss_notifications(page)
-    return page
+    return context.new_page()
 
 
 @pytest.fixture
-def authenticated_page_factory_local(taranis_frontend: Page, e2e_server, access_token_response, access_token_response_basic):
+def authenticated_page_factory_local(
+    taranis_browser_context: BrowserContext,
+    e2e_server,
+    access_token_response,
+    access_token_response_basic,
+):
     """Factory fixture for creating authenticated pages with different user types."""
 
     def _create(user_type="admin"):
         token_response = _core_token_response(user_type, access_token_response, access_token_response_basic)
-        return _new_authenticated_page(taranis_frontend, e2e_server, token_response)
+        return _new_authenticated_page(taranis_browser_context, e2e_server, token_response)
 
     return _create
 
 
-def complete_user_product_overview_task(core_url: str, access_token: str):
+def complete_onboarding_tasks(core_url: str, access_token: str, *task_ids: str) -> None:
     allow_requests_passthru(core_url)
     response = CoreRequestClient(base_url=core_url, access_token=access_token).post(
         "/users/profile",
-        json_data={"onboarding_tasks": {USER_PRODUCT_OVERVIEW_TASK_ID: "completed"}},
+        json_data={"onboarding_tasks": dict.fromkeys(task_ids, ONBOARDING_COMPLETED_STATUS)},
     )
-    assert response.ok, f"Failed to complete user onboarding task: {response.status_code}"
+    assert response.ok, f"Failed to complete onboarding tasks: {response.status_code}"
 
 
 @pytest.fixture
-def authenticated_page_factory_external(taranis_frontend: Page, e2e_server):
+def authenticated_page_factory_external(taranis_browser_context: BrowserContext, e2e_server):
     """Factory fixture for creating authenticated pages against an external core."""
 
     def _create(user_type="admin"):
         token_response = _external_token_response(user_type)
-        return _new_authenticated_page(taranis_frontend, e2e_server, token_response)
+        return _new_authenticated_page(taranis_browser_context, e2e_server, token_response)
 
     return _create
 
@@ -370,14 +429,22 @@ def authenticated_page_factory(request):
     return request.getfixturevalue("authenticated_page_factory_local")
 
 
+@pytest.fixture(scope="session")
+def completed_admin_user(request, run_core):
+    access_token = (
+        _token_from_response(_external_token_response("admin")) if external_core_api_url() else request.getfixturevalue("access_token")
+    )
+    complete_onboarding_tasks(run_core, access_token, ADMIN_WELCOME_TOUR_ID, ADMIN_ADVANCED_TOUR_ID)
+    return access_token
+
+
 @pytest.fixture
-def logged_in_page(authenticated_page_factory):
+def logged_in_page(authenticated_page_factory, completed_admin_user):
     """Returns a Playwright Page with admin authentication."""
     page = authenticated_page_factory("admin")
     try:
         yield page
     finally:
-        _dismiss_notifications(page)
         page.close()
 
 
@@ -388,18 +455,22 @@ def _token_from_response(token_response) -> str:
         raise RuntimeError("Login response does not contain 'access_token'")
 
 
-@pytest.fixture
-def non_admin_logged_in_page(request, authenticated_page_factory, run_core):
-    """Returns a Playwright Page with basic user authentication."""
+@pytest.fixture(scope="session")
+def completed_basic_user(request, run_core):
     access_token = (
         _token_from_response(_external_token_response("basic")) if external_core_api_url() else request.getfixturevalue("access_token_basic")
     )
-    complete_user_product_overview_task(run_core, access_token)
+    complete_onboarding_tasks(run_core, access_token, USER_PRODUCT_OVERVIEW_TASK_ID)
+    return access_token
+
+
+@pytest.fixture
+def non_admin_logged_in_page(authenticated_page_factory, completed_basic_user):
+    """Returns a Playwright Page with basic user authentication."""
     page = authenticated_page_factory("basic")
     try:
         yield page
     finally:
-        _dismiss_notifications(page)
         page.close()
 
 
@@ -459,7 +530,6 @@ def _forward_console_and_page_errors(request, page: Page, extra_allow_patterns: 
     finally:
         page.remove_listener("console", on_console)
         page.remove_listener("pageerror", on_pageerror)
-        _dismiss_notifications(page)
 
         for w in warns:
             pywarnings.warn(UserWarning(w), stacklevel=0)

@@ -10,6 +10,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Architecture and Boundaries](architecture-and-boundaries.md) - component roles, RQ tasks, frontend/API boundaries, migrations, and UTC datetime handling. Read before component, API, persistence, queue, or datetime changes.
 - [Frontend Development](frontend-development.md) - mandatory HTMX-first, Alpine-second, minimal event-driven JavaScript rules. Read before every frontend change.
 - [Test Design](test-design.md) - stable functionality coverage, workflow-level assertions, and the prohibition on branch-regression or migration tests. Read before adding or changing tests.
+- [Frontend E2E Harness](frontend-e2e-harness.md) - minimal/full Compose selection, warm local reuse, CI lanes, screenshots, traces, and validation.
 
 ## Feature Memories
 

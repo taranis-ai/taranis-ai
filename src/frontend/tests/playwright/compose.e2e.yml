@@ -9,8 +9,8 @@ services:
     environment:
       API_KEY: test_key
       JWT_SECRET_KEY: test_key_for_tests_only_do_not_use
-      FLASK_DEBUG: "1"
-      DEBUG: "true"
+      FLASK_DEBUG: "0"
+      DEBUG: "false"
       SQLALCHEMY_DATABASE_URI: sqlite:////tmp/taranis_ai_test.db
       REDIS_URL: redis://redis:6379/0
       REDIS_PASSWORD: ""
@@ -37,6 +37,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    stop_grace_period: 1s
     healthcheck:
       test:
         [
@@ -49,17 +50,19 @@ services:
       start_period: 5s
 
   worker:
+    profiles: ["rq"]
     image: ghcr.io/astral-sh/uv:python3.13-trixie-slim
     working_dir: /app/worker
     command: >-
       sh -lc "uv sync --frozen --python 3.13 &&
-      /tmp/.venv/bin/taranis-worker"
+      touch /tmp/.venv/.e2e-ready &&
+      exec /tmp/.venv/bin/taranis-worker"
     environment:
       API_KEY: test_key
       TARANIS_CORE_URL: http://core:8080/api
       REDIS_URL: redis://redis:6379/0
       WORKER_TYPES: '["Collectors", "Bots", "Misc"]'
-      DEBUG: "true"
+      DEBUG: "false"
       PYTHONPATH: /app/worker:/app/models
       UV_PROJECT_ENVIRONMENT: /tmp/.venv
       UV_CACHE_DIR: /tmp/.cache/uv
@@ -68,6 +71,7 @@ services:
       - "../../../worker:/app/worker:z"
       - "../../../models:/app/models:z"
       - "worker-uv-cache:/tmp/.cache/uv"
+      - "worker-venv:/tmp/.venv"
     depends_on:
       core:
         condition: service_healthy
@@ -75,32 +79,35 @@ services:
         condition: service_healthy
       testdata:
         condition: service_healthy
+    stop_grace_period: 1s
 
   cron:
+    profiles: ["rq"]
     image: ghcr.io/astral-sh/uv:python3.13-trixie-slim
     working_dir: /app/worker
     command: >-
-      sh -lc "uv sync --frozen --python 3.13 &&
-      /tmp/.venv/bin/taranis-cron"
+      sh -lc "until [ -f /tmp/.venv/.e2e-ready ]; do sleep 0.1; done;
+      exec /tmp/.venv/bin/taranis-cron"
     environment:
       API_KEY: test_key
       TARANIS_CORE_URL: http://core:8080/api
       REDIS_URL: redis://redis:6379/0
       CRON_POLL_INTERVAL_SECONDS: "1.0"
-      DEBUG: "true"
+      DEBUG: "false"
       PYTHONPATH: /app/worker:/app/models
       UV_PROJECT_ENVIRONMENT: /tmp/.venv
-      UV_CACHE_DIR: /tmp/.cache/uv
-      UV_LINK_MODE: copy
     volumes:
       - "../../../worker:/app/worker:z"
       - "../../../models:/app/models:z"
-      - "cron-uv-cache:/tmp/.cache/uv"
+      - "worker-venv:/tmp/.venv"
     depends_on:
+      worker:
+        condition: service_started
       core:
         condition: service_healthy
       redis:
         condition: service_healthy
+    stop_grace_period: 1s
 
   redis:
     image: redis:8-alpine
@@ -113,8 +120,10 @@ services:
       timeout: 3s
       retries: 20
       start_period: 2s
+    stop_grace_period: 1s
 
   testdata:
+    profiles: ["rq"]
     image: nginx:alpine
     volumes:
       - "./testdata:/usr/share/nginx/html:ro,z"
@@ -124,8 +133,9 @@ services:
       timeout: 3s
       retries: 20
       start_period: 2s
+    stop_grace_period: 1s
 
 volumes:
   core-uv-cache:
   worker-uv-cache:
-  cron-uv-cache:
+  worker-venv:

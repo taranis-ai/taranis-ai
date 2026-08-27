@@ -12,6 +12,7 @@ pytest --e2e-ci
 
 The E2E harness starts and stops a dedicated Docker/Podman Compose test stack automatically for the session.
 Core is started from a plain Python container with `src/core` mounted, so Core code changes are picked up without image rebuilds.
+The harness starts only Core and Redis unless a selected `e2e_full_stack` test requires the worker, cron, and testdata services.
 You need Docker Compose or Podman Compose available locally. For Podman, install `podman` and either `podman-compose` or a working `podman compose` provider.
 The same frontend-owned test root also contains the RQ/Redis integration E2E suite.
 The Playwright bootstrap selects the `fork` multiprocessing start method when available because `pytest-flask`'s live server is
@@ -31,6 +32,9 @@ All flags:
 - `--e2e-admin` - end to end tests of admin section; generate pictures for documentation (also User sections)
 - `--record-video` - record a video (save to `src/frontend/tests/playwright/videos`)
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
+- `--e2e-stack=<auto|core|full>` - choose the Compose services (`default=auto`)
+- `--e2e-keep-stack` - keep and reuse the `taranis-e2e` Compose project
+- `--e2e-trace` - record unique traces for stack-backed browser tests
 - `-s` - see all logs on stdout
 
 ### Run only the RQ/Redis integration E2E suite
@@ -40,6 +44,24 @@ From `src/frontend` folder run:
 ```bash
 pytest tests/playwright/test_e2e_rq_tasks.py --e2e-ci
 ```
+
+### Reuse the stack while developing a test
+
+Keep the named `taranis-e2e` Compose project running across focused test invocations:
+
+```bash
+pytest tests/playwright/test_e2e_user.py::TestEndToEndUser::test_user_profile --e2e-ci --e2e-keep-stack
+```
+
+Subsequent commands with `--e2e-keep-stack` attach to the same services. Test data also remains, so use the default isolated mode when a test does not clean up its records. Reset the reusable stack from `src/frontend` with:
+
+```bash
+docker compose --profile rq -p taranis-e2e -f tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1
+```
+
+`--e2e-stack=core` forces Core and Redis only; `--e2e-stack=full` activates the RQ services. The default `auto` mode activates them when a selected test has the `e2e_full_stack` marker.
+
+Successful CI runs do not record traces or documentation screenshots. Use `--e2e-trace` for a focused local trace; artifacts are written under `test-results/e2e-traces/`. CI automatically reruns failing tests with tracing enabled.
 
 ## Use Playwright Codegen tool to generate tests
 

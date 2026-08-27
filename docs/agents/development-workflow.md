@@ -31,7 +31,7 @@ See `.github/workflows` for CI behavior. Run commands from the relevant componen
 - Run test and lint commands from the relevant component directory. Tests live in each component's `tests/` directory.
 - Lint each changed component with `uv run ruff check`; use `uv run ruff check --fix` and `uv run ruff format` where appropriate.
 - After touching Python files, run `./dev/check_pyrefly.sh` to check changed files.
-- E2E tests start and stop a dedicated Docker/Podman Compose test stack automatically for the session; you mainly need Docker/Podman Compose available locally (see `src/frontend/tests/playwright/README.md`).
+- E2E tests start the minimal Docker/Podman Compose services selected by the test session and normally stop them afterward. Focused local runs can reuse a named stack with `--e2e-keep-stack` (see `src/frontend/tests/playwright/README.md`).
 - The project-scoped Codex configuration filters inherited `DEBUG` values from shell commands. This prevents the VS Code Codex extension's `DEBUG=release` value from overriding the boolean values in the component `.env` files.
 - Models has no unit tests. Worker browser-scraping tests install Playwright browsers.
 - Core tests replace Redis connections with an in-process fake so test queues and cache invalidations cannot affect a running local instance.

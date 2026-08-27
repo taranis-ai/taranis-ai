@@ -166,7 +166,9 @@ def api_header():
 @pytest.fixture(scope="session")
 def core_request_client(run_core, core_request_access_token):
     allow_requests_passthru(run_core)
-    return CoreRequestClient(base_url=run_core, access_token=core_request_access_token)
+    client = CoreRequestClient(base_url=run_core, access_token=core_request_access_token)
+    yield client
+    client.session.close()
 
 
 @pytest.fixture
@@ -237,6 +239,24 @@ def pytest_addoption(parser):
     group.addoption("--e2e-admin", action="store_true", default=False, help="run e2e tests of admin interface")
     group.addoption("--e2e-user", action="store_true", default=False, help="run e2e tests of user interface")
     group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
+    group.addoption(
+        "--e2e-stack",
+        choices=("auto", "core", "full"),
+        default="auto",
+        help="compose services to start; auto honors the e2e_full_stack marker",
+    )
+    group.addoption(
+        "--e2e-keep-stack",
+        action="store_true",
+        default=False,
+        help="reuse the taranis-e2e compose project and leave it running after the test session",
+    )
+    group.addoption(
+        "--e2e-trace",
+        action="store_true",
+        default=False,
+        help="record unique Playwright traces for stack-backed browser tests",
+    )
 
     group.addoption(
         "--fail-on-console",
@@ -293,7 +313,6 @@ def pytest_collection_modifyitems(config, items):
     config.option.start_live_server = False
 
     if _is_vscode(config):
-        config.option.trace = True
         config.option.headed = False
         return
 
@@ -308,7 +327,6 @@ def pytest_collection_modifyitems(config, items):
     for option, (keyword, reason) in options.items():
         if config.getoption(option):
             if option == "--e2e-ci":
-                config.option.trace = True
                 config.option.headed = False
             skip_tests(items, keyword, reason)
             return
