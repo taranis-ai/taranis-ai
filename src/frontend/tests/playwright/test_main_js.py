@@ -153,6 +153,7 @@ def test_assess_shift_space_requires_selection(page: Page):
     page.locator("#select").click()
     page.keyboard.press("Shift+Space")
 
+    expect(page.locator("#read-trigger")).to_have_text("updated")
     assert requests == ["https://example.test/read"]
 
 
