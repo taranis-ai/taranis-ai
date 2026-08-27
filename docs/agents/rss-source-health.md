@@ -8,7 +8,7 @@ RSS collectors, Atom feeds, feedparser validation, empty feeds, OSINT source sta
 
 An RSS source fails immediately when feedparser cannot identify the response as RSS or Atom. If the response is HTML and advertises an RSS or Atom feed through a standard `rel="alternate"` link, the failure message suggests the first advertised feed URL. A conditional 304 after that failure keeps the source failed because the unchanged response cannot prove that the feed became valid. A parseable feed with no entries is `NOT_MODIFIED` with the `rss_feed_empty` reason and a message explaining that the feed is valid but empty.
 
-Each collection processes at most the global `rss_collector_max_entries` value from Admin Settings. The default is 42 and the setting must be a positive integer. The same limit applies to normal feeds and digest splitting. The Admin Settings form shows a non-blocking warning outside the recommended range of 20–100; administrators can still save any positive integer.
+Each collection processes at most the global `collector_max_entries` value from Admin Settings. The default is 42 and the setting must be a positive integer. The limit is shared with Mastodon collection and applies to normal feeds and digest splitting. The Admin Settings form shows a non-blocking warning outside the recommended range of 20–100; administrators can still save any positive integer.
 
 Each state includes a user-facing message. Empty-feed results persist the current HTTP validators but do not count collection attempts or become failures.
 
@@ -23,7 +23,7 @@ Each state includes a user-facing message. Empty-feed results persist the curren
 
 ## Data Flow
 
-Core includes the configured RSS entry limit and latest persisted collector task in the worker's OSINT source payload. The RSS collector rejects responses without a detected feed version, adds the first advertised RSS or Atom URL to the user-facing failure message when available, and reports parseable feeds that produce no items separately. The collector task records an empty feed as `NOT_MODIFIED` with the `rss_feed_empty` reason. A later 304 preserves that reason and message so the user continues to see that the unchanged feed is empty. A 304 also preserves a preceding failure instead of marking it successful.
+Core includes the configured collector entry limit and latest persisted collector task in the worker's OSINT source payload. The RSS collector rejects responses without a detected feed version, adds the first advertised RSS or Atom URL to the user-facing failure message when available, and reports parseable feeds that produce no items separately. The collector task records an empty feed as `NOT_MODIFIED` with the `rss_feed_empty` reason. A later 304 preserves that reason and message so the user continues to see that the unchanged feed is empty. A 304 also preserves a preceding failure instead of marking it successful.
 
 ## Testing
 

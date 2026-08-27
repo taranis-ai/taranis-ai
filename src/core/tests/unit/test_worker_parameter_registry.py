@@ -59,6 +59,53 @@ def test_secret_schema_uses_standard_password_fields():
     assert api_key["writeOnly"] is True
 
 
+def test_mastodon_timeline_contract_and_secret():
+    schema = parameter_schema("MASTODON_COLLECTOR")
+    assert schema["properties"]["TIMELINE"]["enum"] == ["hashtag", "home", "account"]
+    assert schema["properties"]["ACCESS_TOKEN"]["format"] == "password"
+    assert schema["properties"]["ACCESS_TOKEN"]["writeOnly"] is True
+
+    hashtag = effective_parameter_values(
+        "MASTODON_COLLECTOR",
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security"},
+    )
+    assert hashtag["ACCESS_TOKEN"] == ""
+
+    for parameters in (
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag"},
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "home"},
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "account", "ACCOUNT": "alice"},
+    ):
+        with pytest.raises(ValidationError):
+            effective_parameter_values("MASTODON_COLLECTOR", parameters)
+
+    account = effective_parameter_values(
+        "MASTODON_COLLECTOR",
+        {
+            "INSTANCE_URL": "https://mastodon.example",
+            "TIMELINE": "account",
+            "ACCOUNT": "alice@example.social",
+            "ACCESS_TOKEN": "secret",
+        },
+    )
+    assert account["ACCESS_TOKEN"] == "secret"
+
+    for invalid_parameters in (
+        {"INSTANCE_URL": "https://user:password@mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security"},
+        {"INSTANCE_URL": "https://mastodon.example/api", "TIMELINE": "hashtag", "HASHTAG": "security"},
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "threat intel"},
+        {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security?limit=100"},
+        {
+            "INSTANCE_URL": "https://mastodon.example",
+            "TIMELINE": "account",
+            "ACCOUNT": "https://mastodon.example/@alice",
+            "ACCESS_TOKEN": "secret",
+        },
+    ):
+        with pytest.raises(ValidationError):
+            effective_parameter_values("MASTODON_COLLECTOR", invalid_parameters)
+
+
 def test_every_schema_uses_uppercase_names_and_documents_each_field():
     for worker_type in WORKER_TYPES:
         for name, field_schema in parameter_schema(worker_type).get("properties", {}).items():

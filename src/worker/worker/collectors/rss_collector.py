@@ -57,7 +57,7 @@ class RSSCollector(BaseWebCollector):
             raise ValueError("No FEED_URL set in source")
 
         self.use_feed_content = self._determine_use_feed_content(params)
-        self.max_entries = source.get("rss_collector_max_entries", 42)
+        self.max_entries = source.get("collector_max_entries", 42)
 
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)

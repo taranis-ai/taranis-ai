@@ -27,6 +27,8 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 
 For IntelOwl enrichment setup, see [docs/intelowl.md](docs/intelowl.md).
 
+For Mastodon collection setup, see [docs/mastodon.md](docs/mastodon.md).
+
 For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
 
 ## Services
@@ -81,7 +83,7 @@ Without NLP: 2 GB of RAM, 2 CPU cores and 20 GB of disk storage
   * [ingress](src/ingress/) Nginx reverse proxy configuration
   * [frontend](src/frontend/) flask & htmx part of the web user interface
   * [models](src/models/) pydantic models for validating inputs and outputs
-  * [worker](src/worker/) retrieve OSINT information from various sources (such as web, twitter, email, atom, rss, slack, and more) and create **news items**.
+  * [worker](src/worker/) retrieves OSINT information from sources such as websites, RSS/Atom feeds, Mastodon, MISP, and Request Tracker and creates **news items**.
 * [docker/](docker/) - Support files for Docker image creation and example docker-compose file
 
 ## About

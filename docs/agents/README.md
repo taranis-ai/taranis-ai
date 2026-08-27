@@ -26,6 +26,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Worker Task Notifications](worker-task-notifications.md) - frontend notifications for worker-backed actions when tasks are queued but no workers are connected.
 - [Notification Center](notification-center.md) - browser-session notification history, persistent notices, its user-menu route, and client-only storage boundary.
 - [RSS Source Health](rss-source-health.md) - RSS/Atom detection, empty-feed retry states, persisted source status, and error reporting.
+- [Mastodon Collector](mastodon-collector.md) - scheduled hashtag/home/account collection, private cursors, entry limits, and safe failure behavior.
 - [Authentication Cookies](authentication-cookies.md) - JWT/CSRF cookie names, deployment suffixes, base-path scoping, and auth cookie consumers.
 - [Realtime Events](realtime-events.md) - Centrifugo SSE transport, connect-proxy authentication, admin broadcasts and client presence, event publishing, frontend recovery, and deployment configuration.
 - [Public Product Publishing](public-product-publishing.md) - Taranis publisher presets, persistent report files, and unauthenticated public report URLs.

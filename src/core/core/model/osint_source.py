@@ -380,15 +380,23 @@ class OSINTSource(BaseModel):
         for group in self.groups:
             data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists if word_list])
         data["parameters"] = effective_parameters(self.type, self.parameters)
-        if self.status:
-            data["status"] = self.status
+        if status := self.status:
+            data["status"] = status
+            result = status.get("result")
+            result_data = result.get("data") if isinstance(result, dict) else None
+            cursor = result_data.get("mastodon_cursor") if isinstance(result_data, dict) else None
+            if self.type == COLLECTOR_TYPES.MASTODON_COLLECTOR and isinstance(cursor, dict):
+                timeline = cursor.get("timeline")
+                last_status_id = cursor.get("last_status_id")
+                if isinstance(timeline, str) and timeline and isinstance(last_status_id, str) and last_status_id:
+                    data["mastodon_cursor"] = {"timeline": timeline, "last_status_id": last_status_id}
         if self.http_state:
             data["http_validators"] = self.http_state.to_worker_dict()
 
         # Include refresh schedule for worker self-rescheduling
         data["refresh"] = self.get_schedule_with_default()
-        if self.type == COLLECTOR_TYPES.RSS_COLLECTOR:
-            data["rss_collector_max_entries"] = Settings.get_settings().get("rss_collector_max_entries", 42)
+        if self.type in {COLLECTOR_TYPES.RSS_COLLECTOR, COLLECTOR_TYPES.MASTODON_COLLECTOR}:
+            data["collector_max_entries"] = Settings.get_settings().get("collector_max_entries", 42)
 
         return data
 

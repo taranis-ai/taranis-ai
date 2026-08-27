@@ -71,6 +71,7 @@ def pre_seed_update(db_engine: Engine):
     pre_seed_source_groups()
     pre_seed_manual_source()
     sync_presenter_templates()
+    migrate_collector_max_entries()
     cleanup_invalid_source_icons()
     migrate_refresh_intervals()
     migrate_use_feed_content()
@@ -106,6 +107,20 @@ def pre_seed_update(db_engine: Engine):
             ProductType.add(p)
 
     Settings.initialize()
+
+
+def migrate_collector_max_entries():
+    from core.managers.db_manager import db
+    from core.model.settings import Settings
+
+    settings = Settings.get_settings_entry()
+    if not settings or not isinstance(settings.settings, dict) or "rss_collector_max_entries" not in settings.settings:
+        return
+
+    values = dict(settings.settings)
+    values.setdefault("collector_max_entries", values.pop("rss_collector_max_entries"))
+    settings.settings = values
+    db.session.commit()
 
 
 def cleanup_invalid_source_icons():
