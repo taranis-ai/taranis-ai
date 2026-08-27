@@ -41,15 +41,14 @@ class MispConnector:
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
         self.org_id = parameters.get("ORGANISATION_ID", "")
-        self.ssl = parameters.get("SSL", False)
-        self.request_timeout = int(parameters.get("REQUEST_TIMEOUT") or 5)
-        self.proxies = parameters.get("PROXIES")
-        self.headers = parameters.get("HEADERS", {})
-        try:
-            self.sharing_group_id = int(parameters.get("SHARING_GROUP_ID", "")) if parameters.get("SHARING_GROUP_ID") else None
-        except ValueError:
-            logger.warning(f"Invalid SHARING_GROUP_ID value: {parameters.get('SHARING_GROUP_ID')}. Setting to None.")
-            self.sharing_group_id = None
+        self.ssl = parameters.get("SSL_CHECK", False)
+        self.request_timeout = parameters.get("REQUEST_TIMEOUT") or 5
+        proxy_server = parameters.get("PROXY_SERVER")
+        self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server} if proxy_server else None
+        self.headers = parameters.get("ADDITIONAL_HEADERS") or {}
+        if user_agent := parameters.get("USER_AGENT"):
+            self.headers.setdefault("User-Agent", user_agent)
+        self.sharing_group_id = parameters.get("SHARING_GROUP_ID")
 
         self.distribution = self._parse_distribution(parameters.get("DISTRIBUTION", ""))
         if not self.url or not self.api_key:

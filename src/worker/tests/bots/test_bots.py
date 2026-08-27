@@ -60,6 +60,22 @@ def test_news_item_content_for_tagging_handles_nullable_fields():
     assert _news_item_content_for_tagging(news_item, separator="\n") == "\n\ncontent"
 
 
+def test_wordlist_bot_respects_false_override(monkeypatch):
+    from worker import bots
+
+    wordlist_bot = bots.WordlistBot()
+    monkeypatch.setattr(wordlist_bot, "_get_word_list_entries", lambda: [{"value": "malware", "category": "new"}])
+    monkeypatch.setattr(
+        wordlist_bot,
+        "get_stories",
+        lambda _: [{"id": "story-1", "news_items": [{"id": "item-1", "content": "malware", "tags": {"malware": "existing"}}]}],
+    )
+
+    result = wordlist_bot.execute({"OVERRIDE_EXISTING_TAGS": False})
+
+    assert result == {"item-1": {}}
+
+
 def test_nlp_bot(story_get_mock, ner_bot_mock):
     from worker import bots
 
@@ -77,7 +93,7 @@ def test_nlp_bot_uses_requests_timeout_parameter(story_get_mock, ner_bot_mock):
     from worker import bots
 
     nlp_bot = bots.NLPBot()
-    nlp_bot.execute({"REQUESTS_TIMEOUT": "17"})
+    nlp_bot.execute({"REQUESTS_TIMEOUT": 17})
 
     assert nlp_bot.bot_api.timeout == 17
 

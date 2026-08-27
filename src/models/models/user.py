@@ -19,6 +19,7 @@ USER_PRODUCT_OVERVIEW_TASK_ID = "user_product_overview_v1"
 class ProfileSettingsDashboard(TaranisBaseModel):
     show_trending_clusters: bool = True
     show_charts: bool = True
+    show_pizzint: bool = False
     trending_cluster_days: int = 7
     trending_cluster_filter: list[Any] = Field(default_factory=list)
 

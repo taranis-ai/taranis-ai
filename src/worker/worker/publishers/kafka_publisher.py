@@ -8,11 +8,6 @@ from .base_publisher import BasePublisher
 
 
 class KafkaPublisher(BasePublisher):
-    REQUIRED_PARAMETERS = (
-        "KAFKA_BOOTSTRAP_SERVERS",
-        "KAFKA_TOPIC",
-    )
-
     def __init__(self, producer=None):
         super().__init__()
         self.type = "KAFKA_PUBLISHER"
@@ -53,7 +48,7 @@ class KafkaPublisher(BasePublisher):
         except BufferError as exc:
             raise RuntimeError(f"Failed to queue Kafka message for topic {topic}: {exc}") from exc
 
-        producer.flush(timeout=float(parameters.get("KAFKA_SEND_TIMEOUT") or 30))
+        producer.flush(timeout=parameters.get("KAFKA_SEND_TIMEOUT", 30))
         if delivery_result["error"] is not None:
             raise RuntimeError(f"Kafka delivery failed for topic {topic}: {delivery_result['error']}")
 
@@ -68,31 +63,15 @@ class KafkaPublisher(BasePublisher):
     def _create_producer(parameters: dict[str, Any]) -> Producer:
         security_protocol = str(parameters.get("KAFKA_SECURITY_PROTOCOL") or "PLAINTEXT").upper()
 
-        if security_protocol not in {"PLAINTEXT", "SASL_PLAINTEXT"}:
-            raise ValueError("Invalid KAFKA_SECURITY_PROTOCOL. Only 'PLAINTEXT' and 'SASL_PLAINTEXT' are supported.")
-
         producer_config = {
             "bootstrap.servers": parameters["KAFKA_BOOTSTRAP_SERVERS"],
             "client.id": "taranis-kafka-publisher",
             "acks": parameters.get("KAFKA_ACKS") or "all",
-            "retries": int(parameters.get("KAFKA_RETRIES") or 3),
+            "retries": parameters.get("KAFKA_RETRIES", 3),
             "security.protocol": security_protocol,
         }
 
-        if security_protocol == "SASL_PLAINTEXT":
-            missing = [
-                parameter
-                for parameter in (
-                    "KAFKA_SASL_MECHANISM",
-                    "KAFKA_SASL_USERNAME",
-                    "KAFKA_SASL_PASSWORD",
-                )
-                if not parameters.get(parameter)
-            ]
-
-            if missing:
-                raise ValueError(f"KAFKA_SECURITY_PROTOCOL is 'SASL_PLAINTEXT', but these parameters are missing: {', '.join(missing)}")
-
+        if security_protocol.startswith("SASL"):
             producer_config |= {
                 "sasl.mechanism": parameters["KAFKA_SASL_MECHANISM"],
                 "sasl.username": parameters["KAFKA_SASL_USERNAME"],

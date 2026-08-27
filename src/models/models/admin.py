@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AnyUrl, Field, PastDatetime, SecretStr, field_serializer, field_validator, model_validator
@@ -12,8 +12,6 @@ from models.types import (
     CONNECTOR_TYPES,
     PRESENTER_TYPES,
     PUBLISHER_TYPES,
-    WORKER_CATEGORY,
-    WORKER_TYPES,
     AttributeType,
     ItemType,
     TLPLevel,
@@ -170,27 +168,6 @@ class ACL(TaranisBaseModel):
     enabled: bool = True
 
 
-class ParameterValue(TaranisBaseModel):
-    _core_endpoint = "/config/parameter-values"
-    _model_name = "parameter_value"
-    id: str | None = None
-    parameter: str = ""
-    value: str | None = ""
-
-
-class Worker(TaranisBaseModel):
-    _core_endpoint = "/config/worker-types"
-    _model_name = "worker_type"
-    _pretty_name = "Worker Type"
-
-    id: str | None = None
-    name: str
-    description: str | None = ""
-    type: WORKER_TYPES
-    category: WORKER_CATEGORY
-    parameters: dict[str, str] = Field(default_factory=dict)
-
-
 class Role(TaranisBaseModel):
     _core_endpoint = "/config/roles"
     _model_name = "role"
@@ -289,6 +266,7 @@ class OSINTSource(TaranisBaseModel):
     _core_endpoint = "/config/osint-sources"
     _model_name = "osint_source"
     _pretty_name = "OSINT Source"
+    _parameter_patch = True
 
     id: str | None = None
     key: str | None = None
@@ -296,7 +274,7 @@ class OSINTSource(TaranisBaseModel):
     description: str = ""
     rank: int = Field(default=0, ge=0, le=5)
     type: COLLECTOR_TYPES | None = None
-    parameters: dict[str, str] | None = Field(default_factory=dict)
+    parameters: dict[str, Any] | None = Field(default_factory=dict)
 
     icon: str | None = None
     enabled: bool | None = True
@@ -308,8 +286,10 @@ class OSINTSourceUpdateModel(TaranisBaseModel):
     name: str | None = None
     description: str | None = None
     rank: int | None = Field(default=None, ge=0, le=5)
-    parameters: dict[str, str] | None = None
+    type: COLLECTOR_TYPES | None = None
+    parameters: dict[str, Any] | None = None
     icon: str | None = None
+    enabled: bool | None = None
 
 
 class OSINTSourceGroup(TaranisBaseModel):
@@ -327,20 +307,17 @@ class OSINTSourceGroup(TaranisBaseModel):
     word_lists: list[str] = Field(default_factory=list)
 
 
-class ProductParameterValue(TaranisBaseModel):
-    TEMPLATE_PATH: str | None = None
-
-
 class ProductType(TaranisBaseModel):
     _core_endpoint = "/config/product-types"
     _model_name = "product_type"
     _pretty_name = "Product Type"
+    _parameter_patch = True
 
     id: str | None = None
     title: str
     description: str = ""
     type: PRESENTER_TYPES
-    parameters: ProductParameterValue = Field(default_factory=ProductParameterValue)
+    parameters: dict[str, Any] | None = Field(default_factory=dict)
     report_types: list[str] = Field(default_factory=list)
     status: Task | None = None
 
@@ -349,12 +326,13 @@ class PublisherPreset(TaranisBaseModel):
     _core_endpoint = "/config/publisher-presets"
     _model_name = "publisher_preset"
     _pretty_name = "Publisher Preset"
+    _parameter_patch = True
 
     id: str | None = None
     name: str
     type: PUBLISHER_TYPES
     description: str | None = ""
-    parameters: dict[str, str] | None = Field(default_factory=dict)
+    parameters: dict[str, Any] | None = Field(default_factory=dict)
     status: Task | None = None
 
 
@@ -426,6 +404,7 @@ class Bot(TaranisBaseModel):
     _core_endpoint = "/config/bots"
     _model_name = "bot"
     _pretty_name = "Bot"
+    _parameter_patch = True
 
     id: str | None = None
     name: str
@@ -433,7 +412,7 @@ class Bot(TaranisBaseModel):
     type: BOT_TYPES
     index: int | None = None
     enabled: bool = True
-    parameters: dict[str, str] | None = Field(default_factory=dict)
+    parameters: dict[str, Any] | None = Field(default_factory=dict)
     status: Task | None = None
 
 
@@ -441,29 +420,13 @@ class Connector(TaranisBaseModel):
     _core_endpoint = "/config/connectors"
     _model_name = "connector"
     _pretty_name = "Connector"
+    _parameter_patch = True
 
     id: str | None = None
     name: str
     description: str = ""
     type: CONNECTOR_TYPES | None = Field(default=None)
     index: int | None = None
-    parameters: dict[str, str] | None = Field(default_factory=dict)
+    parameters: dict[str, Any] | None = Field(default_factory=dict)
     icon: str | None = None
     status: Task | None = None
-
-
-class WorkerParameterValue(TaranisBaseModel):
-    name: str
-    label: str | None = None
-    parent: Literal["parameters"] = "parameters"
-    type: str | None = None
-    rules: list[str] = Field(default_factory=list)
-
-
-class WorkerParameter(TaranisBaseModel):
-    _core_endpoint = "/config/worker-parameters"
-    _model_name = "worker_parameter"
-    _pretty_name = "Worker Parameter"
-
-    id: str
-    parameters: list[WorkerParameterValue]

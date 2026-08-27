@@ -240,6 +240,33 @@ def test_user_profile(app, client, auth_header):
             db.session.commit()
 
 
+def test_user_profile_persists_pizzint_dashboard_setting(app, client, auth_header):
+    from core.managers.db_manager import db
+    from core.model.user import User
+
+    with app.app_context():
+        user = User.find_by_name("admin")
+        assert user is not None
+        original_profile = deepcopy(user.profile)
+        dashboard = dict(user.get_profile()["dashboard"])
+
+    try:
+        response = client.put(
+            "/api/users/profile",
+            headers=auth_header,
+            json={"dashboard": dashboard | {"show_pizzint": True}},
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["user_profile"]["dashboard"]["show_pizzint"] is True
+    finally:
+        with app.app_context():
+            user = User.find_by_name("admin")
+            assert user is not None
+            user.profile = original_profile
+            db.session.commit()
+
+
 def _onboarding_task_ids(payload: dict, scope: str | None = None) -> set[str]:
     return {task["id"] for task in payload.get("pending_onboarding_tasks", []) if scope is None or task.get("scope") == scope}
 

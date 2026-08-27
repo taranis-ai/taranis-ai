@@ -8,7 +8,7 @@
             "type": "rss_collector",
             "parameters": {
                 "FEED_URL": "https://www.bmi.gv.at/rss/bmi_presse.xml",
-                "USE_FEED_CONTENT": "false"
+                "USE_FEED_CONTENT": false
             }
         }
     ]

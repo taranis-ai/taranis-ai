@@ -6,6 +6,7 @@ from flask.typing import ResponseReturnValue
 from flask.views import MethodView
 from jinja2 import TemplateNotFound
 from models.base import TaranisBaseModel
+from models.worker_parameters import normalize_parameter_values
 from pydantic import ValidationError
 from requests import Response as RequestsResponse
 from werkzeug.exceptions import HTTPException
@@ -147,6 +148,19 @@ class BaseView(MethodView):
     @classmethod
     def store_form_data(cls, processed_data: dict[str, Any], object_id: str = "0"):
         try:
+            if parameters := processed_data.get("parameters"):
+                processed_data["parameters"] = {name: None if value == "__CLEAR_SECRET__" else value for name, value in parameters.items()}
+                if getattr(cls.model, "_parameter_patch", False) and (worker_type := processed_data.get("type")):
+                    removable = {name: value for name, value in processed_data["parameters"].items() if value is None}
+                    complete = cls.is_create_object_id(object_id) and str(processed_data.get("enabled", "true")).lower() != "false"
+                    processed_data["parameters"] = {
+                        **normalize_parameter_values(
+                            worker_type,
+                            {name: value for name, value in processed_data["parameters"].items() if value is not None},
+                            complete=complete,
+                        ),
+                        **removable,
+                    }
             obj = cls.model(**processed_data)
             dpl = DataPersistenceLayer()
             result = dpl.store_object(obj) if cls.is_create_object_id(object_id) else dpl.update_object(obj, object_id)
