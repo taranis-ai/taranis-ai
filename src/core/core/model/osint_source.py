@@ -614,7 +614,7 @@ class OSINTSource(BaseModel):
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
         response, status = cls.delete_many([source_id], force=force)
         if status == 200:
-            return {"message": "OSINT Source deleted", "id": source_id}, status
+            return {"message": "OSINT Source deleted", "id": response["ids"][0]}, status
         return response, status
 
     @classmethod

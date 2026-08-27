@@ -448,8 +448,9 @@ class TestSourcesConfigApi(BaseTest):
 
     def test_delete_source(self, client, auth_header, cleanup_sources):
         source_id = cleanup_sources["id"]
-        response = self.assert_delete_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
+        response = self.assert_delete_ok(client, uri=f"osint-sources/{source_id.replace('-', '')}", auth_header=auth_header)
         assert response.json["message"] == "OSINT Source deleted"
+        assert response.json["id"] == source_id
 
     def test_bulk_delete_sources_is_atomic_and_requires_explicit_force(self, app, client, auth_header):
         from core.model.osint_source import OSINTSource
