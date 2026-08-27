@@ -4,6 +4,7 @@ from urllib.parse import urljoin, urlparse
 
 import feedparser
 import niquests as requests
+from bs4 import BeautifulSoup
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, parse_datetime
@@ -253,11 +254,30 @@ class RSSCollector(BaseWebCollector):
 
         self.feed_content = self.send_get_request(self.feed_url)
 
-        feed = feedparser.parse(self.feed_content.content)
+        feed_content = self.feed_content.content
+        feed = feedparser.parse(feed_content)
         if not feed.get("version"):
-            parser_error = feed.get("bozo_exception")
-            error_detail = f": {parser_error}" if parser_error else ""
-            raise RSSCollectorError(f"No parseable RSS or Atom feed was detected at {self.feed_url}{error_detail}")
+            logger.info(f"Could not parse RSS or Atom feed: {feed.get('bozo_exception')}")
+            suggestion = ""
+            if feed_content and "html" in self.feed_content.headers.get("content-type", "").lower():
+                html = BeautifulSoup(feed_content, "html.parser")
+                for link in html.find_all("link", rel="alternate"):
+                    feed_type = link.get("type")
+                    href = link.get("href")
+                    if (
+                        isinstance(feed_type, str)
+                        and feed_type.strip().lower()
+                        in {
+                            "application/rss+xml",
+                            "application/atom+xml",
+                        }
+                        and isinstance(href, str)
+                        and href.strip()
+                    ):
+                        base_url = str(self.feed_content.url or self.feed_url)
+                        suggestion = f". Suggested feed URL: {urljoin(base_url, href.strip())}"
+                        break
+            raise RSSCollectorError(f"No parseable RSS or Atom feed was detected at {self.feed_url}{suggestion}")
         return feed
 
     def preview_collector(self, source: dict):

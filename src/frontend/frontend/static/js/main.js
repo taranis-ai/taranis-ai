@@ -185,6 +185,16 @@ function canUseAssessShortcut(event, key = null) {
     (event?.shiftKey && event?.key?.toLowerCase() === key.toLowerCase());
 }
 
+function preventAssessShortcutDefault(event, code) {
+  if (
+    event?.shiftKey &&
+    event?.code === code &&
+    canUseAssessShortcut(event)
+  ) {
+    event.preventDefault();
+  }
+}
+
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initViewportWarningBar, {
     once: true,

@@ -101,7 +101,12 @@ def rss_collector_mock(requests_mock, collectors_mock):
     requests_mock.get(rss_collector_fav_icon_url, json={})
     requests_mock.get(rss_collector_url, text=file_loader("test_rss_feed.xml"))
     requests_mock.get(rss_collector_url_not_modified, text="", status_code=304, headers={"Last-Modified": "Sat, 01 Jan 2022 00:00:00 GMT"})
-    requests_mock.get(rss_collector_url_no_content, text="", status_code=200)
+    requests_mock.get(
+        rss_collector_url_no_content,
+        text='<html><head><link rel="alternate" href="/feed.xml" type="application/rss+xml"></head></html>',
+        status_code=200,
+        headers={"Content-Type": "text/html"},
+    )
 
 
 @pytest.fixture
