@@ -4798,6 +4798,15 @@ paths:
       operationId: config.config_templates.get
       security:
       - UserAuth: []
+      parameters:
+      - name: order
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - id_asc
+          - id_desc
       responses:
         '200':
           description: success
