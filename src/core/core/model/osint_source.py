@@ -387,6 +387,8 @@ class OSINTSource(BaseModel):
 
         # Include refresh schedule for worker self-rescheduling
         data["refresh"] = self.get_schedule_with_default()
+        if self.type == COLLECTOR_TYPES.RSS_COLLECTOR:
+            data["rss_collector_max_entries"] = Settings.get_settings().get("rss_collector_max_entries", 42)
 
         return data
 
