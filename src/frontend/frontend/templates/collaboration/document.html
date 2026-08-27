@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block head %}
+  <script type="module" src="{{ url_for('static', filename='vendor/collaboration.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='vendor/codemirror.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/collaboration.js') }}"></script>
+{% endblock head %}
+
+{% block content %}
+  <main class="mx-auto max-w-4xl space-y-5 p-6" data-collaboration-document="{{ document_id }}">
+    <div class="flex items-center justify-between">
+      <h1 class="text-3xl font-semibold">Collaborative document</h1>
+      <span class="badge badge-outline" data-collaboration-status>Loading</span>
+    </div>
+    <label class="form-control">
+      <span class="label-text">Title</span>
+      <textarea class="textarea textarea-bordered min-h-48 w-full" aria-label="Collaborative title"></textarea>
+    </label>
+    <div class="space-y-4" data-collaboration-fields></div>
+  </main>
+{% endblock content %}

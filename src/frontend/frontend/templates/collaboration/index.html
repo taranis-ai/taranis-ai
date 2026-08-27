@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <main class="mx-auto grid max-w-6xl gap-6 p-6 lg:grid-cols-[18rem_1fr]">
+    <aside class="rounded-box border border-base-300 bg-base-100 p-4">
+      <h1 class="text-xl font-semibold">Collaboration</h1>
+      <p class="mt-2 text-sm opacity-70">Stories and report drafts shared across Taranis instances.</p>
+      <nav class="mt-5 space-y-2" aria-label="Channels">
+        {% for item in channels %}
+          <a class="btn btn-ghost w-full justify-start" href="{{ url_for('collaboration.channel', channel_id=item.channel_id) }}">{{ item.channel_id }} <span class="ml-auto text-xs opacity-60">{{ item.status }}</span></a>
+{% else %}<p class="text-sm opacity-60">No channels yet.</p>{% endfor %}
+  </nav>
+  <form class="mt-6 space-y-2" method="post" action="{{ url_for('collaboration.action', action='create') }}">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+    <label class="text-sm" for="story-id">Create from story</label>
+    <input id="story-id" class="input input-bordered input-sm w-full" name="story_id" placeholder="Story ID" required>
+    <input class="input input-bordered input-sm w-full" name="report_id" placeholder="Report draft ID (optional)">
+    <button class="btn btn-primary btn-sm w-full" type="submit">Create channel</button>
+  </form>
+  <form class="mt-4 space-y-2" method="post" action="{{ url_for('collaboration.action', action='join') }}">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+    <input class="input input-bordered input-sm w-full" name="channel_id" placeholder="Channel ID" required>
+    <input class="input input-bordered input-sm w-full" name="owner_base_url" placeholder="Owner URL" required>
+    <input class="input input-bordered input-sm w-full" name="token" placeholder="Invite token" required>
+    <button class="btn btn-outline btn-sm w-full" type="submit">Join channel</button>
+  </form>
+  </aside>
+  <section class="rounded-box border border-base-300 bg-base-100 p-6">
+    {% if channel %}
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-semibold">Collaborative workspace</h2>
+        <span class="badge badge-outline">{{ channel.status }}</span>
+      </div>
+      <p class="mt-2 text-sm opacity-70">Owner: {{ channel.owner_base_url }}</p>
+      <div class="mt-6 space-y-2 rounded-box bg-base-200 p-4 text-sm">
+        {% for document in channel.documents %}<a class="btn btn-ghost btn-sm w-full justify-start" href="{{ url_for('collaboration.document', document_id=document.id) }}">{{ document.kind }} · {{ document.resource_id }}</a>{% else %}No documents in this channel.{% endfor %}
+      </div>
+    {% else %}
+      <h2 class="text-2xl font-semibold">Select a channel</h2>
+      <p class="mt-2 opacity-70">Choose a channel to view its participants, stories, and synchronized report drafts.</p>
+    {% endif %}
+  </section>
+  </main>
+{% endblock content %}
