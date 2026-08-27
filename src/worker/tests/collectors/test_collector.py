@@ -100,6 +100,24 @@ def test_rss_published_date_uses_first_parseable_value(rss_collector):
     assert rss_collector.get_published_date(entry) == datetime.datetime(2026, 8, 19, 12, 34, 56)
 
 
+@pytest.mark.parametrize(("use_feed_content", "link"), [(True, "https://example.com/article"), (False, "")])
+def test_rss_last_modified_published_fallback_applies_across_content_modes(rss_collector, use_feed_content, link):
+    import datetime
+
+    import feedparser
+
+    rss_collector.feed_url = "https://example.com/feed"
+    rss_collector.use_feed_content = use_feed_content
+    rss_collector.xpath = ""
+    rss_collector.http_validators = {"last_modified": "Tue, 11 Aug 2026 09:07:03 GMT"}
+    item = rss_collector.parse_feed_entry(
+        feedparser.FeedParserDict(title="Item", description="Feed content", link=link),
+        {"id": "source-1", "parameters": {}},
+    )
+
+    assert item.published == datetime.datetime(2026, 8, 11, 9, 7, 3)
+
+
 def test_rss_publish_error_propagates(rss_collector, requests_mock):
     from models.assess import NewsItem
 
