@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "macros/forms.html" import form_fileinput, form_input, form_textarea %}
+
+{% block content %}
+  <div class="p-8">
+    <div class="text-3xl font-bold mb-4">
+      <a href="{{ url_for('admin.osint_sources') }}" class="text-blue-500 hover:underline">OSINT Source</a>
+    </div>
+    <div class="bg-base-100 p-4" x-data='{"sources": {{ sources | tojson }}, "createGroup": {{ create_group | tojson }}}'>
+      <h1 class="text-3xl font-bold mb-5 w-3/4 ml-[10%]">Bulk Create OSINT Sources</h1>
+      <form id="osint-source-bulk-create-form" class="w-1/2 ml-[10%]" method="post" action="{{ form_action }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+        {% if error %}<div role="alert" class="alert alert-error alert-soft mb-5">{{ error }}</div>{% endif %}
+
+        <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border p-4 mb-5">
+          <legend class="fieldset-legend">Sources</legend>
+          <p class="text-sm text-base-content/70 mb-3">Add the names and source URLs that differ. All settings below are shared.</p>
+          <div class="space-y-3">
+            <template x-for="(source, index) in sources" :key="index">
+              <div class="grid grid-cols-[1fr_1fr_auto] gap-2 items-start">
+                <label class="floating-label">
+                  <span class="label">Name <span aria-hidden="true" class="text-error">*</span></span>
+                  <input type="text"
+                         name="sources[][name]"
+                         x-model="source.name"
+                         class="input w-full validator"
+                         placeholder="Name*"
+                         required
+                         :data-testid="`bulk-source-name-${index}`">
+                </label>
+                <label class="floating-label">
+                  <span class="label">Source URL <span aria-hidden="true" class="text-error">*</span></span>
+                  <input type="url"
+                         name="sources[][url]"
+                         x-model="source.url"
+                         class="input w-full validator"
+                         placeholder="Source URL*"
+                         required
+                         :data-testid="`bulk-source-url-${index}`">
+                </label>
+                <button type="button"
+                        class="btn btn-square btn-ghost"
+                        aria-label="Remove source"
+                        title="Remove source"
+                        :disabled="sources.length <= 2"
+                        @click="sources.splice(index, 1)">{{ heroicon_outline("trash", class="h-5 w-5") }}</button>
+              </div>
+            </template>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline mt-3" @click="sources.push({name: '', url: ''})">Add Source</button>
+        </fieldset>
+
+        {{ form_textarea('Shared Description', 'description', description, required=False) }}
+        <fieldset class="fieldset w-full mb-5">
+          <legend class="fieldset-legend">Shared Source Rank</legend>
+          <div class="rating">
+            <input type="radio" id="bulk-rank-0" name="rank" value="0" class="rating-hidden" aria-label="Unrated" {% if rank | int == 0 %}checked{% endif %}>
+            {% for option in range(1, 6) %}
+              <input type="radio"
+                     id="bulk-rank-{{ option }}"
+                     name="rank"
+                     value="{{ option }}"
+                     class="mask mask-star-2 bg-warning"
+                     aria-label="{{ option }} star{% if option != 1 %}s{% endif %}"
+                     {% if rank | int == option %}checked{% endif %}>
+            {% endfor %}
+          </div>
+        </fieldset>
+        {{ form_fileinput('Shared Icon', 'icon', none, type='file', required=False, accept=icon_accept) }}
+
+        <label class="select w-full mb-5">
+          <span class="label">Collector Type</span>
+          <select id="collector_type"
+                  name="type"
+                  required
+                  class="validator select w-full"
+                  hx-get="{{ url_for('admin.osint_source_parameters', osint_source_id='0') }}"
+                  hx-trigger="change"
+                  hx-include="#collector_type"
+                  hx-vals='{"bulk": "true"}'
+                  hx-target="#parameters"
+                  hx-swap="innerHTML">
+            <option value="" {% if not selected_collector_type %}selected{% endif %} disabled>Select a collector type</option>
+            {% for option in collector_types %}
+              <option value="{{ option.id }}" {% if option.id == selected_collector_type %}selected{% endif %}>{{ option.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
+
+        <fieldset class="fieldset bg-base-100 border-base-300 rounded-box border p-4 mb-5">
+          <legend class="fieldset-legend">Source Group</legend>
+          <input type="hidden" name="create_group" value="false">
+          <label class="label justify-start gap-3 mb-3">
+            <input type="checkbox" name="create_group" value="true" class="toggle toggle-primary" x-model="createGroup" data-testid="bulk-create-source-group">
+            <span>Create a source group containing these sources</span>
+          </label>
+          <div x-show="createGroup" x-cloak>
+            {{ form_input('Group Name', 'group_name', group_name, required=False) }}
+            {{ form_textarea('Group Description', 'group_description', group_description, required=False) }}
+          </div>
+        </fieldset>
+
+        <input type="submit" class="btn btn-primary w-full" value="Create OSINT Sources">
+      </form>
+    </div>
+  </div>
+{% endblock content %}
