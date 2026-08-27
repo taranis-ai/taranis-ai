@@ -50,6 +50,33 @@ def test_response_error_notification_does_not_insert_response_markup(page: Page)
     assert page.evaluate("() => window.__notificationXss") is False
 
 
+@pytest.mark.parametrize("level", ["error", "warning", "success", "info"])
+def test_response_error_notification_preserves_supported_level(page: Page, level: str):
+    load_main_js(page)
+
+    page.evaluate(
+        """
+        (level) => {
+            window.taranisNotifications = { add: (entry) => { window.__recordedNotification = entry; } };
+            const responseText = `
+                <section id="notification-bar">
+                  <div class="alert alert-${level}" role="alert">
+                    <span id="notification-message">Request message</span>
+                  </div>
+                </section>
+            `;
+            const detail = { xhr: { responseText } };
+            document.body.dispatchEvent(new CustomEvent("htmx:responseError", { bubbles: true, detail }));
+        }
+        """,
+        level,
+    )
+
+    notification = page.locator("#notification-bar [role='alert']")
+    assert f"alert-{level}" in notification.evaluate("element => Array.from(element.classList)")
+    assert page.evaluate("() => window.__recordedNotification.level") == level
+
+
 def test_assess_shortcut_guard_ignores_inputs_and_dialogs(page: Page):
     load_main_js(
         page,

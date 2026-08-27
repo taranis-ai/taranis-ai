@@ -6,6 +6,7 @@ from pymisp import MISPAttribute, MISPEvent, MISPEventReport, MISPObject, MISPOb
 
 from worker.connectors import base_misp_builder
 from worker.connectors.definitions.misp_objects import BaseMispObject
+from worker.connectors.exceptions import ConnectorError
 from worker.log import logger
 
 
@@ -40,15 +41,14 @@ class MispConnector:
         self.url = parameters.get("URL", "")
         self.api_key = parameters.get("API_KEY", "")
         self.org_id = parameters.get("ORGANISATION_ID", "")
-        self.ssl = parameters.get("SSL", False)
-        self.request_timeout = int(parameters.get("REQUEST_TIMEOUT") or 5)
-        self.proxies = parameters.get("PROXIES")
-        self.headers = parameters.get("HEADERS", {})
-        try:
-            self.sharing_group_id = int(parameters.get("SHARING_GROUP_ID", "")) if parameters.get("SHARING_GROUP_ID") else None
-        except ValueError:
-            logger.warning(f"Invalid SHARING_GROUP_ID value: {parameters.get('SHARING_GROUP_ID')}. Setting to None.")
-            self.sharing_group_id = None
+        self.ssl = parameters.get("SSL_CHECK", False)
+        self.request_timeout = parameters.get("REQUEST_TIMEOUT") or 5
+        proxy_server = parameters.get("PROXY_SERVER")
+        self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server} if proxy_server else None
+        self.headers = parameters.get("ADDITIONAL_HEADERS") or {}
+        if user_agent := parameters.get("USER_AGENT"):
+            self.headers.setdefault("User-Agent", user_agent)
+        self.sharing_group_id = parameters.get("SHARING_GROUP_ID")
 
         self.distribution = self._parse_distribution(parameters.get("DISTRIBUTION", ""))
         if not self.url or not self.api_key:
@@ -74,7 +74,10 @@ class MispConnector:
         for story in stories:
             misp_event_uuid = self.get_uuid_if_story_was_shared_to_misp(story)
             story_results.append(self.misp_sender(story, misp_event_uuid, auto_update=auto_update))
-        return self._build_execution_result(story_results)
+        result = self._build_execution_result(story_results)
+        if result["action"] == "failed":
+            raise ConnectorError("Story was not synchronized with MISP", "misp_sync_failed")
+        return result
 
     def get_uuid_if_story_was_shared_to_misp(self, story: dict) -> str | None:
         story_attributes: dict = story.get("attributes", {})
@@ -593,7 +596,8 @@ class MispConnector:
             if auto_update:
                 sync_result["auto_update"] = True
                 sync_result["proposal_url"] = f"{self.url}/events/view/{result[1].uuid}"
-            return {"action": "synced", "message": "Story synced to MISP", "sync_result": sync_result}
+            message = "Story updated in MISP" if misp_event_uuid else "Story synced to MISP"
+            return {"action": "synced", "message": message, "sync_result": sync_result}
         if result[0] == "proposed":
             return {"action": "proposed", "message": f"{len(result[1])} proposals submitted to MISP", "sync_result": None}
         if result[0] == "blocked":
@@ -624,7 +628,11 @@ class MispConnector:
 
         return {
             "action": self._get_overall_action(counts),
-            "message": self._build_action_message(total=len(story_results), **counts),
+            "message": (
+                str(story_results[0].get("message") or "Connector executed")
+                if len(story_results) == 1
+                else self._build_action_message(total=len(story_results), **counts)
+            ),
             "sync_results": sync_results,
         }
 

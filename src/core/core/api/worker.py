@@ -9,7 +9,7 @@ from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import api_key_required
 from core.managers.decorators import extract_args
-from core.managers.sse_manager import sse_manager
+from core.managers.realtime_publisher import realtime_publisher
 from core.model.bot import Bot
 from core.model.connector import Connector
 from core.model.ioc import IOC
@@ -47,7 +47,7 @@ class AddNewsItems(MethodView):
         logger.debug(f"Received {len(json_data)} news items for worker ingestion")
         result, status = Story.add_news_items(json_data)
         if 200 <= status < 300:
-            sse_manager.news_items_updated()
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return result, status
 
@@ -89,7 +89,9 @@ class Presenters(MethodView):
 class Publishers(MethodView):
     @api_key_required
     def get(self, publisher: str):
-        return PublisherPreset.get_for_api(publisher)
+        if preset := PublisherPreset.get(publisher):
+            return preset.to_worker_dict(), 200
+        return {"error": "Publisher preset not found"}, 404
 
 
 class Sources(MethodView):
@@ -207,7 +209,8 @@ class MISPStories(MethodView):
         configured_story_ids = _configured_misp_story_ids()
         result, status = Story.add_or_update_for_misp(data)
         _cancel_deleted_misp_story_jobs(configured_story_ids)
-        sse_manager.news_items_updated()
+        if 200 <= status < 300:
+            realtime_publisher.assess_changed()
         return make_response(jsonify(result), status)
 
     @api_key_required
@@ -220,7 +223,8 @@ class MISPStories(MethodView):
             result, code = Connector.update_story_last_change(story_ids)
         if news_item_ids := data.get("news_items"):
             result, code = Connector.update_news_item_last_change(news_item_ids)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         return make_response(jsonify(result), code)
 
 
@@ -284,10 +288,16 @@ class BotInfo(MethodView):
     @extract_args("search", "fetch_all")
     def get(self, bot_id=None, filter_args=None):
         if not bot_id:
-            return Bot.get_all_for_api(filter_args)
+            response, status = Bot.get_all_for_api(filter_args)
+            items = response.get("items", [])
+            stored_by_id = {stored.id: stored for stored in Bot.get_bulk([item["id"] for item in items])}
+            for item in items:
+                if stored := stored_by_id.get(item["id"]):
+                    item.update(stored.to_worker_dict())
+            return response, status
 
         if result := Bot.get(bot_id):
-            return result.to_dict(), 200
+            return result.to_worker_dict(), 200
         return {"error": "Bot not found"}, 404
 
     @api_key_required
@@ -296,7 +306,7 @@ class BotInfo(MethodView):
         if not isinstance(data, dict) or not data:
             return {"error": "No data provided"}, 400
         if bot := Bot.update(bot_id, data):
-            return bot.to_dict(), 200
+            return bot.to_worker_dict(), 200
         return {"error": "Bot not found"}, 404
 
 
@@ -339,7 +349,7 @@ class Connectors(MethodView):
     @api_key_required
     def get(self, connector_id: str):
         if connector := Connector.get(connector_id):
-            return connector.to_dict(), 200
+            return connector.to_worker_dict(), 200
         return {"error": "Connector not found"}, 404
 
 

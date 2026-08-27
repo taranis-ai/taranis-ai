@@ -122,6 +122,101 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
     assert delete_button.get("hx-swap") == "delete"
     assert saved_filter_url.path == url_for("assess.assess")
     assert parse_qs(saved_filter_url.query) == {"search": ["incident"], "tags": ["alpha"], "sort": ["date_desc"]}
+    assert not tree.xpath('//*[@data-testid="dashboard-external-signals"]')
+
+
+def test_dashboard_opt_in_lazy_loads_pizzint_card(authenticated_client, auth_user, responses_mock, mock_core_get_endpoints):
+    _ = mock_core_get_endpoints
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.timezone = "Europe/Vienna"
+    saved_user.profile.dashboard.show_pizzint = True
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/dashboard/trending-clusters",
+        json={"items": [], "total_count": 0},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/dashboard/pizzint",
+        json={
+            "state": "fresh",
+            "level": 4,
+            "smoothed_index": 42.5,
+            "observed_at": "2026-08-23T09:00:00Z",
+            "fetched_at": "2026-08-23T09:42:39Z",
+            "reason": "compute_doughcon_v9: elevated",
+        },
+    )
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard/cluster-names", json={"items": []})
+
+    dashboard_response = authenticated_client.get("/")
+    dashboard_tree = html.fromstring(dashboard_response.text)
+    placeholder = dashboard_tree.xpath('//*[@data-testid="pizzint-card-placeholder"]')[0]
+
+    assert dashboard_response.status_code == 200
+    assert placeholder.get("hx-get") == url_for("base.pizzint_card")
+    assert placeholder.get("hx-trigger") == "load"
+
+    edit_response = authenticated_client.get("/dashboard/edit")
+    edit_tree = html.fromstring(edit_response.text)
+    toggle = edit_tree.xpath('//input[@name="dashboard[show_pizzint]"][@type="checkbox"]')[0]
+    assert toggle.get("checked") is not None
+
+    card_response = authenticated_client.get("/dashboard/pizzint")
+    card_tree = html.fromstring(card_response.text)
+    card_text = card_tree.text_content()
+    source_link = card_tree.xpath('//a[normalize-space()="PizzINT"]')[0]
+
+    assert card_response.status_code == 200
+    assert "DOUGHCON 4" in card_text
+    assert "42.5/100" in card_text
+    assert "23. August 2026 11:00" in card_text
+    assert "DOUBLE TAKE • INCREASED INTELLIGENCE WATCH" in card_text
+    assert "compute_doughcon_v9: elevated" not in card_text
+    assert "One place spiking doesn't raise DOUGHCON" in card_text
+    assert "DOUGHCON 1: Maximum Readiness" in " ".join(card_text.split())
+    assert "Data correlation does not imply causation" in card_text
+    assert source_link.get("target") == "_blank"
+    assert source_link.get("rel") == "noopener noreferrer"
+    assert card_tree.xpath('//summary[@aria-label="About DOUGHCON"]')
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_text", "unexpected_text"),
+    [
+        (
+            {
+                "state": "stale",
+                "level": 5,
+                "smoothed_index": 6.97,
+                "observed_at": "2026-08-23T09:00:00Z",
+                "fetched_at": "2026-08-23T09:42:39Z",
+                "reason": "compute_doughcon_v9: quiet",
+            },
+            "Stale",
+            "PizzINT data unavailable",
+        ),
+        (
+            {
+                "state": "unavailable",
+                "level": None,
+                "smoothed_index": None,
+                "observed_at": None,
+                "fetched_at": None,
+                "reason": None,
+            },
+            "PizzINT data unavailable",
+            "Smoothed index",
+        ),
+    ],
+)
+def test_pizzint_card_fallback_states(authenticated_client, responses_mock, payload, expected_text, unexpected_text):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard/pizzint", json=payload)
+
+    response = authenticated_client.get("/dashboard/pizzint")
+
+    assert response.status_code == 200
+    assert expected_text in response.text
+    assert unexpected_text not in response.text
 
 
 @pytest.mark.parametrize("view_name,view_cls", ADMIN_VIEWS, ids=ADMIN_IDS)
@@ -304,14 +399,16 @@ class TestSourceView:
         assert _json_request_body(responses_mock.calls[0]) == dummy_export_data
 
     def test_process_form_data_accepts_valid_png_icon(self, app):
-        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
-            with app.test_request_context(
+        with (
+            patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store,
+            app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
                 data={"icon": (BytesIO(_VALID_PNG_BYTES), "icon.png", "image/png")},
                 content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data("0")
+            ),
+        ):
+            response, error = SourceView.process_form_data("0")
 
         assert error is None
         assert response == {"stored": True}
@@ -339,27 +436,31 @@ class TestSourceView:
         mock_store.assert_not_called()
 
     def test_process_form_data_returns_core_error_message(self, app):
-        with patch.object(SourceView, "store_form_data", return_value=(None, {"error": "Icon payload is not a valid image file."})):
-            with app.test_request_context(
+        with (
+            patch.object(SourceView, "store_form_data", return_value=(None, {"error": "Icon payload is not a valid image file."})),
+            app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
                 data={"icon": (BytesIO(b"not-an-image"), "icon.png", "image/png")},
                 content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data("0")
+            ),
+        ):
+            response, error = SourceView.process_form_data("0")
 
         assert response is None
         assert error == "Icon payload is not a valid image file."
 
     def test_process_form_data_can_delete_icon_without_upload(self, app):
-        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
-            with app.test_request_context(
+        with (
+            patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store,
+            app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
                 data={"delete_icon": "true"},
                 content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data("123")
+            ),
+        ):
+            response, error = SourceView.process_form_data("123")
 
         assert error is None
         assert response == {"stored": True}
@@ -372,14 +473,16 @@ class TestSourceView:
         max_bytes = Config.OSINT_SOURCE_ICON_MAX_BYTES
         oversized_icon = b"\x00" * (max_bytes + 1)
 
-        with patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store:
-            with app.test_request_context(
+        with (
+            patch.object(SourceView, "store_form_data", return_value=({"stored": True}, None)) as mock_store,
+            app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
                 data={"delete_icon": "true", "icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
                 content_type="multipart/form-data",
-            ):
-                response, error = SourceView.process_form_data("123")
+            ),
+        ):
+            response, error = SourceView.process_form_data("123")
 
         assert error is None
         assert response == {"stored": True}
@@ -412,6 +515,21 @@ class TestSourceView:
         assert "source_preview/42" in rendered
         assert 'hx-target="#source_preview"' in rendered
         assert "Retrigger preview" in rendered
+
+    def test_osint_source_preview_shows_started_task_without_result(self, authenticated_client, responses_mock):
+        responses_mock.get(
+            f"{Config.TARANIS_CORE_URL}/config/osint-sources/42/preview",
+            json={"id": "source_preview_42", "status": "STARTED"},
+            status=202,
+        )
+
+        response = authenticated_client.get("/admin/source_preview/42")
+
+        assert response.status_code == 200
+        assert "OSINT source preview is currently being processed." in response.text
+        assert 'realtime:osint_source.preview.finished[detail.resource.id=="42"] from:document' in response.text
+        assert "realtime:resync from:document" in response.text
+        assert "every 20s" in response.text
 
 
 class TestWordListView:
@@ -655,13 +773,32 @@ def test_admin_dashboard_renders_health_card(authenticated_client, auth_user, re
     assert "Workers" in html
 
 
+def test_persistent_notification_has_no_timeout_animation(app):
+    with app.test_request_context():
+        persistent = render_template(
+            "notification/index.html",
+            notification={"message": "Persistent", "persistent": True},
+            oob=False,
+        )
+        timed = render_template(
+            "notification/index.html",
+            notification={"message": "Timed"},
+            oob=False,
+        )
+
+    assert "@animationend" not in persistent
+    assert '@click="show = false"' in persistent
+    assert "@animationend" in timed
+
+
 def test_analyze_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints):
     response = authenticated_client.get(ReportItemView.get_base_route())
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'aria-label="Toggle sidebar"' not in html
-    assert "<noscript>" not in html
+    assert "#sidebar {" not in html
+    assert "#sidebar ~ main {" not in html
 
 
 def test_publish_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints, responses_mock):

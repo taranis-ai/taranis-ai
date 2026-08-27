@@ -4,9 +4,9 @@
     <a class="join-item btn btn-outline btn-sm"
        href="{{ pagination.previous_url }}"
        hx-get="{{ pagination.previous_url }}"
-       hx-target="#assess"
-       hx-select="#assess"
-       hx-swap="outerHTML"
+       hx-target="#story-list"
+       hx-select="#story-list > *"
+       hx-swap="innerHTML show:window:top"
        hx-push-url="true"
        {% if not pagination.has_previous %}aria-disabled="true" disabled{% endif %}
        hx-target-error="#notification-bar">
@@ -19,9 +19,9 @@
     <a class="join-item btn btn-outline btn-sm"
        href="{{ pagination.next_url }}"
        hx-get="{{ pagination.next_url }}"
-       hx-target="#assess"
-       hx-select="#assess"
-       hx-swap="outerHTML"
+       hx-target="#story-list"
+       hx-select="#story-list > *"
+       hx-swap="innerHTML show:window:top"
        hx-push-url="true"
        {% if not pagination.has_next %}aria-disabled="true" disabled{% endif %}
        hx-target-error="#notification-bar">

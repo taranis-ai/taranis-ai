@@ -177,20 +177,6 @@
         </div>
       </div>
 
-      <div class="rounded-xl border border-base-300 bg-base-200 p-4" data-sse-section>
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p class="font-semibold text-base-content">{{ _("Live updates") }}</p>
-            <p class="text-sm text-base-content/70" data-sse-label>{{ _("Checking connection status...") }}</p>
-          </div>
-          <label class="flex items-center gap-3">
-            <span class="text-sm text-base-content">{{ _("Enable SSE") }}</span>
-            <input type="checkbox" class="toggle toggle-success" data-sse-toggle>
-          </label>
-        </div>
-        <p class="mt-2 text-xs text-base-content/60" data-sse-hint>{{ _("Server-sent events let the UI react to changes without refreshing.") }}</p>
-        <p class="mt-1 text-xs text-base-content/60 font-mono break-all">{{ core_sse_url }}</p>
-      </div>
     </div>
   </div>
 </form>

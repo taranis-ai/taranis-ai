@@ -170,7 +170,7 @@ def test_rss_last_modified_validator_is_sent_to_secondary_resources(rss_collecto
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
     from tests.testdata import rss_collector_source_data
 
-    rss_collector_source_data["parameters"]["DIGEST_SPLITTING"] = "true"
+    rss_collector_source_data["parameters"]["DIGEST_SPLITTING"] = True
     rss_collector_source_data["parameters"]["DIGEST_SPLITTING_LIMIT"] = 2
     result = rss_collector.collect(rss_collector_source_data)
 
@@ -180,7 +180,7 @@ def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
 def test_rss_collector_with_additional_headers(rss_collector_mock, rss_collector):
     from tests.testdata import rss_collector_source_data
 
-    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = '{"Authorization": "Bearer Token1234"}'
+    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = {"Authorization": "Bearer Token1234"}
     result = rss_collector.collect(rss_collector_source_data)
 
     assert result is None
@@ -191,34 +191,20 @@ def test_rss_collector_with_additional_headers(rss_collector_mock, rss_collector
 def test_rss_collector_initialization_with_additional_headers(rss_collector_mock, rss_collector):
     from tests.testdata import rss_collector_source_data
 
-    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = '{"Authorization": "Bearer Token1234"}'
+    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = {"Authorization": "Bearer Token1234"}
     rss_collector.parse_source(rss_collector_source_data)
 
     assert "Authorization" in rss_collector.headers
     assert rss_collector.headers["Authorization"] == "Bearer Token1234"
 
 
-@pytest.mark.parametrize(
-    "header",
-    [
-        '{"Authorization: "Bearer Token1234"}',
-        '{"key": "value", "invalid"}',
-        '{42: "numeric_key"}',
-        '{"missing_value":}',
-    ],
-)
-def test_rss_collector_initialization_with_invalid_headers(rss_collector_mock, rss_collector, header):
-    from tests.testdata import rss_collector_source_data
-
-    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = header
-    with pytest.raises(ValueError, match=f"ADDITIONAL_HEADERS: {header} has to be valid JSON"):
-        rss_collector.parse_source(rss_collector_source_data)
-
-
 def test_rss_collector_with_multiple_additional_headers(rss_collector_mock, rss_collector):
     from tests.testdata import rss_collector_source_data
 
-    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = '{"Authorization": "Bearer Token1234", "X-Custom-Header": "CustomValue"}'
+    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = {
+        "Authorization": "Bearer Token1234",
+        "X-Custom-Header": "CustomValue",
+    }
     result = rss_collector.collect(rss_collector_source_data)
 
     assert result is None
@@ -300,7 +286,7 @@ def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collec
 def test_simple_web_collector_with_additional_headers(simple_web_collector_mock, simple_web_collector):
     from tests.testdata import web_collector_source_data
 
-    web_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = '{"Authorization": "Bearer Token1234"}'
+    web_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = {"Authorization": "Bearer Token1234"}
     result = simple_web_collector.collect(web_collector_source_data)
 
     assert result is None
@@ -322,7 +308,7 @@ def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple
     from tests.testdata import web_collector_source_data
 
     web_collector_source_data["parameters"]["XPATH"] = "//*"
-    web_collector_source_data["parameters"]["DIGEST_SPLITTING"] = "true"
+    web_collector_source_data["parameters"]["DIGEST_SPLITTING"] = True
     web_collector_source_data["parameters"]["DIGEST_SPLITTING_LIMIT"] = 2
     result = simple_web_collector.collect(web_collector_source_data)
 
@@ -475,12 +461,12 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
                 "URL": "https://example.com",
                 "API_KEY": "secret",
                 "PROXY_SERVER": "http://proxy:8080",
-                "ADDITIONAL_HEADERS": '{"User-Agent": "TaranisAI/1.0", "X-Test": "1"}',
-                "SSL_CHECK": "true",
-                "SHARING_GROUP_ID": "42",
+                "ADDITIONAL_HEADERS": {"User-Agent": "TaranisAI/1.0", "X-Test": "1"},
+                "SSL_CHECK": True,
+                "SHARING_GROUP_ID": 42,
                 "ORGANISATION_ID": "org-123",
                 "REQUEST_TIMEOUT": 15,
-                "DAYS_WITHOUT_CHANGE": "7",
+                "DAYS_WITHOUT_CHANGE": 7,
             },
             {
                 "url": "https://example.com",
@@ -490,7 +476,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
                 "ssl": True,
                 "sharing_group_id": 42,
                 "org_id": "org-123",
-                "days_without_change": "7",
+                "days_without_change": 7,
             },
             15,
         ),
@@ -500,42 +486,26 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
             {
                 "url": "u",
                 "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
+                "proxies": None,
                 "headers": {"User-Agent": "TaranisAI/1.0"},
                 "ssl": False,
                 "sharing_group_id": None,
                 "org_id": "",
-                "days_without_change": "",
+                "days_without_change": None,
             },
             Config.REQUESTS_TIMEOUT,
         ),
-        # Edge: SHARING_GROUP_ID as int
         (
             {"URL": "u", "API_KEY": "k", "SHARING_GROUP_ID": 99},
             {
                 "url": "u",
                 "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
+                "proxies": None,
                 "headers": {"User-Agent": "TaranisAI/1.0"},
                 "ssl": False,
                 "sharing_group_id": 99,
                 "org_id": "",
-                "days_without_change": "",
-            },
-            Config.REQUESTS_TIMEOUT,
-        ),
-        # Edge: SHARING_GROUP_ID not convertible to int
-        (
-            {"URL": "u", "API_KEY": "k", "SHARING_GROUP_ID": "not-an-int"},
-            {
-                "url": "u",
-                "api_key": "k",
-                "proxies": {"ftp": None, "http": None, "https": None},
-                "headers": {"User-Agent": "TaranisAI/1.0"},
-                "ssl": False,
-                "sharing_group_id": None,
-                "org_id": "",
-                "days_without_change": "",
+                "days_without_change": None,
             },
             Config.REQUESTS_TIMEOUT,
         ),
@@ -543,8 +513,7 @@ def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input
     ids=[
         "all_fields_typical",
         "minimal_required",
-        "sharing_group_id_int",
-        "sharing_group_id_invalid",
+        "sharing_group_id",
     ],
 )
 def test_parse_parameters_happy_and_edge(parameters, expected, expected_timeout):

@@ -60,7 +60,7 @@ class IntelOwlBot(BaseBot):
         if not observables:
             return self._empty_result("No IntelOwl observables found")
 
-        client = self._create_client(instance_url, api_key, parameters.get("INTEL_OWL_TLS_VERIFY", "true"))
+        client = self._create_client(instance_url, api_key, parameters.get("INTEL_OWL_TLS_VERIFY", True))
         existing = self._load_existing_enrichments(observables)
         logger.debug(f"Processing {len(observables)} via IntelOwl at {instance_url} with {len(existing)} existing enrichments")
         enrichments, errors = self._process_observables(
@@ -69,7 +69,7 @@ class IntelOwlBot(BaseBot):
             existing,
             api_key,
             cast(IntelOwlTLP, parameters.get("INTEL_OWL_TLP") or "CLEAR"),
-            int(parameters.get("INTEL_OWL_POLL_TIMEOUT_SECONDS") or self.poll_timeout_seconds),
+            parameters.get("INTEL_OWL_POLL_TIMEOUT_SECONDS") or self.poll_timeout_seconds,
         )
 
         return {
@@ -82,8 +82,8 @@ class IntelOwlBot(BaseBot):
     def _empty_result(message: str) -> dict[str, Any]:
         return {"message": message, "enrichments": [], "errors": []}
 
-    def _create_client(self, instance_url: str, api_key: str, tls_verify: str) -> IntelOwl:
-        return IntelOwl(token=api_key, instance_url=instance_url.rstrip("/"), certificate=cast(Any, tls_verify == "true"))
+    def _create_client(self, instance_url: str, api_key: str, tls_verify: bool) -> IntelOwl:
+        return IntelOwl(token=api_key, instance_url=instance_url.rstrip("/"), certificate=cast(Any, tls_verify))
 
     def _extract_observables(
         self,

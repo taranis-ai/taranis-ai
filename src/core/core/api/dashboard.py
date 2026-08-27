@@ -7,6 +7,7 @@ from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
 from core.service.dashboard import DashboardService
 from core.service.news_item_tag import NewsItemTagService
+from core.service.pizzint import get_pizzint_status
 from core.service.story import StoryService
 
 
@@ -37,6 +38,12 @@ class TrendingClusters(MethodView):
             items = [tag for tag in items if tag.get("name") in trending_cluster_filter]
 
         return {"items": items}, 200
+
+
+class Pizzint(MethodView):
+    @auth_required()
+    def get(self):
+        return get_pizzint_status().model_dump(mode="json", exclude_none=False), 200
 
 
 class StoryClusters(MethodView):
@@ -79,6 +86,7 @@ def initialize(app: Flask):
     dashboard_bp = Blueprint("dashboard", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/dashboard")
 
     dashboard_bp.add_url_rule("", view_func=Dashboard.as_view("dashboard"))
+    dashboard_bp.add_url_rule("/pizzint", view_func=Pizzint.as_view("pizzint"))
     dashboard_bp.add_url_rule("/trending-clusters", view_func=TrendingClusters.as_view("trending-clusters"))
     dashboard_bp.add_url_rule("/cluster-names", view_func=ClusterNames.as_view("cluster-names"))
     dashboard_bp.add_url_rule("/story-clusters", view_func=StoryClusters.as_view("story-clusters"))

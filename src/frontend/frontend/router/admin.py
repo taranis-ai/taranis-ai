@@ -5,6 +5,7 @@ from frontend.auth import admin_required
 from frontend.views import (
     ACLView,
     AdminDashboardView,
+    AdminNotificationView,
     AttributeView,
     BotView,
     ConnectorView,
@@ -18,7 +19,6 @@ from frontend.views import (
     TemplateView,
     UserView,
     WordListView,
-    WorkerView,
 )
 from frontend.views.admin_views.scheduler_views import (
     ScheduleActiveJobsAPI,
@@ -134,6 +134,7 @@ def init(app: Flask):
     admin_bp = Blueprint("admin", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}/admin")
 
     admin_bp.add_url_rule("/", view_func=AdminDashboardView.as_view("dashboard"))
+    admin_bp.add_url_rule("/notifications", view_func=AdminNotificationView.as_view("notifications"))
 
     admin_bp.add_url_rule("/attributes", view_func=AttributeView.as_view("attributes"))
     admin_bp.add_url_rule("/attributes/<string:attribute_id>", view_func=AttributeView.as_view("edit_attribute"))
@@ -164,9 +165,6 @@ def init(app: Flask):
     admin_bp.add_url_rule("/connectors", view_func=ConnectorView.as_view("connectors"))
     admin_bp.add_url_rule("/connectors/<string:connector_id>", view_func=ConnectorView.as_view("edit_connector"))
     admin_bp.add_url_rule("/connector_parameters/<string:connector_id>", view_func=ConnectorParameterAPI.as_view("connector_parameters"))
-
-    admin_bp.add_url_rule("/workers", view_func=WorkerView.as_view("worker_types"))
-    admin_bp.add_url_rule("/workers/<string:worker_type_id>", view_func=WorkerView.as_view("edit_worker_type"))
 
     admin_bp.add_url_rule("/source_groups", view_func=SourceGroupView.as_view("osint_source_groups"))
     admin_bp.add_url_rule("/source_groups/<string:osint_source_group_id>", view_func=SourceGroupView.as_view("edit_osint_source_group"))

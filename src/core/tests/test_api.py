@@ -149,7 +149,7 @@ def test_auth_login_external_authenticator(tmp_path, monkeypatch):
         "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
         "QUEUE_BROKER_URL": "memory://localhost",
         "PRE_SEED_PASSWORD_USER": "test",
-        "DISABLE_SSE": "True",
+        "REALTIME_ENABLED": "False",
         "SERVER_NAME": "localhost",
         "TARANIS_CORE_SENTRY_DSN": "",
         "FLASK_RUN_PORT": "5000",
@@ -232,6 +232,33 @@ def test_user_profile(app, client, auth_header):
         assert response.status_code == 200
         assert "assess_default_filters" not in response.json
         assert response.json["assess_saved_filters"] == saved_filters
+    finally:
+        with app.app_context():
+            user = User.find_by_name("admin")
+            assert user is not None
+            user.profile = original_profile
+            db.session.commit()
+
+
+def test_user_profile_persists_pizzint_dashboard_setting(app, client, auth_header):
+    from core.managers.db_manager import db
+    from core.model.user import User
+
+    with app.app_context():
+        user = User.find_by_name("admin")
+        assert user is not None
+        original_profile = deepcopy(user.profile)
+        dashboard = dict(user.get_profile()["dashboard"])
+
+    try:
+        response = client.put(
+            "/api/users/profile",
+            headers=auth_header,
+            json={"dashboard": dashboard | {"show_pizzint": True}},
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["user_profile"]["dashboard"]["show_pizzint"] is True
     finally:
         with app.app_context():
             user = User.find_by_name("admin")

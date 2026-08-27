@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     TARANIS_CORE_URL: str = "http://local.taranis.ai/api"
     TARANIS_CORE_HOST: str = "http://local.taranis.ai"
     TARANIS_BASE_PATH: str = "/"
+    REALTIME_ENABLED: bool = False
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
     REQUESTS_TRUST_ENV: bool = True
@@ -43,6 +44,7 @@ class Settings(BaseSettings):
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024
     OSINT_SOURCE_ICON_MAX_BYTES: int = 5 * 1024 * 1024
     OSINT_SOURCE_ICON_ALLOWED_MIMETYPES: str = "image/png,image/jpeg,image/webp,image/gif"
+    DISABLE_PPN_COLLECTOR: bool = True
 
     BABEL_DEFAULT_LOCALE: str = "en"
     BABEL_DEFAULT_TIMEZONE: str = "UTC"

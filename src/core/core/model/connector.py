@@ -4,15 +4,15 @@ from typing import Any
 
 from models.types import COLLECTOR_TYPES, CONNECTOR_TYPES
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Mapped, deferred, relationship
+from sqlalchemy.orm import Mapped, deferred
 
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.news_item import NewsItem
-from core.model.parameter_value import ParameterValue
+from core.model.settings import Settings
 from core.model.story import Story
-from core.model.worker import Worker
+from core.service.worker_parameters import configured_parameters, effective_parameters, set_parameters
 
 
 class Connector(BaseModel):
@@ -23,7 +23,7 @@ class Connector(BaseModel):
     description: Mapped[str] = db.Column(db.String())
 
     type: Mapped[CONNECTOR_TYPES] = db.Column(db.Enum(CONNECTOR_TYPES))
-    parameters: Mapped[list["ParameterValue"]] = relationship("ParameterValue", secondary="connector_parameter_value", cascade="all, delete")
+    parameters: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False, default=dict)
     icon: Any = deferred(db.Column(db.LargeBinary))
     state: Mapped[int] = db.Column(db.SmallInteger, default=-1)
     last_collected: Mapped[datetime] = db.Column(db.DateTime, default=None)
@@ -38,11 +38,18 @@ class Connector(BaseModel):
         if icon is not None and (icon_data := self.is_valid_base64(icon)):
             self.icon = icon_data
 
-        self.parameters = Worker.parse_parameters(type, parameters)
+        self.parameters = set_parameters(self.type, {}, parameters, patch=False, complete=True)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
+        data["parameters"] = configured_parameters(self.type, self.parameters)
+        return data
+
+    def to_worker_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["parameters"] = effective_parameters(self.type, self.parameters)
+        if data["parameters"].get("USE_GLOBAL_PROXY"):
+            data["parameters"]["PROXY_SERVER"] = Settings.get_settings().get("default_collector_proxy", "")
         return data
 
     def to_user_dict(self) -> dict[str, Any]:
@@ -85,21 +92,25 @@ class Connector(BaseModel):
         """TODO: Lower priority"""
 
     @classmethod
-    def update(cls, connector_id: str, data: dict) -> "Connector | None":
+    def update(cls, connector_id: str, data: dict, *, patch: bool = False) -> "Connector | None":
         connector = cls.get(connector_id)
         if not connector:
             return None
+        if "type" in data and CONNECTOR_TYPES(data["type"]) != connector.type:
+            raise ValueError("Worker type is immutable")
         if name := data.get("name"):
             connector.name = name
-        connector.description = data.get("description", "")
+        if "description" in data:
+            connector.description = data.get("description", "")
+        elif not patch:
+            connector.description = ""
         if "state" in data and data["state"] is not None:
             connector.state = data["state"]
         icon_str = data.get("icon")
         if icon_str is not None and (icon := connector.is_valid_base64(icon_str)):
             connector.icon = icon
-        if parameters := data.get("parameters"):
-            update_parameter = ParameterValue.get_or_create_from_list(parameters)
-            connector.parameters = ParameterValue.get_update_values(connector.parameters, update_parameter)
+        if "parameters" in data:
+            connector.parameters = set_parameters(connector.type, connector.parameters, data.get("parameters"), patch=patch, complete=True)
         db.session.commit()
         connector.schedule_connector()
         return connector
@@ -146,10 +157,3 @@ class Connector(BaseModel):
     @staticmethod
     def update_story_last_change(data: dict[str, str]):
         return Connector._update_last_change(Story, data)
-
-
-class ConnectorParameterValue(BaseModel):
-    connector_id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("connector.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id: Mapped[str] = db.Column(
-        db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True
-    )

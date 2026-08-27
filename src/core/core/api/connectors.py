@@ -6,7 +6,7 @@ from core.config import Config
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.decorators import validate_json
-from core.managers.sse_manager import sse_manager
+from core.managers.realtime_publisher import realtime_publisher
 from core.model.news_item_conflict import NewsItemConflict
 from core.model.story import Story
 from core.model.story_conflict import StoryConflict
@@ -62,7 +62,7 @@ class NewsItemConflicts(MethodView):
         if code != 200:
             return result, code
 
-        sse_manager.news_items_updated()
+        realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return result, 200
 
@@ -73,7 +73,8 @@ class NewsItemConflicts(MethodView):
         if not data:
             return {"error": "Missing story_ids or news_item_ids"}, 400
         result, code = NewsItemConflictService.ingest_incoming_ungroup_internal_clear_store(data, current_user)
-        sse_manager.news_items_updated()
+        if 200 <= code < 300:
+            realtime_publisher.assess_changed()
         invalidate_frontend_cache_on_success(code, scopes=(SCOPE_ASSESS_VIEWS, SCOPE_STORY_REPORT_VIEWS))
         return result, code
 

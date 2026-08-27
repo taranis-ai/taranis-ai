@@ -286,6 +286,7 @@ def sample_product_type(app, sample_report_type):
             title="Test Product Type",
             type=PRESENTER_TYPES.HTML_PRESENTER,
             description="A test product type",
+            parameters={"TEMPLATE_PATH": "osint_report_tailwind.html"},
             report_types=[sample_report_type.id],
         )
         db.session.add(product_type)
@@ -312,6 +313,7 @@ def additional_product_type(app, sample_report_type):
             title="Second Test Product Type",
             type=PRESENTER_TYPES.PDF_PRESENTER,
             description="A second test product type",
+            parameters={"TEMPLATE_PATH": "pdf_template.html"},
             report_types=[sample_report_type.id],
         )
         db.session.add(product_type2)
@@ -347,6 +349,7 @@ def sample_product_type_multi_report_types(app):
             title="Multi-Report Product Type",
             type=PRESENTER_TYPES.HTML_PRESENTER,
             description="Product type with multiple report types",
+            parameters={"TEMPLATE_PATH": "osint_report_tailwind.html"},
             report_types=[report_type1.id, report_type2.id, report_type3.id],
         )
         db.session.add(product_type)
@@ -370,7 +373,7 @@ def osint_sources(app):
             name="Test RSS Source",
             description="RSS collector used in cron job tests",
             type="rss_collector",
-            parameters={"feed": "https://example.com/feed", "REFRESH_INTERVAL": "0 * * * *"},
+            parameters={"FEED_URL": "https://example.com/feed", "REFRESH_INTERVAL": "0 * * * *"},
         )
         source1.enabled = True
 
@@ -378,7 +381,7 @@ def osint_sources(app):
             name="Test Web Source",
             description="Web collector used in cron job tests",
             type="simple_web_collector",
-            parameters={"url": "https://example.com", "REFRESH_INTERVAL": "*/30 * * * *"},
+            parameters={"WEB_URL": "https://example.com", "REFRESH_INTERVAL": "*/30 * * * *"},
         )
         source2.enabled = True
 
@@ -405,7 +408,7 @@ def disabled_osint_source(app):
             name="Disabled Source",
             description="Disabled collector fixture",
             type="rss_collector",
-            parameters={"feed": "https://example.com/disabled", "REFRESH_INTERVAL": "0 * * * *"},
+            parameters={"FEED_URL": "https://example.com/disabled", "REFRESH_INTERVAL": "0 * * * *"},
         )
         source.enabled = False
         db.session.add(source)
@@ -429,7 +432,7 @@ def osint_source_no_schedule(app):
             name="No Schedule Source",
             description="Collector without schedule for exclusion test",
             type="rss_collector",
-            parameters={"feed": "https://example.com/no-schedule", "REFRESH_INTERVAL": ""},  # Empty REFRESH_INTERVAL to skip scheduling
+            parameters={"FEED_URL": "https://example.com/no-schedule", "REFRESH_INTERVAL": ""},
         )
         source.enabled = True
         db.session.add(source)

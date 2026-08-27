@@ -5,15 +5,57 @@
 {% set optional_parameters = optional_parameters | default([]) %}
 {% for field in parameters %}
   {% set field_value = parameter_values.get(field.name, field.value) %}
-  {% set required, pattern, invalid_msg = get_html5_pattern_from_rule(field.rules) %}
-  {% set field_required = required and field.name not in optional_parameters %}
-  {% if field.type == 'text' or field.type == 'number' %}
-    {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type=field.type, required=field_required, pattern=pattern, invalid_msg=invalid_msg, preserve=preserve) }}
-  {% elif field.type == 'textarea' %}
-    {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=field_required, preserve=preserve) }}
-  {% elif field.type == 'switch' %}
-    {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, yes_val='true', no_val='false', required=field_required, preserve=preserve) }}
-  {% elif field.type == 'cron_interval' %}
-    {{ form_cron(label=field.label, name='parameters[' + field.name + ']', value=field_value, error=field.error, required=field_required) }}
-  {% endif %}
+  {% set field_required = field.required and field.name not in optional_parameters %}
+  <div class="relative" data-parameter="{{ field.name }}">
+    {% if field.description %}
+      <span class="tooltip tooltip-left absolute right-2 top-2 z-10"
+            data-tip="{{ field.description }}"
+            title="{{ field.description }}"
+            aria-label="Help for {{ field.label }}">{{ heroicon_outline("information-circle", class="size-4") }}</span>
+    {% endif %}
+    {% if field.type == 'password' %}
+      {% set configured = field_value == '********' %}
+      <div class="mb-5 w-full" x-data="{ revealed: '' }">
+        {{ form_input(label=field.label, name='parameters[' + field.name + ']', value='', type='password', required=field_required and not configured, preserve=false, input_id='parameter-' + field.name) }}
+        {% if configured %}
+          <script>document.getElementById("parameter-{{ field.name }}").disabled = true;</script>
+          <div class="flex gap-2 -mt-3 mb-2">
+            <button type="button"
+                    class="btn btn-xs"
+                    x-on:click="document.getElementById('parameter-{{ field.name }}').disabled = false; document.getElementById('parameter-{{ field.name }}').focus()">Replace</button>
+            {% if secret_reveal_url %}
+              <button type="button"
+                      class="btn btn-xs"
+                      x-on:click="fetch('{{ secret_reveal_url }}/{{ field.name }}/reveal', {method: 'POST', credentials: 'same-origin', headers: {'X-CSRF-TOKEN': getCSRFToken() || ''}}).then(r => r.json()).then(data => revealed = data.value || '')">Reveal</button>
+              <span class="text-xs self-center" x-text="revealed"></span>
+            {% endif %}
+            <button type="button"
+                    class="btn btn-xs btn-error"
+                    x-on:click="document.getElementById('parameter-{{ field.name }}').disabled = false; document.getElementById('parameter-{{ field.name }}').value = '__CLEAR_SECRET__'">Clear</button>
+          </div>
+        {% endif %}
+      </div>
+    {% elif field.type == 'word-list-table' %}
+      {% set selected_word_lists = field_value if field_value is iterable and field_value is not string else field_value.split(',') %}
+      <label class="label" for="parameter-{{ field.name }}">{{ field.label }}</label>
+      <select id="parameter-{{ field.name }}" name="parameters[{{ field.name }}][]" multiple>
+        {% for option in word_list_options | default([]) %}
+          <option value="{{ option.id }}" {% if option.id in selected_word_lists %}selected{% endif %}>{{ option.name }}</option>
+        {% endfor %}
+      </select>
+    {% elif field.type == 'select' %}
+      {{ form_select(label=field.label, name='parameters[' + field.name + ']', value=field_value, options=field.options, required=field_required) }}
+    {% elif field.type == 'number' %}
+      {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type='number', required=field_required, min_value=field.minimum, max_value=field.maximum, preserve=preserve) }}
+    {% elif field.type == 'textarea' %}
+      {% set textarea_value = field_value | tojson if field_value is mapping else field_value %}
+      {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=textarea_value, required=field_required, preserve=preserve) }}
+    {% elif field.type == 'switch' %}
+      {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, yes_val='true', no_val='false', required=false, preserve=preserve) }}
+    {% elif field.type == 'cron_interval' %}
+      {{ form_cron(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=field_required, pattern=field.pattern) }}
+    {% else %}
+      {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type='text', required=field_required, pattern=field.pattern, preserve=preserve) }}
+    {% endif %}
+  </div>
 {% endfor %}

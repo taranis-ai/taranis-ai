@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import Mock
 
 from tests.application.support.api_test_base import BaseTest
 
@@ -332,6 +333,20 @@ class TestAssessStories(BaseTest):
         assert first_story["title"] == "Mobile World Congress 2023"
         assert first_story["attributes"] == [{"key": "TLP", "value": "clear"}]
         assert first_story["last_change"] == f"collector_rss_collector_{fake_source}"
+
+    def test_patch_story_publishes_realtime_invalidation(self, client, stories, auth_header, monkeypatch):
+        assess_changed = Mock()
+        monkeypatch.setattr("core.api.assess.realtime_publisher.assess_changed", assess_changed)
+        story_url = f"/api/assess/stories/{stories[0]}"
+        original_read = client.get(story_url, headers=auth_header).get_json()["read"]
+
+        try:
+            response = client.patch(story_url, json={"read": not original_read}, headers=auth_header)
+
+            assert response.status_code == 200
+            assess_changed.assert_called_once_with()
+        finally:
+            client.patch(story_url, json={"read": original_read}, headers=auth_header)
 
     def test_get_stories(self, client, stories, auth_header):
         """

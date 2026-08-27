@@ -17,7 +17,6 @@ def publish_publisher_preset(app):
             "type": "ftp_publisher",
             "parameters": {
                 "FTP_URL": "ftp://example.invalid/export",
-                "PASSWORD": "super-secret-password",
             },
         }
 

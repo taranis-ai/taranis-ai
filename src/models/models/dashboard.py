@@ -1,7 +1,7 @@
-from datetime import datetime
-from typing import Any, Literal
+from datetime import UTC, datetime
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from models.assess import StoryTag
 from models.base import TaranisBaseModel
@@ -54,6 +54,35 @@ class Dashboard(TaranisBaseModel):
     conflict_count: int | None = None
     health_status: DashboardHealth | None = None
     task_status_totals: TaskStatusTotals | None = None
+
+
+class PizzintStatus(TaranisBaseModel):
+    _core_endpoint = "/dashboard/pizzint"
+    _model_name = "pizzint_status"
+    _pretty_name = "PizzINT Status"
+    _cache_timeout = 60
+
+    state: Literal["fresh", "stale", "unavailable"] = "unavailable"
+    level: int | None = Field(default=None, ge=1, le=5, strict=True)
+    smoothed_index: float | None = Field(default=None, ge=0, le=100, strict=True)
+    observed_at: datetime | None = None
+    fetched_at: datetime | None = None
+    reason: str | None = Field(default=None, max_length=500, strict=True)
+
+    @model_validator(mode="after")
+    def validate_available_status(self) -> Self:
+        if self.state == "unavailable":
+            return self
+        if None in (self.level, self.smoothed_index, self.observed_at, self.fetched_at) or not self.reason or not self.reason.strip():
+            raise ValueError("Available PizzINT status requires all fields")
+        if self.observed_at is None or self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+            raise ValueError("PizzINT observation time must include a timezone")
+        if self.fetched_at is None or self.fetched_at.tzinfo is None or self.fetched_at.utcoffset() is None:
+            raise ValueError("PizzINT fetch time must include a timezone")
+        self.observed_at = self.observed_at.astimezone(UTC)
+        self.fetched_at = self.fetched_at.astimezone(UTC)
+        self.reason = self.reason.strip()
+        return self
 
 
 class TrendingCluster(TaranisBaseModel):

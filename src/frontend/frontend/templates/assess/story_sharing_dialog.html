@@ -13,10 +13,13 @@
       {% if connectors %}
         <label class="select w-full mb-5">
           <span class="label">Connector</span>
+          {% set is_single_connector = connectors | length == 1 %}
           <select id="connector" name="connector" required class="validator select w-full">
-            <option selected disabled>Select a connector</option>
+            {% if not is_single_connector %}
+              <option selected disabled>Select a connector</option>
+            {% endif %}
             {% for option in connectors -%}
-              <option value="{{ option.id }}">{{ option.name }}</option>
+              <option value="{{ option.id }}" {% if is_single_connector %}selected{% endif %}>{{ option.name }}</option>
             {% endfor -%}
           </select>
         </label>

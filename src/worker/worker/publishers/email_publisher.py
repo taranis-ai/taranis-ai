@@ -12,13 +12,11 @@ from worker.publishers.base_publisher import BasePublisher
 
 
 class EMAILPublisher(BasePublisher):
-    REQUIRED_PARAMETERS = ("SMTP_SERVER_ADDRESS", "EMAIL_SENDER", "EMAIL_RECIPIENT", "EMAIL_SUBJECT")
-
     def __init__(self):
         super().__init__()
         self.smtp_address: str
         self.smtp_port: int
-        self.smtp_tls: str
+        self.smtp_tls: bool
         self.smtp_username = None
         self.smtp_password = None
 
@@ -36,7 +34,7 @@ class EMAILPublisher(BasePublisher):
 
         self.smtp_address = parameters["SMTP_SERVER_ADDRESS"]
         self.smtp_port = parameters.get("SMTP_SERVER_PORT", 25)
-        self.smtp_tls = parameters.get("SERVER_TLS", "false")
+        self.smtp_tls = parameters.get("SERVER_TLS", False)
         self.smtp_username = parameters.get("EMAIL_USERNAME")
         self.smtp_password = parameters.get("EMAIL_PASSWORD")
         self.msg = self.create_message(parameters)
@@ -44,7 +42,7 @@ class EMAILPublisher(BasePublisher):
         self.set_file_name(product)
         self.setup_email(rendered_product)
 
-        context = ssl.create_default_context() if self.smtp_tls == "true" else None
+        context = ssl.create_default_context() if self.smtp_tls else None
 
         return self.send_with_tls(context) if context else self.send_without_tls()
 
