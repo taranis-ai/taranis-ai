@@ -10,7 +10,12 @@
     {% if not read_only %}
       <div class="flex flex-wrap items-center gap-2">
         {% include "osint_source/state_button.html" %}
-        {% if osint_id != "0" %}
+        {% if osint_id == "0" %}
+          <a class="btn btn-outline" href="{{ url_for('admin.bulk_create_osint_sources') }}" data-testid="bulk-create-osint-sources-button">
+            {{ heroicon_outline("plus", class="h-5 w-5") }}
+            Bulk Create
+          </a>
+        {% else %}
           <a class="btn btn-outline" href="{{ url_for('admin.osint_source_preview', osint_source_id=osint_id) }}">Preview</a>
           <button type="button"
                   class="btn btn-secondary"
