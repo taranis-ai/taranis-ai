@@ -184,7 +184,12 @@ class BaseWebCollector(BaseCollector):
 
         return author or "", title or ""
 
-    def news_item_from_article(self, web_url: str, xpath: str = "") -> NewsItem:
+    def news_item_from_article(
+        self,
+        web_url: str,
+        xpath: str = "",
+        published_fallback: datetime.datetime | None = None,
+    ) -> NewsItem:
         web_content = self.extract_web_content(web_url, xpath)
         return NewsItem(
             osint_source_id=self.osint_source_id,
@@ -193,7 +198,7 @@ class BaseWebCollector(BaseCollector):
             content=web_content["content"],
             link=web_url,
             source=self.web_url or web_url,
-            published=web_content["published_date"],
+            published=web_content["published_date"] or published_fallback,
             language=web_content["language"],
             review=web_content["review"],
         )
@@ -217,12 +222,12 @@ class BaseWebCollector(BaseCollector):
         urls = [a["href"] for a in soup.find_all("a", href=True) if isinstance(a, Tag) and a.has_attr("href")]
         return [urljoin(collector_url, url) for url in urls if isinstance(url, str)]
 
-    def parse_digests(self) -> list[NewsItem]:
+    def parse_digests(self, published_fallback: datetime.datetime | None = None) -> list[NewsItem]:
         news_items = []
         max_elements = min(len(self.split_digest_urls), self.digest_splitting_limit)
         for split_digest_url in self.split_digest_urls[:max_elements]:
             try:
-                news_items.append(self.news_item_from_article(split_digest_url))
+                news_items.append(self.news_item_from_article(split_digest_url, published_fallback=published_fallback))
             except ValueError as e:
                 logger.warning(f"Failed to parse the digest with error: {e!s}")
                 continue
