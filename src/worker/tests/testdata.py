@@ -305,7 +305,12 @@ rss_collector_source_data_complex = {
     "last_error_message": None,
     "name": "TestName",
     "parameters": {
-        "ADDITIONAL_HEADERS": '{"User-Agent": "Chromium/1.0", "Authorization": "Bearer Token1234", "X-API-KEY": "12345", "Cookie": "firstcookie=1234; second-cookie=4321"}',
+        "ADDITIONAL_HEADERS": {
+            "User-Agent": "Chromium/1.0",
+            "Authorization": "Bearer Token1234",
+            "X-API-KEY": "12345",
+            "Cookie": "firstcookie=1234; second-cookie=4321",
+        },
         "FEED_URL": f"{rss_collector_url}",
         "USER_AGENT": "Mozilla/5.0",
     },

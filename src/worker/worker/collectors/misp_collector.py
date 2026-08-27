@@ -1,5 +1,4 @@
 import ast
-import json
 from typing import Any, cast
 
 from models.assess import NewsItem
@@ -26,7 +25,7 @@ class MispCollector(BaseCollector):
         self.ssl: bool = False
         self.sharing_group_id: int | None = None
         self.org_id: str = ""
-        self.days_without_change: str | None = None
+        self.days_without_change: int | None = None
 
     def parse_parameters(self, parameters: dict) -> None:
         self.url = parameters.get("URL", "")
@@ -34,26 +33,17 @@ class MispCollector(BaseCollector):
         if additional_headers := parameters.get("ADDITIONAL_HEADERS", ""):
             self.update_headers(additional_headers)
 
-        self.ssl = self._as_bool(parameters.get("SSL_CHECK", ""))
-        self.sharing_group_id = self._as_int(parameters.get("SHARING_GROUP_ID", ""))
+        self.ssl = parameters.get("SSL_CHECK", False)
+        self.sharing_group_id = parameters.get("SHARING_GROUP_ID")
         self.org_id = parameters.get("ORGANISATION_ID", "")
-        self.core_api.timeout = self._as_int(parameters.get("REQUEST_TIMEOUT", Config.REQUESTS_TIMEOUT)) or Config.REQUESTS_TIMEOUT
-        self.days_without_change = parameters.get("DAYS_WITHOUT_CHANGE", "")
+        self.core_api.timeout = parameters.get("REQUEST_TIMEOUT") or Config.REQUESTS_TIMEOUT
+        self.days_without_change = parameters.get("DAYS_WITHOUT_CHANGE")
         self.parse_header_parameters(parameters)
 
         if not self.url:
             raise ValueError("Missing URL parameter")
         if not self.api_key:
             raise ValueError("Missing API_KEY parameter")
-
-    def _as_bool(self, val: str) -> bool:
-        return val.lower() == "true"
-
-    def _as_int(self, val: str) -> int | None:
-        try:
-            return int(val)
-        except (TypeError, ValueError):
-            return None
 
     def parse_header_parameters(self, parameters: dict):
         self.set_proxies(parameters.get("PROXY_SERVER"))
@@ -65,14 +55,8 @@ class MispCollector(BaseCollector):
     def set_proxies(self, proxy_server: str | None):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server} if proxy_server else None
 
-    def update_headers(self, headers: str):
-        try:
-            headers_dict = json.loads(headers)
-            if not isinstance(headers_dict, dict):
-                raise TypeError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
-            self.headers.update(headers_dict)
-        except (json.JSONDecodeError, TypeError) as e:
-            raise TypeError(f"ADDITIONAL_HEADERS: {headers} has to be valid JSON\n{e}") from e
+    def update_headers(self, headers: dict[str, Any]):
+        self.headers.update(headers)
 
     def collect(self, source: dict, manual: bool = False) -> None:
         self.parse_parameters(source.get("parameters", ""))

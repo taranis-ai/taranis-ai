@@ -44,16 +44,7 @@ class RSSCollector(BaseWebCollector):
         logger_trafilatura.setLevel(logging.WARNING)
 
     def _determine_use_feed_content(self, params: dict) -> bool:
-        use_feed_param = params.get("USE_FEED_CONTENT")
-
-        if use_feed_param is not None:
-            if isinstance(use_feed_param, bool):
-                return use_feed_param
-            if isinstance(use_feed_param, str):
-                return use_feed_param.strip().lower() == "true"
-
-        content_location = params.get("CONTENT_LOCATION")
-        return bool(isinstance(content_location, str) and content_location.strip())
+        return params.get("USE_FEED_CONTENT", False)
 
     def parse_source(self, source: dict):
         super().parse_source(source)
@@ -242,7 +233,7 @@ class RSSCollector(BaseWebCollector):
         return self.news_items
 
     def gather_news_items(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
-        if self.browser_mode == "true":
+        if self.browser_mode:
             self.playwright_manager = PlaywrightManager(self.proxies, self._request_headers(""))
         try:
             self.news_items = self.collect_news(feed, source)
@@ -252,7 +243,7 @@ class RSSCollector(BaseWebCollector):
         return self.news_items
 
     def collect_news(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
-        if self.digest_splitting == "true":
+        if self.digest_splitting:
             return self.handle_digests(feed["entries"][:42])
 
         feed_metadata = cast(feedparser.FeedParserDict, feed["feed"])

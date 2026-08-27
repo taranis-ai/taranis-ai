@@ -64,7 +64,7 @@ class TAXIIPublisher(BasePublisher):
         return Collection(collection_url, **client_kwargs)
 
     def _build_client_kwargs(self, parameters: dict[str, Any]) -> dict[str, Any]:
-        kwargs: dict[str, Any] = {"verify": parameters.get("SSL_VERIFY") == "true"}
+        kwargs: dict[str, Any] = {"verify": parameters.get("SSL_VERIFY", True)}
 
         if proxy_server := parameters.get("PROXY_SERVER"):
             kwargs["proxies"] = {
