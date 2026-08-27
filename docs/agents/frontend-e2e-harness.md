@@ -23,6 +23,8 @@ The harness starts Core and Redis for ordinary stack-backed browser tests. It ac
 
 pytest-docker creates an isolated project, publishes Core and Redis on random host ports, and waits for Core's liveness endpoint. RQ fixtures separately verify worker registration and cron leadership. In `auto` mode, any selected, non-skipped `e2e_full_stack` item activates the Compose `rq` profile; otherwise the harness targets only Core.
 
+The frontend test app runs in a session-scoped spawned Werkzeug process. Do not replace it with `pytest-flask`'s process-based live server: its required `fork()` start method is unsafe once native threads exist on Python 3.14. Keep the separate process boundary because it also isolates frontend Core requests from per-test HTTP mocks.
+
 CI runs the complete frontend E2E suite in one job and lets automatic service selection start the full stack when the collected tests require it. This keeps the CI command equivalent to a full local run and makes failures easier to reproduce. GitHub-hosted runners do not spend time stopping containers because the runner itself is disposable. Authenticated page fixtures mark the relevant onboarding tasks complete before opening a page; the onboarding tests explicitly reset those tasks when they need the unfinished state.
 
 `dev/testpipeline.sh` prepares all component environments first, then runs one complete E2E suite alongside component lint and unit tests. Before reusing an existing stack, it restarts Core, worker, and cron so bind-mounted Python changes are loaded without discarding containers, dependency environments, SQLite, or Redis state.
@@ -47,4 +49,4 @@ From `src/frontend`:
 - Do not make tracing unconditional. Recording and compressing a trace for every successful test is a major teardown cost.
 - Do not move worker/cron-dependent assertions into a Core-only lane.
 - Mark every worker/cron-dependent browser test with `e2e_full_stack`; `auto` service selection deliberately depends on that marker.
-- Application-backed tests that use the session browser directly must request `e2e_browser`. It forces Flask's forked live server to start before Playwright creates browser threads; reversing that order can deadlock teardown on Python 3.14.
+- Application-backed tests that use the session browser directly must request `e2e_browser` so the frontend server is running before the browser opens a page.

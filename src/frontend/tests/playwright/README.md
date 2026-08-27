@@ -15,8 +15,8 @@ Core is started from a plain Python container with `src/core` mounted, so Core c
 The harness starts only Core and Redis unless a selected `e2e_full_stack` test requires the worker, cron, and testdata services.
 You need Docker Compose or Podman Compose available locally. For Podman, install `podman` and either `podman-compose` or a working `podman compose` provider.
 The same frontend-owned test root also contains the RQ/Redis integration E2E suite.
-The Playwright bootstrap selects the `fork` multiprocessing start method when available because `pytest-flask`'s live server is
-not compatible with Python 3.14's default pickling-based start methods.
+The frontend test app runs in a spawned Werkzeug server process. This avoids Python 3.14's unsafe `fork()` behavior in
+multi-threaded test processes while preserving process isolation from test HTTP mocks.
 
 ### Run tests in headful mode
 

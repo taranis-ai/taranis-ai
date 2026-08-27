@@ -1,11 +1,13 @@
 import base64
 import contextlib
 import copy
-import multiprocessing
 import os
 import random
 import re
+import socket
 import subprocess
+import sys
+import time
 import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
@@ -41,18 +43,6 @@ from tests.playwright.htmx_helpers import install_htmx_support
 from tests.playwright.story_seed_payloads import load_playwright_story_fixtures, normalize_playwright_story_payload
 
 
-def _configure_live_server_start_method() -> None:
-    if "fork" not in multiprocessing.get_all_start_methods():
-        return
-
-    current_method = multiprocessing.get_start_method(allow_none=True)
-    if current_method is None:
-        multiprocessing.set_start_method("fork")
-
-
-_configure_live_server_start_method()
-
-
 FRONTEND_E2E_COMPOSE_FILE = Path(__file__).parent / "compose.e2e.yml"
 
 
@@ -62,6 +52,63 @@ class ExternalE2EServer:
 
     def url(self) -> str:
         return self._base_url
+
+
+class LocalE2EServer:
+    def __init__(self, app, core_url: str, core_host: str):
+        self.app = app
+        listener = socket.socket()
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        listener.set_inheritable(True)
+        self._port = listener.getsockname()[1]
+
+        env = os.environ.copy()
+        env.update(
+            {
+                "FLASK_SECRET_KEY": app.secret_key,
+                "TARANIS_CORE_HOST": core_host,
+                "TARANIS_CORE_URL": core_url,
+                "TARANIS_E2E_SERVER_NAME": f"localhost:{self._port}",
+                "TARANIS_E2E_SOCKET_FD": str(listener.fileno()),
+            }
+        )
+        try:
+            self._process = subprocess.Popen(
+                [sys.executable, str(Path(__file__).with_name("live_server.py"))],
+                close_fds=False,
+                env=env,
+            )
+        finally:
+            listener.close()
+
+    def start(self) -> None:
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if self._process.poll() is not None:
+                raise RuntimeError(f"Frontend test server exited with status {self._process.returncode}")
+            try:
+                with socket.create_connection(("127.0.0.1", self._port), timeout=0.1):
+                    return
+            except OSError:
+                time.sleep(0.05)
+        raise RuntimeError("Frontend test server did not start within 10 seconds")
+
+    def stop(self) -> None:
+        if self._process.poll() is None:
+            self._process.terminate()
+            try:
+                self._process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self._process.kill()
+                self._process.wait()
+
+    def url(self) -> str:
+        return f"http://localhost:{self._port}"
+
+    @property
+    def port(self) -> int:
+        return self._port
 
 
 def _core_token_response(user_type: str, access_token_response, access_token_response_basic):
@@ -231,10 +278,19 @@ def e2e_server_external():
 
 
 @pytest.fixture(scope="session")
-def e2e_server_local(run_core, app, live_server, build_tailwindcss):
-    live_server.app = app
-    live_server.start()
-    return live_server
+def e2e_server_local(run_core, app, build_tailwindcss):
+    from frontend.config import Config
+
+    server = LocalE2EServer(app, Config.TARANIS_CORE_URL, Config.TARANIS_CORE_HOST)
+    original_server_name = app.config["SERVER_NAME"]
+    hostname = (original_server_name or "localhost.localdomain").split(":", 1)[0]
+    app.config["SERVER_NAME"] = f"{hostname}:{server.port}"
+    try:
+        server.start()
+        yield server
+    finally:
+        server.stop()
+        app.config["SERVER_NAME"] = original_server_name
 
 
 @pytest.fixture(scope="session")
@@ -253,7 +309,7 @@ def e2e_request_context(e2e_server, app):
 
 @pytest.fixture
 def e2e_browser(request) -> Browser:
-    """Start Flask's forked live server before Playwright starts browser threads."""
+    """Start the local frontend server before Playwright."""
     request.getfixturevalue("e2e_server")
     return request.getfixturevalue("browser")
 
