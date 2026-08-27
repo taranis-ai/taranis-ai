@@ -28,6 +28,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [RSS Source Health](rss-source-health.md) - RSS/Atom detection, empty-feed retry states, persisted source status, and error reporting.
 - [Authentication Cookies](authentication-cookies.md) - JWT/CSRF cookie names, deployment suffixes, base-path scoping, and auth cookie consumers.
 - [Realtime Events](realtime-events.md) - Centrifugo SSE transport, connect-proxy authentication, admin broadcasts and client presence, event publishing, frontend recovery, and deployment configuration.
+- [Loro Live Collaboration](live-collaboration-loro.md) - Loro documents, Redis streams/checkpoints, peer synchronization, collaboration realtime channels, frontend editing, projection, finalization, and the three-instance demo.
 - [Public Product Publishing](public-product-publishing.md) - Taranis publisher presets, persistent report files, and unauthenticated public report URLs.
 - [MISP Auto-Update](misp-auto-update.md) - scheduled story-to-MISP pushes, proposal warnings, and configuration state.
 - [Scheduler Dashboard](scheduler-dashboard.md) - scheduler tabs, RQ-backed table data, granular refreshes, pagination and filtering, and task history.
