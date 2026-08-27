@@ -26,16 +26,16 @@ def test_is_alive(client):
     assert {"isalive": True} == response.json
 
 
-def test_task_enqueue_uses_isolated_functional_redis(client, auth_header, app):
+def test_task_enqueue_uses_isolated_functional_redis(client, auth_header, app, redis_client):
     word_list_id = str(uuid.uuid7())
 
     response = client.post(f"/api/config/word-lists/gather/{word_list_id}", headers=auth_header)
 
     assert response.status_code == 200
     queue_manager = app.extensions["rq"]
-    assert isinstance(queue_manager.redis, fakeredis.FakeRedis)
+    assert isinstance(redis_client, fakeredis.FakeRedis)
     job_id = f"gather_word_list_{word_list_id}"
-    job = Job.fetch(job_id, connection=queue_manager.redis)
+    job = Job.fetch(job_id, connection=redis_client)
     assert job.origin == "misc"
     assert job.func_name == "worker.misc.misc_tasks.gather_word_list"
     assert job.args == (word_list_id,)

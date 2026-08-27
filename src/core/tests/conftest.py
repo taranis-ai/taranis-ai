@@ -57,6 +57,13 @@ def client(app):
 
 
 @pytest.fixture
+def redis_client(app):
+    connection = app.extensions["rq"].redis
+    yield connection
+    connection.flushall()
+
+
+@pytest.fixture
 def db_persistent_session(app):
     """
     Do not delete the dbsession automatically.
