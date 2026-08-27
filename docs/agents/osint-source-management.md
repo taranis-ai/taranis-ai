@@ -26,7 +26,7 @@ The bulk form uses Alpine only for adding and removing local name/URL rows. Sele
 
 ## Testing
 
-Frontend unit coverage verifies supported collectors, bulk-only parameter omission, generated import payloads, and Core failure status handling in `src/frontend/tests/unit/views/test_views.py`. The admin browser workflow in `src/frontend/tests/playwright/test_e2e_admin.py` verifies creation, persisted source rows, group membership, and cleanup.
+Frontend unit coverage verifies supported collectors, bulk-only parameter omission, and Core failure status handling in `src/frontend/tests/unit/views/test_views.py`.
 
 Run `cd src/frontend && uv run pytest tests/unit/views/test_views.py` for focused view coverage. Run the focused admin browser test through the frontend E2E setup for the complete workflow.
 
