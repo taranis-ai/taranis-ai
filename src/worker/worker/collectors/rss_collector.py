@@ -38,6 +38,7 @@ class RSSCollector(BaseWebCollector):
         self.feed_content: requests.Response
         self.language: str = ""
         self.use_feed_content: bool = False
+        self.max_entries: int = 42
 
         logger_trafilatura: logging.Logger = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
@@ -54,6 +55,7 @@ class RSSCollector(BaseWebCollector):
             raise ValueError("No FEED_URL set in source")
 
         self.use_feed_content = self._determine_use_feed_content(params)
+        self.max_entries = source.get("rss_collector_max_entries", 42)
 
     def collect(self, source: dict, manual: bool = False):
         self.parse_source(source)
@@ -230,10 +232,11 @@ class RSSCollector(BaseWebCollector):
         return self.news_items
 
     def collect_news(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
+        feed_entries = feed["entries"][: self.max_entries]
         if self.digest_splitting:
-            return self.handle_digests(feed["entries"][:42])
+            return self.handle_digests(feed_entries)
 
-        return self.parse_feed(feed["entries"][:42], source)
+        return self.parse_feed(feed_entries, source)
 
     def handle_digests(self, feed_entries: list[feedparser.FeedParserDict]) -> list[NewsItem]:
         self.split_digest_urls = self.get_digest_url_list(feed_entries)

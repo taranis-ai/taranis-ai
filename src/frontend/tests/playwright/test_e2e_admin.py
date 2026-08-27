@@ -1207,6 +1207,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         tlp_select = settings_form.get_by_test_id("settings-default-tlp-level").first
         collector_proxy_input = settings_form.get_by_test_id("settings-default-collector-proxy").first
         collector_interval_input = settings_form.get_by_test_id("settings-default-collector-interval").first
+        rss_entry_limit_input = settings_form.get_by_test_id("settings-rss-collector-max-entries").first
         story_conflict_input = settings_form.get_by_test_id("settings-default-story-conflict-retention").first
         news_conflict_input = settings_form.get_by_test_id("settings-default-news-item-conflict-retention").first
         onboarding_switch = settings_form.locator("#settings-onboarding-enabled").first
@@ -1224,6 +1225,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(collector_proxy_input).to_be_empty()
             expect(collector_interval_input).to_have_attribute("required", "")
             expect(collector_interval_input).to_have_value("0 */8 * * *")
+            expect(rss_entry_limit_input).to_have_value("42")
             expect(story_conflict_input).to_have_attribute("required", "")
             expect(story_conflict_input).to_have_value("200")
             expect(news_conflict_input).to_have_attribute("required", "")
@@ -1235,6 +1237,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             tlp_select.select_option("red")
             collector_proxy_input.fill("https://test")
             collector_interval_input.fill("0 */8 * * 1")
+            rss_entry_limit_input.fill("75")
             story_conflict_input.fill("20")
             news_conflict_input.fill("21")
             with page.expect_response(settings_update_url) as response_info:
@@ -1248,6 +1251,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_test_id("settings-default-tlp-level").first).to_have_value("red")
             expect(collector_proxy_input).to_have_value("https://test/")
             expect(collector_interval_input).to_have_value("0 */8 * * 1")
+            expect(rss_entry_limit_input).to_have_value("75")
             expect(story_conflict_input).to_have_value("20")
             expect(news_conflict_input).to_have_value("21")
 

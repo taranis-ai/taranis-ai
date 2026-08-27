@@ -22,6 +22,17 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
+    def test_rss_source_includes_global_entry_limit(self, client, api_header, fake_source, monkeypatch):
+        monkeypatch.setattr(
+            "core.model.osint_source.Settings.get_settings",
+            lambda: {"rss_collector_max_entries": 17},
+        )
+
+        response = client.get(f"{self.base_uri}/osint-sources/{fake_source}", headers=api_header)
+
+        assert response.status_code == 200
+        assert response.get_json()["rss_collector_max_entries"] == 17
+
     def test_bot_story_query_uses_default_lookback_setting(self, client, api_header, monkeypatch):
         captured_filter = {}
         current_time = datetime(2026, 8, 12, 12, 0)
