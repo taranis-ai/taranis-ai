@@ -332,6 +332,23 @@ class TestSourceView:
 
         assert SourceView.get_admin_menu_badge() == 4
 
+    def test_bulk_delete_renders_related_news_items_error(self, authenticated_client, responses_mock, htmx_header):
+        core_url = f"{Config.TARANIS_CORE_URL}/config/osint-sources"
+        related_data_error = (
+            "The OSINT source could not be deleted because related news items exist. "
+            "Enable force deletion to delete the source and its related data."
+        )
+        responses_mock.delete(f"{core_url}/source-blocked", json={"error": related_data_error}, status=409)
+
+        response = authenticated_client.delete(
+            SourceView.get_base_route(),
+            data={"ids": ["source-blocked"]},
+            headers=htmx_header,
+        )
+
+        assert response.status_code == 409
+        assert related_data_error in response.get_data(as_text=True)
+
     def test_import_post_view(self, authenticated_client, responses_mock):
         """
         Test that the import_post_view method correctly extracts the "sources" key
