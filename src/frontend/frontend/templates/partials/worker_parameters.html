@@ -48,7 +48,8 @@
     {% elif field.type == 'number' %}
       {{ form_input(label=field.label, name='parameters[' + field.name + ']', value=field_value, type='number', required=field_required, min_value=field.minimum, max_value=field.maximum, preserve=preserve) }}
     {% elif field.type == 'textarea' %}
-      {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=field_value, required=field_required, preserve=preserve) }}
+      {% set textarea_value = field_value | tojson if field_value is mapping else field_value %}
+      {{ form_textarea(label=field.label, name='parameters[' + field.name + ']', value=textarea_value, required=field_required, preserve=preserve) }}
     {% elif field.type == 'switch' %}
       {{ form_switch(label=field.label, name='parameters[' + field.name + ']', value=field_value, yes_val='true', no_val='false', required=false, preserve=preserve) }}
     {% elif field.type == 'cron_interval' %}

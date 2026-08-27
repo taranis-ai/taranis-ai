@@ -14,12 +14,12 @@ from models.worker_parameters import (
 
 def set_parameters(
     worker_type: str,
-    current: dict[str, str] | None,
+    current: dict[str, Any] | None,
     submitted: dict[str, Any] | None,
     *,
     patch: bool,
     complete: bool = True,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Apply PUT/PATCH semantics and validate the resulting configuration."""
     current = dict(current or {})
     submitted = dict(submitted or {})
@@ -41,21 +41,24 @@ def set_parameters(
     return normalize_parameter_values(worker_type, candidate, complete=complete)
 
 
-def configured_parameters(worker_type: str, values: dict[str, str] | None) -> dict[str, str]:
+def configured_parameters(worker_type: str, values: dict[str, Any] | None) -> dict[str, Any]:
     return configured_parameter_values(worker_type, dict(values or {}))
 
 
-def effective_parameters(worker_type: str, values: dict[str, str] | None) -> dict[str, str]:
+def effective_parameters(worker_type: str, values: dict[str, Any] | None) -> dict[str, Any]:
     return effective_parameter_values(worker_type, dict(values or {}))
 
 
-def reveal_parameter(worker_type: str, values: dict[str, str] | None, parameter: str) -> str:
+def reveal_parameter(worker_type: str, values: dict[str, Any] | None, parameter: str) -> str:
     if parameter not in secret_parameter_names(worker_type):
         raise ValueError(f"{parameter} is not a secret parameter")
     try:
-        return dict(values or {})[parameter]
+        value = dict(values or {})[parameter]
     except KeyError as exc:
         raise ValueError(f"{parameter} is not configured") from exc
+    if not isinstance(value, str):
+        raise TypeError(f"{parameter} has an invalid stored value")
+    return value
 
 
 def parameter_is_required(worker_type: str, parameter: str) -> bool:

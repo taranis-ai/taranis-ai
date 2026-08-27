@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Self
+from typing import Any, Self
 from urllib.parse import urlsplit
 
 from pydantic import Field, ValidationInfo, field_validator
@@ -68,7 +68,7 @@ class PublisherPreset(TaranisBaseModel):
     name: str
     type: PUBLISHER_TYPES
     description: str | None = ""
-    parameters: dict[str, str] = Field(default_factory=dict)
+    parameters: dict[str, Any] = Field(default_factory=dict)
 
 
 class Product(TaranisBaseModel):

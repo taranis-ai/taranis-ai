@@ -28,7 +28,7 @@ class ProductType(BaseModel):
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[PRESENTER_TYPES] = db.Column(db.Enum(PRESENTER_TYPES))
 
-    parameters: Mapped[dict[str, str]] = db.Column(db.JSON, nullable=False, default=dict)
+    parameters: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False, default=dict)
     report_types: Mapped[list["ReportItemType"]] = relationship("ReportItemType", secondary="product_type_report_type")
 
     def __init__(self, title, type, description="", parameters=None, report_types=None, id=None):
@@ -138,9 +138,9 @@ class ProductType(BaseModel):
         worker_type: str,
         parameters,
         *,
-        current: dict[str, str] | None = None,
+        current: dict[str, Any] | None = None,
         patch: bool = False,
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         parsed_parameters = set_parameters(worker_type, current, parameters, patch=patch, complete=True)
         if template := parsed_parameters.get("TEMPLATE_PATH"):
             parsed_parameters["TEMPLATE_PATH"] = validate_existing_presenter_template_id(template)
