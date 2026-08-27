@@ -612,44 +612,80 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
+        response, status = cls.delete_many([source_id], force=force)
+        if status == 200:
+            return {"message": "OSINT Source deleted", "id": source_id}, status
+        return response, status
+
+    @classmethod
+    def delete_many(cls, source_ids: list[str], force: bool = False) -> tuple[dict, int]:
         from core.managers import queue_manager
+        from core.model.news_item import NewsItem
         from core.model.story import Story
-        from core.service.misp_auto_update import refresh_misp_auto_update_jobs
-        from core.service.story import StoryService
+        from core.service.misp_auto_update import cancel_misp_auto_update_jobs, refresh_misp_auto_update_jobs
+        from core.service.news_item import NewsItemService
 
-        if not (source := cls.get(source_id)):
+        if not source_ids:
             return {"error": "OSINT Source not found"}, 404
-        if source.key == "manual":
+        sources_by_id: dict[str, OSINTSource] = {}
+        for source_id in dict.fromkeys(source_ids):
+            if not (source := cls.get(source_id)):
+                return {"error": "OSINT Source not found"}, 404
+            sources_by_id[source.id] = source
+        source_ids = list(sources_by_id)
+        sources = list(sources_by_id.values())
+        if any(source.key == "manual" for source in sources):
             return {"error": "The manual source cannot be deleted"}, 400
+        if not force and NewsItemService.has_related_news_items(source_ids):
+            return {
+                "error": "The OSINT source could not be deleted because related news items exist. Enable force deletion to delete the source and its related data."
+            }, 409
 
-        affected_story_ids = []
+        cleanup_jobs = [(source.cron_job_id, source.task_id, source.cron_run_prefix) for source in sources]
+        affected_story_ids: list[str] = []
+        deleted_story_ids: list[str] = []
         try:
-            source.unschedule_osint_source()
-            queue_manager.queue_manager.purge_job_artifacts(
-                exact_ids={source.task_id},
-                prefixes=[source.cron_run_prefix],
-            )
             if force:
                 news_item_table = db.metadata.tables.get("news_item")
                 if news_item_table is not None:
-                    affected_story_ids = (
+                    affected_story_ids = list(
                         db.session.execute(
-                            db.select(news_item_table.c.story_id).where(news_item_table.c.osint_source_id == source_id).distinct()
+                            db.select(news_item_table.c.story_id).where(news_item_table.c.osint_source_id.in_(source_ids)).distinct()
                         )
                         .scalars()
                         .all()
                     )
-                    db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id == source_id))
-                StoryService.delete_stories_with_no_items()
-            db.session.delete(source)
+                    db.session.execute(news_item_table.delete().where(news_item_table.c.osint_source_id.in_(source_ids)))
+                deleted_story_ids = list(
+                    db.session.execute(db.delete(Story).where(~db.exists().where(NewsItem.story_id == Story.id)).returning(Story.id))
+                    .scalars()
+                    .all()
+                )
+            for source in sources:
+                db.session.delete(source)
             db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            logger.warning(f"IntegrityError: {e.orig}")
+            return {"error": "Deleting OSINT Source failed"}, 500
+
+        try:
+            for cron_job_id, task_id, cron_run_prefix in cleanup_jobs:
+                queue_manager.queue_manager.unregister_cron_job(cron_job_id)
+                queue_manager.queue_manager.purge_job_artifacts(exact_ids={task_id}, prefixes=[cron_run_prefix])
+        except Exception:
+            db.session.rollback()
+            logger.exception("Failed to clean up jobs after deleting OSINT sources")
+
+        try:
+            cancel_misp_auto_update_jobs(deleted_story_ids)
             if affected_story_ids:
                 surviving_story_ids = db.session.execute(db.select(Story.id).where(Story.id.in_(affected_story_ids))).scalars().all()
                 refresh_misp_auto_update_jobs(surviving_story_ids)
-            return {"message": "OSINT Source deleted", "id": source.id}, 200
-        except IntegrityError as e:
-            logger.warning(f"IntegrityError: {e.orig}")
-            return {"error": "Deleting OSINT Source failed"}, 500
+        except Exception:
+            db.session.rollback()
+            logger.exception("Failed to refresh MISP jobs after deleting OSINT sources")
+        return {"message": "OSINT Sources deleted", "ids": source_ids}, 200
 
     @classmethod
     def schedule_all_osint_sources(cls):

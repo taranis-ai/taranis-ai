@@ -4262,7 +4262,7 @@ paths:
         '200':
           description: success
         '400':
-          description: no source IDs provided
+          description: no source IDs provided or invalid force parameter
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -4315,10 +4315,16 @@ paths:
       responses:
         '200':
           description: success
+        '400':
+          description: invalid force parameter or protected manual source
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+        '409':
+          description: related news items prevent deletion without force
+        '500':
+          description: deletion failed
     get:
       security:
       - UserAuth: []

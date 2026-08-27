@@ -777,27 +777,19 @@ class OSINTSources(MethodView):
         source_ids = [source_id] if source_id is not None else request.args.getlist("ids")
         if not source_ids:
             return {"error": "No source_id provided"}, 400
-        force = request.args.get("force", default=False, type=bool)
-        if not force:
-            from core.service.news_item import NewsItemService as _NewsItemService
-
-            if _NewsItemService.has_related_news_items(source_ids):
-                return {
-                    "error": "The OSINT source could not be deleted because related news items exist. Enable force deletion to delete the source and its related data."
-                }, 409
+        force_value = request.args.get("force")
+        if force_value not in {None, "true", "false"}:
+            return {"error": "The force parameter must be true or false"}, 400
+        force = force_value == "true"
 
         if source_id is not None:
             response, status = osint_source.OSINTSource.delete(source_id, force=force)
             _invalidate_admin_cache(status)
             return response, status
 
-        for current_source_id in source_ids:
-            response, status = osint_source.OSINTSource.delete(current_source_id, force=force)
-            if status != 200:
-                return response, status
-
-        _invalidate_admin_cache(200)
-        return {"message": "OSINT Sources deleted", "ids": source_ids}, 200
+        response, status = osint_source.OSINTSource.delete_many(source_ids, force=force)
+        _invalidate_admin_cache(status)
+        return response, status
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def patch(self, source_id: str | None = None):

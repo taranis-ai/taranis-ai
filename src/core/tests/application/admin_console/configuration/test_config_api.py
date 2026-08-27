@@ -451,7 +451,7 @@ class TestSourcesConfigApi(BaseTest):
         response = self.assert_delete_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
         assert response.json["message"] == "OSINT Source deleted"
 
-    def test_bulk_delete_sources_with_related_news_items_requires_force(self, app, client, auth_header):
+    def test_bulk_delete_sources_is_atomic_and_requires_explicit_force(self, app, client, auth_header):
         from core.model.osint_source import OSINTSource
 
         source_ids = [str(uuid.uuid7()), str(uuid.uuid7())]
@@ -471,7 +471,21 @@ class TestSourcesConfigApi(BaseTest):
             create_story(news_items=[build_news_item_payload(source_id=source_ids[1])])
 
         try:
-            response = client.delete(self.concat_url("osint-sources"), query_string={"ids": source_ids}, headers=auth_header)
+            invalid_force_response = client.delete(
+                self.concat_url("osint-sources"), query_string={"ids": source_ids, "force": "yes"}, headers=auth_header
+            )
+            assert invalid_force_response.status_code == 400
+
+            missing_source_response = client.delete(
+                self.concat_url("osint-sources"),
+                query_string={"ids": [source_ids[0], str(uuid.uuid7())], "force": "true"},
+                headers=auth_header,
+            )
+            assert missing_source_response.status_code == 404
+
+            response = client.delete(
+                self.concat_url("osint-sources"), query_string={"ids": source_ids, "force": "false"}, headers=auth_header
+            )
 
             assert response.status_code == 409
             assert response.json["error"] == (

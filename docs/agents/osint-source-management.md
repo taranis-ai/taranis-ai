@@ -10,6 +10,8 @@ Administrators can create one source with the standard source form or bulk-creat
 
 Bulk creation can also create one named source group containing exactly the new sources. Source and group persistence is atomic through the existing version-4 source import operation. Import templating or merging imported files with form defaults is not part of this workflow.
 
+Bulk deletion validates the complete source selection before changing data and commits all database deletions atomically. The optional `force` query parameter accepts only `true` or `false`; forced deletion also removes related news items and stories left without news items. Queue, scheduler, and MISP job cleanup runs after the database commit.
+
 Invalid bulk form input returns HTTP 400. Core import failures preserve the upstream status so monitoring and callers can distinguish validation failures from service failures; transport failures return HTTP 502 while re-rendering the form with a static error.
 
 ## Code Paths
@@ -18,6 +20,7 @@ Invalid bulk form input returns HTTP 400. Core import failures preserve the upst
 - Frontend routes: `src/frontend/frontend/router/admin.py`
 - Bulk form and source-list entry point: `src/frontend/frontend/templates/osint_source/`
 - Transactional import and source-group association: `src/core/core/model/osint_source.py`
+- Atomic source deletion: `src/core/core/model/osint_source.py`
 - Import API: `src/core/core/api/config.py`
 
 ## Data Flow
@@ -27,6 +30,8 @@ The bulk form uses Alpine only for adding and removing local name/URL rows. Sele
 ## Testing
 
 Frontend unit coverage verifies supported collectors, bulk-only parameter omission, and Core failure status handling in `src/frontend/tests/unit/views/test_views.py`.
+
+Core API coverage verifies explicit force parsing, all-ID validation, atomic failure behavior, and forced deletion in `src/core/tests/application/admin_console/configuration/test_config_api.py`.
 
 Run `cd src/frontend && uv run pytest tests/unit/views/test_views.py` for focused view coverage. Run the focused admin browser test through the frontend E2E setup for the complete workflow.
 
