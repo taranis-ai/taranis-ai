@@ -14,6 +14,7 @@ from models.admin import OSINTSource, ReportItemType
 from models.task import Task, TaskResultEnvelope
 from models.types import COLLECTOR_TYPES
 from models.user import AssessSavedFilter
+from requests import ConnectTimeout
 from werkzeug.datastructures import MultiDict
 
 from frontend.cache import add_user_to_cache, cache
@@ -429,6 +430,28 @@ class TestSourceView:
                 }
             ],
         }
+
+    def test_bulk_create_reports_core_import_failures_with_server_status(self, authenticated_client, responses_mock):
+        endpoint = f"{Config.TARANIS_CORE_URL}/config/import-osint-sources"
+        responses_mock.post(endpoint, json={"error": "Core import failed."}, status=503)
+        responses_mock.post(endpoint, body=ConnectTimeout("Core request timed out"))
+        form_data = MultiDict(
+            [
+                ("sources[][name]", "Feed One"),
+                ("sources[][url]", "https://example.com/one.xml"),
+                ("sources[][name]", "Feed Two"),
+                ("sources[][url]", "https://example.com/two.xml"),
+                ("type", "rss_collector"),
+            ]
+        )
+
+        upstream_failure = authenticated_client.post(url_for("admin.bulk_create_osint_sources"), data=form_data)
+        transport_failure = authenticated_client.post(url_for("admin.bulk_create_osint_sources"), data=form_data)
+
+        assert upstream_failure.status_code == 503
+        assert "Core import failed." in upstream_failure.text
+        assert transport_failure.status_code == 502
+        assert "Failed to create OSINT sources." in transport_failure.text
 
     def test_import_post_view(self, authenticated_client, responses_mock):
         """

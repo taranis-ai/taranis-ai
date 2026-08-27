@@ -7,6 +7,7 @@ from models.admin import AdminMenuBadges, OSINTSource
 from models.task import Task
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
+from requests import RequestException
 from requests import Response as RequestsResponse
 from werkzeug.exceptions import HTTPException
 
@@ -151,7 +152,7 @@ class SourceView(AdminBaseView):
             sources = list(sources.values())
 
         return {
-            "collector_types": [cls.collector_types[collector_type] for collector_type in cls.bulk_url_parameters],
+            "collector_types": [cls.collector_types[supported_type] for supported_type in cls.bulk_url_parameters],
             "create_group": str(form_data.get("create_group", "false")).lower() in {"true", "1", "yes", "on"},
             "description": form_data.get("description", ""),
             "error": error,
@@ -237,13 +238,19 @@ class SourceView(AdminBaseView):
                 }
             )
 
-        response = CoreApi().import_sources({"version": 4, "sources": import_sources, "groups": groups})
+        try:
+            response = CoreApi().import_sources({"version": 4, "sources": import_sources, "groups": groups})
+        except RequestException:
+            logger.exception("Bulk OSINT source creation request failed")
+            return cls._render_bulk_create_error(form_data, "Failed to create OSINT sources.", 502)
+
         if response is None or not response.ok:
             payload = cls._response_payload(response)
             error = payload.get("error") if payload else None
             if not isinstance(error, str) or not error:
                 error = "Failed to create OSINT sources."
-            return cls._render_bulk_create_error(form_data, error)
+            status = response.status_code if response is not None else 502
+            return cls._render_bulk_create_error(form_data, error, status)
 
         message = f"Successfully created {len(import_sources)} OSINT sources"
         if create_group:
@@ -252,12 +259,12 @@ class SourceView(AdminBaseView):
         return cls.redirect_htmx(cls.get_base_route())
 
     @classmethod
-    def _render_bulk_create_error(cls, form_data: dict[str, Any], error: str) -> tuple[str, int]:
+    def _render_bulk_create_error(cls, form_data: dict[str, Any], error: str, status: int = 400) -> tuple[str, int]:
         logger.warning(f"Bulk OSINT source creation failed: {error}")
         return render_template(
             "osint_source/osint_source_bulk_create.html",
             **cls.get_bulk_create_context(form_data, error),
-        ), 400
+        ), status
 
     @classmethod
     def import_view(cls, error: str | None = None):

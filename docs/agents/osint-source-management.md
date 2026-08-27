@@ -10,6 +10,8 @@ Administrators can create one source with the standard source form or bulk-creat
 
 Bulk creation can also create one named source group containing exactly the new sources. Source and group persistence is atomic through the existing version-4 source import operation. Import templating or merging imported files with form defaults is not part of this workflow.
 
+Invalid bulk form input returns HTTP 400. Core import failures preserve the upstream status so monitoring and callers can distinguish validation failures from service failures; transport failures return HTTP 502 while re-rendering the form with a static error.
+
 ## Code Paths
 
 - Frontend view and payload construction: `src/frontend/frontend/views/admin_views/source_views.py`
@@ -24,7 +26,7 @@ The bulk form uses Alpine only for adding and removing local name/URL rows. Sele
 
 ## Testing
 
-Frontend unit coverage verifies supported collectors, bulk-only parameter omission, and the generated import payload in `src/frontend/tests/unit/views/test_views.py`. The admin browser workflow in `src/frontend/tests/playwright/test_e2e_admin.py` verifies creation, persisted source rows, group membership, and cleanup.
+Frontend unit coverage verifies supported collectors, bulk-only parameter omission, generated import payloads, and Core failure status handling in `src/frontend/tests/unit/views/test_views.py`. The admin browser workflow in `src/frontend/tests/playwright/test_e2e_admin.py` verifies creation, persisted source rows, group membership, and cleanup.
 
 Run `cd src/frontend && uv run pytest tests/unit/views/test_views.py` for focused view coverage. Run the focused admin browser test through the frontend E2E setup for the complete workflow.
 
