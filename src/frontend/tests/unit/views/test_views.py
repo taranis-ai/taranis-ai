@@ -332,6 +332,62 @@ class TestSourceView:
 
         assert SourceView.get_admin_menu_badge() == 4
 
+    def test_bulk_delete_stops_on_related_news_items_and_renders_current_table(self, authenticated_client, responses_mock, htmx_header):
+        core_url = f"{Config.TARANIS_CORE_URL}/config/osint-sources"
+        related_data_error = (
+            "The OSINT source could not be deleted because related news items exist. "
+            "Enable force deletion to delete the source and its related data."
+        )
+        remaining_sources = [
+            {
+                "id": source_id,
+                "name": name,
+                "description": "",
+                "rank": 0,
+                "type": "rss_collector",
+                "parameters": {},
+            }
+            for source_id, name in [("source-blocked", "Blocked source"), ("source-pending", "Pending source")]
+        ]
+
+        responses_mock.delete(f"{core_url}/source-deleted", json={"message": "OSINT Source deleted"})
+        responses_mock.delete(f"{core_url}/source-blocked", json={"error": related_data_error}, status=409)
+        responses_mock.delete(f"{core_url}/source-pending", json={"message": "OSINT Source deleted"})
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/admin/cache/invalidate", json={"message": "Cache invalidated"})
+        responses_mock.get(core_url, json={"items": remaining_sources, "total_count": len(remaining_sources)})
+
+        response = authenticated_client.delete(
+            SourceView.get_base_route(),
+            data={"ids": ["source-deleted", "source-blocked", "source-pending"]},
+            headers=htmx_header,
+        )
+
+        assert response.status_code == 200
+        response_text = response.get_data(as_text=True)
+        assert f"1 selected item was deleted before deletion stopped. {related_data_error}" in response_text
+        assert "Blocked source" in response_text
+        assert "Pending source" in response_text
+        delete_paths = [urlparse(call.request.url).path for call in responses_mock.calls if call.request.method == "DELETE"]
+        assert delete_paths == ["/api/config/osint-sources/source-deleted", "/api/config/osint-sources/source-blocked"]
+
+    def test_bulk_force_delete_forwards_force_to_every_source(self, authenticated_client, responses_mock, htmx_header):
+        core_url = f"{Config.TARANIS_CORE_URL}/config/osint-sources"
+        for source_id in ["source-one", "source-two"]:
+            responses_mock.delete(f"{core_url}/{source_id}", json={"message": "OSINT Source deleted"})
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/admin/cache/invalidate", json={"message": "Cache invalidated"})
+        responses_mock.get(core_url, json={"items": [], "total_count": 0})
+
+        response = authenticated_client.delete(
+            SourceView.get_base_route(),
+            data={"ids": ["source-one", "source-two"], "force": "true"},
+            headers=htmx_header,
+        )
+
+        assert response.status_code == 200
+        delete_calls = [call for call in responses_mock.calls if call.request.method == "DELETE"]
+        assert len(delete_calls) == 2
+        assert all(parse_qs(urlparse(call.request.url).query) == {"force": ["true"]} for call in delete_calls)
+
     def test_import_post_view(self, authenticated_client, responses_mock):
         """
         Test that the import_post_view method correctly extracts the "sources" key

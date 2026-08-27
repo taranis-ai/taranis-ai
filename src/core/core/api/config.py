@@ -782,7 +782,7 @@ class OSINTSources(MethodView):
 
             if _NewsItemService.has_related_news_items(source_id):
                 return {
-                    "error": "OSINT Source has related News Items. To delete this item and all related News Items, set the 'force' flag."
+                    "error": "The OSINT source could not be deleted because related news items exist. Enable force deletion to delete the source and its related data."
                 }, 409
 
         response, status = osint_source.OSINTSource.delete(source_id, force=force)

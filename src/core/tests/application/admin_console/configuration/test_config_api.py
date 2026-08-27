@@ -11,7 +11,12 @@ from werkzeug.datastructures import FileStorage
 
 from core.config import Config
 from tests.application.support.api_test_base import BaseTest
-from tests.application.support.builders import build_import_user_payload, delete_user_by_username
+from tests.application.support.builders import (
+    build_import_user_payload,
+    build_news_item_payload,
+    create_story,
+    delete_user_by_username,
+)
 
 
 _INVALID_IMAGE_BYTES = b"not-an-image"
@@ -445,6 +450,39 @@ class TestSourcesConfigApi(BaseTest):
         source_id = cleanup_sources["id"]
         response = self.assert_delete_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
         assert response.json["message"] == "OSINT Source deleted"
+
+    def test_delete_source_with_related_news_items_requires_force(self, app, client, auth_header):
+        from core.model.osint_source import OSINTSource
+
+        source_id = str(uuid.uuid7())
+        source_data = {
+            "id": source_id,
+            "description": "Source with related news items",
+            "name": f"Source with data {source_id}",
+            "rank": 0,
+            "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
+            "type": "rss_collector",
+        }
+
+        with app.app_context():
+            OSINTSource.add(source_data)
+            create_story(news_items=[build_news_item_payload(source_id=source_id)])
+
+        try:
+            response = client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
+
+            assert response.status_code == 409
+            assert response.json["error"] == (
+                "The OSINT source could not be deleted because related news items exist. "
+                "Enable force deletion to delete the source and its related data."
+            )
+
+            response = client.delete(self.concat_url(f"osint-sources/{source_id}?force=true"), headers=auth_header)
+            assert response.status_code == 200
+        finally:
+            with app.app_context():
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id, force=True)
 
     def test_create_source_group(self, client, auth_header, cleanup_source_groups):
         response = self.assert_post_ok(client, uri="osint-source-groups", json_data=cleanup_source_groups, auth_header=auth_header)
