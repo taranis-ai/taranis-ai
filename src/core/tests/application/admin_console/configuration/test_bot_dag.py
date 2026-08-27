@@ -15,9 +15,7 @@ def test_seeded_bot_configs_do_not_define_ids_or_dependencies():
     from core.managers.pre_seed_data import bots
 
     assert all("id" not in bot for bot in bots)
-    assert all(
-        not parameter.get("value") for bot in bots for parameter in bot.get("parameters", []) if parameter["parameter"] == "RUN_AFTER_BOTS"
-    )
+    assert all("RUN_AFTER_BOTS" not in bot.get("parameters", {}) for bot in bots)
 
 
 def test_collector_run_graph_uses_dependency_order(app, session):

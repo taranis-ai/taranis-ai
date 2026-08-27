@@ -2,14 +2,13 @@ from typing import Any
 
 from models.types import PUBLISHER_TYPES
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped
 from sqlalchemy.sql.expression import Select
 
 from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
-from core.model.parameter_value import ParameterValue
-from core.model.worker import Worker
+from core.service.worker_parameters import configured_parameters, effective_parameters, set_parameters
 
 
 class PublisherPreset(BaseModel):
@@ -20,9 +19,7 @@ class PublisherPreset(BaseModel):
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[PUBLISHER_TYPES] = db.Column(db.Enum(PUBLISHER_TYPES))
-    parameters: Mapped[list["ParameterValue"]] = relationship(
-        "ParameterValue", secondary="publisher_preset_parameter_value", cascade="all, delete"
-    )
+    parameters: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False, default=dict)
 
     def __init__(
         self,
@@ -36,7 +33,7 @@ class PublisherPreset(BaseModel):
         self.name = name
         self.description = description
         self.type = type
-        self.parameters = Worker.parse_parameters(type, parameters)
+        self.parameters = set_parameters(self.type, {}, parameters, patch=False, complete=True)
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
@@ -57,7 +54,7 @@ class PublisherPreset(BaseModel):
         return "name_asc"
 
     @classmethod
-    def update(cls, preset_id, data):
+    def update(cls, preset_id, data, *, patch: bool = False):
         preset = cls.get(preset_id)
         if not preset:
             logger.error(f"Could not find preset with id {preset_id}")
@@ -65,11 +62,15 @@ class PublisherPreset(BaseModel):
         if name := data.get("name"):
             preset.name = name
 
-        preset.description = data.get("description")
+        if "description" in data:
+            preset.description = data.get("description") or ""
+        elif not patch:
+            preset.description = ""
 
-        if parameters := data.get("parameters"):
-            updated_preset = ParameterValue.get_or_create_from_list(parameters)
-            preset.parameters = ParameterValue.get_update_values(preset.parameters, updated_preset)
+        if "type" in data and PUBLISHER_TYPES(data["type"]) != preset.type:
+            raise ValueError("Worker type is immutable")
+        if "parameters" in data:
+            preset.parameters = set_parameters(preset.type, preset.parameters, data.get("parameters"), patch=patch, complete=True)
         db.session.commit()
         return {"message": "Successfully updated", "id": preset.id}, 200
 
@@ -100,7 +101,12 @@ class PublisherPreset(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
+        data["parameters"] = configured_parameters(self.type, self.parameters)
+        return data
+
+    def to_worker_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["parameters"] = effective_parameters(self.type, self.parameters)
         return data
 
     def to_user_dict(self) -> dict[str, Any]:
@@ -131,8 +137,3 @@ class PublisherPreset(BaseModel):
         items = cls.get_filtered(query) or []
         count = cls.get_filtered_count(base_query)
         return {"total_count": count, "items": [item.to_user_dict() for item in items]}, 200
-
-
-class PublisherPresetParameterValue(BaseModel):
-    publisher_preset_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("publisher_preset.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("parameter_value.id"), primary_key=True)

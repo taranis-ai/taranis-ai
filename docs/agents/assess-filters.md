@@ -10,6 +10,7 @@ Assess filters let users narrow stories and news items from the assess workspace
 
 `AssessSearchFilters` defines the canonical Assess story filter fields, multi-value fields, validation, and query serialization used by the core Assess endpoint, frontend saved filters, and Analyst Chat. Paging and internal query controls remain separate. Core additionally validates model-proposed source, group, tag, language, and recent-story references against the current user's visible catalog before calling `Story.get_by_filter(filter_args, current_user)`. Chat search-result links reuse the canonical `/assess` query shape with doseq encoding for multi-value filters.
 
+The Assess selection toolbar uses `Shift+Space` to toggle selected stories between read and unread. The toolbar prevents the browser's native page-up behavior for that key combination even when no stories are selected, but only submits the bulk action when a selection exists. While typing in an editable control or while a dialog is open, native keyboard behavior remains available. Bookmark detail reuses this behavior through the shared selection toolbar.
 With infinite scroll disabled, page navigation replaces the story list and pagination controls, scrolls the window to the top, and keeps the sticky Assess top bar mounted and visible.
 
 The shared Assess selection bar is hidden when JavaScript is unavailable. Its `<noscript>` style belongs in `base.html`, not in HTMX-swappable fragments, so filtering cannot accidentally activate the fallback style.
@@ -71,6 +72,7 @@ Use focused tests for assess filter changes:
 
 - Core filter-list behavior: `cd src/core && uv run pytest tests/application/user_workspace/assessment/test_story_filters.py`
 - Frontend assess view behavior: `cd src/frontend && uv run pytest tests/unit/views/test_story_view.py`
+- Frontend Assess shortcut behavior: `cd src/frontend && uv run pytest tests/playwright/test_main_js.py`
 - Assess pagination UI behavior: `cd src/frontend && uv run pytest tests/playwright/test_e2e_user.py::TestEndToEndUser::test_user_profile --e2e-ci`
 - Omnisearch filter syntax and suggestions: `cd src/frontend && uv run pytest tests/unit/test_omnisearch.py`
 
@@ -82,6 +84,7 @@ For broad validation or CI regressions, follow the project test instructions in 
 - Do not use admin/config endpoints for user-facing assess filter workflows.
 - Keep frontend and core query parameter names aligned; avoid adding compatibility aliases for new WIP filter fields.
 - Chat must execute story searches through `Story.get_by_filter` with the current user; a model-proposed filter must never become a raw SQL fragment or bypass server-side catalog validation.
+- Keep `Shift+Space` default prevention on `keydown`; the bulk action fires on `keyup`, after the browser would otherwise scroll.
 - Filter-list cache invalidation matters because stale sources, groups, tags, or languages can hide available filter options.
 - Treat persisted naive datetimes in core as UTC when date/range filtering changes touch stored timestamps.
 - Prefer `data-test-id` selectors when adding e2e coverage for new filter UI behavior.

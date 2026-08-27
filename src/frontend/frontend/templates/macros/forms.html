@@ -1,7 +1,7 @@
-{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', data_testid=None, min_value=None) %}
+{% macro form_input(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', data_testid=None, min_value=None, max_value=None) %}
   {% from "macros/forms.html" import form_input_content %}
   <div class="mb-5 {{ width }} flex flex-row">
-    {{ form_input_content(label=label, name=name, value=value, error=error, type=type, input_id=input_id, placeholder=placeholder, required=required, preserve=preserve, pattern=pattern, invalid_msg=invalid_msg, data_testid=data_testid, min_value=min_value) }}
+    {{ form_input_content(label=label, name=name, value=value, error=error, type=type, input_id=input_id, placeholder=placeholder, required=required, preserve=preserve, pattern=pattern, invalid_msg=invalid_msg, data_testid=data_testid, min_value=min_value, max_value=max_value) }}
     {% if error %}<div role="alert" class="alert alert-error alert-soft w-full flex-initial">{{ error }}</div>{% endif %}
   </div>
 {% endmacro %}
@@ -27,7 +27,7 @@
   {# djlint:on #}
 {% endmacro %}
 
-{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', input_class='', read_only=False, data_testid=None, min_value=None) %}
+{% macro form_input_content(label, name, value, error, type='text', input_id=None, placeholder=None, required=True, preserve=True, pattern=None, invalid_msg=None, width='w-full', input_class='', read_only=False, data_testid=None, min_value=None, max_value=None) %}
   {# djlint:off #}
   <label class="floating-label {{ width }}">
     <span class="label">{{ label }}
@@ -40,6 +40,7 @@
            name="{{ name }}"
            value="{{ value if value is not none else '' }}"
            {% if min_value is not none %}min="{{ min_value }}"{% endif %}
+           {% if max_value is not none %}max="{{ max_value }}"{% endif %}
            {% if pattern %}pattern="{{ pattern }}"{% endif %}
            {% if invalid_msg %} x-on:input=" $el.setCustomValidity(''); if (!$el.validity.valid) { $el.setCustomValidity('{{ invalid_msg }}'); } " {% endif %}
            {% if required %}required aria-required="true"{% endif %}
@@ -100,7 +101,7 @@
          class="toggle toggle-primary peer {{ input_class }}"
          {% if name %}aria-label="{{ name }}"{% endif %}
          {% if required %}required{% endif %}
-         {% if value == yes_val %}checked{% endif %}
+         {% if value == yes_val or value is sameas true %}checked{% endif %}
          {% if disabled %}disabled{% endif %} />
   <span class="text-base-content peer-checked:hidden">{{ no_val }}</span>
   <span class="text-base-content hidden peer-checked:inline">{{ yes_val }}</span>

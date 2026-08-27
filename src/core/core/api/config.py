@@ -1,7 +1,7 @@
 import base64
 import binascii
 import io
-from typing import Any
+from typing import Any, ClassVar
 
 from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
@@ -20,6 +20,7 @@ from core.managers.data_manager import (
     delete_template,
     validate_presenter_template_id,
 )
+from core.managers.db_manager import db
 from core.managers.decorators import extract_args
 from core.model import (
     attribute,
@@ -35,11 +36,11 @@ from core.model import (
     task,
     user,
     word_list,
-    worker,
 )
 from core.model.permission import Permission
 from core.service.cache_invalidation import invalidate_frontend_cache_on_success
 from core.service.template_service import build_template_response, build_templates_list, create_or_update_template, validate_template_content
+from core.service.worker_parameters import reveal_parameter
 
 
 def convert_integrity_error(error: IntegrityError) -> str:
@@ -218,14 +219,17 @@ class ProductTypes(MethodView):
             _invalidate_admin_cache(201)
             return jsonify({"message": "Product type created", "id": product.id}), 201
         except InvalidPresenterTemplatePathError as e:
+            db.session.rollback()
             logger.warning("Invalid product type template path: %s", e)
             return {"error": "Invalid presenter template path"}, 400
         except ValueError as e:
+            db.session.rollback()
             logger.warning("Invalid product type payload: %s", e)
             return {"error": "Invalid product type payload"}, 400
         except IntegrityError as e:
             return {"error": convert_integrity_error(e)}, 400
         except Exception as e:
+            db.session.rollback()
             logger.error(f"Error creating product type: {e}")
             return {"error": "Failed to create product type"}, 500
 
@@ -238,14 +242,30 @@ class ProductTypes(MethodView):
             _invalidate_admin_cache(status)
             return response, status
         except InvalidPresenterTemplatePathError as e:
+            db.session.rollback()
             logger.warning("Invalid product type template path: %s", e)
             return {"error": "Invalid presenter template path"}, 400
         except ValueError as e:
+            db.session.rollback()
             logger.warning("Invalid product type update payload: %s", e)
             return {"error": "Invalid product type payload"}, 400
         except Exception as e:
+            db.session.rollback()
             logger.error(f"Error updating product type: {e}")
             return {"error": "Failed to update product type"}, 500
+
+    @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
+    def patch(self, type_id: str | None = None):
+        if type_id is None:
+            return {"error": "No type_id provided"}, 400
+        try:
+            response, status = product_type.ProductType.update(type_id, request.json or {}, patch=True)
+            _invalidate_admin_cache(status)
+            return response, status
+        except (InvalidPresenterTemplatePathError, ValueError) as exc:
+            db.session.rollback()
+            logger.warning("Invalid product type patch payload: %s", exc)
+            return {"error": "Invalid product type payload"}, 400
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, type_id: str | None = None):
@@ -260,20 +280,6 @@ class ProductTypes(MethodView):
         except Exception as e:
             logger.error(f"Error deleting product type: {e}")
             return {"error": "Failed to delete product type"}, 500
-
-
-class Parameters(MethodView):
-    @auth_required("CONFIG_ACCESS")
-    def get(self):
-        return worker.Worker.get_parameter_map(), 200
-
-
-class WorkerParameters(MethodView):
-    @auth_required("CONFIG_ACCESS")
-    def get(self):
-        x = worker.Worker.get_parameter_map()
-        result = [{"id": key, "parameters": value} for key, value in x.items()]
-        return {"items": result}, 200
 
 
 class Permissions(MethodView):
@@ -527,7 +533,22 @@ class Bots(MethodView):
                 _invalidate_admin_cache(200)
                 return jsonify({"message": "Bot updated", "id": f"{updated_bot.id}"}), 200
         except ValueError as e:
+            db.session.rollback()
             logger.warning("Invalid bot update payload: %s", e)
+            return {"error": "Invalid bot update payload"}, 400
+        return {"error": "Bot not found"}, 404
+
+    @auth_required("CONFIG_BOT_UPDATE")
+    def patch(self, bot_id: str | None = None):
+        if bot_id is None:
+            return {"error": "No bot_id provided"}, 400
+        try:
+            if updated_bot := bot.Bot.update(bot_id, request.json or {}, patch=True):
+                _invalidate_admin_cache(200)
+                return {"message": "Bot updated", "id": updated_bot.id}, 200
+        except ValueError as exc:
+            db.session.rollback()
+            logger.warning("Invalid bot patch payload: %s", exc)
             return {"error": "Invalid bot update payload"}, 400
         return {"error": "Bot not found"}, 404
 
@@ -637,9 +658,13 @@ class Connectors(MethodView):
 
     @auth_required("CONFIG_CONNECTOR_CREATE")
     def post(self):
-        if source := connector.Connector.add(request.json):
-            _invalidate_admin_cache(201)
-            return {"id": source.id, "message": "Connector created successfully"}, 201
+        try:
+            if source := connector.Connector.add(request.json):
+                _invalidate_admin_cache(201)
+                return jsonify({"id": source.id, "message": "Connector created successfully"}), 201
+        except ValueError as exc:
+            db.session.rollback()
+            logger.warning("Invalid connector create payload: %s", exc)
         return {"error": "Connector could not be created"}, 400
 
     @auth_required("CONFIG_CONNECTOR_UPDATE")
@@ -653,6 +678,7 @@ class Connectors(MethodView):
                 _invalidate_admin_cache(200)
                 return {"message": "Connector updated", "id": source.id}, 200
         except ValueError as e:
+            db.session.rollback()
             logger.warning("Invalid connector update payload: %s", e)
             return {"error": "Invalid connector update payload"}, 400
         return {"error": "Connector not found"}, 404
@@ -677,10 +703,11 @@ class Connectors(MethodView):
         else:
             update_data = request.json
         try:
-            if source := connector.Connector.update(connector_id, update_data):
+            if source := connector.Connector.update(connector_id, update_data, patch=True):
                 _invalidate_admin_cache(200)
                 return {"message": "Connector updated", "id": source.id}, 200
         except ValueError as e:
+            db.session.rollback()
             logger.warning("Invalid connector patch payload: %s", e)
             return {"error": "Invalid connector update payload"}, 400
         return {"error": "Connector not found"}, 404
@@ -719,6 +746,7 @@ class OSINTSources(MethodView):
             logger.warning("Invalid OSINT source icon payload: %s", exc)
             return {"error": exc.public_message}, 400
         except ValueError as exc:
+            db.session.rollback()
             logger.warning("Invalid OSINT source payload: %s", exc)
             return {"error": "Invalid OSINT source payload"}, 400
         return {"error": "OSINT source could not be created"}, 400
@@ -739,6 +767,7 @@ class OSINTSources(MethodView):
             logger.warning("Invalid OSINT source icon payload: %s", e)
             return {"error": e.public_message}, 400
         except ValueError as e:
+            db.session.rollback()
             logger.warning("Invalid OSINT source update payload: %s", e)
             return {"error": "Invalid OSINT source payload"}, 400
         return {"error": "OSINT Source not found"}, 404
@@ -764,14 +793,26 @@ class OSINTSources(MethodView):
     def patch(self, source_id: str | None = None):
         if source_id is None:
             return {"error": "No source_id provided"}, 400
-        if request.json:
-            state = request.json.get("state")
-        else:
-            state = request.args.get("state", default="enabled", type=str)
-        logger.debug(f"Toggling OSINT source {source_id} to state {state}")
-        response, status = osint_source.OSINTSource.toggle_state(source_id, state)
-        _invalidate_admin_cache(status)
-        return response, status
+        data = dict(request.json or {})
+        state = data.pop("state", None)
+        if state is not None and state not in {"enabled", "disabled"}:
+            return {"error": "Invalid state"}, 400
+        if state and not data:
+            logger.debug(f"Toggling OSINT source {source_id} to state {state}")
+            response, status = osint_source.OSINTSource.toggle_state(source_id, state)
+            _invalidate_admin_cache(status)
+            return response, status
+        if state:
+            data["enabled"] = state == "enabled"
+        try:
+            if source := osint_source.OSINTSource.update(source_id, data, patch=True):
+                _invalidate_admin_cache(200)
+                return {"message": "OSINT Source updated", "id": source.id}, 200
+        except (ValidationError, ValueError) as exc:
+            db.session.rollback()
+            logger.warning("Invalid OSINT source patch payload: %s", exc)
+            return {"error": "Invalid OSINT source payload"}, 400
+        return {"error": "OSINT Source not found"}, 404
 
 
 class OSINTSourceCollect(MethodView):
@@ -836,6 +877,9 @@ class OSINTSourcesImport(MethodView):
                 sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
+        except (KeyError, TypeError, ValueError):
+            logger.exception("Invalid OSINT source import")
+            return {"error": "Invalid source import"}, 400
         if sources is None:
             logger.error("Failed to import OSINT sources")
             return {"error": "Unable to import"}, 400
@@ -876,24 +920,6 @@ class OSINTSourceGroups(MethodView):
         return response, status
 
 
-class Presenters(MethodView):
-    @auth_required("CONFIG_PUBLISHER_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, filter_args: dict[str, Any] | None = None):
-        filter_args = filter_args or {}
-        filter_args["category"] = "publisher"
-        return worker.Worker.get_all_for_api(filter_args)
-
-
-class Publishers(MethodView):
-    @auth_required("CONFIG_PUBLISHER_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, filter_args: dict[str, Any] | None = None):
-        filter_args = filter_args or {}
-        filter_args["category"] = "publisher"
-        return worker.Worker.get_all_for_api(filter_args)
-
-
 class PublisherPresets(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
@@ -904,17 +930,40 @@ class PublisherPresets(MethodView):
 
     @auth_required("CONFIG_PUBLISHER_CREATE")
     def post(self):
-        pub_result = publisher_preset.PublisherPreset.add(request.json)
-        _invalidate_admin_cache(200)
-        return jsonify({"id": pub_result.id, "message": "Publisher preset created successfully"}), 200
+        try:
+            pub_result = publisher_preset.PublisherPreset.add(request.json)
+            _invalidate_admin_cache(200)
+            return jsonify({"id": pub_result.id, "message": "Publisher preset created successfully"}), 200
+        except ValueError as exc:
+            db.session.rollback()
+            logger.warning("Invalid publisher preset create payload: %s", exc)
+            return {"error": "Invalid publisher preset payload"}, 400
 
     @auth_required("CONFIG_PUBLISHER_UPDATE")
     def put(self, preset_id: str | None = None):
         if preset_id is None:
             return {"error": "No preset_id provided"}, 400
-        response, status = publisher_preset.PublisherPreset.update(preset_id, request.json)
-        _invalidate_admin_cache(status)
-        return response, status
+        try:
+            response, status = publisher_preset.PublisherPreset.update(preset_id, request.json)
+            _invalidate_admin_cache(status)
+            return response, status
+        except ValueError as exc:
+            db.session.rollback()
+            logger.warning("Invalid publisher preset update payload: %s", exc)
+            return {"error": "Invalid publisher preset payload"}, 400
+
+    @auth_required("CONFIG_PUBLISHER_UPDATE")
+    def patch(self, preset_id: str | None = None):
+        if preset_id is None:
+            return {"error": "No preset_id provided"}, 400
+        try:
+            response, status = publisher_preset.PublisherPreset.update(preset_id, request.json or {}, patch=True)
+            _invalidate_admin_cache(status)
+            return response, status
+        except ValueError as exc:
+            db.session.rollback()
+            logger.warning("Invalid publisher preset patch payload: %s", exc)
+            return {"error": "Invalid publisher preset payload"}, 400
 
     @auth_required("CONFIG_PUBLISHER_DELETE")
     def delete(self, preset_id: str | None = None):
@@ -1019,28 +1068,43 @@ class WorkerInstances(MethodView):
         return queue_manager.queue_manager.ping_workers()
 
 
-class Workers(MethodView):
-    @auth_required("CONFIG_WORKER_ACCESS")
-    @extract_args("search", "category", "type", "exclude", "page", "limit", "sort", "order", "fetch_all")
-    def get(self, worker_id: str | None = None, filter_args: dict[str, Any] | None = None):
-        if worker_id:
-            return worker.Worker.get_for_api(worker_id)
-        if Config.DISABLE_PPN_COLLECTOR:
-            if filter_args:
-                filter_args["exclude"] = "ppn"
-            else:
-                filter_args = {"exclude": "ppn"}
-        return worker.Worker.get_all_for_api(filter_args, True)
+class ParameterSecrets(MethodView):
+    _RESOURCES: ClassVar[dict[str, tuple[type, str]]] = {
+        "sources": (osint_source.OSINTSource, "CONFIG_OSINT_SOURCE_UPDATE"),
+        "bots": (bot.Bot, "CONFIG_BOT_UPDATE"),
+        "connectors": (connector.Connector, "CONFIG_CONNECTOR_UPDATE"),
+        "product-types": (product_type.ProductType, "CONFIG_PRODUCT_TYPE_UPDATE"),
+        "publisher-presets": (publisher_preset.PublisherPreset, "CONFIG_PUBLISHER_UPDATE"),
+    }
 
-    @auth_required("CONFIG_WORKER_ACCESS")
-    def patch(self, worker_id: str | None = None):
-        if worker_id is None:
-            return {"error": "No worker_id provided"}, 400
-        if not request.json:
-            return {"error": "No data provided"}, 400
-        if update_worker := worker.Worker.get(worker_id):
-            return update_worker.update(request.json)
-        return {"error": "Worker not found"}, 404
+    @auth_required(
+        [
+            "CONFIG_OSINT_SOURCE_UPDATE",
+            "CONFIG_BOT_UPDATE",
+            "CONFIG_CONNECTOR_UPDATE",
+            "CONFIG_PRODUCT_TYPE_UPDATE",
+            "CONFIG_PUBLISHER_UPDATE",
+        ]
+    )
+    def post(self, resource: str, resource_id: str, parameter: str):
+        if not (resource_config := self._RESOURCES.get(resource)):
+            return {"error": "Unknown parameter resource"}, 404
+        model, permission = resource_config
+        permissions = set(current_user.get_permissions())
+        if permission not in permissions and "ALL" not in permissions:
+            return {"error": "forbidden"}, 403
+        if not (item := model.get(resource_id)):
+            return {"error": "Parameter resource not found"}, 404
+        try:
+            value = reveal_parameter(item.type, item.parameters, parameter)
+        except ValueError:
+            logger.warning("Invalid parameter secret reveal request", exc_info=True)
+            return {"error": "Invalid parameter secret request"}, 400
+        response = jsonify({"value": value})
+        response.cache_control.no_store = True
+        response.cache_control.private = True
+        response.headers["Pragma"] = "no-cache"
+        return response, 200
 
 
 def build_config_blueprint(name: str) -> Blueprint:
@@ -1052,8 +1116,8 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/acls/<string:acl_id>", view_func=ACLEntries.as_view(f"{name}_acl"), methods=crud_methods)
     config_bp.add_url_rule("/attributes", view_func=Attributes.as_view(f"{name}_attributes"))
     config_bp.add_url_rule("/attributes/<string:attribute_id>", view_func=Attributes.as_view(f"{name}_attribute"), methods=crud_methods)
-    config_bp.add_url_rule("/bots", view_func=Bots.as_view(f"{name}_bots_config"))
-    config_bp.add_url_rule("/bots/<string:bot_id>", view_func=Bots.as_view(f"{name}_bot_config"), methods=crud_methods)
+    config_bp.add_url_rule("/bots", view_func=Bots.as_view(f"{name}_bots_config"), methods=["GET", "POST"])
+    config_bp.add_url_rule("/bots/<string:bot_id>", view_func=Bots.as_view(f"{name}_bot_config"), methods=crud_patch_methods)
     config_bp.add_url_rule("/bots/dag-preview", view_func=BotDagPreview.as_view(f"{name}_bot_dag_preview"))
     config_bp.add_url_rule("/bots/<string:bot_id>/execute", view_func=BotExecute.as_view(f"{name}_bot_execute"))
     config_bp.add_url_rule(
@@ -1065,8 +1129,8 @@ def build_config_blueprint(name: str) -> Blueprint:
         view_func=Organizations.as_view(f"{name}_organization"),
         methods=crud_methods,
     )
-    config_bp.add_url_rule("/osint-sources", view_func=OSINTSources.as_view(f"{name}_osint_sources"))
-    config_bp.add_url_rule("/sources", view_func=OSINTSources.as_view(f"{name}_sources"))
+    config_bp.add_url_rule("/osint-sources", view_func=OSINTSources.as_view(f"{name}_osint_sources"), methods=["GET", "POST"])
+    config_bp.add_url_rule("/sources", view_func=OSINTSources.as_view(f"{name}_sources"), methods=["GET", "POST"])
     config_bp.add_url_rule(
         "/osint-sources/<string:source_id>", view_func=OSINTSources.as_view(f"{name}_osint_source"), methods=crud_patch_methods
     )
@@ -1080,23 +1144,21 @@ def build_config_blueprint(name: str) -> Blueprint:
     )
     config_bp.add_url_rule("/export-osint-sources", view_func=OSINTSourcesExport.as_view(f"{name}_osint_sources_export"))
     config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view(f"{name}_osint_sources_import"))
-    config_bp.add_url_rule("/parameters", view_func=Parameters.as_view(f"{name}_parameters"))
-    config_bp.add_url_rule("/worker-parameters", view_func=WorkerParameters.as_view(f"{name}_worker_parameters"))
     config_bp.add_url_rule("/permissions", view_func=Permissions.as_view(f"{name}_permissions"))
-    config_bp.add_url_rule("/presenters", view_func=Presenters.as_view(f"{name}_presenters"))
-    config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view(f"{name}_product_types_config"))
-    config_bp.add_url_rule("/product-types/<string:type_id>", view_func=ProductTypes.as_view(f"{name}_product_type"), methods=crud_methods)
+    config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view(f"{name}_product_types_config"), methods=["GET", "POST"])
+    config_bp.add_url_rule(
+        "/product-types/<string:type_id>", view_func=ProductTypes.as_view(f"{name}_product_type"), methods=crud_patch_methods
+    )
     config_bp.add_url_rule("/templates", view_func=Templates.as_view(f"{name}_templates"))
     config_bp.add_url_rule("/templates/<string:template_path>", view_func=Templates.as_view(f"{name}_template"))
     config_bp.add_url_rule("/templates/validate", view_func=TemplateValidation.as_view(f"{name}_template_validation"))
-    config_bp.add_url_rule("/publishers", view_func=Publishers.as_view(f"{name}_publishers"))
-    config_bp.add_url_rule("/publishers-presets", view_func=PublisherPresets.as_view(f"{name}_publishers_presets"))
+    config_bp.add_url_rule("/publishers-presets", view_func=PublisherPresets.as_view(f"{name}_publishers_presets"), methods=["GET", "POST"])
     config_bp.add_url_rule(
-        "/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view(f"{name}_publishers_preset"), methods=crud_methods
+        "/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view(f"{name}_publishers_preset"), methods=crud_patch_methods
     )
-    config_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view(f"{name}_publisher_presets"))
+    config_bp.add_url_rule("/publisher-presets", view_func=PublisherPresets.as_view(f"{name}_publisher_presets"), methods=["GET", "POST"])
     config_bp.add_url_rule(
-        "/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view(f"{name}_publisher_preset"), methods=crud_methods
+        "/publisher-presets/<string:preset_id>", view_func=PublisherPresets.as_view(f"{name}_publisher_preset"), methods=crud_patch_methods
     )
     config_bp.add_url_rule("/report-item-types", view_func=ReportItemTypes.as_view(f"{name}_report_item_types"))
     config_bp.add_url_rule(
@@ -1127,9 +1189,11 @@ def build_config_blueprint(name: str) -> Blueprint:
     config_bp.add_url_rule("/admin-menu-badges", view_func=AdminMenuBadges.as_view(f"{name}_admin_menu_badges"))
     config_bp.add_url_rule("/schedule", view_func=Schedule.as_view(f"{name}_queue_schedule"))
     config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view(f"{name}_queue_schedule_task"))
-    config_bp.add_url_rule("/worker-types", view_func=Workers.as_view(f"{name}_worker_types"))
-    config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view(f"{name}_worker_type_patch"))
-    config_bp.add_url_rule("/connectors", view_func=Connectors.as_view(f"{name}_connectors"))
+    config_bp.add_url_rule(
+        "/parameter-secrets/<string:resource>/<string:resource_id>/<string:parameter>/reveal",
+        view_func=ParameterSecrets.as_view(f"{name}_parameter_secret_reveal"),
+    )
+    config_bp.add_url_rule("/connectors", view_func=Connectors.as_view(f"{name}_connectors"), methods=["GET", "POST"])
     config_bp.add_url_rule("/connectors/<string:connector_id>", view_func=Connectors.as_view(f"{name}_connector"), methods=crud_patch_methods)
     config_bp.add_url_rule("/connectors/<string:connector_id>/pull", view_func=ConnectorsPull.as_view(f"{name}_connector_collect"))
 

@@ -11,6 +11,21 @@
 
     {% include "dashboard/user_item_cards.html" %}
 
+    {% if dashboard_config.show_pizzint %}
+      <section class="mb-4" data-testid="dashboard-external-signals">
+        <div class="text-3xl font-bold mb-4">External Signals</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div hx-get="{{ url_for('base.pizzint_card') }}"
+               hx-trigger="load"
+               hx-swap="outerHTML"
+               class="bg-base-100 border p-4 min-h-40"
+               data-testid="pizzint-card-placeholder">
+            <span class="loading loading-spinner loading-sm" aria-label="Loading PizzINT status"></span>
+          </div>
+        </div>
+      </section>
+    {% endif %}
+
     {% if dashboard_config.show_trending_clusters and clusters %}
       {% set visible_clusters = clusters[:3] %}
       {% set hidden_clusters = clusters[3:] %}

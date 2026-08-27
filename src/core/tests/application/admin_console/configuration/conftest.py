@@ -42,7 +42,11 @@ def cleanup_connector(app):
             "name": f"Test Connector {uuid.uuid4().hex[:8]}",
             "description": "Test connector",
             "type": "misp_connector",
-            "parameters": {"API_KEY": "super-secret-api-key"},
+            "parameters": {
+                "URL": "https://misp.example.test",
+                "API_KEY": "super-secret-api-key",
+                "ORGANISATION_ID": "1",
+            },
         }
 
         if not Connector.get(connector_data["id"]):
@@ -168,7 +172,7 @@ def cleanup_bot(app):
             "name": "testBot",
             "description": "test Bot",
             "type": "tagging_bot",
-            "parameters": {"SOURCE_GROUP": "default", "RUN_AFTER_COLLECTOR": "true"},
+            "parameters": {"REGULAR_EXPRESSION": r"\btest\b", "RUN_AFTER_COLLECTOR": "true"},
         }
 
         yield bot_data
@@ -297,18 +301,3 @@ def cleanup_attribute(app):
         with suppress(SQLAlchemyError):
             if Attribute.get(attribute_data["id"]):
                 Attribute.delete(attribute_data["id"])
-
-
-@pytest.fixture(scope="session")
-def cleanup_worker_types(app):
-    import contextlib
-
-    with app.app_context():
-        rss_worker_data = None
-        with contextlib.suppress(Exception):
-            from core.model.worker import Worker
-
-            if rss_worker := Worker.filter_by_type("rss_collector"):
-                rss_worker_data = rss_worker.to_dict()
-
-        yield rss_worker_data

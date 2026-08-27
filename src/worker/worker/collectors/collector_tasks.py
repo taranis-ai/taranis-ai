@@ -6,6 +6,7 @@ Functions for collecting news from OSINT sources.
 from contextlib import contextmanager
 from typing import Any
 
+from models.worker_parameters import effective_parameter_values
 from rq import get_current_job
 
 import worker.collectors
@@ -117,6 +118,7 @@ def collector_task(osint_source_id: str, manual: bool = False):
 
     try:
         source = collector.get_source(osint_source_id)
+        source["parameters"] = effective_parameter_values(source["type"], source.get("parameters", {}))
     except LookupError as exc:
         result_message = f"Error: {exc}"
         logger.error(result_message)
@@ -249,6 +251,7 @@ def collector_preview(osint_source_id: str):
     job = get_current_job()
     collector = Collector()
     source = collector.get_source(osint_source_id)
+    source["parameters"] = effective_parameter_values(source["type"], source.get("parameters", {}))
     collector_impl = collector.get_collector(source)
     formatter = TaranisLogFormatter(logger.module, custom_prefix=f"{collector_impl.name} {job.id if job else 'preview'}")
     task_description = (

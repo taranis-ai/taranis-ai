@@ -30,6 +30,7 @@ class SourceView(AdminBaseView):
     collector_types: ClassVar[dict[str, dict[str, str]]] = {
         member.name.lower(): {"id": member.name.lower(), "name": " ".join(part.capitalize() for part in member.name.split("_"))}
         for member in COLLECTOR_TYPES
+        if member is not COLLECTOR_TYPES.PPN_COLLECTOR or not Config.DISABLE_PPN_COLLECTOR
     }
 
     @classmethod
@@ -99,6 +100,11 @@ class SourceView(AdminBaseView):
         base_context["collector_types"] = cls.collector_types.values()
         base_context["icon_accept"] = Config.OSINT_SOURCE_ICON_ALLOWED_MIMETYPES
         base_context["actions"] = osint_source_actions
+        base_context["secret_reveal_url"] = (
+            f"{Config.TARANIS_BASE_PATH.rstrip('/')}/api/config/parameter-secrets/sources/{collector.id}"
+            if collector and collector.id
+            else ""
+        )
         return base_context
 
     @classmethod

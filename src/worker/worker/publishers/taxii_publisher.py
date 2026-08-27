@@ -17,8 +17,6 @@ class BearerAuth(AuthBase):
 
 
 class TAXIIPublisher(BasePublisher):
-    REQUIRED_PARAMETERS = ("TAXII_COLLECTION_ID", "AUTH_TYPE")
-
     def __init__(self):
         super().__init__()
         self.type = "TAXII_PUBLISHER"
@@ -66,7 +64,7 @@ class TAXIIPublisher(BasePublisher):
         return Collection(collection_url, **client_kwargs)
 
     def _build_client_kwargs(self, parameters: dict[str, Any]) -> dict[str, Any]:
-        kwargs: dict[str, Any] = {"verify": parameters.get("SSL_VERIFY") == "true"}
+        kwargs: dict[str, Any] = {"verify": parameters.get("SSL_VERIFY", True)}
 
         if proxy_server := parameters.get("PROXY_SERVER"):
             kwargs["proxies"] = {

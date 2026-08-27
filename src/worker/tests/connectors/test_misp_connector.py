@@ -147,7 +147,11 @@ def test_connector_story_processing(misp_connector_core_mock, misp_api_mock, cap
 def test_connector_task_execution_failure_is_persisted_safely(requests_mock, mock_job, monkeypatch, caplog):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
-        json={"id": "connector-1", "type": "misp_connector"},
+        json={
+            "id": "connector-1",
+            "type": "misp_connector",
+            "parameters": {"URL": "https://misp.test", "API_KEY": "secret", "ORGANISATION_ID": "1"},
+        },
     )
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
     monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
@@ -208,6 +212,34 @@ def test_connector_task_unknown_type_persists_failure(requests_mock, mock_job, m
     }
 
 
+def test_connector_task_invalid_parameters_persists_distinct_failure(requests_mock, mock_job, monkeypatch):
+    requests_mock.get(
+        f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
+        json={"id": "connector-1", "type": "misp_connector", "parameters": {"URL": "https://misp.test"}},
+    )
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+    monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
+
+    with pytest.raises(ConnectorError, match="Invalid connector parameters"):
+        connector_tasks.connector_task("connector-1", ["story-1"])
+
+    post_calls = [req for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks")]
+    assert len(post_calls) == 1
+    assert post_calls[0].json() == {
+        "id": "test-job-123",
+        "task": "connector_task",
+        "worker_id": "connector-1",
+        "worker_type": "MISP_CONNECTOR",
+        "result": {
+            "message": "Invalid connector parameters",
+            "reason": "invalid_parameters",
+            "retryable": False,
+            "data": {"connector_id": "connector-1", "story_ids": ["story-1"]},
+        },
+        "status": "FAILURE",
+    }
+
+
 def test_connector_task_missing_type_persists_distinct_failure(requests_mock, mock_job, monkeypatch):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
@@ -239,7 +271,11 @@ def test_connector_task_missing_type_persists_distinct_failure(requests_mock, mo
 def test_connector_task_story_load_failure_persists_failure(requests_mock, mock_job, monkeypatch):
     requests_mock.get(
         f"{Config.TARANIS_CORE_URL}/worker/connectors/connector-1",
-        json={"id": "connector-1", "type": "misp_connector"},
+        json={
+            "id": "connector-1",
+            "type": "misp_connector",
+            "parameters": {"URL": "https://misp.test", "API_KEY": "secret", "ORGANISATION_ID": "1"},
+        },
     )
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
     monkeypatch.setattr(connector_tasks, "get_current_job", lambda: mock_job)
@@ -385,10 +421,20 @@ def test_blocked_results_are_counted_in_execution_summary():
     )
 
 
-@pytest.mark.parametrize(("request_timeout", "expected"), [("", 5), ("42", 42)])
-def test_pymisp_uses_configured_timeout(monkeypatch, request_timeout, expected):
+@pytest.mark.parametrize(("request_timeout", "expected"), [(None, 5), (42, 42)])
+def test_pymisp_uses_registered_parameters(monkeypatch, request_timeout, expected):
     connector = MispConnector()
-    connector.parse_parameters({"URL": "https://misp.example", "API_KEY": "key", "REQUEST_TIMEOUT": request_timeout})
+    connector.parse_parameters(
+        {
+            "URL": "https://misp.example",
+            "API_KEY": "key",
+            "REQUEST_TIMEOUT": request_timeout,
+            "SSL_CHECK": True,
+            "PROXY_SERVER": "http://proxy.example:8080",
+            "ADDITIONAL_HEADERS": {"X-Test": "1"},
+            "USER_AGENT": "TaranisAI/test",
+        }
+    )
     captured = {}
 
     monkeypatch.setattr("worker.connectors.misp_connector.PyMISP", lambda **kwargs: captured.update(kwargs) or object())
@@ -396,7 +442,18 @@ def test_pymisp_uses_configured_timeout(monkeypatch, request_timeout, expected):
 
     connector.send_event_to_misp({})
 
-    assert captured["timeout"] == expected
+    assert captured == {
+        "url": "https://misp.example",
+        "key": "key",
+        "ssl": True,
+        "proxies": {
+            "http": "http://proxy.example:8080",
+            "https": "http://proxy.example:8080",
+            "ftp": "http://proxy.example:8080",
+        },
+        "http_headers": {"X-Test": "1", "User-Agent": "TaranisAI/test"},
+        "timeout": expected,
+    }
 
 
 def test_auto_update_unowned_event_is_skipped(monkeypatch):
@@ -475,7 +532,7 @@ def test_valid_distribution():
 
 def test_empty_distribution_with_sharing_group():
     connector = MispConnector()
-    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1", "DISTRIBUTION": ""})
+    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": 1, "DISTRIBUTION": ""})
     assert connector.distribution == 4
 
 
@@ -493,5 +550,5 @@ def test_invalid_distribution_string():
 
 def test_distribution_not_provided():
     connector = MispConnector()
-    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": "1"})
+    connector.parse_parameters({"URL": "http://localhost", "API_KEY": "abc", "SHARING_GROUP_ID": 1})
     assert connector.distribution == 4

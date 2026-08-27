@@ -8,8 +8,6 @@ from .base_publisher import BasePublisher
 
 
 class S3Publisher(BasePublisher):
-    REQUIRED_PARAMETERS = ("S3_ENDPOINT", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET_NAME")
-
     def __init__(self, client=None):
         super().__init__()
         self.type = "S3_PUBLISHER"

@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -6,10 +7,8 @@ from lxml import html
 from models.admin import Bot
 from models.types import BOT_TYPES
 
+from frontend.views.admin_views.admin_base_view import AdminBaseView
 from frontend.views.admin_views.bot_views import BotView
-
-
-pytestmark = pytest.mark.usefixtures("mock_worker_parameters_get")
 
 
 @pytest.mark.parametrize(
@@ -36,11 +35,49 @@ def test_bot_parameters_include_optional_positive_integer_requests_timeout(authe
     assert len(requests_timeout_fields) == 1
     assert len(item_filter_fields) == 1
     assert len(refresh_interval_fields) == 1
-    assert requests_timeout_fields[0].get("type") == "text"
-    assert requests_timeout_fields[0].get("pattern") == "^[1-9][0-9]*$"
+    assert requests_timeout_fields[0].get("type") == "number"
+    assert requests_timeout_fields[0].get("min") == "1"
     assert requests_timeout_fields[0].get("required") is None
     assert refresh_interval_fields[0].get("required") is None
+    assert tree.xpath('//*[@title="LLM request timeout in seconds."]')
     assert response.text.index('name="parameters[ITEM_FILTER]"') < response.text.index('name="parameters[REQUESTS_TIMEOUT]"')
+
+
+def test_worker_parameter_numeric_upper_bounds(monkeypatch):
+    monkeypatch.setattr(
+        "frontend.views.admin_views.admin_base_view.parameter_schema",
+        lambda _worker_type: {
+            "properties": {
+                "ZERO_MAX": {"type": "integer", "maximum": 0},
+                "EXCLUSIVE_INT_MAX": {"type": "integer", "exclusiveMaximum": 5},
+                "EXCLUSIVE_NUMBER_MAX": {"type": "number", "exclusiveMaximum": 5.5},
+            }
+        },
+    )
+
+    fields = {field["name"]: field for field in AdminBaseView.get_worker_parameters("test")}
+
+    assert fields["ZERO_MAX"]["maximum"] == 0
+    assert fields["EXCLUSIVE_INT_MAX"]["maximum"] == 4
+    assert fields["EXCLUSIVE_NUMBER_MAX"]["maximum"] is None
+
+
+def test_worker_parameter_form_renders_native_boolean_and_object_values(app):
+    with app.test_request_context("/"):
+        rendered = render_template(
+            "partials/worker_parameters.html",
+            parameters=AdminBaseView.get_worker_parameters("RSS_COLLECTOR"),
+            parameter_values={
+                "FEED_URL": "https://example.test/feed",
+                "USE_GLOBAL_PROXY": True,
+                "ADDITIONAL_HEADERS": {"X-Test": "1"},
+            },
+        )
+
+    tree = html.fromstring(rendered)
+    assert tree.xpath('//input[@name="parameters[USE_GLOBAL_PROXY]"][@type="checkbox"][@checked]')
+    headers = tree.xpath('//textarea[@name="parameters[ADDITIONAL_HEADERS]"]')[0]
+    assert json.loads(headers.text) == {"X-Test": "1"}
 
 
 def test_summary_bot_parameters_include_split_summary_and_title_endpoints(authenticated_client, htmx_header):
@@ -59,8 +96,7 @@ def test_summary_bot_parameters_include_split_summary_and_title_endpoints(authen
     assert summary_endpoint_fields[0].get("required") is None
     assert title_endpoint_fields[0].get("required") is None
 
-    # Ensure ordering matches Worker._order_parameters: BOT_API_KEY, SUMMARY_ENDPOINT,
-    # TITLE_ENDPOINT, RUN_AFTER_COLLECTOR
+    # Field order comes directly from the shared Pydantic parameter model.
     bot_api_key_index = response.text.index('name="parameters[BOT_API_KEY]"')
     summary_endpoint_index = response.text.index('name="parameters[SUMMARY_ENDPOINT]"')
     title_endpoint_index = response.text.index('name="parameters[TITLE_ENDPOINT]"')
@@ -155,7 +191,7 @@ def test_bot_run_order_controls_render_selected_dependencies(app):
         rendered = render_template(
             "bot/bot_run_order.html",
             bot_id="bot-1",
-            parameter_values={"RUN_AFTER_COLLECTOR": "true", "RUN_AFTER_BOTS": ioc_bot_id},
+            parameter_values={"RUN_AFTER_COLLECTOR": True, "RUN_AFTER_BOTS": [ioc_bot_id]},
             selected_run_after=[ioc_bot_id],
             run_after_options=[{"id": ioc_bot_id, "name": "IOC Bot (IOC_BOT)", "enabled": "true"}],
             dag_preview={"order": [{"name": "Wordlist Bot"}, {"name": "IOC Bot"}], "edges": [], "warnings": []},

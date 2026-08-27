@@ -54,7 +54,7 @@ class SimpleWebCollector(BaseWebCollector):
         return []
 
     def gather_news_items(self) -> list[NewsItem]:
-        if self.browser_mode == "true":
+        if self.browser_mode:
             self.playwright_manager = PlaywrightManager(self.proxies, self._request_headers(""))
         try:
             self.news_items = self.collect_news()
@@ -65,7 +65,7 @@ class SimpleWebCollector(BaseWebCollector):
         return self.news_items
 
     def collect_news(self) -> list[NewsItem]:
-        if self.digest_splitting == "true":
+        if self.digest_splitting:
             return self.handle_digests()
 
         return [self.news_item_from_article(self.web_url, self.xpath)]
