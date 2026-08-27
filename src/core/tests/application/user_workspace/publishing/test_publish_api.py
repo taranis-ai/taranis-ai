@@ -1,6 +1,7 @@
 import base64
 from datetime import UTC, datetime
 from urllib.parse import quote
+from uuid import uuid4
 
 import pytest
 
@@ -23,7 +24,8 @@ def product_type_change_resources(app):
         assert report_type and initial_type and compatible_type and incompatible_type
 
         report = ReportItem(title="Product type change report", report_item_type_id=report_type.id)
-        db.session.add(report)
+        untyped_report = ReportItem(title="Legacy untyped product report", report_item_type_id=None)
+        db.session.add_all([report, untyped_report])
         db.session.flush()
         product = Product(
             title="Product type change product",
@@ -39,13 +41,16 @@ def product_type_change_resources(app):
         yield {
             "product_id": product.id,
             "product_title": product.title,
+            "initial_type_id": initial_type.id,
             "report_id": report.id,
+            "untyped_report_id": untyped_report.id,
             "compatible_type_id": compatible_type.id,
             "incompatible_type_id": incompatible_type.id,
         }
 
         Product.delete(product.id)
         ReportItem.delete(report.id)
+        ReportItem.delete(untyped_report.id)
 
 
 class TestPublishApi(BaseTest):
@@ -72,7 +77,10 @@ class TestPublishApi(BaseTest):
         update_payload = {
             "title": product_type_change_resources["product_title"],
             "product_type_id": product_type_change_resources["compatible_type_id"],
-            "report_items": [product_type_change_resources["report_id"]],
+            "report_items": [
+                product_type_change_resources["report_id"],
+                product_type_change_resources["untyped_report_id"],
+            ],
         }
 
         product_url = self.concat_url(f"products/{product_type_change_resources['product_id']}")
@@ -93,6 +101,50 @@ class TestPublishApi(BaseTest):
         no_report_response = client.put(product_url, headers=auth_header, json=update_payload)
         assert no_report_response.status_code == 200
         assert no_report_response.get_json()["product"]["product_type_id"] == product_type_change_resources["incompatible_type_id"]
+
+    def test_product_type_change_rejects_type_hidden_by_acl(self, app, client, auth_header_user_permissions, product_type_change_resources):
+        from core.managers.db_manager import db
+        from core.model.product import Product
+        from core.model.role import Role
+        from core.model.role_based_access import ItemType, RoleBasedAccess
+
+        with app.app_context():
+            admin_role = Role.filter_by_name("Admin")
+            assert admin_role is not None
+            acl = RoleBasedAccess(
+                name=f"product-type-acl-{uuid4()}",
+                description="Restrict product type to administrators",
+                item_type=ItemType.PRODUCT_TYPE,
+                item_id=product_type_change_resources["compatible_type_id"],
+                roles=[admin_role.id],
+                read_only=True,
+                enabled=True,
+            )
+            db.session.add(acl)
+            db.session.commit()
+            acl_id = acl.id
+
+        try:
+            response = client.put(
+                self.concat_url(f"products/{product_type_change_resources['product_id']}"),
+                headers=auth_header_user_permissions,
+                json={
+                    "title": product_type_change_resources["product_title"],
+                    "product_type_id": product_type_change_resources["compatible_type_id"],
+                    "report_items": [],
+                },
+            )
+
+            assert response.status_code == 403
+            assert response.get_json() == {"error": "User does not have access to this product type"}
+            with app.app_context():
+                product = Product.get(product_type_change_resources["product_id"])
+                assert product is not None
+                assert product.product_type_id == product_type_change_resources["initial_type_id"]
+        finally:
+            with app.app_context():
+                if RoleBasedAccess.get(acl_id):
+                    RoleBasedAccess.delete(acl_id)
 
     def test_rendered_product_download_returns_attachment(self, app, client, auth_header, pdf_product):
         file_bytes = b"This is a pdf"

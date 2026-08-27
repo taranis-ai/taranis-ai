@@ -556,7 +556,8 @@ class TestWorkerTaskResults:
         render_result = "YmFzZTY0"
 
         with app.app_context():
-            Product.add({**cleanup_product, "id": product_id})
+            product = Product.add({**cleanup_product, "id": product_id})
+            render_revision = product.to_worker_dict()["render_revision"]
 
         payload = {
             "id": task_id,
@@ -564,7 +565,7 @@ class TestWorkerTaskResults:
             "result": {
                 "message": "ok",
                 "retryable": False,
-                "data": {"product_id": product_id, "render_result": render_result},
+                "data": {"product_id": product_id, "render_result": render_result, "render_revision": render_revision},
             },
             "status": "SUCCESS",
         }
@@ -577,6 +578,47 @@ class TestWorkerTaskResults:
                 product = Product.get(product_id)
                 assert product is not None
                 assert product.render_result == render_result
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+                if Product.get(product_id):
+                    Product.delete(product_id)
+
+    def test_worker_task_results_only_apply_to_matching_product_revision(self, client, api_header, app, cleanup_product):
+        from core.managers.db_manager import db
+        from core.model.product import Product
+        from core.model.task import Task
+
+        product_id = str(uuid.uuid7())
+        task_id = f"presenter-job-{uuid.uuid4().hex}"
+
+        with app.app_context():
+            product = Product.add({**cleanup_product, "id": product_id})
+            stale_revision = product.to_worker_dict()["render_revision"]
+            product.title = "Updated while rendering"
+            db.session.commit()
+
+        payload = {
+            "id": task_id,
+            "task": "presenter_task",
+            "result": {
+                "message": "ok",
+                "retryable": False,
+                "data": {"product_id": product_id, "render_result": "YmFzZTY0", "render_revision": stale_revision},
+            },
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            with app.app_context():
+                product = Product.get(product_id)
+                assert product is not None
+                assert product.render_result is None
+                assert product.last_rendered is None
         finally:
             with app.app_context():
                 if Task.get(task_id):
