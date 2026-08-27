@@ -8,7 +8,7 @@ RSS collectors, Atom feeds, feedparser validation, empty feeds, OSINT source sta
 
 An RSS source fails immediately when feedparser cannot identify the response as RSS or Atom. If the response is HTML and advertises an RSS or Atom feed through a standard `rel="alternate"` link, the failure message suggests the first advertised feed URL. A conditional 304 after that failure keeps the source failed because the unchanged response cannot prove that the feed became valid. A parseable feed with no entries is `NOT_MODIFIED` with the `rss_feed_empty` reason and a message explaining that the feed is valid but empty.
 
-Each collection processes at most the global `rss_collector_max_entries` value from Admin Settings. The default is 42 and the setting must be a positive integer. The same limit applies to normal feeds and digest splitting.
+Each collection processes at most the global `rss_collector_max_entries` value from Admin Settings. The default is 42 and the setting must be a positive integer. The same limit applies to normal feeds and digest splitting. The Admin Settings form shows a non-blocking warning outside the recommended range of 20–100; administrators can still save any positive integer.
 
 Each state includes a user-facing message. Empty-feed results persist the current HTTP validators but do not count collection attempts or become failures.
 
