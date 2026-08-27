@@ -234,6 +234,8 @@ TASK_MAP = {
     "cleanup_token_blacklist": "worker.misc.misc_tasks.cleanup_token_blacklist",
     "cleanup_task_history": "worker.misc.misc_tasks.cleanup_task_history",
     "fetch_single_news_item": "worker.collectors.collector_tasks.fetch_single_news_item",
+    "checkpoint_collaboration_document": "worker.misc.misc_tasks.checkpoint_collaboration_document",
+    "federate_collaboration_document": "worker.misc.misc_tasks.federate_collaboration_document",
 }
 
 

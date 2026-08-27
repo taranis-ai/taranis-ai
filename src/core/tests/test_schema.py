@@ -142,7 +142,9 @@ def test_realtime_connect_schema(case, monkeypatch):
     case.validate_response(response, checks=response_checks)
 
 
-@schema.include(path_regex=r"^/(?!auth|isalive|health|analyze|assess|assets|worker|bots|tasks|realtime/connect)").parametrize()
+@schema.include(
+    path_regex=r"^/(?!auth|isalive|health|analyze|assess|assets|worker|bots|tasks|realtime/(connect|subscribe)|collaboration|documents|peer-(channels|documents))"
+).parametrize()
 @settings(max_examples=2, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_schema_no_auth(case, auth_header_no_permissions, caplog):
     with caplog.at_level(logging.CRITICAL):

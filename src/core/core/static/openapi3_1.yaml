@@ -9224,6 +9224,69 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /collaboration/channels:
+    get:
+      operationId: collaboration.channel_list.get
+      responses: {'200': {description: channel list}}
+    post:
+      operationId: collaboration.channels.post
+      responses: {'201': {description: channel created}}
+  /collaboration/channels/{channel_id}:
+    get:
+      operationId: collaboration.channel.get
+      responses: {'200': {description: channel}}
+  /collaboration/channels/join:
+    post:
+      operationId: collaboration.channel_join.post
+      responses: {'200': {description: joined}}
+  /collaboration/channels/{channel_id}/close:
+    post:
+      operationId: collaboration.close.post
+      responses: {'200': {description: closed}}
+  /collaboration/channels/{channel_id}/finalize:
+    post:
+      operationId: collaboration.finalize.post
+      responses: {'200': {description: finalized}}
+  /documents/{document_id}:
+    get:
+      operationId: collaboration.document.get
+      responses: {'200': {description: document descriptor}}
+  /documents/{document_id}/checkpoint:
+    post:
+      operationId: collaboration.document_checkpoint.post
+      responses: {'200': {description: checkpointed}}
+  /documents/{document_id}/federate:
+    post:
+      operationId: collaboration.document_federate.post
+      responses: {'200': {description: synchronized}}
+  /documents/{document_id}/presence/{session_id}:
+    put:
+      operationId: collaboration.presence.put
+      responses: {'204': {description: presence updated}}
+    delete:
+      operationId: collaboration.presence.delete
+      responses: {'204': {description: presence removed}}
+  /documents/{document_id}/sync:
+    post:
+      operationId: collaboration.document_sync.post
+      responses: {'200': {description: missing updates}}
+  /documents/{document_id}/updates:
+    post:
+      operationId: collaboration.document_update.post
+      responses: {'202': {description: update accepted}}
+  /peer-channels/{channel_id}/register:
+    post:
+      operationId: collaboration.peer_channel_register.post
+      responses: {'200': {description: peer registered}}
+  /peer-documents/{document_id}/sync:
+    post:
+      operationId: collaboration.peer_document_sync.post
+      responses: {'200': {description: peer synchronized}}
+  /realtime/subscribe:
+    post:
+      operationId: realtime.subscribe.post
+      responses: {'200': {description: subscription authorization}}
+
 components:
   schemas:
     req.auth.username_password:
