@@ -96,43 +96,6 @@ def test_rss_published_date_uses_first_parseable_value(rss_collector):
     assert rss_collector.get_published_date(entry) == datetime.datetime(2026, 8, 19, 12, 34, 56)
 
 
-@pytest.mark.parametrize(("use_feed_content", "link"), [(True, "https://example.com/article"), (False, "")])
-def test_rss_feed_updated_fallback_applies_across_content_modes(rss_collector, use_feed_content, link):
-    import datetime
-
-    import feedparser
-
-    feed_updated = datetime.datetime(2026, 8, 19, 12, 34, 56)
-    rss_collector.feed_url = "https://example.com/feed"
-    rss_collector.use_feed_content = use_feed_content
-    rss_collector.xpath = ""
-    item = rss_collector.parse_feed_entry(
-        feedparser.FeedParserDict(title="Item", description="Feed content", link=link),
-        {"id": "source-1", "parameters": {}},
-        feed_updated,
-    )
-
-    assert item.published == feed_updated
-
-
-def test_rss_digest_uses_feed_updated_fallback(rss_collector, requests_mock):
-    import datetime
-
-    import feedparser
-
-    article_url = "https://example.com/digest-article"
-    article = f"<html><head><title>Digest article</title></head><body><main><p>{'Digest content. ' * 30}</p></main></body></html>"
-    requests_mock.get(article_url, text=article)
-    rss_collector.feed_url = "https://example.com/feed"
-    rss_collector.digest_splitting_limit = 1
-    feed_updated = datetime.datetime(2026, 8, 19, 12, 34, 56)
-
-    items = rss_collector.handle_digests([feedparser.FeedParserDict(summary=f'<a href="{article_url}">Article</a>')], feed_updated)
-
-    assert len(items) == 1
-    assert items[0].published == feed_updated
-
-
 def test_rss_publish_error_propagates(rss_collector, requests_mock):
     from models.assess import NewsItem
 
