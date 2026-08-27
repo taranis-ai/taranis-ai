@@ -16,7 +16,7 @@ gh extension install basecamp/gh-signoff
 Workflow:
 
 1. Push your branch and create or update the pull request.
-2. Run `./dev/signoff.sh` from the repository root. It runs the same local lint, unit test, and e2e scope as the PR workflow, then calls `gh signoff` only if everything passes.
+2. Run `./dev/signoff.sh` from the repository root. It prepares component environments in parallel, then runs the same local lint, unit test, and e2e scope as the PR workflow in parallel before calling `gh signoff`.
 3. Run `./dev/signoff.sh` again after every new commit you push.
 4. If you do not use local signoff, the normal `test and lint` GitHub Actions workflow remains the fallback path.
 

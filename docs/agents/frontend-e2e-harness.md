@@ -25,6 +25,8 @@ pytest-docker creates an isolated project, publishes Core and Redis on random ho
 
 CI runs two admin shards, one user shard, one application-backed support shard, one browser-only JavaScript shard, and one RQ/dashboard shard concurrently. Each lane uses a distinct Compose project name. GitHub-hosted runners do not spend time stopping containers because the runner itself is disposable. Authenticated page fixtures mark the relevant onboarding tasks complete before opening a page; the onboarding tests explicitly reset those tasks when they need the unfinished state, so every shard can run independently.
 
+`dev/testpipeline.sh` uses three local E2E lanes to balance elapsed time against Docker Desktop contention: admin without dashboard, user, and full-stack/support including dashboard. It prepares all component environments first, then overlaps those lanes with component lint and unit tests.
+
 Worker prepares the RQ virtual environment once and shares it with cron. Cron waits for the `.e2e-ready` marker instead of independently installing the same dependency graph.
 
 ## Testing
