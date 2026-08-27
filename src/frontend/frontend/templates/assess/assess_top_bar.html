@@ -1,7 +1,8 @@
 {% macro story_status_actions(in_dropdown=False, bookmark_mode=False) %}
   <button type="button"
           class="btn btn-outline btn-sm tooltip {{ 'w-full join-item' if in_dropdown else '' }}"
-          hx-trigger="click, keyup[shiftKey && code == 'Space' && canUseAssessShortcut(event)] from:body"
+          hx-trigger="click"
+          @keyup.window="canUseAssessShortcut($event) && $event.shiftKey && $event.code === 'Space' && selectedItems.length > 0 && $el.click()"
           hx-post="{{ url_for('assess.bulk_action') }}"
           {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
           :hx-vals='action_vals("read", !selectedItemsAreRead())'
@@ -34,6 +35,7 @@
 <div id="assess-top-bar"
      class="sticky z-10 mb-4"
      style="top: calc(var(--app-header-height) + var(--viewport-warning-height))"
+     @keydown.window="preventAssessShortcutDefault($event, 'Space')"
      @keydown.shift.window="showHints = true"
      @keyup.shift.window="showHints = false">
   <div class="flex p-2 flex-row justify-between min-h-[3rem] bg-base-100 border border-base-300 shadow-lg rounded-box">
