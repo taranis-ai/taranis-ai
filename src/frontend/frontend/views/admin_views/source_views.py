@@ -86,7 +86,7 @@ class SourceView(AdminBaseView):
                 "hx_swap": "outerHTML",
                 "type": "button",
                 "confirm": "Are you sure you want to delete this OSINT Source?",
-                "data_attr": "data-swal-confirm=true",
+                "data_attr": "data-force-delete",
             },
         ]
 
@@ -270,7 +270,7 @@ class SourceView(AdminBaseView):
 
     @classmethod
     def delete_view(cls, object_id: str) -> tuple[str, int]:
-        force = str(request.values.get("force", "")).lower() in {"1", "true", "yes", "on"}
+        force = request.values.get("force") == "true"
         dpl = DataPersistenceLayer()
         params = {"force": "true"} if force else None
         core_response = dpl.delete_object(cls.model, object_id, params=params)
@@ -290,7 +290,7 @@ class SourceView(AdminBaseView):
 
     @classmethod
     def delete_multiple_view(cls, object_ids: list[str], params: dict[str, str] | None = None) -> tuple[str, int]:
-        force = str(request.values.get("force", "")).lower() in {"1", "true", "yes", "on"}
+        force = request.values.get("force") == "true"
         if force:
             params = (params or {}) | {"force": "true"}
         return super().delete_multiple_view(object_ids, params=params)
