@@ -205,7 +205,7 @@ document.body.addEventListener("htmx:confirm", function (evt) {
 
   evt.preventDefault();
   const opts = getConfirmOptions(triggerElement, evt.detail.question);
-  if (triggerElement.matches("[data-swal-confirm]")) {
+  if (triggerElement.matches("[data-force-delete]")) {
     Object.assign(opts, {
       input: "checkbox",
       inputValue: 0,
