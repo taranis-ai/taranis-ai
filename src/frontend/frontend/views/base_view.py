@@ -554,25 +554,10 @@ class BaseView(MethodView):
 
     @classmethod
     def delete_multiple_view(cls, object_ids: list[str], params: dict[str, str] | None = None) -> tuple[str, int]:
-        for deleted_count, object_id in enumerate(object_ids):
-            core_response = DataPersistenceLayer().delete_object(cls.model, object_id, params=params)
-            if not core_response.ok:
-                payload = cls._response_payload(core_response)
-                notification = (
-                    cls.get_notification_from_dict(payload)
-                    if isinstance(payload, dict)
-                    else {"message": "Failed to delete selected items", "error": True}
-                )
-                if deleted_count:
-                    item_label = "item was" if deleted_count == 1 else "items were"
-                    notification["message"] = (
-                        f"{deleted_count} selected {item_label} deleted before deletion stopped. {notification['message']}"
-                    )
-
-                cls._invalidate_model_cache()
-                response, status_code = cls.render_list()
-                response += render_template("notification/index.html", notification=notification)
-                return response, status_code
+        results = [DataPersistenceLayer().delete_object(cls.model, object_id, params=params) for object_id in object_ids]
+        failed_response = next((response for response in results if not response.ok), None)
+        if failed_response is not None:
+            return cls.get_notification_from_response(failed_response), failed_response.status_code or 500
 
         cls._invalidate_model_cache()
 
