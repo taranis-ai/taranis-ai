@@ -4,6 +4,7 @@ from urllib.parse import urljoin, urlparse
 
 import feedparser
 import niquests as requests
+from bs4 import BeautifulSoup
 from models.assess import NewsItem
 
 from worker.collectors.base_web_collector import BaseWebCollector, parse_datetime
@@ -43,16 +44,7 @@ class RSSCollector(BaseWebCollector):
         logger_trafilatura.setLevel(logging.WARNING)
 
     def _determine_use_feed_content(self, params: dict) -> bool:
-        use_feed_param = params.get("USE_FEED_CONTENT")
-
-        if use_feed_param is not None:
-            if isinstance(use_feed_param, bool):
-                return use_feed_param
-            if isinstance(use_feed_param, str):
-                return use_feed_param.strip().lower() == "true"
-
-        content_location = params.get("CONTENT_LOCATION")
-        return bool(isinstance(content_location, str) and content_location.strip())
+        return params.get("USE_FEED_CONTENT", False)
 
     def parse_source(self, source: dict):
         super().parse_source(source)
@@ -229,7 +221,7 @@ class RSSCollector(BaseWebCollector):
         return self.news_items
 
     def gather_news_items(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
-        if self.browser_mode == "true":
+        if self.browser_mode:
             self.playwright_manager = PlaywrightManager(self.proxies, self._request_headers(""))
         try:
             self.news_items = self.collect_news(feed, source)
@@ -239,7 +231,7 @@ class RSSCollector(BaseWebCollector):
         return self.news_items
 
     def collect_news(self, feed: feedparser.FeedParserDict, source: dict) -> list[NewsItem]:
-        if self.digest_splitting == "true":
+        if self.digest_splitting:
             return self.handle_digests(feed["entries"][:42])
 
         return self.parse_feed(feed["entries"][:42], source)
@@ -262,11 +254,30 @@ class RSSCollector(BaseWebCollector):
 
         self.feed_content = self.send_get_request(self.feed_url)
 
-        feed = feedparser.parse(self.feed_content.content)
+        feed_content = self.feed_content.content
+        feed = feedparser.parse(feed_content)
         if not feed.get("version"):
-            parser_error = feed.get("bozo_exception")
-            error_detail = f": {parser_error}" if parser_error else ""
-            raise RSSCollectorError(f"No parseable RSS or Atom feed was detected at {self.feed_url}{error_detail}")
+            logger.info(f"Could not parse RSS or Atom feed: {feed.get('bozo_exception')}")
+            suggestion = ""
+            if feed_content and "html" in self.feed_content.headers.get("content-type", "").lower():
+                html = BeautifulSoup(feed_content, "html.parser")
+                for link in html.find_all("link", rel="alternate"):
+                    feed_type = link.get("type")
+                    href = link.get("href")
+                    if (
+                        isinstance(feed_type, str)
+                        and feed_type.strip().lower()
+                        in {
+                            "application/rss+xml",
+                            "application/atom+xml",
+                        }
+                        and isinstance(href, str)
+                        and href.strip()
+                    ):
+                        base_url = str(self.feed_content.url or self.feed_url)
+                        suggestion = f". Suggested feed URL: {urljoin(base_url, href.strip())}"
+                        break
+            raise RSSCollectorError(f"No parseable RSS or Atom feed was detected at {self.feed_url}{suggestion}")
         return feed
 
     def preview_collector(self, source: dict):

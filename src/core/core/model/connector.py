@@ -23,7 +23,7 @@ class Connector(BaseModel):
     description: Mapped[str] = db.Column(db.String())
 
     type: Mapped[CONNECTOR_TYPES] = db.Column(db.Enum(CONNECTOR_TYPES))
-    parameters: Mapped[dict[str, str]] = db.Column(db.JSON, nullable=False, default=dict)
+    parameters: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False, default=dict)
     icon: Any = deferred(db.Column(db.LargeBinary))
     state: Mapped[int] = db.Column(db.SmallInteger, default=-1)
     last_collected: Mapped[datetime] = db.Column(db.DateTime, default=None)
@@ -48,7 +48,7 @@ class Connector(BaseModel):
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = effective_parameters(self.type, self.parameters)
-        if data["parameters"].get("USE_GLOBAL_PROXY") == "true":
+        if data["parameters"].get("USE_GLOBAL_PROXY"):
             data["parameters"]["PROXY_SERVER"] = Settings.get_settings().get("default_collector_proxy", "")
         return data
 

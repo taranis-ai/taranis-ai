@@ -101,7 +101,7 @@
          class="toggle toggle-primary peer {{ input_class }}"
          {% if name %}aria-label="{{ name }}"{% endif %}
          {% if required %}required{% endif %}
-         {% if value == yes_val %}checked{% endif %}
+         {% if value == yes_val or value is sameas true %}checked{% endif %}
          {% if disabled %}disabled{% endif %} />
   <span class="text-base-content peer-checked:hidden">{{ no_val }}</span>
   <span class="text-base-content hidden peer-checked:inline">{{ yes_val }}</span>

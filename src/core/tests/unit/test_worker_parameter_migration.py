@@ -91,11 +91,62 @@ def test_migration_identifies_incomplete_active_owner():
         migration._migrate_parameters(connection)
 
 
+def test_migration_converts_released_legacy_values():
+    migration = _load_migration()
+    connection = FakeConnection(
+        {
+            "bot": [("bot-1", "TAGGING_BOT", True, "KEYWORDS", "threat|malware")],
+            "publisher_preset": [
+                ("publisher-1", "TAXII_PUBLISHER", "TAXII_API_ROOT_URL", "https://taxii.example.test/root"),
+                ("publisher-1", "TAXII_PUBLISHER", "TAXII_COLLECTION_ID", "collection"),
+                ("publisher-1", "TAXII_PUBLISHER", "AUTH_TYPE", "token"),
+                ("publisher-1", "TAXII_PUBLISHER", "API_TOKEN", "secret"),
+            ],
+        }
+    )
+
+    migration._migrate_parameters(connection)
+
+    assert connection.fake_cursor.updates == [
+        ("bot", ('{"REGULAR_EXPRESSION":"threat|malware"}', "bot-1")),
+        (
+            "publisher_preset",
+            (
+                '{"API_TOKEN":"secret","AUTH_TYPE":"bearer","TAXII_API_ROOT_URL":"https://taxii.example.test/root",'
+                + '"TAXII_COLLECTION_ID":"collection"}',
+                "publisher-1",
+            ),
+        ),
+    ]
+
+
+def test_migration_allows_incomplete_on_demand_owners():
+    migration = _load_migration()
+    connection = FakeConnection(
+        {
+            "connector": [("connector-1", "MISP_CONNECTOR", "URL", "")],
+            "product_type": [("product-1", "PANDOC_PRESENTER", "TEMPLATE_PATH", "template.md")],
+            "publisher_preset": [("publisher-1", "WORDPRESS_PUBLISHER", "WP_URL", "")],
+        }
+    )
+
+    migration._migrate_parameters(connection)
+
+    assert connection.fake_cursor.updates == [
+        ("connector", ("{}", "connector-1")),
+        ("product_type", ('{"TEMPLATE_PATH":"template.md"}', "product-1")),
+        ("publisher_preset", ("{}", "publisher-1")),
+    ]
+
+
 def test_migration_converts_every_owner_table():
     migration = _load_migration()
     connection = FakeConnection(
         {
-            "osint_source": [("source-1", "MANUAL_COLLECTOR", True, None, None)],
+            "osint_source": [
+                ("source-1", "RSS_COLLECTOR", True, "FEED_URL", "https://example.test/feed"),
+                ("source-1", "RSS_COLLECTOR", True, "DIGEST_SPLITTING_LIMIT", "10"),
+            ],
             "bot": [("bot-1", "IOC_BOT", True, "RUN_AFTER_COLLECTOR", "1")],
             "connector": [
                 ("connector-1", "MISP_CONNECTOR", "URL", "https://misp.test"),
@@ -103,19 +154,30 @@ def test_migration_converts_every_owner_table():
                 ("connector-1", "MISP_CONNECTOR", "ORGANISATION_ID", "1"),
             ],
             "product_type": [("product-1", "STIX_PRESENTER", None, None)],
-            "publisher_preset": [("publisher-1", "TARANIS_PUBLISHER", None, None)],
+            "publisher_preset": [
+                ("publisher-1", "EMAIL_PUBLISHER", "SMTP_SERVER_ADDRESS", "smtp.example.test"),
+                ("publisher-1", "EMAIL_PUBLISHER", "EMAIL_SENDER", "sender@example.test"),
+                ("publisher-1", "EMAIL_PUBLISHER", "EMAIL_RECIPIENT", "recipient@example.test"),
+            ],
         }
     )
 
     migration._migrate_parameters(connection)
 
     assert connection.fake_cursor.updates == [
-        ("osint_source", ("{}", "source-1")),
-        ("bot", ('{"RUN_AFTER_COLLECTOR":"true"}', "bot-1")),
+        ("osint_source", ('{"DIGEST_SPLITTING_LIMIT":10,"FEED_URL":"https://example.test/feed"}', "source-1")),
+        ("bot", ('{"RUN_AFTER_COLLECTOR":true}', "bot-1")),
         (
             "connector",
             ('{"API_KEY":"secret","ORGANISATION_ID":"1","URL":"https://misp.test"}', "connector-1"),
         ),
         ("product_type", ("{}", "product-1")),
-        ("publisher_preset", ("{}", "publisher-1")),
+        (
+            "publisher_preset",
+            (
+                '{"EMAIL_RECIPIENT":"recipient@example.test","EMAIL_SENDER":"sender@example.test",'
+                + '"SMTP_SERVER_ADDRESS":"smtp.example.test"}',
+                "publisher-1",
+            ),
+        ),
     ]
