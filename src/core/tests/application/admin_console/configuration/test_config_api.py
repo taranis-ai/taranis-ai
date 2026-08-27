@@ -451,38 +451,43 @@ class TestSourcesConfigApi(BaseTest):
         response = self.assert_delete_ok(client, uri=f"osint-sources/{source_id}", auth_header=auth_header)
         assert response.json["message"] == "OSINT Source deleted"
 
-    def test_delete_source_with_related_news_items_requires_force(self, app, client, auth_header):
+    def test_bulk_delete_sources_with_related_news_items_requires_force(self, app, client, auth_header):
         from core.model.osint_source import OSINTSource
 
-        source_id = str(uuid.uuid7())
-        source_data = {
-            "id": source_id,
-            "description": "Source with related news items",
-            "name": f"Source with data {source_id}",
-            "rank": 0,
-            "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
-            "type": "rss_collector",
-        }
+        source_ids = [str(uuid.uuid7()), str(uuid.uuid7())]
 
         with app.app_context():
-            OSINTSource.add(source_data)
-            create_story(news_items=[build_news_item_payload(source_id=source_id)])
+            for source_id in source_ids:
+                OSINTSource.add(
+                    {
+                        "id": source_id,
+                        "description": "Bulk deletion source",
+                        "name": f"Bulk deletion source {source_id}",
+                        "rank": 0,
+                        "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
+                        "type": "rss_collector",
+                    }
+                )
+            create_story(news_items=[build_news_item_payload(source_id=source_ids[1])])
 
         try:
-            response = client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
+            response = client.delete(self.concat_url("osint-sources"), query_string={"ids": source_ids}, headers=auth_header)
 
             assert response.status_code == 409
             assert response.json["error"] == (
                 "The OSINT source could not be deleted because related news items exist. "
                 "Enable force deletion to delete the source and its related data."
             )
+            with app.app_context():
+                assert all(OSINTSource.get(source_id) for source_id in source_ids)
 
-            response = client.delete(self.concat_url(f"osint-sources/{source_id}?force=true"), headers=auth_header)
+            response = client.delete(self.concat_url("osint-sources"), query_string={"ids": source_ids, "force": "true"}, headers=auth_header)
             assert response.status_code == 200
         finally:
             with app.app_context():
-                if OSINTSource.get(source_id):
-                    OSINTSource.delete(source_id, force=True)
+                for source_id in source_ids:
+                    if OSINTSource.get(source_id):
+                        OSINTSource.delete(source_id, force=True)
 
     def test_create_source_group(self, client, auth_header, cleanup_source_groups):
         response = self.assert_post_ok(client, uri="osint-source-groups", json_data=cleanup_source_groups, auth_header=auth_header)

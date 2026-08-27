@@ -4238,6 +4238,41 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+    delete:
+      tags:
+      - config
+      description: delete multiple OSINT sources
+      operationId: config.config_osint_sources.delete
+      parameters:
+      - name: ids
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+      - name: force
+        in: query
+        schema:
+          type: boolean
+          default: false
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: success
+        '400':
+          description: no source IDs provided
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          description: related news items prevent deletion without force
+        '500':
+          description: deletion failed
   /config/osint-sources/{osint_source_id}:
     parameters:
     - name: osint_source_id
@@ -4269,6 +4304,12 @@ paths:
       - config
       description: delete OSINT source
       operationId: config.config_osint_source.delete
+      parameters:
+      - name: force
+        in: query
+        schema:
+          type: boolean
+          default: false
       security:
       - UserAuth: []
       responses:

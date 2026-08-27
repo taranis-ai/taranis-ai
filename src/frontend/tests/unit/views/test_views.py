@@ -338,16 +338,17 @@ class TestSourceView:
             "The OSINT source could not be deleted because related news items exist. "
             "Enable force deletion to delete the source and its related data."
         )
-        responses_mock.delete(f"{core_url}/source-blocked", json={"error": related_data_error}, status=409)
+        responses_mock.delete(core_url, json={"error": related_data_error}, status=409)
 
         response = authenticated_client.delete(
             SourceView.get_base_route(),
-            data={"ids": ["source-blocked"]},
+            data={"ids": ["source-safe", "source-blocked"]},
             headers=htmx_header,
         )
 
         assert response.status_code == 409
         assert related_data_error in response.get_data(as_text=True)
+        assert responses_mock.calls[0].request.url == f"{core_url}?ids=source-safe&ids=source-blocked"
 
     def test_import_post_view(self, authenticated_client, responses_mock):
         """

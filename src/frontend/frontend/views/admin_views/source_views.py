@@ -289,11 +289,22 @@ class SourceView(AdminBaseView):
         return response, core_response.status_code or table_response
 
     @classmethod
-    def delete_multiple_view(cls, object_ids: list[str], params: dict[str, str] | None = None) -> tuple[str, int]:
+    def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
         force = request.values.get("force") == "true"
+        params: dict[str, Any] = {"ids": object_ids}
         if force:
-            params = (params or {}) | {"force": "true"}
-        return super().delete_multiple_view(object_ids, params=params)
+            params["force"] = "true"
+
+        core_response = CoreApi().api_delete(cls.model._core_endpoint, params=params)
+        if not core_response.ok:
+            return cls.get_notification_from_response(core_response), core_response.status_code or 500
+
+        cls._invalidate_model_cache()
+        response, status_code = cls.render_list()
+        response += render_template(
+            "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
+        )
+        return response, status_code
 
     @classmethod
     @admin_required()

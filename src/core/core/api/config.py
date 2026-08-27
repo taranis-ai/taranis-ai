@@ -774,20 +774,30 @@ class OSINTSources(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id: str | None = None):
-        if source_id is None:
+        source_ids = [source_id] if source_id is not None else request.args.getlist("ids")
+        if not source_ids:
             return {"error": "No source_id provided"}, 400
         force = request.args.get("force", default=False, type=bool)
         if not force:
             from core.service.news_item import NewsItemService as _NewsItemService
 
-            if _NewsItemService.has_related_news_items(source_id):
+            if _NewsItemService.has_related_news_items(source_ids):
                 return {
                     "error": "The OSINT source could not be deleted because related news items exist. Enable force deletion to delete the source and its related data."
                 }, 409
 
-        response, status = osint_source.OSINTSource.delete(source_id, force=force)
-        _invalidate_admin_cache(status)
-        return response, status
+        if source_id is not None:
+            response, status = osint_source.OSINTSource.delete(source_id, force=force)
+            _invalidate_admin_cache(status)
+            return response, status
+
+        for current_source_id in source_ids:
+            response, status = osint_source.OSINTSource.delete(current_source_id, force=force)
+            if status != 200:
+                return response, status
+
+        _invalidate_admin_cache(200)
+        return {"message": "OSINT Sources deleted", "ids": source_ids}, 200
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def patch(self, source_id: str | None = None):
@@ -1129,7 +1139,7 @@ def build_config_blueprint(name: str) -> Blueprint:
         view_func=Organizations.as_view(f"{name}_organization"),
         methods=crud_methods,
     )
-    config_bp.add_url_rule("/osint-sources", view_func=OSINTSources.as_view(f"{name}_osint_sources"), methods=["GET", "POST"])
+    config_bp.add_url_rule("/osint-sources", view_func=OSINTSources.as_view(f"{name}_osint_sources"), methods=["GET", "POST", "DELETE"])
     config_bp.add_url_rule("/sources", view_func=OSINTSources.as_view(f"{name}_sources"), methods=["GET", "POST"])
     config_bp.add_url_rule(
         "/osint-sources/<string:source_id>", view_func=OSINTSources.as_view(f"{name}_osint_source"), methods=crud_patch_methods
