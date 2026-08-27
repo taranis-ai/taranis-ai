@@ -165,15 +165,13 @@ class RSSCollector(BaseWebCollector):
             content = str(web_content.get("content"))
             author = author or str(web_content.get("author"))
             title = title or str(web_content.get("title"))
-            validator_date = self.http_validators.get("last_modified") if self.http_validators else None
-            published = (
-                published or web_content.get("published_date") or feed_updated or (parse_datetime(validator_date) if validator_date else None)
-            )
+            published = published or web_content.get("published_date")
 
         else:
             logger.warning(f"No content could be extracted for RSS entry {feed_entry.get('id', link or title)}")
 
-        published = published or feed_updated
+        validator_date = self.http_validators.get("last_modified") if self.http_validators else None
+        published = published or feed_updated or (parse_datetime(validator_date) if validator_date else None)
 
         if content == description:
             description = ""
