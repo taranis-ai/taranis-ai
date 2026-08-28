@@ -11,7 +11,7 @@ import pytest
 from flask import render_template, url_for
 from lxml import html
 from models.admin import OSINTSource, ReportItemType
-from models.task import Task, TaskResultEnvelope
+from models.task import Task, TaskResult
 from models.types import COLLECTOR_TYPES
 from models.user import AssessSavedFilter
 from requests import ConnectTimeout
@@ -382,12 +382,37 @@ class TestSourceView:
         assert 'data-testid="bulk-create-osint-sources-button"' in create_form_response.text
         assert response.status_code == 200
         assert "Bulk Create OSINT Sources" in response.text
+        assert 'href="https://taranis.ai/docs/admin/collectors/"' in create_form_response.text
         assert "rss_collector" in response.text
         assert "simple_web_collector" in response.text
         assert "rt_collector" in response.text
         assert "misp_collector" in response.text
+        assert "mastodon_collector" in create_form_response.text
+        assert "mastodon_collector" not in response.text
         assert "manual_collector" not in response.text
         assert "ppn_collector" not in response.text
+
+    def test_mastodon_parameter_form_is_schema_driven_and_masks_tokens(self, authenticated_client):
+        response = authenticated_client.get(
+            url_for(
+                "admin.osint_source_parameters",
+                osint_source_id="0",
+                type="mastodon_collector",
+                bulk="false",
+            )
+        )
+
+        assert response.status_code == 200
+        assert 'name="parameters[INSTANCE_URL]"' in response.text
+        assert 'name="parameters[TIMELINE]"' in response.text
+        mode_selects = html.fromstring(response.text).xpath('//select[@name="parameters[COLLECTION_MODE]"]')
+        assert [[option.get("value") for option in select.xpath("./option")] for select in mode_selects] == [["complete", "latest"]]
+        assert 'name="parameters[HASHTAG]"' in response.text
+        assert 'name="parameters[ACCOUNT]"' in response.text
+        assert 'name="parameters[ACCESS_TOKEN]"' in response.text
+        token_inputs = html.fromstring(response.text).xpath('//input[@name="parameters[ACCESS_TOKEN]"]')
+        assert len(token_inputs) == 1
+        assert token_inputs[0].get("type") == "password"
 
     def test_bulk_parameter_view_only_excludes_the_varying_url_for_bulk_requests(self, authenticated_client):
         bulk_response = authenticated_client.get(
@@ -617,7 +642,7 @@ class TestSourceView:
         task_result = Task(
             id="source_preview_42",
             status="FAILURE",
-            result=TaskResultEnvelope(
+            result=TaskResult(
                 message="Connection refused",
                 reason="preview_failed",
                 retryable=False,

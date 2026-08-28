@@ -11,6 +11,7 @@ from rq import get_current_job
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector, NoChangeError
+from worker.collectors.mastodon_collector import MastodonCollectorError
 from worker.collectors.rss_collector import EmptyRSSFeedError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import TaranisLogFormatter, TaranisLogger, logger
@@ -36,6 +37,7 @@ class Collector:
         self.core_api = CoreApi()
         self.collectors = {
             "rss_collector": worker.collectors.RSSCollector(),
+            "mastodon_collector": worker.collectors.MastodonCollector(),
             "simple_web_collector": worker.collectors.SimpleWebCollector(),
             "rt_collector": worker.collectors.RTCollector(),
             "misp_collector": worker.collectors.MispCollector(),
@@ -59,6 +61,8 @@ def _collector_result_data(osint_source_id: str, manual: bool, collector: BaseCo
     data: dict[str, Any] = {"source_id": osint_source_id, "manual": manual}
     if http_validators := getattr(collector, "http_validators", None):
         data["http_validators"] = http_validators.copy()
+    if mastodon_cursor := getattr(collector, "mastodon_cursor", None):
+        data["mastodon_cursor"] = mastodon_cursor.copy()
     return data
 
 
@@ -163,15 +167,14 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 data=_collector_result_data(osint_source_id, manual, collector_impl),
             )
         except NoChangeError as e:
-            logger.info(f"No changes detected: {e}")
             previous_status = source.get("status")
             if isinstance(previous_status, dict):
                 previous_result = previous_status.get("result")
                 previous_result = previous_result if isinstance(previous_result, dict) else {}
                 previous_task_status = previous_status.get("status")
-                preserve_previous_result = previous_task_status == "FAILURE" or (
-                    previous_task_status == "NOT_MODIFIED" and previous_result.get("reason") == "rss_feed_empty"
-                )
+                preserve_http_failure = previous_task_status == "FAILURE" and bool(getattr(collector_impl, "http_validators", None))
+                preserve_empty_feed = previous_task_status == "NOT_MODIFIED" and previous_result.get("reason") == "rss_feed_empty"
+                preserve_previous_result = preserve_http_failure or preserve_empty_feed
                 if preserve_previous_result:
                     previous_data = previous_result.get("data")
                     result_data = dict(previous_data) if isinstance(previous_data, dict) else {}
@@ -197,6 +200,22 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 reason="collector_not_modified",
                 data=_collector_result_data(osint_source_id, manual, collector_impl),
             )
+        except MastodonCollectorError as e:
+            logger.error(f"Mastodon collector task failed: {task_description}")
+            if job:
+                core_api.save_task_result(
+                    job.id,
+                    "collector_task",
+                    "FAILURE",
+                    worker_id=osint_source_id,
+                    worker_type=worker_type,
+                    result=build_failure_task_result(
+                        e.public_message,
+                        reason=e.reason,
+                        data=_collector_result_data(osint_source_id, manual, collector_impl),
+                    ),
+                )
+            raise RuntimeError(e.public_message) from e
         except Exception as e:
             logger.error(f"Collector task failed: {task_description}")
             task_status = "FAILURE"
@@ -266,6 +285,20 @@ def collector_preview(osint_source_id: str):
         except NoChangeError as e:
             logger.info(f"No changes detected: {e}")
             preview_result = []
+        except MastodonCollectorError as e:
+            logger.error(f"Mastodon collector preview failed: {task_description}")
+            if job:
+                collector.core_api.save_task_result(
+                    job.id,
+                    "collector_preview",
+                    "FAILURE",
+                    result=build_failure_task_result(
+                        e.public_message,
+                        reason=e.reason,
+                        data={"source_id": osint_source_id},
+                    ),
+                )
+            raise RuntimeError(e.public_message) from e
         except Exception as e:
             logger.error(f"Collector preview task failed: {task_description}")
             if job:

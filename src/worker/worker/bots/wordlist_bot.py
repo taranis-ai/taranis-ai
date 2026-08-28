@@ -43,10 +43,7 @@ class WordlistBot(BaseBot):
 
     def _find_tags_for_stories(self, data, word_list_entries, override_existing_tags, ignore_case) -> dict[str, dict[str, str]]:
         found_tags = {}
-        logger.info(f"Extracting tags from news items: {len(data)}")
-        for i, story in enumerate(data):
-            if i % max(len(data) // 10, 1) == 0:
-                logger.debug(f"Extracting words from {story['id']}: {i}/{len(data)}")
+        for story in data:
             for news_item in story["news_items"]:
                 found_tags[news_item["id"]] = self._find_tags(news_item, word_list_entries, override_existing_tags, ignore_case)
         return found_tags
