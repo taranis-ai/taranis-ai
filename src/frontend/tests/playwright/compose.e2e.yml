@@ -37,7 +37,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    stop_grace_period: 1s
     healthcheck:
       test:
         [
@@ -79,7 +78,6 @@ services:
         condition: service_healthy
       testdata:
         condition: service_healthy
-    stop_grace_period: 1s
 
   cron:
     profiles: ["rq"]
@@ -107,7 +105,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    stop_grace_period: 1s
 
   redis:
     image: redis:8-alpine
@@ -120,7 +117,6 @@ services:
       timeout: 3s
       retries: 20
       start_period: 2s
-    stop_grace_period: 1s
 
   testdata:
     profiles: ["rq"]
@@ -133,7 +129,6 @@ services:
       timeout: 3s
       retries: 20
       start_period: 2s
-    stop_grace_period: 1s
 
 volumes:
   core-uv-cache:

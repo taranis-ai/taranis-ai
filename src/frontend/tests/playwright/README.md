@@ -32,7 +32,6 @@ All flags:
 - `--e2e-admin` - end to end tests of admin section; generate pictures for documentation (also User sections)
 - `--record-video` - record a video (save to `src/frontend/tests/playwright/videos`)
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
-- `--e2e-stack=<auto|core|full>` - choose the Compose services (`default=auto`)
 - `--e2e-trace` - record unique traces for stack-backed browser tests
 - `-s` - see all logs on stdout
 

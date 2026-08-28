@@ -12,6 +12,7 @@ import warnings as pywarnings
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
 from pathlib import Path
+from urllib.request import urlopen
 
 import pytest
 import responses
@@ -60,7 +61,6 @@ class LocalE2EServer:
         listener = socket.socket()
         listener.bind(("127.0.0.1", 0))
         listener.listen()
-        listener.set_inheritable(True)
         self._port = listener.getsockname()[1]
 
         env = os.environ.copy()
@@ -76,8 +76,8 @@ class LocalE2EServer:
         try:
             self._process = subprocess.Popen(
                 [sys.executable, str(Path(__file__).with_name("live_server.py"))],
-                close_fds=False,
                 env=env,
+                pass_fds=(listener.fileno(),),
             )
         finally:
             listener.close()
@@ -88,7 +88,7 @@ class LocalE2EServer:
             if self._process.poll() is not None:
                 raise RuntimeError(f"Frontend test server exited with status {self._process.returncode}")
             try:
-                with socket.create_connection(("127.0.0.1", self._port), timeout=0.1):
+                with urlopen(self.url(), timeout=0.1):
                     return
             except OSError:
                 time.sleep(0.05)
@@ -141,10 +141,6 @@ def docker_compose_file():
 
 @pytest.fixture(scope="session")
 def e2e_stack(request) -> str:
-    configured_stack = request.config.getoption("--e2e-stack")
-    if configured_stack != "auto":
-        return configured_stack
-
     selected_full_stack_test = any(
         item.get_closest_marker("e2e_full_stack") is not None and item.get_closest_marker("skip") is None for item in request.session.items
     )
@@ -173,8 +169,6 @@ def docker_setup(docker_compose_command: str, e2e_stack: str):
 
 @pytest.fixture(scope="session")
 def docker_cleanup():
-    if os.getenv("CI", "").lower() == "true":
-        return []
     return docker_cleanup_commands()
 
 
@@ -305,13 +299,6 @@ def e2e_request_context(e2e_server, app):
         yield
 
 
-@pytest.fixture
-def e2e_browser(request) -> Browser:
-    """Start the local frontend server before Playwright."""
-    request.getfixturevalue("e2e_server")
-    return request.getfixturevalue("browser")
-
-
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args, browser_type_launch_args, request):
     browser_type_launch_args["args"] = ["--window-size=1964,1211"]
@@ -349,7 +336,7 @@ def setup_test_templates(core_request_client):
 
 
 def _trace_enabled(request) -> bool:
-    return request.config.getoption("--e2e-trace") or os.getenv("TARANIS_E2E_TRACE", "").lower() == "true"
+    return request.config.getoption("--e2e-trace")
 
 
 def _trace_path(node_id: str) -> Path:

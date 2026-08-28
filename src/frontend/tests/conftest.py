@@ -240,12 +240,6 @@ def pytest_addoption(parser):
     group.addoption("--e2e-user", action="store_true", default=False, help="run e2e tests of user interface")
     group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
     group.addoption(
-        "--e2e-stack",
-        choices=("auto", "core", "full"),
-        default="auto",
-        help="compose services to start; auto honors the e2e_full_stack marker",
-    )
-    group.addoption(
         "--e2e-trace",
         action="store_true",
         default=False,

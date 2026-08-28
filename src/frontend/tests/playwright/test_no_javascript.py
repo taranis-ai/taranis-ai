@@ -11,12 +11,12 @@ from tests.external_e2e import external_basic_auth_credentials
 class TestNoJavaScriptLayout:
     def test_assess_keeps_sidebar_and_stories_visible_without_javascript(
         self,
-        e2e_browser: Browser,
+        browser: Browser,
         browser_context_args,
         e2e_request_context,
         pre_seed_stories,
     ):
-        context = e2e_browser.new_context(**browser_context_args, java_script_enabled=False)
+        context = browser.new_context(**browser_context_args, java_script_enabled=False)
         page: Page = context.new_page()
         username, password = external_basic_auth_credentials()
 
