@@ -15,6 +15,7 @@ INSTANCE_URL = "https://mastodon.example"
 def source(
     timeline: str,
     *,
+    collection_mode: str = "complete",
     hashtag: str = "security",
     account: str = "alice@example.social",
     access_token: str = "token",
@@ -23,6 +24,7 @@ def source(
     parameters = {
         "INSTANCE_URL": INSTANCE_URL,
         "TIMELINE": timeline,
+        "COLLECTION_MODE": collection_mode,
         "HASHTAG": hashtag,
         "ACCOUNT": account,
         "ACCESS_TOKEN": access_token,
@@ -102,7 +104,7 @@ def test_hashtag_collection_maps_boost_and_media_and_advances_cursor(requests_mo
     }
 
 
-def test_home_collection_uses_local_cursor_without_gaps(requests_mock):
+def test_complete_home_collection_catches_up_without_gaps(requests_mock):
     requests_mock.get(f"{INSTANCE_URL}/api/v1/accounts/verify_credentials", json={"id": "account-1"})
 
     def home_response(request, _context):
@@ -117,13 +119,49 @@ def test_home_collection_uses_local_cursor_without_gaps(requests_mock):
     cursor = {"timeline": f"{INSTANCE_URL}|home|account-1", "last_status_id": "100"}
 
     collector = MastodonCollector()
-    collector.collect(source("home", cursor=cursor))
+    result = collector.collect(source("home", cursor=cursor))
 
+    assert result == "Added"
     assert len(_published_items(requests_mock)) == 42
     assert collector.mastodon_cursor == {"timeline": f"{INSTANCE_URL}|home|account-1", "last_status_id": "142"}
     home_requests = [request for request in requests_mock.request_history if "/api/v1/timelines/home" in request.url]
     assert [request.qs["min_id"][0] for request in home_requests] == ["100", "140", "142"]
+    assert all("since_id" not in request.qs for request in home_requests)
     assert all(request.headers["Authorization"] == "Bearer token" for request in home_requests)
+
+
+@pytest.mark.parametrize(
+    ("returned_ids", "oldest_id", "expected_result"),
+    [
+        (
+            list(range(200, 160, -1)),
+            101,
+            "Added; Mastodon latest mode skipped older statuses to stay current; use complete mode to prevent gaps",
+        ),
+        ([102, 101], 101, "Added"),
+    ],
+)
+def test_latest_collection_warns_only_when_skipping(requests_mock, returned_ids, oldest_id, expected_result):
+    def hashtag_response(request, _context):
+        if request.qs.get("since_id") == ["100"]:
+            return [status(status_id) for status_id in returned_ids]
+        if request.qs.get("min_id") == ["100"]:
+            return [status(oldest_id)]
+        return []
+
+    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=hashtag_response)
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "Added"})
+    cursor = {"timeline": f"{INSTANCE_URL}|hashtag|security", "last_status_id": "100"}
+
+    collector = MastodonCollector()
+    result = collector.collect(source("hashtag", collection_mode="latest", access_token="", cursor=cursor))
+
+    assert result == expected_result
+    assert len(_published_items(requests_mock)) == len(returned_ids)
+    assert collector.mastodon_cursor == {
+        "timeline": f"{INSTANCE_URL}|hashtag|security",
+        "last_status_id": str(returned_ids[0]),
+    }
 
 
 def test_account_collection_resolves_configured_account(requests_mock):

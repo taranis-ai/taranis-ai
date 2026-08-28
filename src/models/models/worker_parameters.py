@@ -95,6 +95,11 @@ class MastodonCollectorParameters(WorkerParameters):
         title="Timeline",
         description="Mastodon timeline to collect: hashtag, the token owner's home timeline, or a public account.",
     )
+    COLLECTION_MODE: Literal["complete", "latest"] = Field(
+        "complete",
+        title="Collection mode",
+        description="Complete collects every status since the cursor; latest keeps only the newest page and warns when older statuses are skipped.",
+    )
     HASHTAG: str = Field("", title="Hashtag", description="Hashtag to collect in hashtag mode, with or without a leading #.")
     ACCOUNT: str = Field("", title="Account", description="Account handle to collect in account mode, such as user@example.social.")
     ACCESS_TOKEN: SecretStr = Field(

@@ -6,7 +6,7 @@ This file records notable changes to Taranis AI. Published release entries link 
 
 ### Added
 
-- Added a scheduled Mastodon collector for hashtags, authenticated home timelines, and public accounts with task-result progress cursors.
+- Added a scheduled Mastodon collector for hashtags, authenticated home timelines, and public accounts with selectable complete or latest cursor collection and explicit skip warnings.
 - Added one shared Pydantic parameter contract for every supported worker type.
 - Added schema-derived configuration forms with labels, tooltip descriptions, validation constraints, defaults, and exceptional widget hints.
 - Added parameter-aware `PATCH` support for sources, bots, connectors, product types, and publisher presets.

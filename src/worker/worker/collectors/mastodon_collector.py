@@ -16,6 +16,10 @@ from worker.collectors.base_collector import BaseCollector, NoChangeError
 from worker.log import logger
 
 
+MASTODON_PAGE_SIZE = 40
+MASTODON_SKIP_MESSAGE = "Mastodon latest mode skipped older statuses to stay current; use complete mode to prevent gaps"
+
+
 class MastodonCollectorError(Exception):
     def __init__(self, public_message: str, reason: str):
         super().__init__(public_message)
@@ -33,8 +37,10 @@ class MastodonCollector(BaseCollector):
         self.instance_url = ""
         self.timeline = ""
         self.target = ""
+        self.collection_mode = "complete"
         self.has_access_token = False
         self.mastodon_cursor: dict[str, str] | None = None
+        self.skipped_statuses = False
 
     @staticmethod
     def _plain_text(value: Any) -> str:
@@ -75,8 +81,10 @@ class MastodonCollector(BaseCollector):
         parameters = source["parameters"]
         self.instance_url = str(parameters["INSTANCE_URL"]).rstrip("/")
         self.timeline = str(parameters["TIMELINE"])
+        self.collection_mode = str(parameters.get("COLLECTION_MODE", "complete"))
         self.has_access_token = bool(parameters.get("ACCESS_TOKEN"))
         self.mastodon_cursor = source.get("mastodon_cursor") if isinstance(source.get("mastodon_cursor"), dict) else None
+        self.skipped_statuses = False
         if self.has_access_token and not self.instance_url.startswith("https://"):
             raise MastodonCollectorError(
                 "Mastodon access tokens require an HTTPS instance URL",
@@ -105,10 +113,16 @@ class MastodonCollector(BaseCollector):
         target = self.target.casefold() if self.timeline == "hashtag" else self.target
         return f"{self.instance_url}|{self.timeline}|{target}"
 
-    def _fetch_page(self, *, min_id: str | None = None) -> list[Any]:
+    def _fetch_page(
+        self,
+        *,
+        min_id: str | None = None,
+        since_id: str | None = None,
+        limit: int = MASTODON_PAGE_SIZE,
+    ) -> list[Any]:
         if self.client is None:
             raise RuntimeError("Mastodon collector is not configured")
-        pagination = {"limit": 40, "min_id": min_id}
+        pagination = {"limit": limit, "min_id": min_id, "since_id": since_id}
         if self.timeline == "hashtag":
             page = self.client.timeline_hashtag(self.target, **pagination)
         elif self.timeline == "home":
@@ -121,9 +135,17 @@ class MastodonCollector(BaseCollector):
         timeline_key = self._timeline_key()
         stored_cursor = self.mastodon_cursor or {}
         last_status_id = stored_cursor.get("last_status_id") if stored_cursor.get("timeline") == timeline_key else None
-        statuses: list[Any] = []
-
         if last_status_id and use_cursor:
+            if self.collection_mode == "latest":
+                page = self._fetch_page(since_id=last_status_id)
+                if not page or self._status_id(page[0]) == last_status_id:
+                    return []
+                oldest_status = self._fetch_page(min_id=last_status_id, limit=1)
+                page_ids = {self._status_id(status) for status in page}
+                self.skipped_statuses = bool(oldest_status and self._status_id(oldest_status[0]) not in page_ids)
+                return page
+
+            statuses: list[Any] = []
             forward_cursor = last_status_id
             while True:
                 page = self._fetch_page(min_id=forward_cursor)
@@ -191,8 +213,10 @@ class MastodonCollector(BaseCollector):
         next_cursor = {"timeline": self._timeline_key(), "last_status_id": self._status_id(statuses[0])}
         try:
             result = self.publish(news_items, source)
-        except NoChangeError:
+        except NoChangeError as exc:
             self.mastodon_cursor = next_cursor
+            if self.skipped_statuses:
+                raise NoChangeError(f"{exc}; {MASTODON_SKIP_MESSAGE}") from exc
             raise
         except Exception as exc:
             self.mastodon_cursor = previous_cursor
@@ -202,6 +226,8 @@ class MastodonCollector(BaseCollector):
                 "mastodon_publish_failed",
             ) from exc
         self.mastodon_cursor = next_cursor
+        if self.skipped_statuses:
+            return f"{result}; {MASTODON_SKIP_MESSAGE}"
         return result
 
     def preview_collector(self, source: dict[str, Any]) -> list[dict[str, Any]]:

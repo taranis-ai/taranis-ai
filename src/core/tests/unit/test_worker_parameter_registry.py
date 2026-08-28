@@ -64,6 +64,13 @@ def test_secret_schema_uses_standard_password_fields():
 def test_mastodon_timeline_contract_and_secret():
     schema = parameter_schema("MASTODON_COLLECTOR")
     assert schema["properties"]["TIMELINE"]["enum"] == ["hashtag", "home", "account"]
+    assert schema["properties"]["COLLECTION_MODE"] == {
+        "default": "complete",
+        "description": "Complete collects every status since the cursor; latest keeps only the newest page and warns when older statuses are skipped.",
+        "enum": ["complete", "latest"],
+        "title": "Collection mode",
+        "type": "string",
+    }
     assert schema["properties"]["ACCESS_TOKEN"]["format"] == "password"
     assert schema["properties"]["ACCESS_TOKEN"]["writeOnly"] is True
     instance_pattern = schema["properties"]["INSTANCE_URL"]["pattern"]
@@ -75,6 +82,7 @@ def test_mastodon_timeline_contract_and_secret():
         {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security"},
     )
     assert hashtag["ACCESS_TOKEN"] == ""
+    assert hashtag["COLLECTION_MODE"] == "complete"
     assert (
         effective_parameter_values(
             "MASTODON_COLLECTOR",
@@ -107,6 +115,12 @@ def test_mastodon_timeline_contract_and_secret():
         {"INSTANCE_URL": "https://mastodon.example/api", "TIMELINE": "hashtag", "HASHTAG": "security"},
         {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "threat intel"},
         {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security?limit=100"},
+        {
+            "INSTANCE_URL": "https://mastodon.example",
+            "TIMELINE": "hashtag",
+            "COLLECTION_MODE": "unknown",
+            "HASHTAG": "security",
+        },
         {
             "INSTANCE_URL": "http://mastodon.example",
             "TIMELINE": "hashtag",

@@ -11,6 +11,9 @@ Create an OSINT source and select **Mastodon Collector**. Configure:
   - `hashtag` collects the configured hashtag. The access token is optional when the instance permits public timeline access.
   - `home` collects the access token owner's home timeline.
   - `account` collects statuses for the configured public account handle.
+- **Collection mode**:
+  - `complete` is the default and collects every status newer than the cursor, following as many API pages as required until the source is caught up.
+  - `latest` collects only the newest API page. When older statuses are skipped to stay current, the task result displays an explicit warning.
 - **Hashtag**: required for `hashtag`; a leading `#` is optional.
 - **Account**: required for `account`, for example `user@example.social`.
 - **Access token**: required for `home` and `account`. Use a read-only token with account and status read access; write access is not needed. Any source with an access token must use an HTTPS instance URL; tokenless hashtag collection may use HTTP for development-only instances.
@@ -21,7 +24,9 @@ The optional user-agent, collector proxy, TLP, and refresh interval settings use
 
 ## Collection behavior
 
-Mastodon does not use the RSS collector entry limit. New sources import the newest API page. Later runs continue forward from a cursor retained in the latest collector task result and paginate through all statuses published since the previous successful run.
+Mastodon does not use the RSS collector entry limit. New sources import the newest API page in either mode. Later `complete` runs use `min_id` to paginate from the cursor until every waiting status has been collected. Later `latest` runs use `since_id` to import at most the newest 40 statuses and probe the oldest status after the cursor to determine whether anything was skipped.
+
+Complete mode preserves continuity but a run after extended downtime can make many API requests, consume substantial worker memory, and encounter the instance's rate limit. Latest mode keeps collection current and bounded, but its warning means older statuses were permanently skipped. Switching from latest to complete cannot recover statuses skipped before the latest cursor was saved.
 
 Cursor state follows the task-history lifecycle. Deleting task history, leaving a source inactive beyond the configured retention period, or restoring the database without recent task results resets the source to a newest-page bootstrap. Existing news-item deduplication makes replay safe, but older history may be skipped after such a reset.
 

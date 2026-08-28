@@ -405,6 +405,8 @@ class TestSourceView:
         assert response.status_code == 200
         assert 'name="parameters[INSTANCE_URL]"' in response.text
         assert 'name="parameters[TIMELINE]"' in response.text
+        mode_selects = html.fromstring(response.text).xpath('//select[@name="parameters[COLLECTION_MODE]"]')
+        assert [[option.get("value") for option in select.xpath("./option")] for select in mode_selects] == [["complete", "latest"]]
         assert 'name="parameters[HASHTAG]"' in response.text
         assert 'name="parameters[ACCOUNT]"' in response.text
         assert 'name="parameters[ACCESS_TOKEN]"' in response.text
