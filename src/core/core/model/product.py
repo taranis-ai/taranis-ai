@@ -1,4 +1,6 @@
 import binascii
+import hashlib
+import json
 import mimetypes
 from base64 import b64decode
 from datetime import UTC, datetime, timedelta
@@ -33,7 +35,7 @@ class Product(BaseModel):
 
     report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item")
     default_publisher: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), db.ForeignKey("publisher_preset.id"), nullable=True)
-    last_rendered: Mapped[datetime] = db.Column(db.DateTime)
+    last_rendered: Mapped[datetime | None] = db.Column(db.DateTime)
     last_published_url: Mapped[str | None] = db.Column(db.Text, nullable=True)
     render_result = deferred(db.Column(db.Text))
 
@@ -129,7 +131,7 @@ class Product(BaseModel):
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "id": self.id,
             "title": self.title,
             "description": self.description,
@@ -139,6 +141,8 @@ class Product(BaseModel):
             "report_items": [report_item.to_product_dict() for report_item in self.report_items if report_item],
             "parameters": self.product_type.to_worker_dict()["parameters"],
         }
+        data["render_revision"] = hashlib.sha256(json.dumps(data, separators=(",", ":"), default=str).encode()).hexdigest()
+        return data
 
     @classmethod
     def test_if_valid_render_result(cls, render_result: str) -> bool:
@@ -163,9 +167,12 @@ class Product(BaseModel):
         return False
 
     @classmethod
-    def update_render_for_id(cls, product_id: str, render_result: str):
+    def update_render_for_id(cls, product_id: str, render_result: str, render_revision: str):
         if not (product := cls.get(product_id)):
             return {"error": "Product not found"}, 404
+        if render_revision != product.to_worker_dict()["render_revision"]:
+            logger.warning("Discarded stale render result for Product %s", product_id)
+            return {"error": "Stale product render"}, 409
         if product.update_render(render_result):
             logger.debug(f"Render result for Product {product_id} updated")
             return {"message": "Product updated"}, 200
@@ -187,22 +194,45 @@ class Product(BaseModel):
         return None
 
     @classmethod
-    def update(cls, product_id: str, data, user_id: str | None = None) -> tuple[dict, int]:
+    def update(cls, product_id: str, data, user: User | None = None) -> tuple[dict, int]:
         product = Product.get(product_id)
         if product is None:
             return {"error": "Product not found"}, 404
+
+        product_type = ProductType.get(data.get("product_type_id", product.product_type_id))
+        if product_type is None:
+            return {"error": "Product type not found"}, 404
+        if user and not product_type.allowed_with_acl(user, require_write_access=False):
+            return {"error": "User does not have access to this product type"}, 403
+
+        report_item_ids = data.get("report_items")
+        report_items = product.report_items if report_item_ids is None else ReportItem.get_bulk(report_item_ids)
+        supported_report_type_ids = {report_type.id for report_type in product_type.report_types if report_type}
+        selected_report_type_ids = {report_item.report_item_type_id for report_item in report_items if report_item.report_item_type_id}
+        if unsupported_report_type_ids := selected_report_type_ids - supported_report_type_ids:
+            logger.warning(
+                "Rejected product type %s for product %s; unsupported report types: %s",
+                product_type.id,
+                product.id,
+                sorted(map(str, unsupported_report_type_ids)),
+            )
+            return {"error": "Selected product type does not support the selected reports"}, 400
+
+        product_type_changed = product_type.id != product.product_type_id
+        mime_type_changed = product_type.get_mimetype() != product.product_type.get_mimetype()
 
         if title := data.get("title"):
             product.title = title
 
         product.description = data.get("description")
-
-        if data.get("product_type_id") != product.product_type_id:
-            logger.warning("Product type change not supported")
-
-        report_items = data.get("report_items")
-        if report_items is not None:
-            product.report_items = ReportItem.get_bulk(report_items)
+        product.product_type = product_type
+        if product_type_changed:
+            product.render_result = None
+            product.last_rendered = None
+        if mime_type_changed:
+            product.last_published_url = None
+        if report_item_ids is not None:
+            product.report_items = report_items
 
         if "auto_publish" in data:
             product.auto_publish = data.get("auto_publish")
@@ -210,7 +240,7 @@ class Product(BaseModel):
             product.default_publisher = data.get("default_publisher") or None
 
         db.session.commit()
-        queue_manager.queue_manager.generate_product(product.id, user_id=user_id)
+        queue_manager.queue_manager.generate_product(product.id, user_id=user.id if user else None)
         return {"message": "Product updated", "id": product.id, "product": product.to_detail_dict()}, 200
 
     @classmethod

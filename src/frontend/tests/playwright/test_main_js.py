@@ -151,7 +151,8 @@ def test_assess_shift_space_requires_selection(page: Page):
     assert requests == []
 
     page.locator("#select").click()
-    page.keyboard.press("Shift+Space")
+    with page.expect_response("https://example.test/read"):
+        page.keyboard.press("Shift+Space")
 
     expect(page.locator("#read-trigger")).to_have_text("updated")
     assert requests == ["https://example.test/read"]

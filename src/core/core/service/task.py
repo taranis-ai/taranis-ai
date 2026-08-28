@@ -192,12 +192,13 @@ class TaskService:
 
         product_id = result_data.get("product_id")
         rendered_product = result_data.get("render_result")
+        render_revision = result_data.get("render_revision")
 
-        if not isinstance(product_id, str) or not isinstance(rendered_product, str):
+        if not isinstance(product_id, str) or not isinstance(rendered_product, str) or not isinstance(render_revision, str):
             logger.error(f"Product {product_id} not found or no render result")
             return
 
-        _, status = Product.update_render_for_id(product_id, rendered_product)
+        _, status = Product.update_render_for_id(product_id, rendered_product, render_revision)
         if status == 200 and user_id:
             realtime_publisher.product_rendered(product_id, user_id, "completed")
 
