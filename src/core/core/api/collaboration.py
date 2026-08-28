@@ -1,9 +1,10 @@
 from datetime import UTC, datetime, timedelta
 from secrets import token_urlsafe
 from urllib.parse import urlparse
+from uuid import UUID
 
 import requests
-from flask import Blueprint, Flask, request
+from flask import Blueprint, Flask, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from loro import ExportMode, VersionVector
@@ -23,11 +24,24 @@ from core.service.collaboration_loro import CollaborationStore, decode, encode, 
 
 
 def _document(document_id: str) -> CollaborationDocument | None:
-    return db.session.get(CollaborationDocument, document_id)
+    try:
+        return db.session.get(CollaborationDocument, str(UUID(document_id)))
+    except (AttributeError, ValueError, TypeError):
+        return None
 
 
 def _channel(channel_id: str) -> CollaborationChannel | None:
-    return db.session.get(CollaborationChannel, channel_id)
+    try:
+        return db.session.get(CollaborationChannel, str(UUID(channel_id)))
+    except (AttributeError, ValueError, TypeError):
+        return None
+
+
+def _valid_id(value: object) -> str | None:
+    try:
+        return str(UUID(str(value)))
+    except (AttributeError, ValueError, TypeError):
+        return None
 
 
 def _authorized_document(row: CollaborationDocument, user, write: bool = False) -> bool:
@@ -69,13 +83,38 @@ def _touch_metadata(channel: CollaborationChannel) -> None:
 
 
 def _pending_operation(channel: CollaborationChannel, operation: dict, actor: str) -> dict:
+    operation_id = _valid_id(operation.get("operation_id")) or BaseModel.uuid7_str()
+    action = str(operation.get("action") or "")
     return {
-        "operation_id": str(operation.get("operation_id") or BaseModel.uuid7_str()),
-        "action": str(operation.get("action") or ""),
+        "operation_id": operation_id,
+        "action": action if action in {"stories.add", "stories.remove", "news_item.move", "report.update"} else "",
         "base_version": int(operation.get("base_version") or 0),
         "actor": actor,
         "payload": operation.get("payload") if isinstance(operation.get("payload"), dict) else {},
     }
+
+
+def _peer_results(value: object) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    results = []
+    for item in value:
+        if not isinstance(item, dict) or item.get("status") not in {"applied", "conflict", "invalid"}:
+            continue
+        operation_id = _valid_id(item.get("operation_id"))
+        if not operation_id:
+            continue
+        result: dict[str, object] = {"operation_id": operation_id, "status": item["status"]}
+        if isinstance(item.get("metadata_version"), int):
+            result["metadata_version"] = item["metadata_version"]
+        if isinstance(item.get("conflict"), dict):
+            result["conflict"] = {
+                key: item["conflict"][key]
+                for key in ("operation_id", "action", "proposal", "owner_version", "owner_state")
+                if key in item["conflict"]
+            }
+        results.append(result)
+    return results
 
 
 class Channels(MethodView):
@@ -215,7 +254,7 @@ class Stories(MethodView):
             operation["action"] = "stories.add"
             operation["payload"]["snapshots"] = snapshots
             CollaborationStore().queue_operation(channel.id, operation)
-            return {"queued": True, "operation_id": operation["operation_id"], "metadata_version": channel.metadata_version}, 202
+            return jsonify({"queued": True, "operation_id": operation["operation_id"], "metadata_version": channel.metadata_version}), 202
         payload = request.get_json(silent=True) or {}
         story_ids = payload.get("story_ids") if isinstance(payload.get("story_ids"), list) else [payload.get("story_id")]
         existing = {item.get("source_story_id") for item in channel.story_snapshots}
@@ -251,7 +290,7 @@ class Stories(MethodView):
             operation["action"] = "stories.remove"
             operation["payload"]["snapshot_id"] = snapshot_id
             CollaborationStore().queue_operation(channel.id, operation)
-            return {"queued": True, "operation_id": operation["operation_id"], "metadata_version": channel.metadata_version}, 202
+            return jsonify({"queued": True, "operation_id": operation["operation_id"], "metadata_version": channel.metadata_version}), 202
         before = len(channel.story_snapshots)
         channel.story_snapshots = [item for item in channel.story_snapshots if item.get("id") != snapshot_id]
         if len(channel.story_snapshots) == before:
@@ -279,7 +318,7 @@ class NewsItemMove(MethodView):
             operation["payload"] = {"source_snapshot_id": source_id, "target_snapshot_id": target_id, "news_item_id": news_item_id}
             operation["base_version"] = int(payload.get("base_version") or channel.metadata_version)
             CollaborationStore().queue_operation(channel.id, operation)
-            return {"queued": True, "operation_id": operation["operation_id"]}, 202
+            return jsonify({"queued": True, "operation_id": operation["operation_id"]}), 202
         if not source or not target or source is target:
             return {"error": "Invalid story snapshots"}, 400
         items = (source.get("story") or {}).get("news_items") or []
@@ -386,7 +425,7 @@ class PendingOperations(MethodView):
             _touch_metadata(channel)
             results.append({"operation_id": operation["operation_id"], "status": "applied", "metadata_version": channel.metadata_version})
         db.session.commit()
-        return {"results": results, "metadata_version": channel.metadata_version}, 200
+        return jsonify({"results": results, "metadata_version": channel.metadata_version}), 200
 
     @auth_required("ASSESS_ACCESS")
     def get(self, channel_id: str):
@@ -423,7 +462,7 @@ class Reconcile(MethodView):
                 store.clear_pending_operation(channel_id, str(item.get("operation_id") or ""))
                 if item.get("conflict"):
                     store.add_conflict(channel_id, item["conflict"])
-        return {"results": result.get("results", []), "conflicts": store.conflicts(channel_id)}, 200
+        return jsonify({"results": _peer_results(result.get("results")), "conflicts": store.conflicts(channel_id)}), 200
 
 
 class ConflictResolution(MethodView):
@@ -524,7 +563,7 @@ class ReportDrafts(MethodView):
         channel.report_drafts = [*channel.report_drafts, draft]
         _touch_metadata(channel)
         db.session.commit()
-        return {"draft": draft}, 201
+        return jsonify({"draft": draft}), 201
 
     @auth_required("ASSESS_UPDATE")
     def delete(self, channel_id: str, draft_id: str):
@@ -553,7 +592,7 @@ class ReportDrafts(MethodView):
             operation["action"] = "report.update"
             operation["payload"]["draft_id"] = draft_id
             CollaborationStore().queue_operation(channel.id, operation)
-            return {"queued": True, "operation_id": operation["operation_id"]}, 202
+            return jsonify({"queued": True, "operation_id": operation["operation_id"]}), 202
         report = ReportItem.get(draft_id)
         draft = next((item for item in channel.report_drafts if item.get("id") == draft_id), None)
         if not report or not draft:
