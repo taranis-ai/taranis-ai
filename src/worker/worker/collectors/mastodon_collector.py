@@ -82,7 +82,8 @@ class MastodonCollector(BaseCollector):
         self.instance_url = str(parameters["INSTANCE_URL"]).rstrip("/")
         self.timeline = str(parameters["TIMELINE"])
         self.collection_mode = str(parameters.get("COLLECTION_MODE", "complete"))
-        self.has_access_token = bool(parameters.get("ACCESS_TOKEN"))
+        access_token = str(parameters.get("ACCESS_TOKEN") or "").strip()
+        self.has_access_token = bool(access_token)
         self.mastodon_cursor = source.get("mastodon_cursor") if isinstance(source.get("mastodon_cursor"), dict) else None
         self.skipped_statuses = False
         if self.has_access_token and not self.instance_url.startswith("https://"):
@@ -92,7 +93,7 @@ class MastodonCollector(BaseCollector):
             )
 
         self.client = Mastodon(
-            access_token=parameters.get("ACCESS_TOKEN") or None,
+            access_token=access_token or None,
             api_base_url=self.instance_url,
             ratelimit_method="throw",
             request_timeout=60,

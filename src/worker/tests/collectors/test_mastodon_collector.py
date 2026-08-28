@@ -245,7 +245,7 @@ def test_core_publication_failure_preserves_cursor(requests_mock):
     assert collector.mastodon_cursor == cursor
 
 
-def test_access_token_requires_https_before_mastodon_client_is_created():
+def test_access_token_transport_rules(requests_mock):
     insecure_source = source("hashtag", access_token="secret-token-value")
     insecure_source["parameters"]["INSTANCE_URL"] = "http://mastodon.example"
 
@@ -256,6 +256,16 @@ def test_access_token_requires_https_before_mastodon_client_is_created():
     assert exception.value.public_message == "Mastodon access tokens require an HTTPS instance URL"
     assert exception.value.reason == "mastodon_https_required"
     assert collector.client is None
+
+    requests_mock.get(re.compile(r"http://mastodon.example/api/v1/timelines/tag/security.*"), json=[status(1)])
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "Added"})
+    insecure_source["parameters"]["ACCESS_TOKEN"] = "   "
+
+    collector = MastodonCollector()
+    assert collector.collect(insecure_source) == "Added"
+
+    mastodon_request = next(request for request in requests_mock.request_history if request.url.startswith("http://mastodon.example"))
+    assert "Authorization" not in mastodon_request.headers
 
 
 @pytest.mark.parametrize(
