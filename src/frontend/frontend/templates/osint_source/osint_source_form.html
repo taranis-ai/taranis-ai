@@ -66,30 +66,35 @@
         {{ form_fileinput('Icon', 'icon', osint_source.icon, type='file', required=False, accept=icon_accept) }}
       </div>
       <fieldset class="fieldset w-full mb-5">
-        <legend class="fieldset-legend">Source Rank</legend>
-        <div class="rating" data-testid="osint-source-rank">
-          <input type="radio"
-                 id="rank-0"
-                 name="rank"
-                 value="0"
-                 class="rating-hidden"
-                 aria-label="Unrated"
-                 {% if osint_source.rank | default(0) == 0 %}checked{% endif %}
-                 {% if read_only %}disabled{% endif %} />
-          {% for option in range(1, 6) %}
+        <legend class="sr-only">Source Rank</legend>
+        <div class="flex items-end justify-end gap-3">
+          <span class="text-sm font-medium" aria-hidden="true">Source Rank</span>
+          <div class="rating" data-testid="osint-source-rank">
             <input type="radio"
-                   id="rank-{{ option }}"
+                   id="rank-0"
                    name="rank"
-                   value="{{ option }}"
-                   class="mask mask-star-2 bg-warning"
-                   aria-label="{{ option }} star{% if option != 1 %}s{% endif %}"
-                   {% if osint_source.rank == option %}checked{% endif %}
+                   value="0"
+                   class="rating-hidden"
+                   aria-label="Unrated"
+                   {% if osint_source.rank | default(0) == 0 %}checked{% endif %}
                    {% if read_only %}disabled{% endif %} />
-          {% endfor %}
+            {% for option in range(1, 6) %}
+              <input type="radio"
+                     id="rank-{{ option }}"
+                     name="rank"
+                     value="{{ option }}"
+                     class="mask mask-star-2 bg-warning"
+                     aria-label="{{ option }} star{% if option != 1 %}s{% endif %}"
+                     {% if osint_source.rank == option %}checked{% endif %}
+                     {% if read_only %}disabled{% endif %} />
+            {% endfor %}
+          </div>
+          {% if not read_only %}
+            <label for="rank-0" class="btn btn-ghost btn-circle btn-xs tooltip" data-tip="Remove source rating" aria-label="Remove source rating">
+              {{ heroicon_outline("x-mark", class="h-4 w-4") }}
+            </label>
+          {% endif %}
         </div>
-        <label class="label justify-start gap-2" for="rank-0">
-          <span class="label-text">Unrated</span>
-        </label>
         {% if read_only %}<input type="hidden" name="rank" value="{{ osint_source.rank | default(0) }}" />{% endif %}
       </fieldset>
     </div>
