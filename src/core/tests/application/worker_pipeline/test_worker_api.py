@@ -25,13 +25,13 @@ class TestWorkerApi:
     def test_rss_source_includes_global_entry_limit(self, client, api_header, fake_source, monkeypatch):
         monkeypatch.setattr(
             "core.model.osint_source.Settings.get_settings",
-            lambda: {"collector_max_entries": 17},
+            lambda: {"rss_collector_max_entries": 17},
         )
 
         response = client.get(f"{self.base_uri}/osint-sources/{fake_source}", headers=api_header)
 
         assert response.status_code == 200
-        assert response.get_json()["collector_max_entries"] == 17
+        assert response.get_json()["rss_collector_max_entries"] == 17
 
     def test_mastodon_cursor_comes_from_latest_task_result(self, client, api_header, app):
         from core.model.osint_source import OSINTSource
@@ -74,6 +74,7 @@ class TestWorkerApi:
             source_response = client.get(f"{self.base_uri}/osint-sources/{source_id}", headers=api_header)
             assert source_response.status_code == 200
             assert source_response.get_json()["mastodon_cursor"] == cursor
+            assert "rss_collector_max_entries" not in source_response.get_json()
 
             malformed = {
                 **payload,

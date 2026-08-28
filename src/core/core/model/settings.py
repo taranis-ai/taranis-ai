@@ -31,7 +31,7 @@ class Settings(BaseModel):
         merged: dict[str, Any] = dict(settings) if isinstance(settings, Mapping) else {}
         merged.setdefault("default_collector_proxy", "")
         merged.setdefault("default_collector_interval", "0 */8 * * *")
-        merged.setdefault("collector_max_entries", 42)
+        merged.setdefault("rss_collector_max_entries", 42)
         merged.setdefault("default_bot_lookback_days", 7)
         merged.setdefault("default_tlp_level", TLPLevel.CLEAR.value)
         merged.setdefault("default_story_conflict_retention", "200")
@@ -62,13 +62,13 @@ class Settings(BaseModel):
                 update_data["default_bot_lookback_days"] = cls._validate_non_negative_int(update_data["default_bot_lookback_days"])
             except (TypeError, ValueError):
                 return {"error": "Invalid bot lookback setting"}, 400
-        if "collector_max_entries" in update_data:
+        if "rss_collector_max_entries" in update_data:
             try:
-                update_data["collector_max_entries"] = cls._validate_non_negative_int(update_data["collector_max_entries"])
-                if update_data["collector_max_entries"] == 0:
+                update_data["rss_collector_max_entries"] = cls._validate_non_negative_int(update_data["rss_collector_max_entries"])
+                if update_data["rss_collector_max_entries"] == 0:
                     raise ValueError
             except (TypeError, ValueError):
-                return {"error": "Invalid collector entry limit"}, 400
+                return {"error": "Invalid RSS collector entry limit"}, 400
         if "onboarding_enabled" in update_data:
             try:
                 update_data["onboarding_enabled"] = cls._validate_bool(update_data["onboarding_enabled"])

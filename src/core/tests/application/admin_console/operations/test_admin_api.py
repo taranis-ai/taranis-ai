@@ -24,7 +24,7 @@ class TestAdminApi(BaseTest):
             "settings": {
                 "default_collector_proxy": "http://test_server:1111",
                 "default_collector_interval": "5 5 * * *",
-                "collector_max_entries": "75",
+                "rss_collector_max_entries": "75",
                 "default_tlp_level": "clear",
                 "default_story_conflict_retention": "150",
                 "default_news_item_conflict_retention": "150",
@@ -36,32 +36,9 @@ class TestAdminApi(BaseTest):
         response_settings = response.get_json()
 
         assert response_settings["message"] == "Successfully updated settings"
-        expected_settings = test_settings["settings"] | {"collector_max_entries": 75}
+        expected_settings = test_settings["settings"] | {"rss_collector_max_entries": 75}
         for key, value in expected_settings.items():
             assert response_settings["settings"][key] == value
-
-    def test_saved_rss_entry_limit_is_migrated(self, app):
-        from core.managers.db_manager import db
-        from core.managers.db_seed_manager import migrate_collector_max_entries
-        from core.model.settings import Settings
-
-        with app.app_context():
-            settings = Settings.get_settings_entry()
-            original = dict(settings.settings)
-            try:
-                legacy = dict(original)
-                legacy.pop("collector_max_entries", None)
-                legacy["rss_collector_max_entries"] = 23
-                settings.settings = legacy
-                db.session.commit()
-
-                migrate_collector_max_entries()
-
-                assert settings.settings["collector_max_entries"] == 23
-                assert "rss_collector_max_entries" not in settings.settings
-            finally:
-                settings.settings = original
-                db.session.commit()
 
     def test_settings_patch_updates_single_field(self, client, auth_header):
         initial_settings = {
@@ -107,15 +84,15 @@ class TestAdminApi(BaseTest):
         assert response.get_json()["error"] == "Invalid bot lookback setting"
 
     @pytest.mark.parametrize("value", [0, -1, "invalid"])
-    def test_settings_rejects_invalid_collector_entry_limit(self, client, auth_header, value):
+    def test_settings_rejects_invalid_rss_collector_entry_limit(self, client, auth_header, value):
         response = client.put(
             self.concat_url("settings"),
-            json={"settings": {"collector_max_entries": value}},
+            json={"settings": {"rss_collector_max_entries": value}},
             headers=auth_header,
         )
 
         assert response.status_code == 400
-        assert response.get_json()["error"] == "Invalid collector entry limit"
+        assert response.get_json()["error"] == "Invalid RSS collector entry limit"
 
     def test_settings_rejects_invalid_default_timezone(self, client, auth_header):
         response = client.put(

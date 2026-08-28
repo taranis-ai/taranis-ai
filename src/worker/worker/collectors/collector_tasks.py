@@ -167,7 +167,6 @@ def collector_task(osint_source_id: str, manual: bool = False):
                 data=_collector_result_data(osint_source_id, manual, collector_impl),
             )
         except NoChangeError as e:
-            logger.info(f"No changes detected: {e}")
             previous_status = source.get("status")
             if isinstance(previous_status, dict):
                 previous_result = previous_status.get("result")

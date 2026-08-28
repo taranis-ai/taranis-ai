@@ -81,7 +81,6 @@ class BaseWebCollector(BaseCollector):
         http_validators = self.http_validators
         primary_request = http_validators is not None and http_validators["url"] == url
 
-        logger.debug(f"Sending GET request to {url}")
         with requests.Session(disable_http3=Config.DISABLE_HTTP3) as session:
             response = session.get(url, headers=self._request_headers(url, modified_since), proxies=self.proxies, timeout=self.timeout)
         if http_validators is not None and primary_request and response.status_code == 200:

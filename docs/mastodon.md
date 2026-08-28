@@ -21,9 +21,9 @@ The optional user-agent, collector proxy, TLP, and refresh interval settings use
 
 ## Collection behavior
 
-The global **Collector Entry Limit** in Admin Settings limits both Mastodon and RSS processing per run. New sources import the newest statuses up to that limit. Later runs continue forward from a cursor retained in the latest collector task result; if more statuses are waiting than one run permits, later scheduled runs continue the backlog without moving the cursor past unprocessed statuses.
+Mastodon does not use the RSS collector entry limit. New sources import the newest API page. Later runs continue forward from a cursor retained in the latest collector task result and paginate through all statuses published since the previous successful run.
 
-Cursor state follows the task-history lifecycle. Deleting task history, leaving a source inactive beyond the configured retention period, or restoring the database without recent task results resets the source to a newest-status bootstrap. Existing news-item deduplication makes replay safe, but older backlog beyond the entry limit may be skipped after such a reset.
+Cursor state follows the task-history lifecycle. Deleting task history, leaving a source inactive beyond the configured retention period, or restoring the database without recent task results resets the source to a newest-page bootstrap. Existing news-item deduplication makes replay safe, but older history may be skipped after such a reset.
 
 Changing the instance, timeline, hashtag, token owner, or target account establishes a different timeline identity and starts a new cursor. Preview always shows current statuses without reading or advancing stored progress.
 

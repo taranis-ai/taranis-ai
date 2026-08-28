@@ -15,7 +15,6 @@ INSTANCE_URL = "https://mastodon.example"
 def source(
     timeline: str,
     *,
-    max_entries: int = 42,
     hashtag: str = "security",
     account: str = "alice@example.social",
     access_token: str = "token",
@@ -33,7 +32,7 @@ def source(
         "TLP_LEVEL": "clear",
         "REFRESH_INTERVAL": "",
     }
-    result: dict[str, Any] = {"id": "source-1", "parameters": parameters, "collector_max_entries": max_entries}
+    result: dict[str, Any] = {"id": "source-1", "parameters": parameters}
     if cursor:
         result["mastodon_cursor"] = cursor
     return result
@@ -85,14 +84,11 @@ def test_hashtag_collection_maps_boost_and_media_and_advances_cursor(requests_mo
     )
     responses = [status("opaque-b", reblog=original), status("opaque-a", content="", media_description="Network diagram")]
 
-    def hashtag_response(request, _context):
-        return [] if "max_id" in request.qs else responses
-
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=hashtag_response)
+    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=responses)
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "Added 2 items"})
 
     collector = MastodonCollector()
-    assert collector.collect(source("hashtag", max_entries=2, access_token="")) == "Added 2 items"
+    assert collector.collect(source("hashtag", access_token="")) == "Added 2 items"
 
     items = _published_items(requests_mock)
     assert items[0]["author"] == "Bob"
@@ -121,12 +117,12 @@ def test_home_collection_uses_local_cursor_without_gaps(requests_mock):
     cursor = {"timeline": f"{INSTANCE_URL}|home|account-1", "last_status_id": "100"}
 
     collector = MastodonCollector()
-    collector.collect(source("home", max_entries=42, cursor=cursor))
+    collector.collect(source("home", cursor=cursor))
 
     assert len(_published_items(requests_mock)) == 42
     assert collector.mastodon_cursor == {"timeline": f"{INSTANCE_URL}|home|account-1", "last_status_id": "142"}
     home_requests = [request for request in requests_mock.request_history if "/api/v1/timelines/home" in request.url]
-    assert [request.qs["min_id"][0] for request in home_requests] == ["100", "140"]
+    assert [request.qs["min_id"][0] for request in home_requests] == ["100", "140", "142"]
     assert all(request.headers["Authorization"] == "Bearer token" for request in home_requests)
 
 
@@ -142,20 +138,17 @@ def test_account_collection_resolves_configured_account(requests_mock):
     assert lookup.qs["acct"] == ["alice@example.social"]
 
 
-def test_bootstrap_honors_shared_collector_entry_limit(requests_mock):
+def test_bootstrap_reads_only_newest_page(requests_mock):
     first_page = [status(status_id) for status_id in range(100, 60, -1)]
-    second_page = [status(60), status(59)]
-
-    def hashtag_response(request, _context):
-        return second_page if request.qs.get("max_id") == ["61"] else first_page
-
-    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=hashtag_response)
+    requests_mock.get(re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"), json=first_page)
     requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={"message": "Added"})
 
     collector = MastodonCollector()
-    collector.collect(source("hashtag", max_entries=42, access_token=""))
+    collector.collect(source("hashtag", access_token=""))
 
-    assert len(_published_items(requests_mock)) == 42
+    assert len(_published_items(requests_mock)) == 40
+    requests = [request for request in requests_mock.request_history if "/api/v1/timelines/tag/security" in request.url]
+    assert len(requests) == 1
     assert collector.mastodon_cursor["last_status_id"] == "100"
 
 
@@ -164,7 +157,7 @@ def test_preview_ignores_and_preserves_cursor(requests_mock):
     cursor = {"timeline": f"{INSTANCE_URL}|hashtag|security", "last_status_id": "100"}
 
     collector = MastodonCollector()
-    preview = collector.preview_collector(source("hashtag", max_entries=1, access_token="", cursor=cursor))
+    preview = collector.preview_collector(source("hashtag", access_token="", cursor=cursor))
 
     request = next(request for request in requests_mock.request_history if "/api/v1/timelines/tag/security" in request.url)
     assert "min_id" not in request.qs
@@ -178,7 +171,7 @@ def test_changed_timeline_identity_bootstraps_and_replaces_cursor(requests_mock)
     cursor = {"timeline": f"{INSTANCE_URL}|hashtag|old-target", "last_status_id": "100"}
 
     collector = MastodonCollector()
-    collector.collect(source("hashtag", max_entries=1, access_token="", cursor=cursor))
+    collector.collect(source("hashtag", access_token="", cursor=cursor))
 
     request = next(request for request in requests_mock.request_history if "/api/v1/timelines/tag/security" in request.url)
     assert "min_id" not in request.qs
@@ -195,7 +188,7 @@ def test_duplicate_only_publication_advances_cursor(requests_mock):
 
     collector = MastodonCollector()
     with pytest.raises(NoChangeError, match="All news items were skipped"):
-        collector.collect(source("hashtag", max_entries=1, access_token="", cursor=cursor))
+        collector.collect(source("hashtag", access_token="", cursor=cursor))
 
     assert collector.mastodon_cursor["last_status_id"] == "101"
 
@@ -207,7 +200,7 @@ def test_core_publication_failure_preserves_cursor(requests_mock):
 
     collector = MastodonCollector()
     with pytest.raises(MastodonCollectorError) as exception:
-        collector.collect(source("hashtag", max_entries=1, access_token="", cursor=cursor))
+        collector.collect(source("hashtag", access_token="", cursor=cursor))
 
     assert exception.value.public_message == "Collected Mastodon statuses could not be published"
     assert exception.value.reason == "mastodon_publish_failed"

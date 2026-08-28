@@ -33,7 +33,6 @@ class MastodonCollector(BaseCollector):
         self.instance_url = ""
         self.timeline = ""
         self.target = ""
-        self.max_entries = 42
         self.has_access_token = False
         self.mastodon_cursor: dict[str, str] | None = None
 
@@ -76,7 +75,6 @@ class MastodonCollector(BaseCollector):
         parameters = source["parameters"]
         self.instance_url = str(parameters["INSTANCE_URL"]).rstrip("/")
         self.timeline = str(parameters["TIMELINE"])
-        self.max_entries = int(source.get("collector_max_entries", 42))
         self.has_access_token = bool(parameters.get("ACCESS_TOKEN"))
         self.mastodon_cursor = source.get("mastodon_cursor") if isinstance(source.get("mastodon_cursor"), dict) else None
         if self.has_access_token and not self.instance_url.startswith("https://"):
@@ -107,17 +105,17 @@ class MastodonCollector(BaseCollector):
         target = self.target.casefold() if self.timeline == "hashtag" else self.target
         return f"{self.instance_url}|{self.timeline}|{target}"
 
-    def _fetch_page(self, *, limit: int, min_id: str | None = None, max_id: str | None = None) -> list[Any]:
+    def _fetch_page(self, *, min_id: str | None = None) -> list[Any]:
         if self.client is None:
             raise RuntimeError("Mastodon collector is not configured")
-        pagination = {"limit": limit, "min_id": min_id, "max_id": max_id}
+        pagination = {"limit": 40, "min_id": min_id}
         if self.timeline == "hashtag":
             page = self.client.timeline_hashtag(self.target, **pagination)
         elif self.timeline == "home":
             page = self.client.timeline_home(**pagination)
         else:
             page = self.client.account_statuses(self.target, **pagination)
-        return list(page)[:limit]
+        return list(page)
 
     def _fetch_statuses(self, *, use_cursor: bool) -> list[Any]:
         timeline_key = self._timeline_key()
@@ -127,8 +125,8 @@ class MastodonCollector(BaseCollector):
 
         if last_status_id and use_cursor:
             forward_cursor = last_status_id
-            while len(statuses) < self.max_entries:
-                page = self._fetch_page(limit=min(40, self.max_entries - len(statuses)), min_id=forward_cursor)
+            while True:
+                page = self._fetch_page(min_id=forward_cursor)
                 if not page:
                     break
                 next_cursor = self._status_id(page[0])
@@ -138,17 +136,7 @@ class MastodonCollector(BaseCollector):
                 forward_cursor = next_cursor
             return statuses
 
-        older_than = None
-        while len(statuses) < self.max_entries:
-            page = self._fetch_page(limit=min(40, self.max_entries - len(statuses)), max_id=older_than)
-            if not page:
-                break
-            next_older_than = self._status_id(page[-1])
-            if next_older_than == older_than:
-                break
-            statuses.extend(page)
-            older_than = next_older_than
-        return statuses
+        return self._fetch_page()
 
     def _news_item(self, status: Any, source_id: str) -> NewsItem:
         post = status.get("reblog") or status
