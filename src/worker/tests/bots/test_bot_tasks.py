@@ -5,6 +5,7 @@ import pytest
 from niquests.exceptions import RequestException
 
 import worker.bots
+from worker.bot_api import BotServiceUnavailableError
 from worker.bots.bot_tasks import bot_task
 from worker.config import Config
 from worker.core_api import CoreApi, build_success_task_result
@@ -129,7 +130,7 @@ class TestBotTask:
         assert task_data["result"]["data"] == {"bot_id": "bot-999", "filter": None, "trigger_dependents": True}
 
     def test_bot_task_exception_wraps_error_in_dict(self, current_job, requests_mock, bot_config, stub_bots):
-        """Test that bot_task wraps exception messages in dict."""
+        """Test that bot_task does not expose unexpected exception messages."""
         requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
         requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
 
@@ -150,8 +151,28 @@ class TestBotTask:
         assert task_data["worker_id"] == "bot-456"
         assert task_data["worker_type"] == "WORDLIST_BOT"
         assert isinstance(task_data["result"], dict)
-        assert "Bot execution failed: Bot execution crashed" in task_data["result"]["message"]
+        assert task_data["result"]["message"] == "Bot execution failed"
         assert task_data["result"]["reason"] == "bot_execution_failed"
+
+    def test_bot_task_reports_unavailable_service(self, current_job, requests_mock, bot_config, stub_bots):
+        requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
+        requests_mock.post(f"{Config.TARANIS_CORE_URL}/tasks", json={"message": "saved"})
+
+        def _raise(*_):
+            raise BotServiceUnavailableError
+
+        stub_bots._execute_impl = staticmethod(_raise)
+
+        with pytest.raises(BotServiceUnavailableError, match="Bot service is unavailable"):
+            bot_task("bot-456")
+
+        task_data = next(req.json() for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks"))
+        assert task_data["result"] == {
+            "message": "Bot service is unavailable. Check its configured endpoint and ensure the service is running.",
+            "reason": "bot_service_unavailable",
+            "retryable": True,
+            "data": {"bot_id": "bot-456", "filter": None, "trigger_dependents": True},
+        }
 
     def test_bot_task_none_result_is_reported_as_failure(self, current_job, requests_mock, bot_config, stub_bots):
         requests_mock.get(f"{Config.TARANIS_CORE_URL}/worker/bots/bot-456", json=bot_config)
@@ -168,7 +189,7 @@ class TestBotTask:
         assert task_data["worker_id"] == "bot-456"
         assert task_data["worker_type"] == "WORDLIST_BOT"
         assert task_data["result"] == {
-            "message": "Bot execution failed: Bot bot-456 returned no result",
+            "message": "Bot bot-456 returned no result",
             "reason": "bot_empty_result",
             "retryable": False,
             "data": {"bot_id": "bot-456", "filter": None, "trigger_dependents": True},

@@ -9,6 +9,7 @@ from models.worker_parameters import effective_parameter_values
 from rq import get_current_job
 
 import worker.bots
+from worker.bot_api import BotServiceUnavailableError
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import logger
 
@@ -62,9 +63,24 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
             else {"worker_id": bot_id, "worker_type": worker_type, "result": bot_result}
         )
     except Exception as exc:
-        error_message = str(exc)
-        if not (isinstance(exc, ValueError) and error_message == f"Bot with id {bot_id} not found"):
-            error_message = f"Bot execution failed: {error_message}"
+        not_found = isinstance(exc, ValueError) and exc.args == (f"Bot with id {bot_id} not found",)
+        empty_result = isinstance(exc, RuntimeError) and exc.args == (f"Bot {bot_id} returned no result",)
+        if isinstance(exc, BotServiceUnavailableError):
+            error_message = exc.public_message
+            reason = exc.reason
+            retryable = exc.retryable
+        elif not_found:
+            error_message = f"Bot with id {bot_id} not found"
+            reason = "bot_not_found"
+            retryable = False
+        elif empty_result:
+            error_message = f"Bot {bot_id} returned no result"
+            reason = "bot_empty_result"
+            retryable = False
+        else:
+            error_message = "Bot execution failed"
+            reason = "bot_execution_failed"
+            retryable = False
         core_api.save_task_result(
             task_id,
             task_name,
@@ -73,16 +89,13 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
             worker_type=worker_type,
             result=build_failure_task_result(
                 error_message,
-                reason=(
-                    "bot_not_found"
-                    if isinstance(exc, ValueError) and str(exc) == f"Bot with id {bot_id} not found"
-                    else "bot_empty_result"
-                    if str(exc) == f"Bot {bot_id} returned no result"
-                    else "bot_execution_failed"
-                ),
+                reason=reason,
+                retryable=retryable,
                 data={"bot_id": bot_id, "filter": filter, "trigger_dependents": trigger_dependents},
             ),
         )
+        if isinstance(exc, BotServiceUnavailableError):
+            raise BotServiceUnavailableError from None
         raise
 
 

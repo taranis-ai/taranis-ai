@@ -8,7 +8,7 @@ from worker.config import Config
 
 
 class TaranisLogger:
-    def __init__(self, module: str, debug: bool, colored: bool, gunicorn: bool, syslog_address: tuple[str, int] | str | None):
+    def __init__(self, module: str, debug: bool, colored: bool, syslog_address: tuple[str, int] | str | None):
         self.module = module
         stream_handler = logging.StreamHandler(stream=sys.stdout)
         if colored:
@@ -24,8 +24,7 @@ class TaranisLogger:
 
         lloggers = [logging.getLogger()]
 
-        if gunicorn:
-            lloggers = [logging.getLogger("gunicorn.error")]
+        logging.getLogger("ioc_fanger").setLevel(logging.INFO)
 
         for llogger in lloggers:
             llogger.handlers.clear()
@@ -110,4 +109,4 @@ def setup_logging():
         root_logger.setLevel(logging.DEBUG)
 
 
-logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, gunicorn=False, syslog_address=None)
+logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, syslog_address=None)

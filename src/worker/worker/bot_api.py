@@ -6,6 +6,15 @@ from worker.config import Config
 from worker.log import logger
 
 
+class BotServiceUnavailableError(RuntimeError):
+    public_message = "Bot service is unavailable. Check its configured endpoint and ensure the service is running."
+    reason = "bot_service_unavailable"
+    retryable = True
+
+    def __init__(self):
+        super().__init__(self.public_message)
+
+
 class BotApi:
     def __init__(
         self,
@@ -41,12 +50,18 @@ class BotApi:
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        try:
+            response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        except requests.exceptions.RequestException:
+            raise BotServiceUnavailableError from None
         return self.check_response(response, url)
 
     def api_get(self, url: str, params: dict | None = None):
         url = f"{self.api_url}{url}"
         if params:
             url += f"?{urlencode(params)}"
-        response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+        try:
+            response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+        except requests.exceptions.RequestException:
+            raise BotServiceUnavailableError from None
         return self.check_response(response, url)

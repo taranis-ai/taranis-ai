@@ -8,6 +8,8 @@ Worker-backed actions still report queue success when core accepts the job. If c
 
 MISP connector outcomes are persisted according to the completed operation rather than successful worker dispatch: synchronized stories and submitted proposals are successes, while an entirely failed execution raises into the connector task's single failure path. Expected connector errors carry a curated public message and stable reason code; missing configurations use `connector_not_found`, configurations missing a type use `connector_type_missing`, and unexpected errors use a generic fallback.
 
+Bot transport failures use the curated `bot_service_unavailable` result, tell operators to check the configured endpoint and service, and remain retryable RQ failures so dependent bots do not run. The worker suppresses the underlying HTTP exception chain from the displayed failure; unexpected bot exceptions use a static fallback message.
+
 Task history is retained globally by the daily `cleanup_task_history` housekeeping job. The retention window comes from the core `TASK_HISTORY_RETENTION_DAYS` environment variable and does not vary by task type or worker family.
 The My Tasks page lists only completed persisted results belonging to the authenticated user, including successful OSINT source previews with `PREVIEW` status. It does not query Redis or display queued and running jobs; enqueue notifications remain the immediate acknowledgement for those states.
 
