@@ -35,7 +35,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Collector HTTP State](collector-http-state.md) - persistent HTTP validators, request scoping, manual bypass, 304 handling, and collector failure propagation.
 - [PizzINT Dashboard](pizzint-dashboard.md) - opt-in DOUGHCON card, upstream validation, shared caching, stale fallback, and disclaimer behavior.
 - [Worker Parameters](worker-parameters.md) - shared parameter registry ownership, configured/effective values, schema-driven forms, secrets, update semantics, and migration rules.
-- [OSINT Source Management](osint-source-management.md) - single and bulk source creation, shared settings, URL fields, optional group creation, and import-backed transactions.
+- [OSINT Source Management](osint-source-management.md) - single and bulk source creation, atomic bulk deletion, shared settings, optional groups, and import-backed transactions.
 
 ## File Format
 

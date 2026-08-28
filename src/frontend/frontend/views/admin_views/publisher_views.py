@@ -36,6 +36,7 @@ class PublisherView(AdminBaseView):
             "publisher_types": cls.publisher_types.values(),
             "parameter_values": parameter_values,
             "parameters": parameters,
+            "worker_parameters_selected": bool(publisher and getattr(publisher, "type", None)),
             "secret_reveal_url": (
                 f"{Config.TARANIS_BASE_PATH.rstrip('/')}/api/config/parameter-secrets/publisher-presets/{publisher.id}"
                 if publisher and publisher.id
@@ -51,7 +52,7 @@ class PublisherView(AdminBaseView):
             logger.warning("No Publisher ID or Publisher Type provided.")
 
         parameters = cls.get_worker_parameters(publisher_type)
-        return render_template("partials/worker_parameters.html", parameters=parameters)
+        return render_template("partials/worker_parameters.html", parameters=parameters, worker_parameters_selected=True)
 
     @classmethod
     def get_columns(cls):
@@ -86,6 +87,7 @@ class ProductTypeView(AdminBaseView):
             "report_types": [rt.model_dump() for rt in dpl.get_objects(ReportItemType).items],
             "parameters": parameters,
             "parameter_values": parameter_values,
+            "worker_parameters_selected": bool(presenter and getattr(presenter, "type", None)),
             "secret_reveal_url": (
                 f"{Config.TARANIS_BASE_PATH.rstrip('/')}/api/config/parameter-secrets/product-types/{presenter.id}"
                 if presenter and presenter.id
@@ -125,4 +127,9 @@ class ProductTypeView(AdminBaseView):
         parameters = cls.get_worker_parameters(worker_type=presenter_type)
         template_options = cls.get_template_options()
 
-        return render_template("product_type/product_type_parameters.html", parameters=parameters, template_options=template_options)
+        return render_template(
+            "product_type/product_type_parameters.html",
+            parameters=parameters,
+            template_options=template_options,
+            worker_parameters_selected=True,
+        )
