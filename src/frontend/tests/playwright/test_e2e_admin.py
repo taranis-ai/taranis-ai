@@ -399,6 +399,9 @@ class TestEndToEndAdmin(BaseE2ETest):
             delete_button = page.get_by_test_id("delete-osint_source-button")
             expect(delete_button).to_contain_text("Delete 10 OSINT Source")
             self.highlight_element(delete_button).click()
+            force_checkbox = page.get_by_role("checkbox", name="Force Deletion of OSINT source and all its data")
+            expect(force_checkbox).to_be_visible()
+            force_checkbox.check()
             page.get_by_role("button", name="Delete").click()
             dismiss_notifications(page)
             expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
@@ -1056,7 +1059,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         def test_bot_create():
             page.get_by_test_id("new-bot-button").click()
             expect(page.get_by_role("heading", name="Create Bot")).to_be_visible()
-            refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
+            optional_parameters = page.get_by_test_id("optional-worker-parameters")
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(bot_name)
@@ -1064,7 +1067,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Description").fill("test bot description")
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("21")
-            self.select_dynamic_type_and_wait(page, "analyst_bot", refresh_interval_input)
+            self.select_dynamic_type_and_wait(page, "analyst_bot", optional_parameters)
+            optional_parameters.locator("summary").click()
 
             page.locator('input[name="parameters[ITEM_FILTER]"]').fill("1")
             page.locator('input[name="parameters[REGULAR_EXPRESSION]"]').fill(".*")
@@ -1075,6 +1079,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def test_bot_update():
             page.get_by_role("link", name=bot_name, exact=True).click()
+            page.get_by_test_id("optional-worker-parameters").locator("summary").click()
             expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
@@ -1084,6 +1089,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("button", name="Update Bot").click()
 
             page.get_by_role("link", name=updated_bot_name).click()
+            page.get_by_test_id("optional-worker-parameters").locator("summary").click()
             expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
             page.get_by_role("button", name="Update Bot").click()
@@ -1119,13 +1125,12 @@ class TestEndToEndAdmin(BaseE2ETest):
         def add_connector():
             page.get_by_test_id("new-connector-button").click()
             expect(page.get_by_test_id("connector-form")).to_be_visible()
-            refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
+            url_input = page.locator('input[name="parameters[URL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(connector_name)
-            self.select_dynamic_type_and_wait(page, "misp_connector", refresh_interval_input)
+            self.select_dynamic_type_and_wait(page, "misp_connector", url_input)
 
-            url_input = page.locator('input[name="parameters[URL]"]')
             api_key_input = page.locator('input[name="parameters[API_KEY]"]')
             organisation_input = page.locator('input[name="parameters[ORGANISATION_ID]"]')
             expect(url_input).to_have_attribute("required", "")
@@ -1135,6 +1140,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(organisation_input).to_have_attribute("required", "")
             organisation_input.fill("1")
 
+            page.get_by_test_id("optional-worker-parameters").locator("summary").click()
             page.locator('input[name="parameters[SSL_CHECK]"][type="checkbox"]').set_checked(True)
             page.locator('input[name="parameters[SHARING_GROUP_ID]"]').fill("1")
             page.get_by_test_id("connector-submit-button").click()
@@ -1144,6 +1150,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         def update_connector():
             page.get_by_role("link", name=connector_name).click()
             expect(page.get_by_test_id("connector-form")).to_be_visible()
+            page.get_by_test_id("optional-worker-parameters").locator("summary").click()
             expect(page.locator('input[name="parameters[SSL_CHECK]"][type="checkbox"]')).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")

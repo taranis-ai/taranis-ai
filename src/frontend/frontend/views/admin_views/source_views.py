@@ -93,7 +93,7 @@ class SourceView(AdminBaseView):
                 "hx_swap": "outerHTML",
                 "type": "button",
                 "confirm": "Are you sure you want to delete this OSINT Source?",
-                "data_attr": "data-swal-confirm=true",
+                "data_attr": "data-force-delete",
             },
         ]
 
@@ -104,6 +104,7 @@ class SourceView(AdminBaseView):
 
         base_context["parameters"] = parameters
         base_context["parameter_values"] = parameter_values
+        base_context["worker_parameters_selected"] = bool(collector and collector.type)
         base_context["collector_types"] = cls.collector_types.values()
         base_context["icon_accept"] = Config.OSINT_SOURCE_ICON_ALLOWED_MIMETYPES
         base_context["actions"] = osint_source_actions
@@ -137,7 +138,7 @@ class SourceView(AdminBaseView):
         if bulk and (url_parameter := cls.bulk_url_parameters.get(collector_type)):
             parameters = [parameter for parameter in parameters if parameter["name"] != url_parameter]
 
-        return render_template("partials/worker_parameters.html", parameters=parameters)
+        return render_template("partials/worker_parameters.html", parameters=parameters, worker_parameters_selected=True)
 
     @classmethod
     def get_bulk_create_context(cls, form_data: dict[str, Any] | None = None, error: str | None = None) -> dict[str, Any]:
@@ -162,6 +163,7 @@ class SourceView(AdminBaseView):
             "icon_accept": Config.OSINT_SOURCE_ICON_ALLOWED_MIMETYPES,
             "parameters": parameters,
             "parameter_values": form_data.get("parameters", {}),
+            "worker_parameters_selected": bool(collector_type),
             "rank": form_data.get("rank", 0),
             "selected_collector_type": collector_type,
             "sources": sources,
@@ -406,7 +408,7 @@ class SourceView(AdminBaseView):
 
     @classmethod
     def delete_view(cls, object_id: str) -> tuple[str, int]:
-        force = str(request.values.get("force", "")).lower() in {"1", "true", "yes", "on"}
+        force = request.values.get("force") == "true"
         dpl = DataPersistenceLayer()
         params = {"force": "true"} if force else None
         core_response = dpl.delete_object(cls.model, object_id, params=params)
@@ -423,6 +425,24 @@ class SourceView(AdminBaseView):
         if table_response == 200:
             response += table
         return response, core_response.status_code or table_response
+
+    @classmethod
+    def delete_multiple_view(cls, object_ids: list[str]) -> tuple[str, int]:
+        force = request.values.get("force") == "true"
+        params: dict[str, Any] = {"ids": object_ids}
+        if force:
+            params["force"] = "true"
+
+        core_response = CoreApi().api_delete(cls.model._core_endpoint, params=params)
+        if not core_response.ok:
+            return cls.get_notification_from_response(core_response), core_response.status_code or 500
+
+        cls._invalidate_model_cache()
+        response, status_code = cls.render_list()
+        response += render_template(
+            "notification/index.html", notification={"message": "Selected items deleted successfully", "error": False}
+        )
+        return response, status_code
 
     @classmethod
     @admin_required()
