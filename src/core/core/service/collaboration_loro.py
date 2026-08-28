@@ -41,11 +41,19 @@ class CollaborationStore:
 
     @staticmethod
     def create_document(
-        channel_id: str, resource_kind: str, resource_id: str, roots: tuple[str, ...] | None = None, initial: dict[str, str] | None = None
+        channel_id: str,
+        resource_kind: str,
+        resource_id: str,
+        roots: tuple[str, ...] | None = None,
+        initial: dict[str, str] | None = None,
+        rich_roots: set[str] | None = None,
     ) -> CollaborationDocument:
         document = LoroDoc()
         roots = roots or (("title", "description", "summary", "comments") if resource_kind == "story" else ("title",))
         for root in roots:
+            if rich_roots and root in rich_roots:
+                document.get_map(root)
+                continue
             text = document.get_text(root)
             if initial and initial.get(root):
                 text.insert(0, initial[root])
@@ -56,6 +64,9 @@ class CollaborationStore:
             resource_id=resource_id,
             snapshot=document.export(ExportMode.Snapshot()),
             version_vector=document.oplog_vv.encode(),
+            root_names=list(roots),
+            rich_roots=sorted(rich_roots or set()),
+            initial_values=initial or {},
         )
 
     @staticmethod
@@ -66,11 +77,12 @@ class CollaborationStore:
         roots: tuple[str, ...] | None = None,
         document_id: str | None = None,
         initial: dict[str, str] | None = None,
+        rich_roots: set[str] | None = None,
     ) -> CollaborationDocument:
         row = CollaborationDocument.query.filter_by(channel_id=channel_id, resource_kind=resource_kind, resource_id=resource_id).first()
         if row:
             return row
-        row = CollaborationStore.create_document(channel_id, resource_kind, resource_id, roots, initial)
+        row = CollaborationStore.create_document(channel_id, resource_kind, resource_id, roots, initial, rich_roots)
         if document_id:
             row.id = document_id
         db.session.add(row)
@@ -134,7 +146,7 @@ class CollaborationStore:
         except RedisError:
             self.cache.pop(row.id, None)
             raise
-        except (RuntimeError, TypeError):
+        except (RuntimeError, TypeError, ValueError):
             raise ValueError("Invalid collaboration update") from None
 
     def sync(self, row: CollaborationDocument, version_vector: bytes, update: bytes | None = None) -> bytes:
@@ -160,6 +172,37 @@ class CollaborationStore:
 
     def delete_presence(self, document_id: str, session_id: str) -> None:
         self.redis.delete(self._key(document_id, f"presence:{session_id}"))
+
+    def queue_operation(self, channel_id: str, operation: dict[str, Any]) -> None:
+        self.redis.rpush(self._key(channel_id, "pending-operations"), json.dumps(operation, separators=(",", ":")))
+
+    def pending_operations(self, channel_id: str) -> list[dict[str, Any]]:
+        values = self.redis.lrange(self._key(channel_id, "pending-operations"), 0, -1)
+        return [json.loads(value) for value in values]
+
+    def clear_pending_operation(self, channel_id: str, operation_id: str) -> None:
+        key = self._key(channel_id, "pending-operations")
+        for value in self.redis.lrange(key, 0, -1):
+            try:
+                if json.loads(value).get("operation_id") == operation_id:
+                    self.redis.lrem(key, 1, value.decode() if isinstance(value, bytes) else value)
+            except (TypeError, ValueError):
+                continue
+
+    def add_conflict(self, channel_id: str, conflict: dict[str, Any]) -> None:
+        self.redis.rpush(self._key(channel_id, "conflicts"), json.dumps(conflict, separators=(",", ":")))
+
+    def conflicts(self, channel_id: str) -> list[dict[str, Any]]:
+        return [json.loads(value) for value in self.redis.lrange(self._key(channel_id, "conflicts"), 0, -1)]
+
+    def resolve_conflict(self, channel_id: str, operation_id: str) -> None:
+        key = self._key(channel_id, "conflicts")
+        for value in self.redis.lrange(key, 0, -1):
+            try:
+                if json.loads(value).get("operation_id") == operation_id:
+                    self.redis.lrem(key, 1, value.decode() if isinstance(value, bytes) else value)
+            except (TypeError, ValueError):
+                continue
 
     def checkpoint(self, row: CollaborationDocument) -> bool:
         lock = self.redis.lock(self._key(row.id, "checkpoint-lock"), timeout=30, blocking_timeout=2)
@@ -196,9 +239,15 @@ class CollaborationStore:
         return {root: document.get_text(root).to_string() for root in roots}
 
     def rich_text_value(self, row: CollaborationDocument, root: str) -> tuple[str, str]:
-        from core.service.collaboration_projection import project_rich_text
+        from core.service.collaboration_projection import project_prosemirror, project_rich_text
 
         document = self.load(row).document
+        try:
+            value = document.get_map(root).get_value()
+        except (RuntimeError, TypeError):
+            value = None
+        if isinstance(value, dict) and value.get("type"):
+            return project_prosemirror(value)
         return project_rich_text(cast(list[dict[str, Any]], document.get_text(root).get_richtext_value()))
 
     def synchronize_with_peer(self, row: CollaborationDocument, peer_url: str, token: str) -> bool:

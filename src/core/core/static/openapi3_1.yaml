@@ -9247,6 +9247,52 @@ paths:
     post:
       operationId: collaboration.finalize.post
       responses: {'200': {description: finalized}}
+  /collaboration/channels/{channel_id}/stories:
+    post:
+      operationId: collaboration.stories.post
+      responses: {'200': {description: stories updated}}
+  /collaboration/channels/{channel_id}/stories/{snapshot_id}:
+    delete:
+      operationId: collaboration.story.delete
+      responses: {'200': {description: story removed}}
+  /collaboration/channels/{channel_id}/move-news-item:
+    post:
+      operationId: collaboration.news_item_move.post
+      responses: {'200': {description: news item moved}}
+  /collaboration/channels/{channel_id}/pending-operations:
+    get:
+      operationId: collaboration.pending_operations.get
+      responses: {'200': {description: pending operations}}
+  /collaboration/channels/{channel_id}/reconcile:
+    post:
+      operationId: collaboration.reconcile.post
+      responses: {'200': {description: reconciled}}
+  /collaboration/channels/{channel_id}/conflicts/{operation_id}/resolve:
+    post:
+      operationId: collaboration.conflict_resolution.post
+      responses: {'202': {description: conflict resolution queued}}
+  /collaboration/channels/{channel_id}/report-workspace:
+    get:
+      operationId: collaboration.report_workspace.get
+      responses: {'200': {description: report workspace}}
+    put:
+      operationId: collaboration.report_workspace.put
+      responses: {'200': {description: report members updated}}
+  /collaboration/channels/{channel_id}/report-drafts:
+    post:
+      operationId: collaboration.report_drafts.post
+      responses: {'201': {description: report draft created}}
+  /collaboration/channels/{channel_id}/report-drafts/{draft_id}:
+    patch:
+      operationId: collaboration.report_draft.patch
+      responses: {'200': {description: report draft updated}}
+    delete:
+      operationId: collaboration.report_draft.delete
+      responses: {'200': {description: report draft deleted}}
+  /collaboration/channels/{channel_id}/report-drafts/{draft_id}/finalize:
+    post:
+      operationId: collaboration.report_draft_finalize.post
+      responses: {'200': {description: report finalized}}
   /documents/{document_id}:
     get:
       operationId: collaboration.document.get
@@ -9278,6 +9324,10 @@ paths:
     post:
       operationId: collaboration.peer_channel_register.post
       responses: {'200': {description: peer registered}}
+  /peer-channels/{channel_id}/metadata-sync:
+    post:
+      operationId: collaboration.peer_metadata_sync.post
+      responses: {'200': {description: metadata synchronized}}
   /peer-documents/{document_id}/sync:
     post:
       operationId: collaboration.peer_document_sync.post

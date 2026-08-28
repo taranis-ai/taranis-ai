@@ -6,7 +6,7 @@ Loro documents, collaboration channels, peer synchronization, collaborative stor
 
 ## Expected Behavior
 
-Collaborative text is stored in Loro documents, accepted updates are durable in Redis before publication, PostgreSQL stores checkpoints, and peer synchronization is best effort. Users may edit existing documents while disconnected; owner-controlled lifecycle and finalization require peer convergence.
+Collaborative text is stored in Loro documents, accepted updates are durable in Redis before publication, PostgreSQL stores checkpoints, and peer synchronization is best effort. Users may edit existing documents while disconnected; owner-controlled structural and scalar actions are durable pending intents. Reconnection submits intents against the owner metadata version, preserves owner state on conflicts, and requires explicit contributor resolution before finalization.
 
 ## Code Paths
 
@@ -28,3 +28,4 @@ Run `cd src/core && uv run pytest`, `cd src/worker && uv run pytest`, `cd src/fr
 ## Pitfalls
 
 Do not restore the old collaboration tables, text-operation protocol, sidecar, or tests. Never accept an update into process-local state when Redis is unavailable. Presence is expiring Redis state only. Rich text must be projected from an allowlisted Loro/ProseMirror schema; never persist client HTML.
+Story collaboration uses snapshot IDs in `CollaborationChannel.story_snapshots`; report drafts and members remain channel metadata. Non-owner story management, news-item moves, and report scalar updates use the pending-operation endpoint; Loro text and ProseMirror containers remain direct CRDT documents.
