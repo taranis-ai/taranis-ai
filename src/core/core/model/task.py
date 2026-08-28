@@ -31,7 +31,7 @@ class Task(BaseModel):
     user_id: Mapped[str | None] = db.Column(db.String(UUID_STR_LENGTH), nullable=True)
     worker_id: Mapped[str] = db.Column(db.String, nullable=True)
     worker_type: Mapped[str] = db.Column(db.String, nullable=True)
-    result: Mapped[str] = db.Column(db.String, nullable=True)
+    result: Mapped[str | None] = db.Column(db.String, nullable=True)
     status: Mapped[str] = db.Column(db.String, nullable=True)
     last_run: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     last_success: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
@@ -80,16 +80,19 @@ class Task(BaseModel):
         return new_entry.to_dict(), 201
 
     def to_dict(self):
-        try:
-            result = json.loads(self.result) if self.result else None
-        except (TypeError, ValueError):
-            logger.warning("Task %s has malformed result JSON", self.job_id)
+        if not self.result:
+            logger.warning("Task %s has no stored result; using the default result", self.job_id)
             result = self.DEFAULT_RESULT.copy()
         else:
-            if not isinstance(result, dict):
-                if self.result:
-                    logger.warning("Task %s has a non-object result payload", self.job_id)
+            try:
+                result = json.loads(self.result)
+            except (TypeError, ValueError):
+                logger.warning("Task %s has malformed result JSON", self.job_id)
                 result = self.DEFAULT_RESULT.copy()
+            else:
+                if not isinstance(result, dict):
+                    logger.warning("Task %s has a non-object result payload", self.job_id)
+                    result = self.DEFAULT_RESULT.copy()
         return {
             "id": self.id,
             "job_id": self.job_id,
