@@ -25,6 +25,8 @@ Database JSON columns contain only explicitly configured names with their native
 
 Frontend imports the registry and renders `model_json_schema(mode="validation", by_alias=True)`. Standard schema types, enums, defaults, required fields, patterns, and numeric bounds drive controls. `Field(title=...)` is the label and `Field(description=...)` is tooltip/help text. `json_schema_extra` is only for behavior JSON Schema cannot express, such as cron, template, word-list, or preferred textarea widgets.
 
+Admin forms render schema-required parameters immediately in full-width rows. Non-required parameters remain part of the submitted form but are visually grouped in a responsive two-column grid inside a native `details` disclosure that is closed by default and reports how many optional keys are explicitly configured. Workers without required parameters explain that defaults are sufficient; selected workers with no parameters show a compact empty state. Dynamic HTMX type changes replace the complete shared parameter section, and the separate Assess create-from-URL dialog is not part of this shared form.
+
 POST creates a full configuration. `PUT.parameters` replaces non-secret configuration while preserving omitted or masked configured secrets. `PATCH.parameters` merges keys; `null` removes a configured value and omitted keys remain unchanged. Worker type is immutable. Sources and bots may be incomplete only while disabled, and enabling or executing them performs full validation. Connector tasks persist parameter-contract failures with the `invalid_parameters` reason before aborting execution. Email publisher subjects remain optional for compatibility with existing presets; an omitted subject expands to an empty string for worker execution. TAXII bearer authentication uses the `bearer` value expected by the worker. Kafka publishers support `PLAINTEXT`, `SSL`, `SASL_PLAINTEXT`, and `SASL_SSL`.
 
 Secret inputs are not submitted until Replace or Clear is selected. Reveal is an audited POST authorized by the resource's update permission and is non-cacheable. Audit records remain metadata-only.
@@ -35,6 +37,7 @@ Invalid reveal requests are logged server-side and return a static `400` error w
 - Registry/service: `src/core/tests/unit/test_worker_parameter_registry.py`, `test_worker_parameter_service.py`
 - Core configuration/import: `src/core/tests/application/admin_console/configuration`
 - Frontend forms: `src/frontend/tests/unit/views`
+- Admin browser flows expand the optional-settings disclosure before interacting with non-required controls.
 - Worker dispatch: `src/worker/tests`
 - Run Ruff in all four components and `./dev/check_pyrefly.sh` from the repository root.
 

@@ -104,6 +104,7 @@ class SourceView(AdminBaseView):
 
         base_context["parameters"] = parameters
         base_context["parameter_values"] = parameter_values
+        base_context["worker_parameters_selected"] = bool(collector and collector.type)
         base_context["collector_types"] = cls.collector_types.values()
         base_context["icon_accept"] = Config.OSINT_SOURCE_ICON_ALLOWED_MIMETYPES
         base_context["actions"] = osint_source_actions
@@ -137,7 +138,7 @@ class SourceView(AdminBaseView):
         if bulk and (url_parameter := cls.bulk_url_parameters.get(collector_type)):
             parameters = [parameter for parameter in parameters if parameter["name"] != url_parameter]
 
-        return render_template("partials/worker_parameters.html", parameters=parameters)
+        return render_template("partials/worker_parameters.html", parameters=parameters, worker_parameters_selected=True)
 
     @classmethod
     def get_bulk_create_context(cls, form_data: dict[str, Any] | None = None, error: str | None = None) -> dict[str, Any]:
@@ -162,6 +163,7 @@ class SourceView(AdminBaseView):
             "icon_accept": Config.OSINT_SOURCE_ICON_ALLOWED_MIMETYPES,
             "parameters": parameters,
             "parameter_values": form_data.get("parameters", {}),
+            "worker_parameters_selected": bool(collector_type),
             "rank": form_data.get("rank", 0),
             "selected_collector_type": collector_type,
             "sources": sources,

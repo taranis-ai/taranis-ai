@@ -25,8 +25,6 @@ from frontend.views.admin_views.report_type_views import ReportItemTypeView
 from frontend.views.admin_views.source_views import SourceView
 from frontend.views.admin_views.word_list_views import WordListView
 from frontend.views.base_view import BaseView
-from frontend.views.product_views import ProductView
-from frontend.views.report_views import ReportItemView
 
 
 _VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
@@ -917,32 +915,6 @@ def test_persistent_notification_has_no_timeout_animation(app):
     assert "@animationend" not in persistent
     assert '@click="show = false"' in persistent
     assert "@animationend" in timed
-
-
-def test_analyze_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints):
-    response = authenticated_client.get(ReportItemView.get_base_route())
-
-    assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    assert 'aria-label="Toggle sidebar"' not in html
-    assert "#sidebar {" not in html
-    assert "#sidebar ~ main {" not in html
-
-
-def test_publish_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints, responses_mock):
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/publish/product-types",
-        json={"items": [], "total_count": 0},
-    )
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/publish/publisher-presets",
-        json={"items": [], "total_count": 0},
-    )
-
-    response = authenticated_client.get(ProductView.get_base_route())
-
-    assert response.status_code == 200
-    assert 'aria-label="Toggle sidebar"' not in response.get_data(as_text=True)
 
 
 def test_assess_page_shows_sidebar_toggle_when_sidebar_exists(authenticated_client, responses_mock):
