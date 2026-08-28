@@ -95,7 +95,7 @@ def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool =
             ),
         )
         if isinstance(exc, BotServiceUnavailableError):
-            raise BotServiceUnavailableError from None
+            raise
         raise
 
 

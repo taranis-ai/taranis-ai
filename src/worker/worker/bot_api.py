@@ -52,7 +52,8 @@ class BotApi:
             json_data = {}
         try:
             response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as exc:
+            logger.error(f"Bot service POST request to {url} failed: {exc}")
             raise BotServiceUnavailableError from None
         return self.check_response(response, url)
 
@@ -62,6 +63,7 @@ class BotApi:
             url += f"?{urlencode(params)}"
         try:
             response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as exc:
+            logger.error(f"Bot service GET request to {url} failed: {exc}")
             raise BotServiceUnavailableError from None
         return self.check_response(response, url)

@@ -1,5 +1,7 @@
 """Tests for bot task execution and result handling."""
 
+import traceback
+
 # pyright: reportMissingParameterType=false
 import pytest
 from niquests.exceptions import RequestException
@@ -163,9 +165,10 @@ class TestBotTask:
 
         stub_bots._execute_impl = staticmethod(_raise)
 
-        with pytest.raises(BotServiceUnavailableError, match="Bot service is unavailable"):
+        with pytest.raises(BotServiceUnavailableError, match="Bot service is unavailable") as exc_info:
             bot_task("bot-456")
 
+        assert "_raise" in {frame.name for frame in traceback.extract_tb(exc_info.value.__traceback__)}
         task_data = next(req.json() for req in requests_mock.request_history if req.method == "POST" and req.url.endswith("/tasks"))
         assert task_data["result"] == {
             "message": "Bot service is unavailable. Check its configured endpoint and ensure the service is running.",
