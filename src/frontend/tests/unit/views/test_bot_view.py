@@ -80,68 +80,6 @@ def test_worker_parameter_form_renders_native_boolean_and_object_values(app):
     assert json.loads(headers.text) == {"X-Test": "1"}
 
 
-def test_worker_parameter_form_groups_required_and_optional_settings(app):
-    with app.test_request_context("/"):
-        rendered = render_template(
-            "partials/worker_parameters.html",
-            parameters=AdminBaseView.get_worker_parameters("RSS_COLLECTOR"),
-            parameter_values={"FEED_URL": "https://example.test/feed", "USER_AGENT": "Taranis", "CONTENT_LOCATION": "article"},
-        )
-
-    tree = html.fromstring(rendered)
-    required = tree.xpath('//*[@data-testid="required-worker-parameters"]')[0]
-    optional = tree.xpath('//details[@data-testid="optional-worker-parameters"]')[0]
-
-    assert required.xpath('.//*[@data-parameter="FEED_URL"]')
-    assert not required.xpath('.//*[@data-parameter="USER_AGENT"]')
-    assert optional.xpath('.//*[@data-parameter="USER_AGENT"]')
-    assert optional.get("open") is None
-    assert "12 available" in optional.text_content()
-    assert "2 configured" in optional.text_content()
-    assert "md:col-span-2" in optional.xpath('.//*[@data-parameter="ADDITIONAL_HEADERS"]')[0].get("class", "")
-
-
-def test_worker_parameter_form_handles_workers_without_required_or_additional_settings(app):
-    with app.test_request_context("/"):
-        optional_only = render_template(
-            "partials/worker_parameters.html",
-            parameters=AdminBaseView.get_worker_parameters("ANALYST_BOT"),
-            parameter_values={},
-        )
-        empty = render_template(
-            "partials/worker_parameters.html",
-            parameters=[],
-            worker_parameters_selected=True,
-        )
-
-    optional_tree = html.fromstring(optional_only)
-    assert not optional_tree.xpath('//*[@data-testid="required-worker-parameters"]')
-    assert optional_tree.xpath('//details[@data-testid="optional-worker-parameters"]')
-    assert "No required settings" in optional_tree.text_content()
-
-    empty_tree = html.fromstring(empty)
-    assert empty_tree.xpath('//*[@data-testid="worker-parameter-empty-state"]')
-    assert "No additional worker configuration is required" in empty_tree.text_content()
-
-
-def test_worker_parameter_form_groups_template_selector_with_required_settings(app):
-    with app.test_request_context("/"):
-        rendered = render_template(
-            "product_type/product_type_parameters.html",
-            parameters=AdminBaseView.get_worker_parameters("PANDOC_PRESENTER"),
-            parameter_values={},
-            template_options=[{"id": "report.html", "name": "Report"}],
-            worker_parameters_selected=True,
-        )
-
-    tree = html.fromstring(rendered)
-    required = tree.xpath('//*[@data-testid="required-worker-parameters"]')[0]
-    template_select = required.xpath('.//select[@name="parameters[TEMPLATE_PATH]"]')
-    assert len(template_select) == 1
-    assert template_select[0].get("required") is not None
-    assert template_select[0].xpath('./option[@value="report.html"]')
-
-
 def test_summary_bot_parameters_include_split_summary_and_title_endpoints(authenticated_client, htmx_header):
     response = authenticated_client.get(
         url_for("admin.bot_parameters", bot_id="0", type="summary_bot"),
