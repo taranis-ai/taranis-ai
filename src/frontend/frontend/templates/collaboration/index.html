@@ -13,7 +13,8 @@
   <form class="mt-6 space-y-2" method="post" action="{{ url_for('collaboration.action', action='create') }}">
     <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
     <label class="text-sm" for="story-id">Create from story</label>
-    <input id="story-id" class="input input-bordered input-sm w-full" name="story_id" placeholder="Story ID" required>
+    <input id="story-id" class="input input-bordered input-sm w-full" name="story_ids" placeholder="Story IDs (comma separated)" required>
+    <input class="input input-bordered input-sm w-full" name="topic" placeholder="Channel topic">
     <input class="input input-bordered input-sm w-full" name="report_id" placeholder="Report draft ID (optional)">
     <button class="btn btn-primary btn-sm w-full" type="submit">Create channel</button>
   </form>
@@ -31,9 +32,33 @@
         <h2 class="text-2xl font-semibold">Collaborative workspace</h2>
         <span class="badge badge-outline">{{ channel.status }}</span>
       </div>
-      <p class="mt-2 text-sm opacity-70">Owner: {{ channel.owner_base_url }}</p>
+      <p class="mt-2 text-sm opacity-70">{{ channel.topic }} · Owner: {{ channel.owner_base_url }}</p>
+      <div class="mt-6 rounded-box border border-base-300 p-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Stories</h3>
+          <span class="badge">{{ channel.stories|length }}</span>
+        </div>
+        <div class="mt-3 space-y-2">
+          {% for story in channel.stories %}
+            <div class="flex items-center gap-2 rounded border border-base-300 p-2">
+              <a class="min-w-0 flex-1 truncate"
+                 href="{{ url_for('collaboration.document', document_id=(channel.documents|selectattr('resource_id', 'equalto', story.id)|map(attribute='id')|first)) }}">{{ story.title or 'Untitled story' }}</a>
+              {% if channel.status == 'open' %}<form method="post" action="{{ url_for('collaboration.action', action='remove-story') }}"><input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}"><input type="hidden" name="channel_id" value="{{ channel.channel_id }}"><input type="hidden" name="snapshot_id" value="{{ story.id }}"><button class="btn btn-ghost btn-xs text-error" type="submit">Remove</button></form>{% endif %}
+            </div>
+    {% else %}<p class="text-sm opacity-60">No stories.</p>{% endfor %}
+      </div>
+      {% if channel.status == 'open' %}<form class="mt-4 flex gap-2" method="post" action="{{ url_for('collaboration.action', action='add-stories') }}"><input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}"><input type="hidden" name="channel_id" value="{{ channel.channel_id }}"><input class="input input-bordered input-sm flex-1" name="story_ids" placeholder="Additional story IDs"><button class="btn btn-outline btn-sm" type="submit">Add</button></form>{% endif %}
+      </div>
       <div class="mt-6 space-y-2 rounded-box bg-base-200 p-4 text-sm">
         {% for document in channel.documents %}<a class="btn btn-ghost btn-sm w-full justify-start" href="{{ url_for('collaboration.document', document_id=document.id) }}">{{ document.kind }} · {{ document.resource_id }}</a>{% else %}No documents in this channel.{% endfor %}
+      </div>
+      <div class="mt-6 rounded-box border border-base-300 p-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Report drafts</h3>
+          <span class="badge">{{ channel.report_drafts|length }}</span>
+        </div>
+        {% if report_workspace.report_types %}<form class="mt-3 flex gap-2" method="post" action="{{ url_for('collaboration.action', action='create-report') }}"><input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}"><input type="hidden" name="channel_id" value="{{ channel.channel_id }}"><input class="input input-bordered input-sm flex-1" name="title" placeholder="Draft title"><select class="select select-bordered select-sm" name="report_item_type_id" required>{% for item in report_workspace.report_types %}<option value="{{ item.id }}">{{ item.title }}</option>{% endfor %}</select><button class="btn btn-primary btn-sm" type="submit">New</button></form>{% endif %}
+        <div class="mt-3 space-y-2">{% for draft in channel.report_drafts %}<div class="flex items-center gap-2"><a class="flex-1" href="{{ url_for('collaboration.document', document_id=draft.document_id) }}">{{ draft.title or draft.id }}</a>{% if draft.status == 'open' %}<form method="post" action="{{ url_for('collaboration.action', action='finalize-report') }}"><input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}"><input type="hidden" name="channel_id" value="{{ channel.channel_id }}"><input type="hidden" name="draft_id" value="{{ draft.id }}"><button class="btn btn-ghost btn-xs" type="submit">Finalize</button></form><form method="post" action="{{ url_for('collaboration.action', action='delete-report') }}"><input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}"><input type="hidden" name="channel_id" value="{{ channel.channel_id }}"><input type="hidden" name="draft_id" value="{{ draft.id }}"><button class="btn btn-ghost btn-xs text-error" type="submit">Delete</button></form>{% endif %}</div>{% else %}<p class="text-sm opacity-60">No report drafts.</p>{% endfor %}</div>
       </div>
     {% else %}
       <h2 class="text-2xl font-semibold">Select a channel</h2>
