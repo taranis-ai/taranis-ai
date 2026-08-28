@@ -158,12 +158,10 @@ def docker_compose_command(e2e_stack: str) -> str:
 
 
 @pytest.fixture(scope="session")
-def docker_compose_project_name(request) -> str:
+def docker_compose_project_name() -> str:
     configured_name = os.getenv("TARANIS_E2E_PROJECT_NAME", "").strip()
     if configured_name:
         return configured_name
-    if request.config.getoption("--e2e-keep-stack"):
-        return "taranis-e2e"
     return f"pytest{os.getpid()}"
 
 
@@ -174,8 +172,8 @@ def docker_setup(docker_compose_command: str, e2e_stack: str):
 
 
 @pytest.fixture(scope="session")
-def docker_cleanup(request):
-    if request.config.getoption("--e2e-keep-stack") or os.getenv("CI", "").lower() == "true":
+def docker_cleanup():
+    if os.getenv("CI", "").lower() == "true":
         return []
     return docker_cleanup_commands()
 

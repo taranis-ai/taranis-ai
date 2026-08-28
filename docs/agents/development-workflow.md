@@ -31,7 +31,7 @@ See `.github/workflows` for CI behavior. Run commands from the relevant componen
 - Run test and lint commands from the relevant component directory. Tests live in each component's `tests/` directory.
 - Lint each changed component with `uv run ruff check`; use `uv run ruff check --fix` and `uv run ruff format` where appropriate.
 - After touching Python files, run `./dev/check_pyrefly.sh` to check changed files.
-- E2E tests normally start an isolated Docker/Podman Compose stack and stop it afterward. The feature signoff pipeline deliberately retains and reuses its full E2E stack.
+- E2E tests start an isolated Docker/Podman Compose stack and stop it afterward.
 - The project-scoped Codex configuration filters inherited `DEBUG` values from shell commands. This prevents the VS Code Codex extension's `DEBUG=release` value from overriding the boolean values in the component `.env` files.
 - Models has no unit tests. Worker browser-scraping tests install Playwright browsers.
 - Core tests replace Redis connections with an in-process fake so test queues and cache invalidations cannot affect a running local instance.
@@ -45,18 +45,9 @@ After implementing and committing a feature, both humans and agents run the comp
 ./dev/test_push_signoff.sh
 ```
 
-The script requires a clean worktree, runs the full local lint, unit, and E2E pipeline, then pushes and signs off only after validation passes. The E2E command inside `dev/testpipeline.sh` always includes `--e2e-keep-stack`. Its first run creates a full Compose project named for the current branch. Later runs on that branch restart Core, worker, and cron to load edited code, then reuse the existing containers, dependency environments, SQLite database, and Redis data. Different branches use different projects, so signoff pipelines may run concurrently from separate worktrees; do not run multiple pipelines for the same branch concurrently.
+The script requires a clean worktree, runs the full local lint, unit, and E2E pipeline, then pushes and signs off only after validation passes. Every E2E invocation starts with a fresh Compose project and removes it after the test session, so SQLite and Redis state cannot leak into the next attempt.
 
-When validation fails, fix the feature, commit the fix, and run `./dev/test_push_signoff.sh` again. Do not replace this with a focused E2E test, tear down the retained stack between attempts, or run multiple signoff pipelines for the same branch concurrently. Reusing the full stack is the intended acceleration for the complete fix-and-rerun loop.
-
-If retained state appears to cause a failure, copy the project name printed by `dev/testpipeline.sh`, reset that stack, and rerun the same complete script:
-
-```bash
-e2e_project="taranis-e2e-..."  # replace with the project name printed by testpipeline.sh
-docker compose --profile rq -p "$e2e_project" -f src/frontend/tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1
-```
-
-CI always uses its own isolated stack, so no separate clean-stack local run is required before signoff.
+When validation fails, fix the feature, commit the fix, and run `./dev/test_push_signoff.sh` again. Do not replace this with a focused E2E test; the complete rerun is the feature signoff gate.
 
 ## Test Conventions
 

@@ -59,22 +59,9 @@ run_frontend() {
 }
 
 run_frontend_e2e() {
-  local compose=(docker compose --profile rq -p "$TARANIS_E2E_PROJECT_NAME" -f tests/playwright/compose.e2e.yml)
-  local service
-  local services=()
-
-  run_step "src/frontend e2e ($TARANIS_E2E_PROJECT_NAME)"
-  for service in core worker cron; do
-    if [ -n "$(run_in_dir src/frontend "${compose[@]}" ps -q "$service")" ]; then
-      services+=("$service")
-    fi
-  done
-  if [ "${#services[@]}" -ne 0 ]; then
-    run_in_dir src/frontend "${compose[@]}" restart "${services[@]}"
-  fi
-
+  run_step "src/frontend e2e"
   run_in_dir src/frontend uv run --frozen --no-sync pytest -p no:cacheprovider \
-    tests/playwright --e2e-ci --e2e-keep-stack
+    tests/playwright --e2e-ci
 }
 
 run_worker() {
@@ -121,17 +108,6 @@ wait_parallel_steps() {
 require_command git
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "Run this command from inside the taranis-ai git worktree."
 cd "$ROOT_DIR"
-
-if [ -z "${TARANIS_E2E_PROJECT_NAME:-}" ]; then
-  branch_name="$(git branch --show-current)"
-  if [ -z "$branch_name" ]; then
-    branch_name="detached-$(basename "$ROOT_DIR")"
-  fi
-  branch_slug="$(printf '%s' "$branch_name" | LC_ALL=C tr '[:upper:]' '[:lower:]' | LC_ALL=C sed 's/[^a-z0-9_-]/-/g; s/--*/-/g; s/^-//; s/-$//')"
-  branch_hash="$(printf '%s' "$branch_name" | git hash-object --stdin | cut -c1-8)"
-  TARANIS_E2E_PROJECT_NAME="taranis-e2e-${branch_slug:0:40}-$branch_hash"
-fi
-export TARANIS_E2E_PROJECT_NAME
 
 require_command uv
 

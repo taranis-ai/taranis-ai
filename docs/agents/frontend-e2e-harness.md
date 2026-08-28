@@ -6,7 +6,7 @@ Frontend Playwright tests, `--e2e-ci`, `compose.e2e.yml`, pytest-docker fixtures
 
 ## Expected Behavior
 
-The harness starts Core and Redis for ordinary stack-backed browser tests. It activates worker, cron, and the testdata server only when a selected `e2e_full_stack` test requires them. Default local runs use an isolated Compose project and clean it up. The complete local signoff pipeline passes `--e2e-keep-stack` and deliberately reuses a named full Compose project scoped to the current branch across fix-and-rerun attempts.
+The harness starts Core and Redis for ordinary stack-backed browser tests. It activates worker, cron, and the testdata server only when a selected `e2e_full_stack` test requires them. Local runs use an isolated Compose project and clean it up after the test session.
 
 `--e2e-ci` never records documentation screenshots or successful-test traces. CI runs the complete E2E suite in one job, then reruns only failures with tracing enabled and stores unique trace files under `test-results/e2e-traces/`.
 
@@ -27,7 +27,7 @@ The frontend test app runs in a session-scoped spawned Werkzeug process. Do not 
 
 CI runs the complete frontend E2E suite in one job and lets automatic service selection start the full stack when the collected tests require it. This keeps the CI command equivalent to a full local run and makes failures easier to reproduce. GitHub-hosted runners do not spend time stopping containers because the runner itself is disposable. Authenticated page fixtures mark the relevant onboarding tasks complete before opening a page; the onboarding tests explicitly reset those tasks when they need the unfinished state.
 
-`dev/testpipeline.sh` prepares all component environments first, then runs one complete E2E suite alongside component lint and unit tests. It derives a stable Compose project name from the current branch (with a worktree-name fallback for detached HEADs) and exports it as `TARANIS_E2E_PROJECT_NAME`; callers may set that variable explicitly to override the name. Before reusing an existing stack, it restarts Core, worker, and cron so bind-mounted Python changes are loaded without discarding containers, dependency environments, SQLite, or Redis state.
+`dev/testpipeline.sh` prepares all component environments first, then runs one complete E2E suite alongside component lint and unit tests. Each invocation gets a fresh Compose project, SQLite database, and Redis state.
 
 Worker prepares the RQ virtual environment once and shares it with cron. Cron waits for the `.e2e-ready` marker instead of independently installing the same dependency graph.
 
@@ -43,9 +43,6 @@ From `src/frontend`:
 ## Pitfalls
 
 - Core's aggregate `/health` endpoint is degraded when no worker is connected. Minimal browser lanes must wait for `/isalive`; RQ fixtures own worker and cron readiness checks.
-- Reusable-stack mode preserves SQLite and Redis data. Use unique records, clean up fixtures, or reset the stack when state affects the result.
-- Do not run multiple local signoff pipelines concurrently for the same branch because they share that branch's Compose project and state. Different branches use isolated projects.
-- Do not tear down the stack after an ordinary feature failure; retaining it is what speeds up the next complete signoff attempt.
 - Do not make tracing unconditional. Recording and compressing a trace for every successful test is a major teardown cost.
 - Do not move worker/cron-dependent assertions into a Core-only lane.
 - Mark every worker/cron-dependent browser test with `e2e_full_stack`; `auto` service selection deliberately depends on that marker.

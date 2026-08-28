@@ -246,12 +246,6 @@ def pytest_addoption(parser):
         help="compose services to start; auto honors the e2e_full_stack marker",
     )
     group.addoption(
-        "--e2e-keep-stack",
-        action="store_true",
-        default=False,
-        help="reuse the named compose project and leave it running after the test session",
-    )
-    group.addoption(
         "--e2e-trace",
         action="store_true",
         default=False,
