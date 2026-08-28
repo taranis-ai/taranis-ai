@@ -284,6 +284,7 @@ class TestEndToEndUser(BaseE2ETest):
 
         def access_story():
             target_title = pre_seed_stories[0]["title"]
+            summary_search_term = f"summarysearch{uuid.uuid4().hex}"
             page.get_by_placeholder("Search stories").fill(target_title)
             page.get_by_placeholder("Search stories").press("Enter")
 
@@ -315,7 +316,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("story-title")).to_contain_text(title)
             page.get_by_test_id("edit-story").click()
             page.get_by_role("textbox", name="Title").fill(edited_title)
-            page.get_by_role("textbox", name="Summary").fill("Test summary")
+            page.get_by_role("textbox", name="Summary").fill(f"Test summary {summary_search_term}")
             page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
             news_item_card = page.locator("article[id^='news-item-card-']").first
             news_item_card.get_by_test_id("edit-newsitem-tags").click()
@@ -339,6 +340,12 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_role("complementary")).to_contain_text("Cybersecurity classification")
             page.get_by_role("link", name="Return to story").click()
             expect(page.get_by_test_id("story-title")).to_contain_text(edited_title)
+
+            page.goto(url_for("assess.assess", _external=True))
+            search_input = page.get_by_placeholder("Search stories")
+            search_input.fill(summary_search_term)
+            with_htmx_wait(page, lambda: search_input.press("Enter"))
+            expect(story_card()).to_be_visible()
 
         def infinite_scroll_all_items(expected_total: int):
             page.goto(url_for("assess.assess", _external=True))

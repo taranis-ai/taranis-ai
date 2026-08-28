@@ -11,7 +11,7 @@ services:
       JWT_SECRET_KEY: test_key_for_tests_only_do_not_use
       FLASK_DEBUG: "1"
       DEBUG: "true"
-      SQLALCHEMY_DATABASE_URI: sqlite:////tmp/taranis_ai_test.db
+      SQLALCHEMY_DATABASE_URI: postgresql+psycopg://taranis:taranis@database:5432/taranis
       REDIS_URL: redis://redis:6379/0
       REDIS_PASSWORD: ""
       PRE_SEED_PASSWORD_ADMIN: admin
@@ -35,6 +35,8 @@ services:
     ports:
       - "8080"
     depends_on:
+      database:
+        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -114,6 +116,21 @@ services:
       retries: 20
       start_period: 2s
 
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: taranis
+      POSTGRES_USER: taranis
+      POSTGRES_PASSWORD: taranis
+    volumes:
+      - "database-data:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taranis -d taranis"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 2s
+
   testdata:
     image: nginx:alpine
     volumes:
@@ -129,3 +146,4 @@ volumes:
   core-uv-cache:
   worker-uv-cache:
   cron-uv-cache:
+  database-data:

@@ -101,5 +101,5 @@ Script has variables to influence dest. subdirectories of respective pictures. C
 
 ## Database for E2E
 
-The local Playwright E2E stack runs Core against an ephemeral SQLite database and Redis-backed worker services.
-No manual cleanup is required.
+The local Playwright E2E stack runs Core against an ephemeral PostgreSQL database and Redis-backed worker services.
+The harness removes the test containers and volumes automatically, so no manual cleanup is required.
