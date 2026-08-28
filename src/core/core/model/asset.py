@@ -298,7 +298,7 @@ class AssetGroup(BaseModel):
     def get_default_group(cls) -> "AssetGroup":
         if default_group := cls.get_by_key("default"):
             return default_group
-        if org := Organization.find_by_name("Default Organization") or Organization.get_first(db.select(cls)):
+if org := Organization.find_by_name("Default Organization") or Organization.get_first(db.select(Organization)):
             return AssetGroup.add(
                 {
                     "name": "Default",
