@@ -11,7 +11,7 @@ import pytest
 from flask import render_template, url_for
 from lxml import html
 from models.admin import OSINTSource, ReportItemType
-from models.task import Task, TaskResultEnvelope
+from models.task import Task, TaskResult
 from models.types import COLLECTOR_TYPES
 from models.user import AssessSavedFilter
 from requests import ConnectTimeout
@@ -617,7 +617,7 @@ class TestSourceView:
         task_result = Task(
             id="source_preview_42",
             status="FAILURE",
-            result=TaskResultEnvelope(
+            result=TaskResult(
                 message="Connection refused",
                 reason="preview_failed",
                 retryable=False,
