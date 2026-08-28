@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from models.task import Task as TaskResponseModel
-from models.task import TaskHistoryResponse, TaskResultEnvelope, TaskSubmission, UserTaskFilter, UserTaskList
+from models.task import TaskHistoryResponse, TaskResult, TaskSubmission, UserTaskFilter, UserTaskList
 
 from core.config import Config
 from core.log import logger
@@ -248,5 +248,5 @@ class TaskService:
         IOC.upsert_many([item for item in enrichments if isinstance(item, dict)])
 
     @staticmethod
-    def _get_result_dict_data(result: TaskResultEnvelope) -> dict[str, Any] | None:
+    def _get_result_dict_data(result: TaskResult) -> dict[str, Any] | None:
         return result.data if isinstance(result.data, dict) else None
