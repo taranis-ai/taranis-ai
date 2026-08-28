@@ -34,7 +34,7 @@ This file records notable changes to Taranis AI. Published release entries link 
 
 ### Deployment notes
 
-- Deploy shared models, core, frontend, and worker images together so the Mastodon collector contract and implementation remain compatible. Before rolling back to a release without `MASTODON_COLLECTOR`, export and remove Mastodon sources or restore a verified database snapshot.
+- Deploy shared models, core, frontend, and worker images together so the Mastodon collector contract and implementation remain compatible. Before rolling back to a release without `MASTODON_COLLECTOR`, restore the verified pre-deployment database snapshot as described below.
 - This release contains a destructive worker-parameter database migration. Before deployment, create a database snapshot, verify that it can be restored, and record the snapshot identifier and restore verification.
 - Before deployment, verify that `osint_source.type` contains no `EMAIL_COLLECTOR` or `TWITTER_COLLECTOR` rows. These unsupported collector remnants have no safe automatic conversion, so the migration stops and identifies the source instead of deleting it.
 - Deploy core, frontend, worker, and shared-model images as one compatible release.

@@ -214,6 +214,19 @@ def test_core_publication_failure_preserves_cursor(requests_mock):
     assert collector.mastodon_cursor == cursor
 
 
+def test_access_token_requires_https_before_mastodon_client_is_created():
+    insecure_source = source("hashtag", access_token="secret-token-value")
+    insecure_source["parameters"]["INSTANCE_URL"] = "http://mastodon.example"
+
+    collector = MastodonCollector()
+    with pytest.raises(MastodonCollectorError) as exception:
+        collector.collect(insecure_source)
+
+    assert exception.value.public_message == "Mastodon access tokens require an HTTPS instance URL"
+    assert exception.value.reason == "mastodon_https_required"
+    assert collector.client is None
+
+
 @pytest.mark.parametrize(
     ("status_code", "access_token", "public_message", "reason"),
     [
@@ -224,7 +237,9 @@ def test_core_publication_failure_preserves_cursor(requests_mock):
         (422, "", "This Mastodon instance requires an access token to collect hashtags", "mastodon_access_token_required"),
     ],
 )
-def test_api_errors_are_replaced_with_curated_messages(requests_mock, status_code, access_token, public_message, reason):
+def test_api_errors_are_replaced_with_curated_messages(requests_mock, monkeypatch, status_code, access_token, public_message, reason):
+    log_messages = []
+    monkeypatch.setattr("worker.collectors.mastodon_collector.logger.error", log_messages.append)
     requests_mock.get(
         re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"),
         status_code=status_code,
@@ -238,6 +253,7 @@ def test_api_errors_are_replaced_with_curated_messages(requests_mock, status_cod
     assert exception.value.public_message == public_message
     assert exception.value.reason == reason
     assert "secret-token-value" not in exception.value.public_message
+    assert log_messages == ["Mastodon API request failed"]
 
 
 def test_network_errors_are_replaced_with_a_curated_message(requests_mock):

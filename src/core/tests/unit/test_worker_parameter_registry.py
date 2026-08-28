@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from models.types import WORKER_TYPES
 from models.worker_parameters import (
@@ -64,12 +66,22 @@ def test_mastodon_timeline_contract_and_secret():
     assert schema["properties"]["TIMELINE"]["enum"] == ["hashtag", "home", "account"]
     assert schema["properties"]["ACCESS_TOKEN"]["format"] == "password"
     assert schema["properties"]["ACCESS_TOKEN"]["writeOnly"] is True
+    instance_pattern = schema["properties"]["INSTANCE_URL"]["pattern"]
+    assert re.fullmatch(instance_pattern, "https://mastodon.example/")
+    assert not re.fullmatch(instance_pattern, "https://mastodon.example/api")
 
     hashtag = effective_parameter_values(
         "MASTODON_COLLECTOR",
         {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security"},
     )
     assert hashtag["ACCESS_TOKEN"] == ""
+    assert (
+        effective_parameter_values(
+            "MASTODON_COLLECTOR",
+            {"INSTANCE_URL": "http://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security"},
+        )["INSTANCE_URL"]
+        == "http://mastodon.example"
+    )
 
     for parameters in (
         {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag"},
@@ -95,6 +107,12 @@ def test_mastodon_timeline_contract_and_secret():
         {"INSTANCE_URL": "https://mastodon.example/api", "TIMELINE": "hashtag", "HASHTAG": "security"},
         {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "threat intel"},
         {"INSTANCE_URL": "https://mastodon.example", "TIMELINE": "hashtag", "HASHTAG": "security?limit=100"},
+        {
+            "INSTANCE_URL": "http://mastodon.example",
+            "TIMELINE": "hashtag",
+            "HASHTAG": "security",
+            "ACCESS_TOKEN": "secret",
+        },
         {
             "INSTANCE_URL": "https://mastodon.example",
             "TIMELINE": "account",

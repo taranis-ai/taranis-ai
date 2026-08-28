@@ -6,14 +6,14 @@ The Mastodon collector imports statuses through scheduled API polling. It does n
 
 Create an OSINT source and select **Mastodon Collector**. Configure:
 
-- **Instance URL**: the Mastodon instance used for API requests, such as `https://mastodon.social`.
+- **Instance URL**: the Mastodon instance origin used for API requests, such as `https://mastodon.social`. Paths, queries, fragments, and embedded credentials are not accepted.
 - **Timeline**:
   - `hashtag` collects the configured hashtag. The access token is optional when the instance permits public timeline access.
   - `home` collects the access token owner's home timeline.
   - `account` collects statuses for the configured public account handle.
 - **Hashtag**: required for `hashtag`; a leading `#` is optional.
 - **Account**: required for `account`, for example `user@example.social`.
-- **Access token**: required for `home` and `account`. Use a read-only token with account and status read access; write access is not needed.
+- **Access token**: required for `home` and `account`. Use a read-only token with account and status read access; write access is not needed. Any source with an access token must use an HTTPS instance URL; tokenless hashtag collection may use HTTP for development-only instances.
 
 Some instances restrict anonymous hashtag timelines. If hashtag collection reports that an access token is required, configure a read-only token from that Mastodon instance even though tokens are normally optional for hashtag sources.
 
@@ -33,4 +33,4 @@ Boosts are stored as the original post so repeated boosts deduplicate on the ori
 
 Deploy compatible shared-model, core, frontend, and worker images together. Core startup synchronizes the collector enum before the new source type is used.
 
-Before rolling back to a release without `MASTODON_COLLECTOR`, export and remove Mastodon sources or restore a verified database snapshot. Older releases do not understand the new collector enum value.
+Before rolling back to a release without `MASTODON_COLLECTOR`, restore the verified pre-deployment database snapshot and redeploy the previous images. Exporting and removing Mastodon sources alone does not reverse the release's other database migrations.

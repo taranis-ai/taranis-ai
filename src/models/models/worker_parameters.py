@@ -87,7 +87,7 @@ class RSSCollectorParameters(WebCollectorParameters):
 class MastodonCollectorParameters(WorkerParameters):
     INSTANCE_URL: str = Field(
         min_length=1,
-        pattern=r"^https?://[^\s/]+(?:/[^\s]*)?$",
+        pattern=r"^https?://[^\s/@?#]+/?$",
         title="Instance URL",
         description="Base URL of the Mastodon instance used for API requests.",
     )
@@ -145,11 +145,14 @@ class MastodonCollectorParameters(WorkerParameters):
 
     @model_validator(mode="after")
     def validate_timeline_configuration(self) -> "MastodonCollectorParameters":
+        access_token = self.ACCESS_TOKEN.get_secret_value().strip()
+        if access_token and urlparse(self.INSTANCE_URL).scheme != "https":
+            raise ValueError("INSTANCE_URL must use HTTPS when ACCESS_TOKEN is configured")
         if self.TIMELINE == "hashtag" and not self.HASHTAG.lstrip("#").strip():
             raise ValueError("HASHTAG is required for hashtag timelines")
         if self.TIMELINE == "account" and not self.ACCOUNT.lstrip("@").strip():
             raise ValueError("ACCOUNT is required for account timelines")
-        if self.TIMELINE in {"home", "account"} and not self.ACCESS_TOKEN.get_secret_value().strip():
+        if self.TIMELINE in {"home", "account"} and not access_token:
             raise ValueError("ACCESS_TOKEN is required for home and account timelines")
         return self
 

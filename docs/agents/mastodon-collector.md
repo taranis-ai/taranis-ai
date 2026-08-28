@@ -8,6 +8,8 @@ Mastodon collector, hashtag timeline, home timeline, public account collection, 
 
 Mastodon collection runs as scheduled polling rather than a long-lived stream. Hashtags may use public API access; home and account modes require a masked read-only access token. Each run processes at most the global `collector_max_entries` value, default 42.
 
+Any Mastodon source with an access token must use an HTTPS instance origin. The shared parameter contract enforces the rule for enabled source creation, update, and import, and the worker rejects an insecure token-bearing payload before constructing the Mastodon client. Tokenless hashtag collection may use HTTP for development-only instances.
+
 When an instance rejects an anonymous hashtag request with an authentication-related response, collection fails with a static message telling the administrator to configure an access token. Invalid configured tokens remain a separate authentication failure.
 
 New sources bootstrap from the newest statuses. Later runs move forward from a cursor retained in the latest collector task result without using or changing Mastodon markers. A failed API request or publish never advances progress. A preview ignores the cursor and never persists progress.
@@ -38,4 +40,4 @@ The timeline identity includes the instance, mode, and normalized hashtag or res
 
 ## Pitfalls
 
-Do not use Mastodon markers: updating them requires write scope and changes the user's read position in other clients. Do not advance the cursor before core publication succeeds; duplicate-only publication is the exception because the statuses already exist. Every collector task result after initial progress must carry either the advanced or previous cursor so a failure does not reset progress. Treat Mastodon status IDs as opaque strings and use the API's response order for pagination. Use the original post URL for news-item deduplication. Keep exception-derived API text in server logs and return only curated task messages.
+Do not use Mastodon markers: updating them requires write scope and changes the user's read position in other clients. Do not advance the cursor before core publication succeeds; duplicate-only publication is the exception because the statuses already exist. Every collector task result after initial progress must carry either the advanced or previous cursor so a failure does not reset progress. Treat Mastodon status IDs as opaque strings and use the API's response order for pagination. Use the original post URL for news-item deduplication. Log only static Mastodon API and response-failure messages because upstream exception text may contain secrets; return only curated task messages.

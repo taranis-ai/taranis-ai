@@ -79,6 +79,11 @@ class MastodonCollector(BaseCollector):
         self.max_entries = int(source.get("collector_max_entries", 42))
         self.has_access_token = bool(parameters.get("ACCESS_TOKEN"))
         self.mastodon_cursor = source.get("mastodon_cursor") if isinstance(source.get("mastodon_cursor"), dict) else None
+        if self.has_access_token and not self.instance_url.startswith("https://"):
+            raise MastodonCollectorError(
+                "Mastodon access tokens require an HTTPS instance URL",
+                "mastodon_https_required",
+            )
 
         self.client = Mastodon(
             access_token=parameters.get("ACCESS_TOKEN") or None,
@@ -183,10 +188,10 @@ class MastodonCollector(BaseCollector):
             statuses = self._fetch_statuses(use_cursor=use_cursor)
             return statuses, [self._news_item(status, str(source["id"])) for status in statuses]
         except MastodonError as exc:
-            logger.exception("Mastodon API request failed")
+            logger.error("Mastodon API request failed")
             raise self._public_error(exc) from exc
         except (KeyError, TypeError, ValueError) as exc:
-            logger.exception("Mastodon returned an invalid response")
+            logger.error("Mastodon returned an invalid response")
             raise MastodonCollectorError("Mastodon returned an invalid response", "mastodon_invalid_response") from exc
 
     def collect(self, source: dict[str, Any], manual: bool = False):
