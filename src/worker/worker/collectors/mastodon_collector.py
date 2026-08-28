@@ -34,6 +34,7 @@ class MastodonCollector(BaseCollector):
         self.timeline = ""
         self.target = ""
         self.max_entries = 42
+        self.has_access_token = False
         self.mastodon_cursor: dict[str, str] | None = None
 
     @staticmethod
@@ -47,8 +48,18 @@ class MastodonCollector(BaseCollector):
             raise ValueError("Mastodon status has no ID")
         return str(status_id)
 
-    @staticmethod
-    def _public_error(exc: MastodonError) -> MastodonCollectorError:
+    def _public_error(self, exc: MastodonError) -> MastodonCollectorError:
+        if (
+            self.timeline == "hashtag"
+            and not self.has_access_token
+            and isinstance(exc, MastodonAPIError)
+            and len(exc.args) > 1
+            and exc.args[1] in {401, 422}
+        ):
+            return MastodonCollectorError(
+                "This Mastodon instance requires an access token to collect hashtags",
+                "mastodon_access_token_required",
+            )
         if isinstance(exc, MastodonUnauthorizedError):
             return MastodonCollectorError("Mastodon authentication failed or access was denied", "mastodon_authentication_failed")
         if isinstance(exc, MastodonNotFoundError):
@@ -66,6 +77,7 @@ class MastodonCollector(BaseCollector):
         self.instance_url = str(parameters["INSTANCE_URL"]).rstrip("/")
         self.timeline = str(parameters["TIMELINE"])
         self.max_entries = int(source.get("collector_max_entries", 42))
+        self.has_access_token = bool(parameters.get("ACCESS_TOKEN"))
         self.mastodon_cursor = source.get("mastodon_cursor") if isinstance(source.get("mastodon_cursor"), dict) else None
 
         self.client = Mastodon(

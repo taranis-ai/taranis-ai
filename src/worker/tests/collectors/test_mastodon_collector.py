@@ -215,15 +215,16 @@ def test_core_publication_failure_preserves_cursor(requests_mock):
 
 
 @pytest.mark.parametrize(
-    ("status_code", "public_message", "reason"),
+    ("status_code", "access_token", "public_message", "reason"),
     [
-        (401, "Mastodon authentication failed or access was denied", "mastodon_authentication_failed"),
-        (404, "The configured Mastodon timeline or account was not found", "mastodon_not_found"),
-        (429, "Mastodon rate limit exceeded; increase the refresh interval", "mastodon_rate_limited"),
-        (500, "The Mastodon instance rejected the collection request", "mastodon_api_error"),
+        (401, "secret-token-value", "Mastodon authentication failed or access was denied", "mastodon_authentication_failed"),
+        (404, "secret-token-value", "The configured Mastodon timeline or account was not found", "mastodon_not_found"),
+        (429, "secret-token-value", "Mastodon rate limit exceeded; increase the refresh interval", "mastodon_rate_limited"),
+        (500, "secret-token-value", "The Mastodon instance rejected the collection request", "mastodon_api_error"),
+        (422, "", "This Mastodon instance requires an access token to collect hashtags", "mastodon_access_token_required"),
     ],
 )
-def test_api_errors_are_replaced_with_curated_messages(requests_mock, status_code, public_message, reason):
+def test_api_errors_are_replaced_with_curated_messages(requests_mock, status_code, access_token, public_message, reason):
     requests_mock.get(
         re.compile(rf"{INSTANCE_URL}/api/v1/timelines/tag/security.*"),
         status_code=status_code,
@@ -232,7 +233,7 @@ def test_api_errors_are_replaced_with_curated_messages(requests_mock, status_cod
 
     collector = MastodonCollector()
     with pytest.raises(MastodonCollectorError) as exception:
-        collector.collect(source("hashtag", access_token="secret-token-value"))
+        collector.collect(source("hashtag", access_token=access_token))
 
     assert exception.value.public_message == public_message
     assert exception.value.reason == reason

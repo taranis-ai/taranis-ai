@@ -90,7 +90,7 @@
     {% endif %}
     {{ form_fileinput('Icon', 'icon', osint_source.icon, type='file', required=False, accept=icon_accept) }}
 
-    <label class="select w-full mb-5">
+    <label class="select w-full {% if osint_id == '0' %}mb-1{% else %}mb-5{% endif %}">
       <span class="label">Collector Type</span>
       <select id="collector_type"
               name="type"
@@ -113,6 +113,18 @@
         <input type="hidden" name="type" value="{{ osint_source.type }}">
       {% endif %}
     </label>
+    {% if osint_id == "0" %}
+      <div class="flex justify-end mb-5">
+        <a href="https://taranis.ai/docs/admin/collectors/"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="link link-hover text-xs text-base-content/60 inline-flex items-center gap-1"
+           data-testid="collector-documentation-link">
+          Collector documentation
+          {{ heroicon_outline("arrow-top-right-on-square", class="h-3 w-3") }}
+        </a>
+      </div>
+    {% endif %}
     <div id="parameters">{% include "partials/worker_parameters.html" %}</div>
 
     {% if not read_only %}<input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" />{% endif %}

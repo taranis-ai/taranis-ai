@@ -8,6 +8,8 @@ Mastodon collector, hashtag timeline, home timeline, public account collection, 
 
 Mastodon collection runs as scheduled polling rather than a long-lived stream. Hashtags may use public API access; home and account modes require a masked read-only access token. Each run processes at most the global `collector_max_entries` value, default 42.
 
+When an instance rejects an anonymous hashtag request with an authentication-related response, collection fails with a static message telling the administrator to configure an access token. Invalid configured tokens remain a separate authentication failure.
+
 New sources bootstrap from the newest statuses. Later runs move forward from a cursor retained in the latest collector task result without using or changing Mastodon markers. A failed API request or publish never advances progress. A preview ignores the cursor and never persists progress.
 
 The cursor is intentionally best-effort state. Task-history cleanup, manual task deletion, or prolonged source inactivity can remove it; the next collection then bootstraps from the newest statuses and relies on core deduplication for replayed items.

@@ -366,6 +366,7 @@ class TestSourceView:
         assert 'data-testid="bulk-create-osint-sources-button"' in create_form_response.text
         assert response.status_code == 200
         assert "Bulk Create OSINT Sources" in response.text
+        assert 'href="https://taranis.ai/docs/admin/collectors/"' in create_form_response.text
         assert "rss_collector" in response.text
         assert "simple_web_collector" in response.text
         assert "rt_collector" in response.text

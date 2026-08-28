@@ -15,6 +15,8 @@ Create an OSINT source and select **Mastodon Collector**. Configure:
 - **Account**: required for `account`, for example `user@example.social`.
 - **Access token**: required for `home` and `account`. Use a read-only token with account and status read access; write access is not needed.
 
+Some instances restrict anonymous hashtag timelines. If hashtag collection reports that an access token is required, configure a read-only token from that Mastodon instance even though tokens are normally optional for hashtag sources.
+
 The optional user-agent, collector proxy, TLP, and refresh interval settings use the same behavior as other scheduled collectors. Secrets are masked after saving and can be replaced, cleared, or revealed through the audited administrator action.
 
 ## Collection behavior
