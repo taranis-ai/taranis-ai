@@ -19,7 +19,7 @@ class PublisherPreset(BaseModel):
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[PUBLISHER_TYPES] = db.Column(db.Enum(PUBLISHER_TYPES))
-    parameters: Mapped[dict[str, str]] = db.Column(db.JSON, nullable=False, default=dict)
+    parameters: Mapped[dict[str, Any]] = db.Column(db.JSON, nullable=False, default=dict)
 
     def __init__(
         self,

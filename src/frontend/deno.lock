@@ -8,12 +8,12 @@
     "npm:@codemirror/state@^6.7.1": "6.7.1",
     "npm:@codemirror/view@^6.43.9": "6.43.9",
     "npm:@tailwindcss/cli@4.3.0": "4.3.0",
-    "npm:alpinejs@*": "3.16.2",
-    "npm:alpinejs@^3.16.2": "3.16.2",
-    "npm:choices.js@*": "11.2.3",
-    "npm:choices.js@^11.2.3": "11.2.3",
+    "npm:alpinejs@*": "3.16.3",
+    "npm:alpinejs@^3.16.3": "3.16.3",
+    "npm:choices.js@*": "11.2.4",
+    "npm:choices.js@^11.2.4": "11.2.4",
     "npm:codemirror@^6.0.2": "6.0.2",
-    "npm:daisyui@^5.7.20": "5.7.20",
+    "npm:daisyui@^5.7.22": "5.7.22",
     "npm:driver.js@*": "1.8.0",
     "npm:driver.js@^1.8.0": "1.8.0",
     "npm:fuse.js@*": "7.5.0",
@@ -337,23 +337,23 @@
         "@tailwindcss/oxide-win32-x64-msvc"
       ]
     },
-    "@vue/reactivity@3.5.41": {
-      "integrity": "sha512-rznsqKM0np0x18EjzF8x88MpEhdNsffbvFbckLL5+oUKz1BxAImEmO7J1ArRYSyo6aQaVoBDp7jEkT91OOxydA==",
+    "@vue/reactivity@3.5.42": {
+      "integrity": "sha512-TzNNfKpb7hDxbQltwAut8VDQA5YP+BuRlxntHUuRjyKwlMvmAPbs3unhCvieijifY6vFfVBwsS7wG/C7uq+bEQ==",
       "dependencies": [
         "@vue/shared"
       ]
     },
-    "@vue/shared@3.5.41": {
-      "integrity": "sha512-IOnwSCma8j+9xJT6b8H0dEYidC80NsYmNMlZxRsukYcSoGaDBohog5hDxzeUXdFeGWFA++vWvxqOmrr96VlqMA=="
+    "@vue/shared@3.5.42": {
+      "integrity": "sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g=="
     },
-    "alpinejs@3.16.2": {
-      "integrity": "sha512-6kbqqrRK7iGPYx5upTfqc8Tcl1xhpcurLCxTdn4/ym2Kb68+cYj+2I5Zji53vUIPf7zj3C1DoIvrDkgrNDCXdA==",
+    "alpinejs@3.16.3": {
+      "integrity": "sha512-kLIO2JOPs5ZY3mHPH+CHHPzp89Y6Gb2luLRy+RDIb1oG9y6N5Vfc75kkEoaSOPhJqvakuPiAsnd9paNPNSZyVg==",
       "dependencies": [
         "@vue/reactivity"
       ]
     },
-    "choices.js@11.2.3": {
-      "integrity": "sha512-K+HA8ShsWWNOVs4ahahjIOtzsvcC/cOFGTdU1BZgMZRhGi/uCQARlFd/80B0hlVVdRIjnrsW7QLDUnpJaW6N7A==",
+    "choices.js@11.2.4": {
+      "integrity": "sha512-3ESJ42LC1cFPIK2sRxa+Y1zEM5vpeOL/FrZHh6dqqqTHf23FStbjKhxP+eMC0F3O0xRUkhQmOOtUxIi83RxhTg==",
       "dependencies": [
         "fuse.js"
       ]
@@ -373,8 +373,8 @@
     "crelt@1.0.7": {
       "integrity": "sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA=="
     },
-    "daisyui@5.7.20": {
-      "integrity": "sha512-qoL9qXXo/K/MzcteD1SvZOSeBaL8F9qBJvwX3KEpiVHQLzIEtGkNl/ZznSI7J0d+qnQJa2dAAFzTFDAx9df1rw=="
+    "daisyui@5.7.22": {
+      "integrity": "sha512-pYii+2NCN0+OIL6Lpuc054LK0QJeNv+GRK9UzN1GRmjdYhYO6WFl0QLoj5oPcitPD7o+okiiI0SKFkn641TxmA=="
     },
     "detect-libc@2.1.2": {
       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
@@ -543,10 +543,10 @@
       "npm:@codemirror/state@^6.7.1",
       "npm:@codemirror/view@^6.43.9",
       "npm:@tailwindcss/cli@4.3.0",
-      "npm:alpinejs@^3.16.2",
-      "npm:choices.js@^11.2.3",
+      "npm:alpinejs@^3.16.3",
+      "npm:choices.js@^11.2.4",
       "npm:codemirror@^6.0.2",
-      "npm:daisyui@^5.7.20",
+      "npm:daisyui@^5.7.22",
       "npm:driver.js@^1.8.0",
       "npm:fuse.js@^7.5.0",
       "npm:highlight-search-term@^1.0.3",

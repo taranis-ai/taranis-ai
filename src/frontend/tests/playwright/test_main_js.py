@@ -97,6 +97,67 @@ def test_assess_shortcut_guard_ignores_inputs_and_dialogs(page: Page):
     assert page.evaluate("() => canUseAssessShortcut({ target: document.body })") is True
 
 
+def test_assess_shift_space_prevents_native_scroll(page: Page):
+    html = quote("""
+        <div x-data="{}"
+             @keydown.window="preventAssessShortcutDefault($event, 'Space')"
+             style="height: 4000px">
+        </div>
+    """)
+    page.goto(f"data:text/html,{html}")
+    page.add_script_tag(path=str(VENDOR_JS_PATH))
+    page.add_script_tag(path=str(MAIN_JS_PATH))
+    page.wait_for_function("() => window.Alpine")
+    page.evaluate("() => window.scrollTo(0, 1800)")
+
+    page.keyboard.press("Shift+Space")
+    page.wait_for_timeout(250)
+
+    assert page.evaluate("() => window.scrollY") == 1800
+
+
+def test_assess_shift_space_requires_selection(page: Page):
+    requests = []
+
+    page.route(
+        "https://example.test/",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/html",
+            body="""
+            <div x-data="{ selectedItems: [] }">
+              <button id="read-trigger"
+                      hx-post="/read"
+                      hx-trigger="click"
+                      @keyup.window="canUseAssessShortcut($event) && $event.shiftKey && $event.code === 'Space' && selectedItems.length > 0 && $el.click()">
+                Read
+              </button>
+              <button id="select" @click="selectedItems = ['story-1']">Select</button>
+            </div>
+            """,
+        ),
+    )
+    page.route(
+        "https://example.test/read",
+        lambda route: (requests.append(route.request.url), route.fulfill(status=200, body="updated")),
+    )
+    page.goto("https://example.test/")
+    page.add_script_tag(path=str(VENDOR_JS_PATH))
+    page.add_script_tag(path=str(MAIN_JS_PATH))
+    page.evaluate("() => htmx.process(document.body)")
+
+    page.keyboard.press("Shift+Space")
+    page.wait_for_timeout(100)
+    assert requests == []
+
+    page.locator("#select").click()
+    with page.expect_response("https://example.test/read"):
+        page.keyboard.press("Shift+Space")
+
+    expect(page.locator("#read-trigger")).to_have_text("updated")
+    assert requests == ["https://example.test/read"]
+
+
 def test_assess_shift_e_shortcut_uses_selected_story(page: Page):
     html = quote("""
         <div x-data="{

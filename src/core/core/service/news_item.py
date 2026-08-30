@@ -90,5 +90,5 @@ class NewsItemService:
         return response, status
 
     @classmethod
-    def has_related_news_items(cls, osint_source_id: str) -> bool:
-        return db.session.execute(db.select(db.exists().where(NewsItem.osint_source_id == osint_source_id))).scalar_one()
+    def has_related_news_items(cls, osint_source_ids: list[str]) -> bool:
+        return db.session.execute(db.select(db.exists().where(NewsItem.osint_source_id.in_(osint_source_ids)))).scalar_one()

@@ -26,6 +26,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Worker Task Notifications](worker-task-notifications.md) - frontend notifications for worker-backed actions when tasks are queued but no workers are connected.
 - [Notification Center](notification-center.md) - browser-session notification history, persistent notices, its user-menu route, and client-only storage boundary.
 - [RSS Source Health](rss-source-health.md) - RSS/Atom detection, empty-feed retry states, persisted source status, and error reporting.
+- [Mastodon Collector](mastodon-collector.md) - scheduled hashtag/home/account collection, private cursors, pagination, and safe failure behavior.
 - [Authentication Cookies](authentication-cookies.md) - JWT/CSRF cookie names, deployment suffixes, base-path scoping, and auth cookie consumers.
 - [Realtime Events](realtime-events.md) - Centrifugo SSE transport, connect-proxy authentication, admin broadcasts and client presence, event publishing, frontend recovery, and deployment configuration.
 - [Public Product Publishing](public-product-publishing.md) - Taranis publisher presets, persistent report files, and unauthenticated public report URLs.
@@ -33,7 +34,9 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Scheduler Dashboard](scheduler-dashboard.md) - scheduler tabs, RQ-backed table data, granular refreshes, pagination and filtering, and task history.
 - [Telemetry](telemetry.md) - Sentry initialization, OTLP traces and metrics, RQ trace propagation, and the optional Grafana LGTM Compose profile.
 - [Collector HTTP State](collector-http-state.md) - persistent HTTP validators, request scoping, manual bypass, 304 handling, and collector failure propagation.
+- [PizzINT Dashboard](pizzint-dashboard.md) - opt-in DOUGHCON card, upstream validation, shared caching, stale fallback, and disclaimer behavior.
 - [Worker Parameters](worker-parameters.md) - shared parameter registry ownership, configured/effective values, schema-driven forms, secrets, update semantics, and migration rules.
+- [OSINT Source Management](osint-source-management.md) - single and bulk source creation, atomic bulk deletion, shared settings, optional groups, and import-backed transactions.
 
 ## File Format
 

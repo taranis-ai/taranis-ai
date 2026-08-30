@@ -12,7 +12,7 @@
 {% set filter_manual = request.args.get("filter_manual", "true") %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [], exportUrl: '{{ url_for('admin.export_osint_sources') }}' }">
-  {% call table_decoration(name, model_name, table_container, routes=routes, search_params=["state", "filter_manual"]) %}
+  {% call table_decoration(name, model_name, table_container, routes=routes, search_params=["state", "filter_manual"], force_delete=true) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target="#form-container">
         <button hx-post="{{ url_for('admin.collect_osint_source_all') }}" class="btn btn-outline">
@@ -79,41 +79,3 @@
     </div>
   {% endif %}
 </div>
-
-<script>
-
-document.body.addEventListener('htmx:confirm', async (e) => {
-  const elt = e.detail.elt;
-  if (!elt.matches('[data-swal-confirm]')) {
-    return;
-  }
-
-  console.debug('Confirmation needed');
-
-  e.preventDefault();
-
-  const confirmOptions = getConfirmOptions(elt, e.detail.question);
-
-  const { isConfirmed, value: accept } = await Swal.fire({
-    ...confirmOptions,
-    input: "checkbox",
-    inputValue: 0,
-    inputPlaceholder: "Force Deletion of OSINT source and all its data. This action cannot be undone.",
-    showCancelButton: true,
-  });
-
-  if (!isConfirmed) return;
-
-  if (accept) {
-    const addForceParam = (evt) => {
-      if (evt.detail.elt === elt) {
-        evt.detail.parameters.force = true;
-      }
-    };
-    document.body.addEventListener('htmx:configRequest', addForceParam, { once: true });
-  }
-
-  e.detail.issueRequest(true);
-});
-
-</script>

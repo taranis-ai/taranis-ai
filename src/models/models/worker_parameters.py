@@ -3,6 +3,7 @@
 import json
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal
+from urllib.parse import urlparse
 
 from pydantic import (
     BaseModel,
@@ -51,8 +52,7 @@ Cron = Annotated[
 class WorkerParameters(BaseModel):
     """Base for configured worker parameters.
 
-    Models contain native values. Values are converted to canonical strings only
-    when crossing the persistence/API/worker boundary.
+    Validated native values are preserved across persistence, APIs, and worker execution.
     """
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -82,6 +82,84 @@ class RSSCollectorParameters(WebCollectorParameters):
         False, title="Use feed content", description="Use content embedded in the feed instead of fetching the linked page."
     )
     XPATH: str = Field("", title="XPath", description="Optional XPath expression selecting article content.")
+
+
+class MastodonCollectorParameters(WorkerParameters):
+    INSTANCE_URL: str = Field(
+        min_length=1,
+        pattern=r"^https?://[^\s/@?#]+/?$",
+        title="Instance URL",
+        description="Base URL of the Mastodon instance used for API requests.",
+    )
+    TIMELINE: Literal["hashtag", "home", "account"] = Field(
+        title="Timeline",
+        description="Mastodon timeline to collect: hashtag, the token owner's home timeline, or a public account.",
+    )
+    COLLECTION_MODE: Literal["complete", "latest"] = Field(
+        "complete",
+        title="Collection mode",
+        description="Complete collects every status since the cursor; latest keeps only the newest page and warns when older statuses are skipped.",
+    )
+    HASHTAG: str = Field("", title="Hashtag", description="Hashtag to collect in hashtag mode, with or without a leading #.")
+    ACCOUNT: str = Field("", title="Account", description="Account handle to collect in account mode, such as user@example.social.")
+    ACCESS_TOKEN: SecretStr = Field(
+        SecretStr(""),
+        title="Access token",
+        description="Read-only Mastodon token; required for home and account timelines and optional for hashtags.",
+    )
+    USER_AGENT: str = Field("TaranisAI/1.0", title="User agent", description="HTTP User-Agent header sent to Mastodon.")
+    PROXY_SERVER: str = Field("", title="Proxy server", description="Optional proxy URL used for Mastodon API requests.")
+    USE_GLOBAL_PROXY: bool = Field(False, title="Use global proxy", description="Use the globally configured collector proxy.")
+    TLP_LEVEL: TLPLevel = Field(TLPLevel.CLEAR, title="TLP level", description="Traffic Light Protocol level assigned to collected items.")
+    REFRESH_INTERVAL: Cron = Field("", title="Refresh interval", description="Five-field cron schedule for collection.")
+
+    @field_validator("INSTANCE_URL")
+    @classmethod
+    def validate_instance_url(cls, value: str) -> str:
+        parsed = urlparse(value)
+        try:
+            _ = parsed.port
+        except ValueError as exc:
+            raise ValueError("INSTANCE_URL must contain a valid port") from exc
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+            or parsed.path not in {"", "/"}
+        ):
+            raise ValueError("INSTANCE_URL must be an HTTP(S) instance origin without credentials, a path, query, or fragment")
+        return value.rstrip("/")
+
+    @field_validator("HASHTAG")
+    @classmethod
+    def validate_hashtag(cls, value: str) -> str:
+        hashtag = value.removeprefix("#")
+        if value and (not hashtag or not all(character.isalnum() or character == "_" for character in hashtag)):
+            raise ValueError("HASHTAG may contain only letters, numbers, and underscores, with an optional leading #")
+        return value
+
+    @field_validator("ACCOUNT")
+    @classmethod
+    def validate_account(cls, value: str) -> str:
+        if any(character.isspace() for character in value) or "/" in value:
+            raise ValueError("ACCOUNT cannot contain whitespace or slashes")
+        return value
+
+    @model_validator(mode="after")
+    def validate_timeline_configuration(self) -> "MastodonCollectorParameters":
+        access_token = self.ACCESS_TOKEN.get_secret_value().strip()
+        if access_token and urlparse(self.INSTANCE_URL).scheme != "https":
+            raise ValueError("INSTANCE_URL must use HTTPS when ACCESS_TOKEN is configured")
+        if self.TIMELINE == "hashtag" and not self.HASHTAG.lstrip("#").strip():
+            raise ValueError("HASHTAG is required for hashtag timelines")
+        if self.TIMELINE == "account" and not self.ACCOUNT.lstrip("@").strip():
+            raise ValueError("ACCOUNT is required for account timelines")
+        if self.TIMELINE in {"home", "account"} and not access_token:
+            raise ValueError("ACCESS_TOKEN is required for home and account timelines")
+        return self
 
 
 class SimpleWebCollectorParameters(WebCollectorParameters):
@@ -310,7 +388,7 @@ class EmailPublisherParameters(WorkerParameters):
     EMAIL_PASSWORD: SecretStr = Field(SecretStr(""), title="Email password", description="Optional SMTP password.")
     EMAIL_SENDER: str = Field(min_length=1, title="Email sender", description="Sender email address.")
     EMAIL_RECIPIENT: str = Field(min_length=1, title="Email recipient", description="Recipient email address.")
-    EMAIL_SUBJECT: str = Field(min_length=1, title="Email subject", description="Subject of the published email.")
+    EMAIL_SUBJECT: str = Field("", title="Email subject", description="Optional subject of the published email.")
 
 
 class WordpressPublisherParameters(WorkerParameters):
@@ -328,12 +406,12 @@ class TaxiiPublisherParameters(WorkerParameters):
     TAXII_DISCOVERY_URL: str = Field("", title="Discovery URL", description="TAXII discovery endpoint; required when API root URL is absent.")
     TAXII_API_ROOT_URL: str = Field("", title="API root URL", description="TAXII API root URL; discovered when omitted.")
     TAXII_COLLECTION_ID: str = Field(min_length=1, title="Collection ID", description="Target TAXII collection identifier.")
-    AUTH_TYPE: Literal["basic", "token"] = Field(
+    AUTH_TYPE: Literal["basic", "bearer"] = Field(
         "basic", title="Authentication type", description="Authentication method used by the TAXII server."
     )
     USERNAME: str = Field("", title="Username", description="Username for basic authentication.")
     PASSWORD: SecretStr = Field(SecretStr(""), title="Password", description="Password for basic authentication.")
-    API_TOKEN: SecretStr = Field(SecretStr(""), title="API token", description="Bearer token for token authentication.")
+    API_TOKEN: SecretStr = Field(SecretStr(""), title="API token", description="Bearer token for bearer authentication.")
     SSL_VERIFY: bool = Field(True, title="Verify SSL", description="Verify the TAXII TLS certificate.")
     PROXY_SERVER: str = Field("", title="Proxy server", description="Optional proxy URL used for requests.")
 
@@ -343,15 +421,15 @@ class TaxiiPublisherParameters(WorkerParameters):
             raise ValueError("TAXII_DISCOVERY_URL or TAXII_API_ROOT_URL is required")
         if self.AUTH_TYPE == "basic" and (not self.USERNAME or not self.PASSWORD.get_secret_value()):
             raise ValueError("USERNAME and PASSWORD are required for basic authentication")
-        if self.AUTH_TYPE == "token" and not self.API_TOKEN.get_secret_value():
-            raise ValueError("API_TOKEN is required for token authentication")
+        if self.AUTH_TYPE == "bearer" and not self.API_TOKEN.get_secret_value():
+            raise ValueError("API_TOKEN is required for bearer authentication")
         return self
 
 
 class KafkaPublisherParameters(WorkerParameters):
     KAFKA_TOPIC: str = Field(min_length=1, title="Kafka topic", description="Destination Kafka topic.")
     KAFKA_BOOTSTRAP_SERVERS: str = Field(min_length=1, title="Bootstrap servers", description="Comma-separated Kafka bootstrap servers.")
-    KAFKA_SECURITY_PROTOCOL: Literal["PLAINTEXT", "SASL_PLAINTEXT", "SASL_SSL", "SSL"] = Field(
+    KAFKA_SECURITY_PROTOCOL: Literal["PLAINTEXT", "SSL", "SASL_PLAINTEXT", "SASL_SSL"] = Field(
         "PLAINTEXT", title="Security protocol", description="Kafka transport security protocol."
     )
     KAFKA_SASL_MECHANISM: str = Field("", title="SASL mechanism", description="SASL mechanism when SASL is enabled.")
@@ -363,18 +441,21 @@ class KafkaPublisherParameters(WorkerParameters):
 
     @model_validator(mode="after")
     def validate_sasl(self) -> "KafkaPublisherParameters":
-        if self.KAFKA_SECURITY_PROTOCOL.startswith("SASL"):
-            missing = [
+        if self.KAFKA_SECURITY_PROTOCOL.startswith("SASL") and (
+            missing := [
                 name
                 for name, value in (
                     ("KAFKA_SASL_MECHANISM", self.KAFKA_SASL_MECHANISM),
                     ("KAFKA_SASL_USERNAME", self.KAFKA_SASL_USERNAME),
-                    ("KAFKA_SASL_PASSWORD", self.KAFKA_SASL_PASSWORD.get_secret_value()),
+                    (
+                        "KAFKA_SASL_PASSWORD",
+                        self.KAFKA_SASL_PASSWORD.get_secret_value(),
+                    ),
                 )
                 if not value
             ]
-            if missing:
-                raise ValueError(f"SASL parameters are required: {', '.join(missing)}")
+        ):
+            raise ValueError(f"SASL parameters are required: {', '.join(missing)}")
         return self
 
 
@@ -399,6 +480,12 @@ def _definition(
 
 _DEFINITIONS = (
     _definition(WORKER_TYPES.RSS_COLLECTOR, "RSS Collector", "Collector for gathering data from RSS feeds", RSSCollectorParameters),
+    _definition(
+        WORKER_TYPES.MASTODON_COLLECTOR,
+        "Mastodon Collector",
+        "Collector for gathering statuses from Mastodon timelines",
+        MastodonCollectorParameters,
+    ),
     _definition(
         WORKER_TYPES.SIMPLE_WEB_COLLECTOR, "Simple Web Collector", "Collector for gathering data from a website", SimpleWebCollectorParameters
     ),
@@ -466,18 +553,8 @@ def secret_parameter_names(worker_type: WORKER_TYPES | str) -> frozenset[str]:
     )
 
 
-def _canonical_value(value: Any) -> str:
-    if isinstance(value, SecretStr):
-        return value.get_secret_value()
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (dict, list)):
-        if isinstance(value, list):
-            return ",".join(str(item) for item in value)
-        return json.dumps(value, separators=(",", ":"), sort_keys=True)
-    if value is None:
-        return ""
-    return str(value)
+def _plain_value(value: Any) -> Any:
+    return value.get_secret_value() if isinstance(value, SecretStr) else value
 
 
 def normalize_parameter_values(
@@ -485,35 +562,35 @@ def normalize_parameter_values(
     values: dict[str, Any],
     *,
     complete: bool = True,
-) -> dict[str, str]:
-    """Validate configured values and return only submitted keys as strings."""
+) -> dict[str, Any]:
+    """Validate configured values and return submitted keys with native values."""
     model = get_worker_definition(worker_type).parameter_model
     if complete:
         validated = model.model_validate(values)
         native = validated.model_dump(mode="python")
-        return {name: _canonical_value(native[name]) for name in values}
+        return {name: _plain_value(native[name]) for name in values if native[name] is not None}
 
-    unknown = set(values) - set(model.model_fields)
-    if unknown:
+    if unknown := set(values) - set(model.model_fields):
         raise ValueError(f"Unknown parameters: {', '.join(sorted(unknown))}")
-    normalized: dict[str, str] = {}
+    normalized: dict[str, Any] = {}
     for name, value in values.items():
         field = model.model_fields[name]
         native = TypeAdapter(field.rebuild_annotation()).validate_python(value)
-        normalized[name] = _canonical_value(native)
+        if native is not None:
+            normalized[name] = _plain_value(native)
     return normalized
 
 
-def effective_parameter_values(worker_type: WORKER_TYPES | str, values: dict[str, Any]) -> dict[str, str]:
+def effective_parameter_values(worker_type: WORKER_TYPES | str, values: dict[str, Any]) -> dict[str, Any]:
     """Validate configured values and expand defaults for worker execution."""
     validated = get_worker_definition(worker_type).parameter_model.model_validate(values)
-    return {name: _canonical_value(value) for name, value in validated.model_dump(mode="python").items()}
+    return {name: _plain_value(value) for name, value in validated.model_dump(mode="python").items()}
 
 
 SECRET_MASK = "********"
 
 
-def configured_parameter_values(worker_type: WORKER_TYPES | str, values: dict[str, str]) -> dict[str, str]:
+def configured_parameter_values(worker_type: WORKER_TYPES | str, values: dict[str, Any]) -> dict[str, Any]:
     """Return configured values with secrets replaced by a stable marker."""
     secrets = secret_parameter_names(worker_type)
     return {name: SECRET_MASK if name in secrets and value else value for name, value in values.items()}

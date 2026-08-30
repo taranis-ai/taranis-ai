@@ -62,7 +62,12 @@ def presenter_task(product_id: str):
         else:
             rendered_product = b64encode(rendered_product).decode("ascii")
 
-        result_data = {"product_id": product_id, "message": f"Product: {product_id} rendered successfully", "render_result": rendered_product}
+        result_data = {
+            "product_id": product_id,
+            "message": f"Product: {product_id} rendered successfully",
+            "render_result": rendered_product,
+            "render_revision": product.get("render_revision"),
+        }
 
         # Save task result to database
         if job:
@@ -74,7 +79,11 @@ def presenter_task(product_id: str):
                 worker_type=worker_type,
                 result=build_success_task_result(
                     default_message=result_data["message"],
-                    data={"product_id": product_id, "render_result": rendered_product},
+                    data={
+                        "product_id": product_id,
+                        "render_result": rendered_product,
+                        "render_revision": product.get("render_revision"),
+                    },
                 ),
             )
 

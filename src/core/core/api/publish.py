@@ -47,7 +47,7 @@ class Products(MethodView):
     def put(self, product_id: str | None = None):
         if not product_id:
             return {"error": "No product_id provided"}, 400
-        response, status = product.Product.update(product_id, request.json, user_id=current_user.id)
+        response, status = product.Product.update(product_id, request.json, user=current_user)
         invalidate_frontend_cache_on_success(status, scopes=(SCOPE_PUBLISH_VIEWS,), object_ids={"product": product_id})
         return response, status
 

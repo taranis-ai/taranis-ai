@@ -194,7 +194,10 @@ class TestEndToEndAdmin(BaseE2ETest):
         create_news_item_url = url_for("assess.create_news_item", _external=True)
 
         page.get_by_role("textbox", name="Title *").fill("Invalid language test")
-        page.get_by_role("textbox", name="Link Providing a URL helps others trace the original source.").fill("http://blubb.xxx")
+        page.get_by_role(
+            "textbox",
+            name="Link Providing a URL helps others trace the original source.",
+        ).fill("http://blubb.xxx")
         page.get_by_role("textbox", name="Language ISO 639 language code").fill("xx")
 
         with page.expect_response(create_news_item_url) as response_info:
@@ -229,7 +232,13 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         self.delete_item(page, "organization-table", organization_name)
 
-    def test_admin_user_management(self, logged_in_page: Page, forward_console_and_page_errors, test_user, test_user_list):
+    def test_admin_user_management(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        test_user,
+        test_user_list,
+    ):
         page = logged_in_page
         username = f"test_user_{uuid.uuid4().hex[:6]}"
 
@@ -356,7 +365,13 @@ class TestEndToEndAdmin(BaseE2ETest):
         update_template()
         remove_template()
 
-    def test_admin_osint_workflow(self, logged_in_page: Page, forward_console_and_page_errors, test_osint_source, test_osint_icon_png):
+    def test_admin_osint_workflow(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        test_osint_source,
+        test_osint_icon_png,
+    ):
         page = logged_in_page
         osint_source_name = f"test_source_{uuid.uuid4().hex[:6]}"
 
@@ -383,6 +398,9 @@ class TestEndToEndAdmin(BaseE2ETest):
             delete_button = page.get_by_test_id("delete-osint_source-button")
             expect(delete_button).to_contain_text("Delete 10 OSINT Source")
             self.highlight_element(delete_button).click()
+            force_checkbox = page.get_by_role("checkbox", name="Force Deletion of OSINT source and all its data")
+            expect(force_checkbox).to_be_visible()
+            force_checkbox.check()
             page.get_by_role("button", name="Delete").click()
             dismiss_notifications(page)
             expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
@@ -463,7 +481,12 @@ class TestEndToEndAdmin(BaseE2ETest):
         update_osint_sources()
         remove_osint_sources()
 
-    def test_admin_osint_source_group_management(self, logged_in_page: Page, forward_console_and_page_errors, test_batch_osint_sources):
+    def test_admin_osint_source_group_management(
+        self,
+        logged_in_page: Page,
+        forward_console_and_page_errors,
+        test_batch_osint_sources,
+    ):
         page = logged_in_page
         osint_group_name = f"test_osint_group_{uuid.uuid4().hex[:6]}"
 
@@ -710,7 +733,10 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("button", name="Update ACL").click()
 
         def test_acl_delete():
-            acl_row = acl_table.locator("tbody tr", has=page.get_by_role("link", name="Test ACL updated", exact=True)).first
+            acl_row = acl_table.locator(
+                "tbody tr",
+                has=page.get_by_role("link", name="Test ACL updated", exact=True),
+            ).first
             expect(acl_row).to_be_visible()
             item_id = self.get_table_row_id_by_link_text(page, "acl-table", "Test ACL updated")
             delete_button_test_id = f"action-delete-{item_id}"
@@ -1040,7 +1066,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         def test_bot_create():
             page.get_by_test_id("new-bot-button").click()
             expect(page.get_by_role("heading", name="Create Bot")).to_be_visible()
-            refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
+            optional_parameters = page.get_by_test_id("optional-worker-parameters")
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(bot_name)
@@ -1048,7 +1074,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("textbox", name="Description").fill("test bot description")
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
             page.get_by_role("spinbutton", name="Index").fill("21")
-            self.select_dynamic_type_and_wait(page, "analyst_bot", refresh_interval_input)
+            self.select_dynamic_type_and_wait(page, "analyst_bot", optional_parameters)
+            optional_parameters.locator("summary").click()
 
             page.locator('input[name="parameters[ITEM_FILTER]"]').fill("1")
             page.locator('input[name="parameters[REGULAR_EXPRESSION]"]').fill(".*")
@@ -1059,6 +1086,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
         def test_bot_update():
             page.get_by_role("link", name=bot_name, exact=True).click()
+            page.get_by_test_id("optional-worker-parameters").locator("summary").click()
             expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_attribute("required", "")
@@ -1068,6 +1096,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             page.get_by_role("button", name="Update Bot").click()
 
             page.get_by_role("link", name=updated_bot_name).click()
+            page.get_by_test_id("optional-worker-parameters").locator("summary").click()
             expect(page.locator('input[name="parameters[REFRESH_INTERVAL]"]')).to_be_visible()
 
             page.get_by_role("button", name="Update Bot").click()
@@ -1103,13 +1132,12 @@ class TestEndToEndAdmin(BaseE2ETest):
         def add_connector():
             page.get_by_test_id("new-connector-button").click()
             expect(page.get_by_test_id("connector-form")).to_be_visible()
-            refresh_interval_input = page.locator('input[name="parameters[REFRESH_INTERVAL]"]')
+            url_input = page.locator('input[name="parameters[URL]"]')
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Name").fill(connector_name)
-            self.select_dynamic_type_and_wait(page, "misp_connector", refresh_interval_input)
+            self.select_dynamic_type_and_wait(page, "misp_connector", url_input)
 
-            url_input = page.locator('input[name="parameters[URL]"]')
             api_key_input = page.locator('input[name="parameters[API_KEY]"]')
             organisation_input = page.locator('input[name="parameters[ORGANISATION_ID]"]')
             expect(url_input).to_have_attribute("required", "")
@@ -1119,6 +1147,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(organisation_input).to_have_attribute("required", "")
             organisation_input.fill("1")
 
+            page.get_by_test_id("optional-worker-parameters").locator("summary").click()
             page.locator('input[name="parameters[SSL_CHECK]"][type="checkbox"]').set_checked(True)
             page.locator('input[name="parameters[SHARING_GROUP_ID]"]').fill("1")
             page.get_by_test_id("connector-submit-button").click()
@@ -1128,6 +1157,7 @@ class TestEndToEndAdmin(BaseE2ETest):
         def update_connector():
             page.get_by_role("link", name=connector_name).click()
             expect(page.get_by_test_id("connector-form")).to_be_visible()
+            page.get_by_test_id("optional-worker-parameters").locator("summary").click()
             expect(page.locator('input[name="parameters[SSL_CHECK]"][type="checkbox"]')).to_be_visible()
 
             expect(page.get_by_role("textbox", name="Name")).to_have_attribute("required", "")
@@ -1137,7 +1167,10 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(connector_table.get_by_role("link", name=updated_connector_name, exact=True)).to_be_visible()
 
         def remove_connector():
-            connector_row = connector_table.locator("tbody tr", has=page.get_by_role("link", name=updated_connector_name, exact=True)).first
+            connector_row = connector_table.locator(
+                "tbody tr",
+                has=page.get_by_role("link", name=updated_connector_name, exact=True),
+            ).first
             expect(connector_row).to_be_visible()
             item_id = self.get_table_row_id_by_link_text(page, "connector-table", updated_connector_name)
             delete_button_test_id = f"action-delete-{item_id}"
@@ -1207,6 +1240,8 @@ class TestEndToEndAdmin(BaseE2ETest):
         tlp_select = settings_form.get_by_test_id("settings-default-tlp-level").first
         collector_proxy_input = settings_form.get_by_test_id("settings-default-collector-proxy").first
         collector_interval_input = settings_form.get_by_test_id("settings-default-collector-interval").first
+        rss_entry_limit_input = settings_form.get_by_test_id("settings-rss-collector-max-entries").first
+        rss_entry_limit_warning = settings_form.get_by_test_id("settings-rss-collector-max-entries-warning").first
         story_conflict_input = settings_form.get_by_test_id("settings-default-story-conflict-retention").first
         news_conflict_input = settings_form.get_by_test_id("settings-default-news-item-conflict-retention").first
         onboarding_switch = settings_form.locator("#settings-onboarding-enabled").first
@@ -1224,6 +1259,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(collector_proxy_input).to_be_empty()
             expect(collector_interval_input).to_have_attribute("required", "")
             expect(collector_interval_input).to_have_value("0 */8 * * *")
+            expect(rss_entry_limit_input).to_have_value("42")
+            expect(rss_entry_limit_warning).not_to_be_visible()
             expect(story_conflict_input).to_have_attribute("required", "")
             expect(story_conflict_input).to_have_value("200")
             expect(news_conflict_input).to_have_attribute("required", "")
@@ -1235,6 +1272,10 @@ class TestEndToEndAdmin(BaseE2ETest):
             tlp_select.select_option("red")
             collector_proxy_input.fill("https://test")
             collector_interval_input.fill("0 */8 * * 1")
+            rss_entry_limit_input.fill("101")
+            expect(rss_entry_limit_warning).to_be_visible()
+            rss_entry_limit_input.fill("19")
+            expect(rss_entry_limit_warning).to_be_visible()
             story_conflict_input.fill("20")
             news_conflict_input.fill("21")
             with page.expect_response(settings_update_url) as response_info:
@@ -1248,6 +1289,8 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_test_id("settings-default-tlp-level").first).to_have_value("red")
             expect(collector_proxy_input).to_have_value("https://test/")
             expect(collector_interval_input).to_have_value("0 */8 * * 1")
+            expect(rss_entry_limit_input).to_have_value("19")
+            expect(rss_entry_limit_warning).to_be_visible()
             expect(story_conflict_input).to_have_value("20")
             expect(news_conflict_input).to_have_value("21")
 
@@ -1271,7 +1314,14 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             # convert both exported stories and stories in story_list to a comparable format
             expected_stories = {
-                (item["story_id"], remove_tz(item["published"]), item["id"], item["title"], item["content"]) for item in story_list
+                (
+                    item["story_id"],
+                    remove_tz(item["published"]),
+                    item["id"],
+                    item["title"],
+                    item["content"],
+                )
+                for item in story_list
             }
 
             received_stories = {
@@ -1392,7 +1442,10 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_test_id("assess")).to_be_visible()
             page.get_by_placeholder("Search stories").fill(imported_story_title)
             page.get_by_placeholder("Search stories").press("Enter")
-            imported_story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=imported_story_title)).first
+            imported_story = page.locator(
+                "article",
+                has=page.get_by_test_id("story-title").filter(has_text=imported_story_title),
+            ).first
             expect(imported_story).to_be_visible()
 
         def revert_to_default_values():
@@ -1401,6 +1454,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             collector_proxy_input.fill("")
             expect(collector_interval_input).to_be_visible()
             collector_interval_input.fill("0 */8 * * *")
+            rss_entry_limit_input.fill("42")
             story_conflict_input.fill("200")
             news_conflict_input.fill("200")
             with page.expect_response(settings_update_url) as response_info:

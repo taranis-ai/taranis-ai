@@ -12,13 +12,13 @@ class BotApi:
         self,
         bot_endpoint: str,
         bot_api_key: str | None = Config.BOT_API_KEY,
-        requests_timeout: int | str | None = None,
+        requests_timeout: int | None = None,
     ):
         self.api_url = bot_endpoint
         self.api_key = bot_api_key
         self.headers = self.get_headers()
         self.verify = Config.SSL_VERIFICATION
-        self.timeout = self._resolve_timeout(requests_timeout)
+        self.timeout = requests_timeout or Config.REQUESTS_TIMEOUT
 
     def get_headers(self) -> dict[str, str]:
         if not self.api_key:
@@ -33,16 +33,6 @@ class BotApi:
     def update_parameters(self, api_url: str, api_key: str | None = None):
         self.api_url = api_url
         self.api_key = api_key or Config.BOT_API_KEY
-
-    @staticmethod
-    def _resolve_timeout(timeout_value: int | str | None) -> int:
-        if timeout_value is None or timeout_value == "":
-            return Config.REQUESTS_TIMEOUT
-        try:
-            timeout = int(timeout_value)
-        except (TypeError, ValueError):
-            return Config.REQUESTS_TIMEOUT
-        return timeout if timeout > 0 else Config.REQUESTS_TIMEOUT
 
     def check_response(self, response: requests.Response, url: str):
         try:

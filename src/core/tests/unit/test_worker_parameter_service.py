@@ -14,7 +14,18 @@ def test_patch_merges_and_null_removes_optional_values():
         patch=True,
     )
 
-    assert result == {"FEED_URL": "https://example.test/feed", "USE_GLOBAL_PROXY": "true"}
+    assert result == {"FEED_URL": "https://example.test/feed", "USE_GLOBAL_PROXY": True}
+
+
+def test_empty_optional_numeric_value_is_not_persisted_as_json_null():
+    result = set_parameters(
+        "MISP_COLLECTOR",
+        {"URL": "https://misp.test", "API_KEY": "secret", "ORGANISATION_ID": "1", "REQUEST_TIMEOUT": 10},
+        {"REQUEST_TIMEOUT": ""},
+        patch=True,
+    )
+
+    assert result == {"URL": "https://misp.test", "API_KEY": "secret", "ORGANISATION_ID": "1"}
 
 
 def test_put_replaces_non_secrets_but_preserves_omitted_secrets():

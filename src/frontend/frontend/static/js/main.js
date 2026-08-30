@@ -185,6 +185,16 @@ function canUseAssessShortcut(event, key = null) {
     (event?.shiftKey && event?.key?.toLowerCase() === key.toLowerCase());
 }
 
+function preventAssessShortcutDefault(event, code) {
+  if (
+    event?.shiftKey &&
+    event?.code === code &&
+    canUseAssessShortcut(event)
+  ) {
+    event.preventDefault();
+  }
+}
+
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initViewportWarningBar, {
     once: true,
@@ -203,17 +213,30 @@ document.body.addEventListener("htmx:confirm", function (evt) {
     return;
   }
 
-  if (triggerElement.matches("[data-swal-confirm]")) {
-    return;
-  }
-
   evt.preventDefault();
   const opts = getConfirmOptions(triggerElement, evt.detail.question);
+  if (triggerElement.matches("[data-force-delete]")) {
+    Object.assign(opts, {
+      input: "checkbox",
+      inputValue: 0,
+      inputPlaceholder:
+        "Force Deletion of OSINT source and all its data. This action cannot be undone.",
+    });
+  }
   showConfirmDialog(
     opts,
     triggerElement.closest("dialog[open]") || document.body,
   ).then((r) => {
     if (r.isConfirmed) {
+      if (r.value) {
+        triggerElement.addEventListener(
+          "htmx:configRequest",
+          (requestEvent) => {
+            requestEvent.detail.parameters.force = true;
+          },
+          { once: true },
+        );
+      }
       evt.detail.issueRequest(true);
     }
   });

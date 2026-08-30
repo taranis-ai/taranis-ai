@@ -136,6 +136,7 @@ class BotView(AdminBaseView):
             "bot_types": cls.bot_types.values(),
             "parameter_values": parameter_values,
             "parameters": parameters,
+            "worker_parameters_selected": bool(bot_type_name),
             "run_after_options": cls.get_run_after_options(bot.id if bot else ""),
             "selected_run_after": _split_run_after_bots(parameter_values.get("RUN_AFTER_BOTS", "")),
             "dag_preview": dag_preview,
@@ -167,6 +168,7 @@ class BotView(AdminBaseView):
             dag_preview=cls.get_dag_preview({"type": bot_type}) if bot_type else {"order": [], "edges": [], "nodes": [], "warnings": []},
             optional_parameters=OPTIONAL_BOT_PARAMETERS,
             word_list_options=cls.get_word_list_options(),
+            worker_parameters_selected=True,
         )
 
     @classmethod

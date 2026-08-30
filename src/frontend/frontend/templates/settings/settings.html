@@ -53,6 +53,24 @@
             {{ form_input('Default Collector Interval', 'settings[default_collector_interval]', current_settings.default_collector_interval, preserve=False, data_testid='settings-default-collector-interval') }}
           </div>
 
+          <div class="p-4 border rounded-lg hover:bg-base-200 transition"
+               x-data="{ rssEntryLimit: {{ current_settings.rss_collector_max_entries | tojson }} }"
+               x-on:input="rssEntryLimit = $event.target.value">
+            <h3 class="font-semibold text-lg mb-2">RSS Collector Entry Limit</h3>
+            <p class="text-sm text-gray-500 mb-3">Set the maximum number of entries processed from each RSS feed per collection.</p>
+            {{ form_input('RSS Collector Maximum Entries', 'settings[rss_collector_max_entries]', current_settings.rss_collector_max_entries, type='number', preserve=False, data_testid='settings-rss-collector-max-entries', min_value=1) }}
+            <div class="alert alert-warning"
+                 role="status"
+                 aria-live="polite"
+                 data-testid="settings-rss-collector-max-entries-warning"
+                 x-cloak
+                 x-show="rssEntryLimit !== '' && rssEntryLimit !== null && (rssEntryLimit < 20 || rssEntryLimit > 100)"
+                 x-transition>
+              {{ heroicon_mini('exclamation-triangle', class='h-5 w-5 flex-shrink-0') }}
+              <span>This value is outside the recommended range of 20–100 and may produce unexpected results. You can still save it.</span>
+            </div>
+          </div>
+
           <div class="p-4 border rounded-lg hover:bg-base-200 transition">
             <h3 class="font-semibold text-lg mb-2">Default Bot Lookback</h3>
             <p class="text-sm text-gray-500 mb-3">Set how many days bots process when no explicit start time is provided. Set to 0 to process all available stories.</p>

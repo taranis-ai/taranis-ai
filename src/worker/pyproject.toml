@@ -26,6 +26,7 @@ dependencies = [
     "beautifulsoup4",
     "trafilatura",
     "feedparser",
+    "Mastodon.py",
     "pyopenssl",
     "lxml",
     "playwright",

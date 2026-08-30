@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 import niquests as requests
 from models.product import WorkerProduct as Product
-from models.task import TaskResultEnvelope, TaskSubmission
+from models.task import TaskResult, TaskSubmission
 from niquests.typing import MultiPartFilesAltType
 from opentelemetry.propagate import inject
 from pydantic import ValidationError
@@ -24,13 +24,13 @@ def build_task_result(
     reason: str | None = None,
     retryable: bool = False,
     data: Any = None,
-) -> dict[str, Any]:
-    return TaskResultEnvelope(
+) -> TaskResult:
+    return TaskResult(
         message=message,
         reason=reason,
         retryable=retryable,
         data=data,
-    ).model_dump(mode="json", exclude_none=False)
+    )
 
 
 def build_success_task_result(
@@ -43,7 +43,7 @@ def build_success_task_result(
     merge_dict_data: bool = True,
     retryable: bool = False,
     none_message: str | None = None,
-) -> dict[str, Any]:
+) -> TaskResult:
     if output is not _MISSING_RESULT and data is not _MISSING_RESULT:
         raise ValueError("build_success_task_result accepts either output=... or data=..., not both")
 
@@ -88,7 +88,7 @@ def build_failure_task_result(
     reason: str | None = None,
     retryable: bool = False,
     data: Any = None,
-) -> dict[str, Any]:
+) -> TaskResult:
     return build_task_result(
         message,
         reason=reason,
@@ -186,11 +186,9 @@ class CoreApi:
 
             raw_task_result = task_kwargs if result is _MISSING_RESULT else result
             task_result_payload = (
-                raw_task_result.model_dump(mode="json", exclude_none=False)
-                if isinstance(raw_task_result, TaskResultEnvelope)
-                else raw_task_result
+                raw_task_result.model_dump(mode="json", exclude_none=False) if isinstance(raw_task_result, TaskResult) else raw_task_result
             )
-            task_result = TaskResultEnvelope.model_validate(task_result_payload)
+            task_result = TaskResult.model_validate(task_result_payload)
 
             if user_id is None:
                 user_id = self._get_current_job_user_id()

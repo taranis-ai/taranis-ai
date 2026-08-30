@@ -22,26 +22,17 @@ class FTPPublisher(BasePublisher):
         ftp_url = parameters.get("FTP_URL")
 
         self.set_file_name(product)
-        ftp_data: ParseResult = urlparse(ftp_url)  # type: ignore
+        server_config: ParseResult = urlparse(ftp_url)  # type: ignore
         rendered_data = self._require_rendered_data(rendered_product)
 
-        logger.debug(ftp_data)
         if rendered_product.mime_type in ["text/plain", "text/html"]:
             data_to_upload = BytesIO(rendered_data)
         else:
             data_to_upload = BytesIO(b64decode(rendered_data))
 
-        self.input_validation(ftp_data)
-        self.upload_to_ftp(ftp_data, data_to_upload)
-
+        self.upload_to_ftp(server_config, data_to_upload)
+        logger.info({"message": f"Successfully uploaded {self.file_name} to FTP server"})
         return "Successfully uploaded to FTP server"
-
-    def input_validation(self, server_config: ParseResult):
-        if not server_config.hostname:
-            raise ValueError("Hostname is required for FTP")
-
-        if server_config.scheme != "ftp":
-            raise ValueError(f"Schema '{server_config.scheme}' not supported, choose 'ftp'")
 
     def upload_to_ftp(self, server_config: ParseResult, data_to_upload: BytesIO):
         ftp_port = server_config.port or 21
@@ -50,6 +41,9 @@ class FTPPublisher(BasePublisher):
 
         if not host_name:
             raise ValueError("Hostname is required for FTP")
+
+        if server_config.scheme != "ftp":
+            raise ValueError(f"Schema '{server_config.scheme}' not supported, choose 'ftp'")
 
         with ftplib.FTP() as ftp:
             ftp.connect(host=host_name, port=ftp_port)

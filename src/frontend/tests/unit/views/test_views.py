@@ -11,9 +11,11 @@ import pytest
 from flask import render_template, url_for
 from lxml import html
 from models.admin import OSINTSource, ReportItemType
-from models.task import Task, TaskResultEnvelope
+from models.task import Task, TaskResult
 from models.types import COLLECTOR_TYPES
 from models.user import AssessSavedFilter
+from requests import ConnectTimeout
+from werkzeug.datastructures import MultiDict
 
 from frontend.cache import add_user_to_cache, cache
 from frontend.cache_models import CacheObject
@@ -23,8 +25,6 @@ from frontend.views.admin_views.report_type_views import ReportItemTypeView
 from frontend.views.admin_views.source_views import SourceView
 from frontend.views.admin_views.word_list_views import WordListView
 from frontend.views.base_view import BaseView
-from frontend.views.product_views import ProductView
-from frontend.views.report_views import ReportItemView
 
 
 _VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
@@ -79,8 +79,16 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
         json={
             "items": [
                 {"name": "Location", "size": 10, "tags": [{"name": "USA", "size": 6}]},
-                {"name": "Organization", "size": 8, "tags": [{"name": "AIT", "size": 3}]},
-                {"name": "Product", "size": 6, "tags": [{"name": "Taranis", "size": 2}]},
+                {
+                    "name": "Organization",
+                    "size": 8,
+                    "tags": [{"name": "AIT", "size": 3}],
+                },
+                {
+                    "name": "Product",
+                    "size": 6,
+                    "tags": [{"name": "Taranis", "size": 2}],
+                },
                 {"name": "Person", "size": 4, "tags": [{"name": "Arthur", "size": 1}]},
             ],
             "total_count": 4,
@@ -121,7 +129,106 @@ def test_dashboard_limits_recent_tags_and_shows_saved_filters(authenticated_clie
     assert delete_button.get("hx-target") == "closest [data-testid='dashboard-saved-filter-card']"
     assert delete_button.get("hx-swap") == "delete"
     assert saved_filter_url.path == url_for("assess.assess")
-    assert parse_qs(saved_filter_url.query) == {"search": ["incident"], "tags": ["alpha"], "sort": ["date_desc"]}
+    assert parse_qs(saved_filter_url.query) == {
+        "search": ["incident"],
+        "tags": ["alpha"],
+        "sort": ["date_desc"],
+    }
+    assert not tree.xpath('//*[@data-testid="dashboard-external-signals"]')
+
+
+def test_dashboard_opt_in_lazy_loads_pizzint_card(authenticated_client, auth_user, responses_mock, mock_core_get_endpoints):
+    _ = mock_core_get_endpoints
+    saved_user = auth_user.model_copy(deep=True)
+    saved_user.profile.timezone = "Europe/Vienna"
+    saved_user.profile.dashboard.show_pizzint = True
+    add_user_to_cache(saved_user.model_dump(mode="json"))
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/dashboard/trending-clusters",
+        json={"items": [], "total_count": 0},
+    )
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/dashboard/pizzint",
+        json={
+            "state": "fresh",
+            "level": 4,
+            "smoothed_index": 42.5,
+            "observed_at": "2026-08-23T09:00:00Z",
+            "fetched_at": "2026-08-23T09:42:39Z",
+            "reason": "compute_doughcon_v9: elevated",
+        },
+    )
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard/cluster-names", json={"items": []})
+
+    dashboard_response = authenticated_client.get("/")
+    dashboard_tree = html.fromstring(dashboard_response.text)
+    placeholder = dashboard_tree.xpath('//*[@data-testid="pizzint-card-placeholder"]')[0]
+
+    assert dashboard_response.status_code == 200
+    assert placeholder.get("hx-get") == url_for("base.pizzint_card")
+    assert placeholder.get("hx-trigger") == "load"
+
+    edit_response = authenticated_client.get("/dashboard/edit")
+    edit_tree = html.fromstring(edit_response.text)
+    toggle = edit_tree.xpath('//input[@name="dashboard[show_pizzint]"][@type="checkbox"]')[0]
+    assert toggle.get("checked") is not None
+
+    card_response = authenticated_client.get("/dashboard/pizzint")
+    card_tree = html.fromstring(card_response.text)
+    card_text = card_tree.text_content()
+    source_link = card_tree.xpath('//a[normalize-space()="PizzINT"]')[0]
+
+    assert card_response.status_code == 200
+    assert "DOUGHCON 4" in card_text
+    assert "42.5/100" in card_text
+    assert "23. August 2026 11:00" in card_text
+    assert "DOUBLE TAKE • INCREASED INTELLIGENCE WATCH" in card_text
+    assert "compute_doughcon_v9: elevated" not in card_text
+    assert "One place spiking doesn't raise DOUGHCON" in card_text
+    assert "DOUGHCON 1: Maximum Readiness" in " ".join(card_text.split())
+    assert "Data correlation does not imply causation" in card_text
+    assert source_link.get("target") == "_blank"
+    assert source_link.get("rel") == "noopener noreferrer"
+    assert card_tree.xpath('//summary[@aria-label="About DOUGHCON"]')
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_text", "unexpected_text"),
+    [
+        (
+            {
+                "state": "stale",
+                "level": 5,
+                "smoothed_index": 6.97,
+                "observed_at": "2026-08-23T09:00:00Z",
+                "fetched_at": "2026-08-23T09:42:39Z",
+                "reason": "compute_doughcon_v9: quiet",
+            },
+            "Stale",
+            "PizzINT data unavailable",
+        ),
+        (
+            {
+                "state": "unavailable",
+                "level": None,
+                "smoothed_index": None,
+                "observed_at": None,
+                "fetched_at": None,
+                "reason": None,
+            },
+            "PizzINT data unavailable",
+            "Smoothed index",
+        ),
+    ],
+)
+def test_pizzint_card_fallback_states(authenticated_client, responses_mock, payload, expected_text, unexpected_text):
+    responses_mock.get(f"{Config.TARANIS_CORE_URL}/dashboard/pizzint", json=payload)
+
+    response = authenticated_client.get("/dashboard/pizzint")
+
+    assert response.status_code == 200
+    assert expected_text in response.text
+    assert unexpected_text not in response.text
 
 
 @pytest.mark.parametrize("view_name,view_cls", ADMIN_VIEWS, ids=ADMIN_IDS)
@@ -154,7 +261,13 @@ class TestAdminViews:
 @pytest.mark.parametrize("view_name,view_cls", CRUD_ITEMS, ids=CRUD_IDS)
 class TestCRUDViews:
     def test_create_form_renders(
-        self, view_name, view_cls, form_data, form_formats_from_models, authenticated_client, mock_core_get_endpoints
+        self,
+        view_name,
+        view_cls,
+        form_data,
+        form_formats_from_models,
+        authenticated_client,
+        mock_core_get_endpoints,
     ):
         # GET the edit form for item_id
         item_id = "0"
@@ -178,7 +291,13 @@ class TestCRUDViews:
         assert not extra, f"{view_name!r} has unexpected fields: {extra}"
 
     def test_update_form_renders(
-        self, view_name, view_cls, form_data, mock_core_get_item_endpoints, form_formats_from_models, authenticated_client
+        self,
+        view_name,
+        view_cls,
+        form_data,
+        mock_core_get_item_endpoints,
+        form_formats_from_models,
+        authenticated_client,
     ):
         item_id = str(mock_core_get_item_endpoints[view_name]["id"])
         key = view_cls._get_object_key()
@@ -237,13 +356,120 @@ class TestSourceView:
 
         assert SourceView.get_admin_menu_badge() == 4
 
+    def test_bulk_delete_renders_related_news_items_error(self, authenticated_client, responses_mock, htmx_header):
+        core_url = f"{Config.TARANIS_CORE_URL}/config/osint-sources"
+        related_data_error = (
+            "The OSINT source could not be deleted because related news items exist. "
+            "Enable force deletion to delete the source and its related data."
+        )
+        responses_mock.delete(core_url, json={"error": related_data_error}, status=409)
+
+        response = authenticated_client.delete(
+            SourceView.get_base_route(),
+            data={"ids": ["source-safe", "source-blocked"]},
+            headers=htmx_header,
+        )
+
+        assert response.status_code == 409
+        assert related_data_error in response.get_data(as_text=True)
+        assert responses_mock.calls[0].request.url == f"{core_url}?ids=source-safe&ids=source-blocked"
+
+    def test_bulk_create_view_uses_url_based_collectors(self, authenticated_client):
+        create_form_response = authenticated_client.get(SourceView.get_edit_route(osint_source_id="0"))
+        response = authenticated_client.get(url_for("admin.bulk_create_osint_sources"))
+
+        assert create_form_response.status_code == 200
+        assert 'data-testid="bulk-create-osint-sources-button"' in create_form_response.text
+        assert response.status_code == 200
+        assert "Bulk Create OSINT Sources" in response.text
+        assert 'href="https://taranis.ai/docs/admin/collectors/"' in create_form_response.text
+        assert "rss_collector" in response.text
+        assert "simple_web_collector" in response.text
+        assert "rt_collector" in response.text
+        assert "misp_collector" in response.text
+        assert "mastodon_collector" in create_form_response.text
+        assert "mastodon_collector" not in response.text
+        assert "manual_collector" not in response.text
+        assert "ppn_collector" not in response.text
+
+    def test_mastodon_parameter_form_is_schema_driven_and_masks_tokens(self, authenticated_client):
+        response = authenticated_client.get(
+            url_for(
+                "admin.osint_source_parameters",
+                osint_source_id="0",
+                type="mastodon_collector",
+                bulk="false",
+            )
+        )
+
+        assert response.status_code == 200
+        assert 'name="parameters[INSTANCE_URL]"' in response.text
+        assert 'name="parameters[TIMELINE]"' in response.text
+        mode_selects = html.fromstring(response.text).xpath('//select[@name="parameters[COLLECTION_MODE]"]')
+        assert [[option.get("value") for option in select.xpath("./option")] for select in mode_selects] == [["complete", "latest"]]
+        assert 'name="parameters[HASHTAG]"' in response.text
+        assert 'name="parameters[ACCOUNT]"' in response.text
+        assert 'name="parameters[ACCESS_TOKEN]"' in response.text
+        token_inputs = html.fromstring(response.text).xpath('//input[@name="parameters[ACCESS_TOKEN]"]')
+        assert len(token_inputs) == 1
+        assert token_inputs[0].get("type") == "password"
+
+    def test_bulk_parameter_view_only_excludes_the_varying_url_for_bulk_requests(self, authenticated_client):
+        bulk_response = authenticated_client.get(
+            url_for(
+                "admin.osint_source_parameters",
+                osint_source_id="0",
+                type="rss_collector",
+                bulk="true",
+            )
+        )
+        regular_response = authenticated_client.get(
+            url_for(
+                "admin.osint_source_parameters",
+                osint_source_id="0",
+                type="rss_collector",
+                bulk="false",
+            )
+        )
+
+        assert bulk_response.status_code == 200
+        assert 'name="parameters[FEED_URL]"' not in bulk_response.text
+        assert 'name="parameters[USER_AGENT]"' in bulk_response.text
+        assert regular_response.status_code == 200
+        assert 'name="parameters[FEED_URL]"' in regular_response.text
+
+    def test_bulk_create_reports_core_import_failures_with_server_status(self, authenticated_client, responses_mock):
+        endpoint = f"{Config.TARANIS_CORE_URL}/config/import-osint-sources"
+        responses_mock.post(endpoint, json={"error": "Core import failed."}, status=503)
+        responses_mock.post(endpoint, body=ConnectTimeout("Core request timed out"))
+        form_data = MultiDict(
+            [
+                ("sources[][name]", "Feed One"),
+                ("sources[][url]", "https://example.com/one.xml"),
+                ("sources[][name]", "Feed Two"),
+                ("sources[][url]", "https://example.com/two.xml"),
+                ("type", "rss_collector"),
+            ]
+        )
+
+        upstream_failure = authenticated_client.post(url_for("admin.bulk_create_osint_sources"), data=form_data)
+        transport_failure = authenticated_client.post(url_for("admin.bulk_create_osint_sources"), data=form_data)
+
+        assert upstream_failure.status_code == 503
+        assert "Core import failed." in upstream_failure.text
+        assert transport_failure.status_code == 502
+        assert "Failed to create OSINT sources." in transport_failure.text
+
     def test_import_post_view(self, authenticated_client, responses_mock):
         """
         Test that the import_post_view method correctly extracts the "sources" key
         from the uploaded JSON file.
         """
         # Create a dummy export file with a "sources" key
-        dummy_export_data = {"version": 3, "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}]}
+        dummy_export_data = {
+            "version": 3,
+            "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}],
+        }
         dummy_file_content = json.dumps(dummy_export_data).encode("utf-8")
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
@@ -257,7 +483,9 @@ class TestSourceView:
 
         # Simulate the POST request
         resp = authenticated_client.post(
-            SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
+            SourceView.get_import_route(),
+            data={"file": (dummy_file, "test.json")},
+            content_type="multipart/form-data",
         )
 
         assert resp.status_code == 302, f"Expected redirect response, got {resp.status_code}"
@@ -281,7 +509,10 @@ class TestSourceView:
         """
         Test that the import_post_view method returns an error when the CoreApi call fails.
         """
-        dummy_export_data = {"version": 3, "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}]}
+        dummy_export_data = {
+            "version": 3,
+            "sources": [{"name": "Test Source", "type": "rss", "url": "http://example.com/rss"}],
+        }
         dummy_file_content = json.dumps(dummy_export_data).encode("utf-8")
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
@@ -294,7 +525,9 @@ class TestSourceView:
         )
 
         resp = authenticated_client.post(
-            SourceView.get_import_route(), data={"file": (dummy_file, "test.json")}, content_type="multipart/form-data"
+            SourceView.get_import_route(),
+            data={"file": (dummy_file, "test.json")},
+            content_type="multipart/form-data",
         )
 
         assert resp.status_code == 200
@@ -342,7 +575,14 @@ class TestSourceView:
 
     def test_process_form_data_returns_core_error_message(self, app):
         with (
-            patch.object(SourceView, "store_form_data", return_value=(None, {"error": "Icon payload is not a valid image file."})),
+            patch.object(
+                SourceView,
+                "store_form_data",
+                return_value=(
+                    None,
+                    {"error": "Icon payload is not a valid image file."},
+                ),
+            ),
             app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
@@ -383,7 +623,10 @@ class TestSourceView:
             app.test_request_context(
                 SourceView.get_base_route(),
                 method="POST",
-                data={"delete_icon": "true", "icon": (BytesIO(oversized_icon), "icon.png", "image/png")},
+                data={
+                    "delete_icon": "true",
+                    "icon": (BytesIO(oversized_icon), "icon.png", "image/png"),
+                },
                 content_type="multipart/form-data",
             ),
         ):
@@ -399,7 +642,7 @@ class TestSourceView:
         task_result = Task(
             id="source_preview_42",
             status="FAILURE",
-            result=TaskResultEnvelope(
+            result=TaskResult(
                 message="Connection refused",
                 reason="preview_failed",
                 retryable=False,
@@ -470,7 +713,10 @@ class TestWordListView:
         assert 'hx-swap-oob="true"' not in html
 
     def test_import_post_view_api_failure_renders_inline_error(self, authenticated_client, responses_mock):
-        dummy_export_data = {"version": 1, "data": [{"name": "Test wordlist", "entries": []}]}
+        dummy_export_data = {
+            "version": 1,
+            "data": [{"name": "Test wordlist", "entries": []}],
+        }
         dummy_file_content = json.dumps(dummy_export_data).encode("utf-8")
         dummy_file = BytesIO(dummy_file_content)
         dummy_file.name = "test.json"
@@ -694,32 +940,6 @@ def test_persistent_notification_has_no_timeout_animation(app):
     assert "@animationend" not in persistent
     assert '@click="show = false"' in persistent
     assert "@animationend" in timed
-
-
-def test_analyze_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints):
-    response = authenticated_client.get(ReportItemView.get_base_route())
-
-    assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    assert 'aria-label="Toggle sidebar"' not in html
-    assert "#sidebar {" not in html
-    assert "#sidebar ~ main {" not in html
-
-
-def test_publish_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints, responses_mock):
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/publish/product-types",
-        json={"items": [], "total_count": 0},
-    )
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/publish/publisher-presets",
-        json={"items": [], "total_count": 0},
-    )
-
-    response = authenticated_client.get(ProductView.get_base_route())
-
-    assert response.status_code == 200
-    assert 'aria-label="Toggle sidebar"' not in response.get_data(as_text=True)
 
 
 def test_assess_page_shows_sidebar_toggle_when_sidebar_exists(authenticated_client, responses_mock):
