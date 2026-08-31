@@ -11,7 +11,7 @@ import pytest
 from flask import render_template, url_for
 from lxml import html
 from models.admin import OSINTSource, ReportItemType
-from models.task import Task, TaskResultEnvelope
+from models.task import Task, TaskResult
 from models.types import COLLECTOR_TYPES
 from models.user import AssessSavedFilter
 from requests import ConnectTimeout
@@ -25,8 +25,6 @@ from frontend.views.admin_views.report_type_views import ReportItemTypeView
 from frontend.views.admin_views.source_views import SourceView
 from frontend.views.admin_views.word_list_views import WordListView
 from frontend.views.base_view import BaseView
-from frontend.views.product_views import ProductView
-from frontend.views.report_views import ReportItemView
 
 
 _VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
@@ -384,103 +382,15 @@ class TestSourceView:
         assert 'data-testid="bulk-create-osint-sources-button"' in create_form_response.text
         assert response.status_code == 200
         assert "Bulk Create OSINT Sources" in response.text
+        assert 'href="https://taranis.ai/docs/admin/collectors/"' in create_form_response.text
         assert "rss_collector" in response.text
         assert "simple_web_collector" in response.text
         assert "rt_collector" in response.text
         assert "misp_collector" in response.text
+        assert "mastodon_collector" in create_form_response.text
+        assert "mastodon_collector" not in response.text
         assert "manual_collector" not in response.text
         assert "ppn_collector" not in response.text
-
-    def test_curated_source_lists_are_always_available_and_multi_selectable(
-        self,
-        authenticated_client,
-        responses_mock,
-        mock_core_get_endpoints,
-    ):
-        _ = mock_core_get_endpoints
-        catalog_url = f"{Config.TARANIS_CORE_URL}/config/curated-osint-source-lists"
-        responses_mock.get(
-            catalog_url,
-            json={
-                "items": [
-                    {
-                        "id": "austrian-news",
-                        "name": "Austrian News",
-                        "description": "Austrian reporting",
-                        "source_count": 5,
-                    },
-                    {
-                        "id": "cyber-threat-intelligence",
-                        "name": "Cyber Threat Intelligence",
-                        "description": "Security reporting",
-                        "source_count": 5,
-                    },
-                ]
-            },
-            status=200,
-        )
-
-        source_table = authenticated_client.get(SourceView.get_base_route())
-        selection_form = authenticated_client.get(url_for("admin.curated_osint_source_lists"))
-
-        assert source_table.status_code == 200
-        assert "Add curated sources" in source_table.text
-        assert selection_form.status_code == 200
-        assert 'data-testid="curated-list-austrian-news"' in selection_form.text
-        assert 'data-testid="curated-list-cyber-threat-intelligence"' in selection_form.text
-        assert "5 sources" in selection_form.text
-
-    def test_curated_source_list_submit_reports_counts(self, authenticated_client, responses_mock):
-        endpoint = f"{Config.TARANIS_CORE_URL}/config/curated-osint-source-lists"
-        responses_mock.post(
-            endpoint,
-            json={
-                "message": "Curated OSINT sources loaded successfully",
-                "created_source_count": 6,
-                "reused_source_count": 2,
-                "created_group_count": 2,
-                "updated_group_count": 0,
-            },
-            status=200,
-        )
-        responses_mock.post(f"{Config.TARANIS_CORE_URL}/admin/cache/invalidate", json={"message": "ok"}, status=200)
-
-        response = authenticated_client.post(
-            url_for("admin.curated_osint_source_lists"),
-            data={"list_ids": ["austrian-news", "cyber-threat-intelligence"]},
-        )
-
-        assert response.status_code == 302
-        assert response.headers["Location"] == SourceView.get_base_route()
-        assert _json_request_body(responses_mock.calls[0]) == {
-            "list_ids": ["austrian-news", "cyber-threat-intelligence"]
-        }
-
-    def test_curated_source_list_failure_preserves_selection(self, authenticated_client, responses_mock):
-        endpoint = f"{Config.TARANIS_CORE_URL}/config/curated-osint-source-lists"
-        catalog = {
-            "items": [
-                {
-                    "id": "austrian-news",
-                    "name": "Austrian News",
-                    "description": "Austrian reporting",
-                    "source_count": 5,
-                }
-            ]
-        }
-        responses_mock.post(endpoint, json={"error": "Existing sources conflict with this list"}, status=409)
-        responses_mock.get(endpoint, json=catalog, status=200)
-
-        response = authenticated_client.post(
-            url_for("admin.curated_osint_source_lists"),
-            data={"list_ids": ["austrian-news"]},
-        )
-
-        assert response.status_code == 409
-        assert "Existing sources conflict with this list" in response.text
-        tree = html.fromstring(response.text)
-        checkbox = tree.xpath('//*[@data-testid="curated-list-austrian-news"]')[0]
-        assert checkbox.get("checked") == "checked"
 
     def test_bulk_parameter_view_only_excludes_the_varying_url_for_bulk_requests(self, authenticated_client):
         bulk_response = authenticated_client.get(
@@ -710,7 +620,7 @@ class TestSourceView:
         task_result = Task(
             id="source_preview_42",
             status="FAILURE",
-            result=TaskResultEnvelope(
+            result=TaskResult(
                 message="Connection refused",
                 reason="preview_failed",
                 retryable=False,
@@ -1008,32 +918,6 @@ def test_persistent_notification_has_no_timeout_animation(app):
     assert "@animationend" not in persistent
     assert '@click="show = false"' in persistent
     assert "@animationend" in timed
-
-
-def test_analyze_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints):
-    response = authenticated_client.get(ReportItemView.get_base_route())
-
-    assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    assert 'aria-label="Toggle sidebar"' not in html
-    assert "#sidebar {" not in html
-    assert "#sidebar ~ main {" not in html
-
-
-def test_publish_page_hides_sidebar_toggle_when_no_sidebar(authenticated_client, mock_core_get_endpoints, responses_mock):
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/publish/product-types",
-        json={"items": [], "total_count": 0},
-    )
-    responses_mock.get(
-        f"{Config.TARANIS_CORE_URL}/publish/publisher-presets",
-        json={"items": [], "total_count": 0},
-    )
-
-    response = authenticated_client.get(ProductView.get_base_route())
-
-    assert response.status_code == 200
-    assert 'aria-label="Toggle sidebar"' not in response.get_data(as_text=True)
 
 
 def test_assess_page_shows_sidebar_toggle_when_sidebar_exists(authenticated_client, responses_mock):

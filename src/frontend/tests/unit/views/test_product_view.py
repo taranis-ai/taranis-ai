@@ -176,3 +176,26 @@ def test_product_view_preselects_report_from_query(app):
     assert persistence.get_objects.call_args_list == [call(ProductType), call(PublisherPreset)]
     assert context["selected_report_items"] == ["report-2", "report-1"]
     assert context["supported_reports"] == [{"id": "report-2", "title": "Already selected"}, report.model_dump(mode="json")]
+
+
+def test_product_view_only_offers_product_types_compatible_with_selected_reports(app):
+    product_types = [
+        ProductType.model_construct(id="compatible", title="Compatible", report_types=["report-type-1"]),
+        ProductType.model_construct(id="incompatible", title="Incompatible", report_types=["report-type-2"]),
+    ]
+    product = Product.model_construct(
+        id="product-1",
+        title="Existing product",
+        product_type_id="compatible",
+        report_items=["report-1"],
+        supported_reports=[{"id": "report-1", "report_item_type_id": "report-type-1"}],
+    )
+
+    with patch("frontend.views.product_views.DataPersistenceLayer") as persistence_cls:
+        persistence = persistence_cls.return_value
+        persistence.get_objects.side_effect = [product_types, []]
+
+        with app.test_request_context("/publish/product-1"):
+            context = ProductView.get_extra_context({"product": product})
+
+    assert context["product_types"] == [{"id": "compatible", "name": "Compatible"}]

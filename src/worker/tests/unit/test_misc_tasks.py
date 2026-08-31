@@ -16,7 +16,7 @@ def test_cleanup_token_blacklist_reports_task(monkeypatch):
                 "task": task_name,
                 "worker_id": worker_id,
                 "worker_type": worker_type,
-                "result": task_kwargs if result is None else result,
+                "result": task_kwargs if result is None else result.model_dump(mode="json", exclude_none=False),
                 "status": status,
             }
             return True
@@ -72,7 +72,7 @@ def test_gather_word_list_persists_canonical_success_payload(monkeypatch):
                 "task": task_name,
                 "worker_id": worker_id,
                 "worker_type": worker_type,
-                "result": task_kwargs if result is None else result,
+                "result": task_kwargs if result is None else result.model_dump(mode="json", exclude_none=False),
                 "status": status,
             }
             return True

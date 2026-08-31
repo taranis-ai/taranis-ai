@@ -9966,6 +9966,8 @@ components:
           type: string
         type:
           type: string
+        report_item_type_id:
+          type: string
         created:
           type: string
           format: date-time
