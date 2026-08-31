@@ -308,6 +308,55 @@ class OSINTSourceGroup(TaranisBaseModel):
     word_lists: list[str] = Field(default_factory=list)
 
 
+class CuratedOSINTSourceList(TaranisBaseModel):
+    id: str = Field(min_length=1, max_length=64)
+    name: str
+    description: str = ""
+    sources: list[str] = Field(min_length=1)
+
+
+class CuratedOSINTSourceCatalog(TaranisBaseModel):
+    version: Literal[1]
+    sources: list[OSINTSource]
+    lists: list[CuratedOSINTSourceList]
+
+    @model_validator(mode="after")
+    def validate_catalog_references(self):
+        source_ids = [source.id for source in self.sources]
+        list_ids = [curated_list.id for curated_list in self.lists]
+        if any(source_id is None or not source_id or len(source_id) > 64 for source_id in source_ids) or len(source_ids) != len(
+            set(source_ids)
+        ):
+            raise ValueError("Curated source IDs must be present and unique")
+        if len(list_ids) != len(set(list_ids)):
+            raise ValueError("Curated list IDs must be unique")
+
+        known_source_ids = set(source_ids)
+        if unknown_source_ids := {
+            source_id for curated_list in self.lists for source_id in curated_list.sources if source_id not in known_source_ids
+        }:
+            raise ValueError(f"Unknown curated source IDs: {', '.join(sorted(unknown_source_ids))}")
+        return self
+
+
+class CuratedOSINTSourceListSummary(TaranisBaseModel):
+    id: str
+    name: str
+    description: str = ""
+    source_count: int
+
+
+class CuratedOSINTSourceSelection(TaranisBaseModel):
+    list_ids: list[str] = Field(min_length=1)
+
+    @field_validator("list_ids")
+    @classmethod
+    def require_unique_list_ids(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("Curated list IDs must be unique")
+        return value
+
+
 class ProductType(TaranisBaseModel):
     _core_endpoint = "/config/product-types"
     _model_name = "product_type"

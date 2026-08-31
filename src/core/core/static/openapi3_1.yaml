@@ -4433,6 +4433,91 @@ paths:
                 type: object
         '401':
           $ref: '#/components/responses/401Unauthorized'
+  /config/curated-osint-source-lists:
+    get:
+      tags:
+      - config
+      description: get the bundled curated OSINT source lists
+      operationId: config.config_curated_osint_source_lists.get
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        source_count:
+                          type: integer
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '500':
+          description: curated catalog unavailable
+    post:
+      tags:
+      - config
+      description: add or relink sources from bundled curated lists
+      operationId: config.config_curated_osint_source_lists.post
+      security:
+      - UserAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - list_ids
+              properties:
+                list_ids:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: curated sources loaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  created_source_count:
+                    type: integer
+                  reused_source_count:
+                    type: integer
+                  created_group_count:
+                    type: integer
+                  updated_group_count:
+                    type: integer
+        '400':
+          description: invalid selection or catalog
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '409':
+          description: ambiguous existing source match
+        '500':
+          description: curated sources could not be loaded
   /config/export-osint-sources:
     parameters:
     - name: ids

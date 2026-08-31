@@ -3,9 +3,10 @@ import json
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from models.admin import CronSpec, OSINTSourceUpdateModel
+from models.admin import CronSpec, CuratedOSINTSourceCatalog, CuratedOSINTSourceListSummary, OSINTSourceUpdateModel
 from models.admin import OSINTSource as OSINTSourceModel
 from models.types import COLLECTOR_TYPES
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -17,6 +18,7 @@ from sqlalchemy.sql import Select
 from core.config import Config
 from core.log import logger
 from core.managers import queue_manager
+from core.managers.data_manager import get_default_json
 from core.managers.db_manager import db
 from core.model.base_model import DB_INTEGER_MAX, UUID_STR_LENGTH, BaseModel
 from core.model.role import TLPLevel
@@ -37,6 +39,18 @@ class InvalidOSINTSourceIconError(ValueError):
     def __init__(self, public_message: str):
         super().__init__(public_message)
         self.public_message = public_message
+
+
+class CuratedOSINTSourceConflictError(ValueError):
+    pass
+
+
+CURATED_SOURCE_URL_PARAMETERS = {
+    COLLECTOR_TYPES.RSS_COLLECTOR: "FEED_URL",
+    COLLECTOR_TYPES.SIMPLE_WEB_COLLECTOR: "WEB_URL",
+    COLLECTOR_TYPES.RT_COLLECTOR: "BASE_URL",
+    COLLECTOR_TYPES.MISP_COLLECTOR: "URL",
+}
 
 
 class CollectorHTTPState(BaseModel):
@@ -937,6 +951,134 @@ class OSINTSource(BaseModel):
         ids = cls.add_multiple_with_group(data, groups)
         logger.debug(f"Imported {len(ids)} sources")
         return ids
+
+    @staticmethod
+    def get_curated_catalog() -> CuratedOSINTSourceCatalog:
+        filename = "curated_osint_sources.json"
+        catalog_path = Path(get_default_json(filename)) / filename
+        with catalog_path.open(encoding="utf-8") as catalog_file:
+            catalog = CuratedOSINTSourceCatalog.model_validate(json.load(catalog_file))
+
+        source_identities: dict[tuple[COLLECTOR_TYPES, str], str] = {}
+        for source in catalog.sources:
+            if source.type not in CURATED_SOURCE_URL_PARAMETERS:
+                raise ValueError(f"Unsupported curated source type for {source.id}")
+            url_parameter = CURATED_SOURCE_URL_PARAMETERS[source.type]
+            source_url = str((source.parameters or {}).get(url_parameter, "")).strip()
+            if not source_url:
+                raise ValueError(f"Missing primary URL for curated source {source.id}")
+            identity = (source.type, source_url)
+            if existing_source_id := source_identities.get(identity):
+                raise ValueError(f"Curated sources {existing_source_id} and {source.id} have the same identity")
+            source_identities[identity] = str(source.id)
+        return catalog
+
+    @classmethod
+    def get_curated_list_summaries(cls) -> list[dict[str, Any]]:
+        catalog = cls.get_curated_catalog()
+        return [
+            CuratedOSINTSourceListSummary(
+                id=curated_list.id,
+                name=curated_list.name,
+                description=curated_list.description,
+                source_count=len(curated_list.sources),
+            ).model_dump()
+            for curated_list in catalog.lists
+        ]
+
+    @classmethod
+    def load_curated_lists(cls, list_ids: list[str]) -> dict[str, int | str]:
+        catalog = cls.get_curated_catalog()
+        catalog_lists = {curated_list.id: curated_list for curated_list in catalog.lists}
+        if unknown_list_ids := set(list_ids) - catalog_lists.keys():
+            raise ValueError(f"Unknown curated list IDs: {', '.join(sorted(unknown_list_ids))}")
+
+        selected_lists = [catalog_lists[list_id] for list_id in list_ids]
+        selected_source_keys = {source_key for curated_list in selected_lists for source_key in curated_list.sources}
+        catalog_sources = {source.id: source for source in catalog.sources}
+        existing_sources = list(db.session.execute(db.select(cls)).scalars().all())
+        keyed_sources = {source.key: source for source in existing_sources if source.key}
+        resolved_sources: dict[str, OSINTSource] = {}
+        created_sources: list[OSINTSource] = []
+        reused_source_count = 0
+
+        try:
+            for source_key in selected_source_keys:
+                if source := keyed_sources.get(source_key):
+                    resolved_sources[source_key] = source
+                    reused_source_count += 1
+                    continue
+
+                curated_source = catalog_sources[source_key]
+                if curated_source.type not in CURATED_SOURCE_URL_PARAMETERS:
+                    raise ValueError(f"Unsupported curated source type for {source_key}")
+                url_parameter = CURATED_SOURCE_URL_PARAMETERS[curated_source.type]
+                curated_url = str((curated_source.parameters or {}).get(url_parameter, "")).strip()
+                if not curated_url:
+                    raise ValueError(f"Missing primary URL for curated source {source_key}")
+
+                legacy_matches = [
+                    source
+                    for source in existing_sources
+                    if source.key is None
+                    and source.type == curated_source.type
+                    and str(source.parameters.get(url_parameter, "")).strip() == curated_url
+                ]
+                if len(legacy_matches) > 1:
+                    raise CuratedOSINTSourceConflictError(f"Multiple existing sources match curated source {source_key}")
+                if legacy_matches:
+                    source = legacy_matches[0]
+                    source.key = source_key
+                    resolved_sources[source_key] = source
+                    reused_source_count += 1
+                    continue
+
+                source = cls.from_payload(curated_source)
+                db.session.add(source)
+                resolved_sources[source_key] = source
+                created_sources.append(source)
+
+            default_group = OSINTSourceGroup.get_default()
+            if default_group:
+                for source in created_sources:
+                    if source not in default_group.osint_sources:
+                        default_group.osint_sources.append(source)
+
+            created_group_count = 0
+            updated_group_count = 0
+            for curated_list in selected_lists:
+                group = OSINTSourceGroup.get_by_key(curated_list.id)
+                if group is None:
+                    group = OSINTSourceGroup(
+                        id=curated_list.id,
+                        name=curated_list.name,
+                        description=curated_list.description,
+                    )
+                    db.session.add(group)
+                    created_group_count += 1
+                else:
+                    updated_group_count += 1
+
+                for source_key in curated_list.sources:
+                    source = resolved_sources[source_key]
+                    if source not in group.osint_sources:
+                        group.osint_sources.append(source)
+
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+        for source in created_sources:
+            source.schedule_osint_source()
+
+        return {
+            "message": "Curated OSINT sources loaded successfully",
+            "created_source_count": len(created_sources),
+            "reused_source_count": reused_source_count,
+            "created_group_count": created_group_count,
+            "updated_group_count": updated_group_count,
+        }
 
     @classmethod
     def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:

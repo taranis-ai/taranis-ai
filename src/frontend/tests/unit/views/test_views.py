@@ -391,6 +391,97 @@ class TestSourceView:
         assert "manual_collector" not in response.text
         assert "ppn_collector" not in response.text
 
+    def test_curated_source_lists_are_always_available_and_multi_selectable(
+        self,
+        authenticated_client,
+        responses_mock,
+        mock_core_get_endpoints,
+    ):
+        _ = mock_core_get_endpoints
+        catalog_url = f"{Config.TARANIS_CORE_URL}/config/curated-osint-source-lists"
+        responses_mock.get(
+            catalog_url,
+            json={
+                "items": [
+                    {
+                        "id": "austrian-news",
+                        "name": "Austrian News",
+                        "description": "Austrian reporting",
+                        "source_count": 5,
+                    },
+                    {
+                        "id": "cyber-threat-intelligence",
+                        "name": "Cyber Threat Intelligence",
+                        "description": "Security reporting",
+                        "source_count": 5,
+                    },
+                ]
+            },
+            status=200,
+        )
+
+        source_table = authenticated_client.get(SourceView.get_base_route())
+        selection_form = authenticated_client.get(url_for("admin.curated_osint_source_lists"))
+
+        assert source_table.status_code == 200
+        assert "Add curated sources" in source_table.text
+        assert selection_form.status_code == 200
+        assert 'data-testid="curated-list-austrian-news"' in selection_form.text
+        assert 'data-testid="curated-list-cyber-threat-intelligence"' in selection_form.text
+        assert "5 sources" in selection_form.text
+
+    def test_curated_source_list_submit_reports_counts(self, authenticated_client, responses_mock):
+        endpoint = f"{Config.TARANIS_CORE_URL}/config/curated-osint-source-lists"
+        responses_mock.post(
+            endpoint,
+            json={
+                "message": "Curated OSINT sources loaded successfully",
+                "created_source_count": 6,
+                "reused_source_count": 2,
+                "created_group_count": 2,
+                "updated_group_count": 0,
+            },
+            status=200,
+        )
+        responses_mock.post(f"{Config.TARANIS_CORE_URL}/admin/cache/invalidate", json={"message": "ok"}, status=200)
+
+        response = authenticated_client.post(
+            url_for("admin.curated_osint_source_lists"),
+            data={"list_ids": ["austrian-news", "cyber-threat-intelligence"]},
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == SourceView.get_base_route()
+        assert _json_request_body(responses_mock.calls[0]) == {
+            "list_ids": ["austrian-news", "cyber-threat-intelligence"]
+        }
+
+    def test_curated_source_list_failure_preserves_selection(self, authenticated_client, responses_mock):
+        endpoint = f"{Config.TARANIS_CORE_URL}/config/curated-osint-source-lists"
+        catalog = {
+            "items": [
+                {
+                    "id": "austrian-news",
+                    "name": "Austrian News",
+                    "description": "Austrian reporting",
+                    "source_count": 5,
+                }
+            ]
+        }
+        responses_mock.post(endpoint, json={"error": "Existing sources conflict with this list"}, status=409)
+        responses_mock.get(endpoint, json=catalog, status=200)
+
+        response = authenticated_client.post(
+            url_for("admin.curated_osint_source_lists"),
+            data={"list_ids": ["austrian-news"]},
+        )
+
+        assert response.status_code == 409
+        assert "Existing sources conflict with this list" in response.text
+        tree = html.fromstring(response.text)
+        checkbox = tree.xpath('//*[@data-testid="curated-list-austrian-news"]')[0]
+        assert checkbox.get("checked") == "checked"
+
     def test_bulk_parameter_view_only_excludes_the_varying_url_for_bulk_requests(self, authenticated_client):
         bulk_response = authenticated_client.get(
             url_for(

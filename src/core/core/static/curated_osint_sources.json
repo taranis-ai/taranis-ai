@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "cert-at-blog",
+      "name": "CERT.at - Blog",
+      "description": "This feed contains the blog from www.CERT.at",
+      "rank": 0,
+      "type": "rss_collector",
+      "parameters": {
+        "FEED_URL": "https://cert.at/cert-at.en.blog.rss_2.0.xml",
+        "USE_FEED_CONTENT": "true",
+        "CONTENT_LOCATION": "description"
+      }
+    },
+    {
+      "id": "cert-org-vulnerability-notes",
+      "name": "CERT.org",
+      "description": "",
+      "rank": 0,
+      "type": "rss_collector",
+      "parameters": {
+        "FEED_URL": "https://www.kb.cert.org/vulfeed"
+      }
+    },
+    {
+      "id": "austrian-interior-ministry-news",
+      "name": "Aktuelles aus dem BM.I",
+      "description": "Übersicht der neuesten Artikel aus dem Bundesministerium für Inneres",
+      "rank": 0,
+      "type": "rss_collector",
+      "parameters": {
+        "FEED_URL": "https://www.bmi.gv.at/rss/bmi_presse.xml"
+      }
+    },
+    {
+      "id": "cz-nic-staff-blog",
+      "name": "The CZ.NIC Staff Blog",
+      "description": "@ IN SOA domains.dns.enum.mojeid.internet. nic.cz.",
+      "rank": 0,
+      "type": "rss_collector",
+      "parameters": {
+        "FEED_URL": "https://en.blog.nic.cz/feed/",
+        "USE_FEED_CONTENT": "true",
+        "CONTENT_LOCATION": "content:encoded"
+      }
+    },
+    {
+      "id": "cert-at-all",
+      "name": "CERT.at - All",
+      "description": "Dieser Feed kombiniert alle deutschsprachigen Feed-Updates von www.CERT.at",
+      "rank": 0,
+      "type": "rss_collector",
+      "parameters": {
+        "FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml",
+        "USE_FEED_CONTENT": "true",
+        "CONTENT_LOCATION": "description"
+      }
+    },
+    {
+      "id": "gunnar-haslinger-blog",
+      "name": "Gunnar Haslinger",
+      "description": "My shared public notes: Blog about IT, Security, etc ...",
+      "rank": 0,
+      "type": "rss_collector",
+      "parameters": {
+        "FEED_URL": "https://hitco.at/blog/feed/"
+      }
+    },
+    {
+      "id": "futurezone-at",
+      "name": "futurezone.at",
+      "description": "",
+      "rank": 0,
+      "type": "rss_collector",
+      "parameters": {
+        "FEED_URL": "https://futurezone.at/xml/rss"
+      }
+    },
+    {
+      "id": "derstandard-web",
+      "name": "Web - derStandard.at",
+      "description": "",
+      "rank": 0,
+      "type": "rss_collector",
+      "parameters": {
+        "FEED_URL": "https://www.derstandard.at/rss/web"
+      }
+    },
+    {
+      "id": "orf-news",
+      "name": "news.ORF.at",
+      "description": "Die aktuellsten Nachrichten auf einen Blick - aus Österreich und der ganzen Welt. In Text, Bild und Video.",
+      "rank": 0,
+      "type": "rss_collector",
+      "parameters": {
+        "FEED_URL": "https://rss.orf.at/news.xml"
+      }
+    },
+    {
+      "id": "orf-austria",
+      "name": "oesterreich.ORF.at",
+      "description": "Die aktuellsten Nachrichten aus den österreichischen Bundesländern.",
+      "rank": 0,
+      "type": "rss_collector",
+      "parameters": {
+        "FEED_URL": "https://rss.orf.at/oesterreich.xml"
+      }
+    }
+  ],
+  "lists": [
+    {
+      "id": "austrian-news",
+      "name": "Austrian News",
+      "description": "General Austrian news and technology reporting.",
+      "sources": [
+        "austrian-interior-ministry-news",
+        "futurezone-at",
+        "derstandard-web",
+        "orf-news",
+        "orf-austria"
+      ]
+    },
+    {
+      "id": "austrian-public-sector",
+      "name": "Austrian Public Sector",
+      "description": "Updates from Austrian public-sector and national cybersecurity organizations.",
+      "sources": ["austrian-interior-ministry-news", "cert-at-blog", "cert-at-all"]
+    },
+    {
+      "id": "cyber-threat-intelligence",
+      "name": "Cyber Threat Intelligence",
+      "description": "Cybersecurity advisories, vulnerability notes, and practitioner reporting.",
+      "sources": [
+        "cert-at-blog",
+        "cert-at-all",
+        "cert-org-vulnerability-notes",
+        "cz-nic-staff-blog",
+        "gunnar-haslinger-blog"
+      ]
+    },
+    {
+      "id": "technology-news",
+      "name": "Technology News",
+      "description": "Technology and security reporting from Austrian and regional sources.",
+      "sources": ["cz-nic-staff-blog", "gunnar-haslinger-blog", "futurezone-at", "derstandard-web"]
+    },
+    {
+      "id": "starter-pack",
+      "name": "Starter Pack",
+      "description": "The complete general-purpose set of curated sources.",
+      "sources": [
+        "cert-at-blog",
+        "cert-org-vulnerability-notes",
+        "austrian-interior-ministry-news",
+        "cz-nic-staff-blog",
+        "cert-at-all",
+        "gunnar-haslinger-blog",
+        "futurezone-at",
+        "derstandard-web",
+        "orf-news",
+        "orf-austria"
+      ]
+    }
+  ]
+}

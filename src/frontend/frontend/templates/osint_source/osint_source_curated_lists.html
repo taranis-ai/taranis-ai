@@ -1,0 +1,35 @@
+<div class="p-5">
+  <div class="flex items-center justify-between mb-5">
+    <div>
+      <h1 class="text-2xl font-bold">Add curated OSINT sources</h1>
+      <p class="text-sm text-base-content/70 mt-1">Select one or more maintained lists. Overlapping sources are loaded only once.</p>
+    </div>
+    <button class="btn btn-ghost" hx-get="{{ url_for('admin.osint_sources') }}" hx-target="#form-container">Back</button>
+  </div>
+
+  {% if error %}<div role="alert" class="alert alert-error alert-soft mb-5">{{ error }}</div>{% endif %}
+
+  <form hx-post="{{ url_for('admin.curated_osint_source_lists') }}" hx-target="#form-container" hx-target-error="#form-container">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+    <div class="grid gap-3 md:grid-cols-2">
+      {% for curated_list in curated_lists %}
+        <label class="card border border-base-300 bg-base-100 cursor-pointer hover:border-primary">
+          <div class="card-body p-4 flex-row items-start gap-3">
+            <input type="checkbox"
+                   class="checkbox checkbox-primary mt-1"
+                   name="list_ids"
+                   value="{{ curated_list.id }}"
+                   data-testid="curated-list-{{ curated_list.id }}"
+                   {% if curated_list.id in selected_list_ids %}checked{% endif %}>
+            <span>
+              <span class="font-semibold block">{{ curated_list.name }}</span>
+              <span class="text-sm text-base-content/70 block mt-1">{{ curated_list.description }}</span>
+              <span class="badge badge-ghost badge-sm mt-2">{{ curated_list.source_count }} sources</span>
+            </span>
+          </div>
+        </label>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary mt-5" data-testid="load-curated-sources-button">Add selected lists</button>
+  </form>
+</div>

@@ -106,6 +106,139 @@ class TestSourcesConfigApi(BaseTest):
         finally:
             client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
 
+    def test_curated_source_lists_are_additive_idempotent_and_preserve_edits(self, app, client, auth_header):
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource, OSINTSourceGroup
+
+        catalog_response = self.assert_get_ok(client, uri="curated-osint-source-lists", auth_header=auth_header)
+        assert [item["name"] for item in catalog_response.json["items"]] == [
+            "Austrian News",
+            "Austrian Public Sector",
+            "Cyber Threat Intelligence",
+            "Technology News",
+            "Starter Pack",
+        ]
+
+        legacy_source_id = str(uuid.uuid7())
+        with app.app_context():
+            legacy_source = OSINTSource(
+                id=legacy_source_id,
+                name="User-renamed ministry feed",
+                description="Keep this description",
+                type="rss_collector",
+                parameters={"FEED_URL": "https://www.bmi.gv.at/rss/bmi_presse.xml"},
+            )
+            db.session.add(legacy_source)
+            db.session.commit()
+
+        selected_lists = ["austrian-public-sector", "cyber-threat-intelligence"]
+        selected_source_keys = {
+            "austrian-interior-ministry-news",
+            "cert-at-blog",
+            "cert-at-all",
+            "cert-org-vulnerability-notes",
+            "cz-nic-staff-blog",
+            "gunnar-haslinger-blog",
+        }
+        try:
+            first_response = self.assert_post_ok(
+                client,
+                uri="curated-osint-source-lists",
+                json_data={"list_ids": selected_lists},
+                auth_header=auth_header,
+            )
+            assert first_response.json["created_source_count"] == 5
+            assert first_response.json["reused_source_count"] == 1
+            assert first_response.json["created_group_count"] == 2
+
+            with app.app_context():
+                adopted_source = OSINTSource.get_by_key("austrian-interior-ministry-news")
+                assert adopted_source is not None
+                assert adopted_source.id == legacy_source_id
+                assert adopted_source.name == "User-renamed ministry feed"
+                assert adopted_source.description == "Keep this description"
+
+                public_sector_group = OSINTSourceGroup.get_by_key("austrian-public-sector")
+                threat_intelligence_group = OSINTSourceGroup.get_by_key("cyber-threat-intelligence")
+                assert public_sector_group is not None
+                assert threat_intelligence_group is not None
+                assert len(public_sector_group.osint_sources) == 3
+                assert len(threat_intelligence_group.osint_sources) == 5
+                public_sector_group.name = "My Austrian Sources"
+                public_sector_group.osint_sources.remove(adopted_source)
+                db.session.commit()
+
+            second_response = self.assert_post_ok(
+                client,
+                uri="curated-osint-source-lists",
+                json_data={"list_ids": selected_lists},
+                auth_header=auth_header,
+            )
+            assert second_response.json["created_source_count"] == 0
+            assert second_response.json["reused_source_count"] == 6
+            assert second_response.json["updated_group_count"] == 2
+
+            with app.app_context():
+                public_sector_group = OSINTSourceGroup.get_by_key("austrian-public-sector")
+                adopted_source = OSINTSource.get_by_key("austrian-interior-ministry-news")
+                assert public_sector_group is not None
+                assert adopted_source is not None
+                assert public_sector_group.name == "My Austrian Sources"
+                assert adopted_source in public_sector_group.osint_sources
+                curated_sources = OSINTSource.get_filtered(db.select(OSINTSource).where(OSINTSource.key.in_(selected_source_keys))) or []
+                assert len({source.id for source in curated_sources}) == 6
+        finally:
+            with app.app_context():
+                for list_id in selected_lists:
+                    if group := OSINTSourceGroup.get_by_key(list_id):
+                        db.session.delete(group)
+                for source in OSINTSource.get_filtered(db.select(OSINTSource).where(OSINTSource.key.in_(selected_source_keys))) or []:
+                    db.session.delete(source)
+                db.session.commit()
+
+    def test_curated_source_list_rejects_ambiguous_legacy_matches_atomically(self, app, client, auth_header):
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource, OSINTSourceGroup
+
+        source_ids = [str(uuid.uuid7()), str(uuid.uuid7())]
+        with app.app_context():
+            for source_id in source_ids:
+                db.session.add(
+                    OSINTSource(
+                        id=source_id,
+                        name=f"Duplicate ministry feed {source_id}",
+                        description="",
+                        type="rss_collector",
+                        parameters={"FEED_URL": "https://www.bmi.gv.at/rss/bmi_presse.xml"},
+                    )
+                )
+            db.session.commit()
+
+        try:
+            response = client.post(
+                self.concat_url("curated-osint-source-lists"),
+                json={"list_ids": ["austrian-public-sector"]},
+                headers=auth_header,
+            )
+            assert response.status_code == 409
+            assert response.json == {"error": "Existing OSINT sources conflict with the curated source catalog"}
+            with app.app_context():
+                assert OSINTSourceGroup.get_by_key("austrian-public-sector") is None
+                curated_source_keys = {
+                    "austrian-interior-ministry-news",
+                    "cert-at-blog",
+                    "cert-at-all",
+                }
+                assert not (
+                    OSINTSource.get_filtered(db.select(OSINTSource).where(OSINTSource.key.in_(curated_source_keys))) or []
+                )
+        finally:
+            with app.app_context():
+                for source_id in source_ids:
+                    if source := OSINTSource.get(source_id):
+                        db.session.delete(source)
+                db.session.commit()
+
     def test_export_osint_sources(self, client, auth_header, cleanup_sources):
         response = self.assert_get_ok(client, uri="export-osint-sources", auth_header=auth_header)
         dir_path = os.path.dirname(os.path.realpath(__file__))
