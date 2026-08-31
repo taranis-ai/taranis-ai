@@ -79,7 +79,7 @@
             <div class="col-span-12">{{ form_textarea('Description', 'description', product.description, form_error.description, required=false) }}</div>
           </div>
 
-          {% if product.product_type_id %}
+          {% if product.product_type_id or selected_report_items %}
             <div class="mt-2">
               {{ datatable('Report Items', supported_reports, columns, selected_items=selected_report_items, input_name='report_items[]', headline='Report Items') }}
             </div>
