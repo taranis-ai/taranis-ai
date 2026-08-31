@@ -75,7 +75,8 @@ def _story_snapshot(story: Story, source_instance: str, snapshot_id: str | None 
 
 
 def _owner(channel: CollaborationChannel, request_host: str) -> bool:
-    return channel.owner_base_url.rstrip("/") == request_host.rstrip("/")
+    owner_url = channel.owner_base_url.rstrip("/")
+    return owner_url in {request_host.rstrip("/"), Config.COLLABORATION_INSTANCE_URL.rstrip("/")}
 
 
 def _touch_metadata(channel: CollaborationChannel) -> None:
@@ -808,7 +809,7 @@ class Finalize(MethodView):
         channel = _channel(channel_id)
         if not channel or channel.status != "open":
             return {"error": "Channel is not open"}, 409
-        if channel.owner_base_url.rstrip("/") != request.host_url.rstrip("/"):
+        if not _owner(channel, request.host_url):
             return {"error": "Only the channel owner can finalize"}, 403
         store = CollaborationStore()
         documents = CollaborationDocument.query.filter_by(channel_id=channel.id).all()
@@ -869,7 +870,7 @@ class Close(MethodView):
         channel = _channel(channel_id)
         if not channel:
             return {"error": "Channel not found"}, 404
-        if channel.owner_base_url.rstrip("/") != request.host_url.rstrip("/"):
+        if not _owner(channel, request.host_url):
             return {"error": "Only the channel owner can close"}, 403
         channel.status = "closed"
         db.session.commit()
