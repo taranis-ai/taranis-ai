@@ -12,6 +12,15 @@ class CollaborationDocumentView(MethodView):
         return render_template("collaboration/document.html", document_id=document_id)
 
 
+class CollaborationStoryDialogView(MethodView):
+    decorators = [auth_required()]
+
+    def get(self):
+        channels = CoreApi().api_get("/collaboration/channels") or {}
+        story_ids = [value.strip() for value in request.args.get("story_ids", "").split(",") if value.strip()]
+        return render_template("collaboration/add_story_dialog.html", channels=channels.get("items", []), story_ids=story_ids)
+
+
 class CollaborationView(MethodView):
     decorators = [auth_required()]
 

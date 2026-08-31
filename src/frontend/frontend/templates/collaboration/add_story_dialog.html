@@ -1,0 +1,31 @@
+<dialog id="collaboration-add-story-dialog"
+        class="modal"
+        x-init="$nextTick(() => $el.showModal ? $el.showModal() : $el.setAttribute('open', 'open'))"
+        data-testid="collaboration-add-story-dialog">
+  <div class="modal-box max-w-lg">
+    <h2 class="text-xl font-semibold">Add to collaboration channel</h2>
+    <p class="mt-2 text-sm opacity-70">Choose an open channel for the selected story.</p>
+    <form class="mt-5 space-y-4" method="post" action="{{ url_for('collaboration.action', action='add-stories') }}">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+      {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
+      <label class="form-control">
+        <span class="label-text font-medium">Open channel</span>
+        <select class="select select-bordered mt-2 w-full" name="channel_id" required>
+          <option value="">Select a channel</option>
+          {% for channel in channels if channel.status == 'open' %}
+            <option value="{{ channel.channel_id }}">{{ channel.topic or 'Untitled channel' }} · {{ channel.story_count }} stories</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% if not channels %}<p class="rounded-box bg-base-200 p-3 text-sm opacity-70">No open channels exist yet. Create an empty channel first.</p>{% endif %}
+      <div class="modal-action">
+        <a class="btn btn-outline" href="{{ url_for('collaboration.workspace') }}">Create channel</a>
+        <button class="btn btn-primary" type="submit" {% if not channels %}disabled{% endif %}>Add story</button>
+        <button class="btn" type="button" onclick="document.getElementById('collaboration-add-story-dialog').close()">Cancel</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

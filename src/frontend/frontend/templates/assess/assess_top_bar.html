@@ -111,7 +111,10 @@
         </button>
 
         <a class="btn btn-outline btn-sm tooltip"
-           :href="'{{ url_for('collaboration.workspace') }}?story_ids=' + encodeURIComponent(selectedItems.join(',')) + '&add=1'"
+           href="{{ url_for('collaboration.add_story_dialog') }}"
+           :hx-get="'{{ url_for('collaboration.add_story_dialog') }}?story_ids=' + encodeURIComponent(selectedItems.join(','))"
+           hx-target="body"
+           hx-swap="beforeend"
            data-tip="{{ _('Collaborate on selected stories') }}"
            data-testid="assess-collaborate-button">
           {{ heroicon_mini("user-group") }}
