@@ -39,11 +39,11 @@ class BotApi:
 
     def check_response(self, response: requests.Response, url: str):
         try:
-            if response.ok:
-                return response.json()
-        except requests.exceptions.JSONDecodeError:
+            response.raise_for_status()
+            return response.json()
+        except (requests.exceptions.JSONDecodeError, requests.exceptions.HTTPError) as exc:
             logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
-        logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
+            raise BotServiceUnavailableError from exc
         return None
 
     def api_post(self, url: str, json_data: dict | None = None):
