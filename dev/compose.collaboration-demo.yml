@@ -1,10 +1,13 @@
 services:
   ingress:
+    build:
+      context: ..
+      dockerfile: docker/Containerfile.ingress
     ports:
       - "${TARANIS_PORT}:8080"
   core:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Containerfile.core
     extra_hosts:
       - "alpha.local.taranis.ai:host-gateway"
@@ -12,11 +15,11 @@ services:
       - "charlie.local.taranis.ai:host-gateway"
   frontend:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Containerfile.frontend
   workers:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Containerfile.worker
   collector:
     profiles: ["unused"]

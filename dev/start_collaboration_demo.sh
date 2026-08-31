@@ -41,7 +41,7 @@ check() {
   command -v python3 >/dev/null || die "python3 is required"
   docker compose version >/dev/null || die "Docker Compose is required"
   [[ -f "$root/dev/nginx.collaboration-demo.conf" ]] || die "missing host Nginx sample"
-  rg -q 'alpha.local.taranis.ai|bravo.local.taranis.ai|charlie.local.taranis.ai' "$root/dev/nginx.collaboration-demo.conf" || die "invalid host Nginx sample"
+  grep -Eq 'alpha.local.taranis.ai|bravo.local.taranis.ai|charlie.local.taranis.ai' "$root/dev/nginx.collaboration-demo.conf" || die "invalid host Nginx sample"
   for name in alpha bravo charlie; do make_env "$name"; done
   for host in "${hosts[@]}"; do getent hosts "$host" >/dev/null || die "$host does not resolve; add the documented /etc/hosts entries"; done
 }
