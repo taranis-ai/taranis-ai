@@ -319,6 +319,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
             news_item_card = page.locator("article[id^='news-item-card-']").first
             news_item_card.get_by_test_id("edit-newsitem-tags").click()
+            expect(news_item_card.get_by_role("heading", name="News item tags")).to_be_in_viewport()
             news_item_card.get_by_test_id("news-item-tag-name-input").fill("tag name")
             news_item_card.get_by_test_id("news-item-tag-value-input").fill("tag value")
             news_item_card.get_by_role("button", name="Add tag").click()
