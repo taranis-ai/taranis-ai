@@ -20,12 +20,14 @@ class CollaborationView(MethodView):
         channel = CoreApi().api_get(f"/collaboration/channels/{channel_id}") if channel_id else None
         report_workspace = CoreApi().api_get(f"/collaboration/channels/{channel_id}/report-workspace") if channel_id else None
         create_story_ids = ",".join(value.strip() for value in request.args.get("story_ids", "").split(",") if value.strip())
+        selected_story_id = request.args.get("story_id", "")
         return render_template(
             "collaboration/index.html",
             channels=channels.get("items", []),
             channel=channel,
             report_workspace=report_workspace or {},
             create_story_ids=create_story_ids,
+            selected_story_id=selected_story_id,
         )
 
     def post(self, action: str):
@@ -43,6 +45,9 @@ class CollaborationView(MethodView):
             response = CoreApi().api_delete(
                 f"/collaboration/channels/{request.form.get('channel_id', '')}/stories/{request.form.get('snapshot_id', '')}"
             )
+        elif action in {"close", "finalize"}:
+            endpoint = "close" if action == "close" else "finalize"
+            response = CoreApi().api_post(f"/collaboration/channels/{request.form.get('channel_id', '')}/{endpoint}")
         elif action == "create-report":
             response = CoreApi().api_post(
                 f"/collaboration/channels/{request.form.get('channel_id', '')}/report-drafts",
