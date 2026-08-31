@@ -13,16 +13,32 @@ env_file() { echo "$dir/$1.env"; }
 
 make_env() {
   local name=$1 file; file=$(env_file "$name")
-  [[ -e "$file" ]] && { [[ "$file" == "$dir/"* ]] || die "refusing env outside demo directory"; return; }
+  if [[ -e "$file" ]]; then
+    [[ "$file" == "$dir/"* ]] || die "refusing env outside demo directory"
+    grep -q '^CENTRIFUGO_REDIS_URL=' "$file" || python3 - "$file" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+values = dict(line.rstrip("\n").split("=", 1) for line in path.read_text().splitlines() if "=" in line)
+password = values.get("REDIS_PASSWORD", "")
+if password:
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(f"CENTRIFUGO_REDIS_URL=redis://:{password}@redis:6379/0\n")
+PY
+    return
+  fi
   python3 - "$name" "${ports[$name]}" "${hosts[$name]}" "$file" <<'PY'
 import secrets, sys
 name, port, host, path = sys.argv[1:]
+redis_password = secrets.token_urlsafe(32)
 values = {
     "COMPOSE_PROJECT_NAME": f"taranis-collab-{name}",
     "DOCKER_IMAGE_NAMESPACE": "taranis-collaboration-demo",
     "TARANIS_TAG": "branch", "TARANIS_PORT": port, "TARANIS_BASE_PATH": "/",
     "DB_DATABASE": "taranis", "DB_USER": "taranis",
-    "POSTGRES_PASSWORD": secrets.token_urlsafe(32), "REDIS_PASSWORD": secrets.token_urlsafe(32),
+    "POSTGRES_PASSWORD": secrets.token_urlsafe(32), "REDIS_PASSWORD": redis_password,
+    "CENTRIFUGO_REDIS_URL": f"redis://:{redis_password}@redis:6379/0",
     "JWT_SECRET_KEY": secrets.token_urlsafe(32), "API_KEY": secrets.token_urlsafe(32),
     "BOT_API_KEY": secrets.token_urlsafe(32), "CENTRIFUGO_API_KEY": secrets.token_urlsafe(32),
     "CENTRIFUGO_CONNECT_PROXY_SECRET": secrets.token_urlsafe(32), "REALTIME_ENABLED": "true",
