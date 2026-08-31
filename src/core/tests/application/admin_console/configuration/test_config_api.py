@@ -116,6 +116,12 @@ class TestSourcesConfigApi(BaseTest):
             "Austrian Public Sector",
             "Cyber Threat Intelligence",
             "Technology News",
+            "Security Advisories",
+            "Threat Research",
+            "Cybersecurity News",
+            "Security Vendor Research",
+            "Vulnerability Intelligence",
+            "Security Community & Experts",
             "Starter Pack",
         ]
 
@@ -229,9 +235,7 @@ class TestSourcesConfigApi(BaseTest):
                     "cert-at-blog",
                     "cert-at-all",
                 }
-                assert not (
-                    OSINTSource.get_filtered(db.select(OSINTSource).where(OSINTSource.key.in_(curated_source_keys))) or []
-                )
+                assert not (OSINTSource.get_filtered(db.select(OSINTSource).where(OSINTSource.key.in_(curated_source_keys))) or [])
         finally:
             with app.app_context():
                 for source_id in source_ids:
