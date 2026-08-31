@@ -23,6 +23,10 @@ services:
       dockerfile: docker/Containerfile.worker
   llm-bot:
     profiles: ["unused"]
+  collector:
+    depends_on:
+      core:
+        condition: service_healthy
   centrifugo:
     environment:
       CENTRIFUGO_WEBSOCKET_DISABLED: "false"
