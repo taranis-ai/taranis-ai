@@ -126,12 +126,15 @@ class Channels(MethodView):
             story_ids = [payload.get("story_id")] if payload.get("story_id") else []
         if any(story_ids):
             return {"error": "Channels must be created without stories"}, 400
+        topic = str(payload.get("topic") or "").strip()
+        if not topic:
+            return {"error": "Channel name is required"}, 400
         token = token_urlsafe(32)
         channel = CollaborationChannel(
             owner_base_url=str(payload.get("owner_base_url") or request.host_url.rstrip("/")),
             owner_token_hash=token_hash(token),
             owner_token=token,
-            topic=str(payload.get("topic") or "Collaboration"),
+            topic=topic,
             member_ids=[str(current_user.id)],
         )
         db.session.add(channel)
