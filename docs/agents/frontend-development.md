@@ -25,6 +25,8 @@ Known events must be handled at their source. The code that receives a realtime 
 
 Prefer Flask view -> Jinja fragment -> HTMX targeted swap. Add Alpine only inside the owning component when local state is necessary. Custom JavaScript may expose a small browser-API boundary, such as `sessionStorage` or `EventSource`, but event producers must call that boundary directly.
 
+Taranis uses [HTMX 4](https://four.htmx.org/docs/). HTMX attributes are local by default, so add the `:inherited` modifier only when descendant request elements intentionally consume `hx-target`, `hx-select`, `hx-swap`, `hx-include`, `hx-push-url`, or `hx-boost`. Lifecycle integrations must use the colon-form event names, such as `htmx:config:request` and `htmx:after:swap`, and obtain request state from `event.detail.ctx`; after a swap, use `ctx.target` rather than `event.target`. Route error responses with native `hx-status` attributes. Authenticated pages preserve validation swaps with an exact `400` rule, suppress untargeted `4xx`/`5xx` swaps, and request elements that render errors must declare their exact `400`, `4xx`, and `5xx` target rules.
+
 ## Testing
 
 Run focused unit tests for changed views/templates and a focused Playwright test for browser behavior. Verify the real local UI when user-facing behavior changes, including the browser console for errors, repeated handlers, and long tasks.

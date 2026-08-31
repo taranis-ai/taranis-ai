@@ -204,7 +204,8 @@ if (document.readyState === "loading") {
 }
 
 document.body.addEventListener("htmx:confirm", function (evt) {
-  const triggerElement = evt.detail.elt;
+  const ctx = evt.detail.ctx;
+  const triggerElement = ctx?.sourceElement;
 
   if (
     !(triggerElement instanceof Element) ||
@@ -214,7 +215,7 @@ document.body.addEventListener("htmx:confirm", function (evt) {
   }
 
   evt.preventDefault();
-  const opts = getConfirmOptions(triggerElement, evt.detail.question);
+  const opts = getConfirmOptions(triggerElement, ctx.confirm);
   if (triggerElement.matches("[data-force-delete]")) {
     Object.assign(opts, {
       input: "checkbox",
@@ -229,21 +230,26 @@ document.body.addEventListener("htmx:confirm", function (evt) {
   ).then((r) => {
     if (r.isConfirmed) {
       if (r.value) {
-        triggerElement.addEventListener(
-          "htmx:configRequest",
-          (requestEvent) => {
-            requestEvent.detail.parameters.force = true;
-          },
-          { once: true },
-        );
+        const action = new URL(ctx.request.action, document.baseURI);
+        action.searchParams.set("force", "true");
+        ctx.request.action = action.href;
       }
-      evt.detail.issueRequest(true);
+      evt.detail.issueRequest();
+    } else {
+      evt.detail.dropRequest();
     }
   });
 });
 
-document.body.addEventListener("htmx:configRequest", function (evt) {
-  evt.detail.headers["X-CSRF-TOKEN"] = getCSRFToken(); // add CSRF to every request
+document.body.addEventListener("htmx:config:request", function (evt) {
+  const ctx = evt.detail.ctx;
+  for (const [name, values] of Object.entries(ctx.vals || {})) {
+    if (Array.isArray(values)) {
+      ctx.request.body.delete(name);
+      values.forEach((value) => ctx.request.body.append(name, value));
+    }
+  }
+  ctx.request.headers["X-CSRF-TOKEN"] = getCSRFToken(); // add CSRF to every request
 });
 
 function replaceNotificationBarFromResponse(responseText) {
@@ -281,8 +287,39 @@ function replaceNotificationBarFromResponse(responseText) {
   self.taranisNotifications?.add({ message, level });
 }
 
-document.body.addEventListener("htmx:responseError", function (evt) {
-  replaceNotificationBarFromResponse(evt.detail.xhr?.responseText || "");
+document.body.addEventListener("htmx:response:error", function (evt) {
+  replaceNotificationBarFromResponse(evt.detail.ctx?.text || "");
+});
+
+document.body.addEventListener("htmx:after:swap", function (evt) {
+  const ctx = evt.detail.ctx;
+  if (
+    ctx?.swap?.includes("show:top") && ctx.swap.includes("showTarget:window")
+  ) {
+    window.scrollTo(0, 0);
+  }
+
+  const requestTarget = ctx?.target;
+  const target = requestTarget?.isConnected
+    ? requestTarget
+    : document.getElementById(requestTarget?.id);
+  if (!(target instanceof Element)) {
+    return;
+  }
+
+  const input = target.matches("[data-search-from-request]")
+    ? target
+    : target.querySelector("[data-search-from-request]");
+  if (!input) {
+    return;
+  }
+
+  input.value = new URL(ctx.request.action, location.href).searchParams.get(
+    "search",
+  ) || "";
+  if (input.hasAttribute("data-focus-after-swap")) {
+    input.focus();
+  }
 });
 
 function initChoices(elementID, config = {}) {

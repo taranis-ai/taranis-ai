@@ -67,7 +67,9 @@
               {{ form_action }}
               hx-swap="innerHTML"
               hx-target="#product"
-              hx-target-error="#product"
+              hx-status:400="target:#product"
+              hx-status:4xx="target:#product"
+              hx-status:5xx="target:#product"
               @input="dirty=true"
               data-testid="product-form">
           {% include "partials/admin_form_error.html" %}

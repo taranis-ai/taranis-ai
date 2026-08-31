@@ -39,15 +39,19 @@ def test_with_htmx_wait_waits_for_after_settle(htmx_page: Page):
         htmx_page,
         lambda: htmx_page.evaluate("""
             () => {
-                const xhr = { status: 200, statusText: "OK", responseURL: "/fragment" };
-                const detail = { xhr, requestConfig: { verb: "GET", path: "/fragment" } };
-                document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { bubbles: true, detail }));
+                const raw = { status: 200, statusText: "OK", url: "/fragment" };
+                const ctx = {
+                    request: { method: "GET", action: "/fragment" },
+                    response: { status: 200, raw },
+                };
+                const detail = { ctx };
+                document.dispatchEvent(new CustomEvent("htmx:before:request", { bubbles: true, detail }));
                 setTimeout(() => {
                     document.querySelector("#target").textContent = "loaded";
-                    document.dispatchEvent(new CustomEvent("htmx:afterRequest", { bubbles: true, detail }));
-                    document.dispatchEvent(new CustomEvent("htmx:afterSwap", { bubbles: true, detail }));
+                    document.dispatchEvent(new CustomEvent("htmx:after:swap", { bubbles: true, detail }));
                     setTimeout(() => {
-                        document.dispatchEvent(new CustomEvent("htmx:afterSettle", { bubbles: true, detail }));
+                        document.dispatchEvent(new CustomEvent("htmx:after:settle", { bubbles: true, detail }));
+                        document.dispatchEvent(new CustomEvent("htmx:finally:request", { bubbles: true, detail }));
                     }, 20);
                 }, 20);
             }
@@ -68,10 +72,15 @@ def test_with_htmx_wait_reports_htmx_errors(htmx_page: Page):
             htmx_page,
             lambda: htmx_page.evaluate("""
                 () => {
-                    const xhr = { status: 500, statusText: "Server Error", responseURL: "/bad" };
-                    const detail = { xhr, requestConfig: { verb: "POST", path: "/bad" } };
-                    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { bubbles: true, detail }));
-                    document.dispatchEvent(new CustomEvent("htmx:responseError", { bubbles: true, detail }));
+                    const raw = { status: 500, statusText: "Server Error", url: "/bad" };
+                    const ctx = {
+                        request: { method: "POST", action: "/bad" },
+                        response: { status: 500, raw },
+                    };
+                    const detail = { ctx };
+                    document.dispatchEvent(new CustomEvent("htmx:before:request", { bubbles: true, detail }));
+                    document.dispatchEvent(new CustomEvent("htmx:response:error", { bubbles: true, detail }));
+                    document.dispatchEvent(new CustomEvent("htmx:finally:request", { bubbles: true, detail }));
                 }
             """),
             timeout=1000,

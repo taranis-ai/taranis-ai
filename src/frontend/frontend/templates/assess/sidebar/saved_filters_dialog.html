@@ -25,7 +25,9 @@
           hx-include="#saved-filter-form, #assess-sidebar, #assess-search-form, #selected-tags"
           hx-target="#assess_saved_filters_dialog"
           hx-swap="outerHTML"
-          hx-target-error="#assess_saved_filters_dialog">
+          hx-status:400="target:#assess_saved_filters_dialog"
+          hx-status:4xx="target:#assess_saved_filters_dialog"
+          hx-status:5xx="target:#assess_saved_filters_dialog">
       <label class="form-control w-full">
         <span class="label-text mb-1">Name</span>
         <input type="text"

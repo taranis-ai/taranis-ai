@@ -412,11 +412,17 @@ def test_manual_news_item_form_routes_htmx_errors_to_notification_bar(authentica
     url_parameters_dialog = tree.xpath('//dialog[@id="create_from_url_parameters_dialog"]')
 
     assert len(form) == 1
-    assert form[0].get("hx-target-error") == "#notification-bar"
+    assert form[0].get("hx-status:400") == "target:#notification-bar"
+    assert form[0].get("hx-status:4xx") == "target:#notification-bar"
+    assert form[0].get("hx-status:5xx") == "target:#notification-bar"
     assert len(file_form) == 1
-    assert file_form[0].get("hx-target-error") == "#notification-bar"
+    assert file_form[0].get("hx-status:400") == "target:#notification-bar"
+    assert file_form[0].get("hx-status:4xx") == "target:#notification-bar"
+    assert file_form[0].get("hx-status:5xx") == "target:#notification-bar"
     assert len(url_form) == 1
-    assert url_form[0].get("hx-target-error") == "#notification-bar"
+    assert url_form[0].get("hx-status:400") == "target:#notification-bar"
+    assert url_form[0].get("hx-status:4xx") == "target:#notification-bar"
+    assert url_form[0].get("hx-status:5xx") == "target:#notification-bar"
     assert url_form[0].xpath('.//input[@name="fetch_url"]')
     assert len(url_parameters_dialog) == 1
     assert url_parameters_dialog[0].xpath('.//*[@name="parameters[XPATH]"]')
@@ -635,10 +641,13 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     )
     responses_mock.get(
         f"{Config.TARANIS_CORE_URL}/assess/stories",
-        json={"items": [], "total_count": 0},
+        json={"items": [story_with_news_item_tags()], "total_count": 21},
     )
 
-    response = authenticated_client.get(url_for("assess.assess", search="pull"))
+    response = authenticated_client.get(
+        url_for("assess.assess", search="pull"),
+        headers={"HX-Target": "div#story-list"},
+    )
 
     assert response.status_code == 200
 
@@ -647,17 +656,28 @@ def test_assess_search_form_uses_single_htmx_submission_path(authenticated_clien
     filter_form = tree.xpath('//form[@id="assess-sidebar"]')[0]
     search_input = tree.xpath('//input[@id="story_search"]')[0]
     clear_button = tree.xpath("//button[@title='Clear time filters']")[0]
+    pagination = tree.xpath('//*[@id="story-pagination"]')[0]
     changed_by_select = filter_form.xpath('.//label[.//span[text()="Changed by"]]/select')[0]
     highlight_checkbox = tree.xpath('//input[@name="highlight"]')[0]
     compact_checkbox = tree.xpath('//input[@name="compact_view"]')[0]
 
     assert search_form.get("hx-trigger") == expected_search_trigger("story_search")
-    assert search_form.get("hx-include") == "#assess-sidebar, #selected-tags"
+    assert search_form.get("hx-target:inherited") == "#assess"
+    assert search_form.get("hx-swap:inherited") == "outerHTML"
+    assert search_form.get("hx-push-url:inherited") == "true"
+    assert search_form.get("hx-include:inherited") == "#assess-sidebar, #selected-tags"
     assert search_form.get("hx-on:submit") == "event.preventDefault()"
     assert filter_form.get("hx-trigger") == "change"
-    assert filter_form.get("hx-include") == "#selected-tags"
+    assert filter_form.get("hx-target:inherited") == "#assess"
+    assert filter_form.get("hx-swap:inherited") == "outerHTML"
+    assert filter_form.get("hx-push-url:inherited") == "true"
+    assert filter_form.get("hx-include:inherited") == "#selected-tags"
     assert filter_form.get("hx-on:submit") == "event.preventDefault()"
     assert clear_button.get("hx-include") == "#assess-sidebar, #assess-search-form, #selected-tags"
+    assert clear_button.get("hx-on::config:request") == (
+        "ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"
+    )
+    assert pagination.get("hx-swap-oob") == "outerHTML:#story-pagination"
     assert [option.text for option in changed_by_select.xpath("./option")] == ["Any", "Me"]
     assert highlight_checkbox.get("hx-vals") == "js:{highlight: this.checked}"
     assert compact_checkbox.get("hx-vals") == "js:{compact_view: this.checked}"
@@ -1012,7 +1032,9 @@ def test_assess_saved_filters_dialog_uses_submit_button(authenticated_client):
 
     assert form.get("method") == "post"
     assert form.get("action") == url_for("assess.save_saved_filter")
-    assert form.get("hx-target-error") == "#assess_saved_filters_dialog"
+    assert form.get("hx-status:400") == "target:#assess_saved_filters_dialog"
+    assert form.get("hx-status:4xx") == "target:#assess_saved_filters_dialog"
+    assert form.get("hx-status:5xx") == "target:#assess_saved_filters_dialog"
     assert button.get("type") == "submit"
     assert button.get("disabled") == "disabled"
     assert button.get("aria-describedby") == "saved-filter-disabled-reason"

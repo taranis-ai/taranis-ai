@@ -91,9 +91,9 @@
       };
 
       document.addEventListener("DOMContentLoaded", () => mountStoryConflictEditors(document));
-      document.body.addEventListener("htmx:afterSwap", (event) => {
-        if (event && event.target) {
-          mountStoryConflictEditors(event.target);
+      document.body.addEventListener("htmx:after:swap", (event) => {
+        if (event.detail.ctx?.target) {
+          mountStoryConflictEditors(event.detail.ctx.target);
         }
       });
     })();

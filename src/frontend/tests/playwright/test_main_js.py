@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from urllib.parse import quote
 
@@ -14,6 +15,13 @@ VENDOR_JS_PATH = Path(__file__).parents[2] / "frontend/static/vendor/vendor.bund
 def load_main_js(page: Page, html: str = '<section id="notification-bar"></section>') -> None:
     page.goto(f"data:text/html,{quote(html)}")
     page.add_script_tag(path=str(MAIN_JS_PATH))
+
+
+def test_vendor_bundle_uses_htmx_4(page: Page):
+    page.goto("data:text/html,<main></main>")
+    page.add_script_tag(path=str(VENDOR_JS_PATH))
+
+    assert page.evaluate("() => window.htmx.version") == "4.0.0"
 
 
 def test_response_error_notification_does_not_insert_response_markup(page: Page):
@@ -38,8 +46,8 @@ def test_response_error_notification_does_not_insert_response_markup(page: Page)
                   </div>
                 </section>
             `;
-            const detail = { xhr: { responseText } };
-            document.body.dispatchEvent(new CustomEvent("htmx:responseError", { bubbles: true, detail }));
+            const detail = { ctx: { text: responseText } };
+            document.body.dispatchEvent(new CustomEvent("htmx:response:error", { bubbles: true, detail }));
         }
     """)
 
@@ -65,8 +73,8 @@ def test_response_error_notification_preserves_supported_level(page: Page, level
                   </div>
                 </section>
             `;
-            const detail = { xhr: { responseText } };
-            document.body.dispatchEvent(new CustomEvent("htmx:responseError", { bubbles: true, detail }));
+            const detail = { ctx: { text: responseText } };
+            document.body.dispatchEvent(new CustomEvent("htmx:response:error", { bubbles: true, detail }));
         }
         """,
         level,
@@ -261,3 +269,168 @@ def test_htmx_uses_configured_csrf_cookie(page: Page):
 
     expect(page.locator("#result")).to_have_text("saved")
     assert csrf_headers == ["csrf-value"]
+
+
+def test_htmx_confirmation_can_cancel_and_add_force_delete_data(page: Page):
+    requests = []
+    page.route(
+        "https://example.test/",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/html",
+            body="""
+            <body data-confirm-delete="Delete" data-confirm-cancel="Cancel">
+              <button id="delete"
+                      hx-delete="/resource"
+                      hx-vals='{"ids":["one","two"]}'
+                      hx-confirm="Delete this resource?"
+                      data-force-delete>Delete</button>
+            </body>
+            """,
+        ),
+    )
+    page.route(
+        "https://example.test/resource*",
+        lambda route: (requests.append(route.request.url), route.fulfill(status=200, body="deleted")),
+    )
+    page.goto("https://example.test/")
+    page.add_script_tag(path=str(VENDOR_JS_PATH))
+    page.add_script_tag(path=str(MAIN_JS_PATH))
+    page.evaluate("() => htmx.process(document.body)")
+
+    page.evaluate("() => { Swal.fire = () => Promise.resolve({ isConfirmed: false }); }")
+    page.locator("#delete").click()
+    page.wait_for_timeout(100)
+
+    assert requests == []
+
+    page.evaluate("() => { Swal.fire = () => Promise.resolve({ isConfirmed: true, value: true }); }")
+    page.locator("#delete").click()
+
+    expect(page.locator("body")).to_contain_text("deleted")
+    assert requests == ["https://example.test/resource?ids=one&ids=two&force=true"]
+
+
+def test_htmx_native_status_rules_preserve_error_swap_behavior(page: Page):
+    def response_handler(status: int, body: str):
+        def fulfill(route):
+            route.fulfill(status=status, body=body)
+
+        return fulfill
+
+    for path, status, body in (
+        ("validation", 400, "validation error"),
+        ("targeted-client", 422, "targeted client error"),
+        ("targeted-server", 503, "targeted server error"),
+        ("generic-server", 500, "generic server error"),
+    ):
+        page.route(
+            f"https://example.test/{path}",
+            response_handler(status, body),
+        )
+
+    page.route(
+        "https://example.test/",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/html",
+            body="""
+            <body hx-status:400:inherited="{}"
+                  hx-status:4xx:inherited="swap:none"
+                  hx-status:5xx:inherited="swap:none">
+              <button id="validation" hx-get="/validation" hx-target="#content">Validation</button>
+              <button id="targeted-client"
+                      hx-get="/targeted-client"
+                      hx-status:400="target:#errors"
+                      hx-status:4xx="target:#errors"
+                      hx-status:5xx="target:#errors">Client error</button>
+              <button id="targeted-server"
+                      hx-get="/targeted-server"
+                      hx-status:400="target:#errors"
+                      hx-status:4xx="target:#errors"
+                      hx-status:5xx="target:#errors">Server error</button>
+              <button id="generic-server" hx-get="/generic-server" hx-target="#content">Generic error</button>
+              <div id="content">original content</div>
+              <div id="errors">no error</div>
+              <section id="notification-bar"></section>
+            </body>
+            """,
+        ),
+    )
+    page.goto("https://example.test/")
+    page.add_script_tag(path=str(VENDOR_JS_PATH))
+    page.add_script_tag(path=str(MAIN_JS_PATH))
+    page.evaluate("() => htmx.process(document.body)")
+
+    page.locator("#validation").click()
+    expect(page.locator("#content")).to_have_text("validation error")
+
+    page.locator("#targeted-client").click()
+    expect(page.locator("#errors")).to_have_text("targeted client error")
+
+    page.locator("#targeted-server").click()
+    expect(page.locator("#errors")).to_have_text("targeted server error")
+
+    page.locator("#generic-server").click()
+    page.wait_for_timeout(100)
+    expect(page.locator("#content")).to_have_text("validation error")
+
+
+def test_htmx_filter_control_includes_its_form(page: Page):
+    requests = []
+    filter_markup = """
+        <div id="results">
+          <form hx-target:inherited="#results"
+                hx-select:inherited="#results"
+                hx-swap:inherited="outerHTML"
+                hx-push-url:inherited="true">
+            <input name="search"
+                   value=""
+                   data-search-from-request
+                   hx-get="/filter"
+                   hx-include="closest form"
+                   hx-trigger="input changed delay:10ms">
+            <select id="status"
+                    name="status"
+                    hx-get="/filter"
+                    hx-include="closest form"
+                    hx-trigger="change">
+              <option value="">All</option>
+              <option value="open">Open</option>
+            </select>
+          </form>
+        </div>
+    """
+    page.route(
+        "https://example.test/",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/html",
+            body=filter_markup,
+        ),
+    )
+    page.route(
+        "https://example.test/filter*",
+        lambda route: (
+            requests.append(route.request.url),
+            route.fulfill(
+                status=200,
+                body=filter_markup,
+            ),
+        ),
+    )
+    page.goto("https://example.test/")
+    page.add_script_tag(path=str(VENDOR_JS_PATH))
+    page.add_script_tag(path=str(MAIN_JS_PATH))
+    page.evaluate("() => htmx.process(document.body)")
+
+    page.locator("[name='search']").fill("incident")
+    expect(page).to_have_url(re.compile(r"search=incident"))
+    expect(page.locator("#results [name='search']")).to_have_value("incident")
+    page.locator("#status").select_option("open")
+
+    expect(page.locator("#results [name='search']")).to_have_value("incident")
+    assert requests == [
+        "https://example.test/filter?search=incident&status=",
+        "https://example.test/filter?status=open&search=incident",
+    ]

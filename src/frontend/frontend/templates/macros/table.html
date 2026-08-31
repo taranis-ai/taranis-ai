@@ -63,7 +63,7 @@
         </tr>
       {% endif %}
     </tbody>
-    <tfoot hx-target="#{{ table_id }}-container" hx-swap="outerHTML">
+    <tfoot hx-target:inherited="#{{ table_id }}-container" hx-swap:inherited="outerHTML">
       <tr>
         <td colspan="{{ (columns|length + (1 if selectable else 0) + (1 if actions else 0)) }}">
           <div class="flex justify-center">{{ table_controls(base_url=routes.base_route, data=data) }}</div>
@@ -132,7 +132,9 @@
                 hx-delete="{{ delete_route }}"
                 hx-confirm="Are you sure you want to delete the selected items?"
                 {% if force_delete %}data-force-delete{% endif %}
-                hx-target-error="#notification-bar"
+                hx-status:400="target:#notification-bar"
+                hx-status:4xx="target:#notification-bar"
+                hx-status:5xx="target:#notification-bar"
                 hx-target="#{{ container_id }}"
                 hx-swap="outerHTML"
                 :disabled="selectedItems.length === 0">
@@ -151,7 +153,7 @@
   {% set order_params = {'order': order, 'page': 1} %}
   {% set order_url = update_query_params(order_params) %}
   {% if column.sortable %}
-    <th hx-boost>
+    <th hx-boost:inherited>
       <a href="{{ (base_url or '') ~ order_url }}"
          {% if container_id %} hx-select="#{{ container_id }}" hx-target="#{{ container_id }}" hx-swap="outerHTML" {% else %} hx-target="closest table" {% endif %}
          hx-push-url="true"
@@ -177,9 +179,9 @@
   {% set current_state = request.args.get("state", "") | lower %}
   <form class="inline-flex flex-col items-center gap-1"
         hx-get="{{ base_url }}"
-        hx-target="#{{ table_container }}"
-        hx-swap="outerHTML"
-        hx-push-url="true"
+        hx-target:inherited="#{{ table_container }}"
+        hx-swap:inherited="outerHTML"
+        hx-push-url:inherited="true"
         hx-trigger="change">
     {% for key, values in request.args.lists() %}
       {% if key not in ["state", "page"] %}
@@ -210,16 +212,23 @@
   {% set current_search = request.args.get('search', '') %}
   <div class="grow">
     <form hx-get="{{ base_url }}"
-          hx-push-url="true"
-          hx-select="#{{ table_id }}"
-          hx-target="#{{ table_id }}"
-          hx-target-error="#notification-bar"
+          hx-push-url:inherited="true"
+          hx-select:inherited="#{{ table_id }}"
+          hx-target:inherited="#{{ table_id }}"
+          hx-status:400:inherited="target:#notification-bar"
+          hx-status:4xx:inherited="target:#notification-bar"
+          hx-status:5xx:inherited="target:#notification-bar"
           hx-trigger="{{ search_trigger(table_id ~ '-search') }}"
-          hx-on:submit="event.preventDefault()"
-          hx-on::after-swap="document.getElementById('{{ table_id }}-search').focus()">
+          hx-on:submit="event.preventDefault()">
       <label class="input w-full">
         {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
-        <input type="search" id="{{ table_id }}-search" name="search" placeholder="Search..." value="{{ current_search }}" />
+        <input type="search"
+               id="{{ table_id }}-search"
+               name="search"
+               placeholder="Search..."
+               value="{{ current_search }}"
+               data-search-from-request
+               data-focus-after-swap />
         {% for key in preserve_params %}
           {% for value in request.args.getlist(key) %}
             <input type="hidden" name="{{ key }}" value="{{ value }}" />
@@ -256,12 +265,12 @@
 
       <!-- Pagination Buttons & Current Page -->
       <div class="flex items-center gap-2">
-        <a {% if data.first_page %}hx-disable{% endif %}
+        <a {% if data.first_page %}hx-ignore{% endif %}
            class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
            hx-get="{{ base_url }}{{ update_query_params({'page': 1}) }}"
            hx-push-url="true">«</a>
 
-        <a {% if data.first_page %}hx-disable{% endif %}
+        <a {% if data.first_page %}hx-ignore{% endif %}
            class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
            hx-get="{{ base_url }}{{ update_query_params({'page': data.current_page - 1}) }}"
            hx-push-url="true">‹</a>
@@ -270,12 +279,12 @@
           Page {{ data.current_page }} of {{ data.total_pages }}
         </span>
 
-        <a {% if data.last_page %}hx-disable{% endif %}
+        <a {% if data.last_page %}hx-ignore{% endif %}
            class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
            hx-get="{{ base_url }}{{ update_query_params({'page': data.current_page + 1}) }}"
            hx-push-url="true">›</a>
 
-        <a {% if data.last_page %}hx-disable{% endif %}
+        <a {% if data.last_page %}hx-ignore{% endif %}
            class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
            hx-get="{{ base_url }}{{ update_query_params({'page': data.total_pages}) }}"
            hx-push-url="true">»</a>

@@ -73,7 +73,7 @@
               hx-post="{{ url_for('assess.update_news_item_tags', news_item_id=news_item.id) }}"
               hx-target="#news-item-card-{{ news_item.id }}"
               hx-swap="outerHTML"
-              hx-target-error="#notification-bar">
+              hx-status:400="target:#notification-bar" hx-status:4xx="target:#notification-bar" hx-status:5xx="target:#notification-bar">
           <input type="hidden" name="story_id" value="{{ story.id }}">
           <div class="flex items-center justify-between gap-3">
             <h5 class="text-sm font-semibold">News item tags</h5>
