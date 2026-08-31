@@ -72,6 +72,12 @@
     {{ heroicon_mini("share") }}
     <span>Share</span>
   </a>
+  <a href="{{ url_for('collaboration.workspace', story_ids=story_id, add=1) }}"
+     class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
+     data-testid="add-story-to-collaboration">
+    {{ heroicon_mini("user-group") }}
+    <span>Add to collaboration channel</span>
+  </a>
   <a class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
      href="{{ url_for('assess.story_cti', story_id=story_id) }}"
      data-testid="story-cti">

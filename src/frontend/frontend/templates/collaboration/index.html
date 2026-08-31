@@ -12,17 +12,32 @@
   </nav>
   <form class="mt-6 space-y-2" method="post" action="{{ url_for('collaboration.action', action='create') }}">
     <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
-    <label class="text-sm" for="story-id">Create from story</label>
+    <label class="text-sm" for="story-id">Stories (optional)</label>
     <input id="story-id"
            class="input input-bordered input-sm w-full"
            name="story_ids"
            value="{{ create_story_ids | default('') }}"
-           placeholder="Story IDs (comma separated)"
-           required>
+           placeholder="Story IDs (comma separated)">
     <input class="input input-bordered input-sm w-full" name="topic" placeholder="Channel topic">
     <input class="input input-bordered input-sm w-full" name="report_id" placeholder="Report draft ID (optional)">
     <button class="btn btn-primary btn-sm w-full" type="submit">Create channel</button>
   </form>
+  {% if request.args.get('add') and create_story_ids and channels %}
+    <form class="mt-4 space-y-2" method="post" action="{{ url_for('collaboration.action', action='add-stories') }}">
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
+      <label class="text-sm" for="add-story-channel">Add selected story to channel</label>
+      <input type="hidden" name="story_ids" value="{{ create_story_ids }}">
+      <select id="add-story-channel" class="select select-bordered select-sm w-full" name="channel_id" required>
+        <option value="">Choose a channel</option>
+        {% for item in channels if item.status == 'open' %}
+          <option value="{{ item.channel_id }}">{{ item.topic or item.channel_id }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-outline btn-sm w-full" type="submit">Add story</button>
+    </form>
+  {% elif request.args.get('add') and create_story_ids %}
+    <p class="mt-4 text-sm opacity-70">Create a channel first, then add this story from its workspace.</p>
+  {% endif %}
   <form class="mt-4 space-y-2" method="post" action="{{ url_for('collaboration.action', action='join') }}">
     <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
     <input class="input input-bordered input-sm w-full" name="channel_id" placeholder="Channel ID" required>

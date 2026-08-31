@@ -123,14 +123,15 @@ class Channels(MethodView):
         payload = request.get_json(silent=True) or {}
         story_ids = payload.get("story_ids")
         if not isinstance(story_ids, list):
-            story_ids = [payload.get("story_id")]
+            story_ids = [payload.get("story_id")] if payload.get("story_id") else []
+        requested_story_ids = [value for value in story_ids if value]
         stories = []
-        for story_id in dict.fromkeys(str(value) for value in story_ids if value):
+        for story_id in dict.fromkeys(str(value) for value in requested_story_ids):
             _, story_status = Story.get_for_api(story_id, current_user)
             story = Story.get(story_id) if story_status == 200 else None
             if story:
                 stories.append(story)
-        if not stories:
+        if requested_story_ids and not stories:
             return {"error": "Story is not available"}, 403
         token = token_urlsafe(32)
         channel = CollaborationChannel(
@@ -198,7 +199,7 @@ class Channels(MethodView):
         db.session.commit()
         return {
             "channel_id": channel.id,
-            "document_id": documents[0].id,
+            "document_id": documents[0].id if documents else None,
             "document_ids": [row.id for row in documents],
             "token": token,
             "owner_base_url": channel.owner_base_url,
