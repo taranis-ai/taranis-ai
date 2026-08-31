@@ -19,8 +19,13 @@ class CollaborationView(MethodView):
         channels = CoreApi().api_get("/collaboration/channels") or {}
         channel = CoreApi().api_get(f"/collaboration/channels/{channel_id}") if channel_id else None
         report_workspace = CoreApi().api_get(f"/collaboration/channels/{channel_id}/report-workspace") if channel_id else None
+        create_story_ids = ",".join(value.strip() for value in request.args.get("story_ids", "").split(",") if value.strip())
         return render_template(
-            "collaboration/index.html", channels=channels.get("items", []), channel=channel, report_workspace=report_workspace or {}
+            "collaboration/index.html",
+            channels=channels.get("items", []),
+            channel=channel,
+            report_workspace=report_workspace or {},
+            create_story_ids=create_story_ids,
         )
 
     def post(self, action: str):

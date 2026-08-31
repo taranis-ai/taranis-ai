@@ -13,5 +13,6 @@ def test_navbar_hides_primary_labels_below_wide_breakpoint(app):
 
     assert "shrink-0" in nav.get("class").split()
     assert "flex-nowrap" in menu.get("class").split()
-    assert len(hidden_labels) == 6
+    assert len(hidden_labels) == 7
     assert all("sr-only" in label.get("class").split() for label in hidden_labels)
+    assert tree.xpath("//nav//a[@href='/collaboration']")

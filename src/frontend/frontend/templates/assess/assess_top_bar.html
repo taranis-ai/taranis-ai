@@ -110,6 +110,14 @@
           </span>
         </button>
 
+        <a class="btn btn-outline btn-sm tooltip"
+           :href="'{{ url_for('collaboration.workspace') }}?story_ids=' + encodeURIComponent(selectedItems.join(','))"
+           data-tip="{{ _('Collaborate on selected stories') }}"
+           data-testid="assess-collaborate-button">
+          {{ heroicon_mini("user-group") }}
+          <span class="text-sm sr-only 2xl:not-sr-only">Collaborate</span>
+        </a>
+
         {% if bookmark_mode %}
           {{ story_status_actions(bookmark_mode=True) }}
           <button type="button"

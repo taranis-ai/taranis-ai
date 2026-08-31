@@ -33,6 +33,12 @@
       </a>
     </li>
     <li>
+      <a href="{{ url_for('collaboration.workspace') }}" class="whitespace-nowrap">
+        {{ heroicon_outline("user-group") }}
+        <span class="sr-only 2xl:not-sr-only">{{ _("Collaboration") }}</span>
+      </a>
+    </li>
+    <li>
       <a href="{{ url_for('analyze.analyze') }}" data-tour-target="nav-analyze" class="whitespace-nowrap">
         {{ heroicon_outline("presentation-chart-bar") }}
         <span class="sr-only 2xl:not-sr-only">{{ _("Analyze") }}</span>
