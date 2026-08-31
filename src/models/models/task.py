@@ -44,7 +44,7 @@ class CronTaskSpec(TaranisBaseModel):
         return self
 
 
-class TaskResultEnvelope(TaranisBaseModel):
+class TaskResult(TaranisBaseModel):
     message: str
     reason: str | None = None
     retryable: bool = False
@@ -73,7 +73,7 @@ class Task(TaranisBaseModel):
     user_id: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: TaskResultEnvelope | None = None
+    result: TaskResult | None = None
     status: str | None = None
     last_run: datetime | None = None
     last_success: datetime | None = None
@@ -159,7 +159,7 @@ class TaskSubmission(TaranisBaseModel):
     user_id: str | None = None
     worker_id: str | None = None
     worker_type: str | None = None
-    result: TaskResultEnvelope
+    result: TaskResult
     status: str = Field(min_length=1)
 
     @field_validator("id", "status", mode="after")
@@ -190,19 +190,6 @@ class TaskSubmission(TaranisBaseModel):
         return value
 
 
-class TaskHistoryEntry(TaranisBaseModel):
-    id: str
-    job_id: str | None = None
-    task: str | None = None
-    user_id: str | None = None
-    worker_id: str | None = None
-    worker_type: str | None = None
-    result: TaskResultEnvelope
-    status: str | None = None
-    last_run: datetime | None = None
-    last_success: datetime | None = None
-
-
 class TaskHistoryStats(TaranisBaseModel):
     user_id: str | None = None
     worker_id: str | None = None
@@ -230,7 +217,7 @@ class TaskHistoryResponse(TaranisBaseModel):
     _model_name = "task_history_response"
     _pretty_name = "Task History Response"
 
-    items: list[TaskHistoryEntry] = Field(default_factory=list)
+    items: list[Task] = Field(default_factory=list)
     total_count: int = 0
     task_stats: dict[str, TaskHistoryStats] = Field(default_factory=dict)
     totals: TaskHistoryTotals = Field(default_factory=TaskHistoryTotals)

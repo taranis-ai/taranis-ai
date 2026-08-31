@@ -33,6 +33,67 @@ class TestWorkerApi:
         assert response.status_code == 200
         assert response.get_json()["rss_collector_max_entries"] == 17
 
+    def test_mastodon_cursor_comes_from_latest_task_result(self, client, api_header, app):
+        from core.model.osint_source import OSINTSource
+        from core.model.task import Task
+
+        source_id = str(uuid.uuid4())
+        task_ids = [f"collect_mastodon_collector_{source_id}", f"cron_osint_source_{source_id}_{uuid.uuid4().hex}"]
+        cursor = {
+            "timeline": "https://mastodon.example|hashtag|security",
+            "last_status_id": "123",
+        }
+        payload = {
+            "id": task_ids[0],
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "mastodon_collector",
+            "result": {"message": "Collected", "data": {"source_id": source_id, "mastodon_cursor": cursor}},
+            "status": "SUCCESS",
+        }
+
+        try:
+            with app.app_context():
+                OSINTSource.add(
+                    {
+                        "id": source_id,
+                        "name": "Mastodon cursor test",
+                        "description": "Mastodon cursor test",
+                        "type": "mastodon_collector",
+                        "parameters": {
+                            "INSTANCE_URL": "https://mastodon.example",
+                            "TIMELINE": "hashtag",
+                            "HASHTAG": "security",
+                        },
+                    }
+                )
+
+            response = client.post("/api/tasks", json=payload, headers=api_header)
+            assert response.status_code == 200
+
+            source_response = client.get(f"{self.base_uri}/osint-sources/{source_id}", headers=api_header)
+            assert source_response.status_code == 200
+            assert source_response.get_json()["mastodon_cursor"] == cursor
+            assert "rss_collector_max_entries" not in source_response.get_json()
+
+            malformed = {
+                **payload,
+                "id": task_ids[1],
+                "result": {"message": "Ignored", "data": {"mastodon_cursor": {"last_status_id": 124}}},
+            }
+            assert client.post("/api/tasks", json=malformed, headers=api_header).status_code == 200
+
+            source_response = client.get(f"{self.base_uri}/osint-sources/{source_id}", headers=api_header)
+            assert source_response.status_code == 200
+            assert "mastodon_cursor" not in source_response.get_json()
+        finally:
+            with app.app_context():
+                for task_id in task_ids:
+                    if Task.get(task_id):
+                        Task.delete(task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
+
     def test_bot_story_query_uses_default_lookback_setting(self, client, api_header, monkeypatch):
         captured_filter = {}
         current_time = datetime(2026, 8, 12, 12, 0)

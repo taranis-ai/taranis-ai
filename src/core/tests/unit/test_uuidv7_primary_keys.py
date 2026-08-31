@@ -38,7 +38,7 @@ def test_new_model_defaults_generate_uuidv7():
     assert task.job_id == "legacy-job-reference"
 
 
-def test_task_without_result_uses_result_envelope():
+def test_task_without_result_uses_default_result():
     task = Task(id="missing-result")
 
     assert task.to_dict()["result"] == {
@@ -77,6 +77,11 @@ def test_task_preserves_non_dict_results_and_logs_corrupt_stored_results():
     with patch("core.model.task.logger.warning") as warning:
         assert task.to_dict()["result"] == Task.DEFAULT_RESULT
     warning.assert_called_once_with("Task %s has a non-object result payload", "corrupt-result")
+
+    task.result = None
+    with patch("core.model.task.logger.warning") as warning:
+        assert task.to_dict()["result"] == Task.DEFAULT_RESULT
+    warning.assert_called_once_with("Task %s has no stored result; using the default result", "corrupt-result")
 
 
 def test_explicit_canonical_uuid_is_preserved():

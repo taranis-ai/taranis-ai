@@ -4,6 +4,7 @@ import traceback
 
 # pyright: reportMissingParameterType=false
 import pytest
+from models.task import TaskResult
 from niquests.exceptions import RequestException
 
 import worker.bots
@@ -323,7 +324,8 @@ class TestSaveTaskResult:
             base_data={"product_id": "product-1"},
         )
 
-        assert task_result == {
+        assert isinstance(task_result, TaskResult)
+        assert task_result.model_dump(mode="json", exclude_none=False) == {
             "message": "Published",
             "reason": None,
             "retryable": False,
@@ -342,7 +344,8 @@ class TestSaveTaskResult:
             merge_dict_data=False,
         )
 
-        assert task_result == {
+        assert isinstance(task_result, TaskResult)
+        assert task_result.model_dump(mode="json", exclude_none=False) == {
             "message": "Bot finished",
             "reason": None,
             "retryable": False,
@@ -360,7 +363,8 @@ class TestSaveTaskResult:
             none_message="Bot finished without details",
         )
 
-        assert task_result == {
+        assert isinstance(task_result, TaskResult)
+        assert task_result.model_dump(mode="json", exclude_none=False) == {
             "message": "Bot finished without details",
             "reason": None,
             "retryable": False,
