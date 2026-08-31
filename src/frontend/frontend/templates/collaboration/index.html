@@ -12,12 +12,7 @@
   </nav>
   <form class="mt-6 space-y-2" method="post" action="{{ url_for('collaboration.action', action='create') }}">
     <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
-    <label class="text-sm" for="story-id">Stories (optional)</label>
-    <input id="story-id"
-           class="input input-bordered input-sm w-full"
-           name="story_ids"
-           value="{{ create_story_ids | default('') }}"
-           placeholder="Story IDs (comma separated)">
+    <p class="text-sm">Create an empty channel, then add stories from Assess.</p>
     <input class="input input-bordered input-sm w-full" name="topic" placeholder="Channel topic">
     <input class="input input-bordered input-sm w-full" name="report_id" placeholder="Report draft ID (optional)">
     <button class="btn btn-primary btn-sm w-full" type="submit">Create channel</button>

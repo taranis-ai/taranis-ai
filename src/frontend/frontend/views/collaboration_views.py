@@ -30,10 +30,9 @@ class CollaborationView(MethodView):
 
     def post(self, action: str):
         if action == "create":
-            story_ids = [value.strip() for value in request.form.get("story_ids", "").split(",") if value.strip()]
             response = CoreApi().api_post(
                 "/collaboration/channels",
-                {"story_ids": story_ids, "topic": request.form.get("topic", ""), "owner_base_url": request.host_url.rstrip("/")},
+                {"topic": request.form.get("topic", ""), "owner_base_url": request.host_url.rstrip("/")},
             )
         elif action == "add-stories":
             response = CoreApi().api_post(

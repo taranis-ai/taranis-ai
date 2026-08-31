@@ -124,15 +124,8 @@ class Channels(MethodView):
         story_ids = payload.get("story_ids")
         if not isinstance(story_ids, list):
             story_ids = [payload.get("story_id")] if payload.get("story_id") else []
-        requested_story_ids = [value for value in story_ids if value]
-        stories = []
-        for story_id in dict.fromkeys(str(value) for value in requested_story_ids):
-            _, story_status = Story.get_for_api(story_id, current_user)
-            story = Story.get(story_id) if story_status == 200 else None
-            if story:
-                stories.append(story)
-        if requested_story_ids and not stories:
-            return {"error": "Story is not available"}, 403
+        if any(story_ids):
+            return {"error": "Channels must be created without stories"}, 400
         token = token_urlsafe(32)
         channel = CollaborationChannel(
             owner_base_url=str(payload.get("owner_base_url") or request.host_url.rstrip("/")),
@@ -145,17 +138,6 @@ class Channels(MethodView):
         db.session.flush()
         snapshots = []
         documents = []
-        for story in stories:
-            snapshot = _story_snapshot(story, channel.owner_base_url)
-            snapshots.append(snapshot)
-            documents.append(
-                CollaborationStore.document_for(
-                    channel.id,
-                    "story",
-                    snapshot["id"],
-                    initial={field: snapshot[field] for field in ("title", "description", "summary", "comments")},
-                )
-            )
         channel.story_snapshots = snapshots
         report_id = str(payload.get("report_id") or "")
         if report_id:
