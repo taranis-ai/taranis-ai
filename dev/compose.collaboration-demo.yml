@@ -21,10 +21,6 @@ services:
     build:
       context: ..
       dockerfile: docker/Containerfile.worker
-  collector:
-    profiles: ["unused"]
-  cron:
-    profiles: ["unused"]
   llm-bot:
     profiles: ["unused"]
   centrifugo:

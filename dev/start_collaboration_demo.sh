@@ -15,16 +15,29 @@ make_env() {
   local name=$1 file; file=$(env_file "$name")
   if [[ -e "$file" ]]; then
     [[ "$file" == "$dir/"* ]] || die "refusing env outside demo directory"
-    grep -q '^CENTRIFUGO_REDIS_URL=' "$file" || python3 - "$file" <<'PY'
+    python3 - "$file" <<'PY'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
-values = dict(line.rstrip("\n").split("=", 1) for line in path.read_text().splitlines() if "=" in line)
-password = values.get("REDIS_PASSWORD", "")
-if password:
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(f"CENTRIFUGO_REDIS_URL=redis://:{password}@redis:6379/0\n")
+lines = path.read_text(encoding="utf-8").splitlines()
+values = dict(line.split("=", 1) for line in lines if "=" in line)
+updates = {"SKIP_INITIAL_USER_ONBOARDING": "true"}
+if values.get("REDIS_PASSWORD"):
+    updates["CENTRIFUGO_REDIS_URL"] = f"redis://:{values['REDIS_PASSWORD']}@redis:6379/0"
+seen = set()
+result = []
+for line in lines:
+    key = line.split("=", 1)[0]
+    if key in updates:
+        result.append(f"{key}={updates[key]}")
+        seen.add(key)
+    else:
+        result.append(line)
+for key, value in updates.items():
+    if key not in seen:
+        result.append(f"{key}={value}")
+path.write_text("\n".join(result) + "\n", encoding="utf-8")
 PY
     return
   fi
@@ -38,6 +51,7 @@ values = {
     "TARANIS_TAG": "branch", "TARANIS_PORT": port, "TARANIS_BASE_PATH": "/",
     "DB_DATABASE": "taranis", "DB_USER": "taranis",
     "POSTGRES_PASSWORD": secrets.token_urlsafe(32), "REDIS_PASSWORD": redis_password,
+    "SKIP_INITIAL_USER_ONBOARDING": "true",
     "CENTRIFUGO_REDIS_URL": f"redis://:{redis_password}@redis:6379/0",
     "JWT_SECRET_KEY": secrets.token_urlsafe(32), "API_KEY": secrets.token_urlsafe(32),
     "BOT_API_KEY": secrets.token_urlsafe(32), "CENTRIFUGO_API_KEY": secrets.token_urlsafe(32),
@@ -64,10 +78,20 @@ check() {
 check_ports() {
   python3 - "${ports[alpha]}" "${ports[bravo]}" "${ports[charlie]}" <<'PY'
 import socket, sys
-for value in sys.argv[1:]:
+for name, value in zip(("alpha", "bravo", "charlie"), sys.argv[1:]):
     with socket.socket() as sock:
         if sock.connect_ex(("127.0.0.1", int(value))) == 0:
-            raise SystemExit(f"demo port {value} is already in use")
+            import subprocess
+
+            expected = f"taranis-collab-{name}-ingress-1"
+            running = subprocess.run(
+                ["docker", "ps", "--format", "{{.Names}}", "--filter", f"name=^{expected}$"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.splitlines()
+            if expected not in running:
+                raise SystemExit(f"demo port {value} is already in use")
 PY
 }
 run() { local name=$1; shift; docker compose --project-name "taranis-collab-$name" --env-file "$(env_file "$name")" -f "$compose" -f "$override" "$@"; }
