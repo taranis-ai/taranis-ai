@@ -68,7 +68,10 @@
               hx-post="{{ url_for('assess.submit_cluster_story') }}"
               hx-target="{{ target | default('#assess') }}"
               hx-include="#sortable-form"
-              hx-on::after:request="document.getElementById('story_grouping_dialog').close()"
+              hx-status:400="target:#notification-bar"
+              hx-status:4xx="target:#notification-bar"
+              hx-status:5xx="target:#notification-bar"
+              hx-on::after:request="if (ctx.response.status < 400) document.getElementById('story_grouping_dialog')?.close()"
               data-testid="dialog-story-cluster-submit">Cluster</button>
       <button type="submit" name="open_primary" value="true" class="btn btn-primary w-1/2" data-testid="dialog-story-cluster-open">
         Cluster and Open

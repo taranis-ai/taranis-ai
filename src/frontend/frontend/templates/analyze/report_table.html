@@ -26,7 +26,8 @@
             hx-push-url:inherited="true"
             hx-select:inherited="#{{ table_container }}"
             hx-target:inherited="#{{ table_container }}"
-            hx-swap:inherited="outerHTML settle:0ms">
+            hx-swap:inherited="outerHTML settle:0ms"
+            hx-on::before:request="restoreSearchAfterSwap(ctx)">
         <input type="hidden" name="page" value="1">
         {% if request.args.get('limit') %}
           <input type="hidden" name="limit" value="{{ request.args.get('limit') }}">

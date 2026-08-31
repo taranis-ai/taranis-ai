@@ -22,7 +22,7 @@
               hx-status:4xx="target:#notification-bar"
               hx-status:5xx="target:#notification-bar"
               hx-on:htmx:before:request="this.classList.add('pointer-events-none'); this.setAttribute('aria-busy', 'true'); this.querySelector('[data-indicator]')?.classList.remove('hidden')"
-              hx-on:htmx:after:request="this.classList.remove('pointer-events-none'); this.removeAttribute('aria-busy'); this.querySelector('[data-indicator]')?.classList.add('hidden')">
+              hx-on:htmx:finally:request="this.classList.remove('pointer-events-none'); this.removeAttribute('aria-busy'); this.querySelector('[data-indicator]')?.classList.add('hidden')">
         <span data-indicator class="hidden loading loading-spinner loading-xs" aria-hidden="true"></span>
         <span>Load more stories</span>
       </button>

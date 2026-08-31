@@ -291,36 +291,46 @@ document.body.addEventListener("htmx:response:error", function (evt) {
   replaceNotificationBarFromResponse(evt.detail.ctx?.text || "");
 });
 
-document.body.addEventListener("htmx:after:swap", function (evt) {
-  const ctx = evt.detail.ctx;
-  if (
-    ctx?.swap?.includes("show:top") && ctx.swap.includes("showTarget:window")
-  ) {
-    window.scrollTo(0, 0);
-  }
-
-  const requestTarget = ctx?.target;
-  const target = requestTarget?.isConnected
-    ? requestTarget
-    : document.getElementById(requestTarget?.id);
-  if (!(target instanceof Element)) {
+function restoreSearchAfterSwap(ctx) {
+  const owner = ctx?.target?.parentElement;
+  if (!owner) {
     return;
   }
 
-  const input = target.matches("[data-search-from-request]")
-    ? target
-    : target.querySelector("[data-search-from-request]");
-  if (!input) {
-    return;
+  function cleanup() {
+    owner.removeEventListener("htmx:after:swap", restore);
+    owner.removeEventListener("htmx:finally:request", finish);
   }
 
-  input.value = new URL(ctx.request.action, location.href).searchParams.get(
-    "search",
-  ) || "";
-  if (input.hasAttribute("data-focus-after-swap")) {
-    input.focus();
+  function restore(evt) {
+    if (evt.detail.ctx !== ctx) {
+      return;
+    }
+    cleanup();
+    const target = ctx.target.isConnected
+      ? ctx.target
+      : document.getElementById(ctx.target.id);
+    const input = target?.querySelector("[data-search-from-request]");
+    if (!input) {
+      return;
+    }
+    input.value = new URL(ctx.request.action, location.href).searchParams.get(
+      "search",
+    ) || "";
+    if (input.hasAttribute("data-focus-after-swap")) {
+      input.focus();
+    }
   }
-});
+
+  function finish(evt) {
+    if (evt.detail.ctx === ctx) {
+      cleanup();
+    }
+  }
+
+  owner.addEventListener("htmx:after:swap", restore);
+  owner.addEventListener("htmx:finally:request", finish);
+}
 
 function initChoices(elementID, config = {}) {
   const select = document.getElementById(elementID);

@@ -1213,6 +1213,57 @@ def test_story_report_page_lists_reports_without_htmx(authenticated_client_basic
     assert report_form.xpath('.//option[@value="report-1"]/text()') == ["Weekly report"]
 
 
+def test_story_report_dialog_closes_only_after_success(authenticated_client_basic, responses_mock, htmx_header):
+    responses_mock.get(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items",
+        json={"total_count": 1, "items": [{"id": "report-1", "title": "Weekly report", "report_item_type_id": "report-type-1"}]},
+    )
+
+    response = authenticated_client_basic.get(
+        url_for("assess.report_story", story_ids="story-1"),
+        headers=htmx_header,
+    )
+
+    button = html.fromstring(response.text).xpath('//*[@data-testid="share-to-report-dialog-button"]')[0]
+    assert button.get("hx-on::after:request") == (
+        "if (ctx.response.status < 400) document.getElementById('share_story_to_report_dialog')?.close()"
+    )
+    assert [button.get(f"hx-status:{status}") for status in ("400", "4xx", "5xx")] == [
+        "target:#notification-bar",
+        "target:#notification-bar",
+        "target:#notification-bar",
+    ]
+
+
+def test_story_dialog_actions_return_core_failure_status(authenticated_client_basic, responses_mock, htmx_header):
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/analyze/report-items/report-1/stories",
+        json={"error": "Unable to add stories"},
+        status=422,
+    )
+    responses_mock.post(
+        f"{Config.TARANIS_CORE_URL}/assess/stories/group",
+        json={"error": "Unable to cluster stories"},
+        status=409,
+    )
+
+    report_response = authenticated_client_basic.post(
+        url_for("assess.submit_report_story"),
+        headers=htmx_header,
+        data={"story_ids": "story-1", "report": "report-1"},
+    )
+    cluster_response = authenticated_client_basic.post(
+        url_for("assess.submit_cluster_story"),
+        headers=htmx_header,
+        data=MultiDict([("story_ids", "story-1"), ("story_ids", "story-2")]),
+    )
+
+    assert report_response.status_code == 422
+    assert "Unable to add stories" in report_response.text
+    assert cluster_response.status_code == 409
+    assert "Unable to cluster stories" in cluster_response.text
+
+
 def test_add_story_to_report_redirects_to_story_without_htmx(authenticated_client_basic, responses_mock):
     responses_mock.post(
         f"{Config.TARANIS_CORE_URL}/analyze/report-items/report-1/stories",

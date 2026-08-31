@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -9,6 +9,7 @@ from playwright.sync_api import Page, expect
 pytestmark = pytest.mark.e2e_ci
 
 MAIN_JS_PATH = Path(__file__).parents[2] / "frontend/static/js/main.js"
+STORY_CONFLICTS_TEMPLATE_PATH = Path(__file__).parents[2] / "frontend/templates/conflicts/story_conflicts.html"
 VENDOR_JS_PATH = Path(__file__).parents[2] / "frontend/static/vendor/vendor.bundle.js"
 
 
@@ -22,6 +23,35 @@ def test_vendor_bundle_uses_htmx_4(page: Page):
     page.add_script_tag(path=str(VENDOR_JS_PATH))
 
     assert page.evaluate("() => window.htmx.version") == "4.0.0"
+
+
+def test_story_conflict_editors_mount_after_outer_html_replacement(page: Page):
+    script_match = re.search(r"<script>(.*?)</script>", STORY_CONFLICTS_TEMPLATE_PATH.read_text(), re.DOTALL)
+    assert script_match
+
+    page.set_content('<div id="story-conflicts-wrapper"></div>')
+    page.evaluate("""
+        () => {
+            window.TemplateEditor = {
+                mountUnifiedMerge: () => ({ state: { doc: { toString: () => "resolved" } } }),
+            };
+        }
+    """)
+    page.add_script_tag(content=script_match.group(1))
+    page.evaluate("""
+        () => {
+            const previousTarget = document.getElementById("story-conflicts-wrapper");
+            const replacement = document.createElement("div");
+            replacement.id = "story-conflicts-wrapper";
+            replacement.innerHTML = `<div data-merge-editor data-existing='"old"' data-incoming='"new"'></div>`;
+            previousTarget.replaceWith(replacement);
+            document.body.dispatchEvent(new CustomEvent("htmx:after:swap", {
+                detail: { ctx: { target: previousTarget } },
+            }));
+        }
+    """)
+
+    expect(page.locator("[data-merge-editor]")).to_have_attribute("data-merge-editor-initialized", "1")
 
 
 def test_response_error_notification_does_not_insert_response_markup(page: Page):
@@ -383,10 +413,12 @@ def test_htmx_filter_control_includes_its_form(page: Page):
           <form hx-target:inherited="#results"
                 hx-select:inherited="#results"
                 hx-swap:inherited="outerHTML"
-                hx-push-url:inherited="true">
+                hx-push-url:inherited="true"
+                hx-on::before:request="restoreSearchAfterSwap(ctx)">
             <input name="search"
                    value=""
                    data-search-from-request
+                   data-focus-after-swap
                    hx-get="/filter"
                    hx-include="closest form"
                    hx-trigger="input changed delay:10ms">
@@ -415,7 +447,11 @@ def test_htmx_filter_control_includes_its_form(page: Page):
             requests.append(route.request.url),
             route.fulfill(
                 status=200,
-                body=filter_markup,
+                body=filter_markup.replace(
+                    'value=""',
+                    f'value="{parse_qs(urlparse(route.request.url).query).get("search", [""])[0]}"',
+                    1,
+                ),
             ),
         ),
     )

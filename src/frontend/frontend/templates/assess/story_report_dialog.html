@@ -23,7 +23,10 @@
                 class="btn btn-outline btn-wide"
                 hx-post="{{ url_for('assess.submit_report_story') }}"
                 hx-target="{{ target | default('#assess') }}"
-                hx-on::after:request="document.getElementById('share_story_to_report_dialog').close()"
+                hx-status:400="target:#notification-bar"
+                hx-status:4xx="target:#notification-bar"
+                hx-status:5xx="target:#notification-bar"
+                hx-on::after:request="if (ctx.response.status < 400) document.getElementById('share_story_to_report_dialog')?.close()"
                 data-testid="share-to-report-dialog-button">Share</button>
         <a type="button"
            class="btn btn-outline btn-wide"

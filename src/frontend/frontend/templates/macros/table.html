@@ -219,7 +219,8 @@
           hx-status:4xx:inherited="target:#notification-bar"
           hx-status:5xx:inherited="target:#notification-bar"
           hx-trigger="{{ search_trigger(table_id ~ '-search') }}"
-          hx-on:submit="event.preventDefault()">
+          hx-on:submit="event.preventDefault()"
+          hx-on::before:request="restoreSearchAfterSwap(ctx)">
       <label class="input w-full">
         {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
         <input type="search"

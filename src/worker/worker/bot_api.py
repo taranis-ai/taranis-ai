@@ -30,8 +30,8 @@ class BotApi:
 
     def check_response(self, response: requests.Response, url: str):
         try:
-            response.raise_for_status()
-            return response.json()
+            if response.ok:
+                return response.json()
         except requests.exceptions.JSONDecodeError:
             logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")

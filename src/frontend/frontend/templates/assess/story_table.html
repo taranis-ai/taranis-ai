@@ -133,7 +133,11 @@
   {% include "assess/bookmarks_bar.html" %}
   {% include "assess/assess_top_bar.html" %}
   {% if stories %}
-    <div id="story-list" x-ref="storyList">{% for story in stories %}{{ story_card(story) }}{% endfor %}</div>
+    <div id="story-list"
+         x-ref="storyList"
+         hx-on::after:swap="if (ctx.swap.includes('show:top') && ctx.swap.includes('showTarget:window')) window.scrollTo(0, 0)">
+      {% for story in stories %}{{ story_card(story) }}{% endfor %}
+    </div>
     {% if pagination %}
       {% set hx_target = request.headers.get("HX-Target") %}
       <div id="story-pagination" {% if hx_target == 'div#story-list' %}hx-swap-oob="outerHTML:#story-pagination"{% endif %}>
