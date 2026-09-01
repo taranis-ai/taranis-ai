@@ -30,8 +30,8 @@ Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingres
 Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
 Pin explicit tags for production.
 
-Published `core`, `frontend`, `worker`, and `ingress` images include registry SBOM attestations.
-GitHub releases attach CycloneDX JSON SBOM files for the Python application environments: `taranis_core_sbom.json`, `taranis_frontend_sbom.json`, and `taranis_worker_sbom.json`.
+Published `core`, `frontend`, `worker`, and `ingress` images include platform-specific BuildKit SPDX SBOM attestations. The final multi-architecture `core`, `frontend`, and `worker` image digests also have signed CycloneDX attestations generated from their production `uv` lock graphs.
+GitHub releases attach the same CycloneDX JSON files for direct download: `taranis_core_sbom.json`, `taranis_frontend_sbom.json`, and `taranis_worker_sbom.json`. See [Software Bills of Materials](../docs/sbom.md) for their scope.
 
 ## Raw Kubernetes
 
