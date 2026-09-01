@@ -183,7 +183,7 @@ spec:
       terminationGracePeriodSeconds: 45
       containers:
         - name: centrifugo
-          image: centrifugo/centrifugo:v6.9.1
+          image: centrifugo/centrifugo:v6.9
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:

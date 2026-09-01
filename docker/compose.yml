@@ -300,7 +300,7 @@ services:
         max-file: "10"
 
   centrifugo:
-    image: "centrifugo/centrifugo:v6.9.1"
+    image: "centrifugo/centrifugo:v6.9"
     deploy:
       restart_policy:
         condition: always
