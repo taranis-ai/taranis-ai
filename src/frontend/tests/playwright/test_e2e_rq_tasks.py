@@ -25,7 +25,7 @@ CRON_JOB_TIMEOUT_SECONDS = 20
 RedisBackend = dict[str, str]
 JsonDict = dict[str, Any]
 
-pytestmark = pytest.mark.usefixtures("allow_local_http_passthrough")
+pytestmark = [pytest.mark.e2e_full_stack, pytest.mark.usefixtures("allow_local_http_passthrough")]
 
 
 def _parse_cron_spec(raw_spec: object) -> dict[str, Any]:

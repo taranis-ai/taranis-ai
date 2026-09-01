@@ -1,7 +1,6 @@
 import re
 import time
 from collections.abc import Generator
-from pathlib import Path
 
 import pytest
 import redis
@@ -11,9 +10,6 @@ import responses
 from tests.core_requests import CoreRequestClient
 from tests.playwright.e2e_harness import (
     compose_logs,
-    docker_cleanup_commands,
-    docker_setup_commands,
-    require_docker_compose_command,
     wait_for_http_ok,
 )
 
@@ -102,26 +98,6 @@ def _wait_for_cron_leader(redis_url: str, timeout_seconds: int = 15) -> None:
             return
         time.sleep(0.5)
     raise RuntimeError("Cron scheduler did not become active in Redis")
-
-
-@pytest.fixture(scope="session")
-def docker_compose_file() -> str:
-    return str(Path(__file__).parent / "compose.e2e.yml")
-
-
-@pytest.fixture(scope="session")
-def docker_compose_command() -> str:
-    return require_docker_compose_command()
-
-
-@pytest.fixture(scope="session")
-def docker_setup(docker_compose_command: str) -> list[str]:
-    return docker_setup_commands(docker_compose_command)
-
-
-@pytest.fixture(scope="session")
-def docker_cleanup() -> list[str]:
-    return docker_cleanup_commands()
 
 
 @pytest.fixture(scope="session")
