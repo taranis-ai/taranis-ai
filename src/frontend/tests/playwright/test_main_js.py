@@ -335,7 +335,7 @@ def test_htmx_native_status_rules_preserve_error_swap_behavior(page: Page):
 
     for path, status, body in (
         ("validation", 400, "validation error"),
-        ("targeted-client", 422, "targeted client error"),
+        ("targeted-client", 422, '<div id="errors">targeted client error</div>'),
         ("targeted-server", 503, "targeted server error"),
         ("generic-server", 500, "generic server error"),
     ):
@@ -356,9 +356,12 @@ def test_htmx_native_status_rules_preserve_error_swap_behavior(page: Page):
               <button id="validation" hx-get="/validation" hx-target="#content">Validation</button>
               <button id="targeted-client"
                       hx-get="/targeted-client"
-                      hx-status:400="target:#errors"
-                      hx-status:4xx="target:#errors"
-                      hx-status:5xx="target:#errors">Client error</button>
+                      hx-target="#content"
+                      hx-select="#content > *"
+                      hx-swap="beforeend"
+                      hx-status:400="target:#errors select:#errors swap:outerHTML"
+                      hx-status:4xx="target:#errors select:#errors swap:outerHTML"
+                      hx-status:5xx="target:#errors select:#errors swap:outerHTML">Client error</button>
               <button id="targeted-server"
                       hx-get="/targeted-server"
                       hx-status:400="target:#errors"
@@ -400,10 +403,9 @@ def test_htmx_filter_control_includes_its_form(page: Page):
                 hx-swap:inherited="outerHTML"
                 hx-push-url:inherited="true"
                 hx-on::before:request="restoreSearchAfterSwap(ctx)">
-            <input name="search"
+            <input id="search" name="search"
                    value=""
                    data-search-from-request
-                   data-focus-after-swap
                    hx-get="/filter"
                    hx-include="closest form"
                    hx-trigger="input changed delay:10ms">
@@ -448,6 +450,7 @@ def test_htmx_filter_control_includes_its_form(page: Page):
     page.locator("[name='search']").fill("incident")
     expect(page).to_have_url(re.compile(r"search=incident"))
     expect(page.locator("#results [name='search']")).to_have_value("incident")
+    expect(page.locator("#results [name='search']")).to_be_focused()
     page.locator("#status").select_option("open")
 
     expect(page.locator("#results [name='search']")).to_have_value("incident")

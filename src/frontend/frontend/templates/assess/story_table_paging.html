@@ -9,9 +9,9 @@
        hx-swap="innerHTML show:top showTarget:window"
        hx-push-url="true"
        {% if not pagination.has_previous %}aria-disabled="true" disabled{% endif %}
-       hx-status:400="target:#notification-bar"
-       hx-status:4xx="target:#notification-bar"
-       hx-status:5xx="target:#notification-bar">
+       hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+       hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+       hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML">
       {{ heroicon_mini('chevron-left', class='h-4 w-4') }}
       <span class="hidden sm:inline">Previous</span>
     </a>
@@ -26,9 +26,9 @@
        hx-swap="innerHTML show:top showTarget:window"
        hx-push-url="true"
        {% if not pagination.has_next %}aria-disabled="true" disabled{% endif %}
-       hx-status:400="target:#notification-bar"
-       hx-status:4xx="target:#notification-bar"
-       hx-status:5xx="target:#notification-bar">
+       hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+       hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+       hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML">
       <span class="hidden inline">Next</span>
       {{ heroicon_mini('chevron-right', class='h-4 w-4') }}
     </a>

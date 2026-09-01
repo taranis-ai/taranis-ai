@@ -317,9 +317,6 @@ function restoreSearchAfterSwap(ctx) {
     input.value = new URL(ctx.request.action, location.href).searchParams.get(
       "search",
     ) || "";
-    if (input.hasAttribute("data-focus-after-swap")) {
-      input.focus();
-    }
   }
 
   function finish(evt) {

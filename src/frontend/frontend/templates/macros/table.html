@@ -215,21 +215,15 @@
           hx-push-url:inherited="true"
           hx-select:inherited="#{{ table_id }}"
           hx-target:inherited="#{{ table_id }}"
-          hx-status:400:inherited="target:#notification-bar"
-          hx-status:4xx:inherited="target:#notification-bar"
-          hx-status:5xx:inherited="target:#notification-bar"
+          hx-status:400:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
+          hx-status:4xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
+          hx-status:5xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
           hx-trigger="{{ search_trigger(table_id ~ '-search') }}"
           hx-on:submit="event.preventDefault()"
           hx-on::before:request="restoreSearchAfterSwap(ctx)">
       <label class="input w-full">
         {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
-        <input type="search"
-               id="{{ table_id }}-search"
-               name="search"
-               placeholder="Search..."
-               value="{{ current_search }}"
-               data-search-from-request
-               data-focus-after-swap />
+        <input type="search" id="{{ table_id }}-search" name="search" placeholder="Search..." value="{{ current_search }}" data-search-from-request />
         {% for key in preserve_params %}
           {% for value in request.args.getlist(key) %}
             <input type="hidden" name="{{ key }}" value="{{ value }}" />
