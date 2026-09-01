@@ -13,6 +13,7 @@ data:
   REALTIME_ENABLED: {{ .Values.config.realtimeEnabled | quote }}
   CENTRIFUGO_API_URL: {{ .Values.config.centrifugoApiUrl | quote }}
   CENTRIFUGO_ALLOWED_ORIGINS: {{ .Values.config.centrifugoAllowedOrigins | quote }}
+  COLLABORATION_INSTANCE_URL: {{ .Values.config.collaborationInstanceUrl | quote }}
   TARANIS_PORT: {{ .Values.config.taranisPort | quote }}
   REQUESTS_TIMEOUT: {{ .Values.config.requestsTimeout | quote }}
   DISABLE_HTTP3: {{ .Values.config.disableHttp3 | quote }}
@@ -44,9 +45,12 @@ data:
   CENTRIFUGO_CLIENT_PROXY_CONNECT_ENABLED: "true"
   CENTRIFUGO_CLIENT_PROXY_CONNECT_ENDPOINT: "http://core:8080{{ .Values.config.taranisBasePath }}api/realtime/connect"
   CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_HEADERS: Cookie
+  CENTRIFUGO_CLIENT_PROXY_SUBSCRIBE_ENABLED: "true"
+  CENTRIFUGO_CLIENT_PROXY_SUBSCRIBE_ENDPOINT: "http://core:8080{{ .Values.config.taranisBasePath }}api/realtime/subscribe"
+  CENTRIFUGO_CLIENT_PROXY_SUBSCRIBE_HTTP_HEADERS: Cookie
   CENTRIFUGO_CHANNEL_PUBLICATION_DATA_FORMAT: json_object
-  CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"global","presence":true},{"name":"org"},{"name":"user","allow_user_limited_channels":true}]'
-  CENTRIFUGO_WEBSOCKET_DISABLED: "true"
+  CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"global","presence":true},{"name":"org"},{"name":"user","allow_user_limited_channels":true},{"name":"collab","history_size":0,"allow_publish_for_subscriber":false}]'
+  CENTRIFUGO_WEBSOCKET_DISABLED: "false"
   CENTRIFUGO_UNI_SSE_ENABLED: "true"
   CENTRIFUGO_HEALTH_ENABLED: "true"
   CENTRIFUGO_PROMETHEUS_ENABLED: "true"

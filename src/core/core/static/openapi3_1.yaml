@@ -9280,6 +9280,276 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /collaboration/channels:
+    get:
+      operationId: collaboration.channel_list.get
+      responses: {'200': {description: channel list}}
+    post:
+      operationId: collaboration.channels.post
+      responses: {'201': {description: channel created}}
+  /collaboration/channels/{channel_id}:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      operationId: collaboration.channel.get
+      responses: {'200': {description: channel}}
+  /collaboration/channels/join:
+    post:
+      operationId: collaboration.channel_join.post
+      responses: {'200': {description: joined}}
+  /collaboration/channels/{channel_id}/close:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.close.post
+      responses: {'200': {description: closed}}
+  /collaboration/channels/{channel_id}/finalize:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.finalize.post
+      responses: {'200': {description: finalized}}
+  /collaboration/channels/{channel_id}/stories:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.stories.post
+      responses: {'200': {description: stories updated}}
+  /collaboration/channels/{channel_id}/stories/{snapshot_id}:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: snapshot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    delete:
+      operationId: collaboration.story.delete
+      responses: {'200': {description: story removed}}
+  /collaboration/channels/{channel_id}/move-news-item:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.news_item_move.post
+      responses: {'200': {description: news item moved}}
+  /collaboration/channels/{channel_id}/pending-operations:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      operationId: collaboration.pending_operations.get
+      responses: {'200': {description: pending operations}}
+  /collaboration/channels/{channel_id}/reconcile:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.reconcile.post
+      responses: {'200': {description: reconciled}}
+  /collaboration/channels/{channel_id}/conflicts/{operation_id}/resolve:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: operation_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.conflict_resolution.post
+      responses: {'202': {description: conflict resolution queued}}
+  /collaboration/channels/{channel_id}/report-workspace:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      operationId: collaboration.report_workspace.get
+      responses: {'200': {description: report workspace}}
+    put:
+      operationId: collaboration.report_workspace.put
+      responses: {'200': {description: report members updated}}
+  /collaboration/channels/{channel_id}/report-drafts:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.report_drafts.post
+      responses: {'201': {description: report draft created}}
+  /collaboration/channels/{channel_id}/report-drafts/{draft_id}:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: draft_id
+      in: path
+      required: true
+      schema:
+        type: string
+    patch:
+      operationId: collaboration.report_draft.patch
+      responses: {'200': {description: report draft updated}}
+    delete:
+      operationId: collaboration.report_draft.delete
+      responses: {'200': {description: report draft deleted}}
+  /collaboration/channels/{channel_id}/report-drafts/{draft_id}/finalize:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: draft_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.report_draft_finalize.post
+      responses: {'200': {description: report finalized}}
+  /documents/{document_id}:
+    parameters:
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      operationId: collaboration.document.get
+      responses: {'200': {description: document descriptor}}
+  /documents/{document_id}/checkpoint:
+    parameters:
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.document_checkpoint.post
+      responses: {'200': {description: checkpointed}}
+  /documents/{document_id}/federate:
+    parameters:
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.document_federate.post
+      responses: {'200': {description: synchronized}}
+  /documents/{document_id}/presence/{session_id}:
+    parameters:
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: session_id
+      in: path
+      required: true
+      schema:
+        type: string
+    put:
+      operationId: collaboration.presence.put
+      responses: {'204': {description: presence updated}}
+    delete:
+      operationId: collaboration.presence.delete
+      responses: {'204': {description: presence removed}}
+  /documents/{document_id}/sync:
+    parameters:
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.document_sync.post
+      responses: {'200': {description: missing updates}}
+  /documents/{document_id}/updates:
+    parameters:
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.document_update.post
+      responses: {'202': {description: update accepted}}
+  /peer-channels/{channel_id}/register:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.peer_channel_register.post
+      responses: {'200': {description: peer registered}}
+  /peer-channels/{channel_id}/metadata-sync:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.peer_metadata_sync.post
+      responses: {'200': {description: metadata synchronized}}
+  /peer-documents/{document_id}/sync:
+    parameters:
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.peer_document_sync.post
+      responses: {'200': {description: peer synchronized}}
+  /realtime/subscribe:
+    post:
+      operationId: realtime.subscribe.post
+      responses: {'200': {description: subscription authorization}}
+
 components:
   schemas:
     req.auth.username_password:

@@ -211,6 +211,8 @@ spec:
                   key: CENTRIFUGO_ALLOWED_ORIGINS
             - name: CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_STATIC_HEADERS
               value: '{"X-Realtime-Proxy-Key":"$(CENTRIFUGO_CONNECT_PROXY_SECRET)"}'
+            - name: CENTRIFUGO_CLIENT_PROXY_SUBSCRIBE_HTTP_STATIC_HEADERS
+              value: '{"X-Realtime-Proxy-Key":"$(CENTRIFUGO_CONNECT_PROXY_SECRET)"}'
           ports:
             - containerPort: 8000
               name: client

@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     GIT_INFO: dict[str, str] | None = None
     DATA_FOLDER: str = "./taranis_data"  # When started with Docker, the path is /app/data
     REALTIME_ENABLED: bool = False
+    COLLABORATION_INSTANCE_URL: str = ""
     CENTRIFUGO_API_URL: str = "http://centrifugo:9000"
     CENTRIFUGO_API_KEY: SecretStr = SecretStr("")
     CENTRIFUGO_CONNECT_PROXY_SECRET: SecretStr = SecretStr("")

@@ -10,6 +10,7 @@ config:
   realtimeEnabled: "true"
   centrifugoApiUrl: http://centrifugo:9000
   centrifugoAllowedOrigins: https://CHANGE_ME_INGRESS_HOSTNAME
+  collaborationInstanceUrl: https://CHANGE_ME_INGRESS_HOSTNAME
   taranisPort: "8080"
   requestsTimeout: "600"
   disableHttp3: "false"

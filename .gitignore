@@ -14,6 +14,7 @@ celerybeat-schedule
 .hypothesis
 git_info.json
 taranis_data/
+dev/.collaboration-demo/
 
 # temporary files of editors
 .DS_Store

@@ -17,6 +17,8 @@ db: SQLAlchemy = SQLAlchemy()
 
 def initial_database_setup(engine: Engine):
     import_module("core.model.ioc")
+    import_module("core.model.collaboration_document")
+    import_module("core.model.collaboration_channel")
 
     is_empty = is_db_empty(engine)
     db.metadata.create_all(bind=engine)

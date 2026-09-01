@@ -17,6 +17,16 @@ TOKEN_CLEANUP_TASK_ID = "cleanup_token_blacklist"
 TASK_HISTORY_CLEANUP_TASK_ID = "cleanup_task_history"
 
 
+def checkpoint_collaboration_document(document_id: str):
+    response = CoreApi().api_post(f"/documents/{document_id}/checkpoint")
+    return "Collaboration checkpoint completed" if response is not None else "Collaboration checkpoint failed"
+
+
+def federate_collaboration_document(document_id: str, peer_url: str, token: str):
+    response = CoreApi().api_post(f"/documents/{document_id}/federate", {"peer_url": peer_url, "token": token})
+    return "Collaboration federation completed" if response is not None else "Collaboration federation failed"
+
+
 def cleanup_token_blacklist(*_args: object, reschedule: bool = False, **_kwargs: object):
     """Clean up expired tokens from the blacklist.
 

@@ -20,11 +20,26 @@
     "@codemirror/legacy-modes": "npm:@codemirror/legacy-modes@^6.5.3",
     "@codemirror/merge": "npm:@codemirror/merge@^6.12.2",
     "codemirror": "npm:codemirror@^6.0.2"
+    ,"loro-crdt": "npm:loro-crdt@1.13.2"
+    ,"centrifuge": "npm:centrifuge@^5.3.1"
+    ,"loro-codemirror": "npm:loro-codemirror@0.3.3"
+    ,"loro-prosemirror": "npm:loro-prosemirror@0.4.4"
+    ,"prosemirror-model": "npm:prosemirror-model@^1.25.3"
+    ,"prosemirror-state": "npm:prosemirror-state@^1.4.3"
+    ,"prosemirror-view": "npm:prosemirror-view@^1.41.3"
+    ,"prosemirror-schema-basic": "npm:prosemirror-schema-basic@^1.2.4"
+    ,"prosemirror-schema-list": "npm:prosemirror-schema-list@^1.5.1"
+    ,"prosemirror-history": "npm:prosemirror-history@^1.4.1"
+    ,"prosemirror-commands": "npm:prosemirror-commands@^1.7.1"
+    ,"prosemirror-inputrules": "npm:prosemirror-inputrules@^1.5.0"
+    ,"prosemirror-keymap": "npm:prosemirror-keymap@^1.2.3"
   },
   "tasks": {
     "tw:build": "deno run -A npm:@tailwindcss/cli@4.3.0 -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --minify",
     "tw:watch": "deno run -A npm:@tailwindcss/cli@4.3.0 -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch",
     "vendor:bundle": "deno bundle --sourcemap=inline --platform=browser --minify --output frontend/static/vendor/vendor.bundle.js vendor.js",
     "vendor:bundle:codemirror": "deno bundle --sourcemap=inline --platform=browser --minify --output frontend/static/vendor/codemirror.js vendor_codemirror.js"
+    ,"vendor:bundle:collaboration": "deno bundle --sourcemap=inline --platform=browser --minify --output frontend/static/vendor/collaboration.js vendor_collaboration.js",
+    "test:collaboration": "deno test --allow-read tests/loro_interoperability_test.js"
   }
 }

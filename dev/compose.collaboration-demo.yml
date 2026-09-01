@@ -1,0 +1,32 @@
+services:
+  ingress:
+    build:
+      context: ..
+      dockerfile: docker/Containerfile.ingress
+    ports:
+      - "${TARANIS_PORT}:8080"
+  core:
+    build:
+      context: ..
+      dockerfile: docker/Containerfile.core
+    extra_hosts:
+      - "alpha.local.taranis.ai:host-gateway"
+      - "bravo.local.taranis.ai:host-gateway"
+      - "charlie.local.taranis.ai:host-gateway"
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Containerfile.frontend
+  workers:
+    build:
+      context: ..
+      dockerfile: docker/Containerfile.worker
+  collector:
+    profiles: ["unused"]
+  cron:
+    profiles: ["unused"]
+  llm-bot:
+    profiles: ["unused"]
+  centrifugo:
+    environment:
+      CENTRIFUGO_WEBSOCKET_DISABLED: "false"

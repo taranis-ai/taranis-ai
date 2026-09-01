@@ -12,6 +12,8 @@ fi
 deno install --allow-scripts
 deno task vendor:bundle
 deno task vendor:bundle:codemirror
+deno task vendor:bundle:collaboration
+cp node_modules/.deno/loro-crdt@1.13.2/node_modules/loro-crdt/web/loro_wasm_bg.wasm frontend/static/vendor/loro_wasm_bg.wasm
 
 if [ -n "$WATCH_MODE" ]; then
   deno task tw:watch
