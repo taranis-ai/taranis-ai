@@ -17,6 +17,7 @@ from core.model.user import User
 
 
 AUTHENTICATION_DISCONNECT = {"disconnect": {"code": 4501, "reason": "unauthorized"}}
+SUBSCRIPTION_DENIED = {"error": {"code": 403, "message": "permission denied"}}
 
 
 class BroadcastNotification(MethodView):
@@ -95,28 +96,29 @@ def subscribe():
     payload = request.get_json(silent=True) or {}
     channel = payload.get("channel")
     if not isinstance(channel, str) or not channel.startswith("collab:"):
-        return {"result": {"allow": False}}, 200
+        return SUBSCRIPTION_DENIED, 200
     from core.model.collaboration_channel import CollaborationChannel
     from core.model.collaboration_document import CollaborationDocument
     from core.model.report_item import ReportItem
-    from core.model.story import Story
 
     document = db.session.get(CollaborationDocument, channel.partition(":")[2])
     if not document:
-        return {"result": {"allow": False}}, 200
+        return SUBSCRIPTION_DENIED, 200
     try:
         claims = decode_token(request.cookies.get(Config.JWT_ACCESS_COOKIE_NAME, ""))
     except (JWTExtendedException, PyJWTError):
-        return {"result": {"allow": False}}, 200
+        return SUBSCRIPTION_DENIED, 200
     identity = claims.get(Config.JWT_IDENTITY_CLAIM)
     if claims.get("type") != "access" or TokenBlacklist.invalid(claims.get("jti", "")) or int(claims.get("exp", 0)) <= int(time.time()):
-        return {"result": {"allow": False}}, 200
+        return SUBSCRIPTION_DENIED, 200
     user = User.find_by_name(identity) if isinstance(identity, str) else None
     channel_record = db.session.get(CollaborationChannel, document.channel_id)
     if not user or not channel_record:
-        return {"result": {"allow": False}}, 200
+        return SUBSCRIPTION_DENIED, 200
     if document.resource_kind == "story":
-        allowed = Story.get_for_api(document.resource_id, user)[1] == 200
+        allowed = str(user.id) in channel_record.member_ids and any(
+            snapshot.get("id") == document.resource_id for snapshot in channel_record.story_snapshots
+        )
     elif document.resource_kind == "report":
         allowed = ReportItem.get_for_api(document.resource_id, user)[1] == 200 and (
             not channel_record.report_member_ids or str(user.id) in channel_record.report_member_ids
@@ -124,8 +126,8 @@ def subscribe():
     else:
         allowed = False
     if not allowed:
-        return {"result": {"allow": False}}, 200
-    return {"result": {"allow": True}}, 200
+        return SUBSCRIPTION_DENIED, 200
+    return {"result": {}}, 200
 
 
 def initialize(app: Flask):

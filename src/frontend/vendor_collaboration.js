@@ -1,4 +1,4 @@
-import init, { LoroDoc } from "npm:loro-crdt/web";
+import { LoroDoc } from "npm:loro-crdt/bundler";
 import { Centrifuge } from "npm:centrifuge";
 import { LoroExtensions } from "npm:loro-codemirror";
 import { LoroSyncPlugin, LoroUndoPlugin } from "npm:loro-prosemirror";
@@ -24,4 +24,5 @@ window.ProseMirrorSchema = prosemirrorSchema;
 window.ProseMirrorState = EditorState;
 window.ProseMirrorView = EditorView;
 window.ProseMirrorSerializer = DOMSerializer;
-window.LoroReady = init("/static/vendor/loro_wasm_bg.wasm");
+window.LoroReady = Promise.resolve();
+window.dispatchEvent(new Event("loro-ready"));

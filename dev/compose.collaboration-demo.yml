@@ -9,6 +9,12 @@ services:
     build:
       context: ..
       dockerfile: docker/Containerfile.core
+    healthcheck:
+      test: ["CMD", "taranis-core-healthcheck"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
     extra_hosts:
       - "alpha.local.taranis.ai:host-gateway"
       - "bravo.local.taranis.ai:host-gateway"

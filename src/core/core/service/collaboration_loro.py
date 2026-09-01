@@ -235,8 +235,7 @@ class CollaborationStore:
 
     def text_values(self, row: CollaborationDocument) -> dict[str, str]:
         document = self.load(row).document
-        roots = ("title", "description", "summary", "comments") if row.resource_kind == "story" else ("title",)
-        return {root: document.get_text(root).to_string() for root in roots}
+        return {root: document.get_text(root).to_string() for root in row.root_names if root not in row.rich_roots}
 
     def rich_text_value(self, row: CollaborationDocument, root: str) -> tuple[str, str]:
         from core.service.collaboration_projection import project_prosemirror, project_rich_text

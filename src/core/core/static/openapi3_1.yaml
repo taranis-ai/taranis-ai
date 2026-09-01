@@ -9300,6 +9300,26 @@ paths:
     post:
       operationId: collaboration.news_item_move.post
       responses: {'200': {description: news item moved}}
+  /collaboration/channels/{channel_id}/remove-news-item:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.news_item_remove.post
+      responses: {'200': {description: news item removed}}
+  /collaboration/channels/{channel_id}/remove-news-item:
+    parameters:
+    - name: channel_id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: collaboration.news_item_remove.post
+      responses: {'200': {description: news item removed}}
   /collaboration/channels/{channel_id}/pending-operations:
     parameters:
     - name: channel_id
@@ -9433,6 +9453,9 @@ paths:
       required: true
       schema:
         type: string
+    get:
+      operationId: collaboration.presence.get
+      responses: {'200': {description: active presence}}
     put:
       operationId: collaboration.presence.put
       responses: {'204': {description: presence updated}}

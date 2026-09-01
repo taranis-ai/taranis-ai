@@ -4,23 +4,41 @@
         data-testid="collaboration-add-story-dialog">
   <div class="modal-box max-w-lg">
     <h2 class="text-xl font-semibold">Add to collaboration channel</h2>
-    <p class="mt-2 text-sm opacity-70">Choose an open channel for the selected story.</p>
-    <form class="mt-5 space-y-4" method="post" action="{{ url_for('collaboration.action', action='add-stories') }}">
+    <p class="mt-2 text-sm opacity-70">Choose an open channel or create a named channel for the selected story.</p>
+    <form class="mt-5 space-y-4"
+          method="post"
+          action="{{ url_for('collaboration.action', action='add-stories') }}"
+          x-data='{ mode: {{ ("existing" if channels|selectattr("status", "equalto", "open") |list else "new")|tojson }} }'>
       <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token', '') }}">
       {% for story_id in story_ids %}<input type="hidden" name="story_ids" value="{{ story_id }}">{% endfor %}
-      <label class="form-control">
-        <span class="label-text font-medium">Open channel</span>
-        <select class="select select-bordered mt-2 w-full" name="channel_id" required>
-          <option value="">Select a channel</option>
-          {% for channel in channels if channel.status == 'open' %}
-            <option value="{{ channel.channel_id }}">{{ channel.topic or 'Untitled channel' }} · {{ channel.story_count }} stories</option>
-          {% endfor %}
-        </select>
+      <input type="hidden" name="dialog_mode" x-model="mode">
+      {% if channels|selectattr('status', 'equalto', 'open')|list %}
+        <div class="join w-full">
+          <button class="join-item btn flex-1" :class="mode === 'existing' ? 'btn-primary' : 'btn-outline'" type="button" @click="mode = 'existing'">Existing channel</button>
+          <button class="join-item btn flex-1" :class="mode === 'new' ? 'btn-primary' : 'btn-outline'" type="button" @click="mode = 'new'">New channel</button>
+        </div>
+        <label class="form-control" x-show="mode === 'existing'">
+          <span class="label-text font-medium">Open channel</span>
+          <select class="select select-bordered mt-2 w-full" name="channel_id" :required="mode === 'existing'" :disabled="mode !== 'existing'">
+            <option value="">Select a channel</option>
+            {% for channel in channels if channel.status == 'open' %}
+              <option value="{{ channel.channel_id }}">{{ channel.topic or 'Untitled channel' }} · {{ channel.story_count }} stories</option>
+            {% endfor %}
+          </select>
+        </label>
+      {% endif %}
+      <label class="form-control" {% if channels|selectattr('status', 'equalto', 'open')|list %}x-show="mode === 'new'"{% endif %}>
+        <span class="label-text font-medium">New channel name</span>
+        <input class="input input-bordered mt-2 w-full"
+               name="topic"
+               placeholder="Channel name"
+               title="Channel name is required"
+               aria-required="true"
+               required
+               :disabled="mode !== 'new'">
       </label>
-      {% if not channels %}<p class="rounded-box bg-base-200 p-3 text-sm opacity-70">No open channels exist yet. Create an empty channel first.</p>{% endif %}
       <div class="modal-action">
-        <a class="btn btn-outline" href="{{ url_for('collaboration.workspace') }}">Create channel</a>
-        <button class="btn btn-primary" type="submit" {% if not channels %}disabled{% endif %}>Add story</button>
+        <button class="btn btn-primary" type="submit" x-text="mode === 'new' ? 'Create channel' : 'Add story'"></button>
         <button class="btn" type="button" onclick="document.getElementById('collaboration-add-story-dialog').close()">Cancel</button>
       </div>
     </form>

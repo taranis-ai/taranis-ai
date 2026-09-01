@@ -10,6 +10,7 @@ from flask_jwt_extended import current_user
 from loro import ExportMode, VersionVector
 
 from core.config import Config
+from core.log import logger
 from core.managers import queue_manager
 from core.managers.auth_manager import api_key_required, auth_required
 from core.managers.db_manager import db
@@ -50,7 +51,7 @@ def _authorized_document(row: CollaborationDocument, user, write: bool = False) 
         return False
     if row.resource_kind == "story":
         snapshot = next((item for item in channel.story_snapshots if item.get("id") == row.resource_id), None)
-        return bool(snapshot and str(user.id) in channel.member_ids) or Story.get_for_api(row.resource_id, user)[1] == 200
+        return bool(snapshot and str(user.id) in channel.member_ids)
     if row.resource_kind == "report":
         report = ReportItem.get(row.resource_id)
         return bool(
@@ -74,9 +75,95 @@ def _story_snapshot(story: Story, source_instance: str, snapshot_id: str | None 
     }
 
 
+def _collaborative_report_attributes(report: ReportItem) -> list:
+    return [
+        attribute
+        for attribute in report.attributes
+        if attribute.attribute_type.name != "ATTACHMENT" and (attribute.title or "").casefold() != "assessment id"
+    ]
+
+
+def _set_managed_report_attributes(report: ReportItem) -> None:
+    for attribute in report.attributes:
+        if (attribute.title or "").casefold() == "assessment id":
+            attribute.value = report.id
+
+
+def _report_document_config(report: ReportItem) -> tuple[tuple[str, ...], dict[str, str], set[str]]:
+    editable = _collaborative_report_attributes(report)
+    roots = ("title", *(f"attribute:{attribute.id}" for attribute in editable))
+    initial = {
+        "title": report.title or "",
+        **{f"attribute:{attribute.id}": attribute.value or "" for attribute in editable},
+    }
+    rich_roots = {f"attribute:{attribute.id}" for attribute in editable if attribute.attribute_type.name == "RICH_TEXT"}
+    return roots, initial, rich_roots
+
+
+def _report_field_metadata(report: ReportItem, channel: CollaborationChannel) -> dict[str, dict]:
+    choices = [
+        {"value": snapshot.get("id", ""), "label": snapshot.get("title") or snapshot.get("id", "")}
+        for snapshot in channel.story_snapshots
+        if isinstance(snapshot, dict) and snapshot.get("id")
+    ]
+    metadata = {}
+    for attribute in _collaborative_report_attributes(report):
+        render_data = attribute.render_data if isinstance(attribute.render_data, dict) else {}
+        options = [
+            {"value": option.get("value", ""), "label": option.get("value", "")}
+            for option in render_data.get("attribute_enums", [])
+            if isinstance(option, dict) and option.get("value") is not None
+        ]
+        if attribute.attribute_type.name == "STORY":
+            options = choices
+        metadata[f"attribute:{attribute.id}"] = {
+            "title": attribute.title,
+            "description": attribute.description,
+            "type": attribute.attribute_type.name,
+            "required": bool(attribute.required),
+            "options": options,
+        }
+    return metadata
+
+
+def _project_report_document(
+    store: CollaborationStore, document: CollaborationDocument, report: ReportItem, channel: CollaborationChannel
+) -> bool:
+    values = store.text_values(document)
+    report.title = values.get("title", report.title)
+    valid = bool(report.title.strip())
+    for attribute in _collaborative_report_attributes(report):
+        root = f"attribute:{attribute.id}"
+        required_value = attribute.value or ""
+        if attribute.attribute_type.name == "RICH_TEXT":
+            attribute.value, required_value = store.rich_text_value(document, root)
+        elif root in values:
+            required_value = values[root]
+            if attribute.attribute_type.name == "STORY":
+                snapshots = {item.get("id"): item for item in channel.story_snapshots}
+                selected_story_ids = [
+                    story_id
+                    for value in required_value.split(",")
+                    if isinstance((story_id := snapshots.get(value.strip(), {}).get("persisted_local_story_id")), str)
+                ]
+                report.stories = Story.get_bulk(selected_story_ids)
+                attribute.value = ",".join(selected_story_ids)
+                required_value = attribute.value
+            else:
+                attribute.value = required_value
+        if attribute.required and not required_value.strip():
+            valid = False
+    _set_managed_report_attributes(report)
+    return valid and all(not attribute.required or bool((attribute.value or "").strip()) for attribute in report.attributes)
+
+
+def _local_instance_url(request_host: str | None = None) -> str:
+    return (Config.COLLABORATION_INSTANCE_URL or request_host or "").rstrip("/")
+
+
 def _owner(channel: CollaborationChannel, request_host: str) -> bool:
     owner_url = channel.owner_base_url.rstrip("/")
-    return owner_url in {request_host.rstrip("/"), Config.COLLABORATION_INSTANCE_URL.rstrip("/")}
+    return owner_url in {request_host.rstrip("/"), _local_instance_url(request_host)}
 
 
 def _touch_metadata(channel: CollaborationChannel) -> None:
@@ -88,7 +175,7 @@ def _pending_operation(channel: CollaborationChannel, operation: dict, actor: st
     action = str(operation.get("action") or "")
     return {
         "operation_id": operation_id,
-        "action": action if action in {"stories.add", "stories.remove", "news_item.move", "report.update"} else "",
+        "action": action if action in {"stories.add", "stories.remove", "news_item.move", "news_item.remove", "report.update"} else "",
         "base_version": int(operation.get("base_version") or 0),
         "actor": actor,
         "payload": operation.get("payload") if isinstance(operation.get("payload"), dict) else {},
@@ -132,7 +219,7 @@ class Channels(MethodView):
             return {"error": "Channel name is required"}, 400
         token = token_urlsafe(32)
         channel = CollaborationChannel(
-            owner_base_url=str(payload.get("owner_base_url") or request.host_url.rstrip("/")),
+            owner_base_url=_local_instance_url(request.host_url),
             owner_token_hash=token_hash(token),
             owner_token=token,
             topic=topic,
@@ -150,27 +237,15 @@ class Channels(MethodView):
                 db.session.rollback()
                 return {"error": "Report is not available"}, 403
             channel.report_member_ids = [str(current_user.id)]
-            roots = (
-                "title",
-                *(f"attribute:{attribute.id}" for attribute in report.attributes if attribute.attribute_type.name in {"TEXT", "RICH_TEXT"}),
-            )
+            roots, initial, rich_roots = _report_document_config(report)
             documents.append(
                 CollaborationStore.document_for(
                     channel.id,
                     "report",
                     report.id,
                     roots,
-                    initial={
-                        "title": report.title or "",
-                        **{
-                            f"attribute:{attribute.id}": attribute.value or ""
-                            for attribute in report.attributes
-                            if attribute.attribute_type.name in {"TEXT", "RICH_TEXT"}
-                        },
-                    },
-                    rich_roots={
-                        f"attribute:{attribute.id}" for attribute in report.attributes if attribute.attribute_type.name == "RICH_TEXT"
-                    },
+                    initial=initial,
+                    rich_roots=rich_roots,
                 )
             )
             channel.report_drafts = [
@@ -209,6 +284,9 @@ class Channels(MethodView):
         channel = _channel(channel_id)
         if not channel:
             return {"error": "Channel not found"}, 404
+        if str(current_user.id) not in channel.member_ids:
+            channel.member_ids = [*channel.member_ids, str(current_user.id)]
+            db.session.commit()
         documents = CollaborationDocument.query.filter_by(channel_id=channel.id).all()
         return {
             "channel_id": channel.id,
@@ -233,7 +311,10 @@ class Stories(MethodView):
         if not _owner(channel, request.host_url):
             requested = request.get_json(silent=True) or {}
             snapshots = (
-                [_story_snapshot(story, request.host_url) for story in Story.query.filter(Story.id.in_(requested.get("story_ids", []))).all()]
+                [
+                    _story_snapshot(story, _local_instance_url(request.host_url))
+                    for story in Story.query.filter(Story.id.in_(requested.get("story_ids", []))).all()
+                ]
                 if isinstance(requested.get("story_ids"), list)
                 else []
             )
@@ -284,7 +365,7 @@ class Stories(MethodView):
             return {"error": "Story snapshot not found"}, 404
         _touch_metadata(channel)
         db.session.commit()
-        return {"metadata_version": channel.metadata_version}, 200
+        return {"stories": channel.story_snapshots, "metadata_version": channel.metadata_version}, 200
 
 
 class NewsItemMove(MethodView):
@@ -316,7 +397,32 @@ class NewsItemMove(MethodView):
         target.setdefault("story", {}).setdefault("news_items", []).append(moved)
         _touch_metadata(channel)
         db.session.commit()
-        return {"metadata_version": channel.metadata_version}, 200
+        return {"stories": channel.story_snapshots, "metadata_version": channel.metadata_version}, 200
+
+
+class NewsItemRemove(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    def post(self, channel_id: str):
+        channel = _channel(channel_id)
+        if not channel:
+            return {"error": "Channel not found"}, 404
+        payload = request.get_json(silent=True) or {}
+        source_id = str(payload.get("source_snapshot_id") or "")
+        news_item_id = str(payload.get("news_item_id") or "")
+        source = next((item for item in channel.story_snapshots if item.get("id") == source_id), None)
+        items = (source or {}).get("story", {}).get("news_items", []) if source else []
+        if not source or not any(str(item.get("id")) == news_item_id for item in items):
+            return {"error": "News item not found"}, 404
+        if not _owner(channel, request.host_url):
+            operation = _pending_operation(channel, payload, str(current_user.id))
+            operation["action"] = "news_item.remove"
+            operation["payload"] = {"source_snapshot_id": source_id, "news_item_id": news_item_id}
+            CollaborationStore().queue_operation(channel.id, operation)
+            return jsonify({"queued": True, "operation_id": operation["operation_id"]}), 202
+        source["story"]["news_items"] = [item for item in items if str(item.get("id")) != news_item_id]
+        _touch_metadata(channel)
+        db.session.commit()
+        return {"stories": channel.story_snapshots, "metadata_version": channel.metadata_version}, 200
 
 
 class PendingOperations(MethodView):
@@ -358,6 +464,14 @@ class PendingOperations(MethodView):
                     continue
                 source["story"]["news_items"] = [item for item in items if item is not moved]
                 target.setdefault("story", {}).setdefault("news_items", []).append(moved)
+            elif operation["action"] == "news_item.remove":
+                payload = operation["payload"]
+                source = next((item for item in channel.story_snapshots if item.get("id") == payload.get("source_snapshot_id")), None)
+                items = (source or {}).get("story", {}).get("news_items", []) if source else []
+                if not source or not any(str(item.get("id")) == str(payload.get("news_item_id")) for item in items):
+                    results.append({"operation_id": operation["operation_id"], "status": "invalid"})
+                    continue
+                source["story"]["news_items"] = [item for item in items if str(item.get("id")) != str(payload.get("news_item_id"))]
             elif operation["action"] == "stories.add":
                 snapshots = operation["payload"].get("snapshots")
                 if (
@@ -426,7 +540,7 @@ class Reconcile(MethodView):
     @auth_required("ASSESS_UPDATE")
     def post(self, channel_id: str):
         channel = _channel(channel_id)
-        local_url = Config.COLLABORATION_INSTANCE_URL.rstrip("/")
+        local_url = _local_instance_url(request.host_url)
         if not channel or not local_url or _owner(channel, request.host_url):
             return {"error": "Reconciliation is only available to participants"}, 400
         store = CollaborationStore()
@@ -487,10 +601,33 @@ class ReportWorkspace(MethodView):
             return {"error": "Channel not found"}, 404
         reports = ReportItem.get_all_for_api(filter_args={}, with_count=False, user=current_user)
         report_types = ReportItemType.get_all_for_user_api(current_user)
+        report_candidates = reports[0] if isinstance(reports, tuple) else reports
+        available_report_types = (
+            report_types[0].get("items", []) if isinstance(report_types, tuple) and isinstance(report_types[0], dict) else []
+        )
+        drafts = []
+        for draft in channel.report_drafts:
+            report = ReportItem.get(draft.get("id"))
+            enriched = dict(draft)
+            if report:
+                attributes = report.get_attribute_dict()
+                for attribute in attributes:
+                    if attribute.get("type") == "STORY":
+                        attribute.setdefault("render_data", {})["story_choices"] = [
+                            {"id": story.get("id"), "title": story.get("title") or story.get("id")} for story in channel.story_snapshots
+                        ]
+                enriched.update(
+                    {
+                        "completed": report.completed,
+                        "grouped_attributes": report.get_grouped_attributes(attributes),
+                        "selected_story_ids": [story.id for story in report.stories],
+                    }
+                )
+            drafts.append(enriched)
         return {
-            "candidates": reports,
-            "report_types": report_types,
-            "drafts": channel.report_drafts,
+            "candidates": report_candidates,
+            "report_types": available_report_types,
+            "drafts": drafts,
             "members": channel.report_member_ids,
         }, 200
 
@@ -521,24 +658,15 @@ class ReportDrafts(MethodView):
         report, status = ReportItem.add(report_data, current_user)
         if status != 200 or not isinstance(report, ReportItem):
             return report, status
-        roots = (
-            "title",
-            *(f"attribute:{attribute.id}" for attribute in report.attributes if attribute.attribute_type.name in {"TEXT", "RICH_TEXT"}),
-        )
+        _set_managed_report_attributes(report)
+        roots, initial, rich_roots = _report_document_config(report)
         document = CollaborationStore.document_for(
             channel.id,
             "report",
             report.id,
             roots,
-            initial={
-                "title": report.title or "",
-                **{
-                    f"attribute:{attribute.id}": attribute.value or ""
-                    for attribute in report.attributes
-                    if attribute.attribute_type.name in {"TEXT", "RICH_TEXT"}
-                },
-            },
-            rich_roots={f"attribute:{attribute.id}" for attribute in report.attributes if attribute.attribute_type.name == "RICH_TEXT"},
+            initial=initial,
+            rich_roots=rich_roots,
         )
         draft = {
             "id": report.id,
@@ -629,24 +757,19 @@ class ReportDraftFinalize(MethodView):
             report = ReportItem.get(draft_id)
             if not report:
                 return {"error": "Report draft not found"}, 404
-            values = store.text_values(document)
-            report.title = values.get("title", report.title)
-            for attribute in report.attributes:
-                root = f"attribute:{attribute.id}"
-                if root in values:
-                    attribute.value = (
-                        store.rich_text_value(document, root)[0] if attribute.attribute_type.name == "RICH_TEXT" else values[root]
-                    )
-            if not report.title.strip() or any(attribute.required and not (attribute.value or "").strip() for attribute in report.attributes):
+            if not _project_report_document(store, document, report, channel):
                 return {"error": "Required report fields are missing"}, 400
             report.completed = True
-            report.revision += 1
             report.record_revision(current_user, note="collaboration_finalize")
-            draft["status"] = "finalized"
+            channel.report_drafts = [
+                {**item, "status": "finalized"} if item.get("id") == draft_id else item for item in channel.report_drafts
+            ]
+            draft = next(item for item in channel.report_drafts if item.get("id") == draft_id)
             _touch_metadata(channel)
             db.session.commit()
         except Exception:
             db.session.rollback()
+            logger.exception("Report collaboration finalization failed")
             return {"error": "Report finalization failed"}, 503
         return {"draft": draft}, 200
 
@@ -663,7 +786,7 @@ class ChannelJoin(MethodView):
             try:
                 response = requests.post(
                     f"{owner_base_url}{Config.APPLICATION_ROOT}api/peer-channels/{channel_id}/register",
-                    json={"base_url": request.host_url.rstrip("/"), "token": token},
+                    json={"base_url": _local_instance_url(request.host_url), "token": token},
                     timeout=(2, 5),
                 )
                 remote = response.json() if response.ok else None
@@ -705,7 +828,7 @@ class ChannelJoin(MethodView):
                         sync_response = requests.post(
                             f"{owner_base_url}{Config.APPLICATION_ROOT}api/peer-documents/{local_document.id}/sync",
                             json={"version_vector": encode(VersionVector().encode())},
-                            headers={"X-Peer-Base-URL": request.host_url.rstrip("/"), "X-Channel-Token": token},
+                            headers={"X-Peer-Base-URL": _local_instance_url(request.host_url), "X-Channel-Token": token},
                             timeout=(2, 10),
                         )
                         update = sync_response.json().get("update") if sync_response.ok else None
@@ -715,7 +838,7 @@ class ChannelJoin(MethodView):
                         continue
         if not channel or not token or token_hash(token) != channel.owner_token_hash:
             return {"error": "Invalid collaboration invitation"}, 403
-        base_url = str(payload.get("base_url") or request.host_url.rstrip("/"))
+        base_url = str(payload.get("base_url") or _local_instance_url(request.host_url)).rstrip("/")
         if str(current_user.id) not in channel.member_ids:
             channel.member_ids = [*channel.member_ids, str(current_user.id)]
         if base_url not in channel.participant_urls:
@@ -785,7 +908,7 @@ class PeerSync(MethodView):
                 if Config.COLLABORATION_INSTANCE_URL and channel and hasattr(queue_manager, "queue_manager"):
                     for peer in (set(channel.participant_urls) | {channel.owner_base_url}) - {
                         caller,
-                        Config.COLLABORATION_INSTANCE_URL.rstrip("/"),
+                        _local_instance_url(request.host_url),
                     }:
                         queue_manager.queue_manager.enqueue_task(
                             "misc",
@@ -814,7 +937,7 @@ class Finalize(MethodView):
         store = CollaborationStore()
         documents = CollaborationDocument.query.filter_by(channel_id=channel.id).all()
         try:
-            local_url = Config.COLLABORATION_INSTANCE_URL.rstrip("/") or request.host_url.rstrip("/")
+            local_url = _local_instance_url(request.host_url)
             for peer in set(channel.participant_urls) - {local_url}:
                 if any(not store.synchronize_with_peer(document, peer, channel.owner_token) for document in documents):
                     return {"error": "A participant is unreachable or not synchronized"}, 409
@@ -838,27 +961,20 @@ class Finalize(MethodView):
                 elif document.resource_kind == "report":
                     report = ReportItem.get(document.resource_id)
                     if report:
-                        values = store.text_values(document)
-                        report.title = values.get("title", report.title)
-                        for attribute in report.attributes:
-                            root = f"attribute:{attribute.id}"
-                            if root in values:
-                                attribute.value = (
-                                    store.rich_text_value(document, root)[0] if attribute.attribute_type.name == "RICH_TEXT" else values[root]
-                                )
-                        if not report.title.strip() or any(
-                            attribute.required and not (attribute.value or "").strip() for attribute in report.attributes
-                        ):
+                        if not _project_report_document(store, document, report, channel):
                             db.session.rollback()
                             return {"error": "Required report fields are missing"}, 400
-                        report.revision += 1
+                        report.completed = True
                         report.last_updated = datetime.now(UTC).replace(tzinfo=None)
+                        report.record_revision(current_user, note="collaboration_finalize")
+            channel.report_drafts = [{**draft, "status": "finalized"} for draft in channel.report_drafts]
             channel.story_snapshots = channel.story_snapshots
             channel.metadata_version += 1
             channel.status = "closed"
             db.session.commit()
         except Exception:
             db.session.rollback()
+            logger.exception("Collaboration channel finalization failed")
             return {"error": "Finalization failed"}, 503
         realtime_publisher.publish(f"collab:{channel.id}", "collab.document.closed", "closed", data={"channel_id": channel.id})
         return {"channel_id": channel.id, "status": channel.status}, 200
@@ -896,6 +1012,17 @@ class Document(MethodView):
             if channel and row.resource_kind == "story"
             else None
         )
+        report_config = _report_document_config(report) if report else None
+        report_roots = list(report_config[0]) if report_config else []
+        report_rich_roots = list(report_config[2]) if report_config else []
+        initial_fields = dict(row.initial_values or {})
+        if report_config:
+            initial_fields.update(report_config[1])
+        story_field_metadata = {
+            "description": {"title": "Description", "description": "Describe the story context and key details.", "type": "TEXT"},
+            "summary": {"title": "Summary", "description": "Summarise the key takeaways.", "type": "TEXT"},
+            "comments": {"title": "Analyst comments", "description": "Capture notes, caveats, or next steps.", "type": "TEXT"},
+        }
         return {
             "document_id": row.id,
             "channel_id": row.channel_id,
@@ -905,25 +1032,26 @@ class Document(MethodView):
             "snapshot": encode(materialized.document.export(ExportMode.Snapshot())),
             "version_vector": encode(materialized.document.oplog_vv.encode()),
             "presence": store.presence(row.id),
-            "fields": row.root_names or (["title", "description", "summary", "comments"] if row.resource_kind == "story" else ["title"]),
-            "rich_fields": row.rich_roots
-            or (
-                []
-                if row.resource_kind == "story" or not report
-                else [f"attribute:{attribute.id}" for attribute in report.attributes if attribute.attribute_type.name == "RICH_TEXT"]
-            ),
-            "initial_fields": row.initial_values or {},
+            "fields": report_roots
+            if row.resource_kind == "report" and report
+            else row.root_names or ["title", "description", "summary", "comments"],
+            "rich_fields": report_rich_roots if report else row.rich_roots,
+            "initial_fields": initial_fields,
+            "field_metadata": _report_field_metadata(report, channel)
+            if row.resource_kind == "report" and report and channel
+            else story_field_metadata,
             "field_types": {}
             if row.resource_kind == "story" or not report
-            else {f"attribute:{attribute.id}": attribute.attribute_type.name for attribute in report.attributes},
+            else {f"attribute:{attribute.id}": attribute.attribute_type.name for attribute in _collaborative_report_attributes(report)},
             "scalar_fields": {}
             if row.resource_kind == "story" or not report
             else {
                 f"attribute:{attribute.id}": {"type": attribute.attribute_type.name, "value": attribute.value or ""}
-                for attribute in report.attributes
+                for attribute in _collaborative_report_attributes(report)
                 if attribute.attribute_type.name not in {"TEXT", "RICH_TEXT"}
             },
             "story": story or {},
+            "channel_stories": channel.story_snapshots if channel and row.resource_kind == "story" else [],
             "report": {"id": report.id, "title": report.title, "completed": report.completed} if report else None,
         }, 200
 
@@ -958,7 +1086,7 @@ class Document(MethodView):
                 job_id=f"collab-checkpoint-{row.id}",
             )
             channel = _channel(row.channel_id)
-            local_url = Config.COLLABORATION_INSTANCE_URL.rstrip("/")
+            local_url = _local_instance_url(request.host_url)
             if channel and local_url:
                 peers = set(channel.participant_urls) | {channel.owner_base_url}
                 for peer in peers - {local_url}:
@@ -1018,6 +1146,16 @@ class Sync(MethodView):
 
 
 class Presence(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, document_id: str, session_id: str):
+        row = _document(document_id)
+        if not row or not _authorized_document(row, current_user):
+            return {"error": "Document not found"}, 404
+        try:
+            return {"presence": CollaborationStore().presence(document_id)}, 200
+        except Exception:
+            return {"error": "Collaboration storage unavailable"}, 503
+
     @auth_required("ASSESS_UPDATE")
     def put(self, document_id: str, session_id: str):
         row = _document(document_id)
@@ -1072,6 +1210,9 @@ def initialize(app: Flask):
         "/collaboration/channels/<string:channel_id>/move-news-item", view_func=NewsItemMove.as_view("news_item_move"), methods=["POST"]
     )
     bp.add_url_rule(
+        "/collaboration/channels/<string:channel_id>/remove-news-item", view_func=NewsItemRemove.as_view("news_item_remove"), methods=["POST"]
+    )
+    bp.add_url_rule(
         "/collaboration/channels/<string:channel_id>/report-workspace",
         view_func=ReportWorkspace.as_view("report_workspace"),
         methods=["GET", "PUT"],
@@ -1105,6 +1246,8 @@ def initialize(app: Flask):
     bp.add_url_rule("/documents/<string:document_id>/federate", view_func=Federate.as_view("document_federate"), methods=["POST"])
     bp.add_url_rule("/documents/<string:document_id>/sync", view_func=Sync.as_view("document_sync"), methods=["POST"])
     bp.add_url_rule(
-        "/documents/<string:document_id>/presence/<string:session_id>", view_func=Presence.as_view("presence"), methods=["PUT", "DELETE"]
+        "/documents/<string:document_id>/presence/<string:session_id>",
+        view_func=Presence.as_view("presence"),
+        methods=["GET", "PUT", "DELETE"],
     )
     app.register_blueprint(bp)

@@ -105,7 +105,8 @@ case "${1:-}" in
   reset) check; all down -v --remove-orphans ;;
   restart) check; all restart ;;
   status) check; all ps ;;
-  start|stop) check; [[ -n "${2:-}" && -n "${ports[$2]:-}" ]] || die "expected alpha, bravo, or charlie"; run "$2" "$1" ;;
+  start) check; [[ -n "${2:-}" && -n "${ports[$2]:-}" ]] || die "expected alpha, bravo, or charlie"; run "$2" up -d --no-build --wait ;;
+  stop) check; [[ -n "${2:-}" && -n "${ports[$2]:-}" ]] || die "expected alpha, bravo, or charlie"; run "$2" stop ;;
   logs) check; [[ -n "${2:-}" && -n "${ports[$2]:-}" ]] || die "expected alpha, bravo, or charlie"; run "$2" logs -f "${3:-}" ;;
   *) usage; exit 2 ;;
 esac

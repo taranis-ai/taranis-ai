@@ -3,4 +3,4 @@
 set -eu
 
 uv sync --all-extras --frozen --python 3.14
-uv run --no-sync --frozen python -m flask run
+uv run --no-sync --frozen python -m flask run --debug

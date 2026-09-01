@@ -1,0 +1,27 @@
+<section class="space-y-5" data-collaboration-document="{{ document_id }}">
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-semibold">{{ 'Report editor' if document_kind|default("story") == 'report' else 'Story editor' }}</h2>
+    <span class="badge badge-outline" data-collaboration-status>Loading</span>
+  </div>
+  <section class="rounded-box border border-base-300 p-4" aria-live="polite">
+    <div class="flex items-center justify-between">
+      <h3 class="font-semibold">Collaborators</h3>
+      <span class="text-sm opacity-70" data-collaboration-presence-count>0 active</span>
+    </div>
+    <div class="mt-3 flex flex-wrap gap-2" data-collaboration-presence-list>
+      <span class="text-sm opacity-60">No other users are editing this story.</span>
+    </div>
+  </section>
+  <label class="form-control">
+    <span class="label-text">Title</span>
+    <textarea class="textarea textarea-bordered min-h-24 w-full" aria-label="Collaborative title"></textarea>
+  </label>
+  <div class="space-y-4" data-collaboration-fields></div>
+  {% if document_kind|default('story') != 'report' %}
+    <section class="rounded-box border border-base-300 p-4" data-collaboration-news>
+      <h3 class="font-semibold">News items</h3>
+      <p class="mt-1 text-sm opacity-70">Click an item to open its content.</p>
+      <div class="mt-3 space-y-2" data-collaboration-news-list></div>
+    </section>
+  {% endif %}
+</section>

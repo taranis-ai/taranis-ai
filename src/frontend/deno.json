@@ -20,7 +20,7 @@
     "@codemirror/legacy-modes": "npm:@codemirror/legacy-modes@^6.5.3",
     "@codemirror/merge": "npm:@codemirror/merge@^6.12.2",
     "codemirror": "npm:codemirror@^6.0.2"
-    ,"loro-crdt": "npm:loro-crdt@1.13.2"
+    ,"loro-crdt": "npm:loro-crdt@1.13.2/bundler"
     ,"centrifuge": "npm:centrifuge@^5.3.1"
     ,"loro-codemirror": "npm:loro-codemirror@0.3.3"
     ,"loro-prosemirror": "npm:loro-prosemirror@0.4.4"
@@ -39,7 +39,7 @@
     "tw:watch": "deno run -A npm:@tailwindcss/cli@4.3.0 -i frontend/static/css/input.css -o frontend/static/css/tailwind.css --watch",
     "vendor:bundle": "deno bundle --sourcemap=inline --platform=browser --minify --output frontend/static/vendor/vendor.bundle.js vendor.js",
     "vendor:bundle:codemirror": "deno bundle --sourcemap=inline --platform=browser --minify --output frontend/static/vendor/codemirror.js vendor_codemirror.js"
-    ,"vendor:bundle:collaboration": "deno bundle --sourcemap=inline --platform=browser --minify --output frontend/static/vendor/collaboration.js vendor_collaboration.js",
+    ,"vendor:bundle:collaboration": "deno bundle --platform=browser --conditions=development --minify --output frontend/static/vendor/collaboration.js vendor_collaboration.js",
     "test:collaboration": "deno test --allow-read tests/loro_interoperability_test.js"
   }
 }

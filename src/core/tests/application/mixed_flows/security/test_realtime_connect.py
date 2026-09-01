@@ -5,7 +5,10 @@ import pytest
 from pydantic import SecretStr
 
 from core.config import Config
+from core.managers.db_manager import db
 from core.managers.realtime_publisher import realtime_publisher
+from core.model.collaboration_channel import CollaborationChannel
+from core.model.collaboration_document import CollaborationDocument
 
 
 PROXY_SECRET = "dedicated-connect-proxy-secret"
@@ -75,6 +78,37 @@ def test_connect_proxy_disconnects_when_realtime_is_disabled(app, monkeypatch):
 
     assert response.status_code == 200
     assert response.get_json() == {"disconnect": {"code": 4501, "reason": "unauthorized"}}
+
+
+def test_subscribe_proxy_authorizes_collaboration_snapshot_member(app, access_token, admin_user, monkeypatch):
+    _configure_realtime(monkeypatch)
+    document = Mock(resource_kind="story", resource_id="snapshot-id")
+    channel = Mock(member_ids=[admin_user.id], story_snapshots=[{"id": "snapshot-id"}])
+    monkeypatch.setattr(
+        db.session,
+        "get",
+        lambda model, _id: document if model is CollaborationDocument else channel if model is CollaborationChannel else None,
+    )
+    client = app.test_client()
+    client.set_cookie(Config.JWT_ACCESS_COOKIE_NAME, access_token)
+
+    response = client.post("/api/realtime/subscribe", headers=_headers(), json={"channel": "collab:document-id"})
+
+    assert response.status_code == 200
+    assert response.get_json() == {"result": {}}
+
+
+def test_subscribe_proxy_denies_unknown_document_with_v6_error(app, monkeypatch):
+    _configure_realtime(monkeypatch)
+
+    response = app.test_client().post(
+        "/api/realtime/subscribe",
+        headers=_headers(),
+        json={"channel": "collab:missing"},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {"error": {"code": 403, "message": "permission denied"}}
 
 
 def test_admin_can_broadcast_exact_notification_text(client, auth_header, monkeypatch):

@@ -58,7 +58,7 @@ server {
         add_header X-Accel-Buffering "no";
     }
 
-    location ${TARANIS_BASE_PATH}collab/ {
+    location = ${TARANIS_BASE_PATH}collab/connection/websocket {
         proxy_pass http://realtimeupstream/connection/websocket;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
