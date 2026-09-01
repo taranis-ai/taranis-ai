@@ -50,7 +50,7 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_placeholder("Username").fill("user")
         self.highlight_element(page.get_by_placeholder("Password"))
         page.get_by_placeholder("Password").fill("test")
-        page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
+        self.capture_screenshot(page, "./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
@@ -166,7 +166,7 @@ class TestEndToEndUser(BaseE2ETest):
         def go_to_user_profile():
             page.goto(url_for("user.settings", _external=True))
             expect(page.get_by_text("User", exact=True)).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/user_profile.png")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/user_profile.png")
 
         def check_profile():
             expect(page.locator("#user-settings-form")).to_contain_text("Split view")
@@ -279,7 +279,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_count")).to_be_visible(timeout=30000)
             visible_count, total_count = self._get_assess_story_counts(page)
             assert total_count >= visible_count > 0
-            page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/user_assess.png")
             return total_count
 
         def access_story():
@@ -397,7 +397,7 @@ class TestEndToEndUser(BaseE2ETest):
         expect(page.get_by_test_id("assess")).to_be_visible()
 
         page.get_by_placeholder("Search stories").fill(expected_title)
-        page.get_by_placeholder("Search stories").press("Enter")
+        with_htmx_wait(page, lambda: page.get_by_placeholder("Search stories").press("Enter"))
 
         story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=expected_title)).first
         expect(story).to_be_visible()
@@ -410,9 +410,10 @@ class TestEndToEndUser(BaseE2ETest):
 
         actions_menu = story.get_by_test_id("story-actions-menu")
         share_story = story.get_by_test_id("share-story")
-        actions_menu.click()
+        actions_menu.focus()
+        expect(actions_menu).to_be_focused()
         expect(share_story).to_be_visible()
-        share_story.click()
+        with_htmx_wait(page, share_story.click)
 
         dialog = page.locator("#share_story_to_connector_dialog")
         expect(dialog).to_be_visible()
@@ -454,7 +455,7 @@ class TestEndToEndUser(BaseE2ETest):
         def go_to_analyze():
             page.goto(url_for("analyze.analyze", _external=True))
             expect(page.get_by_test_id("analyze")).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/user_analyze.png")
 
         def open_assess_filtered(search_term: str):
             page.goto(url_for("assess.assess", _external=True, search=search_term))
@@ -1057,7 +1058,7 @@ class TestEndToEndUser(BaseE2ETest):
         def load_product_list():
             page.goto(url_for("publish.publish", _external=True))
             expect(page.get_by_test_id("product-table")).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/docs_products.png")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/docs_products.png")
 
         def add_product():
             self.highlight_element(page.get_by_test_id("new-product-button")).click()

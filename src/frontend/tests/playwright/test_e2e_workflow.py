@@ -296,7 +296,7 @@ class TestUserWorkflow(BaseE2ETest):
             page.get_by_label("Title", exact=True).fill("Test Report")
             self.highlight_element(page.get_by_role("button", name="Create Report")).click()
             time.sleep(0.5)
-            page.screenshot(path="./tests/playwright/screenshots/report_item_add.png")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/report_item_add.png")
 
         def report_2():
             self.highlight_element(page.get_by_role("button", name="New Report")).click()
@@ -365,7 +365,7 @@ class TestUserWorkflow(BaseE2ETest):
             # TODO: see if needed:
             # page.get_by_test_id("save-report").click()
             time.sleep(1)
-            page.screenshot(path="./tests/playwright/screenshots/report_item_view.png")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/report_item_view.png")
 
         #           Run test
         # ============================
@@ -426,4 +426,4 @@ class TestUserWorkflow(BaseE2ETest):
         # expect(page.get_by_test_id("text-render")).to_contain_text(
         #     "Thanks to Cybersecurity experts, the world of IT is now safe.", timeout=10_000
         # )
-        page.screenshot(path="./tests/playwright/screenshots/screenshot_publish.png")
+        self.capture_screenshot(page, "./tests/playwright/screenshots/screenshot_publish.png")
