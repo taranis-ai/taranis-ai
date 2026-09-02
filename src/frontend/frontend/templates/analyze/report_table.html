@@ -23,11 +23,11 @@
             action="{{ routes.base_route }}"
             class="flex min-w-0 grow flex-wrap items-center gap-3"
             hx-get="{{ routes.base_route }}"
-            hx-push-url="true"
-            hx-select="#{{ table_container }}"
-            hx-target="#{{ table_container }}"
-            hx-swap="outerHTML settle:0ms"
-            hx-trigger="change, input changed delay:500ms">
+            hx-push-url:inherited="true"
+            hx-select:inherited="#{{ table_container }}"
+            hx-target:inherited="#{{ table_container }}"
+            hx-swap:inherited="outerHTML settle:0ms"
+            hx-on::before:request="restoreSearchAfterSwap(ctx)">
         <input type="hidden" name="page" value="1">
         {% if request.args.get('limit') %}
           <input type="hidden" name="limit" value="{{ request.args.get('limit') }}">
@@ -42,11 +42,20 @@
                  name="search"
                  placeholder="Search reports..."
                  value="{{ current_search }}"
+                 hx-get="{{ routes.base_route }}"
+                 hx-include="closest form"
+                 hx-trigger="input changed delay:500ms"
+                 data-search-from-request
                  data-testid="report-search-input" />
         </label>
         <label class="select w-full sm:w-52">
           <span class="label">Status</span>
-          <select name="completed" class="select select-bordered select-sm" data-testid="report-completed-filter">
+          <select name="completed"
+                  class="select select-bordered select-sm"
+                  hx-get="{{ routes.base_route }}"
+                  hx-include="closest form"
+                  hx-trigger="change"
+                  data-testid="report-completed-filter">
             <option value="" {% if current_completed_filter == '' %}selected{% endif %}>All</option>
             <option value="true" {% if current_completed_filter == 'true' %}selected{% endif %}>Completed</option>
             <option value="false" {% if current_completed_filter == 'false' %}selected{% endif %}>Incomplete</option>
@@ -54,7 +63,12 @@
         </label>
         <label class="select w-full sm:w-64">
           <span class="label">Report Type</span>
-          <select name="report_item_type_id" class="select select-bordered select-sm" data-testid="report-type-filter">
+          <select name="report_item_type_id"
+                  class="select select-bordered select-sm"
+                  hx-get="{{ routes.base_route }}"
+                  hx-include="closest form"
+                  hx-trigger="change"
+                  data-testid="report-type-filter">
             <option value="" {% if current_report_item_type_filter == '' %}selected{% endif %}>All types</option>
             {% for report_type in report_types %}
               <option value="{{ report_type.id }}" {% if current_report_item_type_filter == report_type.id | string %}selected{% endif %}>
@@ -83,7 +97,9 @@
                   :hx-vals="JSON.stringify({ ids: selectedItems })"
                   hx-delete="{{ delete_route }}"
                   hx-confirm="Are you sure you want to delete the selected items?"
-                  hx-target-error="#notification-bar"
+                  hx-status:400="target:#notification-bar"
+                  hx-status:4xx="target:#notification-bar"
+                  hx-status:5xx="target:#notification-bar"
                   hx-target="#{{ table_container }}"
                   :disabled="selectedItems.length === 0">
             Delete <span x-text="selectedItems.length" x-show="selectedItems.length > 0"></span> {{ name }}

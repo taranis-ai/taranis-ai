@@ -105,7 +105,7 @@ class TestEndToEndUser(BaseE2ETest):
             cluster_table = page.get_by_test_id("cluster-table")
 
             def click_pagination(label: str) -> None:
-                with_htmx_wait(page, lambda: cluster_table.get_by_text(label).click())
+                with_htmx_wait(page, lambda: cluster_table.get_by_text(label).dispatch_event("click"))
 
             expect(page.get_by_test_id("country-chart")).to_be_visible()
             all_rows = cluster_table.locator("tbody tr")
@@ -219,6 +219,9 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             expect(page.locator("#story-pagination")).to_contain_text("Page 2 of")
             page.wait_for_function("() => window.scrollY === 0")
+
+            with_htmx_wait(page, page.go_back)
+            expect(page.locator("#story-pagination")).to_contain_text("Page 1 of")
 
             with page.expect_navigation(wait_until="load"):
                 page.get_by_role("checkbox", name="Compact view").uncheck()
@@ -353,7 +356,13 @@ class TestEndToEndUser(BaseE2ETest):
                 load_more_button = page.locator("#infinite-scroll-trigger")
                 if load_more_button.count() == 0:
                     break
-                with_htmx_wait(page, lambda btn=load_more_button: btn.click())
+                previous_card_count = page.locator("#story-list article[data-story-id]").count()
+                load_more_button.dispatch_event("click")
+                page.wait_for_function(
+                    "previous => document.querySelectorAll('#story-list article[data-story-id]').length > previous",
+                    arg=previous_card_count,
+                )
+                self.wait_for_htmx_settled(page)
                 final_visible_count, final_total = self._get_assess_story_counts(page)
                 assert final_total == expected_total
                 assert final_visible_count >= initial_visible_count
@@ -605,7 +614,8 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).not_to_be_visible()
 
             with_htmx_wait(page, lambda: completed_filter.select_option(""))
-            expect(page).to_have_url(re.compile(r"completed=&report_item_type_id="))
+            expect(page).to_have_url(re.compile(r"completed="))
+            expect(page).to_have_url(re.compile(r"report_item_type_id="))
             report_type_filter = page.get_by_test_id("report-type-filter")
             expect(report_type_filter).to_have_value("")
             all_attribute_report_type_value = report_type_filter.evaluate(

@@ -91,9 +91,10 @@
       };
 
       document.addEventListener("DOMContentLoaded", () => mountStoryConflictEditors(document));
-      document.body.addEventListener("htmx:afterSwap", (event) => {
-        if (event && event.target) {
-          mountStoryConflictEditors(event.target);
+      document.body.addEventListener("htmx:after:swap", (event) => {
+        const target = document.getElementById(event.detail.ctx?.target?.id);
+        if (target) {
+          mountStoryConflictEditors(target);
         }
       });
     })();
