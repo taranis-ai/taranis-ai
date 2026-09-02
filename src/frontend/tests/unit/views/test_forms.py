@@ -68,7 +68,9 @@ def test_users_import_form_routes_errors_to_notification_bar(organizations_get_m
     form = tree.xpath('//form[@id="form"]')[0]
     table_headers = [header.text_content().strip() for header in tree.xpath("//table/thead/tr/th")]
     assert response.status_code == 200
-    assert form.get("hx-target-error") == "#notification-bar"
+    assert form.get("hx-status:400") == "target:#notification-bar"
+    assert form.get("hx-status:4xx") == "target:#notification-bar"
+    assert form.get("hx-status:5xx") == "target:#notification-bar"
     assert "Roles to assign" in response.text
     assert table_headers == ["Select", "Role", "Description"]
 

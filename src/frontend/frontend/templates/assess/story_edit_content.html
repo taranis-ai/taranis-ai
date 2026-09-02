@@ -20,8 +20,8 @@
          class="space-y-6 p-6"
          hx-get="{{ url_for('assess.story_edit', story_id=story.id) }}"
          hx-trigger="story:reload from:body"
-         hx-target="#{{ card_id }}"
-         hx-swap="outerHTML"
+         hx-target:inherited="#{{ card_id }}"
+         hx-swap:inherited="outerHTML"
          @keydown.shift.window="showHints = true"
          @keyup.shift.window="showHints = false"
          x-data="{ showHints: false }">
@@ -99,7 +99,9 @@
                       hx-vals='{"vote": "like"}'
                       hx-target="#{{ card_id }}"
                       hx-swap="outerHTML"
-                      hx-target-error="#notification-bar">
+                      hx-status:400="target:#notification-bar"
+                      hx-status:4xx="target:#notification-bar"
+                      hx-status:5xx="target:#notification-bar">
                 <span class="flex items-center gap-2">
                   {{ heroicon_mini("hand-thumb-up", class="h-4 w-4 " ~ ('text-success-content' if like_active else 'text-base-content/70')) }}
                   <span class="text-sm">Like</span>
@@ -112,7 +114,9 @@
                       hx-vals='{"vote": "dislike"}'
                       hx-target="#{{ card_id }}"
                       hx-swap="outerHTML"
-                      hx-target-error="#notification-bar">
+                      hx-status:400="target:#notification-bar"
+                      hx-status:4xx="target:#notification-bar"
+                      hx-status:5xx="target:#notification-bar">
                 <span class="flex items-center gap-2">
                   {{ heroicon_mini("hand-thumb-down", class="h-4 w-4 " ~ ('text-error-content' if dislike_active else 'text-base-content/70')) }}
                   <span class="text-sm">Dislike</span>
@@ -158,7 +162,9 @@
             hx-post="{{ form_action }}"
             hx-target="#{{ card_id }}"
             hx-swap="outerHTML"
-            hx-target-error="#notification-bar">
+            hx-status:400="target:#notification-bar"
+            hx-status:4xx="target:#notification-bar"
+            hx-status:5xx="target:#notification-bar">
         <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
         <div class="card-body space-y-1">
           <header class="flex items-center justify-between">

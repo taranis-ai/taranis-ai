@@ -1,4 +1,5 @@
-import htmx from "npm:htmx.org";
+import htmx from "htmx.org";
+import "npm:htmx.org@^4.0.0/dist/ext/hx-alpine-compat.js";
 import Alpine from "npm:alpinejs";
 
 import Sortable from "npm:sortablejs";
@@ -9,7 +10,6 @@ import { driver } from "npm:driver.js";
 import { highlightSearchTerm } from "npm:highlight-search-term";
 
 import "npm:choices.js/public/assets/styles/choices.min.css";
-import "npm:htmx-ext-response-targets";
 import "npm:sweetalert2/dist/sweetalert2.min.css";
 import "npm:driver.js/dist/driver.css";
 

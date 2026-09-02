@@ -4,7 +4,7 @@
           hx-trigger="click"
           @keyup.window="canUseAssessShortcut($event) && $event.shiftKey && $event.code === 'Space' && selectedItems.length > 0 && $el.click()"
           hx-post="{{ url_for('assess.bulk_action') }}"
-          {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
+          {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before:request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
           :hx-vals='action_vals("read", !selectedItemsAreRead())'
           :data-tip="selectedItemsAreRead() ? 'Mark as unread' : 'Mark as read'"
           data-testid="bulk-toggle-read">
@@ -19,7 +19,7 @@
           class="btn btn-outline btn-sm tooltip {{ 'w-full join-item' if in_dropdown else '' }}"
           hx-trigger="click, keyup[shiftKey && key == 'I' && canUseAssessShortcut(event)] from:body"
           hx-post="{{ url_for('assess.bulk_action') }}"
-          {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before-request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
+          {% if bookmark_mode %}hx-include="#bookmark-selection-form"{% else %}hx-on::before:request="window.assessSelectionState = { ...(window.assessSelectionState || {}), pruneToVisibleOnNextInit: true }"{% endif %}
           :hx-vals='action_vals("important", !selectedItemsAreImportant())'
           :data-tip="selectedItemsAreImportant() ? 'Mark as unimportant' : 'Mark as important'"
           data-testid="bulk-toggle-important">
@@ -60,8 +60,8 @@
       <div class="flex flex-wrap items-center gap-2"
            x-show="selectedItems.length"
            x-transition.opacity
-           hx-target="{{ '#bookmark-detail-container' if bookmark_mode else '#assess' }}"
-           hx-swap="outerHTML">
+           hx-target:inherited="{{ '#bookmark-detail-container' if bookmark_mode else '#assess' }}"
+           hx-swap:inherited="outerHTML">
         <button type="button"
                 class="btn btn-outline btn-sm tooltip"
                 x-show="selectedItems.length === 1"

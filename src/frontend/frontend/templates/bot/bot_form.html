@@ -12,7 +12,9 @@
                 class="btn btn-secondary"
                 hx-post="{{ url_for('admin.execute_bot', bot_id=bot_id) }}"
                 hx-target="#notification-bar"
-                hx-target-error="#notification-bar"
+                hx-status:400="target:#notification-bar"
+                hx-status:4xx="target:#notification-bar"
+                hx-status:5xx="target:#notification-bar"
                 hx-swap="outerHTML">Run</button>
       </div>
     {% endif %}

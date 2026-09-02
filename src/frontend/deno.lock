@@ -20,10 +20,8 @@
     "npm:fuse.js@^7.5.0": "7.5.0",
     "npm:highlight-search-term@*": "1.0.3",
     "npm:highlight-search-term@^1.0.3": "1.0.3",
-    "npm:htmx-ext-response-targets@*": "2.0.4",
-    "npm:htmx-ext-response-targets@^2.0.4": "2.0.4",
-    "npm:htmx.org@*": "2.0.10",
-    "npm:htmx.org@^2.0.10": "2.0.10",
+    "npm:htmx.org@4": "4.0.0",
+    "npm:htmx.org@4.0.0": "4.0.0",
     "npm:sortablejs@*": "1.15.7",
     "npm:sortablejs@^1.15.7": "1.15.7",
     "npm:sweetalert2@*": "11.26.25",
@@ -398,14 +396,9 @@
     "highlight-search-term@1.0.3": {
       "integrity": "sha512-cCZNdQp6Dpq54QvixkrUltZ6rPHnLHapQUOQiZqTojntJRyBuX/jeWY0LvBS76JcDEd7QKbZL780vz3TtbJDJQ=="
     },
-    "htmx-ext-response-targets@2.0.4": {
-      "integrity": "sha512-Q/yfH0N2A40j903mr6ldGV3qLWMQeufROylYIbYQLBGrCpmydflxXmQwDOEhEWdPnBTgiHofkAo0gQ3S1BmyxQ==",
-      "dependencies": [
-        "htmx.org"
-      ]
-    },
-    "htmx.org@2.0.10": {
-      "integrity": "sha512-kdeJe7ZVwaS6QMz/ebBIVtZdpwen6L0OQ5GOhPV9MKBb196TCZeZu4yA7ZIQsaLKv7EpXz+So7KSXNuHXhj7Cw=="
+    "htmx.org@4.0.0": {
+      "integrity": "sha512-T/171FUY93Kdfp8t+DnHdk45QvKRiBhVhhrwSzrXgUi4pHKvhp77dUA/qg8FAjsFWPIHNbmUuIdCrcVHuiZWng==",
+      "bin": true
     },
     "is-extglob@2.1.1": {
       "integrity": "sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ=="
@@ -550,8 +543,7 @@
       "npm:driver.js@^1.8.0",
       "npm:fuse.js@^7.5.0",
       "npm:highlight-search-term@^1.0.3",
-      "npm:htmx-ext-response-targets@^2.0.4",
-      "npm:htmx.org@^2.0.10",
+      "npm:htmx.org@4",
       "npm:sortablejs@^1.15.7",
       "npm:sweetalert2@^11.26.25",
       "npm:tailwindcss@4.3.0"

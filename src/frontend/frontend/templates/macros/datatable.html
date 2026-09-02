@@ -120,7 +120,7 @@
         <td colspan="5" class="text-center py-3 text-gray-900 text-sm">No matching records found.</td>
       </tr>
     </tbody>
-    <tfoot hx-target="#{{ table_id }}" hx-swap="outerHTML">
+    <tfoot hx-target:inherited="#{{ table_id }}" hx-swap:inherited="outerHTML">
       <tr>
         <td colspan="{{ (columns|length + (1 if selectable else 0)) }}">
           <div class="flex justify-center">

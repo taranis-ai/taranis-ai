@@ -10,6 +10,7 @@ Assess filters let users narrow stories and news items from the assess workspace
 
 The Assess selection toolbar uses `Shift+Space` to toggle selected stories between read and unread. The toolbar prevents the browser's native page-up behavior for that key combination even when no stories are selected, but only submits the bulk action when a selection exists. While typing in an editable control or while a dialog is open, native keyboard behavior remains available. Bookmark detail reuses this behavior through the shared selection toolbar.
 With infinite scroll disabled, page navigation replaces the story list and pagination controls, scrolls the window to the top, and keeps the sticky Assess top bar mounted and visible.
+Paging and infinite-scroll errors update the notification bar without applying the story-list selection or append swap. Search inputs with stable IDs keep browser focus through HTMX replacement swaps.
 
 The shared Assess selection bar is hidden when JavaScript is unavailable. Its `<noscript>` style belongs in `base.html`, not in HTMX-swappable fragments, so filtering cannot accidentally activate the fallback style.
 
