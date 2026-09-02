@@ -1,6 +1,8 @@
 from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user, get_jwt, jwt_required
+from models.user import LoginCredentials
+from pydantic import ValidationError
 
 from core.auth.base_authenticator import BaseAuthenticator
 from core.auth.external_authenticator import ExternalAuthenticator
@@ -13,19 +15,17 @@ class Login(MethodView):
     def post(self):
         if Config.TARANIS_AUTHENTICATOR == "external":
             return auth_manager.authenticate(ExternalAuthenticator.get_credentials(request.headers))
-        json_data = request.get_json(silent=True) if request.is_json else None
-        form_data = request.form
-        if not json_data and not form_data:
+
+        data = request.get_json(silent=True) if request.is_json else request.form.to_dict()
+        if not isinstance(data, dict) or not data:
             return {"error": "No data provided"}, 400
 
-        username = json_data.get("username") if isinstance(json_data, dict) else form_data.get("username")
-        password = json_data.get("password") if isinstance(json_data, dict) else form_data.get("password")
-
-        if not isinstance(username, str) or not isinstance(password, str) or not username or not password:
+        try:
+            credentials = LoginCredentials.model_validate(dict(data))
+        except ValidationError:
             return {"error": "Missing username or password"}, 400
 
-        credentials: dict[str, str] = {"username": username, "password": password}
-        return auth_manager.authenticate(credentials)
+        return auth_manager.authenticate(credentials.model_dump())
 
 
 class Refresh(MethodView):
