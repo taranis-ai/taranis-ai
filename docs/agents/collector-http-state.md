@@ -10,6 +10,8 @@ ETags belong only to the configured primary feed or web URL. The primary resourc
 
 Browser-backed article fetches use the main navigation response's Last-Modified header as the news item's published-date fallback. Invalid Last-Modified values are ignored in all fetch modes. RSS entry dates use the first parseable, non-blank value from the supported entry fields, linked article date, channel `lastBuildDate`, and feed response HTTP Last-Modified validator; the channel fallback also applies when feed content is used or an entry has no link. Digest-split items use the linked article date, channel `lastBuildDate`, and feed response HTTP Last-Modified validator in that order. Secondary browser responses do not update the primary resource's persisted HTTP validators.
 
+Parsed collector timestamps with an offset are converted to naive UTC; timezone-less values remain unchanged and are treated as UTC. Persisted HTTP Last-Modified validators remain opaque strings and are replayed unchanged. Legacy offset-aware `last_attempted` values are converted to UTC before formatting `If-Modified-Since` with a GMT suffix.
+
 Collector fetch, parse, and publish failures propagate to `collector_task`, which persists `FAILURE` and does not schedule post-collection bots. Playwright cleanup still runs on failures.
 
 ## Code Paths
