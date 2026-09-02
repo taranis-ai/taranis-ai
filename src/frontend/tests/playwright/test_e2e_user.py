@@ -50,7 +50,7 @@ class TestEndToEndUser(BaseE2ETest):
         page.get_by_placeholder("Username").fill("user")
         self.highlight_element(page.get_by_placeholder("Password"))
         page.get_by_placeholder("Password").fill("test")
-        page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
+        self.capture_screenshot(page, "./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
@@ -105,7 +105,7 @@ class TestEndToEndUser(BaseE2ETest):
             cluster_table = page.get_by_test_id("cluster-table")
 
             def click_pagination(label: str) -> None:
-                with_htmx_wait(page, lambda: cluster_table.get_by_text(label).click())
+                with_htmx_wait(page, lambda: cluster_table.get_by_text(label).dispatch_event("click"))
 
             expect(page.get_by_test_id("country-chart")).to_be_visible()
             all_rows = cluster_table.locator("tbody tr")
@@ -166,7 +166,7 @@ class TestEndToEndUser(BaseE2ETest):
         def go_to_user_profile():
             page.goto(url_for("user.settings", _external=True))
             expect(page.get_by_text("User", exact=True)).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/user_profile.png")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/user_profile.png")
 
         def check_profile():
             expect(page.locator("#user-settings-form")).to_contain_text("Split view")
@@ -219,6 +219,9 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             expect(page.locator("#story-pagination")).to_contain_text("Page 2 of")
             page.wait_for_function("() => window.scrollY === 0")
+
+            with_htmx_wait(page, page.go_back)
+            expect(page.locator("#story-pagination")).to_contain_text("Page 1 of")
 
             with page.expect_navigation(wait_until="load"):
                 page.get_by_role("checkbox", name="Compact view").uncheck()
@@ -279,7 +282,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("assess_story_count")).to_be_visible(timeout=30000)
             visible_count, total_count = self._get_assess_story_counts(page)
             assert total_count >= visible_count > 0
-            page.screenshot(path="./tests/playwright/screenshots/user_assess.png")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/user_assess.png")
             return total_count
 
         def access_story():
@@ -319,6 +322,7 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("textbox", name="Analyst comments").fill("Test analyst comment")
             news_item_card = page.locator("article[id^='news-item-card-']").first
             news_item_card.get_by_test_id("edit-newsitem-tags").click()
+            expect(news_item_card.get_by_role("heading", name="News item tags")).to_be_in_viewport()
             news_item_card.get_by_test_id("news-item-tag-name-input").fill("tag name")
             news_item_card.get_by_test_id("news-item-tag-value-input").fill("tag value")
             news_item_card.get_by_role("button", name="Add tag").click()
@@ -352,7 +356,13 @@ class TestEndToEndUser(BaseE2ETest):
                 load_more_button = page.locator("#infinite-scroll-trigger")
                 if load_more_button.count() == 0:
                     break
-                with_htmx_wait(page, lambda btn=load_more_button: btn.click())
+                previous_card_count = page.locator("#story-list article[data-story-id]").count()
+                load_more_button.dispatch_event("click")
+                page.wait_for_function(
+                    "previous => document.querySelectorAll('#story-list article[data-story-id]').length > previous",
+                    arg=previous_card_count,
+                )
+                self.wait_for_htmx_settled(page)
                 final_visible_count, final_total = self._get_assess_story_counts(page)
                 assert final_total == expected_total
                 assert final_visible_count >= initial_visible_count
@@ -396,7 +406,7 @@ class TestEndToEndUser(BaseE2ETest):
         expect(page.get_by_test_id("assess")).to_be_visible()
 
         page.get_by_placeholder("Search stories").fill(expected_title)
-        page.get_by_placeholder("Search stories").press("Enter")
+        with_htmx_wait(page, lambda: page.get_by_placeholder("Search stories").press("Enter"))
 
         story = page.locator("article", has=page.get_by_test_id("story-title").filter(has_text=expected_title)).first
         expect(story).to_be_visible()
@@ -409,9 +419,10 @@ class TestEndToEndUser(BaseE2ETest):
 
         actions_menu = story.get_by_test_id("story-actions-menu")
         share_story = story.get_by_test_id("share-story")
-        actions_menu.click()
+        actions_menu.focus()
+        expect(actions_menu).to_be_focused()
         expect(share_story).to_be_visible()
-        share_story.click()
+        with_htmx_wait(page, share_story.click)
 
         dialog = page.locator("#share_story_to_connector_dialog")
         expect(dialog).to_be_visible()
@@ -453,7 +464,7 @@ class TestEndToEndUser(BaseE2ETest):
         def go_to_analyze():
             page.goto(url_for("analyze.analyze", _external=True))
             expect(page.get_by_test_id("analyze")).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/user_analyze.png")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/user_analyze.png")
 
         def open_assess_filtered(search_term: str):
             page.goto(url_for("assess.assess", _external=True, search=search_term))
@@ -603,7 +614,8 @@ class TestEndToEndUser(BaseE2ETest):
             expect(page.get_by_test_id("report-table").get_by_role("link", name=incomplete_title, exact=True)).not_to_be_visible()
 
             with_htmx_wait(page, lambda: completed_filter.select_option(""))
-            expect(page).to_have_url(re.compile(r"completed=&report_item_type_id="))
+            expect(page).to_have_url(re.compile(r"completed="))
+            expect(page).to_have_url(re.compile(r"report_item_type_id="))
             report_type_filter = page.get_by_test_id("report-type-filter")
             expect(report_type_filter).to_have_value("")
             all_attribute_report_type_value = report_type_filter.evaluate(
@@ -1056,7 +1068,7 @@ class TestEndToEndUser(BaseE2ETest):
         def load_product_list():
             page.goto(url_for("publish.publish", _external=True))
             expect(page.get_by_test_id("product-table")).to_be_visible()
-            page.screenshot(path="./tests/playwright/screenshots/docs_products.png")
+            self.capture_screenshot(page, "./tests/playwright/screenshots/docs_products.png")
 
         def add_product():
             self.highlight_element(page.get_by_test_id("new-product-button")).click()
