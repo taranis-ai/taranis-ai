@@ -21,7 +21,7 @@ class Login(MethodView):
         username = json_data.get("username") if isinstance(json_data, dict) else form_data.get("username")
         password = json_data.get("password") if isinstance(json_data, dict) else form_data.get("password")
 
-        if not username or not password:
+        if not isinstance(username, str) or not isinstance(password, str) or not username or not password:
             return {"error": "Missing username or password"}, 400
 
         credentials: dict[str, str] = {"username": username, "password": password}
