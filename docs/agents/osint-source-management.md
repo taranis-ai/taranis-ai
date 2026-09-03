@@ -8,6 +8,8 @@ OSINT source administration, bulk source creation, source imports, source groups
 
 Administrators can create one source with the standard source form or bulk-create at least two URL-based sources. Bulk sources share their description, rank, icon, collector type, and every collector parameter except the primary source URL. RSS, Simple Web, Request Tracker, and MISP collectors are supported for bulk creation; Mastodon, manual, and PPN sources remain single-create workflows.
 
+Starting a single-source collection from the source list refreshes the existing table in place and displays the task notification without adding another table.
+
 The standard create form links from the collector selector to the public collector documentation in a new browser tab.
 
 Bulk creation can also create one named source group containing exactly the new sources. Source and group persistence is atomic through the existing version-4 source import operation. Import templating or merging imported files with form defaults is not part of this workflow.
@@ -35,7 +37,7 @@ Frontend unit coverage verifies the create-form documentation link, supported co
 
 Core API coverage verifies explicit force parsing, all-ID validation, atomic failure behavior, and forced deletion in `src/core/tests/application/admin_console/configuration/test_config_api.py`.
 
-Run `cd src/frontend && uv run pytest tests/unit/views/test_views.py` for focused view coverage. Run the focused admin browser test through the frontend E2E setup for the complete workflow.
+Run `cd src/frontend && uv run pytest tests/unit/views/test_views.py` for focused view coverage. The admin OSINT browser workflow covers source collection and verifies that the table remains a single in-place view.
 
 ## Pitfalls
 

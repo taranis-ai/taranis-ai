@@ -388,6 +388,11 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(all_rows).to_have_count(10)
             dismiss_notifications(page)
 
+            with_htmx_wait(page, lambda: osint_table.locator('[data-testid^="action-collect-"]').first.click())
+            expect(page.locator("#osint_source-table-container")).to_have_count(1)
+            expect(all_rows).to_have_count(10)
+            dismiss_notifications(page)
+
             first_source_name = osint_table.locator("[data-testid='osint_source-table_name']").first.inner_text().strip()
             page.get_by_placeholder("Search...").fill(first_source_name)
             expect(all_rows).to_have_count(1)
