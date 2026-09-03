@@ -1,7 +1,7 @@
 import base64
 import json
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
@@ -31,6 +31,15 @@ from core.service.worker_parameters import configured_parameters, effective_para
 if TYPE_CHECKING:
     from core.model.news_item import NewsItem
     from core.model.user import User
+
+
+COLLECTION_PERIODS = {
+    "day": timedelta(days=1),
+    "week": timedelta(days=7),
+    "month": timedelta(days=30),
+}
+DEFAULT_COLLECTION_PERIOD = "week"
+INVALID_COLLECTION_PERIOD_MESSAGE = "The period parameter must be day, week, or month"
 
 
 class InvalidOSINTSourceIconError(ValueError):
@@ -229,11 +238,26 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def from_payload(cls, payload: OSINTSourceModel) -> "OSINTSource":
-        return cls(**payload.model_dump(exclude={"status", "news_items_count"}))
+        return cls(**payload.model_dump(exclude={"status", "news_items_count", "collection_count", "collection_period"}))
 
-    def to_detail_dict(self) -> dict[str, Any]:
+    def to_detail_dict(self, collection_period: str = DEFAULT_COLLECTION_PERIOD) -> dict[str, Any]:
+        from core.model.news_item import NewsItem
+
+        collection_period = self.validate_collection_period(collection_period)
+        window_end = self.utcnow()
+        collection_count = db.session.execute(
+            db.select(func.count())
+            .select_from(NewsItem)
+            .where(
+                NewsItem.osint_source_id == self.id,
+                NewsItem.collected >= window_end - COLLECTION_PERIODS[collection_period],
+                NewsItem.collected <= window_end,
+            )
+        ).scalar_one()
         data = self.to_dict()
         data["news_items_count"] = self.get_news_items_count()
+        data["collection_count"] = collection_count
+        data["collection_period"] = collection_period
         return data
 
     def get_news_items_count(self) -> int:
@@ -241,6 +265,23 @@ class OSINTSource(BaseModel):
 
         query = db.select(NewsItem).where(NewsItem.osint_source_id == self.id)
         return NewsItem.get_filtered_count(query)
+
+    @staticmethod
+    def validate_collection_period(period: Any = None) -> str:
+        normalized_period = DEFAULT_COLLECTION_PERIOD if period is None else str(period)
+        if normalized_period not in COLLECTION_PERIODS:
+            raise ValueError(INVALID_COLLECTION_PERIOD_MESSAGE)
+        return normalized_period
+
+    @classmethod
+    def get_for_api(
+        cls,
+        item_id: str,
+        collection_period: str = DEFAULT_COLLECTION_PERIOD,
+    ) -> tuple[dict[str, Any], int]:
+        if item := cls.get(item_id):
+            return item.to_detail_dict(collection_period), 200
+        return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
     def get_all_for_collector(cls) -> Sequence["OSINTSource"]:

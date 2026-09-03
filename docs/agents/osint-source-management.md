@@ -8,6 +8,8 @@ OSINT source administration, bulk source creation, source imports, source groups
 
 Administrators can create one source with the standard source form or bulk-create at least two URL-based sources. Bulk sources share their description, rank, icon, collector type, and every collector parameter except the primary source URL. RSS, Simple Web, Request Tracker, and MISP collectors are supported for bulk creation; Mastodon, manual, and PPN sources remain single-create workflows.
 
+The source detail form shows how many news items Taranis collected during a selected rolling day, week, or month. These periods mean the trailing 24 hours, 7 days, and 30 days, use `NewsItem.collected`, and default to week. The detail form keeps the separate lifetime news-item count.
+
 The standard create form links from the collector selector to the public collector documentation in a new browser tab.
 
 Bulk creation can also create one named source group containing exactly the new sources. Source and group persistence is atomic through the existing version-4 source import operation. Import templating or merging imported files with form defaults is not part of this workflow.
@@ -23,15 +25,21 @@ Invalid bulk form input returns HTTP 400. Core import failures preserve the upst
 - Bulk form and source-list entry point: `src/frontend/frontend/templates/osint_source/`
 - Transactional import and source-group association: `src/core/core/model/osint_source.py`
 - Atomic source deletion: `src/core/core/model/osint_source.py`
+- Rolling collection count and period validation: `src/core/core/model/osint_source.py`
 - Import API: `src/core/core/api/config.py`
+- Rolling metric UI: `src/frontend/frontend/templates/osint_source/osint_source_form.html`
 
 ## Data Flow
 
 The bulk form uses Alpine only for adding and removing local name/URL rows. Selecting a collector loads its shared parameter fragment over HTMX with the collector's primary URL parameter omitted; regular parameter requests, including an explicit `bulk=false`, keep the URL field. On submit, the frontend builds a version-4 import payload by combining each name/URL pair with the shared settings. Optional group indexes associate the newly inserted sources with the new group in the same core database transaction.
 
+`GET /config/osint-sources/{id}?period=day|week|month` adds the rolling metric alongside `news_items_count`. The overview response does not calculate or return collection activity.
+
 ## Testing
 
 Frontend unit coverage verifies the create-form documentation link, supported collectors, bulk-only parameter omission, and Core failure status handling in `src/frontend/tests/unit/views/test_views.py`.
+
+Core coverage is limited to one rolling-window test and one invalid-period test in `src/core/tests/application/admin_console/configuration/test_osint_source_validation.py`. One frontend test covers the detail rendering and selected period in `src/frontend/tests/unit/views/test_views.py`.
 
 Core API coverage verifies explicit force parsing, all-ID validation, atomic failure behavior, and forced deletion in `src/core/tests/application/admin_console/configuration/test_config_api.py`.
 
@@ -40,3 +48,5 @@ Run `cd src/frontend && uv run pytest tests/unit/views/test_views.py` for focuse
 ## Pitfalls
 
 Keep the collector-to-primary-URL mapping explicit. A collector without a single primary URL should not appear in the bulk form. Do not create a second persistence path: version-4 import already validates sources, creates optional groups, applies default-group membership, commits atomically, and schedules the new sources after the commit.
+
+Keep the rolling count on the detail endpoint and use `NewsItem.collected`, not the publisher-controlled `NewsItem.published` timestamp.

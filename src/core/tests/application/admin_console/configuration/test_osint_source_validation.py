@@ -1,8 +1,10 @@
+from datetime import datetime, timedelta
+
 import pytest
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
 
-from core.model.osint_source import OSINTSource
+from core.model.osint_source import INVALID_COLLECTION_PERIOD_MESSAGE, OSINTSource
 
 
 @pytest.mark.usefixtures("app")
@@ -82,7 +84,9 @@ def test_osint_source_partial_update_reparses_parameters(session):
 
 
 @pytest.mark.usefixtures("app")
-def test_osint_source_to_detail_dict_includes_news_items_count(session):
+def test_osint_source_to_detail_dict_includes_collection_counts(session, monkeypatch):
+    now = datetime(2026, 9, 3, 12)
+    monkeypatch.setattr(OSINTSource, "utcnow", staticmethod(lambda: now))
     source = OSINTSource(
         name="Source",
         description="A test",
@@ -101,6 +105,7 @@ def test_osint_source_to_detail_dict_includes_news_items_count(session):
         osint_source_id=source.id,
         link="https://example.com/1",
         story_id=None,
+        collected=now - timedelta(hours=12),
     )
     second = NewsItem(
         title="News Item 2",
@@ -109,10 +114,30 @@ def test_osint_source_to_detail_dict_includes_news_items_count(session):
         osint_source_id=source.id,
         link="https://example.com/2",
         story_id=None,
+        collected=now - timedelta(days=3),
     )
-    session.add_all([first, second])
+    third = NewsItem(
+        title="News Item 3",
+        source="source",
+        content="content 3",
+        osint_source_id=source.id,
+        link="https://example.com/3",
+        story_id=None,
+        collected=now - timedelta(days=10),
+    )
+    session.add_all([first, second, third])
     session.flush()
 
-    detail = source.to_detail_dict()
+    assert source.to_detail_dict("day")["collection_count"] == 1
+    assert source.to_detail_dict("week")["collection_count"] == 2
+    detail = source.to_detail_dict("month")
+    assert detail["news_items_count"] == 3
+    assert detail["collection_count"] == 3
+    assert detail["collection_period"] == "month"
 
-    assert detail["news_items_count"] == 2
+
+def test_osint_source_detail_rejects_invalid_collection_period(client, auth_header):
+    response = client.get("/api/config/osint-sources/missing", query_string={"period": "year"}, headers=auth_header)
+
+    assert response.status_code == 400
+    assert response.json == {"error": INVALID_COLLECTION_PERIOD_MESSAGE}

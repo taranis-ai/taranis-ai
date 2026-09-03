@@ -728,10 +728,15 @@ class ConnectorsPull(MethodView):
 
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all", "filter_manual", "state")
+    @extract_args("search", "page", "limit", "sort", "order", "type", "fetch_all", "filter_manual", "state", "period")
     def get(self, source_id: str | None = None, filter_args: dict[str, Any] | None = None):
+        filter_args = filter_args or {}
         if source_id:
-            return osint_source.OSINTSource.get_for_api(source_id)
+            try:
+                collection_period = osint_source.OSINTSource.validate_collection_period(filter_args.get("period"))
+            except ValueError:
+                return {"error": osint_source.INVALID_COLLECTION_PERIOD_MESSAGE}, 400
+            return osint_source.OSINTSource.get_for_api(source_id, collection_period)
         return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True)
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")

@@ -280,6 +280,8 @@ class OSINTSource(TaranisBaseModel):
     icon: str | None = None
     enabled: bool | None = True
     news_items_count: int | None = None
+    collection_count: int | None = None
+    collection_period: Literal["day", "week", "month"] | None = None
     status: Task | None = None
 
 

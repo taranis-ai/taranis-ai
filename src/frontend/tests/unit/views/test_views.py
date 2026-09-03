@@ -374,6 +374,31 @@ class TestSourceView:
         assert related_data_error in response.get_data(as_text=True)
         assert responses_mock.calls[0].request.url == f"{core_url}?ids=source-safe&ids=source-blocked"
 
+    def test_source_detail_renders_collection_rate(self, authenticated_client, responses_mock):
+        source = OSINTSource(
+            id="source-rate",
+            name="Source rate",
+            description="A test source",
+            type=COLLECTOR_TYPES.RSS_COLLECTOR,
+            parameters={"FEED_URL": "https://example.com/feed.xml"},
+            news_items_count=9,
+            collection_count=1,
+            collection_period="day",
+        )
+        responses_mock.get(
+            f"{Config.TARANIS_CORE_URL}/config/osint-sources/source-rate",
+            json=source.model_dump(mode="json"),
+            status=200,
+        )
+
+        response = authenticated_client.get(SourceView.get_edit_route(osint_source_id="source-rate", period="day"))
+
+        assert response.status_code == 200
+        assert "Recent collection: 1 article/day" in response.text
+        tree = html.fromstring(response.text)
+        assert tree.xpath('//*[@data-testid="detail-collection-period-day"][@aria-current="true"]')
+        assert parse_qs(urlparse(responses_mock.calls[0].request.url).query)["period"] == ["day"]
+
     def test_bulk_create_view_uses_url_based_collectors(self, authenticated_client):
         create_form_response = authenticated_client.get(SourceView.get_edit_route(osint_source_id="0"))
         response = authenticated_client.get(url_for("admin.bulk_create_osint_sources"))

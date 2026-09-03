@@ -29,6 +29,8 @@ For IntelOwl enrichment setup, see [docs/intelowl.md](docs/intelowl.md).
 
 For Mastodon collection setup, including access-token HTTPS requirements and complete-versus-latest cursor modes, see [docs/mastodon.md](docs/mastodon.md).
 
+For the administrator view of recent OSINT source collection activity, see [docs/osint-sources.md](docs/osint-sources.md).
+
 For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
 
 ## Services

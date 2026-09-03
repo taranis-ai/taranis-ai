@@ -4332,13 +4332,26 @@ paths:
       - config
       description: get osint sources
       operationId: config.config_osint_source.get
+      parameters:
+      - name: period
+        in: query
+        description: Rolling collection window. Day, week, and month mean the trailing 24 hours, 7 days, and 30 days.
+        schema:
+          type: string
+          enum:
+          - day
+          - week
+          - month
+          default: week
       responses:
         '200':
           description: success
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/osint_source'
+        '400':
+          description: invalid collection period
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '403':
@@ -10317,6 +10330,19 @@ components:
             type: string
         news_items_count:
           type: integer
+          minimum: 0
+          description: Lifetime number of news items stored for the source.
+        collection_count:
+          type: integer
+          minimum: 0
+          description: Number of news items collected during the selected rolling period, based on the collected timestamp.
+        collection_period:
+          type: string
+          enum:
+          - day
+          - week
+          - month
+          description: Selected rolling collection period; day, week, and month mean 24 hours, 7 days, and 30 days.
     osint_source_group:
       type: object
       properties:

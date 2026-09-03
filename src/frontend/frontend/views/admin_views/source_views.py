@@ -40,6 +40,28 @@ class SourceView(AdminBaseView):
         COLLECTOR_TYPES.MISP_COLLECTOR.value: "URL",
     }
 
+    @staticmethod
+    def get_collection_period() -> Literal["day", "week", "month"]:
+        period = request.args.get("period", "week")
+        if period == "day":
+            return "day"
+        if period == "month":
+            return "month"
+        return "week"
+
+    @classmethod
+    def get_object_by_id(cls, object_id: str) -> OSINTSource | None:
+        result = CoreApi().api_get(
+            f"{cls.model._core_endpoint}/{object_id}",
+            params={"period": cls.get_collection_period()},
+        )
+        return OSINTSource(**result) if isinstance(result, dict) else None
+
+    @classmethod
+    def get_form_action(cls, object_id: str = "0") -> str:
+        action = super().get_form_action(object_id)
+        return f"{action}?period={cls.get_collection_period()}"
+
     @classmethod
     def get_admin_menu_badge(cls) -> int:
         try:
@@ -294,7 +316,7 @@ class SourceView(AdminBaseView):
         target_id = core_response.get("id") or object_id
         if cls.is_create_object_id(target_id):
             return cls.get_base_route()
-        return cls.get_edit_route(**{cls._get_object_key(): target_id})
+        return cls.get_edit_route(**{cls._get_object_key(): target_id}, period=cls.get_collection_period())
 
     @classmethod
     def process_form_data(cls, object_id: str):
