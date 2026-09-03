@@ -108,7 +108,19 @@ Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import j
 
 ## Advanced monitoring
 
-Taranis AI supports advanced monitoring of `core` and `frontend` using [Sentry](https://docs.sentry.io/). Leave the service-specific Sentry DSN variables unset to disable it.
+Taranis AI supports Sentry monitoring in `core` and `frontend`, plus OpenTelemetry monitoring in `core`, `frontend`, and RQ workers. It uses
+[OpenTelemetry Flask instrumentation](https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/flask/flask.html) for the web services.
+Set `OTEL_EXPORTER_OTLP_ENDPOINT` to one OTLP/HTTP base URL. Taranis sends traces to `/v1/traces` and metrics to `/v1/metrics`; leaving the base endpoint unset disables OpenTelemetry.
+
+Every Compose configuration includes an optional [Grafana OpenTelemetry LGTM](https://grafana.com/docs/opentelemetry/docker-lgtm/) service. Start the application and the bundled telemetry stack with:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://telemetry:4318 docker compose --profile telemetry up -d
+```
+
+Open Grafana at `http://localhost:${GRAFANA_PORT:-3000}` and sign in with `${GRAFANA_ADMIN_USER:-admin}` / `${GRAFANA_ADMIN_PASSWORD:-admin}`. The `telemetry_data` volume persists the local LGTM data. To use an external OTLP backend instead, omit the profile and set its base URL in `OTEL_EXPORTER_OTLP_ENDPOINT`.
+
+Frontend HTTP client spans, core request spans, and RQ job spans share W3C trace context. Workers also export completed-job counts and job-duration histograms. `OTEL_METRIC_EXPORT_INTERVAL` is expressed in milliseconds and defaults to `60000`.
 
 ## Advanced build methods
 
@@ -162,6 +174,9 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `DB_PASSWORD`                 | PostgreSQL database password               | `supersecret` |
 | `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
 | `JWT_COOKIE_SUFFIX`           | Literal suffix for JWT and CSRF cookie names | `''`        |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP base URL for traces and metrics  | `''`          |
+| `OTEL_EXPORTER_OTLP_HEADERS`  | Optional OTLP exporter headers             | `''`          |
+| `OTEL_METRIC_EXPORT_INTERVAL` | Metric export interval in milliseconds     | `60000`       |
 | `REALTIME_ENABLED`            | Enable Centrifugo publication and browser connections | `false` |
 | `CENTRIFUGO_API_URL`          | Cluster-internal Centrifugo HTTP API URL   | `http://centrifugo:9000` |
 | `CENTRIFUGO_API_KEY`          | Dedicated Centrifugo HTTP API key          | none          |
@@ -187,6 +202,9 @@ All other Centrifugo server behavior is configured through native `CENTRIFUGO_*`
 | `TARANIS_CORE_HOST`*    | Hostname and Port of the Taranis AI core   | `core:8080`                 |
 | `API_KEY`               | API Key for communication with core        | `supersecret`               |
 | `REDIS_URL`             | Redis connection URL                       | `redis://redis:6379`        |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP base URL for job traces and metrics | `''`                  |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Optional OTLP exporter headers           | `''`                        |
+| `OTEL_METRIC_EXPORT_INTERVAL` | Metric export interval in milliseconds   | `60000`                     |
 | `DISABLE_HTTP3`         | Disable HTTP/3 for web-based collectors    | `False`                     |
 | `DEBUG`                 | Debug logging                              | `False`                     |
 
@@ -199,6 +217,9 @@ All other Centrifugo server behavior is configured through native `CENTRIFUGO_*`
 | `JWT_COOKIE_SUFFIX`     | Literal suffix for JWT and CSRF cookie names | `''`                      |
 | `TARANIS_BASE_PATH`     | Deployment path used to scope authentication cookies | `/`              |
 | `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP base URL for traces and metrics  | `''`                         |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Optional OTLP exporter headers              | `''`                         |
+| `OTEL_METRIC_EXPORT_INTERVAL` | Metric export interval in milliseconds     | `60000`                      |
 | `REALTIME_ENABLED`      | Open the authenticated same-origin EventSource | `false`                  |
 | `TARANIS_FRONTEND_SENTRY_DSN` | Frontend Sentry DSN                        | `''`                         |
 | `DEBUG`                 | Debug logging                              | `False`                     |

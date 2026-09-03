@@ -56,6 +56,9 @@ services:
 
       GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
       GRANIAN_HOST: "${GRANIAN_HOST:-0.0.0.0}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
+      OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
+      OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
       TARANIS_CORE_SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
       SENTRY_ENABLE_LOGS: "${SENTRY_ENABLE_LOGS:-False}"
       SENTRY_SEND_DEFAULT_PII: "${SENTRY_SEND_DEFAULT_PII:-False}"
@@ -130,6 +133,9 @@ services:
       JWT_COOKIE_SUFFIX: "${JWT_COOKIE_SUFFIX:-}"
       REDIS_URL: "redis://redis:6379/0"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
+      OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
+      OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
       REALTIME_ENABLED: "${REALTIME_ENABLED:-false}"
       TARANIS_FRONTEND_SENTRY_DSN: "${TARANIS_FRONTEND_SENTRY_DSN:-}"
       SENTRY_ENABLE_LOGS: "${SENTRY_ENABLE_LOGS:-False}"
@@ -160,6 +166,9 @@ services:
       API_KEY: "${API_KEY}"
       REDIS_URL: "redis://redis:6379/0"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
+      OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
+      OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
       WORKER_TYPES: '["Collectors"]'
       DISABLE_HTTP3: "${DISABLE_HTTP3:-False}"
       DEBUG: "${DEBUG:-False}"
@@ -218,6 +227,9 @@ services:
       BOT_API_KEY: "${BOT_API_KEY}"
       REDIS_URL: "redis://redis:6379/0"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
+      OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
+      OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
       SUMMARY_API_ENDPOINT: "${SUMMARY_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/summarize}"
       TITLE_API_ENDPOINT: "${TITLE_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/title}"
       NLP_API_ENDPOINT: "${NLP_API_ENDPOINT:-http://llm-bot:${LLM_BOT_PORT:-8000}/ner}"
@@ -261,6 +273,28 @@ services:
       LLM_API_KEY: "${LLM_API_KEY:-}"
       LLM_MODEL: "${LLM_MODEL:-}"
       LLM_TIMEOUT: "${LLM_TIMEOUT:-120}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  telemetry:
+    profiles: ["telemetry"]
+    image: "docker.io/grafana/otel-lgtm:${GRAFANA_OTEL_LGTM_TAG:-0.30.2}"
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+      - "${OTEL_GRPC_PORT:-4317}:4317"
+      - "${OTEL_HTTP_PORT:-4318}:4318"
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+    volumes:
+      - telemetry_data:/data
+    deploy:
+      restart_policy:
+        condition: always
     logging:
       driver: "json-file"
       options:
@@ -344,3 +378,4 @@ volumes:
   database_data:
   core_data:
   redis_data:
+  telemetry_data:

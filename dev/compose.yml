@@ -33,6 +33,19 @@ services:
       timeout: 3s
       retries: 3
 
+  telemetry:
+    profiles: ["telemetry"]
+    image: "docker.io/grafana/otel-lgtm:${GRAFANA_OTEL_LGTM_TAG:-0.30.2}"
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+      - "${OTEL_GRPC_PORT:-4317}:4317"
+      - "${OTEL_HTTP_PORT:-4318}:4318"
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+    volumes:
+      - telemetry_data:/data
+
   centrifugo:
     image: "centrifugo/centrifugo:v6.9.1"
     depends_on:
@@ -71,3 +84,4 @@ services:
 
 volumes:
   database_data:
+  telemetry_data:

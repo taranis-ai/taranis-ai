@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     CENTRIFUGO_API_KEY: SecretStr = SecretStr("")
     CENTRIFUGO_CONNECT_PROXY_SECRET: SecretStr = SecretStr("")
     DISABLE_SCHEDULER: bool = False
+    OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
+    OTEL_SERVICE_NAME: str = "taranis-core"
+    OTEL_METRIC_EXPORT_INTERVAL: Annotated[float, Field(gt=0)] = 60_000
     TARANIS_CORE_SENTRY_DSN: str | None = None
     SENTRY_ENABLE_LOGS: bool = False
     SENTRY_SEND_DEFAULT_PII: bool = False
@@ -157,6 +160,12 @@ class Settings(BaseSettings):
     CACHE_KEY_PREFIX: str = CACHE_KEY_PREFIX_DEFAULT
     CACHE_REDIS_URL: str | None = None
     CACHE_REDIS_PASSWORD: SecretStr | None = None
+
+    @field_validator("OTEL_EXPORTER_OTLP_ENDPOINT", "TARANIS_CORE_SENTRY_DSN", mode="before")
+    def normalize_optional_telemetry_url(cls, value: str | None) -> str | None:
+        if not value:
+            return None
+        return value.strip().rstrip("/") or None
 
     @field_validator("JWT_SECRET_KEY", "API_KEY", mode="before")
     def check_non_empty_string_or_secret(cls, v, info: ValidationInfo) -> str | SecretStr:

@@ -38,6 +38,8 @@ Run the worker container healthcheck command:
 uv run --no-sync --frozen taranis-worker-healthcheck --mode worker
 ```
 
+Set `OTEL_EXPORTER_OTLP_ENDPOINT` to an OTLP/HTTP base URL to export an RQ consumer span, completed-job count, and duration histogram for every job. Trace context received through RQ metadata is propagated to worker calls back into core. Leave the endpoint unset to disable telemetry.
+
 Check or configure IntelOwl from a worker install/container:
 
 ```bash

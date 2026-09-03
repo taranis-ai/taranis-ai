@@ -11,8 +11,10 @@ from rq import get_current_job
 import worker.bots
 from worker.core_api import CoreApi, build_failure_task_result, build_success_task_result
 from worker.log import logger
+from worker.telemetry import instrument_job
 
 
+@instrument_job
 def bot_task(bot_id: str, filter: dict | None = None, trigger_dependents: bool = True):
     """Execute a bot to process news items.
 
