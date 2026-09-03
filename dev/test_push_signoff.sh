@@ -21,6 +21,7 @@ ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "Run this comman
 cd "$ROOT_DIR"
 
 require_command gh
+require_command uv
 
 ensure_clean_worktree "Working tree is not clean. Commit or stash changes before running signoff."
 
@@ -31,6 +32,11 @@ fi
 if ! gh extension list | grep -Fq 'basecamp/gh-signoff'; then
   fail "gh-signoff is not installed. Run 'gh extension install basecamp/gh-signoff'."
 fi
+
+UV_FROZEN=false uv audit --preview-features audit-command --locked --python-version 3.14 --python-platform linux --directory src/core
+UV_FROZEN=false uv audit --preview-features audit-command --locked --python-version 3.14 --python-platform linux --directory src/frontend
+UV_FROZEN=false uv audit --preview-features audit-command --locked --python-version 3.14 --python-platform linux --directory src/models
+UV_FROZEN=false uv audit --preview-features audit-command --locked --python-version 3.13 --python-platform linux --directory src/worker
 
 "$ROOT_DIR/dev/testpipeline.sh"
 

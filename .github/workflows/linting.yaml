@@ -75,6 +75,13 @@ jobs:
       - name: Set up Python
         run: uv python install
 
+      - name: Audit core and models dependencies
+        env:
+          UV_FROZEN: false
+        run: |
+          uv audit --preview-features audit-command --locked
+          uv audit --preview-features audit-command --locked --directory ../models
+
       - name: Install the project
         run: uv sync --all-extras
 
@@ -110,6 +117,11 @@ jobs:
 
       - name: Set up Python
         run: uv python install
+
+      - name: Audit frontend dependencies
+        env:
+          UV_FROZEN: false
+        run: uv audit --preview-features audit-command --locked
 
       - name: Install the project
         run: uv sync --all-extras
@@ -236,6 +248,11 @@ jobs:
 
       - name: Set up Python
         run: uv python install
+
+      - name: Audit worker dependencies
+        env:
+          UV_FROZEN: false
+        run: uv audit --preview-features audit-command --locked
 
       - name: Install worker
         run: uv sync --all-extras
