@@ -17,10 +17,9 @@
           <div class="card-body p-4 flex-row items-start gap-3">
             <input type="checkbox"
                    class="checkbox checkbox-primary mt-1"
-                   name="list_ids"
-                   value="{{ curated_list.id }}"
-                   data-testid="curated-list-{{ curated_list.id }}"
-                   {% if curated_list.id in selected_list_ids %}checked{% endif %}>
+                   name="list_names"
+                   value="{{ curated_list.name }}"
+                   {% if curated_list.name in selected_list_names %}checked{% endif %}>
             <span>
               <span class="font-semibold block">{{ curated_list.name }}</span>
               <span class="text-sm text-base-content/70 block mt-1">{{ curated_list.description }}</span>

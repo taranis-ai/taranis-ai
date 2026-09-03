@@ -746,6 +746,9 @@ class OSINTSources(MethodView):
         except osint_source.InvalidOSINTSourceIconError as exc:
             logger.warning("Invalid OSINT source icon payload: %s", exc)
             return {"error": exc.public_message}, 400
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         except ValueError as exc:
             db.session.rollback()
             logger.warning("Invalid OSINT source payload: %s", exc)
@@ -767,6 +770,9 @@ class OSINTSources(MethodView):
         except osint_source.InvalidOSINTSourceIconError as e:
             logger.warning("Invalid OSINT source icon payload: %s", e)
             return {"error": e.public_message}, 400
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         except ValueError as e:
             db.session.rollback()
             logger.warning("Invalid OSINT source update payload: %s", e)
@@ -811,6 +817,9 @@ class OSINTSources(MethodView):
             if source := osint_source.OSINTSource.update(source_id, data, patch=True):
                 _invalidate_admin_cache(200)
                 return {"message": "OSINT Source updated", "id": source.id}, 200
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         except (ValidationError, ValueError) as exc:
             db.session.rollback()
             logger.warning("Invalid OSINT source patch payload: %s", exc)
@@ -880,6 +889,9 @@ class OSINTSourcesImport(MethodView):
                 sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         except (KeyError, TypeError, ValueError):
             logger.exception("Invalid OSINT source import")
             return {"error": "Invalid source import"}, 400
@@ -903,12 +915,12 @@ class CuratedOSINTSourceLists(MethodView):
     def post(self):
         try:
             selection = CuratedOSINTSourceSelection.model_validate(request.get_json(silent=True) or {})
-            response = osint_source.OSINTSource.load_curated_lists(selection.list_ids)
+            response = osint_source.OSINTSource.load_curated_lists(selection.list_names)
         except ValidationError:
             return {"error": "Select at least one valid curated source list"}, 400
-        except osint_source.CuratedOSINTSourceConflictError:
-            logger.exception("Ambiguous existing OSINT sources prevent curated source loading")
-            return {"error": "Existing OSINT sources conflict with the curated source catalog"}, 409
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         except ValueError:
             logger.exception("Invalid curated OSINT source selection or catalog")
             return {"error": "Invalid curated OSINT source selection"}, 400
@@ -933,7 +945,11 @@ class OSINTSourceGroups(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
-        source_group = osint_source.OSINTSourceGroup.add(request.json)
+        try:
+            source_group = osint_source.OSINTSourceGroup.add(request.json)
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         _invalidate_admin_cache(200)
         return jsonify({"id": source_group.id, "message": "OSINT source group created successfully"}), 200
 
@@ -943,7 +959,11 @@ class OSINTSourceGroups(MethodView):
             return {"error": "No group_id provided"}, 400
         if not (data := request.json):
             return {"error": "No data provided"}, 400
-        response, status = osint_source.OSINTSourceGroup.update(group_id, data)
+        try:
+            response, status = osint_source.OSINTSourceGroup.update(group_id, data)
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         _invalidate_admin_cache(status)
         return response, status
 

@@ -6,7 +6,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from models.admin import CronSpec, CuratedOSINTSourceCatalog, CuratedOSINTSourceListSummary, OSINTSourceUpdateModel
+from models.admin import CronSpec, CuratedOSINTSourceCatalog, OSINTSourceUpdateModel
 from models.admin import OSINTSource as OSINTSourceModel
 from models.types import COLLECTOR_TYPES
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -39,18 +39,6 @@ class InvalidOSINTSourceIconError(ValueError):
     def __init__(self, public_message: str):
         super().__init__(public_message)
         self.public_message = public_message
-
-
-class CuratedOSINTSourceConflictError(ValueError):
-    pass
-
-
-CURATED_SOURCE_URL_PARAMETERS = {
-    COLLECTOR_TYPES.RSS_COLLECTOR: "FEED_URL",
-    COLLECTOR_TYPES.SIMPLE_WEB_COLLECTOR: "WEB_URL",
-    COLLECTOR_TYPES.RT_COLLECTOR: "BASE_URL",
-    COLLECTOR_TYPES.MISP_COLLECTOR: "URL",
-}
 
 
 class CollectorHTTPState(BaseModel):
@@ -102,7 +90,7 @@ class OSINTSource(BaseModel):
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     key: Mapped[str | None] = db.Column(db.String(64), unique=True, nullable=True)
-    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    name: Mapped[str] = db.Column(db.String(), nullable=False, unique=True)
     description: Mapped[str] = db.Column(db.String())
     rank: Mapped[int] = db.Column(db.Integer, nullable=False, default=0)
 
@@ -965,86 +953,48 @@ class OSINTSource(BaseModel):
         filename = "curated_osint_sources.json"
         catalog_path = Path(get_default_json(filename)) / filename
         with catalog_path.open(encoding="utf-8") as catalog_file:
-            catalog = CuratedOSINTSourceCatalog.model_validate(json.load(catalog_file))
-
-        source_identities: dict[tuple[COLLECTOR_TYPES, str], str] = {}
-        for source in catalog.sources:
-            if source.type not in CURATED_SOURCE_URL_PARAMETERS:
-                raise ValueError(f"Unsupported curated source type for {source.id}")
-            url_parameter = CURATED_SOURCE_URL_PARAMETERS[source.type]
-            source_url = str((source.parameters or {}).get(url_parameter, "")).strip()
-            if not source_url:
-                raise ValueError(f"Missing primary URL for curated source {source.id}")
-            identity = (source.type, source_url)
-            if existing_source_id := source_identities.get(identity):
-                raise ValueError(f"Curated sources {existing_source_id} and {source.id} have the same identity")
-            source_identities[identity] = str(source.id)
-        return catalog
+            return CuratedOSINTSourceCatalog.model_validate(json.load(catalog_file))
 
     @classmethod
     def get_curated_list_summaries(cls) -> list[dict[str, Any]]:
         catalog = cls.get_curated_catalog()
         return [
-            CuratedOSINTSourceListSummary(
-                id=curated_list.id,
-                name=curated_list.name,
-                description=curated_list.description,
-                source_count=len(curated_list.sources),
-            ).model_dump()
+            {
+                "name": curated_list.name,
+                "description": curated_list.description,
+                "source_count": len(curated_list.sources),
+            }
             for curated_list in catalog.lists
         ]
 
     @classmethod
-    def load_curated_lists(cls, list_ids: list[str]) -> dict[str, int | str]:
+    def load_curated_lists(cls, list_names: set[str]) -> dict[str, int | str]:
         catalog = cls.get_curated_catalog()
-        catalog_lists = {curated_list.id: curated_list for curated_list in catalog.lists}
-        if unknown_list_ids := set(list_ids) - catalog_lists.keys():
-            raise ValueError(f"Unknown curated list IDs: {', '.join(sorted(unknown_list_ids))}")
+        catalog_lists = {curated_list.name: curated_list for curated_list in catalog.lists}
+        if unknown_list_names := set(list_names) - catalog_lists.keys():
+            raise ValueError(f"Unknown curated list names: {', '.join(sorted(unknown_list_names))}")
 
-        selected_lists = [catalog_lists[list_id] for list_id in list_ids]
-        selected_source_keys = {source_key for curated_list in selected_lists for source_key in curated_list.sources}
-        catalog_sources = {source.id: source for source in catalog.sources}
-        existing_sources = list(db.session.execute(db.select(cls)).scalars().all())
-        keyed_sources = {source.key: source for source in existing_sources if source.key}
+        selected_lists = [catalog_lists[name] for name in list_names]
+        selected_source_names = {name for curated_list in selected_lists for name in curated_list.sources}
+        catalog_sources = {source.name: source for source in catalog.sources}
+        existing_sources = {
+            source.name: source for source in db.session.execute(db.select(cls).where(cls.name.in_(selected_source_names))).scalars()
+        }
+        existing_groups = {
+            group.name: group
+            for group in db.session.execute(db.select(OSINTSourceGroup).where(OSINTSourceGroup.name.in_(list_names))).scalars()
+        }
         resolved_sources: dict[str, OSINTSource] = {}
         created_sources: list[OSINTSource] = []
-        reused_source_count = 0
 
         try:
-            for source_key in selected_source_keys:
-                if source := keyed_sources.get(source_key):
-                    resolved_sources[source_key] = source
-                    reused_source_count += 1
-                    continue
-
-                curated_source = catalog_sources[source_key]
-                if curated_source.type not in CURATED_SOURCE_URL_PARAMETERS:
-                    raise ValueError(f"Unsupported curated source type for {source_key}")
-                url_parameter = CURATED_SOURCE_URL_PARAMETERS[curated_source.type]
-                curated_url = str((curated_source.parameters or {}).get(url_parameter, "")).strip()
-                if not curated_url:
-                    raise ValueError(f"Missing primary URL for curated source {source_key}")
-
-                legacy_matches = [
-                    source
-                    for source in existing_sources
-                    if source.key is None
-                    and source.type == curated_source.type
-                    and str(source.parameters.get(url_parameter, "")).strip() == curated_url
-                ]
-                if len(legacy_matches) > 1:
-                    raise CuratedOSINTSourceConflictError(f"Multiple existing sources match curated source {source_key}")
-                if legacy_matches:
-                    source = legacy_matches[0]
-                    source.key = source_key
-                    resolved_sources[source_key] = source
-                    reused_source_count += 1
-                    continue
-
-                source = cls.from_payload(curated_source)
-                db.session.add(source)
-                resolved_sources[source_key] = source
-                created_sources.append(source)
+            for source_name in selected_source_names:
+                source = existing_sources.get(source_name)
+                if source is None:
+                    source = cls.from_payload(catalog_sources[source_name])
+                    db.session.add(source)
+                    created_sources.append(source)
+                resolved_sources[source_name] = source
 
             default_group = OSINTSourceGroup.get_default()
             if default_group:
@@ -1055,20 +1005,16 @@ class OSINTSource(BaseModel):
             created_group_count = 0
             updated_group_count = 0
             for curated_list in selected_lists:
-                group = OSINTSourceGroup.get_by_key(curated_list.id)
+                group = existing_groups.get(curated_list.name)
                 if group is None:
-                    group = OSINTSourceGroup(
-                        id=curated_list.id,
-                        name=curated_list.name,
-                        description=curated_list.description,
-                    )
+                    group = OSINTSourceGroup(name=curated_list.name, description=curated_list.description)
                     db.session.add(group)
                     created_group_count += 1
                 else:
                     updated_group_count += 1
 
-                for source_key in curated_list.sources:
-                    source = resolved_sources[source_key]
+                for source_name in curated_list.sources:
+                    source = resolved_sources[source_name]
                     if source not in group.osint_sources:
                         group.osint_sources.append(source)
 
@@ -1078,12 +1024,16 @@ class OSINTSource(BaseModel):
             raise
 
         for source in created_sources:
-            source.schedule_osint_source()
+            try:
+                if source.schedule_osint_source() is not True:
+                    logger.warning("Curated OSINT source %s will be scheduled by queue reconciliation", source.id)
+            except Exception:
+                logger.exception("Failed to schedule curated OSINT source %s; queue reconciliation will retry it", source.id)
 
         return {
             "message": "Curated OSINT sources loaded successfully",
             "created_source_count": len(created_sources),
-            "reused_source_count": reused_source_count,
+            "reused_source_count": len(selected_source_names) - len(created_sources),
             "created_group_count": created_group_count,
             "updated_group_count": updated_group_count,
         }
@@ -1117,7 +1067,7 @@ class OSINTSourceGroup(BaseModel):
 
     id: Mapped[str] = db.Column(db.String(UUID_STR_LENGTH), primary_key=True, default=BaseModel.uuid7_str)
     key: Mapped[str | None] = db.Column(db.String(64), unique=True, nullable=True)
-    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    name: Mapped[str] = db.Column(db.String(), nullable=False, unique=True)
     description: Mapped[str] = db.Column(db.String())
     default: Mapped[bool] = db.Column(db.Boolean(), default=False)
 

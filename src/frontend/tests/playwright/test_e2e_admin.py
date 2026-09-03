@@ -384,8 +384,8 @@ class TestEndToEndAdmin(BaseE2ETest):
         def load_and_search_curated_sources():
             page.get_by_role("button", name="Curated sources").click()
             expect(page.get_by_role("heading", name="Add curated OSINT sources")).to_be_visible()
-            page.get_by_test_id("curated-list-austrian-public-sector").check()
-            page.get_by_test_id("curated-list-cyber-threat-intelligence").check()
+            page.locator('input[name="list_names"][value="Austrian Public Sector"]').check()
+            page.locator('input[name="list_names"][value="Cyber Threat Intelligence"]').check()
             page.get_by_test_id("load-curated-sources-button").click()
             osint_table = page.get_by_test_id("osint_source-table")
             all_rows = osint_table.locator("tbody tr")
@@ -401,7 +401,7 @@ class TestEndToEndAdmin(BaseE2ETest):
 
             osint_table.locator("thead").get_by_role("checkbox").check()
             delete_button = page.get_by_test_id("delete-osint_source-button")
-            expect(delete_button).to_contain_text("Delete 6 source")
+            expect(delete_button).to_contain_text("Delete 6 sources")
             self.highlight_element(delete_button).click()
             force_checkbox = page.get_by_role("checkbox", name="Force Deletion of OSINT source and all its data")
             expect(force_checkbox).to_be_visible()

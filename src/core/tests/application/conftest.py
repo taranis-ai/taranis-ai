@@ -19,16 +19,15 @@ def fake_source(app):
     with app.app_context():
         from core.model.osint_source import OSINTSource
 
+        source_id = str(uuid.uuid7())
         source_data = {
-            "id": str(uuid.uuid7()),
+            "id": source_id,
             "description": "This is a test source",
-            "name": "Test Source",
+            "name": f"Test Source {source_id}",
             "rank": 0,
             "parameters": {"FEED_URL": "https://url/feed.xml"},
             "type": "rss_collector",
         }
-        source_id = source_data["id"]
-
         if not OSINTSource.get(source_id):
             OSINTSource.add(source_data)
 

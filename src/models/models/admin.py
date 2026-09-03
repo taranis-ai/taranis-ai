@@ -309,7 +309,6 @@ class OSINTSourceGroup(TaranisBaseModel):
 
 
 class CuratedOSINTSourceList(TaranisBaseModel):
-    id: str = Field(min_length=1, max_length=64)
     name: str
     description: str = ""
     sources: list[str] = Field(min_length=1)
@@ -322,39 +321,25 @@ class CuratedOSINTSourceCatalog(TaranisBaseModel):
 
     @model_validator(mode="after")
     def validate_catalog_references(self):
-        source_ids = [source.id for source in self.sources]
-        list_ids = [curated_list.id for curated_list in self.lists]
-        if any(source_id is None or not source_id or len(source_id) > 64 for source_id in source_ids) or len(source_ids) != len(
-            set(source_ids)
-        ):
-            raise ValueError("Curated source IDs must be present and unique")
-        if len(list_ids) != len(set(list_ids)):
-            raise ValueError("Curated list IDs must be unique")
+        source_names = [source.name for source in self.sources]
+        list_names = [curated_list.name for curated_list in self.lists]
+        if len(source_names) != len(set(source_names)):
+            raise ValueError("Curated source names must be unique")
+        if len(list_names) != len(set(list_names)):
+            raise ValueError("Curated list names must be unique")
+        if any(len(curated_list.sources) != len(set(curated_list.sources)) for curated_list in self.lists):
+            raise ValueError("Curated source names must be unique within a list")
 
-        known_source_ids = set(source_ids)
-        if unknown_source_ids := {
-            source_id for curated_list in self.lists for source_id in curated_list.sources if source_id not in known_source_ids
+        known_source_names = set(source_names)
+        if unknown_source_names := {
+            source_name for curated_list in self.lists for source_name in curated_list.sources if source_name not in known_source_names
         }:
-            raise ValueError(f"Unknown curated source IDs: {', '.join(sorted(unknown_source_ids))}")
+            raise ValueError(f"Unknown curated source names: {', '.join(sorted(unknown_source_names))}")
         return self
 
 
-class CuratedOSINTSourceListSummary(TaranisBaseModel):
-    id: str
-    name: str
-    description: str = ""
-    source_count: int
-
-
 class CuratedOSINTSourceSelection(TaranisBaseModel):
-    list_ids: list[str] = Field(min_length=1)
-
-    @field_validator("list_ids")
-    @classmethod
-    def require_unique_list_ids(cls, value: list[str]) -> list[str]:
-        if len(value) != len(set(value)):
-            raise ValueError("Curated list IDs must be unique")
-        return value
+    list_names: set[str] = Field(min_length=1)
 
 
 class ProductType(TaranisBaseModel):

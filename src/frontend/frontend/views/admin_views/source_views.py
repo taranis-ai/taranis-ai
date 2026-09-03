@@ -347,7 +347,7 @@ class SourceView(AdminBaseView):
         return CoreApi.stream_proxy(core_resp, "sources_export.json")
 
     @classmethod
-    def curated_lists_view(cls, error: str | None = None, selected_list_ids: list[str] | None = None, status: int = 200):
+    def curated_lists_view(cls, error: str | None = None, selected_list_names: list[str] | None = None, status: int = 200):
         payload = CoreApi().get_curated_osint_source_lists()
         curated_lists = payload.get("items", []) if isinstance(payload, dict) else []
         if not curated_lists and error is None:
@@ -358,24 +358,24 @@ class SourceView(AdminBaseView):
                 "osint_source/osint_source_curated_lists.html",
                 curated_lists=curated_lists,
                 error=error,
-                selected_list_ids=selected_list_ids or [],
+                selected_list_names=selected_list_names or [],
             ),
             status,
         )
 
     @classmethod
     def curated_lists_post_view(cls):
-        selected_list_ids = request.form.getlist("list_ids")
-        if not selected_list_ids:
+        selected_list_names = request.form.getlist("list_names")
+        if not selected_list_names:
             return cls.curated_lists_view("Select at least one curated source list.", status=400)
 
         try:
-            response = CoreApi().load_curated_osint_source_lists(selected_list_ids)
+            response = CoreApi().load_curated_osint_source_lists(selected_list_names)
         except RequestException:
             logger.exception("Curated OSINT source request failed")
             return cls.curated_lists_view(
                 "Failed to load curated OSINT sources.",
-                selected_list_ids,
+                selected_list_names,
                 502,
             )
 
@@ -384,7 +384,7 @@ class SourceView(AdminBaseView):
             error = payload.get("error") if payload else None
             if not isinstance(error, str) or not error:
                 error = "Failed to load curated OSINT sources."
-            return cls.curated_lists_view(error, selected_list_ids, response.status_code or 500)
+            return cls.curated_lists_view(error, selected_list_names, response.status_code or 500)
 
         payload = cls._response_payload(response) or {}
         created = int(payload.get("created_source_count", 0))

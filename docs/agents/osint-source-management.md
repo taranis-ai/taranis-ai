@@ -14,7 +14,7 @@ Bulk creation can also create one named source group containing exactly the new 
 
 Bulk deletion validates the complete source selection before changing data and commits all database deletions atomically. The optional `force` query parameter accepts only `true` or `false`; forced deletion also removes related news items and stories left without news items. Queue, scheduler, and MISP job cleanup runs after the database commit.
 
-Administrators can add one or more bundled curated source lists at any time. Catalog source and list IDs become stable database keys, while source and group names remain user-editable. Loading overlapping or previously loaded lists creates each source once, adopts exactly one unkeyed source with the same collector type and primary URL, and adds missing group memberships. Reloading never overwrites user-edited fields or removes sources or memberships. Ambiguous legacy matches fail atomically.
+Administrators can add one or more bundled curated source lists at any time. Source and group names are unique and are the curated catalog identities. Loading overlapping or previously loaded lists creates each source once and adds missing group memberships. Reloading never overwrites existing source or group fields and never removes sources or memberships.
 
 The OSINT source table keeps actions in its primary toolbar. Search, manual-source visibility, and status share a unified query row directly above the table. The creation buttons use the page context to keep their labels concise: New source and Curated sources.
 
@@ -36,7 +36,7 @@ Invalid bulk form input returns HTTP 400. Core import failures preserve the upst
 
 The bulk form uses Alpine only for adding and removing local name/URL rows. Selecting a collector loads its shared parameter fragment over HTMX with the collector's primary URL parameter omitted; regular parameter requests, including an explicit `bulk=false`, keep the URL field. On submit, the frontend builds a version-4 import payload by combining each name/URL pair with the shared settings. Optional group indexes associate the newly inserted sources with the new group in the same core database transaction.
 
-The curated-list form is loaded into the admin form container over HTMX. Core reads and validates the bundled catalog, resolves the union of selected source keys, adopts or creates sources, and creates or relinks keyed groups in one transaction. Only newly created sources are scheduled after commit. Frontend source and source-group caches are invalidated after success.
+The curated-list form is loaded into the admin form container over HTMX. Core reads and validates the bundled catalog, resolves selected lists and sources by name, and creates or relinks them in one transaction. Newly created sources are scheduled after commit; failures are logged and the persisted source remains available to queue reconciliation. Frontend source and source-group caches are invalidated after success.
 
 ## Testing
 
@@ -44,12 +44,10 @@ Frontend unit coverage verifies the create-form documentation link, supported co
 
 Core API coverage verifies explicit force parsing, all-ID validation, atomic failure behavior, and forced deletion in `src/core/tests/application/admin_console/configuration/test_config_api.py`.
 
-The same core API suite covers overlapping curated lists, idempotent reloads, preservation of edits, membership repair, legacy adoption, and ambiguous-match rollback. Frontend unit and admin browser coverage exercise the multi-select workflow and its safe failure state.
-
-Run `cd src/frontend && uv run pytest tests/unit/views/test_views.py` for focused view coverage. Run the focused admin browser test through the frontend E2E setup for the complete workflow.
+Admin browser coverage exercises the curated multi-select workflow.
 
 ## Pitfalls
 
 Keep the collector-to-primary-URL mapping explicit. A collector without a single primary URL should not appear in the bulk form. Do not create a second persistence path: version-4 import already validates sources, creates optional groups, applies default-group membership, commits atomically, and schedules the new sources after the commit.
 
-Curated loading is intentionally separate from arbitrary file import because it must reconcile stable catalog identities. Match legacy sources by exact trimmed primary URL and collector type; do not normalize URLs or match by editable names. Preserve keyed group names and descriptions on every reload.
+Curated loading is intentionally separate from arbitrary file import because it reconciles existing sources and groups by their unique names. Keep catalog source and list names stable; changing one creates a new database record on the next load.

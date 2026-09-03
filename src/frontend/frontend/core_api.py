@@ -147,8 +147,8 @@ class CoreApi:
     def get_curated_osint_source_lists(self):
         return self.api_get("/config/curated-osint-source-lists")
 
-    def load_curated_osint_source_lists(self, list_ids: list[str]):
-        return self.api_post("/config/curated-osint-source-lists", json_data={"list_ids": list_ids})
+    def load_curated_osint_source_lists(self, list_names: list[str]):
+        return self.api_post("/config/curated-osint-source-lists", json_data={"list_names": list_names})
 
     def get_osint_source_preview(self, osint_source_id: str):
         try:

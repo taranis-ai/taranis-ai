@@ -4454,8 +4454,6 @@ paths:
                     items:
                       type: object
                       properties:
-                        id:
-                          type: string
                         name:
                           type: string
                         description:
@@ -4482,9 +4480,9 @@ paths:
             schema:
               type: object
               required:
-              - list_ids
+              - list_names
               properties:
-                list_ids:
+                list_names:
                   type: array
                   minItems: 1
                   uniqueItems: true
@@ -4514,8 +4512,6 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '403':
           description: forbidden
-        '409':
-          description: ambiguous existing source match
         '500':
           description: curated sources could not be loaded
   /config/export-osint-sources:

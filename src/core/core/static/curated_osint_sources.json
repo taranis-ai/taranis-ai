@@ -2,7 +2,6 @@
   "version": 1,
   "sources": [
     {
-      "id": "cert-at-blog",
       "name": "CERT.at - Blog",
       "description": "This feed contains the blog from www.CERT.at",
       "rank": 0,
@@ -14,7 +13,6 @@
       }
     },
     {
-      "id": "cert-org-vulnerability-notes",
       "name": "CERT.org",
       "description": "",
       "rank": 0,
@@ -24,7 +22,6 @@
       }
     },
     {
-      "id": "austrian-interior-ministry-news",
       "name": "Aktuelles aus dem BM.I",
       "description": "Übersicht der neuesten Artikel aus dem Bundesministerium für Inneres",
       "rank": 0,
@@ -34,7 +31,6 @@
       }
     },
     {
-      "id": "cz-nic-staff-blog",
       "name": "The CZ.NIC Staff Blog",
       "description": "@ IN SOA domains.dns.enum.mojeid.internet. nic.cz.",
       "rank": 0,
@@ -46,7 +42,6 @@
       }
     },
     {
-      "id": "cert-at-all",
       "name": "CERT.at - All",
       "description": "Dieser Feed kombiniert alle deutschsprachigen Feed-Updates von www.CERT.at",
       "rank": 0,
@@ -58,7 +53,6 @@
       }
     },
     {
-      "id": "gunnar-haslinger-blog",
       "name": "Gunnar Haslinger",
       "description": "My shared public notes: Blog about IT, Security, etc ...",
       "rank": 0,
@@ -68,7 +62,6 @@
       }
     },
     {
-      "id": "futurezone-at",
       "name": "futurezone.at",
       "description": "",
       "rank": 0,
@@ -78,7 +71,6 @@
       }
     },
     {
-      "id": "derstandard-web",
       "name": "Web - derStandard.at",
       "description": "",
       "rank": 0,
@@ -88,7 +80,6 @@
       }
     },
     {
-      "id": "orf-news",
       "name": "news.ORF.at",
       "description": "Die aktuellsten Nachrichten auf einen Blick - aus Österreich und der ganzen Welt. In Text, Bild und Video.",
       "rank": 0,
@@ -98,7 +89,6 @@
       }
     },
     {
-      "id": "orf-austria",
       "name": "oesterreich.ORF.at",
       "description": "Die aktuellsten Nachrichten aus den österreichischen Bundesländern.",
       "rank": 0,
@@ -108,7 +98,6 @@
       }
     },
     {
-      "id": "cert-vde-advisories",
       "name": "CERT@VDE Advisory Feed",
       "description": "Feed for CERT@VDE Advisories",
       "rank": 0,
@@ -119,7 +108,6 @@
       }
     },
     {
-      "id": "divd-csirt",
       "name": "DIVD CSIRT",
       "description": "Making the internet safer through Coordinated Vulnerability Disclosure",
       "rank": 0,
@@ -130,7 +118,6 @@
       }
     },
     {
-      "id": "cisco-security-advisories",
       "name": "Cisco Security Advisory",
       "description": "",
       "rank": 0,
@@ -141,7 +128,6 @@
       }
     },
     {
-      "id": "cisa-ics-advisories",
       "name": "ICS Advisories",
       "description": "",
       "rank": 0,
@@ -152,7 +138,6 @@
       }
     },
     {
-      "id": "zdi-published-advisories",
       "name": "ZDI: Published Advisories",
       "description": "Published Advisories",
       "rank": 0,
@@ -163,7 +148,6 @@
       }
     },
     {
-      "id": "siemens-productcert-advisories",
       "name": "Siemens ProductCERT Security Advisories",
       "description": "Siemens Security Advisories",
       "rank": 0,
@@ -175,7 +159,6 @@
       }
     },
     {
-      "id": "palo-alto-security-advisories",
       "name": "Palo Alto Networks Security Advisories",
       "description": "",
       "rank": 0,
@@ -186,7 +169,6 @@
       }
     },
     {
-      "id": "debian-security-advisories",
       "name": "Debian Security",
       "description": "Debian Security Advisories",
       "rank": 0,
@@ -197,7 +179,6 @@
       }
     },
     {
-      "id": "cert-bund-wid-advisories",
       "name": "WID Cert Bund",
       "description": "",
       "rank": 0,
@@ -209,18 +190,16 @@
       }
     },
     {
-      "id": "oracle-security-alerts",
       "name": "Oracle Security Alerts",
       "description": "Security Alerts Issued by Oracle",
       "rank": 0,
       "type": "rss_collector",
       "parameters": {
-        "FEED_URL": "http://www.oracle.com/ocom/groups/public/@otn/documents/webcontent/rss-otn-sec.xml",
+        "FEED_URL": "https://www.oracle.com/ocom/groups/public/@otn/documents/webcontent/rss-otn-sec.xml",
         "USE_FEED_CONTENT": "false"
       }
     },
     {
-      "id": "mozilla-security-blog",
       "name": "Mozilla Security Blog",
       "description": "",
       "rank": 0,
@@ -231,7 +210,6 @@
       }
     },
     {
-      "id": "unit-42",
       "name": "Unit 42",
       "description": "Palo Alto Networks",
       "rank": 0,
@@ -242,18 +220,16 @@
       }
     },
     {
-      "id": "project-zero",
       "name": "Project Zero",
       "description": "News and updates from the Project Zero team at Google",
       "rank": 0,
       "type": "rss_collector",
       "parameters": {
-        "FEED_URL": "http://googleprojectzero.blogspot.com/feeds/posts/default?alt=rss",
+        "FEED_URL": "https://googleprojectzero.blogspot.com/feeds/posts/default?alt=rss",
         "USE_FEED_CONTENT": "false"
       }
     },
     {
-      "id": "the-dfir-report",
       "name": "TheDFIRReport",
       "description": "",
       "rank": 0,
@@ -265,7 +241,6 @@
       }
     },
     {
-      "id": "objective-see-blog",
       "name": "Objective-See's Blog",
       "description": "All Things Related to Mac Security",
       "rank": 0,
@@ -276,7 +251,6 @@
       }
     },
     {
-      "id": "sans-internet-storm-center",
       "name": "SANS Internet Storm Center, InfoCON: green",
       "description": "SANS Internet Storm Center - Cooperative Cyber Security Monitor",
       "rank": 0,
@@ -287,7 +261,6 @@
       }
     },
     {
-      "id": "cryptographic-engineering",
       "name": "A Few Thoughts on Cryptographic Engineering",
       "description": "Some random thoughts about crypto. Notes from a course I teach. Pictures of my dachshunds.",
       "rank": 0,
@@ -298,7 +271,6 @@
       }
     },
     {
-      "id": "schneier-on-security",
       "name": "Schneier on Security",
       "description": "",
       "rank": 0,
@@ -309,18 +281,16 @@
       }
     },
     {
-      "id": "security-affairs",
       "name": "Security Affairs",
       "description": "Read, think, share … Security is everyone's responsibility",
       "rank": 0,
       "type": "rss_collector",
       "parameters": {
-        "FEED_URL": "http://securityaffairs.co/wordpress/feed",
+        "FEED_URL": "https://securityaffairs.co/wordpress/feed",
         "USE_FEED_CONTENT": "false"
       }
     },
     {
-      "id": "the-record",
       "name": "The Record",
       "description": "",
       "rank": 0,
@@ -331,18 +301,16 @@
       }
     },
     {
-      "id": "the-register-security",
       "name": "The Register - Security",
       "description": "Biting the hand that feeds IT — Enterprise Technology News and Analysis",
       "rank": 0,
       "type": "rss_collector",
       "parameters": {
-        "FEED_URL": "http://www.theregister.co.uk/security/headlines.atom",
+        "FEED_URL": "https://www.theregister.co.uk/security/headlines.atom",
         "USE_FEED_CONTENT": "false"
       }
     },
     {
-      "id": "securityweek",
       "name": "SecurityWeek RSS Feed",
       "description": "Latest cybersecurity news and expert insights from SecurityWeek's RSS feed",
       "rank": 0,
@@ -353,7 +321,6 @@
       }
     },
     {
-      "id": "heise-security",
       "name": "heise Security",
       "description": "News und Hintergrund-Informationen zur IT-Sicherheit",
       "rank": 0,
@@ -364,7 +331,6 @@
       }
     },
     {
-      "id": "krebs-on-security",
       "name": "Krebs on Security",
       "description": "Independent investigative reporting on cybercrime and computer security.",
       "rank": 0,
@@ -375,7 +341,6 @@
       }
     },
     {
-      "id": "darknet",
       "name": "Darknet - Hacking Tools, Hacker News & Cyber Security",
       "description": "Hacking tools, security research, and penetration-testing news.",
       "rank": 0,
@@ -386,7 +351,6 @@
       }
     },
     {
-      "id": "bleepingcomputer",
       "name": "BleepingComputer",
       "description": "Cybersecurity news, incident reporting, and technical support coverage.",
       "rank": 0,
@@ -397,7 +361,6 @@
       }
     },
     {
-      "id": "graham-cluley",
       "name": "Graham Cluley",
       "description": "Cybersecurity news, analysis, and opinion.",
       "rank": 0,
@@ -408,7 +371,6 @@
       }
     },
     {
-      "id": "it-security-guru",
       "name": "IT Security Guru",
       "description": "IT security and cybersecurity news from the UK, Europe, and worldwide.",
       "rank": 0,
@@ -419,7 +381,6 @@
       }
     },
     {
-      "id": "cyberscoop",
       "name": "CyberScoop",
       "description": "Cybersecurity policy, government, and incident reporting.",
       "rank": 0,
@@ -430,7 +391,6 @@
       }
     },
     {
-      "id": "infosecurity-magazine",
       "name": "Infosecurity Magazine",
       "description": "Information-security news and analysis.",
       "rank": 0,
@@ -441,7 +401,6 @@
       }
     },
     {
-      "id": "help-net-security",
       "name": "Help Net Security",
       "description": "Enterprise security news, research, and expert commentary.",
       "rank": 0,
@@ -452,7 +411,6 @@
       }
     },
     {
-      "id": "cysecurity-news",
       "name": "CySecurity News",
       "description": "Cybersecurity news, data breaches, vulnerabilities, and hacking incidents.",
       "rank": 0,
@@ -463,18 +421,16 @@
       }
     },
     {
-      "id": "the-hacker-news",
       "name": "The Hacker News",
       "description": "Cybersecurity news and technical threat coverage.",
       "rank": 0,
       "type": "rss_collector",
       "parameters": {
-        "FEED_URL": "http://feeds.feedburner.com/TheHackersNews",
+        "FEED_URL": "https://feeds.feedburner.com/TheHackersNews",
         "USE_FEED_CONTENT": "false"
       }
     },
     {
-      "id": "troy-hunt",
       "name": "Troy Hunt",
       "description": "Security, privacy, data-breach, and software-development analysis.",
       "rank": 0,
@@ -485,7 +441,6 @@
       }
     },
     {
-      "id": "taosecurity-blog",
       "name": "TaoSecurity Blog",
       "description": "Network security monitoring, incident response, and security strategy.",
       "rank": 0,
@@ -496,7 +451,6 @@
       }
     },
     {
-      "id": "securosis",
       "name": "Securosis",
       "description": "Independent information-security research and analysis.",
       "rank": 0,
@@ -507,7 +461,6 @@
       }
     },
     {
-      "id": "reddit-netsec",
       "name": "r/netsec",
       "description": "Community-selected technical information-security submissions.",
       "rank": 0,
@@ -518,7 +471,6 @@
       }
     },
     {
-      "id": "google-online-security-blog",
       "name": "Google Online Security Blog",
       "description": "Security and safety research and announcements from Google.",
       "rank": 0,
@@ -529,7 +481,6 @@
       }
     },
     {
-      "id": "microsoft-security-blog",
       "name": "Microsoft Security Blog",
       "description": "Microsoft security research, threat intelligence, and defensive guidance.",
       "rank": 0,
@@ -540,7 +491,6 @@
       }
     },
     {
-      "id": "securelist",
       "name": "Securelist",
       "description": "Threat research and analysis from Kaspersky's security researchers.",
       "rank": 0,
@@ -551,7 +501,6 @@
       }
     },
     {
-      "id": "malwarebytes",
       "name": "Malwarebytes",
       "description": "Malware, scam, privacy, and threat research from Malwarebytes.",
       "rank": 0,
@@ -562,7 +511,6 @@
       }
     },
     {
-      "id": "cisco-talos-blog",
       "name": "Cisco Talos Blog",
       "description": "Threat intelligence and vulnerability research from Cisco Talos.",
       "rank": 0,
@@ -573,7 +521,6 @@
       }
     },
     {
-      "id": "cisco-security-blog",
       "name": "Cisco Security Blog",
       "description": "Security research, defensive guidance, and product-security news from Cisco.",
       "rank": 0,
@@ -584,7 +531,6 @@
       }
     },
     {
-      "id": "qualys-security-blog",
       "name": "Qualys Security Blog",
       "description": "Vulnerability research and security guidance from Qualys.",
       "rank": 0,
@@ -595,7 +541,6 @@
       }
     },
     {
-      "id": "palo-alto-networks-blog",
       "name": "Palo Alto Networks Blog",
       "description": "Security research, strategy, and product news from Palo Alto Networks.",
       "rank": 0,
@@ -606,7 +551,6 @@
       }
     },
     {
-      "id": "welivesecurity",
       "name": "WeLiveSecurity",
       "description": "Security research, malware analysis, and practical guidance from ESET.",
       "rank": 0,
@@ -617,7 +561,6 @@
       }
     },
     {
-      "id": "kaspersky-official-blog",
       "name": "Kaspersky Official Blog",
       "description": "Consumer and enterprise security guidance from Kaspersky.",
       "rank": 0,
@@ -628,7 +571,6 @@
       }
     },
     {
-      "id": "clearsky-cyber-security",
       "name": "ClearSky Cyber Security",
       "description": "Threat intelligence and incident research from ClearSky Cyber Security.",
       "rank": 0,
@@ -639,7 +581,6 @@
       }
     },
     {
-      "id": "crowdstrike-blog",
       "name": "CrowdStrike Blog",
       "description": "Threat research, incident analysis, and security guidance from CrowdStrike.",
       "rank": 0,
@@ -650,7 +591,6 @@
       }
     },
     {
-      "id": "full-disclosure",
       "name": "Full Disclosure",
       "description": "Vendor-neutral disclosure and discussion of vulnerabilities and exploitation techniques.",
       "rank": 0,
@@ -661,7 +601,6 @@
       }
     },
     {
-      "id": "have-i-been-pwned-latest-breaches",
       "name": "Have I Been Pwned - Latest Breaches",
       "description": "Newly added data breaches from Have I Been Pwned.",
       "rank": 0,
@@ -672,7 +611,6 @@
       }
     },
     {
-      "id": "cxsecurity-database",
       "name": "CXSecurity Exploit Database",
       "description": "Exploit and vulnerability database updates from CXSecurity.",
       "rank": 0,
@@ -683,18 +621,16 @@
       }
     },
     {
-      "id": "jvn-vulnerability-notes",
       "name": "JVNRSS Feed - Update Entry",
       "description": "New and updated Japan Vulnerability Notes.",
       "rank": 0,
       "type": "rss_collector",
       "parameters": {
-        "FEED_URL": "http://jvn.jp/en/rss/jvnJP.rdf",
+        "FEED_URL": "https://jvn.jp/en/rss/jvnJP.rdf",
         "USE_FEED_CONTENT": "false"
       }
     },
     {
-      "id": "vuldb-updates",
       "name": "VulDB Updates",
       "description": "High-volume vulnerability intelligence updates from VulDB.",
       "rank": 0,
@@ -705,7 +641,6 @@
       }
     },
     {
-      "id": "exploit-db",
       "name": "Exploit-DB",
       "description": "New exploits and vulnerability research from the Exploit Database.",
       "rank": 0,
@@ -716,7 +651,6 @@
       }
     },
     {
-      "id": "cisa-alerts",
       "name": "CISA Cybersecurity Advisories",
       "description": "Current cybersecurity alerts and advisories from CISA.",
       "rank": 0,
@@ -729,186 +663,184 @@
   ],
   "lists": [
     {
-      "id": "austrian-news",
       "name": "Austrian News",
       "description": "General Austrian news and technology reporting.",
       "sources": [
-        "austrian-interior-ministry-news",
-        "futurezone-at",
-        "derstandard-web",
-        "orf-news",
-        "orf-austria"
+        "Aktuelles aus dem BM.I",
+        "futurezone.at",
+        "Web - derStandard.at",
+        "news.ORF.at",
+        "oesterreich.ORF.at"
       ]
     },
     {
-      "id": "austrian-public-sector",
       "name": "Austrian Public Sector",
       "description": "Updates from Austrian public-sector and national cybersecurity organizations.",
-      "sources": ["austrian-interior-ministry-news", "cert-at-blog", "cert-at-all"]
+      "sources": [
+        "Aktuelles aus dem BM.I",
+        "CERT.at - Blog",
+        "CERT.at - All"
+      ]
     },
     {
-      "id": "cyber-threat-intelligence",
       "name": "Cyber Threat Intelligence",
       "description": "Cybersecurity advisories, vulnerability notes, and practitioner reporting.",
       "sources": [
-        "cert-at-blog",
-        "cert-at-all",
-        "cert-org-vulnerability-notes",
-        "cz-nic-staff-blog",
-        "gunnar-haslinger-blog"
+        "CERT.at - Blog",
+        "CERT.at - All",
+        "CERT.org",
+        "The CZ.NIC Staff Blog",
+        "Gunnar Haslinger"
       ]
     },
     {
-      "id": "technology-news",
       "name": "Technology News",
       "description": "Technology and security reporting from Austrian and regional sources.",
-      "sources": ["cz-nic-staff-blog", "gunnar-haslinger-blog", "futurezone-at", "derstandard-web"]
+      "sources": [
+        "The CZ.NIC Staff Blog",
+        "Gunnar Haslinger",
+        "futurezone.at",
+        "Web - derStandard.at"
+      ]
     },
     {
-      "id": "security-advisories",
       "name": "Security Advisories",
       "description": "Authoritative vulnerability and security advisories from public-sector, vendor, and independent research teams.",
       "sources": [
-        "cert-vde-advisories",
-        "cert-org-vulnerability-notes",
-        "divd-csirt",
-        "cisco-security-advisories",
-        "cisa-ics-advisories",
-        "zdi-published-advisories",
-        "siemens-productcert-advisories",
-        "palo-alto-security-advisories",
-        "debian-security-advisories",
-        "cert-bund-wid-advisories",
-        "oracle-security-alerts",
-        "cisa-alerts",
-        "jvn-vulnerability-notes",
-        "full-disclosure"
+        "CERT@VDE Advisory Feed",
+        "CERT.org",
+        "DIVD CSIRT",
+        "Cisco Security Advisory",
+        "ICS Advisories",
+        "ZDI: Published Advisories",
+        "Siemens ProductCERT Security Advisories",
+        "Palo Alto Networks Security Advisories",
+        "Debian Security",
+        "WID Cert Bund",
+        "Oracle Security Alerts",
+        "CISA Cybersecurity Advisories",
+        "JVNRSS Feed - Update Entry",
+        "Full Disclosure"
       ]
     },
     {
-      "id": "threat-research",
       "name": "Threat Research",
       "description": "Original vulnerability, malware, incident-response, and security engineering research.",
       "sources": [
-        "mozilla-security-blog",
-        "unit-42",
-        "project-zero",
-        "the-dfir-report",
-        "objective-see-blog",
-        "sans-internet-storm-center",
-        "cryptographic-engineering",
-        "schneier-on-security",
-        "krebs-on-security",
-        "troy-hunt",
-        "taosecurity-blog",
-        "securosis",
-        "clearsky-cyber-security"
+        "Mozilla Security Blog",
+        "Unit 42",
+        "Project Zero",
+        "TheDFIRReport",
+        "Objective-See's Blog",
+        "SANS Internet Storm Center, InfoCON: green",
+        "A Few Thoughts on Cryptographic Engineering",
+        "Schneier on Security",
+        "Krebs on Security",
+        "Troy Hunt",
+        "TaoSecurity Blog",
+        "Securosis",
+        "ClearSky Cyber Security"
       ]
     },
     {
-      "id": "cybersecurity-news",
       "name": "Cybersecurity News",
       "description": "Broad English and German cybersecurity news and incident reporting with current, parseable feeds.",
       "sources": [
-        "security-affairs",
-        "the-record",
-        "the-register-security",
-        "securityweek",
-        "heise-security",
-        "krebs-on-security",
-        "darknet",
-        "bleepingcomputer",
-        "graham-cluley",
-        "it-security-guru",
-        "cyberscoop",
-        "infosecurity-magazine",
-        "help-net-security",
-        "cysecurity-news",
-        "the-hacker-news"
+        "Security Affairs",
+        "The Record",
+        "The Register - Security",
+        "SecurityWeek RSS Feed",
+        "heise Security",
+        "Krebs on Security",
+        "Darknet - Hacking Tools, Hacker News & Cyber Security",
+        "BleepingComputer",
+        "Graham Cluley",
+        "IT Security Guru",
+        "CyberScoop",
+        "Infosecurity Magazine",
+        "Help Net Security",
+        "CySecurity News",
+        "The Hacker News"
       ]
     },
     {
-      "id": "security-vendor-research",
       "name": "Security Vendor Research",
       "description": "Security research, threat intelligence, and defensive guidance from established security vendors.",
       "sources": [
-        "mozilla-security-blog",
-        "google-online-security-blog",
-        "microsoft-security-blog",
-        "securelist",
-        "malwarebytes",
-        "unit-42",
-        "cisco-talos-blog",
-        "cisco-security-blog",
-        "qualys-security-blog",
-        "palo-alto-networks-blog",
-        "welivesecurity",
-        "kaspersky-official-blog",
-        "clearsky-cyber-security",
-        "crowdstrike-blog"
+        "Mozilla Security Blog",
+        "Google Online Security Blog",
+        "Microsoft Security Blog",
+        "Securelist",
+        "Malwarebytes",
+        "Unit 42",
+        "Cisco Talos Blog",
+        "Cisco Security Blog",
+        "Qualys Security Blog",
+        "Palo Alto Networks Blog",
+        "WeLiveSecurity",
+        "Kaspersky Official Blog",
+        "ClearSky Cyber Security",
+        "CrowdStrike Blog"
       ]
     },
     {
-      "id": "vulnerability-intelligence",
       "name": "Vulnerability Intelligence",
       "description": "Broad vulnerability and exploit monitoring, including high-volume feeds best loaded as a separate group.",
       "sources": [
-        "cert-org-vulnerability-notes",
-        "cert-vde-advisories",
-        "cisa-alerts",
-        "zdi-published-advisories",
-        "full-disclosure",
-        "have-i-been-pwned-latest-breaches",
-        "cxsecurity-database",
-        "jvn-vulnerability-notes",
-        "vuldb-updates",
-        "exploit-db"
+        "CERT.org",
+        "CERT@VDE Advisory Feed",
+        "CISA Cybersecurity Advisories",
+        "ZDI: Published Advisories",
+        "Full Disclosure",
+        "Have I Been Pwned - Latest Breaches",
+        "CXSecurity Exploit Database",
+        "JVNRSS Feed - Update Entry",
+        "VulDB Updates",
+        "Exploit-DB"
       ]
     },
     {
-      "id": "security-community-experts",
       "name": "Security Community & Experts",
       "description": "Independent experts and community-selected technical security research and analysis.",
       "sources": [
-        "krebs-on-security",
-        "schneier-on-security",
-        "troy-hunt",
-        "taosecurity-blog",
-        "securosis",
-        "graham-cluley",
-        "reddit-netsec"
+        "Krebs on Security",
+        "Schneier on Security",
+        "Troy Hunt",
+        "TaoSecurity Blog",
+        "Securosis",
+        "Graham Cluley",
+        "r/netsec"
       ]
     },
     {
-      "id": "starter-pack",
       "name": "Starter Pack",
       "description": "A balanced general-purpose set combining Austrian context with authoritative advisories, original research, and cybersecurity reporting.",
       "sources": [
-        "cert-at-blog",
-        "cert-org-vulnerability-notes",
-        "austrian-interior-ministry-news",
-        "cz-nic-staff-blog",
-        "cert-at-all",
-        "gunnar-haslinger-blog",
-        "futurezone-at",
-        "derstandard-web",
-        "orf-news",
-        "orf-austria",
-        "cert-vde-advisories",
-        "cisa-ics-advisories",
-        "project-zero",
-        "the-dfir-report",
-        "schneier-on-security",
-        "the-record",
-        "securityweek",
-        "heise-security",
-        "krebs-on-security",
-        "bleepingcomputer",
-        "cisa-alerts",
-        "cisco-talos-blog",
-        "microsoft-security-blog",
-        "have-i-been-pwned-latest-breaches",
-        "troy-hunt"
+        "CERT.at - Blog",
+        "CERT.org",
+        "Aktuelles aus dem BM.I",
+        "The CZ.NIC Staff Blog",
+        "CERT.at - All",
+        "Gunnar Haslinger",
+        "futurezone.at",
+        "Web - derStandard.at",
+        "news.ORF.at",
+        "oesterreich.ORF.at",
+        "CERT@VDE Advisory Feed",
+        "ICS Advisories",
+        "Project Zero",
+        "TheDFIRReport",
+        "Schneier on Security",
+        "The Record",
+        "SecurityWeek RSS Feed",
+        "heise Security",
+        "Krebs on Security",
+        "BleepingComputer",
+        "CISA Cybersecurity Advisories",
+        "Cisco Talos Blog",
+        "Microsoft Security Blog",
+        "Have I Been Pwned - Latest Breaches",
+        "Troy Hunt"
       ]
     }
   ]
