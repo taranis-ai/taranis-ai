@@ -1,4 +1,4 @@
-{% from "macros/table.html" import failure_state_filter, table, table_decoration %}
+{% from "macros/table.html" import failure_state_filter, table, table_decoration, table_search_bar %}
 {% from "macros/buttons.html" import import_button %}
 
 {% set columns = columns | default([
@@ -12,7 +12,7 @@
 {% set filter_manual = request.args.get("filter_manual", "true") %}
 
 <div id="{{ table_container }}" class="table-container" x-data="{ selectedItems: [], exportUrl: '{{ url_for('admin.export_osint_sources') }}' }">
-  {% call table_decoration(name, model_name, table_container, routes=routes, search_params=["state", "filter_manual"], force_delete=true) %}
+  {% call table_decoration("source", model_name, table_container, routes=routes, searchbar=false, force_delete=true) %}
     <div class="grow-0">
       <div class="join gap-1" hx-target:inherited="#form-container">
         <button hx-post="{{ url_for('admin.collect_osint_source_all') }}" class="btn btn-outline">
@@ -20,10 +20,11 @@
           Collect All
         </button>
         <button hx-get="{{ url_for('admin.curated_osint_source_lists') }}"
-                class="btn btn-outline btn-secondary"
+                class="btn btn-outline btn-secondary tooltip"
+                data-tip="Choose and add sources from curated lists"
                 data-tour-target="admin-osint-source-load-curated">
           {{ heroicon_outline("rectangle-stack", class="h-5 w-5") }}
-          Add curated sources
+          Curated sources
         </button>
         {{ import_button(url_for('admin.import_osint_sources')) }}
         <a class="btn btn-outline btn-info"
@@ -34,6 +35,9 @@
         </a>
       </div>
     </div>
+  {% endcall %}
+  <div class="flex gap-4 mb-4">
+    {{ table_search_bar(table_container, routes.base_route, ["state", "filter_manual"]) }}
     <div class="grow-0">
       <form class="inline-flex flex-col items-center gap-1"
             hx-get="{{ routes.base_route }}"
@@ -65,7 +69,7 @@
       </form>
     </div>
     <div class="grow-0">{{ failure_state_filter(routes.base_route, table_container) }}</div>
-  {% endcall %}
+  </div>
   {% if data and data | length > 0 %}
     {{ table(model_name + '-table', data, columns, actions=actions, standalone=false, routes=routes) }}
   {% elif request.args %}

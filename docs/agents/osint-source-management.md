@@ -16,6 +16,8 @@ Bulk deletion validates the complete source selection before changing data and c
 
 Administrators can add one or more bundled curated source lists at any time. Catalog source and list IDs become stable database keys, while source and group names remain user-editable. Loading overlapping or previously loaded lists creates each source once, adopts exactly one unkeyed source with the same collector type and primary URL, and adds missing group memberships. Reloading never overwrites user-edited fields or removes sources or memberships. Ambiguous legacy matches fail atomically.
 
+The OSINT source table keeps actions in its primary toolbar. Search, manual-source visibility, and status share a unified query row directly above the table. The creation buttons use the page context to keep their labels concise: New source and Curated sources.
+
 The bundled catalog groups sources into Austrian news and public-sector coverage, cyber threat intelligence, technology news, security advisories, original threat research, cybersecurity news, vendor research, vulnerability intelligence, independent experts and community sources, and a balanced starter pack. Curated feeds are selected for authority, current parseability, recency, and useful coverage. High-volume vulnerability feeds remain in their own opt-in list.
 
 Invalid bulk form input returns HTTP 400. Core import failures preserve the upstream status so monitoring and callers can distinguish validation failures from service failures; transport failures return HTTP 502 while re-rendering the form with a static error.
