@@ -1124,6 +1124,77 @@ paths:
           description: forbidden
         '404':
           $ref: '#/components/responses/404NotFound'
+  /assess/analyst-review/snapshot:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: get the stable shift and unread story snapshot for an analyst review
+      operationId: assess.analyst_review_snapshot.get
+      responses:
+        '200':
+          description: story identifiers in review order
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - story_ids
+                properties:
+                  story_ids:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+  /assess/analyst-review/actions:
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - assess
+      description: apply one atomic analyst review decision
+      operationId: assess.analyst_review_action.post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - story_id
+              - action
+              properties:
+                story_id:
+                  type: string
+                action:
+                  type: string
+                  enum:
+                  - add
+                  - dismiss
+                report_id:
+                  type: string
+      responses:
+        '200':
+          description: analyst review action applied
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid review action
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: forbidden
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '500':
+          description: review action failed
   /assess/stories:
     get:
       security:

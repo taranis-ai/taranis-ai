@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <main class="p-8" data-testid="analyst-review-start">
+    <div class="mx-auto max-w-5xl space-y-6">
+      <header>
+        <h1 class="text-3xl font-bold">Start analyst review</h1>
+        <p class="mt-2 text-base-content/70">
+          Choose the Report for this run. Taranis will take a fixed snapshot of unread Stories from the current shift.
+        </p>
+      </header>
+
+      <div class="grid gap-6 lg:grid-cols-2">
+        {% set selected_report_id = request.form.get('report_id', '') if request.form.get('mode') == 'existing' else '' %}
+        {% set first_report_id = reports[0].id | string if reports else '' %}
+        {% set existing_initial_id = selected_report_id or first_report_id %}
+        {% set existing_initial_review = report_review_defaults.get(existing_initial_id, false) %}
+        <section class="card border border-base-300 bg-base-100 shadow-sm">
+          <form method="post"
+                action="{{ url_for('assess.analyst_review_start') }}"
+                class="card-body"
+                x-data='{ reviewReport: {{ existing_initial_review | tojson }}, reviewDefaults: {{ report_review_defaults | tojson }} }'>
+            <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+            <input type="hidden" name="mode" value="existing">
+            <h2 class="card-title">Use an incomplete Report</h2>
+            {% if reports %}
+              <label class="select w-full">
+                <span class="label">Report</span>
+                <select name="report_id" required data-testid="analyst-review-report-select" @change="reviewReport = reviewDefaults[$event.target.value] === true">
+                  {% for report in reports %}
+                    <option value="{{ report.id }}" {% if report.id | string == existing_initial_id %}selected{% endif %}>
+                      {{ report.title }}{% if report.report_item_type %} — {{ report.report_item_type }}{% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label class="flex cursor-pointer items-start gap-3 rounded-box bg-base-200 p-3">
+                <input type="checkbox"
+                       name="review_report"
+                       value="true"
+                       class="checkbox checkbox-primary mt-0.5"
+                       x-model="reviewReport"
+                       data-testid="analyst-review-existing-review-report">
+                <span>
+                  <span class="font-medium">Review report before publishing</span>
+                  <span class="block text-sm text-base-content/70">Structured or incomplete required fields will always open the Report step.</span>
+                </span>
+              </label>
+              <button type="submit" class="btn btn-primary mt-auto" data-testid="start-existing-analyst-review">Start review</button>
+            {% else %}
+              <div class="alert alert-info">There are no incomplete Reports available.</div>
+            {% endif %}
+          </form>
+        </section>
+
+        {% set selected_type_id = request.form.get('report_item_type_id', '') if request.form.get('mode') == 'new' else '' %}
+        {% set new_initial_review = type_review_defaults.get(selected_type_id, false) %}
+        <section class="card border border-base-300 bg-base-100 shadow-sm">
+          <form method="post"
+                action="{{ url_for('assess.analyst_review_start') }}"
+                class="card-body"
+                x-data='{ reviewReport: {{ new_initial_review | tojson }}, reviewDefaults: {{ type_review_defaults | tojson }} }'>
+            <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+            <input type="hidden" name="mode" value="new">
+            <h2 class="card-title">Create a Report</h2>
+            <label class="input w-full">
+              <span class="label">Title</span>
+              <input type="text"
+                     name="title"
+                     required
+                     maxlength="255"
+                     value="{{ request.form.get('title', '') if request.form.get('mode') == 'new' else '' }}"
+                     data-testid="analyst-review-report-title">
+            </label>
+            <label class="select w-full">
+              <span class="label">Report Type</span>
+              <select name="report_item_type_id"
+                      required
+                      data-testid="analyst-review-report-type"
+                      @change="reviewReport = reviewDefaults[$event.target.value] === true">
+                <option value="" disabled {% if not selected_type_id %}selected{% endif %}>Select a report type</option>
+                {% for report_type in report_types %}
+                  <option value="{{ report_type.id }}" {% if report_type.id | string == selected_type_id %}selected{% endif %}>{{ report_type.title }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded-box bg-base-200 p-3">
+              <input type="checkbox"
+                     name="review_report"
+                     value="true"
+                     class="checkbox checkbox-primary mt-0.5"
+                     x-model="reviewReport"
+                     data-testid="analyst-review-new-review-report">
+              <span>
+                <span class="font-medium">Review report before publishing</span>
+                <span class="block text-sm text-base-content/70">Defaults on for Report Types with required or Story-selection fields.</span>
+              </span>
+            </label>
+            <button type="submit" class="btn btn-primary mt-auto" data-testid="create-and-start-analyst-review">Create and start review</button>
+          </form>
+        </section>
+      </div>
+
+      <a href="{{ url_for('base.dashboard') }}" class="btn btn-ghost">Back to Dashboard</a>
+    </div>
+  </main>
+{% endblock content %}
