@@ -9,8 +9,11 @@ from flask import Response, abort, flash, json, make_response, redirect, render_
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import current_user
 from models.assess import (
+    ASSESS_FILTER_KEYS,
+    ASSESS_FILTER_MULTI_KEYS,
     NEWS_ITEM_IMPORT_FIELDS,
     STORY_IMPORT_FIELDS,
+    AssessSearchFilters,
     AssessSource,
     BulkAction,
     Connector,
@@ -69,26 +72,6 @@ def _normalize_story_import_payload(json_data: dict[str, Any] | list[dict[str, A
     return json_data
 
 
-ASSESS_FILTER_KEYS = frozenset(
-    {
-        "search",
-        "source",
-        "group",
-        "tags",
-        "language",
-        "read",
-        "important",
-        "in_report",
-        "relevant",
-        "cybersecurity",
-        "changed_by",
-        "range",
-        "sort",
-        "timefrom",
-        "timeto",
-    }
-)
-ASSESS_FILTER_MULTI_KEYS = frozenset({"source", "group", "tags", "language"})
 ASSESS_SAVED_FILTER_SESSION_KEY = "assess_saved_filter_active"
 ASSESS_SAVED_FILTER_NAME_MAX_LENGTH = 80
 ASSESS_BOOKMARK_BAR_LIMIT = 6
@@ -268,7 +251,7 @@ class StoryView(BaseView):
 
     @classmethod
     def _normalize_assess_filter_payload(cls, filters: dict[str, Any]) -> dict[str, Any]:
-        normalized: dict[str, Any] = {}
+        normalized: dict[str, str | list[str]] = {}
         for key, values in filters.items():
             if key not in ASSESS_FILTER_KEYS:
                 continue
@@ -279,7 +262,11 @@ class StoryView(BaseView):
                 normalized[key] = normalized_values
             else:
                 normalized[key] = normalized_values[0]
-        return normalized
+        try:
+            AssessSearchFilters.model_validate(normalized)
+            return normalized
+        except ValidationError:
+            return {}
 
     @classmethod
     def _filter_payload_to_request_params(cls, filters: dict[str, Any]) -> dict[str, list[str]]:

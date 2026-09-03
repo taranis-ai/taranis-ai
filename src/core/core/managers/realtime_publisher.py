@@ -146,5 +146,25 @@ class RealtimePublisher:
             data={"status": status},
         )
 
+    def chat_turn_updated(
+        self,
+        user_id: str,
+        turn_id: str,
+        sequence: int,
+        stage: str,
+        content: str,
+    ) -> bool:
+        return self.publish(
+            f"user:#{user_id}",
+            "chat.turn.updated",
+            "updated",
+            data={
+                "turn_id": turn_id,
+                "sequence": sequence,
+                "stage": stage,
+                "content": content,
+            },
+        )
+
 
 realtime_publisher = RealtimePublisher()

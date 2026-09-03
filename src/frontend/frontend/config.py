@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     REALTIME_ENABLED: bool = False
     SSL_VERIFICATION: bool = False
     REQUESTS_TIMEOUT: int = 60
+    CHAT_ENABLED: bool = False
+    CHAT_REQUEST_TIMEOUT: Annotated[int, Field(gt=0)] = 300
     REQUESTS_TRUST_ENV: bool = True
     CORE_API_KEY: SecretStr = SecretStr("supersecret")
     MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024

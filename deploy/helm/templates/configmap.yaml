@@ -30,6 +30,12 @@ data:
   LLM_MODEL: {{ .Values.config.llmModel | quote }}
   LLM_TIMEOUT: {{ .Values.config.llmTimeout | quote }}
   CACHE_DEFAULT_TIMEOUT: {{ .Values.config.cacheDefaultTimeout | quote }}
+  CHAT_ENABLED: {{ .Values.config.chatEnabled | quote }}
+  CHAT_LLM_BASE_URL: {{ .Values.config.chatLlmBaseUrl | quote }}
+  CHAT_LLM_MODEL: {{ .Values.config.chatLlmModel | quote }}
+  CHAT_LLM_TIMEOUT: {{ .Values.config.chatLlmTimeout | quote }}
+  CHAT_MAX_STORIES: {{ .Values.config.chatMaxStories | quote }}
+  CHAT_REQUEST_TIMEOUT: {{ .Values.config.chatRequestTimeout | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap

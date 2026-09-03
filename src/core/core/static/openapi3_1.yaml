@@ -33,6 +33,8 @@ tags:
   description: read/update report items, their types, groups and attributes
 - name: assess
   description: read/update/delete OSINT sources and news items
+- name: chat
+  description: persistent analyst conversations backed by the configured LLM provider
 - name: assets
   description: read/update/delete asset groups, notification templates and attributes
 - name: bots
@@ -1024,6 +1026,153 @@ paths:
           $ref: '#/components/responses/401Unauthorized'
         '404':
           $ref: '#/components/responses/404NotFound'
+  /chat/conversations:
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - chat
+      operationId: chat.conversations.get
+      description: list the current user's chat conversations
+      responses:
+        '200':
+          description: conversation summaries ordered by most recently updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/chat_conversation_list'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: assess permission required
+        '503':
+          description: chat is disabled or not configured
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - chat
+      operationId: chat.conversations.post
+      description: create a conversation after its first turn completes successfully; when realtime is enabled, progress is published to the authenticated user's Centrifugo channel using turn_id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/chat_turn_request'
+      responses:
+        '201':
+          description: completed turn and persisted conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/chat_turn_response'
+        '400':
+          description: invalid chat message
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: assess permission required
+        '409':
+          description: another new-conversation turn is already running for this user
+        '502':
+          description: configured provider returned an invalid or unsuccessful response
+        '503':
+          description: chat is disabled, not configured, or cannot acquire its Redis coordination lease
+        '504':
+          description: configured provider timed out
+  /chat/conversations/{conversation_id}:
+    parameters:
+    - name: conversation_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      security:
+      - UserAuth: []
+      tags:
+      - chat
+      operationId: chat.conversation.get
+      description: reopen an owned chat conversation
+      responses:
+        '200':
+          description: complete persisted conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/chat_conversation'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: assess permission required
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '503':
+          description: chat is disabled or not configured
+    delete:
+      security:
+      - UserAuth: []
+      tags:
+      - chat
+      operationId: chat.conversation.delete
+      description: permanently delete an owned conversation and its messages
+      responses:
+        '200':
+          description: conversation deleted
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: assess permission required
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '503':
+          description: chat is disabled or not configured
+  /chat/conversations/{conversation_id}/messages:
+    parameters:
+    - name: conversation_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      security:
+      - UserAuth: []
+      tags:
+      - chat
+      operationId: chat.messages.post
+      description: complete and atomically persist a turn in an owned conversation; when realtime is enabled, progress is published to the authenticated user's Centrifugo channel using turn_id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/chat_turn_request'
+      responses:
+        '201':
+          description: completed turn and updated conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/chat_turn_response'
+        '400':
+          description: invalid chat message
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          description: assess permission required
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          description: another turn is already running for this conversation
+        '502':
+          description: configured provider returned an invalid or unsuccessful response
+        '503':
+          description: chat is disabled, not configured, or cannot acquire its Redis coordination lease
+        '504':
+          description: configured provider timed out
   /assess/osint-source-group-list:
     get:
       security:
@@ -9282,6 +9431,108 @@ paths:
           $ref: '#/components/responses/404NotFound'
 components:
   schemas:
+    chat_turn_request:
+      type: object
+      additionalProperties: false
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        turn_id:
+          type: string
+          format: uuid
+          description: optional client correlation ID for user-scoped realtime progress events; core generates one when omitted
+      required:
+      - content
+    chat_search_result:
+      type: object
+      properties:
+        filters:
+          type: object
+          additionalProperties: true
+        total_count:
+          type: integer
+          minimum: 0
+        story_ids:
+          type: array
+          items:
+            type: string
+      required:
+      - filters
+      - total_count
+      - story_ids
+    chat_message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+          - user
+          - assistant
+        content:
+          type: string
+        created:
+          type: string
+          format: date-time
+        search_result:
+          oneOf:
+          - $ref: '#/components/schemas/chat_search_result'
+          - type: 'null'
+      required:
+      - id
+      - role
+      - content
+      - created
+    chat_conversation_summary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+      required:
+      - id
+      - title
+      - created
+      - updated
+    chat_conversation:
+      allOf:
+      - $ref: '#/components/schemas/chat_conversation_summary'
+      - type: object
+        properties:
+          messages:
+            type: array
+            items:
+              $ref: '#/components/schemas/chat_message'
+        required:
+        - messages
+    chat_conversation_list:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/chat_conversation_summary'
+      required:
+      - items
+    chat_turn_response:
+      type: object
+      properties:
+        conversation:
+          $ref: '#/components/schemas/chat_conversation'
+      required:
+      - conversation
     req.auth.username_password:
       type: object
       properties:

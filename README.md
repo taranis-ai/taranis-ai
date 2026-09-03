@@ -53,6 +53,7 @@ For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
 * Advanced OSINT Capabilities: Taranis AI scours multiple data sources, such as websites, for unstructured news articles, providing a comprehensive intelligence feed.
 * AI-Enhanced Analysis: Utilizes Artificial Intelligence and Natural Language Processing to automatically enhance and enrich collected articles for higher content quality.
 * Analyst-Friendly Workflow: Offers a streamlined process where analysts can easily convert unstructured news into structured report items, optimizing the data transformation journey.
+* Optional Analyst Chat: Provides persistent, per-user conversations that can answer general questions or search the stories the analyst is authorized to see through a separately configured OpenAI-compatible Responses API.
 * Multi-Format Output: Generates a variety of end products, including structured reports and PDF files, tailored to specific informational needs.
 * Seamless Publishing: Facilitates the effortless publication of finalized intelligence products, ensuring timely dissemination of critical information.
 * Collaborative Threat Intelligence (Experimental): Supports Story-level sharing between Taranis AI instances via [MISP](https://www.misp-project.org/), or directly between Taranis AI and MISP for flexible collaboration and information dissemination.
@@ -62,6 +63,8 @@ For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
 <img src="https://validator.swagger.io/validator?url=https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/core/core/static/openapi3_1.yaml">
 
 An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
+
+The optional Chat workspace is disabled by default. Enabling it sends analyst messages and selected story summaries to the configured external LLM provider; when realtime is enabled, answer progress streams over the authenticated Centrifugo connection while the final response remains authoritative. See the [deployment guide](./deploy/README.md#analyst-chat) for configuration, privacy, retention, and rollback details.
 
 ### Core Health Endpoints
 

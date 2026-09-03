@@ -69,10 +69,10 @@ class CoreApi:
             json_data = {}
         return self.session.put(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
 
-    def api_post(self, endpoint: str, json_data=None) -> requests.Response:
+    def api_post(self, endpoint: str, json_data=None, timeout: int | None = None) -> requests.Response:
         if json_data is None:
             json_data = {}
-        return self.session.post(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=self.timeout)
+        return self.session.post(url=f"{self.api_url}{endpoint}", headers=self.headers, json=json_data, timeout=timeout or self.timeout)
 
     def api_patch(self, endpoint: str, json_data=None) -> requests.Response:
         if json_data is None:

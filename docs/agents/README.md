@@ -15,6 +15,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 ## Feature Memories
 
 - [Assess Filters](assess-filters.md) - assess sidebar filters, filter-list loading, default filters, omnisearch filter handling, and related cache behavior.
+- [Analyst Chat](analyst-chat.md) - persistent chat workflow, direct Responses API integration, Assess search planning, privacy, ownership, and deployment configuration.
 - [RBAC ACL Behavior](rbac-acl.md) - RoleBasedAccess ACL boundaries, ADMIN_OPERATIONS bypass, OSINT source-group inheritance, and config/admin ACL isolation.
 - [Audit Logging](audit-logging.md) - core audit logging scope, JSONL fields, security limits, and tests.
 - [Admin User Import/Export](admin-user-import-export.md) - admin user export/import JSON format, duplicate handling, passwordless external users, and UI notification behavior.
