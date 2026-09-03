@@ -22,6 +22,24 @@ def _expected_story_tag_names(story: dict) -> set[str]:
 class TestWorkerApi:
     base_uri = "/api/worker"
 
+    @pytest.mark.parametrize(
+        ("add_result", "should_notify"),
+        [
+            ({"story_ids": ["story-1"], "news_item_ids": ["news-1"], "message": "1 News item added successfully"}, True),
+            ({"story_ids": [], "news_item_ids": [], "message": "All news items were skipped"}, False),
+        ],
+    )
+    def test_news_item_ingestion_notifies_only_when_items_are_added(self, client, api_header, monkeypatch, add_result, should_notify):
+        assess_changed = Mock()
+        monkeypatch.setattr("core.api.worker.Story.add_news_items", lambda _: (add_result, 200))
+        monkeypatch.setattr("core.api.worker.realtime_publisher.assess_changed", assess_changed)
+
+        response = client.post(f"{self.base_uri}/news-items", json=[{"id": "news-1"}], headers=api_header)
+
+        assert response.status_code == 200
+        assert response.get_json() == add_result
+        assert assess_changed.call_count == int(should_notify)
+
     def test_rss_source_includes_global_entry_limit(self, client, api_header, fake_source, monkeypatch):
         monkeypatch.setattr(
             "core.model.osint_source.Settings.get_settings",
@@ -32,6 +50,67 @@ class TestWorkerApi:
 
         assert response.status_code == 200
         assert response.get_json()["rss_collector_max_entries"] == 17
+
+    def test_mastodon_cursor_comes_from_latest_task_result(self, client, api_header, app):
+        from core.model.osint_source import OSINTSource
+        from core.model.task import Task
+
+        source_id = str(uuid.uuid4())
+        task_ids = [f"collect_mastodon_collector_{source_id}", f"cron_osint_source_{source_id}_{uuid.uuid4().hex}"]
+        cursor = {
+            "timeline": "https://mastodon.example|hashtag|security",
+            "last_status_id": "123",
+        }
+        payload = {
+            "id": task_ids[0],
+            "task": "collector_task",
+            "worker_id": source_id,
+            "worker_type": "mastodon_collector",
+            "result": {"message": "Collected", "data": {"source_id": source_id, "mastodon_cursor": cursor}},
+            "status": "SUCCESS",
+        }
+
+        try:
+            with app.app_context():
+                OSINTSource.add(
+                    {
+                        "id": source_id,
+                        "name": "Mastodon cursor test",
+                        "description": "Mastodon cursor test",
+                        "type": "mastodon_collector",
+                        "parameters": {
+                            "INSTANCE_URL": "https://mastodon.example",
+                            "TIMELINE": "hashtag",
+                            "HASHTAG": "security",
+                        },
+                    }
+                )
+
+            response = client.post("/api/tasks", json=payload, headers=api_header)
+            assert response.status_code == 200
+
+            source_response = client.get(f"{self.base_uri}/osint-sources/{source_id}", headers=api_header)
+            assert source_response.status_code == 200
+            assert source_response.get_json()["mastodon_cursor"] == cursor
+            assert "rss_collector_max_entries" not in source_response.get_json()
+
+            malformed = {
+                **payload,
+                "id": task_ids[1],
+                "result": {"message": "Ignored", "data": {"mastodon_cursor": {"last_status_id": 124}}},
+            }
+            assert client.post("/api/tasks", json=malformed, headers=api_header).status_code == 200
+
+            source_response = client.get(f"{self.base_uri}/osint-sources/{source_id}", headers=api_header)
+            assert source_response.status_code == 200
+            assert "mastodon_cursor" not in source_response.get_json()
+        finally:
+            with app.app_context():
+                for task_id in task_ids:
+                    if Task.get(task_id):
+                        Task.delete(task_id)
+                if OSINTSource.get(source_id):
+                    OSINTSource.delete(source_id)
 
     def test_bot_story_query_uses_default_lookback_setting(self, client, api_header, monkeypatch):
         captured_filter = {}
@@ -567,7 +646,8 @@ class TestWorkerTaskResults:
         render_result = "YmFzZTY0"
 
         with app.app_context():
-            Product.add({**cleanup_product, "id": product_id})
+            product = Product.add({**cleanup_product, "id": product_id})
+            render_revision = product.to_worker_dict()["render_revision"]
 
         payload = {
             "id": task_id,
@@ -575,7 +655,7 @@ class TestWorkerTaskResults:
             "result": {
                 "message": "ok",
                 "retryable": False,
-                "data": {"product_id": product_id, "render_result": render_result},
+                "data": {"product_id": product_id, "render_result": render_result, "render_revision": render_revision},
             },
             "status": "SUCCESS",
         }
@@ -588,6 +668,47 @@ class TestWorkerTaskResults:
                 product = Product.get(product_id)
                 assert product is not None
                 assert product.render_result == render_result
+        finally:
+            with app.app_context():
+                if Task.get(task_id):
+                    Task.delete(task_id)
+                if Product.get(product_id):
+                    Product.delete(product_id)
+
+    def test_worker_task_results_only_apply_to_matching_product_revision(self, client, api_header, app, cleanup_product):
+        from core.managers.db_manager import db
+        from core.model.product import Product
+        from core.model.task import Task
+
+        product_id = str(uuid.uuid7())
+        task_id = f"presenter-job-{uuid.uuid4().hex}"
+
+        with app.app_context():
+            product = Product.add({**cleanup_product, "id": product_id})
+            stale_revision = product.to_worker_dict()["render_revision"]
+            product.title = "Updated while rendering"
+            db.session.commit()
+
+        payload = {
+            "id": task_id,
+            "task": "presenter_task",
+            "result": {
+                "message": "ok",
+                "retryable": False,
+                "data": {"product_id": product_id, "render_result": "YmFzZTY0", "render_revision": stale_revision},
+            },
+            "status": "SUCCESS",
+        }
+
+        try:
+            response = client.post(self.base_uri, json=payload, headers=api_header)
+
+            assert response.status_code == 200
+            with app.app_context():
+                product = Product.get(product_id)
+                assert product is not None
+                assert product.render_result is None
+                assert product.last_rendered is None
         finally:
             with app.app_context():
                 if Task.get(task_id):

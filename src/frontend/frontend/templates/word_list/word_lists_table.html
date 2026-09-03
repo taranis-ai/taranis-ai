@@ -12,7 +12,7 @@
      x-data='{ selectedItems: [], exportUrl: "{{ url_for("admin.export_word_lists") }}" }'>
   {% call table_decoration(name, model_name, table_container, routes=routes) %}
     <div class="grow-0">
-      <div class="join gap-1" hx-target="#form-container">
+      <div class="join gap-1" hx-target:inherited="#form-container">
         <button hx-post="{{ url_for('admin.update_all_word_lists') }}" class="btn btn-outline">
           {{ heroicon_outline("arrows-pointing-in", class="h-5 w-5") }}
           Update Wordlists

@@ -72,6 +72,8 @@ Bookmark mutations in the frontend call core through `CoreApi()`, then invalidat
 
 Bulk story actions, report additions, and clustering carry `bookmark_id` through their existing Assess dialogs and endpoints. `StoryView.rerender_list()` uses that value to render the current bookmark detail and preserve selected visible story IDs.
 
+Report and clustering dialogs close only after a successful HTMX response. Validation and core API failures render their notification while leaving the dialog open for correction or retry.
+
 Bookmark detail uses the bookmark's ordered story IDs to query the canonical Assess story collection before rendering cards. Do not render directly from the bookmark's embedded `stories` payload because it does not carry Assess-only enrichment such as `in_reports_count`.
 
 The instant bookmark path first looks up the earliest collection, then falls back to creating `Bookmarks` in core if the user has none. The modal flow posts selected story IDs to the existing add-stories endpoint.

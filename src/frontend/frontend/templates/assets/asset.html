@@ -30,7 +30,7 @@
               {{ form_action }}
               hx-swap="innerHTML"
               hx-target="#asset"
-              hx-target-error="#asset"
+              hx-status:400="target:#asset" hx-status:4xx="target:#asset" hx-status:5xx="target:#asset"
               class="col-span-6"
               x-data='{ observables: {{ asset_observables | tojson }}, init() { if (!this.observables.length) this.addObservable(); }, addObservable() { this.observables.push({ "ioc_type": "", "value": "" }); }, removeObservable(index) { this.observables.splice(index, 1); } }'
               data-testid="asset-form">

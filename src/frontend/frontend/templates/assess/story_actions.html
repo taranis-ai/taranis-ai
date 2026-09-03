@@ -33,7 +33,9 @@
               class="btn btn-outline btn-{{ size }} w-full join-item justify-start gap-2"
               hx-post="{{ url_for('assess.instant_bookmark_story', story_id=story_id) }}"
               hx-target="#notification-bar"
-              hx-target-error="#notification-bar"
+              hx-status:400="target:#notification-bar"
+              hx-status:4xx="target:#notification-bar"
+              hx-status:5xx="target:#notification-bar"
               hx-swap="outerHTML"
               data-testid="bookmark-story">
         {{ heroicon_mini("bookmark") }}

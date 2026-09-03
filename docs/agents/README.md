@@ -10,6 +10,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Architecture and Boundaries](architecture-and-boundaries.md) - component roles, RQ tasks, frontend/API boundaries, migrations, and UTC datetime handling. Read before component, API, persistence, queue, or datetime changes.
 - [Frontend Development](frontend-development.md) - mandatory HTMX-first, Alpine-second, minimal event-driven JavaScript rules. Read before every frontend change.
 - [Test Design](test-design.md) - stable functionality coverage, workflow-level assertions, and the prohibition on branch-regression or migration tests. Read before adding or changing tests.
+- [Frontend E2E Harness](frontend-e2e-harness.md) - minimal/full Compose selection, warm local reuse, CI lanes, screenshots, traces, and validation.
 
 ## Feature Memories
 
@@ -26,6 +27,7 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 - [Worker Task Notifications](worker-task-notifications.md) - frontend notifications for worker-backed actions when tasks are queued but no workers are connected.
 - [Notification Center](notification-center.md) - browser-session notification history, persistent notices, its user-menu route, and client-only storage boundary.
 - [RSS Source Health](rss-source-health.md) - RSS/Atom detection, empty-feed retry states, persisted source status, and error reporting.
+- [Mastodon Collector](mastodon-collector.md) - scheduled hashtag/home/account collection, private cursors, pagination, and safe failure behavior.
 - [Authentication Cookies](authentication-cookies.md) - JWT/CSRF cookie names, deployment suffixes, base-path scoping, and auth cookie consumers.
 - [Realtime Events](realtime-events.md) - Centrifugo SSE transport, connect-proxy authentication, admin broadcasts and client presence, event publishing, frontend recovery, and deployment configuration.
 - [Public Product Publishing](public-product-publishing.md) - Taranis publisher presets, persistent report files, and unauthenticated public report URLs.

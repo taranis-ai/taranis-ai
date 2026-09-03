@@ -67,22 +67,21 @@
               {{ form_action }}
               hx-swap="innerHTML"
               hx-target="#product"
-              hx-target-error="#product"
+              hx-status:400="target:#product"
+              hx-status:4xx="target:#product"
+              hx-status:5xx="target:#product"
               @input="dirty=true"
               data-testid="product-form">
           {% include "partials/admin_form_error.html" %}
           <div class="grid grid-cols-12 gap-4">
             <div class="col-span-12 md:col-span-6">
-              {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_types, required=true, width='w-full', disabled=is_edit) }}
-              {% if product.product_type_id %}
-                <input type="hidden" name="product_type_id" value="{{ product.product_type_id }}">
-              {% endif %}
+              {{ form_select('Product Type', 'product_type_id', product.product_type_id, product_types, required=true, width='w-full', data_testid='product-type-select') }}
             </div>
             <div class="col-span-12 md:col-span-6">{{ form_input('Title', 'title', product.title, form_error.title) }}</div>
             <div class="col-span-12">{{ form_textarea('Description', 'description', product.description, form_error.description, required=false) }}</div>
           </div>
 
-          {% if product.product_type_id %}
+          {% if product.product_type_id or selected_report_items %}
             <div class="mt-2">
               {{ datatable('Report Items', supported_reports, columns, selected_items=selected_report_items, input_name='report_items[]', headline='Report Items') }}
             </div>

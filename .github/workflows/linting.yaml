@@ -136,6 +136,8 @@ jobs:
     if: (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && needs.detect_signoff.outputs.signedoff != 'true'
     runs-on: ubuntu-latest
     needs: [detect_signoff, test_core, test_frontend]
+    env:
+      TARANIS_E2E_PROJECT_NAME: taranis-e2e-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
 
@@ -168,18 +170,8 @@ jobs:
           fi
 
           echo "PLAYWRIGHT_VERSION=$FRONTEND_PLAYWRIGHT_VERSION" >> "$GITHUB_ENV"
-
-
-      - name: Install core dependencies
-        working-directory: src/core
-        run: uv sync --all-extras
-
       - name: Install frontend dependencies
         working-directory: src/frontend
-        run: uv sync --all-extras
-
-      - name: Install worker dependencies
-        working-directory: src/worker
         run: uv sync --all-extras
 
       - name: Cache Playwright Browsers
@@ -206,7 +198,16 @@ jobs:
       - name: Run e2e tests
         id: run_e2e
         working-directory: src/frontend
-        run: uv run pytest --e2e-ci
+        run: uv run pytest tests/playwright --e2e-ci --durations=20
+
+      - name: Re-run failing tests with traces
+        if: ${{ failure() && steps.run_e2e.outcome == 'failure' }}
+        continue-on-error: true
+        working-directory: src/frontend
+        run: |
+          docker compose --profile rq -p "$TARANIS_E2E_PROJECT_NAME" \
+            -f tests/playwright/compose.e2e.yml down -v --remove-orphans --timeout 1
+          uv run pytest tests/playwright --e2e-ci --last-failed --e2e-trace
 
       - name: Upload a e2e-test trace
         uses: actions/upload-artifact@v7
@@ -215,7 +216,7 @@ jobs:
           retention-days: 7
           overwrite: true
           name: ${{ env.TRACES_ARTIFACT_NAME }}
-          path: src/**/taranis_ai_*_trace.zip
+          path: src/frontend/test-results/
 
   test_worker:
     name: pytest worker
