@@ -36,13 +36,13 @@ Invalid bulk form input returns HTTP 400. Core import failures preserve the upst
 
 The bulk form uses Alpine only for adding and removing local name/URL rows. Selecting a collector loads its shared parameter fragment over HTMX with the collector's primary URL parameter omitted; regular parameter requests, including an explicit `bulk=false`, keep the URL field. On submit, the frontend builds a version-4 import payload by combining each name/URL pair with the shared settings. Optional group indexes associate the newly inserted sources with the new group in the same core database transaction.
 
-The curated-list form is loaded into the admin form container over HTMX. Core reads and validates the bundled catalog, resolves selected lists and sources by name, and creates or relinks them in one transaction. Newly created sources are scheduled after commit; failures are logged and the persisted source remains available to queue reconciliation. Frontend source and source-group caches are invalidated after success.
+The curated-list form is loaded into the admin form container over HTMX. Core reads and validates the bundled catalog, resolves selected lists and sources by name, and creates or relinks them in one transaction. After commit, Core schedules every selected enabled source. A scheduling failure returns HTTP 503 without undoing the committed data; repeating the same load retries scheduling for both new and existing sources. Frontend source and source-group caches are invalidated after success.
 
 ## Testing
 
 Frontend unit coverage verifies the create-form documentation link, supported collectors, bulk-only parameter omission, and Core failure status handling in `src/frontend/tests/unit/views/test_views.py`.
 
-Core API coverage verifies explicit force parsing, all-ID validation, atomic failure behavior, and forced deletion in `src/core/tests/application/admin_console/configuration/test_config_api.py`.
+Core API coverage verifies explicit force parsing, all-ID validation, atomic failure behavior, forced deletion, and curated-list reuse, scheduling retries, and rollback in `src/core/tests/application/admin_console/configuration/test_config_api.py`.
 
 Admin browser coverage exercises the curated multi-select workflow.
 

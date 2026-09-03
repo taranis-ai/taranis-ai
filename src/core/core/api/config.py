@@ -918,6 +918,9 @@ class CuratedOSINTSourceLists(MethodView):
             response = osint_source.OSINTSource.load_curated_lists(selection.list_names)
         except ValidationError:
             return {"error": "Select at least one valid curated source list"}, 400
+        except osint_source.CuratedOSINTSourceSchedulingError:
+            _invalidate_admin_cache(200)
+            return {"error": "Curated OSINT sources were saved but could not be scheduled; retry loading the selected lists"}, 503
         except IntegrityError as exc:
             db.session.rollback()
             return {"error": convert_integrity_error(exc)}, 400

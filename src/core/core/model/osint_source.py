@@ -41,6 +41,10 @@ class InvalidOSINTSourceIconError(ValueError):
         self.public_message = public_message
 
 
+class CuratedOSINTSourceSchedulingError(RuntimeError):
+    pass
+
+
 class CollectorHTTPState(BaseModel):
     __tablename__ = "collector_http_state"
 
@@ -1023,12 +1027,20 @@ class OSINTSource(BaseModel):
             db.session.rollback()
             raise
 
-        for source in created_sources:
+        scheduling_failed = False
+        for source in resolved_sources.values():
+            if not source.enabled:
+                continue
             try:
                 if source.schedule_osint_source() is not True:
-                    logger.warning("Curated OSINT source %s will be scheduled by queue reconciliation", source.id)
+                    scheduling_failed = True
+                    logger.error("Failed to schedule curated OSINT source %s", source.id)
             except Exception:
-                logger.exception("Failed to schedule curated OSINT source %s; queue reconciliation will retry it", source.id)
+                scheduling_failed = True
+                logger.exception("Failed to schedule curated OSINT source %s", source.id)
+
+        if scheduling_failed:
+            raise CuratedOSINTSourceSchedulingError
 
         return {
             "message": "Curated OSINT sources loaded successfully",

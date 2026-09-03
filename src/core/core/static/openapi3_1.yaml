@@ -4514,6 +4514,8 @@ paths:
           description: forbidden
         '500':
           description: curated sources could not be loaded
+        '503':
+          description: curated sources were saved but could not be scheduled; retrying the request retries scheduling
   /config/export-osint-sources:
     parameters:
     - name: ids
