@@ -57,8 +57,8 @@ function highlightSearch(searchTerm) {
   }
 }
 
-document.addEventListener('htmx:afterSwap', function (event) {
-  if (event.target && event.target.id === 'assess') {
+document.addEventListener('htmx:after:swap', function (event) {
+  if (event.detail.ctx?.target?.id === 'assess') {
     const searchInput = document.getElementById('story_search');
     if (searchInput) {
       highlightSearch(searchInput.value || '');
@@ -82,10 +82,10 @@ document.addEventListener('htmx:afterSwap', function (event) {
     </div>
     <form id="assess-search-form"
           hx-get="{{ base_url }}"
-          hx-target="#assess"
-          hx-swap="outerHTML"
-          hx-push-url="true"
-          hx-include="#assess-sidebar, #selected-tags"
+          hx-target:inherited="#assess"
+          hx-swap:inherited="outerHTML"
+          hx-push-url:inherited="true"
+          hx-include:inherited="#assess-sidebar, #selected-tags"
           hx-trigger="{{ search_trigger('story_search') }}"
           hx-on:submit="event.preventDefault()">
       <label class="input input-bordered input-sm flex items-center gap-2">
@@ -110,10 +110,10 @@ document.addEventListener('htmx:afterSwap', function (event) {
   <form id="assess-sidebar"
         data-tour-target="assess-filters"
         hx-get="{{ base_url }}"
-        hx-target="#assess"
-        hx-swap="outerHTML"
-        hx-push-url="true"
-        hx-include="#selected-tags"
+        hx-target:inherited="#assess"
+        hx-swap:inherited="outerHTML"
+        hx-push-url:inherited="true"
+        hx-include:inherited="#selected-tags"
         hx-trigger="change"
         hx-on:submit="event.preventDefault()">
 
@@ -144,7 +144,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
             class="btn btn-outline btn-xs mb-1 w-full"
             title="Clear time filters"
             hx-get="{{ base_url }}"
-            hx-params="not timefrom,timeto,range"
+            hx-on::config:request="ctx.request.body.delete('timefrom'); ctx.request.body.delete('timeto'); ctx.request.body.delete('range')"
             hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
             hx-target="#assess"
             hx-swap="outerHTML"
@@ -244,7 +244,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
            hx-trigger="change"
            hx-swap="none"
            hx-vals="js:{highlight: this.checked}"
-           hx-on::after-request="window.location.reload()"
+           hx-on::after:request="window.location.reload()"
            {% if highlight %}checked{% endif %}>
     <span class="label-text">Highlight searchterms</span>
   </label>
@@ -257,7 +257,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
            hx-trigger="change"
            hx-swap="none"
            hx-vals="js:{compact_view: this.checked}"
-           hx-on::after-request="window.location.reload()"
+           hx-on::after:request="window.location.reload()"
            {% if compact_view %}checked{% endif %}>
     <span class="label-text">Compact view</span>
   </label>
@@ -278,7 +278,7 @@ document.addEventListener('htmx:afterSwap', function (event) {
           hx-include="#assess-sidebar, #assess-search-form, #selected-tags"
           hx-target="body"
           hx-swap="beforeend"
-          hx-on::before-request="document.getElementById('assess_saved_filters_dialog')?.remove()">
+          hx-on::before:request="document.getElementById('assess_saved_filters_dialog')?.remove()">
     {{ heroicon_outline('bookmark-square', class='h-4 w-4') }}
     Saved filters
   </button>

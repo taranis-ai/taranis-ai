@@ -2,7 +2,7 @@
   {% set news_item_tags = (news_item.tags.values() if news_item.tags is mapping else (news_item.tags or [])) | list %}
   <article id="news-item-card-{{ news_item.id }}"
            class="rounded-lg border border-base-200 bg-base-100 p-2 shadow-sm"
-           x-data='{ tagEditorOpen: false, initialTags: {{ news_item_tags | tojson }}, tags: [], init() { this.resetTags(); }, normalizedTags() { const values = Array.isArray(this.initialTags) ? this.initialTags : Object.values(this.initialTags || {}); return values.map(tag => ({ "name": tag.name || "", "tag_type": tag.tag_type || "" })); }, resetTags() { this.tags = this.normalizedTags(); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } }, toggleTagEditor() { if (this.tagEditorOpen) { this.resetTags(); this.tagEditorOpen = false; } else { this.resetTags(); this.tagEditorOpen = true; } }, addTag() { this.tags.push({ "name": "", "tag_type": "" }); }, removeTag(index) { this.tags.splice(index, 1); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } } }'>
+           x-data='{ tagEditorOpen: false, initialTags: {{ news_item_tags | tojson }}, tags: [], init() { this.resetTags(); }, normalizedTags() { const values = Array.isArray(this.initialTags) ? this.initialTags : Object.values(this.initialTags || {}); return values.map(tag => ({ "name": tag.name || "", "tag_type": tag.tag_type || "" })); }, resetTags() { this.tags = this.normalizedTags(); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } }, toggleTagEditor() { if (this.tagEditorOpen) { this.resetTags(); this.tagEditorOpen = false; } else { this.resetTags(); this.tagEditorOpen = true; this.$nextTick(() => this.$refs.tagEditor.scrollIntoView({ behavior: "smooth", block: "start" })); } }, addTag() { this.tags.push({ "name": "", "tag_type": "" }); }, removeTag(index) { this.tags.splice(index, 1); if (this.tags.length === 0) { this.tags.push({ "name": "", "tag_type": "" }); } } }'>
     <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between gap-2">
         <div class="flex flex-wrap items-start gap-2">
@@ -68,12 +68,13 @@
       {% if edit_tags %}
         {# djlint:off #}
         <form class="rounded-lg border border-base-200 bg-base-200/40 p-3"
+              x-ref="tagEditor"
               x-show="tagEditorOpen"
               x-cloak
               hx-post="{{ url_for('assess.update_news_item_tags', news_item_id=news_item.id) }}"
               hx-target="#news-item-card-{{ news_item.id }}"
               hx-swap="outerHTML"
-              hx-target-error="#notification-bar">
+              hx-status:400="target:#notification-bar" hx-status:4xx="target:#notification-bar" hx-status:5xx="target:#notification-bar">
           <input type="hidden" name="story_id" value="{{ story.id }}">
           <div class="flex items-center justify-between gap-3">
             <h5 class="text-sm font-semibold">News item tags</h5>

@@ -478,13 +478,12 @@ def pre_seed_default_user():
     if user_count > 0:
         return
 
-    admin_organization = Organization.find_by_name("The Earth")
-    if not admin_organization:
-        admin_organization = Organization.add(
+    default_organization = Organization.find_by_name("Default Organization")
+    if not default_organization:
+        default_organization = Organization.add(
             {
-                "name": "The Earth",
-                "description": "Earth is the third planet from the Sun and the only astronomical object known to harbor life.",
-                "address": {"street": "29 Arlington Avenue", "city": "Islington, London", "zip": "N1 7BE", "country": "United Kingdom"},
+                "name": "Default Organization",
+                "description": "Default organization for initial users.",
             }
         )
 
@@ -496,34 +495,21 @@ def pre_seed_default_user():
         User.add(
             {
                 "username": "admin",
-                "name": "Arthur Dent",
+                "name": "Default Admin",
                 "roles": [admin_role.id],
-                "organization": {"id": admin_organization.id},
+                "organization": {"id": default_organization.id},
                 "password": Config.PRE_SEED_PASSWORD_ADMIN,
             }
         )
-
-    user_organization = Organization.find_by_name("The Clacks") or Organization.add(
-        {
-            "name": "The Clacks",
-            "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
-            "address": {
-                "street": "Cherry Tree Rd",
-                "city": "Beaconsfield, Buckinghamshire",
-                "zip": "HP9 1BH",
-                "country": "United Kingdom",
-            },
-        }
-    )
 
     if not User.find_by_name(username="user"):
         user_role = Role.filter_by_name("User").id  # type: ignore
         User.add(
             {
                 "username": "user",
-                "name": "Terry Pratchett",
+                "name": "Default User",
                 "roles": [user_role],
-                "organization": {"id": user_organization.id},
+                "organization": {"id": default_organization.id},
                 "password": Config.PRE_SEED_PASSWORD_USER,
             }
         )

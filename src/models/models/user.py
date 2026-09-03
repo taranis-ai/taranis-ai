@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from models.base import TaranisBaseModel
 
@@ -27,6 +27,13 @@ class ProfileSettingsDashboard(TaranisBaseModel):
 class OnboardingTask(TaranisBaseModel):
     id: str
     scope: Literal["global", "user"]
+
+
+class LoginCredentials(TaranisBaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
 
 
 class AssessSavedFilter(TaranisBaseModel):

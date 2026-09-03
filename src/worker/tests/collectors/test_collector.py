@@ -5,9 +5,7 @@ from tests.testdata import news_items
 from worker.config import Config
 
 
-def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector):
-    import datetime
-
+def test_base_web_collector_conditional_request(base_web_collector_mock, base_web_collector, requests_mock):
     from worker.collectors.base_web_collector import NoChangeError
 
     response = base_web_collector.send_get_request("https://test.org/200")
@@ -18,9 +16,11 @@ def test_base_web_collector_conditional_request(base_web_collector_mock, base_we
     assert response.status_code == 200
     assert response.text == ""
 
+    last_attempted = base_web_collector.get_last_attempted({"last_attempted": "2020-03-20T14:00:00+02:00"})
     with pytest.raises(NoChangeError) as exception:
-        response = base_web_collector.send_get_request("https://test.org/304", datetime.datetime(2020, 3, 20, 12))
+        response = base_web_collector.send_get_request("https://test.org/304", last_attempted)
     assert str(exception.value) == "https://test.org/304 was not modified"
+    assert requests_mock.request_history[-1].headers["If-Modified-Since"] == "Fri, 20 Mar 2020 12:00:00 GMT"
 
     with pytest.raises(requests.exceptions.HTTPError) as exception:
         response = base_web_collector.send_get_request("https://test.org/429")
@@ -93,11 +93,11 @@ def test_rss_published_date_uses_first_parseable_value(rss_collector):
         published="not a date",
         pubDate="   ",
         created="",
-        updated="2026-08-19T12:34:56Z",
+        updated="2026-08-19T12:34:56+02:00",
         modified="2026-08-20T12:34:56Z",
     )
 
-    assert rss_collector.get_published_date(entry) == datetime.datetime(2026, 8, 19, 12, 34, 56)
+    assert rss_collector.get_published_date(entry) == datetime.datetime(2026, 8, 19, 10, 34, 56)
 
 
 @pytest.mark.parametrize(("use_feed_content", "link"), [(True, "https://example.com/article"), (False, "")])

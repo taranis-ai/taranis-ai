@@ -15,6 +15,7 @@ class CoreRequestClient:
     access_token: str | None = None
     default_headers: dict[str, str] = field(default_factory=dict)
     timeout_seconds: int | float = DEFAULT_CORE_REQUEST_TIMEOUT_SECONDS
+    session: requests.Session = field(default_factory=requests.Session, compare=False, repr=False)
 
     def with_access_token(self, access_token: str | None) -> CoreRequestClient:
         return replace(self, access_token=access_token)
@@ -47,7 +48,7 @@ class CoreRequestClient:
         raise_for_status: bool = True,
         timeout_seconds: float | None = None,
     ) -> requests.Response:
-        response = requests.request(
+        response = self.session.request(
             method,
             f"{self.base_url}{path}",
             headers=self.build_headers(authenticated=authenticated, headers=headers),
