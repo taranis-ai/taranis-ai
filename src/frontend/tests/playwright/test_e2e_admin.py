@@ -1066,6 +1066,9 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(page.get_by_role("textbox", name="Description")).to_have_attribute("required", "")
             page.get_by_role("textbox", name="Description").fill("test bot description")
             expect(page.get_by_role("spinbutton", name="Index")).to_have_attribute("required", "")
+            prefilled_index = page.get_by_role("spinbutton", name="Index").input_value()
+            assert prefilled_index
+            expect(page.get_by_test_id("bot-index-availability")).to_contain_text(f"Index {prefilled_index} is available.")
             page.get_by_role("spinbutton", name="Index").fill("1")
             expect(page.get_by_test_id("bot-index-availability")).to_contain_text("Index 1 is already taken.")
             self.select_dynamic_type_and_wait(page, "analyst_bot", optional_parameters)
