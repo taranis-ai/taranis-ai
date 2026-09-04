@@ -12,6 +12,7 @@ Deployment options:
 Replace every `CHANGE_ME_...` value before deployment.
 
 Always required:
+
 - In `kubernetes/00-config.yaml` (or `helm/values.yaml`), set `GRANIAN_HOST`.
 - In `kubernetes/01-secrets.yaml` (or `helm/values.yaml`), set `JWT_SECRET_KEY`, `API_KEY`, `CENTRIFUGO_API_KEY`, `CENTRIFUGO_CONNECT_PROXY_SECRET`, `PRE_SEED_PASSWORD_ADMIN`, `PRE_SEED_PASSWORD_USER`, `DB_URL`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `REDIS_URL`, `CENTRIFUGO_REDIS_URL`, and `REDIS_PASSWORD`. Keep the two Centrifugo secrets distinct from each other and from existing application keys.
 - The raw manifest provides `TARANIS_BASE_PATH: /`; set it only when serving the application below a subpath.
@@ -19,6 +20,7 @@ Always required:
 - The raw manifest keeps the public realtime endpoint at `/sse`; ingress rewrites it to Centrifugo's `/connection/uni_sse`.
 
 Optional `llm-bot` overlay:
+
 - In `kubernetes/00-config.yaml`, set `LLM_BASE_URL`; optionally set `LLM_TIMEOUT` and `LLM_MODEL`.
 - In `kubernetes/01-secrets.yaml`, set `BOT_API_KEY`; optionally set `LLM_API_KEY` for providers that require one.
 - For Helm, set `config.llmBaseUrl`; optionally set `config.llmTimeout`, `config.llmModel`, and `secrets.llmApiKey`.
@@ -26,7 +28,7 @@ Optional `llm-bot` overlay:
 
 ## Images
 
-Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9.1` image.
+Core uses `ghcr.io/taranis-ai/taranis-core`, `taranis-frontend`, `taranis-ingress`, and `taranis-worker` (for `collector`, `worker`, and `cron`). Realtime uses the pinned `centrifugo/centrifugo:v6.9` image.
 Optional overlay uses `ghcr.io/taranis-ai/taranis-llm-bot:latest`.
 Pin explicit tags for production.
 
