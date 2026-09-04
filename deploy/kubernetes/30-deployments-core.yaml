@@ -184,7 +184,7 @@ spec:
       containers:
         - name: centrifugo
           image: centrifugo/centrifugo:v6.9
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           envFrom:
             - configMapRef:
                 name: centrifugo-env
