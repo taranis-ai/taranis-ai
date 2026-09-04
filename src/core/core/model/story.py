@@ -315,6 +315,16 @@ class Story(BaseModel):
         return {"error": f"{cls.__name__} not found"}, 404
 
     @classmethod
+    def get_analyst_review_snapshot(cls, user: User) -> list[str]:
+        filter_args = {"range": "shift", "read": "false", "sort": "date_desc"}
+        query = cls.get_filter_query(filter_args)
+        query = cls._add_ACL_check(query, user)
+        query = cls._add_TLP_check(query, user)
+        query = cls._add_sorting_to_query(filter_args, query)
+        story_ids = db.session.execute(query.with_only_columns(cls.id)).scalars().all()
+        return list(dict.fromkeys(story_ids))
+
+    @classmethod
     def get_additional_counts(cls, filter_query):
         subquery = filter_query.subquery()
         total_count_subquery = db.select(func.count()).select_from(subquery).scalar_subquery()

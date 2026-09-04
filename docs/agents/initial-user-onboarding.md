@@ -14,14 +14,19 @@ Disabling onboarding suppresses pending tasks without changing completed, dismis
 
 Pending administrator tours require the real `ADMIN_OPERATIONS` permission. Taranis has no catch-all `ALL` permission, so backend and frontend onboarding checks must not treat that string specially.
 
+Fresh databases seed the `admin` and `user` accounts as `Default Admin` and `Default User`. Both accounts belong to the single `Default Organization`.
+
 ## Code Paths
 
 - `src/core/core/config.py`
+- `src/core/core/managers/db_seed_manager.py`
+- `src/core/core/model/asset.py`
 - `src/core/core/model/settings.py`
 - `src/core/core/model/user.py`
 - `src/models/models/user.py`
 - `src/frontend/frontend/templates/settings/settings.html`
 - `src/frontend/frontend/templates/user/user_form.html`
+- `src/frontend/tests/playwright/testdata/test_users_list.json`
 - `src/core/tests/test_settings.py`
 
 ## Data Flow
@@ -38,6 +43,7 @@ Run from `src/core`:
 Run from `src/frontend`:
 
 - `uv run pytest tests/test_settings.py tests/test_onboarding.py tests/unit/views/test_forms.py`
+- `uv run pytest tests/playwright/test_e2e_admin.py::TestEndToEndAdmin::test_admin_user_management --e2e-ci`
 - `uv run pytest --e2e-ci`
 
 ## Pitfalls

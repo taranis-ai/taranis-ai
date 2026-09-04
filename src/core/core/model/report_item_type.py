@@ -7,7 +7,7 @@ from sqlalchemy.sql.expression import Select
 
 from core.log import logger
 from core.managers.db_manager import db
-from core.model.attribute import Attribute
+from core.model.attribute import Attribute, AttributeType
 from core.model.base_model import UUID_STR_LENGTH, BaseModel
 from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
@@ -222,7 +222,12 @@ class ReportItemType(BaseModel):
         return data
 
     def to_user_dict(self) -> dict[str, Any]:
-        return {"id": self.id, "title": self.title}
+        needs_review = any(
+            item.required or item.attribute.type == AttributeType.STORY
+            for group in self.attribute_groups
+            for item in group.attribute_group_items
+        )
+        return {"id": self.id, "title": self.title, "needs_review": needs_review}
 
     @classmethod
     def get_all_for_user_api(cls, user):
