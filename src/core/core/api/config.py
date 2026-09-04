@@ -532,7 +532,9 @@ class Bots(MethodView):
                 logger.debug(f"Successfully updated {updated_bot}")
                 _invalidate_admin_cache(200)
                 return jsonify({"message": "Bot updated", "id": f"{updated_bot.id}"}), 200
-        except ValueError as e:
+        except bot.BotIndexConflictError:
+            return {"error": bot.BotIndexConflictError.public_message}, 400
+        except (TypeError, ValueError) as e:
             db.session.rollback()
             logger.warning("Invalid bot update payload: %s", e)
             return {"error": "Invalid bot update payload"}, 400
@@ -543,10 +545,13 @@ class Bots(MethodView):
         if bot_id is None:
             return {"error": "No bot_id provided"}, 400
         try:
-            if updated_bot := bot.Bot.update(bot_id, request.json or {}, patch=True):
+            update_data = request.json if request.json is not None else {}
+            if updated_bot := bot.Bot.update(bot_id, update_data, patch=True):
                 _invalidate_admin_cache(200)
                 return {"message": "Bot updated", "id": updated_bot.id}, 200
-        except ValueError as exc:
+        except bot.BotIndexConflictError:
+            return {"error": bot.BotIndexConflictError.public_message}, 400
+        except (TypeError, ValueError) as exc:
             db.session.rollback()
             logger.warning("Invalid bot patch payload: %s", exc)
             return {"error": "Invalid bot update payload"}, 400
@@ -555,18 +560,22 @@ class Bots(MethodView):
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):
         data = request.json or {}
-        index = data.get("index")
-        if index is not None and bot.Bot.index_exists(index):
-            return {"error": "A bot with this index already exists."}, 400
+        index = None
         try:
+            if not isinstance(data, dict):
+                raise TypeError("Bot create payload must be an object")
+            if index := data.get("index"):
+                data["index"] = index = bot.Bot.normalize_index(index)
+                if bot.Bot.index_exists(index):
+                    return {"error": bot.BotIndexConflictError.public_message}, 400
             new_bot = bot.Bot.add(data)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Bot created", "id": new_bot.id}), 201
         except IntegrityError as e:
             if index is not None and bot.Bot.index_exists(index):
-                return {"error": "A bot with this index already exists."}, 400
+                return {"error": bot.BotIndexConflictError.public_message}, 400
             return {"error": convert_integrity_error(e)}, 400
-        except ValueError as e:
+        except (TypeError, ValueError) as e:
             logger.warning("Invalid bot create payload: %s", e)
             return {"error": "Invalid bot create payload"}, 400
 

@@ -1009,6 +1009,13 @@ class TestBotConfigApi(BaseTest):
         assert response.json["error"] == "Invalid bot create payload"
         assert "SECRET_BOT_TYPE" not in response.text
 
+        payload["type"] = cleanup_bot["type"]
+        payload["index"] = "not-an-index"
+        for invalid_payload in (payload, [payload]):
+            response = client.post(self.concat_url("bots"), json=invalid_payload, headers=auth_header)
+            assert response.status_code == 400
+            assert response.json == {"error": "Invalid bot create payload"}
+
     def test_create_bot_rejects_duplicate_index_with_clear_error(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot
 

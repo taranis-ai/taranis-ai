@@ -150,9 +150,14 @@ class BotsInfo(MethodView):
 
     @api_key_required
     def put(self, bot_id):
-        if bot_result := bot.Bot.update(bot_id, request.json):
-            invalidate_frontend_cache_on_success(200, models=("bot",), scopes=(SCOPE_SCHEDULE,), object_ids={"bot": bot_id})
-            return {"message": "Bot updated", "id": bot_result.id}, 200
+        try:
+            if bot_result := bot.Bot.update(bot_id, request.json):
+                invalidate_frontend_cache_on_success(200, models=("bot",), scopes=(SCOPE_SCHEDULE,), object_ids={"bot": bot_id})
+                return {"message": "Bot updated", "id": bot_result.id}, 200
+        except bot.BotIndexConflictError:
+            return {"error": bot.BotIndexConflictError.public_message}, 400
+        except (TypeError, ValueError):
+            return {"error": "Invalid bot update payload"}, 400
         return {"message": "Bot not found"}, 404
 
 
