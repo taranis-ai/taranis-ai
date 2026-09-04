@@ -1009,6 +1009,21 @@ class TestBotConfigApi(BaseTest):
         assert response.json["error"] == "Invalid bot create payload"
         assert "SECRET_BOT_TYPE" not in response.text
 
+    def test_create_bot_rejects_duplicate_index_with_clear_error(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        with app.app_context():
+            duplicate_index = Bot._get_all_ordered()[0].index
+
+        payload = copy.deepcopy(cleanup_bot)
+        payload["id"] = str(uuid.uuid7())
+        payload["index"] = duplicate_index
+
+        response = client.post(self.concat_url("bots"), json=payload, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json == {"error": "A bot with this index already exists."}
+
     def test_bot_dag_preview_rejects_invalid_payload_without_leaking_details(self, client, auth_header):
         response = client.post(
             self.concat_url("bots/dag-preview"),

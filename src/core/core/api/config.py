@@ -554,10 +554,18 @@ class Bots(MethodView):
 
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):
+        data = request.json or {}
+        index = data.get("index")
+        if index is not None and bot.Bot.index_exists(index):
+            return {"error": "A bot with this index already exists."}, 400
         try:
-            new_bot = bot.Bot.add(request.json)
+            new_bot = bot.Bot.add(data)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Bot created", "id": new_bot.id}), 201
+        except IntegrityError as e:
+            if index is not None and bot.Bot.index_exists(index):
+                return {"error": "A bot with this index already exists."}, 400
+            return {"error": convert_integrity_error(e)}, 400
         except ValueError as e:
             logger.warning("Invalid bot create payload: %s", e)
             return {"error": "Invalid bot create payload"}, 400

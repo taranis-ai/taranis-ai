@@ -8,6 +8,8 @@ Each configured bot instance is a DAG node, identified by `Bot.id`. Multiple bot
 
 The admin dependency preview is scoped to the connected dependency component containing the edited bot. The Collector Chain remains the global enabled collector run order: every bot in that order sees the same full chain, while bots outside it see no Collector Chain section. Disabled bots are excluded from the collector chain but can remain visible in dependency badges with disabled styling. Malformed preview fields, types, or indexes return a generic 400 response rather than exposing validation details or raising a 500.
 
+Bot indexes are unique. The admin form checks availability as the index changes, ignores the current bot's own index while editing, and duplicate creation returns a clear static validation error.
+
 Collector-triggered runs enqueue the reachable enabled DAG once. Manual and cron bot runs enqueue the downstream DAG for their specific `worker_id` only after a successful result. Dependent jobs inherit the original filter and run with dependent triggering suppressed, so downstream completions do not schedule duplicate chains.
 
 For multiple parents, a bot waits only for parents that are part of the current scheduled chain. Disabled or missing parents do not block a chain, but the preview should warn admins.
@@ -27,6 +29,7 @@ The normal create/update form posts the full bot configuration. DAG previews use
 - Core DAG tests: `src/core/tests/application/admin_console/configuration/test_bot_dag.py`
 - Queue graph tests: `src/core/tests/application/admin_console/configuration/test_queue_manager_scheduler_extended.py`
 - Frontend run-order tests: `src/frontend/tests/unit/views/test_bot_view.py`
+- Admin browser flow: `src/frontend/tests/playwright/test_e2e_admin.py`
 - Worker metadata tests: `src/worker/worker/tests/bots/test_bot_tasks.py`
 
 ## Pitfalls

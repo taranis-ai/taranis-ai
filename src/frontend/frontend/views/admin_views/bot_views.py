@@ -173,6 +173,25 @@ class BotView(AdminBaseView):
 
     @classmethod
     @admin_required()
+    def get_bot_index_availability(cls):
+        index = request.args.get("index", type=int)
+        if index is None:
+            return render_template("bot/bot_index_availability.html", index=None, available=None)
+
+        current_bot_id = request.args.get("id", "")
+        try:
+            bots = DataPersistenceLayer().get_objects(Bot).items
+            available = not any(bot.index == index and bot.id != current_bot_id for bot in bots)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Failed to check bot index availability")
+            available = None
+
+        return render_template("bot/bot_index_availability.html", index=index, available=available)
+
+    @classmethod
+    @admin_required()
     def execute_bot(cls, bot_id: str):
         response = CoreApi().execute_bot(bot_id)
         if response is None:
