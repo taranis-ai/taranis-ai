@@ -38,6 +38,7 @@ class ReportTypes(TaranisBaseModel):
 
     id: str | None = None
     title: str | None = ""
+    needs_review: bool = False
 
 
 class ReportItem(TaranisBaseModel):

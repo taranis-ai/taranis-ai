@@ -1,5 +1,6 @@
 from flask import Blueprint, Flask
 
+from frontend.views.analyst_review_views import AnalystReviewView
 from frontend.views.story_bookmark_views import StoryBookmarkView
 from frontend.views.story_views import StoryView
 
@@ -8,6 +9,24 @@ def init(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{app.config['APPLICATION_ROOT']}")
 
     assess_bp.add_url_rule("/assess", view_func=StoryView.as_view("assess"))
+    assess_bp.add_url_rule(
+        "/analyst-review/start",
+        view_func=AnalystReviewView.start,
+        methods=["GET", "POST"],
+        endpoint="analyst_review_start",
+    )
+    assess_bp.add_url_rule(
+        "/analyst-review/<string:run_id>",
+        view_func=AnalystReviewView.review,
+        methods=["GET"],
+        endpoint="analyst_review",
+    )
+    assess_bp.add_url_rule(
+        "/analyst-review/<string:run_id>/actions",
+        view_func=AnalystReviewView.apply_action,
+        methods=["POST"],
+        endpoint="analyst_review_action",
+    )
     assess_bp.add_url_rule("/bookmarks", view_func=StoryBookmarkView.list_view, methods=["GET"], endpoint="bookmarks")
     assess_bp.add_url_rule("/bookmarks", view_func=StoryBookmarkView.create_bookmark, methods=["POST"], endpoint="bookmark_create")
     assess_bp.add_url_rule("/bookmarks/order", view_func=StoryBookmarkView.reorder_bookmarks, methods=["PATCH"], endpoint="bookmark_reorder")
