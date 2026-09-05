@@ -30,4 +30,10 @@
   {% call dashboard_card('Connectors', url_for('base.conflict_menu')) %}
     There are <b>{{ data.conflict_count }}</b> conflicts detected.
   {% endcall %}
+
+  {% if can_start_analyst_review | default(false) %}
+    {% call dashboard_card('Start analyst review', url_for('assess.analyst_review_start'), test_id='start-analyst-review-card') %}
+      Review the current shift's unread Stories and continue through Report to Publish.
+    {% endcall %}
+  {% endif %}
 </div>

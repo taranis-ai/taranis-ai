@@ -33,6 +33,8 @@ For the administrator view of recent OSINT source collection activity, see [docs
 
 For maintainer release steps, see [docs/releasing.md](docs/releasing.md).
 
+For container and Python dependency SBOM scope and attestations, see [docs/sbom.md](docs/sbom.md).
+
 ## Services
 
 | Type       | Name      | Description                           |

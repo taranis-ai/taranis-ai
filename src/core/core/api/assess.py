@@ -5,6 +5,7 @@ from flask import Blueprint, Flask, request
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.assess import (
+    AnalystReviewActionPayload,
     StoryBookmarkCreatePayload,
     StoryBookmarkOrderPayload,
     StoryBookmarkStoryPayload,
@@ -23,8 +24,10 @@ from core.managers.realtime_publisher import realtime_publisher
 from core.model import connector, news_item, news_item_tag, osint_source, report_item, story
 from core.model.filter_data import FilterData
 from core.model.story_conflict import StoryConflict
+from core.service.analyst_review import AnalystReviewService
 from core.service.cache_invalidation import (
     SCOPE_ASSESS_VIEWS,
+    SCOPE_REPORT_VIEWS,
     SCOPE_STORY_REPORT_VIEWS,
     SCOPE_STORY_VIEWS,
     invalidate_frontend_cache_on_success,
@@ -241,6 +244,36 @@ class Stories(MethodView):
         result_dict["message"] = f"Bulk action completed. {result_dict['updated']} stories updated."
         invalidate_frontend_cache_on_success(200, models=("story",))
         return result_dict, 200
+
+
+class AnalystReviewSnapshot(MethodView):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
+        return {"story_ids": story.Story.get_analyst_review_snapshot(current_user)}, 200
+
+
+class AnalystReviewAction(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def post(self):
+        try:
+            payload = AnalystReviewActionPayload.model_validate(request.json)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+        if payload.action == "add" and "ANALYZE_UPDATE" not in set(current_user.get_permissions()):
+            return {"error": "forbidden"}, 403
+
+        response, status = AnalystReviewService.triage(payload, current_user)
+        if 200 <= status < 300:
+            realtime_publisher.assess_changed()
+            scopes = (SCOPE_ASSESS_VIEWS, SCOPE_REPORT_VIEWS) if payload.action == "add" else (SCOPE_STORY_REPORT_VIEWS,)
+            object_ids = {"story": payload.story_id}
+            if payload.report_id:
+                realtime_publisher.report_item_changed(payload.report_id, current_user.organization_id)
+                object_ids["report"] = payload.report_id
+            invalidate_frontend_cache_on_success(status, scopes=scopes, object_ids=object_ids)
+        return response, status
 
 
 class StoryTagList(MethodView):
@@ -556,6 +589,8 @@ def initialize(app: Flask):
     assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")
 
     assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
+    assess_bp.add_url_rule("/analyst-review/snapshot", view_func=AnalystReviewSnapshot.as_view("analyst_review_snapshot"))
+    assess_bp.add_url_rule("/analyst-review/actions", view_func=AnalystReviewAction.as_view("analyst_review_action"))
     assess_bp.add_url_rule("/bookmarks", view_func=StoryBookmarks.as_view("bookmarks"))
     assess_bp.add_url_rule("/bookmarks/order", view_func=StoryBookmarkOrder.as_view("bookmark_order"))
     assess_bp.add_url_rule("/bookmarks/<string:bookmark_id>", view_func=StoryBookmark.as_view("bookmark"))

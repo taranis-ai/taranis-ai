@@ -8,6 +8,7 @@
 {% set grouped_attributes = report.grouped_attributes | default([]) %}
 {% set stories = report.stories | default([]) %}
 {% set layout = layout | default('split') %}
+{% set analyst_review_run = analyst_review_run | default('') %}
 {% set is_edit = report.id is not none and report.id != '0' %}
 {% set column_class = 'lg:col-span-6' if layout == 'split' else 'lg:col-span-12' %}
 
@@ -32,12 +33,14 @@
           </a>
         {% endif %}
         <a class="btn btn-outline btn-sm" href="{{ url_for('analyze.report_cti', report_id=report.id) }}" data-testid="report-cti-button">CTI information</a>
-        <div data-testid="report-new-product" class="inline-flex">
-          <button type="button"
-                  class="btn btn-outline btn-sm"
-                  onclick="document.getElementById('report_publish_dialog').showModal()"
-                  data-testid="report-publish-button">Publish</button>
-        </div>
+        {% if not analyst_review_run %}
+          <div data-testid="report-new-product" class="inline-flex">
+            <button type="button"
+                    class="btn btn-outline btn-sm"
+                    onclick="document.getElementById('report_publish_dialog').showModal()"
+                    data-testid="report-publish-button">Publish</button>
+          </div>
+        {% endif %}
         <div class="join">
           <button type="submit"
                   form="report_form"
@@ -59,14 +62,14 @@
                 formnovalidate
                 name="layout_switch"
                 value="split"
-                formaction="{{ url_for('analyze.report', report_id=report.id) }}?layout=split"
+                formaction="{{ url_for('analyze.report', report_id=report.id, layout='split', review_run=analyst_review_run or none) }}"
                 class="btn btn-sm join-item btn-outline {% if layout == 'split' %}btn-info btn-active{% endif %}">Split view</button>
         <button type="submit"
                 form="report_form"
                 formnovalidate
                 name="layout_switch"
                 value="stacked"
-                formaction="{{ url_for('analyze.report', report_id=report.id) }}?layout=stacked"
+                formaction="{{ url_for('analyze.report', report_id=report.id, layout='stacked', review_run=analyst_review_run or none) }}"
                 class="btn btn-sm join-item btn-outline {% if layout == 'stacked' %}btn-info btn-active{% endif %}">Stacked view</button>
       </div>
     </div>
@@ -76,6 +79,12 @@
       <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
 
       {% include "partials/admin_form_error.html" %}
+
+      {% if analyst_review_run %}
+        <div class="alert alert-info mb-4" data-testid="analyst-review-report-step">
+          Review the Report, organize its Stories, and complete any required fields before continuing to Publish.
+        </div>
+      {% endif %}
 
       <div class="grid grid-cols-12 gap-4">
         <div class="col-span-12 {{ column_class }}">
@@ -149,11 +158,17 @@
       </div>
 
       <div class="mt-8">
-        <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
+        {% if analyst_review_run %}
+          <button type="submit" name="continue_to_publish" value="true" class="btn btn-primary w-full" data-testid="save-report">Save and continue to Publish</button>
+        {% else %}
+          <input type="submit" class="btn btn-primary w-full" value="{{ submit_text }}" data-testid="save-report">
+        {% endif %}
       </div>
     </form>
 
-    {% include "analyze/report_publish_dialog.html" %}
+    {% if not analyst_review_run %}
+      {% include "analyze/report_publish_dialog.html" %}
+    {% endif %}
   </div>
 </div>
 <script type="text/javascript">

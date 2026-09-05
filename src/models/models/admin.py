@@ -1,8 +1,21 @@
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AnyUrl, Field, PastDatetime, SecretStr, field_serializer, field_validator, model_validator
+from pydantic import (
+    AnyUrl,
+    BeforeValidator,
+    Field,
+    PastDatetime,
+    SecretStr,
+    StrictBool,
+    StrictInt,
+    StrictStr,
+    TypeAdapter,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from models.base import TaranisBaseModel
 from models.task import CronTaskSpec, Task
@@ -310,6 +323,40 @@ class OSINTSourceGroup(TaranisBaseModel):
     word_lists: list[str] = Field(default_factory=list)
 
 
+class CuratedOSINTSourceList(TaranisBaseModel):
+    name: str
+    description: str = ""
+    sources: list[str] = Field(min_length=1)
+
+
+class CuratedOSINTSourceCatalog(TaranisBaseModel):
+    version: Literal[1]
+    sources: list[OSINTSource]
+    lists: list[CuratedOSINTSourceList]
+
+    @model_validator(mode="after")
+    def validate_catalog_references(self):
+        source_names = [source.name for source in self.sources]
+        list_names = [curated_list.name for curated_list in self.lists]
+        if len(source_names) != len(set(source_names)):
+            raise ValueError("Curated source names must be unique")
+        if len(list_names) != len(set(list_names)):
+            raise ValueError("Curated list names must be unique")
+        if any(len(curated_list.sources) != len(set(curated_list.sources)) for curated_list in self.lists):
+            raise ValueError("Curated source names must be unique within a list")
+
+        known_source_names = set(source_names)
+        if unknown_source_names := {
+            source_name for curated_list in self.lists for source_name in curated_list.sources if source_name not in known_source_names
+        }:
+            raise ValueError(f"Unknown curated source names: {', '.join(sorted(unknown_source_names))}")
+        return self
+
+
+class CuratedOSINTSourceSelection(TaranisBaseModel):
+    list_names: set[str] = Field(min_length=1)
+
+
 class ProductType(TaranisBaseModel):
     _core_endpoint = "/config/product-types"
     _model_name = "product_type"
@@ -403,19 +450,39 @@ class Attribute(TaranisBaseModel):
     attribute_enums: list[AttributeEnum] = Field(default_factory=list)
 
 
-class Bot(TaranisBaseModel):
+type BotIndex = Annotated[int, BeforeValidator(TypeAdapter(StrictInt | StrictStr).validate_python)]
+
+
+class BotInput(TaranisBaseModel):
+    name: str = ""
+    description: str = ""
+    index: BotIndex | None = None
+    enabled: StrictBool = True
+    parameters: dict[str, Any] | None = Field(default_factory=dict)
+
+    @field_validator("index", mode="before")
+    @classmethod
+    def empty_index_to_none(cls, value):
+        return None if value == "" else value
+
+
+class BotUpdate(BotInput):
+    type: BOT_TYPES | None = None
+
+
+class BotCreate(BotInput):
+    id: str | None = None
+    name: str
+    type: BOT_TYPES
+
+
+class Bot(BotCreate):
     _core_endpoint = "/config/bots"
     _model_name = "bot"
     _pretty_name = "Bot"
     _parameter_patch = True
 
-    id: str | None = None
-    name: str
-    description: str = ""
-    type: BOT_TYPES
-    index: int | None = None
     enabled: bool = True
-    parameters: dict[str, Any] | None = Field(default_factory=dict)
     status: Task | None = None
 
 

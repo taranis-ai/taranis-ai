@@ -110,7 +110,8 @@
   searchbar=true,
   new_item_target="#form-container",
   search_params=[],
-  force_delete=false
+  force_delete=false,
+  delete_name=none
 ) %}
   <div class="flex gap-4 mb-4">
     {% if routes.edit_route %}
@@ -138,7 +139,7 @@
                 hx-target="#{{ container_id }}"
                 hx-swap="outerHTML"
                 :disabled="selectedItems.length === 0">
-          Delete <span x-text="selectedItems.length" x-show="selectedItems.length > 0"></span> {{ name }}
+          Delete <span x-text="selectedItems.length" x-show="selectedItems.length > 0"></span> {{ delete_name or name }}
         </button>
       </div>
     {% endif %}

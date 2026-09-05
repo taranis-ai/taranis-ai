@@ -1,0 +1,92 @@
+{% macro review_action(label, action, key, classes) %}
+  <form method="post" action="{{ url_for('assess.analyst_review_action', run_id=run_id) }}" class="flex-1">
+    <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
+    <input type="hidden" name="action" value="{{ action }}">
+    <button type="submit"
+            class="btn w-full {{ classes }}"
+            hx-post="{{ url_for('assess.analyst_review_action', run_id=run_id) }}"
+            hx-include="closest form"
+            hx-trigger="click, keyup[event.key.toLowerCase() == '{{ key | lower }}' && canUseAssessShortcut(event)] from:body"
+            hx-target="#analyst-review"
+            hx-swap="outerHTML"
+            hx-status:400="target:#analyst-review"
+            hx-status:4xx="target:#analyst-review"
+            hx-status:5xx="target:#analyst-review"
+            data-testid="analyst-review-{{ action }}">
+      {{ label }} <kbd class="kbd kbd-sm">{{ key }}</kbd>
+    </button>
+  </form>
+{% endmacro %}
+
+<main id="analyst-review" class="p-4 md:p-8" data-testid="analyst-review">
+  <div class="mx-auto max-w-6xl space-y-5">
+    <header class="card border border-base-300 bg-base-100 shadow-sm">
+      <div class="card-body gap-3 p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h1 class="text-2xl font-bold">Analyst review</h1>
+              <span class="badge badge-outline">Shift</span>
+              <span class="badge badge-outline">Unread</span>
+            </div>
+            <p class="mt-1 text-sm text-base-content/70">Active Report: <strong>{{ review.report_title }}</strong></p>
+          </div>
+          <a href="{{ url_for('assess.assess', range='shift', read='false') }}" class="btn btn-ghost btn-sm">Open full Assess</a>
+        </div>
+        <div class="space-y-1" data-testid="analyst-review-progress">
+          <div class="flex justify-between text-sm">
+            <span>{{ review.reviewed }} of {{ review.total }} reviewed</span>
+            <span>{{ review.added }} added to {{ review.report_title }}</span>
+          </div>
+          <progress class="progress progress-primary w-full" value="{{ review.reviewed }}" max="{{ review.total }}"></progress>
+        </div>
+      </div>
+    </header>
+
+    <article class="card border border-primary bg-base-100 shadow" data-story-id="{{ story.id }}" data-testid="analyst-review-story">
+      <div class="card-body gap-5">
+        <div>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/60">
+            {% if story.created %}<span>{{ story.created | format_datetime }}</span>{% endif %}
+            {% if story.important %}<span class="badge badge-warning badge-sm">Important</span>{% endif %}
+            <span class="badge badge-outline badge-sm">{{ story.news_items | default([]) | length }} news items</span>
+          </div>
+          <h2 class="mt-2 text-2xl font-semibold" data-testid="analyst-review-story-title">{{ story.title or "Untitled Story" }}</h2>
+          {% if story.links %}
+            <a href="{{ story.links[0] }}" target="_blank" rel="noopener" class="link link-primary mt-2 inline-flex text-sm">Open source</a>
+          {% endif %}
+        </div>
+
+        {% set summary = story.summary or story.description %}
+        {% if not summary and story.news_items %}
+          {% set summary = story.news_items[0].content %}
+        {% endif %}
+        <div class="prose max-w-none whitespace-pre-line text-base-content/80" data-testid="analyst-review-story-summary">
+          {{ summary or "No summary available." }}
+        </div>
+
+        {% if story.news_items %}
+          <details class="rounded-box border border-base-300 p-4">
+            <summary class="cursor-pointer font-medium">News items ({{ story.news_items | length }})</summary>
+            <div class="mt-4 space-y-4">
+              {% for item in story.news_items %}
+                <section class="border-t border-base-200 pt-3 first:border-0 first:pt-0">
+                  <h3 class="font-semibold">{{ item.title or "Untitled news item" }}</h3>
+                  {% if item.link %}<a href="{{ item.link }}" target="_blank" rel="noopener" class="link link-primary text-sm">Open article</a>{% endif %}
+                  {% if item.content %}<p class="mt-2 whitespace-pre-line text-sm text-base-content/75">{{ item.content }}</p>{% endif %}
+                </section>
+              {% endfor %}
+            </div>
+          </details>
+        {% endif %}
+      </div>
+    </article>
+
+    <div class="flex flex-col gap-3 sm:flex-row">
+      {{ review_action('Add', 'add', 'A', 'btn-primary') }}
+      {{ review_action('Dismiss', 'dismiss', 'D', 'btn-outline') }}
+      {{ review_action('Skip', 'skip', 'S', 'btn-ghost') }}
+    </div>
+    <p class="text-center text-xs text-base-content/60">Keyboard shortcuts are disabled while typing or while a dialog is open.</p>
+  </div>
+</main>

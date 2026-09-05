@@ -3,7 +3,7 @@ import json
 from typing import Any, ClassVar, Literal
 
 from flask import render_template, request, url_for
-from models.admin import AdminMenuBadges, OSINTSource
+from models.admin import AdminMenuBadges, OSINTSource, OSINTSourceGroup
 from models.task import Task
 from models.types import COLLECTOR_TYPES
 from pydantic import ValidationError
@@ -369,25 +369,55 @@ class SourceView(AdminBaseView):
         return CoreApi.stream_proxy(core_resp, "sources_export.json")
 
     @classmethod
-    def load_default_osint_sources(cls):
-        dpl = DataPersistenceLayer()
-        response = CoreApi().load_default_osint_sources()
-        if not response:
-            logger.error("Failed to load default OSINT sources")
-            return render_template("notification/index.html", notification={"message": "Failed to load default OSINT sources", "error": True})
+    def curated_lists_view(cls, error: str | None = None, selected_list_names: list[str] | None = None, status: int = 200):
+        payload = CoreApi().get_curated_osint_source_lists()
+        curated_lists = payload.get("items", []) if isinstance(payload, dict) else []
+        if not curated_lists and error is None:
+            error = "Curated OSINT source lists are currently unavailable."
+            status = 502
+        return (
+            render_template(
+                "osint_source/osint_source_curated_lists.html",
+                curated_lists=curated_lists,
+                error=error,
+                selected_list_names=selected_list_names or [],
+            ),
+            status,
+        )
 
-        response = CoreApi().import_sources(response)
+    @classmethod
+    def curated_lists_post_view(cls):
+        selected_list_names = request.form.getlist("list_names")
+        if not selected_list_names:
+            return cls.curated_lists_view("Select at least one curated source list.", status=400)
+
+        try:
+            response = CoreApi().load_curated_osint_source_lists(selected_list_names)
+        except RequestException:
+            logger.exception("Curated OSINT source request failed")
+            return cls.curated_lists_view(
+                "Failed to load curated OSINT sources.",
+                selected_list_names,
+                502,
+            )
 
         if not response.ok:
-            error = response.json().get("error", "Unknown error")
-            error_message = f"Failed to import default OSINT sources: {error}"
-            logger.error(error_message)
-            return render_template("notification/index.html", notification={"message": error_message, "error": True})
+            payload = cls._response_payload(response)
+            error = payload.get("error") if payload else None
+            if not isinstance(error, str) or not error:
+                error = "Failed to load curated OSINT sources."
+            return cls.curated_lists_view(error, selected_list_names, response.status_code or 500)
 
-        dpl.invalidate_cache_by_object(cls.model)
-        dpl.invalidate_model_cache_locally(cls.model)
-        items = dpl.get_objects(cls.model)
-        return render_template(cls.get_list_template(), **cls.get_view_context(items))
+        payload = cls._response_payload(response) or {}
+        created = int(payload.get("created_source_count", 0))
+        reused = int(payload.get("reused_source_count", 0))
+        groups = int(payload.get("created_group_count", 0)) + int(payload.get("updated_group_count", 0))
+        dpl = DataPersistenceLayer()
+        for model in (OSINTSource, OSINTSourceGroup):
+            dpl.invalidate_cache_by_object(model)
+            dpl.invalidate_model_cache_locally(model)
+        cls.add_flash_notification({"message": f"Loaded {created} new and {reused} existing OSINT sources into {groups} curated groups."})
+        return cls.redirect_htmx(cls.get_base_route())
 
     @classmethod
     def _collect_source_view(cls, response: RequestsResponse | None):
