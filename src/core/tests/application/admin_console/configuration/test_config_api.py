@@ -45,6 +45,50 @@ _VALID_GIF_ICON_BYTES = _make_icon_bytes((8, 8), "GIF", mode="P", color=1)
 class TestSourcesConfigApi(BaseTest):
     base_uri = "/api/config"
 
+    @pytest.mark.parametrize("collector_type", ["MANUAL_COLLECTOR", "SIMPLE_WEB_COLLECTOR"])
+    @pytest.mark.parametrize("enabled", [True, False])
+    def test_curated_lists_reject_conflicting_collector_types(self, client, auth_header, app, collector_type, enabled):
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource, OSINTSourceGroup
+
+        with app.app_context():
+            catalog = OSINTSource.get_curated_catalog()
+            curated_list = catalog.lists[0]
+            source_name = curated_list.sources[0]
+
+        response = self.assert_post_ok(
+            client,
+            uri="osint-sources",
+            json_data={
+                "name": source_name,
+                "type": collector_type,
+                "enabled": enabled,
+                "parameters": {"WEB_URL": "https://example.com"} if collector_type == "SIMPLE_WEB_COLLECTOR" else {},
+            },
+            auth_header=auth_header,
+        )
+        source_id = response.json["id"]
+        try:
+            with app.app_context():
+                sources_before = [source.to_dict() for source in db.session.execute(db.select(OSINTSource)).scalars()]
+                groups_before = [group.to_dict() for group in db.session.execute(db.select(OSINTSourceGroup)).scalars()]
+
+            response = client.post(
+                self.concat_url("curated-osint-source-lists"),
+                json={"list_names": [curated_list.name]},
+                headers=auth_header,
+            )
+            assert response.status_code == 409
+            assert response.json["error"] == (
+                f'Cannot load curated lists: source "{source_name}" already exists with a different collector type. '
+                "Rename the existing source and try again. No sources or groups were changed."
+            )
+            with app.app_context():
+                assert [source.to_dict() for source in db.session.execute(db.select(OSINTSource)).scalars()] == sources_before
+                assert [group.to_dict() for group in db.session.execute(db.select(OSINTSourceGroup)).scalars()] == groups_before
+        finally:
+            client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
+
     @staticmethod
     def _assert_normalized_icon(icon_base64: str) -> None:
         icon_bytes = base64.b64decode(icon_base64)
@@ -130,6 +174,7 @@ class TestSourcesConfigApi(BaseTest):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
+        source_payload["name"] = f"Test Source {source_id}"
         source_payload["icon"] = _VALID_JPEG_ICON_BASE64
 
         create_response = client.post(self.concat_url("osint-sources"), json=source_payload, headers=auth_header)
@@ -245,6 +290,7 @@ class TestSourcesConfigApi(BaseTest):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
+        source_payload["name"] = f"Test Source {source_id}"
 
         create_response = client.post(self.concat_url("osint-sources"), json=source_payload, headers=auth_header)
         assert create_response.status_code == 201
@@ -279,14 +325,14 @@ class TestSourcesConfigApi(BaseTest):
 
         rss_source = {
             "id": rss_source_id,
-            "name": f"Visible Source {unique_suffix}",
+            "name": f"Visible RSS Source {unique_suffix}",
             "description": "Collector that should remain visible",
             "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
             "type": "rss_collector",
         }
         manual_source = {
             "id": manual_source_id,
-            "name": f"Visible Source {unique_suffix}",
+            "name": f"Visible Manual Source {unique_suffix}",
             "description": "Collector that should be hidden by default",
             "parameters": {},
             "type": "manual_collector",
@@ -318,14 +364,14 @@ class TestSourcesConfigApi(BaseTest):
 
         rss_source = {
             "id": rss_source_id,
-            "name": f"Visible Source {unique_suffix}",
+            "name": f"Visible RSS Source {unique_suffix}",
             "description": "Collector that should remain visible",
             "parameters": {"FEED_URL": "https://example.invalid/feed.xml"},
             "type": "rss_collector",
         }
         manual_source = {
             "id": manual_source_id,
-            "name": f"Visible Source {unique_suffix}",
+            "name": f"Visible Manual Source {unique_suffix}",
             "description": "Collector that should be shown when requested",
             "parameters": {},
             "type": "manual_collector",
@@ -363,7 +409,7 @@ class TestSourcesConfigApi(BaseTest):
         sources = [
             {
                 "id": source_id,
-                "name": f"Status Ordered Source {unique_suffix}",
+                "name": f"Status Ordered Source {source_id} {unique_suffix}",
                 "description": f"{status} source",
                 "parameters": {"FEED_URL": f"https://example.invalid/{source_id}.xml"},
                 "type": "rss_collector",
@@ -542,6 +588,7 @@ class TestWorkerSourceIcon(BaseTest):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
+        source_payload["name"] = f"Test Source {source_id}"
 
         create_response = client.post("/api/config/osint-sources", json=source_payload, headers=auth_header)
         assert create_response.status_code == 201
@@ -573,6 +620,7 @@ class TestWorkerSourceIcon(BaseTest):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
+        source_payload["name"] = f"Test Source {source_id}"
 
         create_response = client.post("/api/config/osint-sources", json=source_payload, headers=auth_header)
         assert create_response.status_code == 201
@@ -600,6 +648,7 @@ class TestWorkerSourceIcon(BaseTest):
         source_payload = copy.deepcopy(cleanup_sources)
         source_id = uuid.uuid4().hex
         source_payload["id"] = source_id
+        source_payload["name"] = f"Test Source {source_id}"
 
         create_response = client.post("/api/config/osint-sources", json=source_payload, headers=auth_header)
         assert create_response.status_code == 201

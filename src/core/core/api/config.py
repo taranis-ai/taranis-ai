@@ -6,7 +6,7 @@ from typing import Any, ClassVar
 from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.admin import BotCreate, BotUpdate
+from models.admin import BotCreate, BotUpdate, CuratedOSINTSourceSelection
 from models.admin import OSINTSource as OSINTSourceModel
 from psycopg.errors import NotNullViolation, UniqueViolation
 from pydantic import ValidationError
@@ -912,6 +912,44 @@ class OSINTSourcesImport(MethodView):
         return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
 
 
+class CuratedOSINTSourceLists(MethodView):
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    def get(self):
+        try:
+            return {"items": osint_source.OSINTSource.get_curated_list_summaries()}
+        except (OSError, ValueError, ValidationError):
+            logger.exception("Invalid curated OSINT source catalog")
+            return {"error": "Curated OSINT source catalog is unavailable"}, 500
+
+    @auth_required("CONFIG_OSINT_SOURCE_CREATE")
+    def post(self):
+        try:
+            selection = CuratedOSINTSourceSelection.model_validate(request.get_json(silent=True) or {})
+            response = osint_source.OSINTSource.load_curated_lists(selection.list_names)
+        except ValidationError:
+            return {"error": "Select at least one valid curated source list"}, 400
+        except osint_source.CuratedOSINTSourceSchedulingError:
+            _invalidate_admin_cache(200)
+            return {"error": "Curated OSINT sources were saved but could not be scheduled; retry loading the selected lists"}, 503
+        except osint_source.CuratedOSINTSourceConflictError as exc:
+            logger.info("Curated OSINT source load rejected: %s", exc.public_message)
+            return {"error": exc.public_message}, 409
+        except IntegrityError:
+            raise
+        except ValueError:
+            logger.exception("Invalid curated OSINT source selection or catalog")
+            return {"error": "Invalid curated OSINT source selection"}, 400
+        except OSError:
+            logger.exception("Unable to read curated OSINT source catalog")
+            return {"error": "Curated OSINT source catalog is unavailable"}, 500
+        except Exception:
+            logger.exception("Failed to load curated OSINT sources")
+            return {"error": "Unable to load curated OSINT sources"}, 500
+
+        _invalidate_admin_cache(200)
+        return response
+
+
 class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
     @extract_args("search", "page", "limit", "sort", "order", "fetch_all")
@@ -1172,6 +1210,11 @@ def build_config_blueprint(name: str) -> Blueprint:
     )
     config_bp.add_url_rule("/export-osint-sources", view_func=OSINTSourcesExport.as_view(f"{name}_osint_sources_export"))
     config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view(f"{name}_osint_sources_import"))
+    config_bp.add_url_rule(
+        "/curated-osint-source-lists",
+        view_func=CuratedOSINTSourceLists.as_view(f"{name}_curated_osint_source_lists"),
+        methods=["GET", "POST"],
+    )
     config_bp.add_url_rule("/permissions", view_func=Permissions.as_view(f"{name}_permissions"))
     config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view(f"{name}_product_types_config"), methods=["GET", "POST"])
     config_bp.add_url_rule(
