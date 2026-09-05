@@ -45,6 +45,15 @@ class CuratedOSINTSourceSchedulingError(RuntimeError):
     pass
 
 
+class CuratedOSINTSourceConflictError(ValueError):
+    def __init__(self, source_name: str):
+        self.public_message = (
+            f'Cannot load curated lists: source "{source_name}" already exists with a different collector type. '
+            "Rename the existing source and try again. No sources or groups were changed."
+        )
+        super().__init__(self.public_message)
+
+
 class CollectorHTTPState(BaseModel):
     __tablename__ = "collector_http_state"
 
@@ -994,6 +1003,8 @@ class OSINTSource(BaseModel):
         try:
             for source_name in selected_source_names:
                 source = existing_sources.get(source_name)
+                if source is not None and source.type != catalog_sources[source_name].type:
+                    raise CuratedOSINTSourceConflictError(source_name)
                 if source is None:
                     source = cls.from_payload(catalog_sources[source_name])
                     db.session.add(source)

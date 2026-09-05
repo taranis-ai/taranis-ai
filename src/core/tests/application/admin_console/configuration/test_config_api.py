@@ -5,6 +5,7 @@ import os
 import uuid
 from io import BytesIO
 
+import pytest
 from PIL import Image
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.datastructures import FileStorage
@@ -43,6 +44,50 @@ _VALID_GIF_ICON_BYTES = _make_icon_bytes((8, 8), "GIF", mode="P", color=1)
 
 class TestSourcesConfigApi(BaseTest):
     base_uri = "/api/config"
+
+    @pytest.mark.parametrize("collector_type", ["MANUAL_COLLECTOR", "SIMPLE_WEB_COLLECTOR"])
+    @pytest.mark.parametrize("enabled", [True, False])
+    def test_curated_lists_reject_conflicting_collector_types(self, client, auth_header, app, collector_type, enabled):
+        from core.managers.db_manager import db
+        from core.model.osint_source import OSINTSource, OSINTSourceGroup
+
+        with app.app_context():
+            catalog = OSINTSource.get_curated_catalog()
+            curated_list = catalog.lists[0]
+            source_name = curated_list.sources[0]
+
+        response = self.assert_post_ok(
+            client,
+            uri="osint-sources",
+            json_data={
+                "name": source_name,
+                "type": collector_type,
+                "enabled": enabled,
+                "parameters": {"WEB_URL": "https://example.com"} if collector_type == "SIMPLE_WEB_COLLECTOR" else {},
+            },
+            auth_header=auth_header,
+        )
+        source_id = response.json["id"]
+        try:
+            with app.app_context():
+                sources_before = [source.to_dict() for source in db.session.execute(db.select(OSINTSource)).scalars()]
+                groups_before = [group.to_dict() for group in db.session.execute(db.select(OSINTSourceGroup)).scalars()]
+
+            response = client.post(
+                self.concat_url("curated-osint-source-lists"),
+                json={"list_names": [curated_list.name]},
+                headers=auth_header,
+            )
+            assert response.status_code == 409
+            assert response.json["error"] == (
+                f'Cannot load curated lists: source "{source_name}" already exists with a different collector type. '
+                "Rename the existing source and try again. No sources or groups were changed."
+            )
+            with app.app_context():
+                assert [source.to_dict() for source in db.session.execute(db.select(OSINTSource)).scalars()] == sources_before
+                assert [group.to_dict() for group in db.session.execute(db.select(OSINTSourceGroup)).scalars()] == groups_before
+        finally:
+            client.delete(self.concat_url(f"osint-sources/{source_id}"), headers=auth_header)
 
     @staticmethod
     def _assert_normalized_icon(icon_base64: str) -> None:

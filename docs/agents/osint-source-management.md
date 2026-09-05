@@ -22,6 +22,8 @@ The bundled catalog groups sources into Austrian news and public-sector coverage
 
 Invalid bulk form input returns HTTP 400. Core import failures preserve the upstream status so monitoring and callers can distinguish validation failures from service failures; transport failures return HTTP 502 while re-rendering the form with a static error.
 
+Curated loading rejects a same-name source with a different collector type, including enabled or disabled manual sources, with HTTP 409 before committing. The error identifies the source and asks the administrator to rename it before retrying. The entire load is rolled back; ordinary source creation still allows names found in the catalog.
+
 ## Code Paths
 
 - Frontend view and payload construction: `src/frontend/frontend/views/admin_views/source_views.py`
@@ -42,7 +44,7 @@ The curated-list form is loaded into the admin form container over HTMX. Core re
 
 Frontend unit coverage verifies the create-form documentation link, supported collectors, bulk-only parameter omission, and Core failure status handling in `src/frontend/tests/unit/views/test_views.py`.
 
-Core API coverage verifies explicit force parsing, all-ID validation, atomic failure behavior, forced deletion, and curated-list reuse, scheduling retries, and rollback in `src/core/tests/application/admin_console/configuration/test_config_api.py`.
+Core API coverage verifies explicit force parsing, all-ID validation, atomic failure behavior, forced deletion, and curated-list collector-type conflicts and atomic rejection in `src/core/tests/application/admin_console/configuration/test_config_api.py`.
 
 Admin browser coverage exercises the curated multi-select workflow.
 

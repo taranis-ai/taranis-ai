@@ -921,6 +921,9 @@ class CuratedOSINTSourceLists(MethodView):
         except osint_source.CuratedOSINTSourceSchedulingError:
             _invalidate_admin_cache(200)
             return {"error": "Curated OSINT sources were saved but could not be scheduled; retry loading the selected lists"}, 503
+        except osint_source.CuratedOSINTSourceConflictError as exc:
+            logger.info("Curated OSINT source load rejected: %s", exc.public_message)
+            return {"error": exc.public_message}, 409
         except IntegrityError as exc:
             db.session.rollback()
             return {"error": convert_integrity_error(exc)}, 400
