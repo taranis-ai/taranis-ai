@@ -43,29 +43,28 @@ from core.service.template_service import build_template_response, build_templat
 from core.service.worker_parameters import reveal_parameter
 
 
-def convert_integrity_error(error: IntegrityError) -> str:
-    """
-    Converts an IntegrityError into a more descriptive ValidationError.
-    Currently handles UniqueViolation and NotNullViolation errors using psycopg2's diagnostics.
-    """
+def handle_integrity_error(error: IntegrityError):
+    db.session.rollback()
     orig = error.orig
     if isinstance(orig, UniqueViolation):
         constraint = orig.diag.constraint_name
-        field = constraint.rsplit("_", 2)[-2] if constraint else None
+        field = constraint.rsplit("_", 2)[-2] if constraint and "_" in constraint else None
         if field:
-            return f"A record with this field: '{field}' already exists."
+            return {"error": f"A record with this field: '{field}' already exists."}, 400
+        return {"error": "A record with these values already exists."}, 400
     if isinstance(orig, NotNullViolation):
         column = getattr(orig.diag, "column_name", None)
         table = getattr(orig.diag, "table_name", None)
         if column and table:
             pretty_column = column.replace("_", " ")
             pretty_table = table.replace("_", " ")
-            return f"Cannot set {pretty_column} to null because {pretty_table} still requires a value."
+            return {"error": f"Cannot set {pretty_column} to null because {pretty_table} still requires a value."}, 400
         if column:
             pretty_column = column.replace("_", " ")
-            return f"A value for {pretty_column} is required."
-        return "A required value is missing."
-    return "Database integrity error."
+            return {"error": f"A value for {pretty_column} is required."}, 400
+        return {"error": "A required value is missing."}, 400
+    logger.error("Unexpected database integrity failure in config API", exc_info=error)
+    return {"error": "Database integrity error."}, 500
 
 
 def _invalidate_admin_cache(status_code: int) -> int:
@@ -182,6 +181,8 @@ class ReportItemTypes(MethodView):
             item = report_item_type.ReportItemType.add(request.json)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Report item type added", "id": item.id}), 201
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception("Failed to add report item type")
             return {"error": "Failed to add report item type"}, 500
@@ -226,8 +227,8 @@ class ProductTypes(MethodView):
             db.session.rollback()
             logger.warning("Invalid product type payload: %s", e)
             return {"error": "Invalid product type payload"}, 400
-        except IntegrityError as e:
-            return {"error": convert_integrity_error(e)}, 400
+        except IntegrityError:
+            raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error creating product type: {e}")
@@ -249,6 +250,8 @@ class ProductTypes(MethodView):
             db.session.rollback()
             logger.warning("Invalid product type update payload: %s", e)
             return {"error": "Invalid product type payload"}, 400
+        except IntegrityError:
+            raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error updating product type: {e}")
@@ -275,8 +278,8 @@ class ProductTypes(MethodView):
             response, status = product_type.ProductType.delete(type_id)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError as e:
-            return {"error": convert_integrity_error(e)}, 400
+        except IntegrityError:
+            raise
         except Exception as e:
             logger.error(f"Error deleting product type: {e}")
             return {"error": "Failed to delete product type"}, 500
@@ -480,8 +483,8 @@ class Users(MethodView):
             new_user = user.User.add(request.json)
             _invalidate_admin_cache(201)
             return {"message": "User created", "id": new_user.id}, 201
-        except IntegrityError as e:
-            return {"error": convert_integrity_error(e)}, 400
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception("Could not create user")
             return {"error": "Could not create user"}, 400
@@ -494,8 +497,8 @@ class Users(MethodView):
             response, status = user.User.update(user_id, request.json)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError as e:
-            return {"error": convert_integrity_error(e)}, 400
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception("Could not update user %s", user_id)
             return {"error": "Could not update user"}, 400
@@ -508,6 +511,8 @@ class Users(MethodView):
             response, status = user.User.delete(user_id)
             _invalidate_admin_cache(status)
             return response, status
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception("Could not delete user %s", user_id)
             return {"error": "Could not delete user"}, 400
@@ -571,10 +576,11 @@ class Bots(MethodView):
             new_bot = bot.Bot.add(data)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Bot created", "id": new_bot.id}), 201
-        except IntegrityError as e:
+        except IntegrityError:
+            db.session.rollback()
             if index is not None and bot.Bot.index_exists(index):
                 return {"error": bot.BotIndexConflictError.public_message}, 400
-            return {"error": convert_integrity_error(e)}, 400
+            raise
         except (TypeError, ValueError) as e:
             logger.warning("Invalid bot create payload: %s", e)
             return {"error": "Invalid bot create payload"}, 400
@@ -1015,8 +1021,8 @@ class WordLists(MethodView):
             response, status = word_list.WordList.delete(word_list_id)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError as e:
-            return {"error": convert_integrity_error(e)}, 400
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception(f"Failed to delete word list {word_list_id}")
             return {"error": "Could not delete word list"}, 400
@@ -1053,6 +1059,8 @@ class WordListImport(MethodView):
         except ValueError as exc:
             logger.warning(f"Invalid word list import payload: {exc}")
             return {"error": "Invalid word list import payload"}, 400
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception("Exception occurred during Word List import")
             return {"error": "Unable to import Word Lists"}, 500
@@ -1128,6 +1136,7 @@ class ParameterSecrets(MethodView):
 
 def build_config_blueprint(name: str) -> Blueprint:
     config_bp = Blueprint(name, __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/{name}")
+    config_bp.register_error_handler(IntegrityError, handle_integrity_error)
     crud_methods = ["GET", "PUT", "DELETE"]
     crud_patch_methods = ["GET", "PUT", "DELETE", "PATCH"]
 
