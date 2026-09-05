@@ -1,8 +1,21 @@
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AnyUrl, Field, PastDatetime, SecretStr, field_serializer, field_validator, model_validator
+from pydantic import (
+    AnyUrl,
+    BeforeValidator,
+    Field,
+    PastDatetime,
+    SecretStr,
+    StrictBool,
+    StrictInt,
+    StrictStr,
+    TypeAdapter,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from models.base import TaranisBaseModel
 from models.task import CronTaskSpec, Task
@@ -435,19 +448,39 @@ class Attribute(TaranisBaseModel):
     attribute_enums: list[AttributeEnum] = Field(default_factory=list)
 
 
-class Bot(TaranisBaseModel):
+type BotIndex = Annotated[int, BeforeValidator(TypeAdapter(StrictInt | StrictStr).validate_python)]
+
+
+class BotInput(TaranisBaseModel):
+    name: str = ""
+    description: str = ""
+    index: BotIndex | None = None
+    enabled: StrictBool = True
+    parameters: dict[str, Any] | None = Field(default_factory=dict)
+
+    @field_validator("index", mode="before")
+    @classmethod
+    def empty_index_to_none(cls, value):
+        return None if value == "" else value
+
+
+class BotUpdate(BotInput):
+    type: BOT_TYPES | None = None
+
+
+class BotCreate(BotInput):
+    id: str | None = None
+    name: str
+    type: BOT_TYPES
+
+
+class Bot(BotCreate):
     _core_endpoint = "/config/bots"
     _model_name = "bot"
     _pretty_name = "Bot"
     _parameter_patch = True
 
-    id: str | None = None
-    name: str
-    description: str = ""
-    type: BOT_TYPES
-    index: int | None = None
     enabled: bool = True
-    parameters: dict[str, Any] | None = Field(default_factory=dict)
     status: Task | None = None
 
 

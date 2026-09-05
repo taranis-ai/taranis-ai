@@ -1043,10 +1043,20 @@ class TestOrganizationConfigApi(BaseTest):
 class TestBotConfigApi(BaseTest):
     base_uri = "/api/config"
 
-    def test_create_bot(self, client, auth_header, cleanup_bot):
-        response = self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
+    @pytest.mark.parametrize("index", [0, "0", None, ""])
+    def test_create_bot(self, client, auth_header, cleanup_bot, app, index):
+        from core.model.bot import Bot
+
+        with app.app_context():
+            if Bot.get(cleanup_bot["id"]):
+                Bot.delete(cleanup_bot["id"])
+            expected_index = Bot.get_highest_index() + 1 if index in (None, "") else 0
+        payload = {**cleanup_bot, "index": index}
+        response = self.assert_post_ok(client, uri="bots", json_data=payload, auth_header=auth_header)
         assert response.json["message"] == "Bot created"
         assert response.json["id"] == cleanup_bot["id"]
+        stored = self.assert_get_ok(client, uri=f"bots/{cleanup_bot['id']}", auth_header=auth_header)
+        assert stored.json["index"] == expected_index
 
     def test_create_bot_rejects_invalid_payload_without_leaking_details(self, client, auth_header, cleanup_bot):
         payload = copy.deepcopy(cleanup_bot)
@@ -1058,6 +1068,27 @@ class TestBotConfigApi(BaseTest):
         assert response.status_code == 400
         assert response.json["error"] == "Invalid bot create payload"
         assert "SECRET_BOT_TYPE" not in response.text
+
+        payload["type"] = cleanup_bot["type"]
+        for invalid_payload in ([payload], *({**payload, "index": value} for value in (False, True, 0.0, "not-an-index"))):
+            response = client.post(self.concat_url("bots"), json=invalid_payload, headers=auth_header)
+            assert response.status_code == 400
+            assert response.json == {"error": "Invalid bot create payload"}
+
+    def test_create_bot_rejects_duplicate_index_with_clear_error(self, client, auth_header, cleanup_bot, app):
+        from core.model.bot import Bot
+
+        with app.app_context():
+            duplicate_index = Bot._get_all_ordered()[0].index
+
+        payload = copy.deepcopy(cleanup_bot)
+        payload["id"] = str(uuid.uuid7())
+        payload["index"] = duplicate_index
+
+        response = client.post(self.concat_url("bots"), json=payload, headers=auth_header)
+
+        assert response.status_code == 400
+        assert response.json == {"error": "A bot with this index already exists."}
 
     def test_bot_dag_preview_rejects_invalid_payload_without_leaking_details(self, client, auth_header):
         response = client.post(
@@ -1080,7 +1111,9 @@ class TestBotConfigApi(BaseTest):
         assert response.status_code == 400
         assert response.json["error"] == "Invalid bot DAG preview payload"
 
-    def test_modify_bot(self, client, auth_header, cleanup_bot, app):
+    @pytest.mark.parametrize("method", ["put", "patch"])
+    @pytest.mark.parametrize("index", [0, "0"])
+    def test_modify_bot(self, client, auth_header, cleanup_bot, app, method, index):
         from core.model.bot import Bot
 
         with app.app_context():
@@ -1096,8 +1129,23 @@ class TestBotConfigApi(BaseTest):
             "parameters": {"REGULAR_EXPRESSION": r"\btest\b", "REFRESH_INTERVAL": "0 */8 * * *"},
         }
         bot_id = cleanup_bot["id"]
-        response = self.assert_put_ok(client, uri=f"bots/{bot_id}", json_data=bot_data, auth_header=auth_header)
+        bot_data["index"] = index
+        response = getattr(client, method)(self.concat_url(f"bots/{bot_id}"), json=bot_data, headers=auth_header)
+        assert response.status_code == 200
         assert response.json["id"] == f"{bot_id}"
+        for payload in ({}, {"index": None}, {"index": ""}):
+            response = getattr(client, method)(
+                self.concat_url(f"bots/{bot_id}"), json={"name": bot_data["name"], **payload}, headers=auth_header
+            )
+            assert response.status_code == 200
+            stored = self.assert_get_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
+            assert stored.json["index"] == 0
+        for invalid_index in (False, True, 0.0, "not-an-index"):
+            response = getattr(client, method)(self.concat_url(f"bots/{bot_id}"), json={"index": invalid_index}, headers=auth_header)
+            assert response.status_code == 400
+            assert response.json == {"error": "Invalid bot update payload"}
+        stored = self.assert_get_ok(client, uri=f"bots/{bot_id}", auth_header=auth_header)
+        assert stored.json["index"] == 0
 
     def test_modify_bot_rejects_invalid_payload_without_leaking_details(self, client, auth_header, cleanup_bot, app):
         from core.model.bot import Bot

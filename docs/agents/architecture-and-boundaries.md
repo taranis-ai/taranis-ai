@@ -25,6 +25,10 @@ Worker task modules are `collector_tasks.py`, `bot_tasks.py`, `presenter_tasks.p
 - Expose user workflow product or publishing reference data through a user-scoped endpoint in `src/core/core/api/publish.py`, with matching models in `src/models/models/product.py`.
 - Prefer `DataPersistenceLayer` in frontend views. Use `CoreApi()` directly only for raw responses, downloads/streams, or deliberate cache bypasses.
 
+## Config API Constraint Failures
+
+The config and admin blueprints share `handle_integrity_error` in `src/core/core/api/config.py`. It rolls back the session before returning safe PostgreSQL unique/not-null validation messages (400). Other integrity failures are logged server-side and return a static 500 response. Endpoint catch-all handlers must let `IntegrityError` propagate to this boundary; domain-specific bot-index conflicts retain their curated message. Boundary coverage is in `src/core/tests/unit/test_config_integrity_errors.py`, including session recovery after a failed flush.
+
 ## Persistence and Migrations
 
 - Do not create migrations for new tables: core creates them from metadata in `src/core/core/managers/db_manager.py` after `db.init_app(app)` and metadata setup.

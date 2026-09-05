@@ -218,6 +218,9 @@ def init(app: Flask):
     admin_bp.add_url_rule(
         "/bot_parameters/<string:bot_id>", view_func=BotView.get_bot_parameters_view, methods=["GET"], endpoint="bot_parameters"
     )
+    admin_bp.add_url_rule(
+        "/bot_index_availability", view_func=BotView.get_bot_index_availability, methods=["GET"], endpoint="bot_index_availability"
+    )
     admin_bp.add_url_rule("/bot_dag_preview", view_func=BotView.preview_bot_dag, methods=["POST"], endpoint="bot_dag_preview")
     admin_bp.add_url_rule("/toggle_bot_state/<string:bot_id>/<string:new_state>", view_func=BotView.toggle_bot_state, methods=["POST"])
     admin_bp.add_url_rule("/bot_execute/<string:bot_id>", view_func=BotView.execute_bot, methods=["POST"])

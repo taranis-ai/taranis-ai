@@ -6,7 +6,7 @@ from typing import Any, ClassVar
 from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
-from models.admin import CuratedOSINTSourceSelection
+from models.admin import BotCreate, BotUpdate, CuratedOSINTSourceSelection
 from models.admin import OSINTSource as OSINTSourceModel
 from psycopg.errors import NotNullViolation, UniqueViolation
 from pydantic import ValidationError
@@ -44,29 +44,28 @@ from core.service.template_service import build_template_response, build_templat
 from core.service.worker_parameters import reveal_parameter
 
 
-def convert_integrity_error(error: IntegrityError) -> str:
-    """
-    Converts an IntegrityError into a more descriptive ValidationError.
-    Currently handles UniqueViolation and NotNullViolation errors using psycopg2's diagnostics.
-    """
+def handle_integrity_error(error: IntegrityError):
+    db.session.rollback()
     orig = error.orig
     if isinstance(orig, UniqueViolation):
         constraint = orig.diag.constraint_name
-        field = constraint.rsplit("_", 2)[-2] if constraint else None
+        field = constraint.rsplit("_", 2)[-2] if constraint and "_" in constraint else None
         if field:
-            return f"A record with this field: '{field}' already exists."
+            return {"error": f"A record with this field: '{field}' already exists."}, 400
+        return {"error": "A record with these values already exists."}, 400
     if isinstance(orig, NotNullViolation):
         column = getattr(orig.diag, "column_name", None)
         table = getattr(orig.diag, "table_name", None)
         if column and table:
             pretty_column = column.replace("_", " ")
             pretty_table = table.replace("_", " ")
-            return f"Cannot set {pretty_column} to null because {pretty_table} still requires a value."
+            return {"error": f"Cannot set {pretty_column} to null because {pretty_table} still requires a value."}, 400
         if column:
             pretty_column = column.replace("_", " ")
-            return f"A value for {pretty_column} is required."
-        return "A required value is missing."
-    return "Database integrity error."
+            return {"error": f"A value for {pretty_column} is required."}, 400
+        return {"error": "A required value is missing."}, 400
+    logger.error("Unexpected database integrity failure in config API", exc_info=error)
+    return {"error": "Database integrity error."}, 500
 
 
 def _invalidate_admin_cache(status_code: int) -> int:
@@ -183,6 +182,8 @@ class ReportItemTypes(MethodView):
             item = report_item_type.ReportItemType.add(request.json)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Report item type added", "id": item.id}), 201
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception("Failed to add report item type")
             return {"error": "Failed to add report item type"}, 500
@@ -227,8 +228,8 @@ class ProductTypes(MethodView):
             db.session.rollback()
             logger.warning("Invalid product type payload: %s", e)
             return {"error": "Invalid product type payload"}, 400
-        except IntegrityError as e:
-            return {"error": convert_integrity_error(e)}, 400
+        except IntegrityError:
+            raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error creating product type: {e}")
@@ -250,6 +251,8 @@ class ProductTypes(MethodView):
             db.session.rollback()
             logger.warning("Invalid product type update payload: %s", e)
             return {"error": "Invalid product type payload"}, 400
+        except IntegrityError:
+            raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error updating product type: {e}")
@@ -276,8 +279,8 @@ class ProductTypes(MethodView):
             response, status = product_type.ProductType.delete(type_id)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError as e:
-            return {"error": convert_integrity_error(e)}, 400
+        except IntegrityError:
+            raise
         except Exception as e:
             logger.error(f"Error deleting product type: {e}")
             return {"error": "Failed to delete product type"}, 500
@@ -481,8 +484,8 @@ class Users(MethodView):
             new_user = user.User.add(request.json)
             _invalidate_admin_cache(201)
             return {"message": "User created", "id": new_user.id}, 201
-        except IntegrityError as e:
-            return {"error": convert_integrity_error(e)}, 400
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception("Could not create user")
             return {"error": "Could not create user"}, 400
@@ -495,8 +498,8 @@ class Users(MethodView):
             response, status = user.User.update(user_id, request.json)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError as e:
-            return {"error": convert_integrity_error(e)}, 400
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception("Could not update user %s", user_id)
             return {"error": "Could not update user"}, 400
@@ -509,6 +512,8 @@ class Users(MethodView):
             response, status = user.User.delete(user_id)
             _invalidate_admin_cache(status)
             return response, status
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception("Could not delete user %s", user_id)
             return {"error": "Could not delete user"}, 400
@@ -529,11 +534,14 @@ class Bots(MethodView):
         if not (update_data := request.json):
             return {"error": "No update data passed"}, 400
         try:
+            update_data = BotUpdate.model_validate(update_data).model_dump(exclude_unset=True, exclude_none=False)
             if updated_bot := bot.Bot.update(bot_id, update_data):
                 logger.debug(f"Successfully updated {updated_bot}")
                 _invalidate_admin_cache(200)
                 return jsonify({"message": "Bot updated", "id": f"{updated_bot.id}"}), 200
-        except ValueError as e:
+        except bot.BotIndexConflictError:
+            return {"error": bot.BotIndexConflictError.public_message}, 400
+        except (TypeError, ValueError) as e:
             db.session.rollback()
             logger.warning("Invalid bot update payload: %s", e)
             return {"error": "Invalid bot update payload"}, 400
@@ -544,10 +552,14 @@ class Bots(MethodView):
         if bot_id is None:
             return {"error": "No bot_id provided"}, 400
         try:
-            if updated_bot := bot.Bot.update(bot_id, request.json or {}, patch=True):
+            update_data = request.json if request.json is not None else {}
+            update_data = BotUpdate.model_validate(update_data).model_dump(exclude_unset=True, exclude_none=False)
+            if updated_bot := bot.Bot.update(bot_id, update_data, patch=True):
                 _invalidate_admin_cache(200)
                 return {"message": "Bot updated", "id": updated_bot.id}, 200
-        except ValueError as exc:
+        except bot.BotIndexConflictError:
+            return {"error": bot.BotIndexConflictError.public_message}, 400
+        except (TypeError, ValueError) as exc:
             db.session.rollback()
             logger.warning("Invalid bot patch payload: %s", exc)
             return {"error": "Invalid bot update payload"}, 400
@@ -555,11 +567,21 @@ class Bots(MethodView):
 
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):
+        data = request.json or {}
+        index = None
         try:
-            new_bot = bot.Bot.add(request.json)
+            data = BotCreate.model_validate(data).model_dump()
+            if (index := data.get("index")) is not None and bot.Bot.index_exists(index):
+                return {"error": bot.BotIndexConflictError.public_message}, 400
+            new_bot = bot.Bot.add(data)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Bot created", "id": new_bot.id}), 201
-        except ValueError as e:
+        except IntegrityError:
+            db.session.rollback()
+            if index is not None and bot.Bot.index_exists(index):
+                return {"error": bot.BotIndexConflictError.public_message}, 400
+            raise
+        except (TypeError, ValueError) as e:
             logger.warning("Invalid bot create payload: %s", e)
             return {"error": "Invalid bot create payload"}, 400
 
@@ -746,9 +768,6 @@ class OSINTSources(MethodView):
         except osint_source.InvalidOSINTSourceIconError as exc:
             logger.warning("Invalid OSINT source icon payload: %s", exc)
             return {"error": exc.public_message}, 400
-        except IntegrityError as exc:
-            db.session.rollback()
-            return {"error": convert_integrity_error(exc)}, 400
         except ValueError as exc:
             db.session.rollback()
             logger.warning("Invalid OSINT source payload: %s", exc)
@@ -770,9 +789,6 @@ class OSINTSources(MethodView):
         except osint_source.InvalidOSINTSourceIconError as e:
             logger.warning("Invalid OSINT source icon payload: %s", e)
             return {"error": e.public_message}, 400
-        except IntegrityError as exc:
-            db.session.rollback()
-            return {"error": convert_integrity_error(exc)}, 400
         except ValueError as e:
             db.session.rollback()
             logger.warning("Invalid OSINT source update payload: %s", e)
@@ -817,9 +833,6 @@ class OSINTSources(MethodView):
             if source := osint_source.OSINTSource.update(source_id, data, patch=True):
                 _invalidate_admin_cache(200)
                 return {"message": "OSINT Source updated", "id": source.id}, 200
-        except IntegrityError as exc:
-            db.session.rollback()
-            return {"error": convert_integrity_error(exc)}, 400
         except (ValidationError, ValueError) as exc:
             db.session.rollback()
             logger.warning("Invalid OSINT source patch payload: %s", exc)
@@ -889,9 +902,6 @@ class OSINTSourcesImport(MethodView):
                 sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
-        except IntegrityError as exc:
-            db.session.rollback()
-            return {"error": convert_integrity_error(exc)}, 400
         except (KeyError, TypeError, ValueError):
             logger.exception("Invalid OSINT source import")
             return {"error": "Invalid source import"}, 400
@@ -924,9 +934,8 @@ class CuratedOSINTSourceLists(MethodView):
         except osint_source.CuratedOSINTSourceConflictError as exc:
             logger.info("Curated OSINT source load rejected: %s", exc.public_message)
             return {"error": exc.public_message}, 409
-        except IntegrityError as exc:
-            db.session.rollback()
-            return {"error": convert_integrity_error(exc)}, 400
+        except IntegrityError:
+            raise
         except ValueError:
             logger.exception("Invalid curated OSINT source selection or catalog")
             return {"error": "Invalid curated OSINT source selection"}, 400
@@ -951,11 +960,7 @@ class OSINTSourceGroups(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
-        try:
-            source_group = osint_source.OSINTSourceGroup.add(request.json)
-        except IntegrityError as exc:
-            db.session.rollback()
-            return {"error": convert_integrity_error(exc)}, 400
+        source_group = osint_source.OSINTSourceGroup.add(request.json)
         _invalidate_admin_cache(200)
         return jsonify({"id": source_group.id, "message": "OSINT source group created successfully"}), 200
 
@@ -965,11 +970,7 @@ class OSINTSourceGroups(MethodView):
             return {"error": "No group_id provided"}, 400
         if not (data := request.json):
             return {"error": "No data provided"}, 400
-        try:
-            response, status = osint_source.OSINTSourceGroup.update(group_id, data)
-        except IntegrityError as exc:
-            db.session.rollback()
-            return {"error": convert_integrity_error(exc)}, 400
+        response, status = osint_source.OSINTSourceGroup.update(group_id, data)
         _invalidate_admin_cache(status)
         return response, status
 
@@ -1058,8 +1059,8 @@ class WordLists(MethodView):
             response, status = word_list.WordList.delete(word_list_id)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError as e:
-            return {"error": convert_integrity_error(e)}, 400
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception(f"Failed to delete word list {word_list_id}")
             return {"error": "Could not delete word list"}, 400
@@ -1096,6 +1097,8 @@ class WordListImport(MethodView):
         except ValueError as exc:
             logger.warning(f"Invalid word list import payload: {exc}")
             return {"error": "Invalid word list import payload"}, 400
+        except IntegrityError:
+            raise
         except Exception:
             logger.exception("Exception occurred during Word List import")
             return {"error": "Unable to import Word Lists"}, 500
@@ -1171,6 +1174,7 @@ class ParameterSecrets(MethodView):
 
 def build_config_blueprint(name: str) -> Blueprint:
     config_bp = Blueprint(name, __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/{name}")
+    config_bp.register_error_handler(IntegrityError, handle_integrity_error)
     crud_methods = ["GET", "PUT", "DELETE"]
     crud_patch_methods = ["GET", "PUT", "DELETE", "PATCH"]
 
