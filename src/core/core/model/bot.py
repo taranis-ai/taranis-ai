@@ -50,7 +50,7 @@ class Bot(BaseModel):
         self.name = name
         self.description = description
         self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
-        self.index = index or Bot.get_highest_index() + 1
+        self.index = Bot.get_highest_index() + 1 if index is None else index
         self.enabled = enabled
         self.parameters = set_parameters(self.type, {}, parameters, patch=False, complete=self.enabled)
 
@@ -122,8 +122,7 @@ class Bot(BaseModel):
                 )
             elif bot.enabled:
                 bot.parameters = set_parameters(bot.type, bot.parameters, {}, patch=True, complete=True)
-            if index := data.get("index"):
-                index = cls.normalize_index(index)
+            if (index := data.get("index")) is not None:
                 if cls.index_exists(index, exclude_id=bot_id):
                     raise BotIndexConflictError
                 bot.index = index
@@ -154,15 +153,6 @@ class Bot(BaseModel):
             condition &= cls.id != exclude_id
         query = db.select(db.exists().where(condition))
         return db.session.execute(query).scalar_one()
-
-    @staticmethod
-    def normalize_index(index: Any) -> int:
-        if isinstance(index, bool) or not isinstance(index, (int, str)):
-            raise TypeError("Bot index must be an integer")
-        try:
-            return int(index)
-        except ValueError as exc:
-            raise ValueError("Bot index must be an integer") from exc
 
     @classmethod
     def filter_by_type(cls, filter_type: str | BOT_TYPES) -> "Bot | None":

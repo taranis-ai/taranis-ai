@@ -8,6 +8,8 @@ Each configured bot instance is a DAG node, identified by `Bot.id`. Multiple bot
 
 The admin dependency preview is scoped to the connected dependency component containing the edited bot. The Collector Chain remains the global enabled collector run order: every bot in that order sees the same full chain, while bots outside it see no Collector Chain section. Disabled bots are excluded from the collector chain but can remain visible in dependency badges with disabled styling. Malformed preview fields, types, or indexes return a generic 400 response rather than exposing validation details or raising a 500.
 
+Bot create and update payloads are validated at the core API boundary with `BotCreate` and `BotUpdate` in `src/models/models/admin.py`. Their shared index schema accepts integers and integer strings, rejects booleans and floats, and treats null or empty indexes as omitted. Zero is a valid index and is preserved during creation and updates; omitted update fields remain unset. Index uniqueness and database conflict handling remain in core.
+
 Bot indexes are unique. The new-bot form prefills one more than the highest existing index, checks availability as the index changes, ignores the current bot's own index while editing, and returns a clear static validation error for duplicate creation or updates.
 
 Collector-triggered runs enqueue the reachable enabled DAG once. Manual and cron bot runs enqueue the downstream DAG for their specific `worker_id` only after a successful result. Dependent jobs inherit the original filter and run with dependent triggering suppressed, so downstream completions do not schedule duplicate chains.

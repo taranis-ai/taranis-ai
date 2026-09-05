@@ -6,6 +6,7 @@ from typing import Any, ClassVar
 from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
+from models.admin import BotCreate, BotUpdate
 from models.admin import OSINTSource as OSINTSourceModel
 from psycopg.errors import NotNullViolation, UniqueViolation
 from pydantic import ValidationError
@@ -533,6 +534,7 @@ class Bots(MethodView):
         if not (update_data := request.json):
             return {"error": "No update data passed"}, 400
         try:
+            update_data = BotUpdate.model_validate(update_data).model_dump(exclude_unset=True, exclude_none=False)
             if updated_bot := bot.Bot.update(bot_id, update_data):
                 logger.debug(f"Successfully updated {updated_bot}")
                 _invalidate_admin_cache(200)
@@ -551,6 +553,7 @@ class Bots(MethodView):
             return {"error": "No bot_id provided"}, 400
         try:
             update_data = request.json if request.json is not None else {}
+            update_data = BotUpdate.model_validate(update_data).model_dump(exclude_unset=True, exclude_none=False)
             if updated_bot := bot.Bot.update(bot_id, update_data, patch=True):
                 _invalidate_admin_cache(200)
                 return {"message": "Bot updated", "id": updated_bot.id}, 200
@@ -567,12 +570,9 @@ class Bots(MethodView):
         data = request.json or {}
         index = None
         try:
-            if not isinstance(data, dict):
-                raise TypeError("Bot create payload must be an object")
-            if index := data.get("index"):
-                data["index"] = index = bot.Bot.normalize_index(index)
-                if bot.Bot.index_exists(index):
-                    return {"error": bot.BotIndexConflictError.public_message}, 400
+            data = BotCreate.model_validate(data).model_dump()
+            if (index := data.get("index")) is not None and bot.Bot.index_exists(index):
+                return {"error": bot.BotIndexConflictError.public_message}, 400
             new_bot = bot.Bot.add(data)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Bot created", "id": new_bot.id}), 201
