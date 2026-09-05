@@ -14,7 +14,7 @@ Bulk creation can also create one named source group containing exactly the new 
 
 Bulk deletion validates the complete source selection before changing data and commits all database deletions atomically. The optional `force` query parameter accepts only `true` or `false`; forced deletion also removes related news items and stories left without news items. Queue, scheduler, and MISP job cleanup runs after the database commit.
 
-Administrators can add one or more bundled curated source lists at any time. Source and group names are unique and are the curated catalog identities. Loading overlapping or previously loaded lists creates each source once and adds missing group memberships. Reloading never overwrites existing source or group fields and never removes sources or memberships.
+Administrators can add one or more bundled curated source lists at any time. Source and group names are unique and deliberately serve as the stable external identities instead of a separate index or key. This prevents duplicate names when defaults or source files are loaded repeatedly, lets the curated loader reuse records by name, and allows the same externally managed JSON definitions to be used across instances without relying on database IDs. Loading overlapping or previously loaded lists creates each source once and adds missing group memberships. Reloading never overwrites existing source or group fields and never removes sources or memberships.
 
 The OSINT source table keeps actions in its primary toolbar. Search, manual-source visibility, and status share a unified query row directly above the table. The creation buttons use the page context to keep their labels concise: New source and Curated sources.
 
@@ -50,4 +50,4 @@ Admin browser coverage exercises the curated multi-select workflow.
 
 Keep the collector-to-primary-URL mapping explicit. A collector without a single primary URL should not appear in the bulk form. Do not create a second persistence path: version-4 import already validates sources, creates optional groups, applies default-group membership, commits atomically, and schedules the new sources after the commit.
 
-Curated loading is intentionally separate from arbitrary file import because it reconciles existing sources and groups by their unique names. Keep catalog source and list names stable; changing one creates a new database record on the next load.
+Curated loading is intentionally separate from arbitrary file import because it reconciles existing sources and groups by their unique names. Keep catalog source and list names stable; changing one creates a new database record on the next load. A separate immutable key was considered for this identity but rejected as unnecessary while names are unique and stable; do not introduce another required identifier unless names can no longer satisfy that contract.

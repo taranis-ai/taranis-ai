@@ -9,7 +9,11 @@
 
   {% if error %}<div role="alert" class="alert alert-error alert-soft mb-5">{{ error }}</div>{% endif %}
 
-  <form hx-post="{{ url_for('admin.curated_osint_source_lists') }}" hx-target="#form-container" hx-target-error="#form-container">
+  <form hx-post="{{ url_for('admin.curated_osint_source_lists') }}"
+        hx-target="#form-container"
+        hx-status:400="target:#form-container"
+        hx-status:4xx="target:#form-container"
+        hx-status:5xx="target:#form-container">
     <input type="hidden" name="csrf_token" value="{{ request.cookies.get(config['JWT_ACCESS_CSRF_COOKIE_NAME'], '') }}">
     <div class="grid gap-3 md:grid-cols-2">
       {% for curated_list in curated_lists %}
