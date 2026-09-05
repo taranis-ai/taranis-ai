@@ -6,6 +6,7 @@ from typing import Any, ClassVar
 from flask import Blueprint, Flask, jsonify, make_response, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import current_user
+from models.admin import CuratedOSINTSourceSelection
 from models.admin import OSINTSource as OSINTSourceModel
 from psycopg.errors import NotNullViolation, UniqueViolation
 from pydantic import ValidationError
@@ -745,6 +746,9 @@ class OSINTSources(MethodView):
         except osint_source.InvalidOSINTSourceIconError as exc:
             logger.warning("Invalid OSINT source icon payload: %s", exc)
             return {"error": exc.public_message}, 400
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         except ValueError as exc:
             db.session.rollback()
             logger.warning("Invalid OSINT source payload: %s", exc)
@@ -766,6 +770,9 @@ class OSINTSources(MethodView):
         except osint_source.InvalidOSINTSourceIconError as e:
             logger.warning("Invalid OSINT source icon payload: %s", e)
             return {"error": e.public_message}, 400
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         except ValueError as e:
             db.session.rollback()
             logger.warning("Invalid OSINT source update payload: %s", e)
@@ -810,6 +817,9 @@ class OSINTSources(MethodView):
             if source := osint_source.OSINTSource.update(source_id, data, patch=True):
                 _invalidate_admin_cache(200)
                 return {"message": "OSINT Source updated", "id": source.id}, 200
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         except (ValidationError, ValueError) as exc:
             db.session.rollback()
             logger.warning("Invalid OSINT source patch payload: %s", exc)
@@ -879,6 +889,9 @@ class OSINTSourcesImport(MethodView):
                 sources = osint_source.OSINTSource.import_osint_sources_from_json(json_data)
         except ValidationError as exc:
             return {"error": OSINTSourceModel.format_validation_errors(exc)}, 400
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         except (KeyError, TypeError, ValueError):
             logger.exception("Invalid OSINT source import")
             return {"error": "Invalid source import"}, 400
@@ -887,6 +900,45 @@ class OSINTSourcesImport(MethodView):
             return {"error": "Unable to import"}, 400
         _invalidate_admin_cache(200)
         return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
+
+
+class CuratedOSINTSourceLists(MethodView):
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    def get(self):
+        try:
+            return {"items": osint_source.OSINTSource.get_curated_list_summaries()}
+        except (OSError, ValueError, ValidationError):
+            logger.exception("Invalid curated OSINT source catalog")
+            return {"error": "Curated OSINT source catalog is unavailable"}, 500
+
+    @auth_required("CONFIG_OSINT_SOURCE_CREATE")
+    def post(self):
+        try:
+            selection = CuratedOSINTSourceSelection.model_validate(request.get_json(silent=True) or {})
+            response = osint_source.OSINTSource.load_curated_lists(selection.list_names)
+        except ValidationError:
+            return {"error": "Select at least one valid curated source list"}, 400
+        except osint_source.CuratedOSINTSourceSchedulingError:
+            _invalidate_admin_cache(200)
+            return {"error": "Curated OSINT sources were saved but could not be scheduled; retry loading the selected lists"}, 503
+        except osint_source.CuratedOSINTSourceConflictError as exc:
+            logger.info("Curated OSINT source load rejected: %s", exc.public_message)
+            return {"error": exc.public_message}, 409
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
+        except ValueError:
+            logger.exception("Invalid curated OSINT source selection or catalog")
+            return {"error": "Invalid curated OSINT source selection"}, 400
+        except OSError:
+            logger.exception("Unable to read curated OSINT source catalog")
+            return {"error": "Curated OSINT source catalog is unavailable"}, 500
+        except Exception:
+            logger.exception("Failed to load curated OSINT sources")
+            return {"error": "Unable to load curated OSINT sources"}, 500
+
+        _invalidate_admin_cache(200)
+        return response
 
 
 class OSINTSourceGroups(MethodView):
@@ -899,7 +951,11 @@ class OSINTSourceGroups(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
-        source_group = osint_source.OSINTSourceGroup.add(request.json)
+        try:
+            source_group = osint_source.OSINTSourceGroup.add(request.json)
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         _invalidate_admin_cache(200)
         return jsonify({"id": source_group.id, "message": "OSINT source group created successfully"}), 200
 
@@ -909,7 +965,11 @@ class OSINTSourceGroups(MethodView):
             return {"error": "No group_id provided"}, 400
         if not (data := request.json):
             return {"error": "No data provided"}, 400
-        response, status = osint_source.OSINTSourceGroup.update(group_id, data)
+        try:
+            response, status = osint_source.OSINTSourceGroup.update(group_id, data)
+        except IntegrityError as exc:
+            db.session.rollback()
+            return {"error": convert_integrity_error(exc)}, 400
         _invalidate_admin_cache(status)
         return response, status
 
@@ -1146,6 +1206,11 @@ def build_config_blueprint(name: str) -> Blueprint:
     )
     config_bp.add_url_rule("/export-osint-sources", view_func=OSINTSourcesExport.as_view(f"{name}_osint_sources_export"))
     config_bp.add_url_rule("/import-osint-sources", view_func=OSINTSourcesImport.as_view(f"{name}_osint_sources_import"))
+    config_bp.add_url_rule(
+        "/curated-osint-source-lists",
+        view_func=CuratedOSINTSourceLists.as_view(f"{name}_curated_osint_source_lists"),
+        methods=["GET", "POST"],
+    )
     config_bp.add_url_rule("/permissions", view_func=Permissions.as_view(f"{name}_permissions"))
     config_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view(f"{name}_product_types_config"), methods=["GET", "POST"])
     config_bp.add_url_rule(

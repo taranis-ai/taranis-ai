@@ -308,6 +308,40 @@ class OSINTSourceGroup(TaranisBaseModel):
     word_lists: list[str] = Field(default_factory=list)
 
 
+class CuratedOSINTSourceList(TaranisBaseModel):
+    name: str
+    description: str = ""
+    sources: list[str] = Field(min_length=1)
+
+
+class CuratedOSINTSourceCatalog(TaranisBaseModel):
+    version: Literal[1]
+    sources: list[OSINTSource]
+    lists: list[CuratedOSINTSourceList]
+
+    @model_validator(mode="after")
+    def validate_catalog_references(self):
+        source_names = [source.name for source in self.sources]
+        list_names = [curated_list.name for curated_list in self.lists]
+        if len(source_names) != len(set(source_names)):
+            raise ValueError("Curated source names must be unique")
+        if len(list_names) != len(set(list_names)):
+            raise ValueError("Curated list names must be unique")
+        if any(len(curated_list.sources) != len(set(curated_list.sources)) for curated_list in self.lists):
+            raise ValueError("Curated source names must be unique within a list")
+
+        known_source_names = set(source_names)
+        if unknown_source_names := {
+            source_name for curated_list in self.lists for source_name in curated_list.sources if source_name not in known_source_names
+        }:
+            raise ValueError(f"Unknown curated source names: {', '.join(sorted(unknown_source_names))}")
+        return self
+
+
+class CuratedOSINTSourceSelection(TaranisBaseModel):
+    list_names: set[str] = Field(min_length=1)
+
+
 class ProductType(TaranisBaseModel):
     _core_endpoint = "/config/product-types"
     _model_name = "product_type"
