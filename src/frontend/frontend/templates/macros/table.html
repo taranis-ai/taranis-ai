@@ -17,7 +17,7 @@
                    @click.stop />
           </th>
         {% endif %}
-        {% for col in columns %}{{ table_header(col) }}{% endfor %}
+        {% for col in columns %}{{ table_header(col, table_id ~ '-container', routes.base_route) }}{% endfor %}
         {% if actions %}<th class="text-right">Actions</th>{% endif %}
       </tr>
     </thead>
@@ -116,11 +116,10 @@
   <div class="flex gap-4 mb-4">
     {% if routes.edit_route %}
       <div class="grow-0">
-        <button hx-get="{{ routes.edit_route }}"
-                hx-push-url="true"
-                hx-target="{{ new_item_target }}"
-                class="btn btn-primary"
-                data-testid="new-{{ model_name }}-button">New {{ name }}</button>
+        <a href="{{ routes.edit_route }}"
+           hx-boost="target:{{ new_item_target }} swap:innerHTML"
+           class="btn btn-primary"
+           data-testid="new-{{ model_name }}-button">New {{ name }}</a>
       </div>
     {% endif %}
     {% if searchbar %}{{ table_search_bar(container_id, routes.base_route, search_params) }}{% endif %}
@@ -154,10 +153,9 @@
   {% set order_params = {'order': order, 'page': 1} %}
   {% set order_url = update_query_params(order_params) %}
   {% if column.sortable %}
-    <th hx-boost:inherited>
+    <th>
       <a href="{{ (base_url or '') ~ order_url }}"
-         {% if container_id %} hx-select="#{{ container_id }}" hx-target="#{{ container_id }}" hx-swap="outerHTML" {% else %} hx-target="closest table" {% endif %}
-         hx-push-url="true"
+         {% if container_id %} hx-boost="select:#{{ container_id }} target:#{{ container_id }} swap:outerHTML" {% else %} hx-boost="true" hx-target="closest table" {% endif %}
          class="link link-hover">
         {{ column.title }}
         {% if request.args.get('order', '').startswith(column.field) %}
@@ -178,12 +176,15 @@
 
 {% macro failure_state_filter(base_url, table_container) %}
   {% set current_state = request.args.get("state", "") | lower %}
-  <form class="inline-flex flex-col items-center gap-1"
+  <form method="get"
+        action="{{ base_url }}"
+        class="inline-flex flex-col items-center gap-1"
+        hx-target="#{{ table_container }}"
+        hx-swap="outerHTML"
         hx-get="{{ base_url }}"
-        hx-target:inherited="#{{ table_container }}"
-        hx-swap:inherited="outerHTML"
-        hx-push-url:inherited="true"
-        hx-trigger="change">
+        hx-push-url="true"
+        hx-trigger="submit, change"
+        hx-sync="this:replace">
     {% for key, values in request.args.lists() %}
       {% if key not in ["state", "page"] %}
         {% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
@@ -206,21 +207,25 @@
              {% if current_state == "failure" %}checked{% endif %} />
     </div>
     <span class="label-text text-sm">Status</span>
+    <button type="submit" class="btn btn-ghost btn-xs">Apply</button>
   </form>
 {% endmacro %}
 
 {% macro table_search_bar(table_id, base_url, preserve_params=[]) %}
   {% set current_search = request.args.get('search', '') %}
   <div class="grow">
-    <form hx-get="{{ base_url }}"
+    <form method="get"
+          action="{{ base_url }}"
+          hx-get="{{ base_url }}"
           hx-push-url:inherited="true"
           hx-select:inherited="#{{ table_id }}"
           hx-target:inherited="#{{ table_id }}"
           hx-status:400:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
           hx-status:4xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
           hx-status:5xx:inherited="target:#notification-bar select:#notification-bar swap:outerHTML"
-          hx-trigger="{{ search_trigger(table_id ~ '-search') }}"
-          hx-on:submit="event.preventDefault()"
+          hx-trigger="submit, {{ search_trigger(table_id ~ '-search') }}"
+          hx-swap="outerHTML"
+          hx-sync="this:replace"
           hx-on::before:request="restoreSearchAfterSwap(ctx)">
       <label class="input w-full">
         {{ heroicon_outline('magnifying-glass', class="h-5 w-5") }}
@@ -230,6 +235,7 @@
             <input type="hidden" name="{{ key }}" value="{{ value }}" />
           {% endfor %}
         {% endfor %}
+        <button type="submit" class="sr-only">Search</button>
       </label>
     </form>
   </div>
@@ -248,42 +254,43 @@
       <!-- Items per Page -->
       <div class="flex items-center gap-2">
         <span class="text-sm font-medium">Items per page:</span>
-        <select name="limit"
-                class="select select-bordered select-sm h-8"
-                hx-get="{{ base_url }}{{ update_query_params({'page': 1}, exclude=['limit']) }}"
-                hx-include="this"
-                hx-push-url="true">
-          {% for option in [5, 20, 50, 100] %}
-            <option value="{{ option }}" {% if data.limit == option %}selected{% endif %}>{{ option }}</option>
+        <form method="get" action="{{ base_url }}" hx-get="{{ base_url }}" hx-trigger="submit, change from:select" hx-push-url="true">
+          {% for key, values in request.args.lists() %}
+            {% if key not in ["limit", "page"] %}
+              {% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+            {% endif %}
           {% endfor %}
-        </select>
+          <input type="hidden" name="page" value="1">
+          <select name="limit" class="select select-bordered select-sm h-8">
+            {% for option in [5, 20, 50, 100] %}
+              <option value="{{ option }}" {% if data.limit == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-ghost btn-sm">Apply</button>
+        </form>
       </div>
 
       <!-- Pagination Buttons & Current Page -->
       <div class="flex items-center gap-2">
-        <a {% if data.first_page %}hx-ignore{% endif %}
+        <a {% if data.first_page %}hx-ignore{% else %}href="{{ base_url }}{{ update_query_params({'page': 1}) }}" hx-get="{{ base_url }}{{ update_query_params({'page': 1}) }}" hx-push-url="true"{% endif %}
            class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
-           hx-get="{{ base_url }}{{ update_query_params({'page': 1}) }}"
-           hx-push-url="true">«</a>
+           {% if data.first_page %}aria-disabled="true"{% endif %}>«</a>
 
-        <a {% if data.first_page %}hx-ignore{% endif %}
+        <a {% if data.first_page %}hx-ignore{% else %}href="{{ base_url }}{{ update_query_params({'page': data.current_page - 1}) }}" hx-get="{{ base_url }}{{ update_query_params({'page': data.current_page - 1}) }}" hx-push-url="true"{% endif %}
            class="btn btn-sm h-8 min-w-[2rem] {% if data.first_page %}opacity-50 cursor-not-allowed{% endif %}"
-           hx-get="{{ base_url }}{{ update_query_params({'page': data.current_page - 1}) }}"
-           hx-push-url="true">‹</a>
+           {% if data.first_page %}aria-disabled="true"{% endif %}>‹</a>
 
         <span class="px-3 py-1 h-8 flex items-center bg-base-200 rounded-md text-sm font-semibold">
           Page {{ data.current_page }} of {{ data.total_pages }}
         </span>
 
-        <a {% if data.last_page %}hx-ignore{% endif %}
+        <a {% if data.last_page %}hx-ignore{% else %}href="{{ base_url }}{{ update_query_params({'page': data.current_page + 1}) }}" hx-get="{{ base_url }}{{ update_query_params({'page': data.current_page + 1}) }}" hx-push-url="true"{% endif %}
            class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
-           hx-get="{{ base_url }}{{ update_query_params({'page': data.current_page + 1}) }}"
-           hx-push-url="true">›</a>
+           {% if data.last_page %}aria-disabled="true"{% endif %}>›</a>
 
-        <a {% if data.last_page %}hx-ignore{% endif %}
+        <a {% if data.last_page %}hx-ignore{% else %}href="{{ base_url }}{{ update_query_params({'page': data.total_pages}) }}" hx-get="{{ base_url }}{{ update_query_params({'page': data.total_pages}) }}" hx-push-url="true"{% endif %}
            class="btn btn-sm h-8 min-w-[2rem] {% if data.last_page %}opacity-50 cursor-not-allowed{% endif %}"
-           hx-get="{{ base_url }}{{ update_query_params({'page': data.total_pages}) }}"
-           hx-push-url="true">»</a>
+           {% if data.last_page %}aria-disabled="true"{% endif %}>»</a>
       </div>
     </div>
   {% endif %}

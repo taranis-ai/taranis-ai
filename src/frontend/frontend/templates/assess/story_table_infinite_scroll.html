@@ -9,23 +9,23 @@
 
   <div class="flex items-center gap-3">
     {% if pagination.has_next %}
-      <button type="button"
-              id="infinite-scroll-trigger"
-              class="btn btn-outline btn-sm normal-case gap-2"
-              hx-get="{{ pagination.next_url }}"
-              hx-trigger="revealed, click"
-              hx-target="#story-list"
-              hx-select="#story-list > *"
-              hx-swap="beforeend"
-              hx-push-url="false"
-              hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
-              hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
-              hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
-              hx-on:htmx:before:request="this.classList.add('pointer-events-none'); this.setAttribute('aria-busy', 'true'); this.querySelector('[data-indicator]')?.classList.remove('hidden')"
-              hx-on:htmx:finally:request="this.classList.remove('pointer-events-none'); this.removeAttribute('aria-busy'); this.querySelector('[data-indicator]')?.classList.add('hidden')">
+      <a href="{{ pagination.next_url }}"
+         id="infinite-scroll-trigger"
+         class="btn btn-outline btn-sm normal-case gap-2"
+         hx-get="{{ pagination.next_url }}"
+         hx-trigger="revealed, click"
+         hx-target="#story-list"
+         hx-select="#story-list > *"
+         hx-swap="beforeend"
+         hx-push-url="false"
+         hx-status:400="target:#notification-bar select:#notification-bar swap:outerHTML"
+         hx-status:4xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+         hx-status:5xx="target:#notification-bar select:#notification-bar swap:outerHTML"
+         hx-on:htmx:before:request="this.classList.add('pointer-events-none'); this.setAttribute('aria-busy', 'true'); this.querySelector('[data-indicator]')?.classList.remove('hidden')"
+         hx-on:htmx:finally:request="this.classList.remove('pointer-events-none'); this.removeAttribute('aria-busy'); this.querySelector('[data-indicator]')?.classList.add('hidden')">
         <span data-indicator class="hidden loading loading-spinner loading-xs" aria-hidden="true"></span>
         <span>Load more stories</span>
-      </button>
+      </a>
     {% else %}
       <span class="text-sm text-base-content/60">You're all caught up.</span>
     {% endif %}

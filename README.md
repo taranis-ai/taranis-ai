@@ -96,3 +96,5 @@ It is released under terms of the [European Union Public Licence](https://eupl.e
 ## EU Funding
 
 ![Co-financed by the Connecting Europe Facility of the European Union](https://ec.europa.eu/inea/sites/default/files/ceflogos/en_horizontal_cef_logo_2.png)
+
+Shared tables support ordinary links and GET forms for navigation, search, filters, and pagination when JavaScript is unavailable. Interactive Assess token filters and bulk actions still require JavaScript.

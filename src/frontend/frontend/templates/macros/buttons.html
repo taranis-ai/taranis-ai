@@ -8,10 +8,10 @@
 {% endmacro %}
 
 {% macro import_button(import_url) %}
-  <button hx-get="{{ import_url }}" class="btn btn-outline btn-accent">
+  <a href="{{ import_url }}" hx-boost="swap:innerHTML" class="btn btn-outline btn-accent">
     {{ heroicon_outline("document-arrow-up", class="h-5 w-5") }}
     Import
-  </button>
+  </a>
 {% endmacro %}
 
 {% macro action_button(action, item_id) %}

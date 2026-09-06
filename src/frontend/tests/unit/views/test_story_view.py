@@ -1070,8 +1070,10 @@ def test_table_search_bar_uses_form_level_search_trigger(app):
     form = tree.xpath("//form")[0]
     search_input = tree.xpath('//input[@id="osint_table-search"]')[0]
 
-    assert form.get("hx-trigger") == expected_search_trigger("osint_table-search")
-    assert form.get("hx-on:submit") == "event.preventDefault()"
+    assert form.get("hx-trigger") == "submit, " + expected_search_trigger("osint_table-search")
+    assert form.get("method") == "get"
+    assert form.get("action") == "/frontend/admin/osint-sources"
+    assert form.get("hx-on:submit") is None
     assert search_input.get("hx-trigger") is None
 
 
