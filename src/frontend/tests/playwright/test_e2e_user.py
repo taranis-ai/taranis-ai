@@ -98,7 +98,7 @@ class TestEndToEndUser(BaseE2ETest):
             expect(review).to_have_attribute("title", "Review the current shift's unread Stories and continue through Report to Publish.")
             review.click()
             expect(page).to_have_url(re.compile(r"/analyst-review/start"))
-            page.get_by_role("link", name="Dashboard").click()
+            page.get_by_role("link", name="Dashboard", exact=True).click()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
