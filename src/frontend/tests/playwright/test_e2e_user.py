@@ -88,6 +88,18 @@ class TestEndToEndUser(BaseE2ETest):
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
 
+            cards = page.get_by_test_id("dashboard-workflow-cards")
+            expect(cards.locator(":scope > div")).to_have_count(4)
+            assess = page.get_by_test_id("dashboard-assess-card")
+            expect(assess).to_contain_text(re.compile(r"There are \d+ news items"))
+            expect(assess).to_contain_text(re.compile(r"There are \d+ stories"))
+            expect(assess).to_contain_text("This week")
+            review = assess.get_by_role("link", name="Start analyst review")
+            expect(review).to_have_attribute("title", "Review the current shift's unread Stories and continue through Report to Publish.")
+            review.click()
+            expect(page).to_have_url(re.compile(r"/analyst-review/start"))
+            page.get_by_role("link", name="Dashboard").click()
+
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
             visible_count, total_count = self._get_assess_story_counts(page)
