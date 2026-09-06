@@ -254,7 +254,7 @@
       <!-- Items per Page -->
       <div class="flex items-center gap-2">
         <span class="text-sm font-medium">Items per page:</span>
-        <form method="get" action="{{ base_url }}" hx-get="{{ base_url }}" hx-trigger="submit, change from:select" hx-push-url="true">
+        <form method="get" action="{{ base_url }}" hx-get="{{ base_url }}" hx-trigger="submit, change" hx-push-url="true">
           {% for key, values in request.args.lists() %}
             {% if key not in ["limit", "page"] %}
               {% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}

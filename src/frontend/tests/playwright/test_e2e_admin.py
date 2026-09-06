@@ -284,7 +284,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             self.delete_item(page, "user-table", username)
 
         def import_export_users():
-            page.get_by_role("link", name="Import").click()
+            page.get_by_role("button", name="Import").click()
             page.get_by_role("button", name="Choose File").set_input_files(test_user)
             page.get_by_role("button", name="Submit").click()
             with page.expect_download() as download_info:
@@ -408,10 +408,10 @@ class TestEndToEndAdmin(BaseE2ETest):
             force_checkbox.check()
             page.get_by_role("button", name="Delete").click()
             dismiss_notifications(page)
-            expect(page.get_by_role("link", name="Reset Filter")).to_be_visible()
+            expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
 
         def import_export_osint_sources():
-            page.get_by_role("link", name="Import").click()
+            page.get_by_role("button", name="Import").click()
             page.get_by_role("button", name="Choose File").set_input_files(test_osint_source)
             page.get_by_role("button", name="Submit").click()
             with page.expect_download() as download_info:
@@ -644,7 +644,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             # expect(page.get_by_test_id("word_list-table").get_by_role("link", name=word_list_name)).not_to_be_visible() # TODO: Wordlist table not rendered afer last element is deleted
 
         def import_export_word_lists():
-            with_htmx_wait(page, lambda: page.get_by_role("link", name="Import").click())
+            with_htmx_wait(page, lambda: page.get_by_role("button", name="Import").click())
             page.get_by_role("button", name="Choose File").set_input_files(test_wordlist)
             with_htmx_wait(page, lambda: page.get_by_role("button", name="Submit").click())
             expect(page.get_by_test_id("word_list-table-container")).to_be_visible()
