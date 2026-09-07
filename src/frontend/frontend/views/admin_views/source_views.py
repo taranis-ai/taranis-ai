@@ -404,8 +404,12 @@ class SourceView(AdminBaseView):
         status = response.status_code if response is not None else 500
         notification = cls.render_worker_task_notification(response)
 
+        if not response or not response.ok:
+            return notification, status
+
         table, table_response = cls.table_view() if request.args else cls.render_list()
-        status = table_response if table_response != 200 else status
+        if table_response != 200:
+            return table, table_response
         return notification + table, status
 
     @classmethod
