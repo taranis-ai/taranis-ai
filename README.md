@@ -52,16 +52,11 @@ For container and Python dependency SBOM scope and attestations, see [docs/sbom.
 
 ## Features
 
-In source administration, **Collect** queues collection while keeping the detail form and unsaved edits in place. **Collect All** and **Update Wordlists** refresh their existing tables and show the queue result in a notification.
-Connector bulk delete and Analyze report cloning/deletion likewise refresh the existing table without adding duplicate panels.
-Creating a report requires a Report Type, whether started from Analyze or Assess's Add to Report view.
-
 * Advanced OSINT Capabilities: Taranis AI scours multiple data sources, such as websites, for unstructured news articles, providing a comprehensive intelligence feed.
 * AI-Enhanced Analysis: Utilizes Artificial Intelligence and Natural Language Processing to automatically enhance and enrich collected articles for higher content quality.
 * Analyst-Friendly Workflow: Offers a streamlined process where analysts can easily convert unstructured news into structured report items, optimizing the data transformation journey.
 * Multi-Format Output: Generates a variety of end products, including structured reports and PDF files, tailored to specific informational needs.
 * Seamless Publishing: Facilitates the effortless publication of finalized intelligence products, ensuring timely dissemination of critical information.
-  Choose **Create copy** from a Publish table row or an open Product to review a new Product prefilled with its type, title (with a " Copy" suffix), description, and selected Report Items. The copy is created only after **Save**, without rendered content, publication settings, or history. If the source has unsaved edits, cancel the discard confirmation to keep editing or save first; confirming copies the saved version.
 * Collaborative Threat Intelligence (Experimental): Supports Story-level sharing between Taranis AI instances via [MISP](https://www.misp-project.org/), or directly between Taranis AI and MISP for flexible collaboration and information dissemination.
 
 ### OpenAPI

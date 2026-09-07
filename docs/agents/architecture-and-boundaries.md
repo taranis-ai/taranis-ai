@@ -27,7 +27,7 @@ Worker task modules are `collector_tasks.py`, `bot_tasks.py`, `presenter_tasks.p
 
 ## Config API Constraint Failures
 
-The config and admin blueprints share `handle_integrity_error` in `src/core/core/api/config.py`. It rolls back the session before returning safe PostgreSQL unique/not-null validation messages (400). Other integrity failures are logged server-side and return a static 500 response. Endpoint catch-all handlers must let `IntegrityError` propagate to this boundary; domain-specific bot-index conflicts retain their curated message. Boundary coverage is in `src/core/tests/unit/test_config_integrity_errors.py`, including session recovery after a failed flush.
+The config and admin blueprints share `handle_integrity_error` in `src/core/core/api/config.py`. It rolls back the session before returning safe PostgreSQL unique/not-null validation messages (400). Other integrity failures are logged server-side and return a static 500 response. Pydantic validation errors use the shared model formatter and roll back at the same blueprint boundary. Endpoint catch-all handlers must let `IntegrityError` and `ValidationError` propagate to these boundaries; domain-specific bot-index conflicts retain their curated message. Boundary coverage is in `src/core/tests/unit/test_config_integrity_errors.py`, including session recovery after a failed flush.
 
 ## Persistence and Migrations
 

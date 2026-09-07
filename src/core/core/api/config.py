@@ -8,6 +8,7 @@ from flask.views import MethodView
 from flask_jwt_extended import current_user
 from models.admin import BotCreate, BotUpdate, CuratedOSINTSourceSelection
 from models.admin import OSINTSource as OSINTSourceModel
+from models.base import TaranisBaseModel
 from psycopg.errors import NotNullViolation, UniqueViolation
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -66,6 +67,11 @@ def handle_integrity_error(error: IntegrityError):
         return {"error": "A required value is missing."}, 400
     logger.error("Unexpected database integrity failure in config API", exc_info=error)
     return {"error": "Database integrity error."}, 500
+
+
+def handle_validation_error(error: ValidationError):
+    db.session.rollback()
+    return TaranisBaseModel.validation_error_response(error, prefix="Validation failed"), 400
 
 
 def _invalidate_admin_cache(status_code: int) -> int:
@@ -182,7 +188,7 @@ class ReportItemTypes(MethodView):
             item = report_item_type.ReportItemType.add(request.json)
             _invalidate_admin_cache(201)
             return jsonify({"message": "Report item type added", "id": item.id}), 201
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
         except Exception:
             logger.exception("Failed to add report item type")
@@ -224,12 +230,12 @@ class ProductTypes(MethodView):
             db.session.rollback()
             logger.warning("Invalid product type template path: %s", e)
             return {"error": "Invalid presenter template path"}, 400
+        except (IntegrityError, ValidationError):
+            raise
         except ValueError as e:
             db.session.rollback()
             logger.warning("Invalid product type payload: %s", e)
             return {"error": "Invalid product type payload"}, 400
-        except IntegrityError:
-            raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error creating product type: {e}")
@@ -247,12 +253,12 @@ class ProductTypes(MethodView):
             db.session.rollback()
             logger.warning("Invalid product type template path: %s", e)
             return {"error": "Invalid presenter template path"}, 400
+        except (IntegrityError, ValidationError):
+            raise
         except ValueError as e:
             db.session.rollback()
             logger.warning("Invalid product type update payload: %s", e)
             return {"error": "Invalid product type payload"}, 400
-        except IntegrityError:
-            raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error updating product type: {e}")
@@ -279,7 +285,7 @@ class ProductTypes(MethodView):
             response, status = product_type.ProductType.delete(type_id)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
         except Exception as e:
             logger.error(f"Error deleting product type: {e}")
@@ -484,7 +490,7 @@ class Users(MethodView):
             new_user = user.User.add(request.json)
             _invalidate_admin_cache(201)
             return {"message": "User created", "id": new_user.id}, 201
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
         except Exception:
             logger.exception("Could not create user")
@@ -498,7 +504,7 @@ class Users(MethodView):
             response, status = user.User.update(user_id, request.json)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
         except Exception:
             logger.exception("Could not update user %s", user_id)
@@ -512,7 +518,7 @@ class Users(MethodView):
             response, status = user.User.delete(user_id)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
         except Exception:
             logger.exception("Could not delete user %s", user_id)
@@ -1059,7 +1065,7 @@ class WordLists(MethodView):
             response, status = word_list.WordList.delete(word_list_id)
             _invalidate_admin_cache(status)
             return response, status
-        except IntegrityError:
+        except (IntegrityError, ValidationError):
             raise
         except Exception:
             logger.exception(f"Failed to delete word list {word_list_id}")
@@ -1175,6 +1181,7 @@ class ParameterSecrets(MethodView):
 def build_config_blueprint(name: str) -> Blueprint:
     config_bp = Blueprint(name, __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/{name}")
     config_bp.register_error_handler(IntegrityError, handle_integrity_error)
+    config_bp.register_error_handler(ValidationError, handle_validation_error)
     crud_methods = ["GET", "PUT", "DELETE"]
     crud_patch_methods = ["GET", "PUT", "DELETE", "PATCH"]
 
