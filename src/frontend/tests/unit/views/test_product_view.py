@@ -2,7 +2,7 @@ from unittest.mock import call, patch
 
 import pytest
 from flask import Response as FlaskResponse
-from flask import render_template
+from flask import render_template, render_template_string, url_for
 from models.product import Product, ProductType, PublisherPreset
 from models.report import ReportItem
 from models.types import PRESENTER_TYPES, PUBLISHER_TYPES
@@ -245,6 +245,21 @@ def test_product_copy_prefills_only_creation_fields(app, report_items):
     assert "/reports/source-product" not in markup
     assert source.title == "Daily report"
     persistence.store_object.assert_not_called()
+
+
+def test_product_table_actions_link_to_each_product_copy(app):
+    with app.test_request_context("/publish"):
+        for product_id in ["product-1", "product-2"]:
+            markup = render_template_string(
+                "{% from 'macros/table.html' import table_actions %}{{ table_actions(actions, item_id, base_url) }}",
+                actions=ProductView.get_default_actions(),
+                item_id=product_id,
+                base_url=ProductView.get_base_route(),
+            )
+            assert f'href="{url_for("publish.product", product_id="0", copy_from=product_id)}"' in markup
+            assert 'aria-label="Create copy"' in markup
+            assert f'href="{url_for("publish.product", product_id=product_id)}"' in markup
+            assert f'hx-delete="{url_for("publish.product", product_id=product_id)}"' in markup
 
 
 def test_product_copy_missing_source_returns_not_found(authenticated_client):

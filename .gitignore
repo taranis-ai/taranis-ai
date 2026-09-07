@@ -12,6 +12,7 @@ build/
 .pytest_cache/
 celerybeat-schedule
 .hypothesis
+.playwright-mcp/
 git_info.json
 taranis_data/
 

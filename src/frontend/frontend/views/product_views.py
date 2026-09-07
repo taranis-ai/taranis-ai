@@ -1,6 +1,6 @@
 from typing import Any
 
-from flask import abort, render_template, request
+from flask import abort, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from models.product import Product, ProductType, PublisherPreset
 from models.report import ReportItem
@@ -24,6 +24,20 @@ class ProductView(BaseView):
 
     base_route = "publish.publish"
     edit_route = "publish.product"
+
+    @classmethod
+    def get_default_actions(cls) -> list[dict[str, Any]]:
+        actions = super().get_default_actions()
+        actions.insert(
+            1,
+            {
+                "label": "Create copy",
+                "icon": "document-duplicate",
+                "type": "link",
+                "url_template": url_for("publish.product", product_id="0") + "?copy_from={item_id}",
+            },
+        )
+        return actions
 
     @classmethod
     def get_columns(cls) -> list[dict[str, Any]]:
