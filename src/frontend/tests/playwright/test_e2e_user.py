@@ -591,9 +591,12 @@ class TestEndToEndUser(BaseE2ETest):
             page.get_by_role("button", name="Add to Report").click()
             page.get_by_test_id("new-report-button-dialog").click()
             page.get_by_role("textbox", name="Title").fill("Unsaved report from Assess")
+            selected_stories = page.locator('#report_form input[name="stories[]"]')
+            story_ids = selected_stories.evaluate_all("inputs => inputs.map(input => input.value)")
+            assert story_ids
             check_report_type_required()
             expect(page.get_by_role("textbox", name="Title")).to_have_value("Unsaved report from Assess")
-            expect(page.locator('#report_form input[name="stories[]"]')).to_have_count(2)
+            assert selected_stories.evaluate_all("inputs => inputs.map(input => input.value)") == story_ids
             page.get_by_role("link", name="Analyze", exact=True).click()
             new_report_button = page.get_by_role("link", name="New Report")
             expect(new_report_button).to_be_visible()
@@ -944,7 +947,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report REQUIRED")
-                page.get_by_label("Report Type Select a report").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
+                page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
                 page.get_by_test_id("save-report").click()
                 page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
                 dismiss_notifications(page)
