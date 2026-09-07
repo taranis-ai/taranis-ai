@@ -21,4 +21,4 @@ The dashboard endpoint computes database counts and reads the existing conflict 
 Extend the dashboard service test for calendar boundaries and the existing user dashboard browser workflow for card navigation and the review entry. Run the full signoff pipeline.
 
 ## Pitfalls
-Do not label the product total as published or ready to publish. Keep the analyst review permission gate. Exclude future-dated content from weekly counts. Counts are not a rolling seven-day window.
+Do not label the product total as published or ready to publish. Keep the analyst review permission gate and trim the captured action markup so denied or absent permission leaves no header action wrapper. Exclude future-dated content from weekly counts. Counts are not a rolling seven-day window.

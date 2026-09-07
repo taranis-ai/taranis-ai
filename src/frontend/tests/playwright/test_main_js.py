@@ -443,6 +443,11 @@ def test_boosted_filter_form_keeps_latest_values_and_focus(page: Page):
                     'value=""',
                     f'value="{parse_qs(urlparse(route.request.url).query).get("search", [""])[0]}"',
                     1,
+                ).replace(
+                    '<option value="open">',
+                    '<option value="open" selected>'
+                    if parse_qs(urlparse(route.request.url).query).get("status") == ["open"]
+                    else '<option value="open">',
                 ),
             ),
         ),
@@ -460,6 +465,7 @@ def test_boosted_filter_form_keeps_latest_values_and_focus(page: Page):
 
     expect(page).to_have_url(re.compile(r"status=open"))
     expect(page.locator("#results [name='search']")).to_have_value("incident")
+    expect(page.locator("#results #status")).to_have_value("open")
     assert requests == [
         "https://example.test/filter?search=incident&status=",
         "https://example.test/filter?status=open&search=incident",

@@ -134,4 +134,4 @@ docker exec -it core taranis-cli set-roles user Admin
 
 After updating the frontend image, check table search, sorting, page size, and pagination with JavaScript enabled and disabled. With JavaScript enabled, verify that search focus survives updates and failed requests display notifications without replacing the table.
 
-For dashboard updates, deploy matching core and frontend images so weekly activity fields are available. Check the four workflow cards, weekly counts, and permission-gated analyst review link. No database migration is required.
+For dashboard updates, deploy matching core and frontend images so weekly activity fields are available. Check the four workflow cards, weekly counts, and permission-gated analyst review link. Verify that users without review permission have no empty header action area. No database migration is required.

@@ -99,4 +99,4 @@ It is released under terms of the [European Union Public Licence](https://eupl.e
 
 Shared tables support ordinary links and GET forms for navigation, search, filters, and pagination when JavaScript is unavailable. Interactive Assess token filters and bulk actions still require JavaScript.
 
-The dashboard shows Assess, Analyze, Publish, and Connectors in a responsive two-column layout, with weekly activity counts (Monday onward, UTC) and an Assess header shortcut to analyst review.
+The dashboard shows Assess, Analyze, Publish, and Connectors in a responsive two-column layout, with weekly activity counts (Monday onward, UTC) and an Assess header shortcut to analyst review. Users without review permission see the standard card title without an empty action area.
