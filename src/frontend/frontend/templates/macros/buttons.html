@@ -24,6 +24,9 @@
   {% else %}
     {% set action_url = action.url %}
   {% endif %}
+  {% if action.query_string %}
+    {% set action_url = action_url ~ ('&' if '?' in action_url else '?') ~ action.query_string %}
+  {% endif %}
   {% set testid = "action-" ~ action.label | lower | replace(' ', '-') ~ "-" ~ (item_id | default('button')) %}
   <div class="tooltip" data-tip="{{ action.label }}">
   {% if action.type == 'link' %}
