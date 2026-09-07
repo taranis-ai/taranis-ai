@@ -402,7 +402,7 @@ class TestUserWorkflow(BaseE2ETest):
             self.navigate_to_analyze(page)
 
         def report_1():
-            self.highlight_element(page.get_by_role("button", name="New Report").first).click()
+            self.highlight_element(page.get_by_role("link", name="New Report").first).click()
             page.get_by_label("Select a report").select_option("CERT Report")
             self.short_sleep(0.5)
             page.get_by_label("Title", exact=True).fill("Test Report")
@@ -411,7 +411,7 @@ class TestUserWorkflow(BaseE2ETest):
             self.capture_screenshot(page, "./tests/playwright/screenshots/report_item_add.png")
 
         def report_2():
-            self.highlight_element(page.get_by_role("button", name="New Report")).click()
+            self.highlight_element(page.get_by_role("link", name="New Report")).click()
             page.get_by_label("Select a report").select_option("Disinformation")
             page.get_by_label("Title", exact=True).fill("Test Disinformation Title")
             self.highlight_element(page.get_by_role("button", name="Create Report")).click()
@@ -510,7 +510,7 @@ class TestUserWorkflow(BaseE2ETest):
         page.wait_for_url("**/publish", wait_until="domcontentloaded")
         # expect(page).to_have_title("Taranis AI | Publish")
 
-        self.highlight_element(page.get_by_role("button", name="New Product").first).click()
+        self.highlight_element(page.get_by_role("link", name="New Product").first).click()
         self.highlight_element(page.get_by_label("Product Type * Select an item")).click()
         page.get_by_label("Product Type * Select an item").select_option(label="CERT Daily Report")
 

@@ -54,11 +54,51 @@ class TestEndToEndUser(BaseE2ETest):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
+    def test_analyze_navigation_without_javascript(self, non_admin_logged_in_page: Page):
+        browser = non_admin_logged_in_page.context.browser
+        assert browser is not None
+        context = browser.new_context(java_script_enabled=False)
+        context.add_cookies(non_admin_logged_in_page.context.cookies())
+        page = context.new_page()
+
+        try:
+            page.goto(url_for("analyze.analyze", _external=True))
+            expect(page.get_by_test_id("analyze")).to_be_visible()
+
+            search = page.get_by_test_id("report-search-input")
+            search.fill("missing report")
+            with page.expect_navigation():
+                search.press("Enter")
+            expect(page).to_have_url(re.compile(r"search=missing(?:\+|%20)report"))
+            expect(page.get_by_test_id("analyze")).to_be_visible()
+
+            with page.expect_navigation():
+                page.get_by_role("link", name="Title").click()
+            expect(page).to_have_url(re.compile(r"order=title_asc"))
+
+            with page.expect_navigation():
+                page.get_by_role("link", name="New Report").click()
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+        finally:
+            context.close()
+
     def test_user_dashboard(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper):
         page = non_admin_logged_in_page
 
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            cards = page.get_by_test_id("dashboard-workflow-cards")
+            expect(cards.locator(":scope > div")).to_have_count(4)
+            assess = page.get_by_test_id("dashboard-assess-card")
+            expect(assess).to_contain_text(re.compile(r"There are \d+ news items"))
+            expect(assess).to_contain_text(re.compile(r"There are \d+ stories"))
+            expect(assess).to_contain_text("This week")
+            review = assess.get_by_role("link", name="Start analyst review")
+            expect(review).to_have_attribute("title", "Review the current shift's unread Stories and continue through Report to Publish.")
+            review.click()
+            expect(page).to_have_url(re.compile(r"/analyst-review/start"))
+            page.get_by_role("link", name="Dashboard", exact=True).click()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
@@ -538,7 +578,7 @@ class TestEndToEndUser(BaseE2ETest):
             self.delete_table_row(page, delete_button_test_id)
 
         def create_report():
-            new_report_button = page.get_by_role("button", name="New Report")
+            new_report_button = page.get_by_role("link", name="New Report")
             expect(new_report_button).to_be_visible()
             new_report_button.click()
             page.get_by_role("textbox", name="Title").fill("Test report")

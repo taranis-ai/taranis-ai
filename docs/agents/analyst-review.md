@@ -44,3 +44,5 @@ The frontend asks core for the Shift/Unread Story IDs once, then stores the orde
 - A failed core action must render the same Story and leave progress unchanged.
 - Report review state is valid only after the queue is empty and only for the Report bound to that run.
 - Preserve ordinary Assess, Report, and Product routes when no review run is present.
+
+The dashboard entry is a button-styled link in the Assess card header, beside the ordinary Assess link. Its tooltip explains the Shift/Unread review and Report-to-Publish flow. Keep its existing permission gate and route.

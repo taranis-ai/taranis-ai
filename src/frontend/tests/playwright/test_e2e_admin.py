@@ -421,7 +421,7 @@ class TestEndToEndAdmin(BaseE2ETest):
             force_checkbox.check()
             page.get_by_role("button", name="Delete").click()
             dismiss_notifications(page)
-            expect(page.get_by_role("button", name="Reset Filter")).to_be_visible()
+            expect(page.get_by_role("link", name="Reset Filter")).to_be_visible()
 
         def import_export_osint_sources():
             page.get_by_role("button", name="Import").click()
