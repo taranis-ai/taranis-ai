@@ -54,11 +54,51 @@ class TestEndToEndUser(BaseE2ETest):
         self.highlight_element(page.get_by_test_id("login-button")).click()
         expect(page.locator("#dashboard")).to_be_visible()
 
+    def test_analyze_navigation_without_javascript(self, non_admin_logged_in_page: Page):
+        browser = non_admin_logged_in_page.context.browser
+        assert browser is not None
+        context = browser.new_context(java_script_enabled=False)
+        context.add_cookies(non_admin_logged_in_page.context.cookies())
+        page = context.new_page()
+
+        try:
+            page.goto(url_for("analyze.analyze", _external=True))
+            expect(page.get_by_test_id("analyze")).to_be_visible()
+
+            search = page.get_by_test_id("report-search-input")
+            search.fill("missing report")
+            with page.expect_navigation():
+                search.press("Enter")
+            expect(page).to_have_url(re.compile(r"search=missing(?:\+|%20)report"))
+            expect(page.get_by_test_id("analyze")).to_be_visible()
+
+            with page.expect_navigation():
+                page.get_by_role("link", name="Title").click()
+            expect(page).to_have_url(re.compile(r"order=title_asc"))
+
+            with page.expect_navigation():
+                page.get_by_role("link", name="New Report").click()
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+        finally:
+            context.close()
+
     def test_user_dashboard(self, non_admin_logged_in_page: Page, forward_console_and_page_errors_non_admin, stories_function_wrapper):
         page = non_admin_logged_in_page
 
         def test_dashboard_edit_settings(page: Page) -> None:
             expect(page.get_by_role("link", name="Taranis AI Logo")).to_be_visible()
+
+            cards = page.get_by_test_id("dashboard-workflow-cards")
+            expect(cards.locator(":scope > div")).to_have_count(4)
+            assess = page.get_by_test_id("dashboard-assess-card")
+            expect(assess).to_contain_text(re.compile(r"There are \d+ news items"))
+            expect(assess).to_contain_text(re.compile(r"There are \d+ stories"))
+            expect(assess).to_contain_text("This week")
+            review = assess.get_by_role("link", name="Start analyst review")
+            expect(review).to_have_attribute("title", "Review the current shift's unread Stories and continue through Report to Publish.")
+            review.click()
+            expect(page).to_have_url(re.compile(r"/analyst-review/start"))
+            page.get_by_role("link", name="Dashboard", exact=True).click()
 
             page.locator("#dashboard").get_by_role("link", name="Assess").click()
             expect(page.get_by_test_id("assess_story_count")).to_be_visible()
@@ -489,11 +529,20 @@ class TestEndToEndUser(BaseE2ETest):
             assert self._get_assess_selection_count(page) == 2
             expect(page.get_by_role("button", name="Cluster")).to_be_visible()
 
+        def check_report_type_required():
+            report_type = page.get_by_test_id("report-type-select")
+            expect(report_type).to_have_attribute("required", "")
+            page.get_by_test_id("save-report").click()
+            expect(report_type).to_be_focused()
+            assert report_type.evaluate("select => select.validity.valueMissing")
+            expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
+
         def check_report_view_layout_changes():
             page.get_by_test_id("new-report-button").click()
             expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
 
             page.get_by_role("textbox", name="Title").fill("test title")
+            check_report_type_required()
             page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
             page.get_by_role("button", name="Stacked view").click()
             expect(page).to_have_url(re.compile(r"layout=stacked"))
@@ -538,11 +587,22 @@ class TestEndToEndUser(BaseE2ETest):
             self.delete_table_row(page, delete_button_test_id)
 
         def create_report():
-            new_report_button = page.get_by_role("button", name="New Report")
+            select_report_stories_from_assess(story_search_term)
+            page.get_by_role("button", name="Add to Report").click()
+            page.get_by_test_id("new-report-button-dialog").click()
+            page.get_by_role("textbox", name="Title").fill("Unsaved report from Assess")
+            selected_stories = page.locator('#report_form input[name="stories[]"]')
+            story_ids = selected_stories.evaluate_all("inputs => inputs.map(input => input.value)")
+            assert story_ids
+            check_report_type_required()
+            expect(page.get_by_role("textbox", name="Title")).to_have_value("Unsaved report from Assess")
+            assert selected_stories.evaluate_all("inputs => inputs.map(input => input.value)") == story_ids
+            page.get_by_role("link", name="Analyze", exact=True).click()
+            new_report_button = page.get_by_role("link", name="New Report")
             expect(new_report_button).to_be_visible()
             new_report_button.click()
             page.get_by_role("textbox", name="Title").fill("Test report")
-            page.get_by_label("Report Type Select a report").select_option(label=self.CERT_REPORT_TYPE_LABEL)
+            page.get_by_test_id("report-type-select").select_option(label=self.CERT_REPORT_TYPE_LABEL)
             expect(page.locator("#report_form")).to_contain_text("Attributes will be generated after the report item has been created.")
             expect(page.get_by_test_id("analyze").locator("section")).to_contain_text("No stories assigned to this report.")
             page.get_by_test_id("save-report").click()
@@ -690,6 +750,8 @@ class TestEndToEndUser(BaseE2ETest):
                 }
                 page.get_by_test_id(f"action-clone-report-{report_uuid}").click()
                 expect(report_links).to_have_count(existing_report_count + 1)
+                expect(page.locator("#report")).to_have_count(1)
+                expect(page.locator("#report-table-container")).to_have_count(1)
                 current_hrefs = report_links.evaluate_all("(links) => links.map((link) => link.getAttribute('href')).filter(Boolean)")
                 new_hrefs = [href for href in current_hrefs if href not in existing_report_hrefs]
                 assert len(new_hrefs) == 1
@@ -701,6 +763,8 @@ class TestEndToEndUser(BaseE2ETest):
                 item_id = self.get_table_row_id_by_link_text(page, "report-table", cloned_report_title)
                 delete_button_test_id = f"action-delete-{item_id}"
                 self.delete_table_row(page, delete_button_test_id)
+                expect(page.locator("#report")).to_have_count(1)
+                expect(page.locator("#report-table-container")).to_have_count(1)
                 page.get_by_role("link", name="Test report").click()
                 expect(page.get_by_test_id("report-stories").get_by_role("link", name=report_story_two["title"])).to_be_visible()
                 expect(page.get_by_test_id(f"story-link-{report_story_two['id']}")).to_contain_text(report_story_two_primary_link)
@@ -709,9 +773,17 @@ class TestEndToEndUser(BaseE2ETest):
 
             def cleanup_reports(report_uuid_2: str):
                 page.get_by_role("link", name="Analyze").click()
-                item_id = self.get_table_row_id_by_link_text(page, "report-table", "Test report")
-                delete_button_test_id = f"action-delete-{item_id}"
-                self.delete_table_row(page, delete_button_test_id)
+                report_row = (
+                    page.get_by_test_id("report-table")
+                    .locator("tbody tr")
+                    .filter(has=page.get_by_role("link", name="Test report", exact=True))
+                )
+                report_row.get_by_role("checkbox").check()
+                page.get_by_test_id("delete-report-button").click()
+                with_htmx_wait(page, lambda: page.locator(".swal2-confirm").click())
+                expect(report_row).to_have_count(0)
+                expect(page.locator("#report")).to_have_count(1)
+                expect(page.locator("#report-table-container")).to_have_count(1)
 
             test_report_item_view()
             test_remove_story_from_report()
@@ -875,7 +947,7 @@ class TestEndToEndUser(BaseE2ETest):
                 page.get_by_test_id("new-report-button").click()
                 expect(page.get_by_role("heading", name="Create Report")).to_be_visible()
                 page.get_by_role("textbox", name="Title").fill("all attr report REQUIRED")
-                page.get_by_label("Report Type Select a report").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
+                page.get_by_test_id("report-type-select").select_option(label=self.ALL_ATTRIBUTE_REQUIRED_REPORT_TYPE_LABEL)
                 page.get_by_test_id("save-report").click()
                 page.get_by_test_id("report-id").inner_text().split("ID: ")[1]
                 dismiss_notifications(page)
@@ -1088,3 +1160,34 @@ class TestEndToEndUser(BaseE2ETest):
 
         load_product_list()
         add_product()
+        expect(page.get_by_test_id("copy-product")).to_be_visible()
+        source_url = page.url
+        product_type = page.locator("#product_type_id").input_value()
+
+        page.get_by_test_id("copy-product").click()
+        expect(page.get_by_role("heading", name="Create Product")).to_be_visible()
+        expect(page.get_by_placeholder("Title")).to_have_value(f"{product_title} Copy")
+        expect(page.get_by_placeholder("Description")).to_have_value("This is a test product.")
+        expect(page.locator("#product_type_id")).to_have_value(product_type)
+        expect(page.get_by_test_id("product-render")).to_have_count(0)
+        load_product_list()
+        expect(page.get_by_role("link", name=f"{product_title} Copy", exact=True)).to_have_count(0)
+
+        page.goto(source_url)
+        page.get_by_placeholder("Title").fill(f"{product_title} unsaved")
+        page.once("dialog", lambda dialog: dialog.dismiss())
+        page.get_by_test_id("copy-product").click()
+        expect(page.get_by_placeholder("Title")).to_have_value(f"{product_title} unsaved")
+        assert page.url == source_url
+        page.once("dialog", lambda dialog: dialog.accept())
+        page.get_by_test_id("copy-product").click()
+        expect(page.get_by_placeholder("Title")).to_have_value(f"{product_title} Copy")
+        page.get_by_placeholder("Title").fill(f"{product_title} reviewed")
+        page.get_by_test_id("save-product").click()
+        expect(page.get_by_role("heading", name=f"Update Product - {product_title} reviewed")).to_be_visible()
+        expect(page.get_by_test_id("last-published-product-empty")).to_be_visible()
+        assert page.url != source_url
+        page.reload()
+        expect(page.get_by_placeholder("Title")).to_have_value(f"{product_title} reviewed")
+        page.goto(source_url)
+        expect(page.get_by_placeholder("Title")).to_have_value(product_title)

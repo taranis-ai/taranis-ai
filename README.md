@@ -52,12 +52,17 @@ For container and Python dependency SBOM scope and attestations, see [docs/sbom.
 
 ## Features
 
+In source administration, **Collect** queues collection while keeping the detail form and unsaved edits in place. **Collect All** and **Update Wordlists** refresh their existing tables and show the queue result in a notification.
+Connector bulk delete and Analyze report cloning/deletion likewise refresh the existing table without adding duplicate panels.
+Creating a report requires a Report Type, whether started from Analyze or Assess's Add to Report view.
+
 * Advanced OSINT Capabilities: Taranis AI scours multiple data sources, such as websites, for unstructured news articles, providing a comprehensive intelligence feed.
 * AI-Enhanced Analysis: Utilizes Artificial Intelligence and Natural Language Processing to automatically enhance and enrich collected articles for higher content quality.
 * Analyst-Friendly Workflow: Offers a streamlined process where analysts can easily convert unstructured news into structured report items, optimizing the data transformation journey.
 * Optional Analyst Chat: Provides persistent, per-user conversations that can answer general questions or search the stories the analyst is authorized to see through a separately configured OpenAI-compatible Responses API.
 * Multi-Format Output: Generates a variety of end products, including structured reports and PDF files, tailored to specific informational needs.
 * Seamless Publishing: Facilitates the effortless publication of finalized intelligence products, ensuring timely dissemination of critical information.
+  Choose **Create copy** from a Publish table row or an open Product to review a new Product prefilled with its type, title (with a " Copy" suffix), description, and selected Report Items. The copy is created only after **Save**, without rendered content, publication settings, or history. If the source has unsaved edits, cancel the discard confirmation to keep editing or save first; confirming copies the saved version.
 * Collaborative Threat Intelligence (Experimental): Supports Story-level sharing between Taranis AI instances via [MISP](https://www.misp-project.org/), or directly between Taranis AI and MISP for flexible collaboration and information dissemination.
 
 ### OpenAPI
@@ -99,3 +104,7 @@ It is released under terms of the [European Union Public Licence](https://eupl.e
 ## EU Funding
 
 ![Co-financed by the Connecting Europe Facility of the European Union](https://ec.europa.eu/inea/sites/default/files/ceflogos/en_horizontal_cef_logo_2.png)
+
+Shared tables support ordinary links and GET forms for navigation, search, filters, and pagination when JavaScript is unavailable. Interactive Assess token filters and bulk actions still require JavaScript.
+
+The dashboard shows Assess, Analyze, Publish, and Connectors in a responsive two-column layout, with weekly activity counts (Monday onward, UTC) and an Assess header shortcut to analyst review. Users without review permission see the standard card title without an empty action area.

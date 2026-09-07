@@ -14,6 +14,8 @@ Use these files when a task mentions a related feature, workflow, route, model, 
 
 ## Feature Memories
 
+- [Dashboard Cards](dashboard-cards.md) - workflow card layout, weekly counts, and analyst review entry.
+
 - [Assess Filters](assess-filters.md) - assess sidebar filters, filter-list loading, default filters, omnisearch filter handling, and related cache behavior.
 - [Analyst Chat](analyst-chat.md) - persistent chat workflow, direct Responses API integration, Assess search planning, privacy, ownership, and deployment configuration.
 - [Analyst Review](analyst-review.md) - dashboard-launched Shift/Unread triage, atomic story/report actions, the temporary review queue, and Report-to-Publish handoff.

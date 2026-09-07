@@ -149,3 +149,9 @@ docker exec -it core taranis-cli set-roles user Admin
 - The default `core` and `frontend` images recycle Granian workers above 4096 MiB and 1024 MiB RSS respectively.
 - The default ingress policy assumes the stock k3s Traefik deployment runs in `kube-system` with label `app.kubernetes.io/name=traefik`. Adjust [`05-network-policies.yaml`](./kubernetes/05-network-policies.yaml) or the Helm values if your ingress controller differs.
 - The default ingress manifest is plain HTTP. For raw Kubernetes, add `spec.tls` and a certificate secret. For Helm, configure `ingress.tls` and `ingress.annotations` in values.yaml.
+
+## Frontend smoke check
+
+After updating the frontend image, check table search, sorting, page size, and pagination with JavaScript enabled and disabled. With JavaScript enabled, verify that search focus survives updates and failed requests display notifications without replacing the table.
+
+For dashboard updates, deploy matching core and frontend images so weekly activity fields are available. Check the four workflow cards, weekly counts, and permission-gated analyst review link. Verify that users without review permission have no empty header action area. No database migration is required.
