@@ -77,6 +77,7 @@ class SourceView(AdminBaseView):
                 "icon": "arrows-pointing-in",
                 "method": "post",
                 "url": url_for("admin.collect_osint_source", osint_source_id=""),
+                "query_string": request.query_string.decode(),
                 "hx_target": f"#{cls.model_name()}-table-container",
                 "hx_swap": "outerHTML",
                 "confirm": None,
@@ -373,7 +374,7 @@ class SourceView(AdminBaseView):
         status = response.status_code if response is not None else 500
         notification = cls.render_worker_task_notification(response)
 
-        table, table_response = cls.render_list()
+        table, table_response = cls.table_view() if request.args else cls.render_list()
         status = table_response if table_response != 200 else status
         return notification + table, status
 

@@ -388,10 +388,18 @@ class TestEndToEndAdmin(BaseE2ETest):
             expect(all_rows).to_have_count(10)
             dismiss_notifications(page)
 
-            with_htmx_wait(page, lambda: osint_table.locator('[data-testid^="action-collect-"]').first.click())
+            with_htmx_wait(page, lambda: page.get_by_role("radio", name="Show").check())
+            expect(page).to_have_url(url_for("admin.osint_sources", filter_manual="false", _external=True))
+            expect(all_rows).to_have_count(11)
+
+            manual_row = all_rows.filter(has=page.get_by_text("Manual", exact=True))
+            with_htmx_wait(page, lambda: manual_row.locator('[data-testid^="action-collect-"]').click())
             expect(page.locator("#osint_source-table-container")).to_have_count(1)
-            expect(all_rows).to_have_count(10)
+            expect(all_rows).to_have_count(11)
             dismiss_notifications(page)
+
+            with_htmx_wait(page, lambda: page.get_by_role("radio", name="Hide").check())
+            expect(all_rows).to_have_count(10)
 
             first_source_name = osint_table.locator("[data-testid='osint_source-table_name']").first.inner_text().strip()
             page.get_by_placeholder("Search...").fill(first_source_name)
